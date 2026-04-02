@@ -12,7 +12,6 @@ use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_ast_module;
 
-pub mod bounded_fs;
 pub mod completions;
 pub mod grammar;
 pub mod symbols;

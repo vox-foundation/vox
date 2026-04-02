@@ -2,7 +2,7 @@
 title: "SCIENTIA SSOT handbook (glossary, vocabulary, checklists)"
 description: "Single reference for SCIENTIA lifecycle terms, status vocabulary, SSOT routing, anti-drift checklists, operator flows, SLOs, and LLM task conventions."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: 2026-03-28
 training_eligible: true
 ---
 
@@ -23,8 +23,10 @@ Companion: [publication readiness audit](../architecture/scientia-publication-re
 | **Status event** | Append-only row in `publication_status_events` (e.g. arXiv handoff stages); does **not** auto-update `publication_manifests.state`. |
 | **Snapshot** | Row in `external_status_snapshots`: polled remote JSON at a point in time. |
 | **Adapter** | Scholarly backend (`local_ledger`, `echo_ledger`, `zenodo`, `openreview`, …) resolved via `VOX_SCHOLARLY_ADAPTER` or CLI override. |
+| **Discovery signal** | Typed entry under `scientia_evidence.discovery_signals` (`contracts/scientia/discovery-signal.schema.json`): strength, family, provenance — used for **deterministic** candidate ranking only. |
+| **Machine suggestion** | LLM/heuristic output labeled `machine_suggested` + `requires_human_review` (`contracts/scientia/machine-suggestion-block.schema.json`); never grounds novelty or final claims. |
 
-**Lifecycle (happy path):** `draft` manifest → `publication-prepare` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
+**Lifecycle (happy path):** `draft` manifest → `publication-prepare` (optional `--discovery-intake-gate` for scientia-only gating; optional `preflight_profile=arxiv-assist` when arXiv handoff is the target) → optional `publication-discovery-refresh-evidence` (or MCP `vox_scientia_publication_discovery_refresh_evidence`) to merge live Socrates/sidecars and refresh `scientia_evidence` → optional `publication-discovery-scan` / `publication-discovery-explain` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
 
 ## 2. Canonical status vocabulary (T002)
 
@@ -80,7 +82,7 @@ Job-layer preflight uses `last_error_class = "preflight"`. Adapter errors use `S
 - **Dispatch** (`vox-mcp/src/tools/dispatch.rs`): routes tool name → async handler.
 - **Input schemas** (`input_schemas.rs`): JSON Schema for each tool; must cover every canonical tool (*tests enforce coverage*).
 
-After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run check:mcp-parity`.
+After registry changes: in **`vox-vscode`**, `pnpm run compile` regenerates the tool list and runs **`check:mcp-parity`** (and **`check:activation-parity`**). For a quicker loop you can run **`pnpm run generate:mcp-registry`** and **`pnpm run check:mcp-parity`** only.
 
 **Zenodo metadata MCP:** there is intentionally no separate MCP tool for `publication-zenodo-metadata` (stdout-only JSON helper); agents should call `vox_scientia_publication_preflight` / staging export or run the CLI directly when they need deposition JSON.
 
@@ -101,7 +103,7 @@ After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run
 2. Arm in `dispatch.rs`.
 3. Schema in `input_schemas.rs` + registry coverage test.
 4. `tool-registry.canonical.yaml`.
-5. `pnpm run generate:mcp-registry` + `pnpm run check:mcp-parity`.
+5. In **`vox-vscode`**: `pnpm run compile`, or at minimum `pnpm run generate:mcp-registry` + `pnpm run check:mcp-parity`.
 
 ### `publish_cloud` schema change (T008)
 
@@ -137,7 +139,7 @@ After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run
 
 ### Happy path publication (T013)
 
-1. `vox scientia publication-prepare --publication-id <id> …` (+ optional `--preflight`; omit `--title` to infer from markdown, add eval/benchmark flags to seed discovery-candidate evidence).
+1. `vox scientia publication-prepare --publication-id <id> …` (+ optional `--preflight`, `--discovery-intake-gate`, `--preflight-profile arxiv-assist`; omit `--title` to infer from markdown; add eval/benchmark flags to seed discovery-candidate evidence). To rehydrate evidence after DB/artifact changes: `vox scientia publication-discovery-refresh-evidence --publication-id <id>`.
 2. `vox scientia publication-preflight --publication-id <id> --with-worthiness`; use `next_actions` as the checklist.
 3. Two approvers: `vox scientia publication-approve …`.
 4. Default path: `publication-scholarly-pipeline-run --dry-run`, then rerun live when ready.

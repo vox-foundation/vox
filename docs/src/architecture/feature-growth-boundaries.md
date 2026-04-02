@@ -27,13 +27,14 @@ Preferred order:
 - Do not imply `import rust:...` exposes arbitrary typed Vox APIs.
 - Do not add syntax when a bounded IR, registry, or approved binding can solve the same problem.
 - Treat generated and interpreted workflow behavior as different semantics until they actually converge.
+- Keep runtime-engine crate choices (`tokio`, `axum`, `tower`) behind projection/contract boundaries instead of exposing them as user-facing Vox APIs.
 
 ## “Implemented” vs “planned”
 
 Use these terms precisely:
 
 | Label | Meaning |
-|-------|---------|
+| ----- | ------- |
 | `implemented semantics` | behavior exists in the shipping compiler/runtime path and is tested |
 | `planned semantics` | docs may describe the intended future model, but it is not yet the live guarantee |
 | `language intent` | syntax and design direction exist, but runtime behavior may still be partial |
@@ -50,8 +51,7 @@ Before adding a new bell-curve feature, answer:
 
 ## Canonical projection drift gate
 
-The **WebIR + AppContract + RuntimeProjection** triplet must stay deterministic and versioned. The integration test `projection_triplet_is_deterministic_and_schema_versioned` in `crates/vox-compiler/tests/projection_parity.rs` exercises canonical byte stability
-	end_time for all three projections from one fixture.
+The **WebIR + AppContract + RuntimeProjection** triplet must stay deterministic and versioned. The integration test `projection_triplet_is_deterministic_and_schema_versioned` in `crates/vox-compiler/tests/projection_parity.rs` exercises canonical byte stability for all three projections from one fixture.
 
 **Local / CI reproducer:**
 

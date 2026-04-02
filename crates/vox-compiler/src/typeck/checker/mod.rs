@@ -41,6 +41,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s) => *s,
+        HirExpr::Try(t) => t.span,
         HirExpr::Jsx(el) => el.span,
         HirExpr::JsxSelfClosing(el) => el.span,
     }
@@ -98,6 +99,9 @@ impl<'a> Checker<'a> {
         }
         for t in &module.mcp_tools {
             self.check_function(&t.func);
+        }
+        for r in &module.mcp_resources {
+            self.check_function(&r.func);
         }
         for r in &module.routes {
             self.check_route(r);
@@ -498,6 +502,7 @@ impl<'a> Checker<'a> {
                 .attributes
                 .iter()
                 .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value)),
+            HirExpr::Try(t) => Self::contains_db_write_or_unsafe_in_expr(t.target.as_ref()),
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
             | HirExpr::StringLit(_, _)

@@ -118,6 +118,26 @@ pub trait GitForgeProvider: Send + Sync {
     /// (e.g., `X-GitHub-Event`, `X-Gitlab-Event`).
     fn parse_webhook(&self, event_type: &str, payload: &[u8]) -> Result<WebhookEvent, ForgeError>;
 
+    // ── Releases ───────────────────────────────────────────────────────────
+
+    /// Create a new release. Returns the URL of the created release.
+    async fn create_release(
+        &self,
+        owner: &str,
+        repo: &str,
+        release: crate::types::NewRelease<'_>,
+    ) -> Result<String, ForgeError>;
+
+    // ── Discussions/Issues ─────────────────────────────────────────────────
+
+    /// Create a new discussion (if supported) or fallback to an issue. Returns the URL.
+    async fn create_discussion_or_issue(
+        &self,
+        owner: &str,
+        repo: &str,
+        req: crate::types::NewDiscussionOrIssue<'_>,
+    ) -> Result<String, ForgeError>;
+
     // ── Health ─────────────────────────────────────────────────────────────
 
     /// Verify API connectivity. Returns the API rate limit remaining, if applicable.
@@ -275,6 +295,28 @@ mod tests {
         fn parse_webhook(&self, _e: &str, _p: &[u8]) -> Result<WebhookEvent, ForgeError> {
             Ok(WebhookEvent::Unknown {
                 event_type: "test".into(),
+            })
+        }
+        async fn create_release(
+            &self,
+            _o: &str,
+            _r: &str,
+            _req: crate::types::NewRelease<'_>,
+        ) -> Result<String, ForgeError> {
+            Err(ForgeError::Unsupported {
+                forge: "NullForge".into(),
+                operation: "create_release".into(),
+            })
+        }
+        async fn create_discussion_or_issue(
+            &self,
+            _o: &str,
+            _r: &str,
+            _req: crate::types::NewDiscussionOrIssue<'_>,
+        ) -> Result<String, ForgeError> {
+            Err(ForgeError::Unsupported {
+                forge: "NullForge".into(),
+                operation: "create_discussion_or_issue".into(),
             })
         }
         async fn health_check(&self) -> Result<Option<u32>, ForgeError> {

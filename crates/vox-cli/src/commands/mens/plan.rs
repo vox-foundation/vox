@@ -143,6 +143,27 @@ pub async fn run(action: PlanAction) -> Result<()> {
             session_id,
             approve,
         } => {
+            // When --approve is not passed, fetch a status preview and ask for confirmation.
+            if !approve {
+                let status_resp = crate::dei_daemon::call(
+                    crate::dei_daemon::method::AI_PLAN_STATUS,
+                    serde_json::json!({ "session_id": session_id }),
+                    false,
+                )
+                .await
+                .unwrap_or(serde_json::Value::Null);
+                // Surface the plan goal to the user before gating.
+                let goal = status_resp
+                    .get("goal")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("(unknown goal)");
+                let question = format!("Execute plan for session '{session_id}'?\n  Goal: {goal}");
+                let confirmed = crate::render::confirm_or_abort(&question)?;
+                if !confirmed {
+                    println!("  Execution cancelled.");
+                    return Ok(());
+                }
+            }
             let resp = crate::dei_daemon::call(
                 crate::dei_daemon::method::AI_PLAN_EXECUTE,
                 serde_json::json!({
@@ -170,6 +191,8 @@ fn print_plan_daemon_response(resp: &serde_json::Value, json: bool, write: bool)
         );
         return;
     }
+    use owo_colors::OwoColorize;
+    let c = crate::diagnostics::should_color_stdout();
     let session_id = resp
         .get("session_id")
         .and_then(|v| v.as_str())
@@ -184,8 +207,15 @@ fn print_plan_daemon_response(resp: &serde_json::Value, json: bool, write: bool)
         .and_then(|v| v.as_array())
         .map(|a| a.len())
         .unwrap_or(0);
-    println!("\n  \x1b[1;36m✓ Plan response\x1b[0m");
-    println!("  Session : \x1b[33m{session_id}\x1b[0m");
+
+    println!();
+    if c {
+        println!("  {}", "✓ Plan response".bold().cyan());
+        println!("  Session : {}", session_id.yellow());
+    } else {
+        println!("  ✓ Plan response");
+        println!("  Session : {session_id}");
+    }
     println!("  Goal    : {goal}");
     println!("  Summary : {summary}");
     println!("  Steps   : {steps}");
@@ -194,7 +224,7 @@ fn print_plan_daemon_response(resp: &serde_json::Value, json: bool, write: bool)
     }
     println!();
     if let Some(md) = resp.get("markdown").and_then(|v| v.as_str()) {
-        println!("{md}");
+        print!("{}", crate::render::render_markdown(md));
     }
 }
 
@@ -220,8 +250,15 @@ pub fn print_plan_summary_json(resp: &serde_json::Value, json_out: bool) {
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
 
-        println!("\n  \x1b[1;36mPlan Status\x1b[0m");
-        println!("  Session : \x1b[33m{session_id}\x1b[0m");
+        use owo_colors::OwoColorize;
+        let c = crate::diagnostics::should_color_stdout();
+        if c {
+            println!("\n  {}", "Plan Status".bold().cyan());
+            println!("  Session : {}", session_id.yellow());
+        } else {
+            println!("\n  Plan Status");
+            println!("  Session : {session_id}");
+        }
         println!("  Goal    : {goal}");
         println!("  Mode    : {mode}");
         println!("  Version : {version}");
@@ -240,11 +277,19 @@ pub fn print_plan_summary_json(resp: &serde_json::Value, json_out: bool) {
                 .unwrap_or(0);
             let skipped = counts.get("skipped").and_then(|v| v.as_u64()).unwrap_or(0);
 
-            println!("    \x1b[32m✓ completed  : {done}\x1b[0m");
-            println!("    \x1b[36m⟳ in_progress: {running}\x1b[0m");
-            println!("    \x1b[33m○ pending    : {pending}\x1b[0m");
-            println!("    \x1b[31m✗ failed     : {failed}\x1b[0m");
-            println!("    \x1b[2m⊘ skipped    : {skipped}\x1b[0m");
+            if c {
+                println!("    {}", format!("✓ completed  : {done}").green());
+                println!("    {}", format!("⟳ in_progress: {running}").cyan());
+                println!("    {}", format!("○ pending    : {pending}").yellow());
+                println!("    {}", format!("✗ failed     : {failed}").red());
+                println!("    {}", format!("⊘ skipped    : {skipped}").dimmed());
+            } else {
+                println!("    ✓ completed  : {done}");
+                println!("    ⟳ in_progress: {running}");
+                println!("    ○ pending    : {pending}");
+                println!("    ✗ failed     : {failed}");
+                println!("    ⊘ skipped    : {skipped}");
+            }
         }
 
         if let Some(events) = resp.get("recent_events").and_then(|v| v.as_array())

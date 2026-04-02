@@ -1,9 +1,15 @@
 //! Task management tool handlers for the Vox MCP server.
 //!
 //! Covers: submit, status, complete, fail, cancel, reorder, drain, and publish.
+//!
+//! ## Policy side effects
+//! Submit/status paths participate in **interruption / attention policy** ([`super::attention_policy`]): they may call
+//! [`ServerState::record_attention_event`](crate::server::ServerState::record_attention_event) and read trust snapshots when
+//! questioning backlog or human-confirmation gates apply. That is **budget-plane telemetry**, not remote product analytics.
 
 use vox_orchestrator::{
     AgentEventKind, AgentId, FileAffinity, TaskCategory, TaskEnqueueHints, TaskId, TaskPriority,
+    session_context_envelope_key,
 };
 use vox_repository::{load_agent_scopes, normalize_task_path};
 use vox_runtime::prompt_canonical;
@@ -13,6 +19,11 @@ use crate::params::{
     SubmitTaskParams, SubmitTaskResponse, TaskStatusParams, ToolResult,
 };
 use crate::server::ServerState;
+use crate::tools::attention_policy::{
+    evaluate_with_state, has_explicit_human_confirmation, pending_backlog_for_session,
+    task_submit_signals, trust_for_session,
+};
+use crate::tools::session_identity::normalize_optional_session_id;
 
 const REM_TASK_SCOPE: &str = "Limit `files` to paths under the agent scopes, or omit `agent_name` so routing picks a valid agent.";
 const REM_QUESTIONING_PENDING: &str = "Call `vox_questioning_pending` for `question_id` / `question_options`, then `vox_questioning_submit_answer` with the same `session_id` as chat/plan (and optional `question_id` / `selected_option_id`), or continue until the open clarification is answered.";
@@ -23,6 +34,10 @@ const REM_TASK_SUBMIT: &str =
 const REM_TASK_ID: &str =
     "Confirm `task_id` with task/orchestrator status; it may be stale, completed, or cancelled.";
 const REM_TASK_ORCH_OP: &str = "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
+const REM_CONTEXT_ENVELOPE_JSON: &str =
+    "Pass valid serialized ContextEnvelope JSON, or omit `context_envelope_json`.";
+const REM_HARNESS_SPEC_JSON: &str =
+    "Pass valid serialized AgentHarnessSpec JSON, or omit `harness_spec_json`.";
 
 fn task_category_from_mcp_str(raw: &str) -> Option<TaskCategory> {
     match raw.trim().to_ascii_lowercase().as_str() {
@@ -62,12 +77,11 @@ fn parse_campaign_from_description(
                 campaign_id = Some(vv.to_string());
             }
         }
-        if t_lower.starts_with("tier:") {
+        if let Some(v) = t_lower.strip_prefix("tier:") {
             if tier.is_some() {
                 tracing::debug!("submit_task: multiple tier tags found; using first");
                 continue;
             }
-            let v = &t_lower["tier:".len()..];
             tier = match v.trim() {
                 "issue_repair" => Some(vox_orchestrator::ReconstructionBenchmarkTier::IssueRepair),
                 "subsystem_regen" => {
@@ -122,6 +136,13 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         .as_deref()
         .and_then(parse_benchmark_tier)
         .or(tier_from_desc);
+    let thread_id = normalize_optional_session_id(params.thread_id.as_deref());
+    let harness_spec_json = params
+        .harness_spec_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string);
     if category.is_none()
         && params.complexity.is_none()
         && params.model_preference.is_none()
@@ -129,6 +150,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         && campaign_id.is_none()
         && benchmark_tier.is_none()
         && execution_role.is_none()
+        && thread_id.is_none()
+        && harness_spec_json.is_none()
     {
         return None;
     }
@@ -140,6 +163,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         campaign_id,
         benchmark_tier,
         execution_role,
+        thread_id,
+        harness_spec_json,
     })
 }
 
@@ -159,13 +184,18 @@ mod tests {
             model_preference: None,
             model_override: None,
             session_id: None,
+            thread_id: None,
             planning_mode: None,
             goal_type: None,
             retrieval: None,
+            context_envelope_json: None,
+            harness_spec_json: None,
             goal_scope: None,
             max_plan_depth: None,
             campaign_id: None,
             benchmark_tier: None,
+            trace_id: None,
+            correlation_id: None,
         }
     }
 
@@ -233,6 +263,62 @@ mod tests {
             Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen)
         );
     }
+
+    #[test]
+    fn socrates_context_from_retrieval_preserves_verification_and_quality_signals() {
+        let retrieval = crate::memory::RetrievalEvidenceEnvelope {
+            trigger: crate::memory::RetrievalTriggerMode::ExplicitToolQuery,
+            retrieval_tier: "hybrid".to_string(),
+            memory_hit_count: 2,
+            knowledge_hit_count: 1,
+            chunk_hit_count: 1,
+            repo_hit_count: 1,
+            used_vector: true,
+            used_bm25: true,
+            used_lexical_fallback: false,
+            contradiction_count: 1,
+            top_score: Some(0.73),
+            search_intent: "factual_lookup".to_string(),
+            selected_mode: "hybrid".to_string(),
+            backend_mix: vec!["memory_vector".to_string(), "chunk_fts".to_string()],
+            source_diversity: 3,
+            evidence_quality: 0.68,
+            citation_coverage: 0.75,
+            verification_performed: true,
+            verification_reason: Some("weak_evidence_quality".to_string()),
+            verification_query: Some("alpha beta".to_string()),
+            recommended_next_action: Some("focus_codex".to_string()),
+            search_plan: serde_json::json!({ "intent": "factual_lookup" }),
+            search_diagnostics: serde_json::json!({ "verification_performed": true }),
+            sqlite_journal_mode: None,
+            sqlite_fts5_reported: None,
+            sqlite_foreign_keys_on: None,
+            rrf_fused_hit_count: 0,
+        };
+        let ctx = socrates_context_from_retrieval(&retrieval);
+        assert_eq!(ctx.source_diversity, 3);
+        assert!((ctx.evidence_quality - 0.68).abs() < f64::EPSILON);
+        assert!((ctx.citation_coverage - 0.75).abs() < f64::EPSILON);
+        assert!(ctx.verification_performed);
+        assert_eq!(
+            ctx.verification_reason.as_deref(),
+            Some("weak_evidence_quality")
+        );
+        assert_eq!(ctx.recommended_next_action.as_deref(), Some("focus_codex"));
+    }
+}
+
+fn apply_mcp_trace_to_context_envelope(
+    env: &mut vox_orchestrator::ContextEnvelope,
+    trace_id: Option<&str>,
+    correlation_id: Option<&str>,
+) {
+    if let Some(t) = trace_id.map(str::trim).filter(|s| !s.is_empty()) {
+        env.provenance.trace_id = Some(t.to_string());
+    }
+    if let Some(c) = correlation_id.map(str::trim).filter(|s| !s.is_empty()) {
+        env.provenance.correlation_id = Some(c.to_string());
+    }
 }
 
 fn socrates_context_from_retrieval(
@@ -243,10 +329,18 @@ fn socrates_context_from_retrieval(
         memory_hit_count: retrieval.memory_hit_count,
         knowledge_hit_count: retrieval.knowledge_hit_count,
         chunk_hit_count: retrieval.chunk_hit_count,
+        repo_hit_count: retrieval.repo_hit_count,
+        rrf_fused_hit_count: retrieval.rrf_fused_hit_count,
         used_vector: retrieval.used_vector,
         used_bm25: retrieval.used_bm25,
         used_lexical_fallback: retrieval.used_lexical_fallback,
         contradiction_count: retrieval.contradiction_count,
+        source_diversity: retrieval.source_diversity,
+        evidence_quality: retrieval.evidence_quality,
+        citation_coverage: retrieval.citation_coverage,
+        verification_performed: retrieval.verification_performed,
+        verification_reason: retrieval.verification_reason.clone(),
+        recommended_next_action: retrieval.recommended_next_action.clone(),
     }
     .to_task_context()
 }
@@ -256,9 +350,123 @@ fn socrates_context_from_retrieval(
 /// Routes the task to the best agent based on file affinity, acquires locks,
 /// and enqueues it for processing.
 pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> String {
+    let mut params = params;
+    let normalized_session_id = normalize_optional_session_id(params.session_id.as_deref());
+    if params.session_id.is_none() {
+        tracing::debug!(
+            target: "vox_mcp::session",
+            tool = "vox_submit_task",
+            "session_id omitted; submitting with unscoped session context"
+        );
+    }
+    if params.session_id.is_some() && normalized_session_id.is_none() {
+        tracing::debug!(
+            target: "vox_mcp::session",
+            tool = "vox_submit_task",
+            "session_id trimmed to empty; treating as absent"
+        );
+    }
+
     // Session-scoped envelopes are attached inside `submit_task_with_agent`. MCP only overrides
     // when the client passes an explicit `retrieval` payload (may differ from the store).
     let explicit_retrieval = params.retrieval.as_ref();
+    let explicit_context_envelope = match params
+        .context_envelope_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(raw) => match serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw) {
+            Ok(env) => Some((env, raw.to_string())),
+            Err(err) => {
+                return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                    format!("invalid context_envelope_json: {err}"),
+                    REM_CONTEXT_ENVELOPE_JSON,
+                )
+                .to_json();
+            }
+        },
+        None => None,
+    };
+    if params.thread_id.is_none()
+        && let Some((env, _)) = &explicit_context_envelope
+    {
+        params.thread_id = env
+            .subject
+            .thread_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(std::string::ToString::to_string);
+    }
+    let explicit_harness_spec = match params
+        .harness_spec_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(raw) => match serde_json::from_str::<vox_orchestrator::AgentHarnessSpec>(raw) {
+            Ok(mut harness) => {
+                let expected_thread_id = params
+                    .thread_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| {
+                        explicit_context_envelope.as_ref().and_then(|(env, _)| {
+                            env.subject
+                                .thread_id
+                                .as_deref()
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty())
+                        })
+                    });
+                let expectations = vox_orchestrator::HarnessIngestExpectations {
+                    repository_id: state.repository.repository_id.as_str(),
+                    session_id: normalized_session_id.as_deref(),
+                    thread_id: expected_thread_id,
+                };
+                vox_orchestrator::apply_harness_subject_defaults(&mut harness, expectations);
+                if let Err(errs) =
+                    vox_orchestrator::validate_agent_harness_ingest(&harness, expectations)
+                {
+                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                        format!("invalid harness_spec_json: {}", errs.join("; ")),
+                        REM_HARNESS_SPEC_JSON,
+                    )
+                    .to_json();
+                }
+                match serde_json::to_string(&harness) {
+                    Ok(normalized) => Some((harness, normalized)),
+                    Err(err) => {
+                        return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                            format!("failed to normalize harness_spec_json: {err}"),
+                            REM_HARNESS_SPEC_JSON,
+                        )
+                        .to_json();
+                    }
+                }
+            }
+            Err(err) => {
+                return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                    format!("invalid harness_spec_json: {err}"),
+                    REM_HARNESS_SPEC_JSON,
+                )
+                .to_json();
+            }
+        },
+        None => None,
+    };
+    if let Some((_, normalized_harness_spec_json)) = &explicit_harness_spec {
+        params.harness_spec_json = Some(normalized_harness_spec_json.clone());
+    }
+    if explicit_retrieval.is_some() && explicit_context_envelope.is_some() {
+        return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+            "Provide only one of `retrieval` or `context_envelope_json`".to_string(),
+            "Remove one field and resubmit; `context_envelope_json` is canonical.",
+        )
+        .to_json();
+    }
 
     // Phase 7.3: Scope enforcement
     if let Some(agent_name) = &params.agent_name {
@@ -298,7 +506,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     if !bypass_questioning_gate {
-        if let (Some(db), Some(sid)) = (&state.db, params.session_id.as_deref()) {
+        if let (Some(db), Some(sid)) = (&state.db, normalized_session_id.as_deref()) {
             match db
                 .has_pending_clarification_for_mcp_session(sid, &state.repository.repository_id)
                 .await
@@ -314,6 +522,111 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 Err(e) => tracing::debug!(error = %e, "questioning gate: pending check failed"),
                 Ok(false) => {}
             }
+        }
+    }
+
+    if state.orchestrator_config.attention_enabled {
+        let bm = state.orchestrator.budget_manager_handle();
+        let att_snap = {
+            let g = vox_orchestrator::sync_lock::rw_read(&*bm);
+            g.attention_snapshot()
+        };
+        if let vox_orchestrator::GateResult::AttentionExhausted { message, .. } =
+            vox_orchestrator::BudgetGate::check_attention_snapshot(
+                &att_snap,
+                &state.orchestrator_config,
+            )
+        {
+            return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                message,
+                "Resolve open clarifications or raise VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS / disable VOX_ORCHESTRATOR_ATTENTION_ENABLED for shadow mode.",
+            )
+            .to_json();
+        }
+
+        let write_file_count = params
+            .files
+            .iter()
+            .filter(|f| matches!(f.access, crate::params::FileAccess::Write))
+            .count();
+        let submit_priority = match params.priority.as_deref() {
+            Some("urgent") => TaskPriority::Urgent,
+            Some("background") => TaskPriority::Background,
+            _ => TaskPriority::Normal,
+        };
+        let backlog = pending_backlog_for_session(state, normalized_session_id.as_deref());
+        let trust = trust_for_session(state, normalized_session_id.as_deref());
+        let signals = task_submit_signals(
+            &params.description,
+            write_file_count,
+            submit_priority,
+            backlog,
+            trust,
+            state.orchestrator_config.attention_interrupt_cost_ms,
+        );
+        let decision = evaluate_with_state(state, &signals, &att_snap);
+        match decision {
+            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue {
+                reason, ..
+            } => {
+                if !has_explicit_human_confirmation(&params.description) {
+                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                        format!(
+                            "Task submit requires explicit human confirmation: {reason}. Add one of [approval:confirm], [approval:reviewed], [human-approved] to the description once reviewed."
+                        ),
+                        "Review high-risk scope, then resubmit with explicit approval marker.",
+                    )
+                    .to_json();
+                }
+            }
+            vox_orchestrator::InterruptionDecision::DeferUntilCheckpoint { reason }
+            | vox_orchestrator::InterruptionDecision::BatchWithExistingPrompt { reason } => {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                state.record_attention_event(vox_orchestrator::AttentionEvent {
+                    agent_id: state
+                        .orchestrator
+                        .agent_for_session_id(normalized_session_id.as_deref().unwrap_or_default())
+                        .unwrap_or(AgentId(0)),
+                    task_id: None,
+                    event_type: vox_orchestrator::AttentionEventType::PolicyDeferred,
+                    tier: vox_orchestrator::ApprovalTier::Confirm,
+                    cost_ms: 0,
+                    outcome: vox_orchestrator::ApprovalOutcome::AutoApproved,
+                    trust_score_at_time: trust,
+                    effective_complexity: (write_file_count as f64).clamp(0.0, 10.0),
+                    decision_entropy_bits: signals.expected_information_gain_bits,
+                    timestamp_ms: ts,
+                    channel: Some("vox_submit_task".to_string()),
+                    policy_reason: Some(reason),
+                });
+            }
+            vox_orchestrator::InterruptionDecision::ProceedAutonomously { reason } => {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                state.record_attention_event(vox_orchestrator::AttentionEvent {
+                    agent_id: state
+                        .orchestrator
+                        .agent_for_session_id(normalized_session_id.as_deref().unwrap_or_default())
+                        .unwrap_or(AgentId(0)),
+                    task_id: None,
+                    event_type: vox_orchestrator::AttentionEventType::PolicyProceedAuto,
+                    tier: vox_orchestrator::ApprovalTier::AutoApprove,
+                    cost_ms: 0,
+                    outcome: vox_orchestrator::ApprovalOutcome::AutoApproved,
+                    trust_score_at_time: trust,
+                    effective_complexity: (write_file_count as f64).clamp(0.0, 10.0),
+                    decision_entropy_bits: signals.expected_information_gain_bits,
+                    timestamp_ms: ts,
+                    channel: Some("vox_submit_task".to_string()),
+                    policy_reason: Some(reason),
+                });
+            }
+            vox_orchestrator::InterruptionDecision::InterruptNow { .. } => {}
         }
     }
 
@@ -372,32 +685,134 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         }
     };
 
+    let repo_id = state.repository.repository_id.as_str();
+    let session_context_to_store: Option<vox_orchestrator::ContextEnvelope> =
+        if let Some(sid) = normalized_session_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let base: Option<vox_orchestrator::ContextEnvelope> =
+                if let Some((ref env, _)) = explicit_context_envelope {
+                    Some(env.clone())
+                } else if let Some(retrieval) = explicit_retrieval {
+                    Some(retrieval.to_context_envelope(repo_id, Some(sid)))
+                } else {
+                    None
+                };
+            if let Some(mut base) = base {
+                apply_mcp_trace_to_context_envelope(
+                    &mut base,
+                    params.trace_id.as_deref(),
+                    params.correlation_id.as_deref(),
+                );
+                let ingest_expectations =
+                    vox_orchestrator::context_lifecycle::ContextIngestExpectations {
+                        repository_id: repo_id,
+                        session_id: Some(sid),
+                    };
+                if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
+                    &state.orchestrator_config,
+                    &base,
+                    ingest_expectations,
+                    vox_orchestrator::context_lifecycle::ContextIngestSource::McpSubmitTask,
+                ) {
+                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                        format!("context lifecycle policy rejected envelope: {e}"),
+                        REM_CONTEXT_ENVELOPE_JSON,
+                    )
+                    .to_json();
+                }
+                let context_key = session_context_envelope_key(sid);
+                let ctx_handle = orch.context_handle();
+                let existing_json = match crate::sync_poison::poison_rw_read(
+                    ctx_handle.read(),
+                    "orchestrator context",
+                ) {
+                    Ok(g) => g.get(&context_key),
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            "submit_task: could not read context store for merge; treating as empty"
+                        );
+                        None
+                    }
+                };
+                let mut merged = match vox_orchestrator::context_lifecycle::merge_context_envelope_for_session_store(
+                    existing_json.as_deref(),
+                    &base,
+                    state.orchestrator_config.context_lifecycle_shadow,
+                ) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                            format!("context envelope merge blocked: {e}"),
+                            "Change conflict_policy.merge_strategy when updating session context, or clear the prior session envelope key.",
+                        )
+                        .to_json();
+                    }
+                };
+                vox_orchestrator::context_lifecycle::clamp_context_envelope_injection_budget(&mut merged);
+                if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
+                    &state.orchestrator_config,
+                    &merged,
+                    ingest_expectations,
+                    vox_orchestrator::context_lifecycle::ContextIngestSource::SessionStoreWrite,
+                ) {
+                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                        format!("context lifecycle policy rejected merged envelope: {e}"),
+                        REM_CONTEXT_ENVELOPE_JSON,
+                    )
+                    .to_json();
+                }
+                Some(merged)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
     let enqueue_hints = enqueue_hints_from_submit_params(&params);
-    let submit_result = if params.planning_mode.is_some() {
+    let submit_result: Result<TaskId, String> = if params.planning_mode.is_some() {
         orch.submit_goal(
             description.clone(),
             manifest,
             priority,
             planning_mode,
-            params.session_id.clone(),
+            normalized_session_id.clone(),
             enqueue_hints,
         )
         .await
+        .map_err(|e| e.to_string())
     } else {
-        orch.submit_task_with_agent(
-            &description,
+        state.submit_task_with_agent_backend(
+            description.clone(),
             manifest,
             priority,
             params.agent_name.clone(),
             params.capabilities.clone(),
             enqueue_hints,
-            params.session_id.clone(),
+            normalized_session_id.clone(),
         )
         .await
     };
     match submit_result {
         Ok(task_id) => {
-            if let Some(retrieval) = explicit_retrieval {
+            if let Some(ref merged_env) = session_context_to_store {
+                if let Some(env) =
+                    vox_orchestrator::SessionRetrievalEnvelope::from_context_envelope(merged_env)
+                {
+                    let soc = env.to_task_context();
+                    if let Err(e) = orch.attach_socrates_context(task_id, soc) {
+                        tracing::warn!(
+                            task_id = task_id.0,
+                            error = %e,
+                            "failed to attach Socrates context from merged session envelope"
+                        );
+                    }
+                }
+            } else if let Some(retrieval) = explicit_retrieval {
                 let soc = socrates_context_from_retrieval(retrieval);
                 if let Err(e) = orch.attach_socrates_context(task_id, soc) {
                     tracing::warn!(
@@ -405,6 +820,49 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         error = %e,
                         "failed to attach Socrates retrieval context to submitted task"
                     );
+                }
+            } else if let Some((context_envelope, _)) = &explicit_context_envelope
+                && let Some(env) =
+                    vox_orchestrator::SessionRetrievalEnvelope::from_context_envelope(
+                        context_envelope,
+                    )
+            {
+                let soc = env.to_task_context();
+                if let Err(e) = orch.attach_socrates_context(task_id, soc) {
+                    tracing::warn!(
+                        task_id = task_id.0,
+                        error = %e,
+                        "failed to attach Socrates context from context_envelope_json"
+                    );
+                }
+            }
+            if let Some(ref merged) = session_context_to_store {
+                if let Some(sid) = merged
+                    .subject
+                    .session_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                {
+                    let context_key = session_context_envelope_key(sid);
+                    if let Ok(raw) = serde_json::to_string(merged) {
+                        let ctx_handle = state.orchestrator.context_handle();
+                        match crate::sync_poison::poison_rw_write(
+                            ctx_handle.write(),
+                            "orchestrator context",
+                        ) {
+                            Ok(mut ctx) => {
+                                ctx.set(vox_orchestrator::AgentId(0), &context_key, raw, 3600);
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    error = %e,
+                                    task_id = task_id.0,
+                                    "submit_task: context store poisoned while persisting context envelope"
+                                );
+                            }
+                        }
+                    }
                 }
             }
             if let Some((_, Some(ref w), _)) = canonical_info {
@@ -416,6 +874,52 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         });
                 }
             }
+            let shadow_plan_adequacy =
+                if params.planning_mode.is_none() && state.orchestrator_config.plan_adequacy_shadow {
+                    let pseudo = vec![crate::tools::chat_tools::params::PlanTask {
+                        id: 1,
+                        description: description.clone(),
+                        files: params.files.iter().map(|f| f.path.clone()).collect(),
+                        estimated_complexity: params.complexity.unwrap_or(5).clamp(1, 10),
+                        depends_on: vec![],
+                    }];
+                    let router_hint = params.goal_type.as_deref().and_then(|g| {
+                        match g.trim().to_ascii_lowercase().as_str() {
+                            "research" | "investigation" | "explore" | "discovery" => Some(8u8),
+                            "refactor" | "migration" | "modernize" => Some(6u8),
+                            "testing" | "test" | "qa" => Some(5u8),
+                            "docs" | "documentation" => Some(4u8),
+                            _ => None,
+                        }
+                    });
+                    let rep = crate::tools::chat_tools::analyze_plan_gaps(
+                        &description,
+                        params.files.len(),
+                        router_hint,
+                        None,
+                        &pseudo,
+                        None,
+                    );
+                    tracing::info!(
+                        target: "vox_mcp::submit_plan_adequacy",
+                        task_id = task_id.0,
+                        adequacy_score = rep.adequacy.score,
+                        is_too_thin = rep.adequacy.is_too_thin,
+                        reason_codes = ?rep.adequacy.reason_codes,
+                        critical_count = rep.critical_count,
+                        aggregate_unresolved_risk = rep.aggregate_unresolved_risk,
+                        "direct vox_submit_task: pseudo-plan adequacy shadow (use vox_plan when decomposition helps)",
+                    );
+                    Some(crate::params::SubmitShadowAdequacy {
+                        score: rep.adequacy.score,
+                        is_too_thin: rep.adequacy.is_too_thin,
+                        reason_codes: rep.adequacy.reason_codes.clone(),
+                        critical_count: rep.critical_count,
+                        aggregate_unresolved_risk: rep.aggregate_unresolved_risk,
+                    })
+                } else {
+                    None
+                };
             let agent_id = orch
                 .task_assignments_copy()
                 .get(&task_id)
@@ -434,6 +938,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 conflict_warnings,
                 original_prompt_hash,
                 orchestration_contract: if v2 { Some("v2".to_string()) } else { None },
+                shadow_plan_adequacy,
             })
             .to_json()
         }
@@ -452,43 +957,35 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
 
 /// Get the current status of a specific task.
 pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> String {
-    let orch = &state.orchestrator;
-
-    let status = orch.status();
-    let task_id = TaskId(params.task_id);
-    for agent_summary in &status.agents {
-        if let Some(queue_lock) = orch.agent_queue(AgentId(agent_summary.id.0)) {
-            let queue = match crate::sync_poison::poison_rw_read(queue_lock.read(), "agent queue") {
-                Ok(g) => g,
-                Err(e) => {
-                    tracing::warn!(error = %e, "task_status: agent queue poisoned");
-                    continue;
+    if let Some(client) = state.orch_daemon_client_for_task_status_rpc() {
+        match client.task_status(params.task_id).await {
+            Ok(v) => {
+                if let Some(label) = v.get("status").and_then(|s| s.as_str()) {
+                    return ToolResult::ok(label.to_string()).to_json();
                 }
-            };
-            if queue.completed_ids().contains(&task_id) {
-                return ToolResult::ok("Completed".to_string()).to_json();
+                tracing::debug!(
+                    ?v,
+                    "task_status: orch.task_status RPC missing status field; falling back to embed"
+                );
             }
-            if let Some(t) = queue.current_task() {
-                if t.id == task_id {
-                    return ToolResult::ok("InProgress".to_string()).to_json();
-                }
-            }
-            if queue.is_blocked(task_id) {
-                return ToolResult::ok("Blocked".to_string()).to_json();
-            }
-            let json = queue.to_json();
-            if json.contains(&format!("\"id\": {trans}", trans = params.task_id))
-                || json.contains(&format!("\"id\":{trans}", trans = params.task_id))
-            {
-                return ToolResult::ok("Queued".to_string()).to_json();
+            Err(e) => {
+                tracing::debug!(
+                    error = %e,
+                    "task_status: orch.task_status RPC failed; falling back to embed"
+                );
             }
         }
     }
-    ToolResult::<String>::err_with_remediation(
-        format!("task {} not found", params.task_id),
-        REM_TASK_ID,
-    )
-    .to_json()
+
+    let task_id = TaskId(params.task_id);
+    match state.orchestrator.task_lifecycle_status_label(task_id) {
+        Some(label) => ToolResult::ok(label).to_json(),
+        None => ToolResult::<String>::err_with_remediation(
+            format!("task {} not found", params.task_id),
+            REM_TASK_ID,
+        )
+        .to_json(),
+    }
 }
 
 /// Mark a task as completed, releasing its file locks (async).
@@ -498,14 +995,14 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
     let attestation = vox_orchestrator::CompletionAttestation {
         completion_summary: params.completion_summary,
         checks_passed: params.checks_passed,
+        evidence_citations: params.evidence_citations,
         artifact_paths: params.artifact_paths.into_iter().map(Into::into).collect(),
         declared_non_placeholder: params.declared_non_placeholder,
         force_risky: params.force_risky,
         force_risky_reason: params.force_risky_reason,
     };
     let res = state
-        .orchestrator
-        .complete_task_with_attestation(task_id, Some(attestation))
+        .complete_task_with_attestation_backend(task_id, Some(attestation))
         .await;
 
     match res {
@@ -534,9 +1031,7 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
             }
             ToolResult::ok("task completed".to_string()).to_json()
         }
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }
 
@@ -544,7 +1039,7 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
 pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
-    let res = state.orchestrator.fail_task(task_id, params.reason).await;
+    let res = state.fail_task_backend(task_id, params.reason).await;
 
     match res {
         Ok(()) => {
@@ -571,49 +1066,37 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
             }
             ToolResult::ok("task marked as failed".to_string()).to_json()
         }
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }
 
 /// Cancel a task by ID.
 pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskParams) -> String {
-    let orch = &state.orchestrator;
-    match orch.cancel_task(TaskId(params.task_id)) {
+    match state.cancel_task_backend(TaskId(params.task_id)).await {
         Ok(()) => ToolResult::ok("Task cancelled successfully".to_string()).to_json(),
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }
 
 /// Change the priority of a queued task.
 pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTaskParams) -> String {
-    let orch = &state.orchestrator;
-
     let priority = match params.priority.as_str() {
         "urgent" => TaskPriority::Urgent,
         "background" => TaskPriority::Background,
         _ => TaskPriority::Normal,
     };
 
-    match orch.reorder_task(TaskId(params.task_id), priority) {
+    match state.reorder_task_backend(TaskId(params.task_id), priority).await {
         Ok(()) => ToolResult::ok("Task reordered successfully".to_string()).to_json(),
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }
 
 /// Remove all queued tasks from an agent without retiring it.
 pub async fn drain_agent(state: &ServerState, params: DrainAgentParams) -> String {
-    let orch = &state.orchestrator;
-    match orch.drain_agent(AgentId(params.agent_id)) {
-        Ok(tasks) => ToolResult::ok(format!("Agent drained {} tasks", tasks.len())).to_json(),
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
-        }
+    match state.drain_agent_backend(AgentId(params.agent_id)).await {
+        Ok(n) => ToolResult::ok(format!("Agent drained {n} tasks")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }
 

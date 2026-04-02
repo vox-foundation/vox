@@ -1,3 +1,9 @@
+---
+title: "OpenClaw Discovery and Sidecar SSOT"
+description: "SSOT for OpenClaw endpoint resolution order, discovery env vars and cache behavior, managed openclaw-gateway sidecar install and doctor controls, failure modes, and vox ci openclaw-contract fixture locations."
+category: "reference"
+---
+
 # OpenClaw Discovery + Sidecar SSOT
 
 This document is the single-source-of-truth for how Vox resolves OpenClaw endpoints and how managed sidecar installation behaves.
@@ -44,7 +50,7 @@ Opt-out:
 - set `VOX_OPENCLAW_SIDECAR_DISABLE=1` (or `true`)
 - set `VOX_OPENCLAW_SIDECAR_EXPECT_VERSION=<version>` to have `vox openclaw doctor`
   report sidecar version drift (`match` / `mismatch`) against the detected
-  `openclaw-gateway --version` output
+  sidecar `openclaw-gateway --version` output
 
 Runtime supervision SSOT:
 

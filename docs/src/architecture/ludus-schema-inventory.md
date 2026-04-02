@@ -1,13 +1,19 @@
+---
+title: "Ludus / gamify schema inventory (SSOT pointers)"
+description: "Index to vox-db gamification SQL, agents domain, ludus_schema_cutover, plus vox-ludus router/rewards/schema code and key tests—no duplicated schema text."
+category: "architecture"
+---
+
 # Ludus / gamify schema inventory (SSOT pointers)
 
 ## Baseline (vox-db manifest)
 
-- Core tables: [`crates/vox-db/src/schema/domains/sql/gamification.sql`](../../crates/vox-db/src/schema/domains/sql/gamification.sql) (profiles, companions, quests, battles) plus coordination SQL in the same domain.
-- Agents / events: [`crates/vox-db/src/schema/domains/agents.rs`](../../crates/vox-db/src/schema/domains/agents.rs) (`agent_events`, `cost_records`, …).
+- Core tables: [`crates/vox-db/src/schema/domains/sql/gamification.sql`](../../../crates/vox-db/src/schema/domains/sql/gamification.sql) (profiles, companions, quests, battles) plus coordination SQL in the same domain.
+- Agents / events: [`crates/vox-db/src/schema/domains/agents.rs`](../../../crates/vox-db/src/schema/domains/agents.rs) (`agent_events`, `cost_records`, …).
 
 ## Post-baseline cutover (idempotent)
 
-Extended Ludus tables and column fixes live in [`crates/vox-db/src/ludus_schema_cutover.rs`](../../crates/vox-db/src/ludus_schema_cutover.rs), invoked from [`crates/vox-db/src/schema_cutover.rs`](../../crates/vox-db/src/schema_cutover.rs) after baseline migrate.
+Extended Ludus tables and column fixes live in [`crates/vox-db/src/ludus_schema_cutover.rs`](../../../crates/vox-db/src/ludus_schema_cutover.rs), invoked from [`crates/vox-db/src/schema_cutover.rs`](../../../crates/vox-db/src/schema_cutover.rs) after baseline migrate.
 
 Covers, among others:
 
@@ -20,10 +26,10 @@ Covers, among others:
 
 ## Application code
 
-- Router + rewards: [`crates/vox-ludus/src/event_router.rs`](../../crates/vox-ludus/src/event_router.rs), [`crates/vox-ludus/src/db/process_rewards.rs`](../../crates/vox-ludus/src/db/process_rewards.rs)
-- SQL reference ladder (documentation / partial migrations): [`crates/vox-ludus/src/schema.rs`](../../crates/vox-ludus/src/schema.rs)
+- Router + rewards: [`crates/vox-ludus/src/event_router.rs`](../../../crates/vox-ludus/src/event_router.rs), [`crates/vox-ludus/src/db/process_rewards.rs`](../../../crates/vox-ludus/src/db/process_rewards.rs)
+- SQL reference ladder (documentation / partial migrations): [`crates/vox-ludus/src/schema.rs`](../../../crates/vox-ludus/src/schema.rs)
 
 ## Tests
 
-- Cutover smoke: [`crates/vox-db/tests/ludus_schema_cutover_test.rs`](../../crates/vox-db/tests/ludus_schema_cutover_test.rs)
-- Policy / router: [`crates/vox-ludus/tests/gamify_integration_test.rs`](../../crates/vox-ludus/tests/gamify_integration_test.rs)
+- Cutover smoke: [`crates/vox-db/tests/ludus_schema_cutover_test.rs`](../../../crates/vox-db/tests/ludus_schema_cutover_test.rs)
+- Policy / router: [`crates/vox-ludus/tests/gamify_integration_test.rs`](../../../crates/vox-ludus/tests/gamify_integration_test.rs)

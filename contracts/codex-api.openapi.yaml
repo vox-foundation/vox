@@ -210,9 +210,42 @@ paths:
               properties:
                 path:
                   type: string
+                language_hint:
+                  type: string
       responses:
         "200":
           description: Transcript JSON
+  /api/audio/transcribe/upload:
+    post:
+      summary: Multipart upload of one audio file; server writes temp file, transcribes, deletes temp
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                file:
+                  type: string
+                  format: binary
+                language_hint:
+                  type: string
+      responses:
+        "200":
+          description: Same transcript JSON shape as /api/audio/transcribe
+  /api/audio/transcribe/stream:
+    get:
+      summary: WebSocket streaming STT (PCM chunks + commit/cancel control)
+      description: >
+        Upgrade to WebSocket. Client sends binary PCM s16le mono 16k chunks, and text JSON control
+        messages like {"op":"set_language","language_hint":"en"}, {"op":"commit"}, {"op":"cancel"}.
+        Server emits JSON text events with type=ready|partial|final|error.
+      responses:
+        "101":
+          description: Switching Protocols (WebSocket)
 components:
   schemas:
     MutateBody:

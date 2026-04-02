@@ -2,42 +2,10 @@
 
 use std::path::Path;
 
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE;
-
-fn extract_repository_id(manifest: &PublicationManifest) -> Option<String> {
-    let raw = manifest.metadata_json.as_deref()?;
-    let v: serde_json::Value = serde_json::from_str(raw).ok()?;
-    v.get("repository_id")
-        .and_then(|x| x.as_str())
-        .map(std::string::ToString::to_string)
-}
-
-/// When `metadata_json.scientia_evidence.socrates_aggregate` is missing or empty, fill from `socrates_surface` rows.
-pub async fn merge_live_socrates_aggregate(
-    manifest: PublicationManifest,
-    db: &vox_db::VoxDb,
-    repository_id_fallback: Option<&str>,
-) -> Result<PublicationManifest> {
-    let rid = extract_repository_id(&manifest)
-        .or_else(|| repository_id_fallback.map(std::string::ToString::to_string));
-    let Some(repository_id) = rid else {
-        return Ok(manifest);
-    };
-    let merged = db
-        .merge_scientia_live_socrates_into_metadata_json(
-            manifest.metadata_json.as_deref(),
-            repository_id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let mut out = manifest;
-    out.metadata_json = Some(merged);
-    Ok(out)
-}
 
 #[cfg(any(feature = "mens-base", feature = "gpu"))]
 fn merge_eval_gate_from_run_dir(
@@ -51,8 +19,8 @@ fn merge_eval_gate_from_run_dir(
     if trimmed.is_empty() {
         return Ok(manifest);
     }
-    let mut root: serde_json::Value = serde_json::from_str(trimmed)
-        .with_context(|| "parse metadata_json for eval_gate run_dir merge")?;
+    let mut root: serde_json::Value =
+        serde_json::from_str(trimmed).with_context(|| "parse metadata_json for eval_gate run_dir merge")?;
 
     let mut ev: vox_publisher::scientia_evidence::ScientiaEvidenceContext = root
         .get(METADATA_KEY_SCIENTIA_EVIDENCE)
@@ -110,13 +78,13 @@ pub async fn enrich_manifest_for_worthiness_preflight(
     repo_root: &Path,
     repository_id_fallback: Option<&str>,
 ) -> Result<PublicationManifest> {
-    let mut m = merge_live_socrates_aggregate(manifest, db, repository_id_fallback).await?;
-    m = merge_eval_gate_from_run_dir(m, repo_root)?;
-    if let Some(updated) = vox_publisher::scientia_evidence::enrich_metadata_json_with_repo_files(
-        m.metadata_json.as_deref(),
+    let mut m = vox_publisher::scientia_worthiness_enrich::enrich_manifest_socrates_and_sidecars(
+        manifest,
+        db,
         repo_root,
-    )? {
-        m.metadata_json = Some(updated);
-    }
+        repository_id_fallback,
+    )
+    .await?;
+    m = merge_eval_gate_from_run_dir(m, repo_root)?;
     Ok(m)
 }

@@ -1,14 +1,16 @@
 //! Structured telemetry for model routing decisions (logs + future Arca hooks).
-
-use crate::types::TaskCategory;
+//!
+//! **Classification:** **S1** operator diagnostics (model id, provider, latency) — not end-user usage analytics.
+//! Taxonomy: `docs/src/architecture/telemetry-taxonomy-contracts-ssot.md`, trust framing:
+//! `docs/src/architecture/telemetry-trust-ssot.md`.
 
 /// One model-routing event for observability and tuning.
 #[derive(Debug, Clone)]
 pub struct ModelRouteEvent {
     /// Logical source of the route (e.g. `mcp_chat`, `a2a_task`, `research`).
     pub route_source: &'static str,
-    /// Task category used for scoring / selection.
-    pub task_category: TaskCategory,
+    /// Task category used for scoring / selection (caller supplies `Debug` or display string, e.g. from orchestrator `TaskCategory`).
+    pub task_category: String,
     /// Resolved model identifier sent to the provider.
     pub model_id: String,
     /// Provider organization slug (e.g. `openrouter`, `google`).
@@ -35,7 +37,7 @@ pub fn emit_model_route(ev: &ModelRouteEvent) {
     tracing::info!(
         target: "vox_dei::model_route",
         route_source = ev.route_source,
-        task_category = ?ev.task_category,
+        task_category = %ev.task_category,
         model_id = %ev.model_id,
         provider = %ev.provider,
         free_only = ev.free_only,

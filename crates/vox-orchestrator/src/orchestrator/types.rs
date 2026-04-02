@@ -14,6 +14,9 @@ pub enum OrchestratorError {
     /// Lookup failed for the given agent id.
     #[error("Agent {0} not found")]
     AgentNotFound(AgentId),
+    /// Parent agent for delegation spawn was not found.
+    #[error("Delegation parent agent {0} not found")]
+    DelegationParentNotFound(AgentId),
     /// Lookup failed for the given task id.
     #[error("Task {0} not found")]
     TaskNotFound(TaskId),
@@ -23,6 +26,12 @@ pub enum OrchestratorError {
     /// Path violated scope / affinity rules.
     #[error("Scope denied: {0}")]
     ScopeDenied(String),
+    /// Task was classified as blocked by approval policy.
+    #[error("Approval blocked: {0}")]
+    ApprovalBlocked(String),
+    /// Completion attestation did not satisfy approval policy requirements.
+    #[error("Approval attestation required: {0}")]
+    ApprovalAttestationRequired(String),
     /// Undo/redo referenced a missing oplog entry.
     #[error("Operation not found")]
     OperationNotFound,
@@ -39,6 +48,14 @@ pub enum OrchestratorError {
         /// Maximum allowed age before rejection.
         timeout_ms: u64,
     },
+    /// Structured handoff invariant validation failed.
+    #[error("Handoff invariant failed: {0}")]
+    HandoffInvariant(String),
+    /// Mesh accepted a lease-gated remote envelope but the local queue could not enter remote-hold (race).
+    #[error(
+        "Populi remote delegation could not be recorded after mesh accept; remote execution may still be active"
+    )]
+    PopuliRemoteHoldRace,
 }
 
 /// One step in a task's lifecycle timeline (ingress → route → verification → outcome).

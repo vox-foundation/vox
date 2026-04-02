@@ -1,5 +1,4 @@
 pub mod adapters;
-mod bounded_fs;
 pub mod citation_cff;
 pub mod contract;
 pub mod crossref_metadata;
@@ -13,7 +12,13 @@ pub mod scholarly;
 pub mod scholarly_external_jobs;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scholarly_remote_status;
+pub mod scientia_discovery;
 pub mod scientia_evidence;
+pub mod scientia_finding_ledger;
+pub mod scientia_heuristics;
+pub mod scientia_prior_art;
+#[cfg(feature = "scholarly-external-jobs")]
+pub mod scientia_worthiness_enrich;
 pub mod scientific_metadata;
 pub mod submission_package;
 pub mod switching;
@@ -241,13 +246,13 @@ fn policy_block_reason(
 #[derive(Clone)]
 pub struct PublisherConfig {
     pub twitter_bearer_token: Option<String>,
-    pub github_token: Option<String>,
+    pub forge_token: Option<String>,
     pub open_collective_token: Option<String>,
     pub dry_run: bool,
     pub site: NewsSiteConfig,
     pub twitter_api_base: Option<String>,
-    pub github_rest_base: Option<String>,
-    pub github_graphql_url: Option<String>,
+    pub forge_rest_base: Option<String>,
+    pub forge_graphql_url: Option<String>,
     pub opencollective_graphql_url: Option<String>,
     pub twitter_text_chunk_max: Option<usize>,
     pub twitter_truncation_suffix: Option<String>,
@@ -270,13 +275,13 @@ impl Default for PublisherConfig {
     fn default() -> Self {
         Self {
             twitter_bearer_token: None,
-            github_token: None,
+            forge_token: None,
             open_collective_token: None,
             dry_run: true,
             site: NewsSiteConfig::default(),
             twitter_api_base: None,
-            github_rest_base: None,
-            github_graphql_url: None,
+            forge_rest_base: None,
+            forge_graphql_url: None,
             opencollective_graphql_url: None,
             twitter_text_chunk_max: None,
             twitter_truncation_suffix: None,
@@ -305,7 +310,7 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_NEWS_SITE_BASE_URL",
     "VOX_NEWS_RSS_FEED_PATH",
     "VOX_NEWS_TWITTER_TOKEN",
-    "VOX_NEWS_GITHUB_TOKEN",
+    "VOX_NEWS_FORGE_TOKEN",
     "VOX_NEWS_OPENCOLLECTIVE_TOKEN",
     "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
     "VOX_NEWS_TWITTER_TRUNCATION_SUFFIX",
@@ -407,7 +412,7 @@ impl PublisherConfig {
             twitter_bearer_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsTwitterBearer,
             ),
-            github_token: Self::syndication_secret(vox_clavis::SecretId::GitHubToken),
+            forge_token: Self::syndication_secret(vox_clavis::SecretId::ForgeToken),
             open_collective_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
             ),
@@ -700,21 +705,21 @@ impl Publisher {
             }
         }
 
-        if let Some(github) = &item.syndication.github {
+        if let Some(forge_cfg) = &item.syndication.forge {
             if let Some(reason) = policy_block_reason(item, "github", &self.config) {
                 result.github = ChannelOutcome::Disabled;
                 result.decision_reasons.insert("github".to_string(), reason);
             } else if is_dry_run {
                 info!(
                     "[DRY RUN] Would post to GitHub repository {} as {:?}",
-                    github.repo, github.post_type
+                    forge_cfg.repo, forge_cfg.post_type
                 );
                 result.github = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-github-{}", item.id)),
                 };
-            } else if let Some(token) = &self.config.github_token {
+            } else if let Some(token) = &self.config.forge_token {
                 match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::github::post(&self.config, token, item, github)
+                    adapters::forge::post(&self.config, token, item, forge_cfg)
                 })
                 .await
                 {

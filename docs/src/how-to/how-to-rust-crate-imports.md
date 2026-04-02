@@ -2,7 +2,7 @@
 title: "How-To: Rust crate imports in Vox scripts"
 description: "Syntax, compiler pipeline, Cargo.toml synthesis, diagnostics, limitations, and pragmatic ways to reduce boilerplate without over-engineering."
 category: "how-to"
-last_updated: 2026-03-27
+last_updated: 2026-03-28
 training_eligible: true
 ---
 
@@ -81,7 +81,7 @@ Project dependencies for **Vox packages** still flow through `Vox.toml` / `vox.l
 - Declaring extra Cargo dependencies for **generated script binaries** and **generated full-stack Rust** outputs.
 - Deterministic **merge/dedup** of dependency lines per crate name in codegen.
 - **Strict error when** the same crate name is imported with **incompatible** version/path/git/rev metadata.
-- **WASI script guardrail:** some native-only crates listed in codegen (e.g. `tokio`, `axum`) are rejected as rust imports in WASI mode; see `generate_script_with_target` in `pipeline.rs`.
+- **WASI script guardrail:** native-only crates listed under `wasi_unsupported_rust_imports` in [`contracts/rust/ecosystem-support.yaml`](../../../contracts/rust/ecosystem-support.yaml) are rejected as rust imports in WASI mode; examples include `tokio` and `axum`.
 
 ### What does *not* work yet (important)
 
@@ -91,6 +91,30 @@ Project dependencies for **Vox packages** still flow through `Vox.toml` / `vox.l
 - **No linkage to `cargo vendor` / vendoring policy** in this path alone; reproducibility remains “whatever Cargo resolves” unless you tighten versions or use path/git explicitly.
 
 **Plain language:** today’s feature is best thought of as **“make this script’s generated crate depend on these Rust packages.”** It is **not** yet **“call arbitrary Rust APIs from Vox with one line.”**
+
+## Support-class annotations and reproducibility warnings
+
+Rust imports now carry a support-class classification for clearer operator expectations:
+
+- `first_class`
+- `internal_runtime_only`
+- `escape_hatch_only`
+- `deferred`
+
+Current compiler behavior:
+
+- emits warnings when a crate is classified as `internal_runtime_only` or `deferred`
+- emits warnings when a crate is classified as `escape_hatch_only`
+- emits warnings when a crate has `planned` semantics in the support registry
+- emits warnings when no `version` / `path` / `git` pin is provided (Cargo fallback `*`)
+- emits warnings when import-level pins are provided for full app template-managed crates (those templates may own versions/paths)
+- annotates generated `Cargo.toml` dependency lines with `# vox_rust_import support_class=...`
+
+These annotations are guidance, not a typed interop promise.
+
+Canonical support matrix and contract metadata:
+
+- [Rust ecosystem support contract](../reference/rust-ecosystem-support-contract.md)
 
 For common app capabilities, prefer:
 
@@ -144,3 +168,4 @@ Those belong behind explicit **feature gates** and product milestones, not on th
 ---
 
 **Maintenance:** When you change parser, HIR, registration, or codegen behavior for rust imports, update this page and the golden JSON under `crates/vox-cli/tests/golden/` if diagnostics or spans shift.
+After contract/policy edits, run `cargo run -p vox-cli --quiet -- ci rust-ecosystem-policy`.

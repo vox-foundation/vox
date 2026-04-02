@@ -48,6 +48,8 @@ pub enum DbPreflightProfileCli {
     DoubleBlind,
     /// Require structured scientific metadata, license, abstract, and at least one author.
     MetadataComplete,
+    /// arXiv-assist path: error if abstract is missing (other checks like default / warnings).
+    ArxivAssist,
 }
 
 impl From<DbPreflightProfileCli> for vox_publisher::publication_preflight::PreflightProfile {
@@ -56,6 +58,28 @@ impl From<DbPreflightProfileCli> for vox_publisher::publication_preflight::Prefl
             DbPreflightProfileCli::Default => Self::Default,
             DbPreflightProfileCli::DoubleBlind => Self::DoubleBlind,
             DbPreflightProfileCli::MetadataComplete => Self::MetadataComplete,
+            DbPreflightProfileCli::ArxivAssist => Self::ArxivAssist,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
+pub enum DiscoveryIntakeGateCli {
+    /// No gate (default).
+    #[default]
+    None,
+    /// Require at least one strong discovery signal and no structured conflicts.
+    StrongSignalsOnly,
+    /// Allow strong or review-suggested tiers only (block low-signal).
+    AllowReviewSuggested,
+}
+
+impl From<DiscoveryIntakeGateCli> for vox_publisher::scientia_discovery::DiscoveryIntakeGate {
+    fn from(v: DiscoveryIntakeGateCli) -> Self {
+        match v {
+            DiscoveryIntakeGateCli::None => Self::None,
+            DiscoveryIntakeGateCli::StrongSignalsOnly => Self::StrongSignalsOnly,
+            DiscoveryIntakeGateCli::AllowReviewSuggested => Self::AllowReviewSuggested,
         }
     }
 }

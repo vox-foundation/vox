@@ -14,10 +14,15 @@ toml = { workspace = true }
 tracing = { workspace = true }
 vox-bounded-fs = { workspace = true }
 schemars = { workspace = true, optional = true }
+nvml-wrapper = { workspace = true, optional = true }
+regex = { workspace = true }
+walkdir = { workspace = true }
 
 [features]
 default = []
 json-schema = ["dep:schemars"]
+# NVIDIA NVML probe for Populi Layer A GPU fields (`NodeRecord` heartbeat/join).
+nvml-probe = ["dep:nvml-wrapper"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

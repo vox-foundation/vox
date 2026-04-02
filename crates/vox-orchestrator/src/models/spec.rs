@@ -83,6 +83,42 @@ pub enum ProviderType {
     Custom(String),
 }
 
+/// Normalized provider-route decision shared by orchestrator runtime and MCP tooling.
+///
+/// Cross-surface telemetry uses the same `(provider_family, route_choice)` strings as
+/// `vox_runtime::model_resolution::backend_telemetry_labels` (`ChatRouteBackend`); MCP delegates there. Keep the four
+/// lanes aligned when changing routing semantics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelRouteBackend {
+    GeminiDirect,
+    OpenRouter,
+    Ollama,
+    CascadeFallback,
+}
+
+/// Resolve the transport/backend lane for a concrete model spec.
+#[must_use]
+pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
+    match spec.provider_type {
+        ProviderType::Ollama => ModelRouteBackend::Ollama,
+        ProviderType::GoogleDirect => ModelRouteBackend::GeminiDirect,
+        ProviderType::OpenRouter => ModelRouteBackend::OpenRouter,
+        ProviderType::Groq
+        | ProviderType::Mistral
+        | ProviderType::DeepSeek
+        | ProviderType::Cerebras
+        | ProviderType::SambaNova
+        | ProviderType::Custom(_) => {
+            if spec.id.contains('/') {
+                ModelRouteBackend::OpenRouter
+            } else {
+                ModelRouteBackend::CascadeFallback
+            }
+        }
+    }
+}
+
 impl ModelSpec {
     /// Keys for daily quota rows in `provider_usage` (aligned with `usage` module limits; OpenRouter `:free` aggregate, Ollama `*`).
     #[must_use]

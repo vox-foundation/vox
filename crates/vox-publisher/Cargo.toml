@@ -1,7 +1,10 @@
 [package]
 name = "vox-publisher"
+# Intentionally not `version.workspace`: publisher release line stays on 0.8.x while workspace default is 0.1.0.
 version = "0.8.0"
-edition = "2024"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
 description = "Unified news syndication and publishing for vox"
 
 [features]
@@ -22,10 +25,12 @@ tar = "0.4.45"
 chrono = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-octocrab = "0.38"
+vox-forge = { path = "../vox-forge", features = ["github", "gitlab"] }
 quick-xml = { version = "0.31", features = ["serialize"] }
 reqwest = { workspace = true }
+vox-reqwest-defaults = { workspace = true }
 mime_guess = "2.0"
+sha2 = { workspace = true }
 sha3 = { workspace = true }
 regex = { workspace = true }
 pulldown-cmark = "0.13"
@@ -38,3 +43,4 @@ vox-db = { path = "../vox-db", optional = true }
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query"] }
+jsonschema = { workspace = true, default-features = false }

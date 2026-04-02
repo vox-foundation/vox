@@ -134,6 +134,7 @@ fn collect_query_plans_expr(
                 collect_query_plans_stmt(st, out);
             }
         }
+        HirExpr::Try(t) => collect_query_plans_expr(t.target.as_ref(), out),
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::StringLit(_, _)

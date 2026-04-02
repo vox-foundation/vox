@@ -219,6 +219,10 @@ impl LowerCtx {
                     .map(|stmts| stmts.iter().map(|s| self.lower_stmt(s)).collect()),
                 *span,
             ),
+            Expr::Try { target, span } => HirExpr::Try(HirTry {
+                target: Box::new(self.lower_expr(target)),
+                span: *span,
+            }),
             Expr::For {
                 binding,
                 iterable,

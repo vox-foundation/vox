@@ -15,8 +15,9 @@ use tracing::{info, warn};
 use super::PopuliTransportState;
 use super::auth::{PopuliAuthContext, PopuliMeshAuthRuntime};
 use super::handlers::{
-    a2a_ack, a2a_inbox, a2a_lease_renew, admin_quarantine, bootstrap_exchange, deliver_a2a, health,
-    heartbeat, join_node, leave_node, list_nodes,
+    a2a_ack, a2a_inbox, a2a_lease_renew, admin_exec_lease_revoke, admin_maintenance,
+    admin_quarantine, bootstrap_exchange, deliver_a2a, exec_lease_grant, exec_lease_list,
+    exec_lease_release, exec_lease_renew, health, heartbeat, join_node, leave_node, list_nodes,
 };
 
 /// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
@@ -56,7 +57,7 @@ fn mesh_auth_runtime_for(auth: &PopuliHttpAuth) -> PopuliMeshAuthRuntime {
 
 fn stamp_populi_feature_header<B>(res: &mut Response<B>) {
     let v = HeaderValue::from_static(
-        "mesh-auth-v1,a2a-observe-v1,quarantine-v1,lease-renew-v1,jwt-bearer-v1,result-attest-v1",
+        "mesh-auth-v1,a2a-observe-v1,quarantine-v1,maintenance-v1,maintenance-deadline-v1,lease-renew-v1,exec-lease-v1,exec-lease-admin-revoke-v1,exec-lease-persist-v1,a2a-inbox-limit-v1,jwt-bearer-v1,result-attest-v1",
     );
     res.headers_mut()
         .insert(HeaderName::from_static("x-populi-feature"), v);
@@ -71,11 +72,20 @@ pub fn router(state: PopuliTransportState) -> Router {
         .route("/v1/populi/heartbeat", post(heartbeat))
         .route("/v1/populi/leave", post(leave_node))
         .route("/v1/populi/bootstrap/exchange", post(bootstrap_exchange))
+        .route("/v1/populi/exec/lease/grant", post(exec_lease_grant))
+        .route("/v1/populi/exec/leases", get(exec_lease_list))
+        .route("/v1/populi/exec/lease/renew", post(exec_lease_renew))
+        .route("/v1/populi/exec/lease/release", post(exec_lease_release))
         .route("/v1/populi/a2a/deliver", post(deliver_a2a))
         .route("/v1/populi/a2a/inbox", post(a2a_inbox))
         .route("/v1/populi/a2a/ack", post(a2a_ack))
         .route("/v1/populi/a2a/lease-renew", post(a2a_lease_renew))
         .route("/v1/populi/admin/quarantine", post(admin_quarantine))
+        .route("/v1/populi/admin/maintenance", post(admin_maintenance))
+        .route(
+            "/v1/populi/admin/exec-lease/revoke",
+            post(admin_exec_lease_revoke),
+        )
         .with_state(state)
 }
 

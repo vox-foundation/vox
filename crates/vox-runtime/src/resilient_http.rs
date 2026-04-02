@@ -54,9 +54,9 @@ impl ResilientHttpClient {
 
     /// Builds a client from `VOX_HTTP_RETRY_MAX_ATTEMPTS` and `VOX_HTTP_RETRY_BASE_DELAY_MS` (with defaults).
     pub fn from_env() -> Self {
-        let max_attempts = vox_config::env_parse::env_usize("VOX_HTTP_RETRY_MAX_ATTEMPTS", 3).max(1);
-        let base_delay_ms =
-            vox_config::env_parse::env_u64("VOX_HTTP_RETRY_BASE_DELAY_MS", 200);
+        let max_attempts =
+            vox_config::env_parse::env_usize("VOX_HTTP_RETRY_MAX_ATTEMPTS", 3).max(1);
+        let base_delay_ms = vox_config::env_parse::env_u64("VOX_HTTP_RETRY_BASE_DELAY_MS", 200);
         Self::new(RetryPolicy {
             max_attempts,
             base_delay_ms,

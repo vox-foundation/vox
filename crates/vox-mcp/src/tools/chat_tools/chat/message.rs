@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+use super::hydrate::context_history_or_hydrate;
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
 use super::mentions::{chat_grounding_score, resolve_mentions};
@@ -9,11 +10,11 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{
-    clarification_turn_for_session, mcp_questioning_session_key, socrates_tool_meta,
-    socrates_surface_tags, spawn_questioning_trace_from_socrates,
-    spawn_socrates_telemetry_with_meta,
+    clarification_turn_for_session, mcp_questioning_session_key, socrates_surface_tags,
+    socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
 };
-use vox_orchestrator::session_retrieval_envelope_key;
+use crate::tools::session_identity::normalize_chat_session_id;
+use vox_orchestrator::session_context_envelope_key;
 use vox_runtime::prompt_canonical;
 
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
@@ -115,15 +116,40 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // Use the same retrieval pipeline as `vox_memory_search` with deterministic fallback
     // (hybrid -> BM25 -> lexical fallback), then append memory + knowledge snippets.
     let mut retrieval_evidence = None;
+    let retrieval_trace = params
+        .trace_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            params
+                .correlation_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+        });
     match run_retrieval_bundle(
         state,
         &expanded_prompt,
         RetrievalTriggerMode::AutoChatPreamble,
         3,
+        retrieval_trace,
     )
     .await
     {
         Ok(bundle) => {
+            if !bundle.rrf_fused_lines.is_empty() {
+                let snippets = bundle
+                    .rrf_fused_lines
+                    .iter()
+                    .map(|h| format!("- {h}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                context_parts.push(format!(
+                    "[AUTONOMOUS RESEARCH — RRF FUSION (tier: {})]:\n{snippets}",
+                    bundle.evidence.retrieval_tier
+                ));
+            }
             if !bundle.memory_lines.is_empty() {
                 let snippets = bundle
                     .memory_lines
@@ -158,6 +184,15 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     "[AUTONOMOUS RESEARCH — DOCUMENT CHUNKS]:\n{formatted}"
                 ));
             }
+            if !bundle.repo_lines.is_empty() {
+                let formatted = bundle
+                    .repo_lines
+                    .iter()
+                    .map(|c| format!("- {c}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
+            }
             retrieval_evidence = Some(bundle.evidence);
         }
         Err(e) => {
@@ -185,7 +220,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // 3. Call LLM with cognitive-profile aware routing.
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
-    let session_id = params.session_id.as_deref().unwrap_or("default");
+    let (session_id, implicit_session_default) = normalize_chat_session_id(params.session_id.as_deref());
+    let thread_id_for_envelope = params.thread_id.clone();
+    let journey_id = params
+        .journey_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            format!(
+                "journey_{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0)
+            )
+        });
+    if implicit_session_default {
+        tracing::debug!(
+            target: "vox_mcp::session",
+            tool = "vox_chat_message",
+            "session_id omitted; using default chat session bucket"
+        );
+    }
     let ctx_handle = state.orchestrator.context_handle();
     let session_ts =
         match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
@@ -230,7 +288,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 state,
                 &user_prompt,
                 resolution_template.clone(),
-                Some(session_id),
+                Some(session_id.as_str()),
             )
             .await
             {
@@ -253,7 +311,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         resolution_template,
                         free_only,
                         allow_cloud_ollama_fallback: true,
-                        user_id: Some(session_id),
+                        user_id: Some(session_id.as_str()),
                     };
                     match crate::llm_bridge::mcp_infer_completion(
                         state,
@@ -284,7 +342,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         error = %e,
                         "cognitive profile model resolution failed — using standard routing"
                     );
-                    match call_llm(state, &system_prompt, &user_prompt, Some(session_id)).await {
+                    match call_llm(state, &system_prompt, &user_prompt, Some(session_id.as_str())).await {
                         Ok(r) => r,
                         Err(e2) => {
                             return ToolResult::<String>::err_with_remediation(
@@ -297,7 +355,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
             }
         }
-        None => match call_llm(state, &system_prompt, &user_prompt, Some(session_id)).await {
+        None => match call_llm(state, &system_prompt, &user_prompt, Some(session_id.as_str())).await {
             Ok(r) => r,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(
@@ -309,7 +367,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         },
     };
 
-    let chat_q_key = mcp_questioning_session_key(state, "vox_chat_message", Some(session_id));
+    let chat_q_key =
+        mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));
     state.record_questioning_attention_spend(&chat_q_key, llm_started.elapsed().as_millis() as u64);
 
     tracing::info!(
@@ -327,9 +386,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // The history key is derived from `params.session_id` (defaulting to `"default"`).
     // Each distinct value yields an independent key, preventing context bleeding
     // across concurrent VS Code windows, agent threads, or other logical sessions.
-    let session_id = params.session_id.as_deref().unwrap_or("default");
     let history_key = format!("chat_history:{session_id}");
-    let retrieval_key = session_retrieval_envelope_key(session_id);
+    let context_key = session_context_envelope_key(session_id.as_str());
 
     let user_msg = ChatTranscriptEntry {
         id: format!("usr-{}", now_ts()),
@@ -350,20 +408,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         tokens: Some(tokens),
     };
 
-    let ctx_handle = state.orchestrator.context_handle();
-    let existing_history: Vec<ChatTranscriptEntry> =
-        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
-            Ok(guard) => guard
-                .get(&history_key)
-                .and_then(|s: String| serde_json::from_str(&s).ok())
-                .unwrap_or_default(),
-            Err(e) => {
-                tracing::warn!(error = %e, "chat_message: context poisoned reading history");
-                Vec::new()
-            }
-        };
-
-    let mut history = existing_history;
+    let mut history =
+        context_history_or_hydrate(state, history_key.as_str(), session_id.as_str()).await;
     history.push(user_msg.clone());
     history.push(asst_msg.clone());
     // Keep last 100 messages per session to bound memory usage.
@@ -379,10 +425,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 Ok(mut ctx) => {
                     ctx.set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
                     if let Some(ev) = &retrieval_evidence
-                        && let Ok(ev_json) = serde_json::to_string(ev)
                     {
-                        // Keep recent retrieval envelope available for task submission->gate bridging.
-                        ctx.set(vox_orchestrator::AgentId(0), &retrieval_key, &ev_json, 3600);
+                        let context_envelope = ev.to_context_envelope(
+                            state.repository.repository_id.as_str(),
+                            Some(session_id.as_str()),
+                        );
+                        if let Ok(context_json) = serde_json::to_string(&context_envelope) {
+                            ctx.set(vox_orchestrator::AgentId(0), &context_key, &context_json, 3600);
+                        }
                     }
                 }
                 Err(e) => {
@@ -402,8 +452,23 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
     if let Some(db) = &state.db {
         let repo_id = &state.repository.repository_id;
-        let q_session = session_id.to_string();
+        let q_session = session_id.clone();
         let q_repo = repo_id.to_string();
+
+        let route_reason = serde_json::json!({
+            "cognitive_profile": params.cognitive_profile,
+        });
+        let route_reason_s = route_reason.to_string();
+        let _ = db
+            .record_routing_decision(
+                Some(journey_id.as_str()),
+                q_repo.as_str(),
+                Some(q_session.as_str()),
+                "vox_chat_message",
+                Some(model_used.as_str()),
+                Some(route_reason_s.as_str()),
+            )
+            .await;
 
         // Insert user turn
         let user_ctx_files = serde_json::to_string(&user_msg.context_files).unwrap_or_default();
@@ -434,6 +499,52 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 q_repo.as_str(),
             )
             .await;
+
+        let journey_payload = crate::journey_envelope::build_journey_envelope_v1(
+            journey_id.as_str(),
+            q_session.as_str(),
+            thread_id_for_envelope.as_deref(),
+            params.trace_id.as_deref(),
+            params.correlation_id.as_deref(),
+            q_repo.as_str(),
+            "mcp",
+            params.cognitive_profile.as_deref(),
+        );
+        let journey_json = journey_payload.to_string();
+        if let Ok(conv_id) = db
+            .chat_ensure_workspace_conversation(
+                q_repo.as_str(),
+                q_session.as_str(),
+                thread_id_for_envelope.as_deref(),
+                "mcp",
+            )
+            .await
+        {
+            let _ = db
+                .chat_append_workspace_message(
+                    conv_id,
+                    user_msg.id.as_str(),
+                    user_msg.role.as_str(),
+                    user_msg.content.as_str(),
+                    user_msg.model_used.as_deref(),
+                    user_msg.tokens.map(|t| t as i64),
+                    Some(user_ctx_files.as_str()),
+                    Some(journey_json.as_str()),
+                )
+                .await;
+            let _ = db
+                .chat_append_workspace_message(
+                    conv_id,
+                    asst_msg.id.as_str(),
+                    asst_msg.role.as_str(),
+                    asst_msg.content.as_str(),
+                    asst_msg.model_used.as_deref(),
+                    asst_msg.tokens.map(|t| t as i64),
+                    Some(asst_ctx_files.as_str()),
+                    Some(journey_json.as_str()),
+                )
+                .await;
+        }
 
         let now_s = now_ts();
         let date_str = ts_to_date_str(now_s);
@@ -496,7 +607,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     let grounding =
         (chat_grounding_score(&params, mention_count) + retrieval_boost).clamp(0.0, 1.0);
     let pol = state.orchestrator_config.effective_socrates_policy();
-    let session_key = mcp_questioning_session_key(state, "vox_chat_message", Some(session_id));
+    let session_key =
+        mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));
     let turn = clarification_turn_for_session(state, &session_key).await;
     let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
     let soc = socrates_tool_meta(
@@ -506,6 +618,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         turn,
         spent_att,
         max_att,
+        retrieval_evidence.as_ref(),
     );
     let mut retrieval_meta = retrieval_evidence
         .as_ref()

@@ -1,11 +1,14 @@
 ---
-title: "Crate API: vox-parser"
-description: "Official documentation for Crate API: vox-parser for the Vox language. Detailed technical reference, architecture guides, and implementat"
+title: "Compiler Module: vox-parser"
+description: "Official documentation for Compiler Module: vox-parser for the Vox language. Detailed technical reference, architecture guides, and implementat"
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
 ---
-# Crate API: vox-parser
+# Compiler Module: vox-parser
+
+> [!WARNING]
+> This is not a standalone crate. It is a sub-module located at `crates/vox-compiler/src/parser/`.
 
 ## Overview
 

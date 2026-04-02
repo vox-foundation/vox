@@ -5,7 +5,8 @@
 //! | Tier | How | Purpose |
 //! |------|-----|---------|
 //! | **Canonical user-global** | [`resolve_canonical_config`] / [`crate::DbConfig::resolve_canonical`] | Authoritative relational data: Codex, publication, research, mesh defaults, training telemetry when the main file is on the current baseline. |
-//! | **Project-local artifacts** | [`crate::open_project_db`] → `.vox/store.db` | Repo-scoped cache only (snippets, share, agent tooling, LSP); optional; not cross-repo authoritative. |
+//! | **Workspace journey store** | [`crate::connect_workspace_journey_optional`] → default `.vox/store.db` | Repo-backed **interactive** MCP/daemon journeys use this as the primary Codex handle unless `VOX_WORKSPACE_JOURNEY_STORE=canonical`. Operator/global workflows without a single repo still use **Canonical user-global**. |
+//! | **Project-local artifacts** | [`crate::open_project_db`] / [`crate::open_project_db_at_root`] | Same `.vox/store.db` file as the workspace journey default; also used for explicit repo-scoped tooling. |
 //! | **Training telemetry fallback** | [`crate::paths::training_telemetry_db_path`] (`vox_training_telemetry.db` next to `vox.db`) | Transitional SQLite when canonical `vox.db` is still on a legacy [`crate::StoreError::LegacySchemaChain`]. Automatically reset to baseline if stale. Converge by migrating the main DB (`vox codex export-legacy` → fresh baseline → `vox codex import-legacy`). |
 //!
 //! # Environment
@@ -23,7 +24,6 @@ use crate::DbConfig;
 /// Resolves the canonical user-global [`DbConfig`] for Codex / VoxDB.
 ///
 /// Alias for [`DbConfig::resolve_canonical`]; use either name for clarity at callsites.
-#[must_use]
 pub fn resolve_canonical_config() -> Result<DbConfig, String> {
     DbConfig::resolve_canonical()
 }

@@ -87,6 +87,13 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             infer_expr(condition, ctx, builtins);
             Ty::Unit
         }
+        Expr::Try { target, .. } => {
+            let operand_ty = infer_expr(target, ctx, builtins);
+            match operand_ty {
+                Ty::Result(inner) => (*inner).clone(),
+                _ => ctx.fresh_var(),
+            }
+        }
         Expr::For { iterable, body, .. } => {
             infer_expr(iterable, ctx, builtins);
             infer_expr(body, ctx, builtins)

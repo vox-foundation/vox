@@ -98,6 +98,44 @@ impl VoxDb {
         }))
     }
 
+    /// List manifests for discovery scans (`content_type` / `state` filter when `Some`).
+    pub async fn list_publication_manifests(
+        &self,
+        content_type: Option<&str>,
+        state: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<PublicationManifestRow>, StoreError> {
+        let limit = limit.clamp(1, 500);
+        let ct = content_type.map(str::trim).filter(|s| !s.is_empty());
+        let st = state.map(str::trim).filter(|s| !s.is_empty());
+        let rows = self
+            .query_all(
+                "SELECT publication_id, content_type, source_ref, title, author, abstract_text, body_markdown, citations_json, metadata_json, content_sha3_256, version, state, created_at_ms, updated_at_ms FROM publication_manifests WHERE (?1 IS NULL OR content_type = ?1) AND (?2 IS NULL OR state = ?2) ORDER BY updated_at_ms DESC LIMIT ?3",
+                (ct, st, limit),
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for r in rows {
+            out.push(PublicationManifestRow {
+                publication_id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                content_type: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                source_ref: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                title: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                author: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                abstract_text: r.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                body_markdown: r.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                citations_json: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+                metadata_json: r.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
+                content_sha3_256: r.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
+                version: r.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
+                state: r.get(11).map_err(|e| StoreError::Db(e.to_string()))?,
+                created_at_ms: r.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
+                updated_at_ms: r.get(13).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
+    }
+
     /// Digest-bound approval for any publication type.
     pub async fn record_publication_approval_for_digest(
         &self,

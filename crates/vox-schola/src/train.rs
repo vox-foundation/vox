@@ -34,6 +34,7 @@ pub async fn run(args: Args) -> Result<()> {
         skip_corpus_mix,
         qlora_no_double_quant,
         qlora_require_full_proxy_stack,
+        qlora_allow_partial_proxy_stack,
         qlora_lm_head_only,
         qlora_max_skip_rate,
         qlora_proxy_max_layers,
@@ -51,6 +52,52 @@ pub async fn run(args: Args) -> Result<()> {
     else {
         unreachable!()
     };
+
+    if let Some(status) = crate::forward::maybe_forward_to_vox(
+        &model,
+        &device,
+        &data_dir,
+        &output_dir,
+        &preset,
+        rank,
+        alpha,
+        seq_len,
+        checkpoint_every,
+        batch_size,
+        grad_accum,
+        epochs,
+        lr,
+        warmup,
+        seed,
+        min_rating,
+        &resume,
+        resume_checkpoint,
+        force_restart,
+        &adapter_tag,
+        &context_filter,
+        vram_limit_fraction,
+        background,
+        &log_dir,
+        skip_corpus_mix,
+        qlora_no_double_quant,
+        qlora_require_full_proxy_stack,
+        qlora_allow_partial_proxy_stack,
+        qlora_lm_head_only,
+        qlora_max_skip_rate,
+        qlora_proxy_max_layers,
+        qlora_ce_last_k,
+        &base_model_family,
+        &upstream_model_id,
+        &license_class,
+        attribution_required,
+        trajectory_weighting_enabled,
+        trajectory_tool_trace_boost,
+        trajectory_failure_category_boost,
+        trajectory_quality_floor,
+        trajectory_quality_boost,
+    )? {
+        std::process::exit(status.code().unwrap_or(1));
+    }
 
     // ── Env setup (suppress GPU/Vulkan noise) ─────────────────────────────────
     #[allow(unsafe_code)]
@@ -80,14 +127,41 @@ pub async fn run(args: Args) -> Result<()> {
         vox_populi::mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_populi::mens::apply_backend_env(device_kind);
 
+    if qlora_allow_partial_proxy_stack && qlora_require_full_proxy_stack {
+        anyhow::bail!(
+            "`--qlora-allow-partial-proxy-stack` cannot be combined with `--qlora-require-full-proxy-stack`."
+        );
+    }
+
+    let mut model = model;
+    if model.is_none() {
+        model = Some(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+        tracing::info!(
+            model = %vox_populi::mens::DEFAULT_MODEL_ID,
+            "Using default HF model (`--model` omitted; matches `vox mens train` SSOT)."
+        );
+    }
+    #[allow(unsafe_code)]
+    unsafe {
+        if let Some(ref m) = model {
+            std::env::set_var("VOX_BASE_MODEL", m);
+        }
+    }
+
+    let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack
+        && (qlora_require_full_proxy_stack
+            || matches!(device_kind, vox_populi::mens::DeviceKind::Cuda));
+
     // ── Validation ────────────────────────────────────────────────────────────
     if let Some(r) = qlora_max_skip_rate
         && (!r.is_finite() || !(0.0..=1.0).contains(&r))
     {
         anyhow::bail!("--qlora-max-skip-rate must be 0.0–1.0 (got {r})");
     }
-    if qlora_require_full_proxy_stack && qlora_lm_head_only {
-        anyhow::bail!("--qlora-require-full-proxy-stack conflicts with --qlora-lm-head-only");
+    if effective_qlora_require_full_proxy_stack && qlora_lm_head_only {
+        anyhow::bail!(
+            "Full proxy stack (CUDA default or `--qlora-require-full-proxy-stack`) conflicts with `--qlora-lm-head-only`"
+        );
     }
     if !trajectory_tool_trace_boost.is_finite() || trajectory_tool_trace_boost < 0.0 {
         anyhow::bail!(
@@ -297,7 +371,7 @@ pub async fn run(args: Args) -> Result<()> {
         tokenizer_mode: vox_populi::mens::MensTokenizerMode::Hf,
         qlora_double_quant: !qlora_no_double_quant,
         finetune_contract_digest: None,
-        qlora_require_full_proxy_stack,
+        qlora_require_full_proxy_stack: effective_qlora_require_full_proxy_stack,
         qlora_max_skip_rate,
         qlora_lm_head_only,
         qlora_proxy_max_layers,

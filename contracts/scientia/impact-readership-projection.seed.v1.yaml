@@ -1,0 +1,86 @@
+# SCIENTIA impact / readership projection — tunable seed (v1)
+#
+# SSOT for coefficients and feature toggles that should NOT be scattered as
+# magic numbers in Rust. Runtime consumers may be added incrementally; until
+# then, this file is the documentation-backed contract for "Dynamics".
+#
+# Human rationale: docs/src/architecture/scientia-impact-readership-research-2026.md
+schema_version: 1
+documentation:
+  research: docs/src/architecture/scientia-impact-readership-research-2026.md
+
+# Forecast / comparison horizons (months) for velocity and "early impact" UX copy.
+horizons:
+  early_impact_months: 24
+  comparable_work_sample_limit: 20
+
+# Feature families we may attach to publications or comparable works (Phase A/B seeds).
+# Weights are relative; normalize at evaluation time. Sum need not be 1.0.
+signal_families:
+  bibliometric_count:
+    enabled: true
+    weight: 1.0
+  citation_velocity:
+    enabled: true
+    weight: 1.0
+  field_baseline_bucket:
+    enabled: true
+    weight: 0.75
+  venue_reach_proxy:
+    enabled: false
+    weight: 0.5
+  altmetric_attention:
+    enabled: false
+    weight: 0.35
+
+# Buckets for "above / near / below" field baseline (percentile thresholds).
+# Tunable without code changes once a loader exists.
+field_bucket_percentiles:
+  below_upper: 40
+  near_upper: 75
+
+# Explicit risk framing for operators (always surface in UIs if a projection exists).
+operator_risks:
+  - Projection is for prioritization and transparency, not scientific truth.
+  - Novelty and impact must not be conflated in worthiness decisions.
+  - Learned models require separate model cards and calibration telemetry.
+
+# Discovery / novelty / preflight tunables (Dynamics). Omit keys to use code defaults.
+heuristics:
+  discovery:
+    rank_strength_weights:
+      strong: 10
+      supporting: 4
+      informational: 1
+    rank_bonus_strong_pair: 5
+  novelty_overlap:
+    blend_lexical_weight: 0.55
+    blend_semantic_weight: 0.45
+    moderate_threshold: 0.45
+    high_threshold: 0.75
+  preflight:
+    novelty_high_lexical_overlap_warn: 0.85
+  prior_art:
+    results_per_source: 8
+    token_min_len: 2
+    abstract_max_chars: 280
+  worthiness_proxy:
+    epistemic_base: 0.42
+    epistemic_readiness_coef: 0.5
+    epistemic_abstract_boost: 0.06
+    novelty_base: 0.35
+    novelty_readiness_coef: 0.38
+  confidence:
+    weight_strong: 1.0
+    weight_supporting: 0.55
+    weight_informational: 0.25
+    contradiction_if_conflicts: 0.85
+    contradiction_if_clean: 0.1
+    reproducibility_with_strong: 0.35
+    reproducibility_without_strong: 0.2
+  significance:
+    rank_score_divisor: 40.0
+    title_len_divisor: 200.0
+    title_boost_max: 0.15
+  evidence_completeness:
+    max_checklist_items: 9

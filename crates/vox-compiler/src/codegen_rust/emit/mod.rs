@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use crate::app_contract::project_app_contract;
 use crate::hir::HirModule;
+use crate::rust_interop_support::{classify_rust_crate, is_template_managed_app_dependency};
 
 mod client;
 mod http;
@@ -61,8 +62,8 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
     // TypeScript API client
     let api_client_ts = emit_api_client(module);
 
-    // MCP server (if @mcp.tool declarations are present)
-    if !module.mcp_tools.is_empty() {
+    // MCP stdio server when `@mcp.tool` and/or `@mcp.resource` declarations are present.
+    if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
         files.insert(
             "src/mcp_server.rs".to_string(),
             emit_mcp_server(module, package_name),
@@ -82,13 +83,11 @@ fn emit_rust_import_dependencies(module: &HirModule) -> String {
         if crate_name.is_empty() {
             continue;
         }
-        if matches!(
-            crate_name,
-            "tokio" | "serde" | "serde_json" | "axum" | "tower" | "reqwest" | "tracing"
-        ) {
+        if is_template_managed_app_dependency(crate_name) {
             continue;
         }
-        let line = if let Some(path) = &dep.path {
+        let support = classify_rust_crate(crate_name).as_label();
+        let dep_spec = if let Some(path) = &dep.path {
             format!("{crate_name} = {{ path = \"{path}\" }}")
         } else if let Some(git) = &dep.git {
             if let Some(rev) = &dep.rev {
@@ -101,6 +100,7 @@ fn emit_rust_import_dependencies(module: &HirModule) -> String {
         } else {
             format!("{crate_name} = \"*\"")
         };
+        let line = format!("# vox_rust_import support_class={support}\n{dep_spec}");
         lines.entry(crate_name.to_string()).or_insert(line);
     }
     if lines.is_empty() {
@@ -116,6 +116,16 @@ fn emit_rust_import_dependencies(module: &HirModule) -> String {
 /// `Cargo.toml` body for the generated Rust package `name`.
 pub fn emit_cargo_toml(name: &str, module: &HirModule) -> String {
     let rust_import_deps = emit_rust_import_dependencies(module);
+    let mcp_bin = if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
+        r#"
+
+[[bin]]
+name = "mcp_server"
+path = "src/mcp_server.rs"
+"#
+    } else {
+        ""
+    };
     format!(
         r#"[package]
 name = "{name}"
@@ -133,15 +143,16 @@ tower = "0.4"
 rust-embed = "8"
 mime_guess = "2"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
+vox-reqwest-defaults = {{ path = "../../crates/vox-reqwest-defaults" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.4", default-features = false }}
 vox-db = {{ path = "../../crates/vox-db" }}
 vox-runtime = {{ path = "../../crates/vox-runtime" }}
 vox-oratio = {{ path = "../../crates/vox-oratio" }}
-{rust_import_deps}
-"#,
+{rust_import_deps}{mcp_bin}"#,
         rust_import_deps = rust_import_deps,
+        mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
 }

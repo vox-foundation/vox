@@ -26,6 +26,7 @@
 //! | `vox live` | `commands::live` (needs `--features live`) |
 //! | `vox db …` | `commands::db_cli` |
 //! | `vox scientia …` | `commands::scientia` (research / capability-map facade over `db_cli`) |
+//! | `vox telemetry …` | `commands::telemetry` (optional upload queue; ADR 023) |
 //! | `vox codex verify \| export-legacy \| import-legacy \| cutover \| import-orchestrator-memory \| import-skill-bundle \| socrates-metrics \| socrates-eval-snapshot` | `commands::codex` |
 //! | `vox openclaw …` | `commands::openclaw` (needs `--features ars`) |
 //! | `vox snippet …` / `vox share …` | `commands::extras` |

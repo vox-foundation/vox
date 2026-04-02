@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::ast_mapper::{AstTarget, map_to_ast_target};
+
 /// Action labels aligned with [`crate::routing`] tool-route ids.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,6 +41,9 @@ pub struct SpeechIntentEnvelope {
     /// Optional identifier / function name extracted from speech.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol_name: Option<String>,
+    /// Optional AST-aware target extracted from speech to eliminate character-precise dictation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ast_target: Option<AstTarget>,
 }
 
 /// Map a [`RouteResponse::action`](crate::RouteResponse) string to a planner action.
@@ -112,6 +117,7 @@ pub fn build_intent_envelope(
 ) -> SpeechIntentEnvelope {
     let ia = speech_intent_action_from_route_action(action);
     let (target_path, symbol_name) = fill_slots_heuristic(transcript);
+    let ast_target = map_to_ast_target(transcript);
     SpeechIntentEnvelope {
         action: ia,
         intent_confidence,
@@ -119,6 +125,7 @@ pub fn build_intent_envelope(
         transcript: transcript.to_string(),
         target_path,
         symbol_name,
+        ast_target,
     }
 }
 

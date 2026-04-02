@@ -33,7 +33,7 @@ training_eligible: true
 
 ### API/data surfaces
 - Codex API contract: `contracts/codex-api.openapi.yaml`
-- Populi OpenAPI: `schemas/populi-control-plane.openapi.yaml`
+- Populi OpenAPI: `contracts/populi/control-plane.openapi.yaml`
 - Populi router: `crates/vox-populi/src/transport/router.rs`
 - DB facade: `crates/vox-db/src/lib.rs`
 - Ludus data integration: `crates/vox-ludus/src/`

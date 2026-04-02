@@ -26,6 +26,8 @@ pub mod sprawl;
 pub mod stringly_typed_enum;
 /// `TODO` / `unimplemented!` / obvious stub markers left in shipped code.
 pub mod stub;
+/// Functions with trivially-default return values (compile but do nothing meaningful).
+pub mod hollow_fn;
 /// References to symbols that are not defined or imported in the current compilation unit.
 pub mod unresolved_ref;
 /// Modules declared but never imported or wired into the build graph.
@@ -59,12 +61,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(unwrap_call::UnwrapCallDetector::new()),
         Box::new(line_endings::LineEndingDetector::new()),
         Box::new(scaling::ScalingSurfacesDetector::new()),
+        Box::new(hollow_fn::HollowFnDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    17
+    18
 }
 
 #[cfg(test)]

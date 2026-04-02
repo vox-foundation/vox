@@ -1,0 +1,39 @@
+# Default terminal exec policy (SSOT). Validated by contracts/index + `vox ci exec-policy-contract`.
+# PowerShell AST extraction: contracts/terminal/pwsh_extract_command_asts.ps1
+version: 1
+allowed_cmdlets:
+  - Get-ChildItem
+  - Get-Content
+  - Get-Location
+  - Set-Location
+  - Select-Object
+  - Where-Object
+  - ForEach-Object
+  - Write-Output
+  - Write-Host
+  - Out-String
+  - ConvertTo-Json
+  - ConvertFrom-Json
+  - Test-Path
+  - Join-Path
+  - Split-Path
+  - Resolve-Path
+allowed_binaries:
+  - cargo
+  - rustc
+  - git
+  - pwsh
+  - powershell
+blocked_parameters:
+  "*":
+    - Recurse
+network_fetch_commands:
+  - Invoke-WebRequest
+  - Invoke-RestMethod
+  - curl
+  - wget
+network_fetch_domains:
+  - github.com
+  - api.github.com
+  - raw.githubusercontent.com
+  - vox-lang.org

@@ -41,7 +41,29 @@ pub fn generate_component_from_web_ir(
     let name = &func.name;
     let filename = format!("{name}.tsx");
     let mut out = String::new();
-    out.push_str("import React from \"react\";\n");
+
+    let mut vox_hooks_used: BTreeSet<String> = BTreeSet::new();
+    for stmt in &func.body {
+        for_each_vox_hook_call_in_stmt(stmt, &mut |hook_name, _span| {
+            vox_hooks_used.insert(hook_name.to_string());
+        });
+    }
+    let mut react_hooks: BTreeSet<&str> = BTreeSet::new();
+    for vox_name in &vox_hooks_used {
+        if let Some(react_name) = react_hook_export_for_vox_ident(vox_name.as_str()) {
+            react_hooks.insert(react_name);
+        }
+    }
+
+    if react_hooks.is_empty() {
+        out.push_str("import React from \"react\";\n");
+    } else {
+        let hook_list: Vec<&&str> = react_hooks.iter().collect();
+        out.push_str(&format!(
+            "import React, {{ {} }} from \"react\";\n",
+            hook_list.iter().map(|s| **s).collect::<Vec<_>>().join(", ")
+        ));
+    }
     if has_styles {
         out.push_str(&format!("import \"./{name}.css\";\n"));
     }
@@ -75,6 +97,25 @@ pub fn generate_component_from_web_ir(
             "export function {name}({{ {params} }}: {name}Props): React.ReactElement {{\n"
         ));
     }
+
+    for stmt in &func.body {
+        match stmt {
+            Stmt::Let { .. } | Stmt::Assign { .. } => {
+                out.push_str(&emit_component_stmt(stmt));
+            }
+            Stmt::Expr { expr, .. } => match expr {
+                Expr::Jsx(_) | Expr::JsxSelfClosing(_) => {}
+                Expr::Call { .. } | Expr::MethodCall { .. } => {
+                    out.push_str(&emit_component_stmt(stmt));
+                }
+                _ => {
+                    out.push_str(&emit_component_stmt(stmt));
+                }
+            },
+            Stmt::Return { .. } => {}
+        }
+    }
+
     out.push_str("  return (\n");
     for line in view.lines() {
         out.push_str("    ");

@@ -1,11 +1,14 @@
 ---
-title: "Crate API: vox-codegen-ts"
-description: "Official documentation for Crate API: vox-codegen-ts for the Vox language. Detailed technical reference, architecture guides, and impleme"
+title: "Compiler Module: vox-codegen-ts"
+description: "Official documentation for Compiler Module: vox-codegen-ts for the Vox language. Detailed technical reference, architecture guides, and impleme"
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
 ---
-# Crate API: vox-codegen-ts
+# Compiler Module: vox-codegen-ts
+
+> [!WARNING]
+> This is not a standalone crate. It is a sub-module located at `crates/vox-compiler/src/codegen_ts/`.
 
 ## Overview
 

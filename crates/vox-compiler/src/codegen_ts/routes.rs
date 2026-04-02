@@ -69,42 +69,27 @@ fn http_method_ord(m: HirHttpMethod) -> u8 {
 /// Fail-fast checks for duplicate Express registrations and empty paths (OP-0170).
 pub fn validate_express_route_emit_input(hir: &HirModule) -> Result<(), String> {
     use std::collections::HashSet;
+    use crate::codegen_shared::{lower_module_routes, RouteMethod};
 
-    let mut http_keys = HashSet::<(u8, String)>::new();
-    for r in &hir.routes {
+    let routes = lower_module_routes(hir);
+    let mut http_keys = HashSet::<(RouteMethod, String)>::new();
+
+    for r in &routes {
         let path = r.path.trim();
         if path.is_empty() {
             return Err(format!(
                 "HTTP {} route has empty path (contract {})",
-                r.method.as_str(),
-                r.route_contract
+                r.method.as_uppercase_str(),
+                r.contract_key
             ));
         }
-        let key = (http_method_ord(r.method), path.to_string());
+
+        let key = (r.method, path.to_string());
         if !http_keys.insert(key) {
             return Err(format!(
                 "duplicate Express handler for {} {}",
-                r.method.as_str(),
+                r.method.as_uppercase_str(),
                 r.path
-            ));
-        }
-    }
-
-    let mut paths = HashSet::<String>::new();
-    for sf in hir
-        .server_fns
-        .iter()
-        .chain(hir.query_fns.iter())
-        .chain(hir.mutation_fns.iter())
-    {
-        let p = sf.route_path.trim();
-        if p.is_empty() {
-            return Err(format!("server fn `{}` has empty route_path", sf.name));
-        }
-        if !paths.insert(p.to_string()) {
-            return Err(format!(
-                "duplicate server-fn route_path `{}` (Express post only)",
-                sf.route_path
             ));
         }
     }

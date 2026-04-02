@@ -204,7 +204,8 @@ pub fn islands_index_html() -> &'static str {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
   <title>Vox Islands</title>
 </head>
 <body>
@@ -284,5 +285,13 @@ mod tests {
             full.contains("__VOX_ISLANDS_V1_METRICS") && full.contains("formatVersion: 1"),
             "expected V1 metrics surface:\n{full}"
         );
+    }
+
+    #[test]
+    fn islands_index_html_includes_mobile_viewport_contract() {
+        let html = islands_index_html();
+        assert!(html.contains("name=\"viewport\""));
+        assert!(html.contains("width=device-width, initial-scale=1.0, viewport-fit=cover"));
+        assert!(html.contains("name=\"color-scheme\""));
     }
 }

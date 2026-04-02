@@ -1,5 +1,7 @@
 // Legacy database import/export planning for **Codex** greenfield releases.
 //
+// New call sites should prefer the explicit legacy namespace: `crate::legacy::codex`.
+//
 // Greenfield Codex stores `schema_version` at [`crate::schema::BASELINE_VERSION`]. Databases whose
 // `MAX(schema_version)` is not 0 and not that baseline (historical multi-step chain) must be
 // exported with `export_legacy_jsonl` (connection that skips baseline migration) and imported into
@@ -112,6 +114,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "builder_sessions",
     "causal",
     "cloud_dispatch_log",
+    "codex_capability_map",
     "codex_change_log",
     "codex_projection_versions",
     "codex_query_snapshots",
@@ -177,6 +180,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "plan_sessions",
     "plan_versions",
     "populi_reviews",
+    "populi_training_run",
     "processing_run_steps",
     "processing_runs",
     "publication_approvals",
@@ -192,6 +196,9 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "question_options",
     "question_sessions",
     "question_stop_events",
+    "reconstruction_artifacts",
+    "reconstruction_benchmark_kpis",
+    "reconstruction_campaign_spec",
     "repository_reliability",
     "research_metrics",
     "research_sessions",
@@ -220,9 +227,12 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "usage_limit_definitions",
     "user_preferences",
     "users",
+    "workflow_activity_attempt_log",
     "workflow_activity_log",
     "workflow_executions",
     "workflow_reliability",
+    "workflow_run_log",
+    "workflow_signal_log",
 ];
 
 /// List user-defined table names (excludes `sqlite_%`), sorted by SQLite.

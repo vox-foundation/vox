@@ -2,8 +2,7 @@
 //!
 //! **Canonical native training** is **`vox mens train`** (Burn LoRA or Candle QLoRA). This module keeps
 //! **`vox train`** for Together remote upload, **`--native`** (legacy Burn scratch trainer behind `mens-dei`),
-//! and a **local** path that errors with the exact `vox mens train` command to run instead of the removed
-//! `scripts/train_qlora.vox` flow.
+//! and a **local** path that **spawns** `vox mens train` with strict data mode (no implicit corpus regen).
 //!
 //! Remote: Together AI (`TOGETHER_API_KEY`). GPU vendor probing remains for any subprocess paths.
 use std::path::Path;
@@ -21,7 +20,7 @@ pub async fn run(
     native: bool,
 ) -> anyhow::Result<()> {
     eprintln!(
-        "Note: `vox train` is legacy. **Canonical training:** `vox mens train` (see docs/src/architecture/mens-training-ssot.md). `--provider local` prints the QLoRA command; use `vox mens train --backend qlora` directly."
+        "Note: `vox train` is legacy. **Canonical training:** `vox mens train` (see docs/src/reference/mens-training.md). `--provider local` spawns `vox mens train` with a 4080-class QLoRA default."
     );
     let data_dir = data_dir.unwrap_or_else(|| std::path::PathBuf::from(DEFAULT_DATA_DIR));
     tracing::debug!(
@@ -63,17 +62,40 @@ async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| vox_scaling_policy::DEFAULT_MENS_RUNS_QWEN_QLORA.to_string());
 
-    anyhow::bail!(
-        "`vox train --provider local` does not run `scripts/train_qlora.vox` (not shipped).\n\
-         **Canonical RTX 4080-class QLoRA (Candle + HF):**\n\
-           vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g \\\n\
-             --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir {} --output-dir {} \\\n\
-             --device cuda --qlora-require-full-proxy-stack\n\
-         Build with `--features gpu,mens-candle-cuda` for NVIDIA CUDA.\n\
-         Docs: docs/src/architecture/mens-training-ssot.md and docs/src/how-to/how-to-train-mens-4080.md.",
-        data_dir.display(),
-        out_hint
+    eprintln!(
+        "Note: `vox train --provider local` forwards to **`vox mens train`** (`--data-mode strict`: stale corpus triggers a blocking refresh before training)."
     );
+
+    let exe = std::env::current_exe().map_err(|e| anyhow::anyhow!("current_exe: {e}"))?;
+    let status = std::process::Command::new(&exe)
+        .arg("mens")
+        .arg("train")
+        .arg("--backend")
+        .arg("qlora")
+        .arg("--tokenizer")
+        .arg("hf")
+        .arg("--preset")
+        .arg("qwen_4080_16g")
+        .arg("--model")
+        .arg(vox_populi::mens::DEFAULT_MODEL_ID)
+        .arg("--data-dir")
+        .arg(data_dir)
+        .arg("--output-dir")
+        .arg(&out_hint)
+        .arg("--device")
+        .arg("cuda")
+        .arg("--data-mode")
+        .arg("strict")
+        .status()
+        .map_err(|e| anyhow::anyhow!("spawn `vox mens train`: {e}"))?;
+
+    if !status.success() {
+        anyhow::bail!(
+            "`vox mens train` exited with {:?}. Rebuild with `--features gpu,mens-candle-cuda` for NVIDIA CUDA. Docs: docs/src/reference/mens-training.md.",
+            status.code()
+        );
+    }
+    Ok(())
 }
 
 async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result<()> {
@@ -92,7 +114,7 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
     let train_jsonl = data_dir.join("train.jsonl");
     ensure_train_jsonl(&train_jsonl, data_dir)?;
     let body = std::fs::read(&train_jsonl)?;
-    let client = reqwest::Client::builder()
+    let client = vox_reqwest_defaults::client_builder()
         .build()
         .map_err(|e| anyhow::anyhow!("reqwest client: {}", e))?;
     let part = reqwest::multipart::Part::bytes(body).file_name("train.jsonl");

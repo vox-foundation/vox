@@ -114,6 +114,20 @@ pub fn vox_process_run(cmd: &str, args: &[String]) -> Result<i32, String> {
     }
 }
 
+/// Resolve `cmd` on the process `PATH` (`std.process.which` in Vox scripts).
+///
+/// Returns the absolute path as a string when found, or `None` when not found or resolution fails.
+/// This is argv-first tooling: pass a single executable name or filename, not a shell pipeline.
+pub fn vox_process_which(cmd: &str) -> Option<String> {
+    let cmd = cmd.trim();
+    if cmd.is_empty() {
+        return None;
+    }
+    which::which(cmd)
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
 /// Captured stdout/stderr/exit from a subprocess (`std.process.run_capture` in Vox scripts).
 ///
 /// Unlike [`vox_process_run`], this always returns **`Ok`** when the process was spawned and
@@ -241,6 +255,21 @@ pub fn vox_json_quote(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string())
 }
 
+/// HTTP GET text response body (`std.http.get_text`).
+pub fn vox_http_get_text(url: &str) -> Result<String, String> {
+    run_http_op(HttpOp::GetText {
+        url: url.to_string(),
+    })
+}
+
+/// HTTP POST with JSON body; returns text response body (`std.http.post_json`).
+pub fn vox_http_post_json(url: &str, body_json: &str) -> Result<String, String> {
+    run_http_op(HttpOp::PostJson {
+        url: url.to_string(),
+        body_json: body_json.to_string(),
+    })
+}
+
 /// OpenClaw WS control-plane call from Vox scripts (`OpenClaw.call`).
 pub fn vox_openclaw_call(method: &str, params_json: &str) -> Result<String, String> {
     run_openclaw_op(OpenClawOp::GatewayCall {
@@ -291,6 +320,99 @@ enum OpenClawOp {
     Subscribe { domain: String },
     Unsubscribe { domain: String },
     Notify { domain: String, message: String },
+}
+
+enum HttpOp {
+    GetText { url: String },
+    PostJson { url: String, body_json: String },
+}
+
+struct HttpRequest {
+    op: HttpOp,
+    reply_tx: std::sync::mpsc::Sender<Result<String, String>>,
+}
+
+struct HttpWorker {
+    tx: std::sync::mpsc::Sender<HttpRequest>,
+}
+
+fn http_worker() -> &'static HttpWorker {
+    static WORKER: OnceLock<HttpWorker> = OnceLock::new();
+    WORKER.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<HttpRequest>();
+        std::thread::Builder::new()
+            .name("vox-http-runtime".to_string())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| format!("http runtime init failed: {e}"));
+                match runtime {
+                    Ok(rt) => {
+                        let client = vox_reqwest_defaults::client();
+                        while let Ok(req) = rx.recv() {
+                            let result = rt.block_on(handle_http_op(&client, req.op));
+                            let _ = req.reply_tx.send(result);
+                        }
+                    }
+                    Err(err) => {
+                        while let Ok(req) = rx.recv() {
+                            let _ = req.reply_tx.send(Err(err.clone()));
+                        }
+                    }
+                }
+            })
+            .expect("spawn http runtime worker");
+        HttpWorker { tx }
+    })
+}
+
+fn run_http_op(op: HttpOp) -> Result<String, String> {
+    let worker = http_worker();
+    run_http_op_with_worker(worker, op)
+}
+
+fn run_http_op_with_worker(worker: &HttpWorker, op: HttpOp) -> Result<String, String> {
+    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+    worker
+        .tx
+        .send(HttpRequest { op, reply_tx })
+        .map_err(|e| format!("http worker send failed: {e}"))?;
+    reply_rx
+        .recv()
+        .map_err(|e| format!("http worker recv failed: {e}"))?
+}
+
+async fn handle_http_op(client: &reqwest::Client, op: HttpOp) -> Result<String, String> {
+    match op {
+        HttpOp::GetText { url } => {
+            let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+            let status = resp.status();
+            let text = resp.text().await.map_err(|e| e.to_string())?;
+            if status.is_success() {
+                Ok(text)
+            } else {
+                Err(format!("GET {url} failed with status {status}: {text}"))
+            }
+        }
+        HttpOp::PostJson { url, body_json } => {
+            let body: serde_json::Value =
+                serde_json::from_str(&body_json).map_err(|e| format!("invalid JSON body: {e}"))?;
+            let resp = client
+                .post(&url)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            let status = resp.status();
+            let text = resp.text().await.map_err(|e| e.to_string())?;
+            if status.is_success() {
+                Ok(text)
+            } else {
+                Err(format!("POST {url} failed with status {status}: {text}"))
+            }
+        }
+    }
 }
 
 struct OpenClawRequest {
@@ -425,6 +547,239 @@ async fn handle_openclaw_op(
                 .map_err(|e| e.to_string())?;
             serde_json::to_string(&payload).map_err(|e| e.to_string())
         }
+    }
+}
+
+// ── Browser (CDP / chromiumoxide; native host thread) ───────────────────────
+
+enum BrowserOp {
+    Open {
+        url: String,
+        headless: bool,
+    },
+    Close {
+        page_id: String,
+    },
+    Goto {
+        page_id: String,
+        url: String,
+    },
+    Click {
+        page_id: String,
+        target: String,
+    },
+    Fill {
+        page_id: String,
+        target: String,
+        value: String,
+    },
+    WaitFor {
+        page_id: String,
+        target: String,
+        timeout_secs: u64,
+    },
+    Text {
+        page_id: String,
+        target: String,
+    },
+    Html {
+        page_id: String,
+        target: String,
+    },
+    Screenshot {
+        page_id: String,
+        path: String,
+    },
+}
+
+enum BrowserReply {
+    Unit,
+    Str(String),
+}
+
+struct BrowserRequest {
+    op: BrowserOp,
+    reply_tx: std::sync::mpsc::Sender<Result<BrowserReply, String>>,
+}
+
+struct BrowserWorker {
+    tx: std::sync::mpsc::Sender<BrowserRequest>,
+}
+
+fn browser_worker() -> &'static BrowserWorker {
+    static WORKER: OnceLock<BrowserWorker> = OnceLock::new();
+    WORKER.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<BrowserRequest>();
+        std::thread::Builder::new()
+            .name("vox-browser-runtime".to_string())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| format!("browser runtime init failed: {e}"));
+                match runtime {
+                    Ok(rt) => {
+                        let eng = vox_browser::global_engine();
+                        while let Ok(req) = rx.recv() {
+                            let result = rt.block_on(handle_browser_op(&eng, req.op));
+                            let _ = req.reply_tx.send(result);
+                        }
+                    }
+                    Err(err) => {
+                        while let Ok(req) = rx.recv() {
+                            let _ = req.reply_tx.send(Err(err.clone()));
+                        }
+                    }
+                }
+            })
+            .expect("spawn browser runtime worker");
+        BrowserWorker { tx }
+    })
+}
+
+fn run_browser_op(op: BrowserOp) -> Result<BrowserReply, String> {
+    let worker = browser_worker();
+    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+    worker
+        .tx
+        .send(BrowserRequest { op, reply_tx })
+        .map_err(|e| format!("browser worker send failed: {e}"))?;
+    reply_rx
+        .recv()
+        .map_err(|e| format!("browser worker recv failed: {e}"))?
+}
+
+async fn handle_browser_op(
+    eng: &std::sync::Arc<vox_browser::BrowserEngine>,
+    op: BrowserOp,
+) -> Result<BrowserReply, String> {
+    match op {
+        BrowserOp::Open { url, headless } => eng.open(&url, headless).await.map(BrowserReply::Str),
+        BrowserOp::Close { page_id } => eng.close(&page_id).await.map(|_| BrowserReply::Unit),
+        BrowserOp::Goto { page_id, url } => {
+            eng.goto(&page_id, &url).await.map(|_| BrowserReply::Unit)
+        }
+        BrowserOp::Click { page_id, target } => eng
+            .click(&page_id, &target)
+            .await
+            .map(|_| BrowserReply::Unit),
+        BrowserOp::Fill {
+            page_id,
+            target,
+            value,
+        } => eng
+            .fill(&page_id, &target, &value)
+            .await
+            .map(|_| BrowserReply::Unit),
+        BrowserOp::WaitFor {
+            page_id,
+            target,
+            timeout_secs,
+        } => eng
+            .wait_for(&page_id, &target, timeout_secs)
+            .await
+            .map(|_| BrowserReply::Unit),
+        BrowserOp::Text { page_id, target } => {
+            eng.text(&page_id, &target).await.map(BrowserReply::Str)
+        }
+        BrowserOp::Html { page_id, target } => {
+            eng.html(&page_id, &target).await.map(BrowserReply::Str)
+        }
+        BrowserOp::Screenshot { page_id, path } => {
+            eng.screenshot(&page_id, &path).await.map(BrowserReply::Str)
+        }
+    }
+}
+
+/// `Browser.open` — returns opaque `page_id` (`Result[str]` in Vox).
+pub fn vox_browser_open(url: &str, headless: bool) -> Result<String, String> {
+    match run_browser_op(BrowserOp::Open {
+        url: url.to_string(),
+        headless,
+    })? {
+        BrowserReply::Str(s) => Ok(s),
+        BrowserReply::Unit => Err("browser: unexpected Unit reply for open".into()),
+    }
+}
+
+pub fn vox_browser_close(page_id: &str) -> Result<(), String> {
+    match run_browser_op(BrowserOp::Close {
+        page_id: page_id.to_string(),
+    })? {
+        BrowserReply::Unit => Ok(()),
+        BrowserReply::Str(_) => Err("browser: unexpected Str reply for close".into()),
+    }
+}
+
+pub fn vox_browser_goto(page_id: &str, url: &str) -> Result<(), String> {
+    match run_browser_op(BrowserOp::Goto {
+        page_id: page_id.to_string(),
+        url: url.to_string(),
+    })? {
+        BrowserReply::Unit => Ok(()),
+        BrowserReply::Str(_) => Err("browser: unexpected Str reply for goto".into()),
+    }
+}
+
+pub fn vox_browser_click(page_id: &str, target: &str) -> Result<(), String> {
+    match run_browser_op(BrowserOp::Click {
+        page_id: page_id.to_string(),
+        target: target.to_string(),
+    })? {
+        BrowserReply::Unit => Ok(()),
+        BrowserReply::Str(_) => Err("browser: unexpected Str reply for click".into()),
+    }
+}
+
+pub fn vox_browser_fill(page_id: &str, target: &str, value: &str) -> Result<(), String> {
+    match run_browser_op(BrowserOp::Fill {
+        page_id: page_id.to_string(),
+        target: target.to_string(),
+        value: value.to_string(),
+    })? {
+        BrowserReply::Unit => Ok(()),
+        BrowserReply::Str(_) => Err("browser: unexpected Str reply for fill".into()),
+    }
+}
+
+pub fn vox_browser_wait_for(page_id: &str, target: &str, timeout_secs: u64) -> Result<(), String> {
+    match run_browser_op(BrowserOp::WaitFor {
+        page_id: page_id.to_string(),
+        target: target.to_string(),
+        timeout_secs,
+    })? {
+        BrowserReply::Unit => Ok(()),
+        BrowserReply::Str(_) => Err("browser: unexpected Str reply for wait_for".into()),
+    }
+}
+
+pub fn vox_browser_text(page_id: &str, target: &str) -> Result<String, String> {
+    match run_browser_op(BrowserOp::Text {
+        page_id: page_id.to_string(),
+        target: target.to_string(),
+    })? {
+        BrowserReply::Str(s) => Ok(s),
+        BrowserReply::Unit => Err("browser: unexpected Unit reply for text".into()),
+    }
+}
+
+pub fn vox_browser_html(page_id: &str, target: &str) -> Result<String, String> {
+    match run_browser_op(BrowserOp::Html {
+        page_id: page_id.to_string(),
+        target: target.to_string(),
+    })? {
+        BrowserReply::Str(s) => Ok(s),
+        BrowserReply::Unit => Err("browser: unexpected Unit reply for html".into()),
+    }
+}
+
+pub fn vox_browser_screenshot(page_id: &str, path: &str) -> Result<String, String> {
+    match run_browser_op(BrowserOp::Screenshot {
+        page_id: page_id.to_string(),
+        path: path.to_string(),
+    })? {
+        BrowserReply::Str(s) => Ok(s),
+        BrowserReply::Unit => Err("browser: unexpected Unit reply for screenshot".into()),
     }
 }
 
@@ -588,6 +943,18 @@ mod tests {
     }
 
     #[test]
+    fn process_which_finds_system_executable() {
+        let name = if cfg!(windows) { "cmd.exe" } else { "sh" };
+        let resolved = vox_process_which(name);
+        assert!(
+            resolved.is_some(),
+            "expected to resolve {name} on PATH, got None"
+        );
+        let p = resolved.unwrap();
+        assert!(!p.trim().is_empty(), "empty path for {name}");
+    }
+
+    #[test]
     fn fs_glob_finds_temp_file() {
         let dir = std::env::temp_dir().join(format!("vox-glob-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -615,6 +982,75 @@ mod tests {
         assert_eq!(vox_json_read_str(raw, "name").unwrap(), "x");
         assert!((vox_json_read_f64(raw, "n").unwrap() - 3.0).abs() < f64::EPSILON);
         assert!((vox_json_read_f64(raw, "f").unwrap() - 1.5).abs() < f64::EPSILON);
+    }
+
+    #[tokio::test]
+    async fn http_invalid_json_body_is_rejected_before_network() {
+        let client = vox_reqwest_defaults::client();
+        let err = handle_http_op(
+            &client,
+            HttpOp::PostJson {
+                url: "http://127.0.0.1:1".to_string(),
+                body_json: "{not-json".to_string(),
+            },
+        )
+        .await
+        .expect_err("invalid JSON body should fail before HTTP call");
+        assert!(err.contains("invalid JSON body"), "unexpected error: {err}");
+    }
+
+    #[tokio::test]
+    async fn http_invalid_url_reports_error() {
+        let client = vox_reqwest_defaults::client();
+        let err = handle_http_op(
+            &client,
+            HttpOp::GetText {
+                url: "notaurl".to_string(),
+            },
+        )
+        .await
+        .expect_err("invalid URL must fail");
+        assert!(!err.trim().is_empty(), "error should not be empty");
+    }
+
+    #[test]
+    fn http_worker_send_failure_is_reported() {
+        let (tx, rx) = std::sync::mpsc::channel::<HttpRequest>();
+        drop(rx);
+        let worker = HttpWorker { tx };
+        let err = run_http_op_with_worker(
+            &worker,
+            HttpOp::GetText {
+                url: "https://example.invalid".to_string(),
+            },
+        )
+        .expect_err("send should fail when receiver is dropped");
+        assert!(
+            err.contains("http worker send failed"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn http_worker_recv_failure_is_reported() {
+        let (tx, rx) = std::sync::mpsc::channel::<HttpRequest>();
+        std::thread::spawn(move || {
+            if let Ok(req) = rx.recv() {
+                drop(req.reply_tx);
+            }
+        });
+        let worker = HttpWorker { tx };
+        let err = run_http_op_with_worker(
+            &worker,
+            HttpOp::GetText {
+                url: "https://example.invalid".to_string(),
+            },
+        )
+        .expect_err("recv should fail when worker closes reply channel");
+        assert!(
+            err.contains("http worker recv failed"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

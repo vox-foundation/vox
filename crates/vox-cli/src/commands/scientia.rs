@@ -5,12 +5,31 @@
 use clap::Subcommand;
 
 use super::db_cli::{
-    ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
+    ArxivHandoffStageCli, DbPreflightProfileCli, DiscoveryIntakeGateCli,
+    PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT, PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT,
+    PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LOCK_TTL_MS,
+    PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS, PUBLICATION_SYNC_BATCH_DEFAULT_LIMIT,
+    PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS, PUBLICATION_WORKER_DEFAULT_ITERATIONS,
+    PUBLICATION_WORKER_DEFAULT_JITTER_SECS, PublicationPrepareBodyCli, ScholarlyVenueCli,
 };
 
 /// Subcommands for `vox scientia`.
 #[derive(Subcommand)]
 pub enum ScientiaCmd {
+    /// Validate a finding-candidate JSON document against `contracts/scientia/finding-candidate.v1.schema.json`.
+    #[command(name = "finding-candidate-validate")]
+    FindingCandidateValidate {
+        /// Path to JSON instance (absolute or repo-relative from cwd).
+        #[arg(long)]
+        json: std::path::PathBuf,
+    },
+    /// Validate a novelty-evidence-bundle JSON document against `contracts/scientia/novelty-evidence-bundle.v1.schema.json`.
+    #[command(name = "novelty-evidence-bundle-validate")]
+    NoveltyEvidenceBundleValidate {
+        /// Path to JSON instance (absolute or repo-relative from cwd).
+        #[arg(long)]
+        json: std::path::PathBuf,
+    },
     /// List Codex MCP invocable bindings (same as `vox db capability-list`).
     #[command(name = "capability-list")]
     CapabilityList,
@@ -43,6 +62,16 @@ pub enum ScientiaCmd {
     /// Retrieval / embedding diagnostics (`vox db retrieval-status`).
     #[command(name = "retrieval-status")]
     RetrievalStatus,
+    /// Mirror markdown into Codex search corpus (`vox db mirror-search-corpus`).
+    #[command(name = "mirror-search-corpus")]
+    MirrorSearchCorpus {
+        /// Root directory to scan recursively for `*.md` files.
+        #[arg(long)]
+        root: std::path::PathBuf,
+        /// Prefix for `search_documents.source_uri` (e.g. `vox-docs:`).
+        #[arg(long, default_value = "vox-docs:")]
+        source_uri_prefix: String,
+    },
     /// Refresh bundled research sources (`vox db research-refresh`).
     #[command(name = "research-refresh")]
     ResearchRefresh {
@@ -62,6 +91,8 @@ pub enum ScientiaCmd {
         preflight: bool,
         #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
         preflight_profile: DbPreflightProfileCli,
+        #[arg(long, value_enum, default_value_t = DiscoveryIntakeGateCli::None)]
+        discovery_intake_gate: DiscoveryIntakeGateCli,
     },
     /// Same as `publication-prepare` with mandatory preflight.
     #[command(name = "publication-prepare-validated")]
@@ -70,6 +101,8 @@ pub enum ScientiaCmd {
         body: PublicationPrepareBodyCli,
         #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
         preflight_profile: DbPreflightProfileCli,
+        #[arg(long, value_enum, default_value_t = DiscoveryIntakeGateCli::None)]
+        discovery_intake_gate: DiscoveryIntakeGateCli,
     },
     /// JSON preflight report for an existing publication id.
     #[command(name = "publication-preflight")]
@@ -138,6 +171,52 @@ pub enum ScientiaCmd {
         #[arg(long, default_value_t = false)]
         with_worthiness: bool,
     },
+    /// Rank SCIENTIA publication candidates (`content_type` fixed to `scientia` for this facade).
+    #[command(name = "publication-discovery-scan")]
+    PublicationDiscoveryScan {
+        #[arg(long)]
+        state: Option<String>,
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    #[command(name = "publication-discovery-explain")]
+    PublicationDiscoveryExplain {
+        #[arg(long)]
+        publication_id: String,
+    },
+    #[command(name = "publication-transform-preview")]
+    PublicationTransformPreview {
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Prior-art fetch JSON (same as `vox db publication-novelty-fetch`; scientia `content_type` enforced on persist path in handler).
+    #[command(name = "publication-novelty-fetch")]
+    PublicationNoveltyFetch {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+        #[arg(long, default_value_t = false)]
+        persist_metadata: bool,
+    },
+    /// Decision snapshot JSON (`vox db publication-decision-explain`).
+    #[command(name = "publication-decision-explain")]
+    PublicationDecisionExplain {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, default_value_t = false)]
+        live_prior_art: bool,
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+    },
+    /// Happy-path bundle + candidate + worthiness JSON (`vox db publication-novelty-happy-path`).
+    #[command(name = "publication-novelty-happy-path")]
+    PublicationNoveltyHappyPath {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+    },
     /// Poll remote scholarly repository status for a stored submission.
     #[command(name = "publication-scholarly-remote-status")]
     PublicationScholarlyRemoteStatus {
@@ -155,15 +234,15 @@ pub enum ScientiaCmd {
     /// Batch remote status poll across publications (for cron).
     #[command(name = "publication-scholarly-remote-status-sync-batch")]
     PublicationScholarlyRemoteStatusSyncBatch {
-        #[arg(long, default_value_t = 25)]
+        #[arg(long, default_value_t = PUBLICATION_SYNC_BATCH_DEFAULT_LIMIT)]
         limit: i64,
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_ITERATIONS)]
         iterations: u32,
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS)]
         interval_secs: u64,
         #[arg(long)]
         max_runtime_secs: Option<u64>,
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_JITTER_SECS)]
         jitter_secs: u64,
     },
     /// Record an arXiv-assist operator milestone (append-only audit trail).
@@ -182,13 +261,13 @@ pub enum ScientiaCmd {
     },
     #[command(name = "publication-external-jobs-due")]
     PublicationExternalJobsDue {
-        #[arg(long, default_value_t = 50)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT)]
         limit: i64,
     },
     /// List scholarly outbound jobs in terminal `failed` state (dead-letter review).
     #[command(name = "publication-external-jobs-dead-letter")]
     PublicationExternalJobsDeadLetter {
-        #[arg(long, default_value_t = 50)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT)]
         limit: i64,
     },
     /// Requeue one dead-letter scholarly job (`failed` → `queued`) by job id.
@@ -199,19 +278,19 @@ pub enum ScientiaCmd {
     },
     #[command(name = "publication-external-jobs-tick")]
     PublicationExternalJobsTick {
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT)]
         limit: i64,
-        #[arg(long, default_value_t = 120_000)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LOCK_TTL_MS)]
         lock_ttl_ms: i64,
         #[arg(long)]
         lock_owner: Option<String>,
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_ITERATIONS)]
         iterations: u32,
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS)]
         interval_secs: u64,
         #[arg(long)]
         max_runtime_secs: Option<u64>,
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_JITTER_SECS)]
         jitter_secs: u64,
     },
     /// One-command scholarly path: preflight, dual approval, optional staging, submit (same as `vox db publication-scholarly-pipeline-run`).
@@ -235,15 +314,44 @@ pub enum ScientiaCmd {
     /// JSON rollup of external scholarly pipeline metrics (see `vox db publication-external-pipeline-metrics`).
     #[command(name = "publication-external-pipeline-metrics")]
     PublicationExternalPipelineMetrics {
-        #[arg(long, default_value_t = 168)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS)]
         since_hours: i64,
     },
 }
 
 /// Dispatch `vox scientia` to the shared `vox db` handlers.
 pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
+    use super::ci::repo_root;
     use super::db_cli::{self, DbCli, DbCliCore, DbCliPublication};
-    let db_cmd = match cmd {
+    use super::scientia_ledger_contract;
+
+    match cmd {
+        ScientiaCmd::FindingCandidateValidate { json } => {
+            let root = repo_root();
+            let path = if json.is_absolute() {
+                json
+            } else {
+                std::env::current_dir()?.join(json)
+            };
+            scientia_ledger_contract::validate_finding_candidate_file(&root, &path)?;
+            return Ok(());
+        }
+        ScientiaCmd::NoveltyEvidenceBundleValidate { json } => {
+            let root = repo_root();
+            let path = if json.is_absolute() {
+                json
+            } else {
+                std::env::current_dir()?.join(json)
+            };
+            scientia_ledger_contract::validate_novelty_bundle_file(&root, &path)?;
+            return Ok(());
+        }
+        cmd => {
+            let db_cmd = match cmd {
+        ScientiaCmd::FindingCandidateValidate { .. }
+        | ScientiaCmd::NoveltyEvidenceBundleValidate { .. } => unreachable!(
+            "finding-candidate-validate and novelty-evidence-bundle-validate handled above"
+        ),
         ScientiaCmd::CapabilityList => DbCli::Core(DbCliCore::CapabilityList),
         ScientiaCmd::ResearchList {
             vendor,
@@ -264,6 +372,13 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             limit,
         }),
         ScientiaCmd::RetrievalStatus => DbCli::Core(DbCliCore::RetrievalStatus),
+        ScientiaCmd::MirrorSearchCorpus {
+            root,
+            source_uri_prefix,
+        } => DbCli::Core(DbCliCore::MirrorSearchCorpus {
+            root,
+            source_uri_prefix,
+        }),
         ScientiaCmd::ResearchRefresh { vendor, dry_run } => {
             DbCli::Core(DbCliCore::ResearchRefresh { vendor, dry_run })
         }
@@ -271,19 +386,23 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             body,
             preflight,
             preflight_profile,
+            discovery_intake_gate,
         } => DbCli::Publication(DbCliPublication::PublicationPrepare {
             content_type: "scientia".to_string(),
             body,
             preflight,
             preflight_profile,
+            discovery_intake_gate,
         }),
         ScientiaCmd::PublicationPrepareValidated {
             body,
             preflight_profile,
+            discovery_intake_gate,
         } => DbCli::Publication(DbCliPublication::PublicationPrepareValidated {
             content_type: "scientia".to_string(),
             body,
             preflight_profile,
+            discovery_intake_gate,
         }),
         ScientiaCmd::PublicationPreflight {
             publication_id,
@@ -336,6 +455,44 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         } => DbCli::Publication(DbCliPublication::PublicationStatus {
             publication_id,
             with_worthiness,
+        }),
+        ScientiaCmd::PublicationDiscoveryScan { state, limit } => {
+            DbCli::Publication(DbCliPublication::PublicationDiscoveryScan {
+                content_type: Some("scientia".to_string()),
+                state,
+                limit,
+            })
+        }
+        ScientiaCmd::PublicationDiscoveryExplain { publication_id } => {
+            DbCli::Publication(DbCliPublication::PublicationDiscoveryExplain { publication_id })
+        }
+        ScientiaCmd::PublicationTransformPreview { publication_id } => {
+            DbCli::Publication(DbCliPublication::PublicationTransformPreview { publication_id })
+        }
+        ScientiaCmd::PublicationNoveltyFetch {
+            publication_id,
+            offline,
+            persist_metadata,
+        } => DbCli::Publication(DbCliPublication::PublicationNoveltyFetch {
+            publication_id,
+            offline,
+            persist_metadata,
+        }),
+        ScientiaCmd::PublicationDecisionExplain {
+            publication_id,
+            live_prior_art,
+            offline,
+        } => DbCli::Publication(DbCliPublication::PublicationDecisionExplain {
+            publication_id,
+            live_prior_art,
+            offline,
+        }),
+        ScientiaCmd::PublicationNoveltyHappyPath {
+            publication_id,
+            offline,
+        } => DbCli::Publication(DbCliPublication::PublicationNoveltyHappyPath {
+            publication_id,
+            offline,
         }),
         ScientiaCmd::PublicationScholarlyRemoteStatus {
             publication_id,
@@ -423,6 +580,8 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
             DbCli::Publication(DbCliPublication::PublicationExternalPipelineMetrics { since_hours })
         }
-    };
-    db_cli::run(db_cmd).await
+            };
+            db_cli::run(db_cmd).await
+        }
+    }
 }

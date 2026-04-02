@@ -32,7 +32,7 @@ impl GitLabProvider {
 
     /// Create with a custom API base (for self-hosted GitLab).
     pub fn with_base(token: impl Into<String>, api_base: &str) -> Result<Self, ForgeError> {
-        let client = reqwest::Client::builder()
+        let client = vox_reqwest_defaults::client_builder()
             .user_agent("vox-forge/0.1 (https://github.com/vox-lang/vox)")
             .build()
             .map_err(|e| ForgeError::Network(e.to_string()))?;
@@ -437,6 +437,63 @@ impl GitForgeProvider for GitLabProvider {
             },
         };
         Ok(event)
+    }
+
+    async fn create_release(
+        &self,
+        owner: &str,
+        repo: &str,
+        release: crate::types::NewRelease<'_>,
+    ) -> Result<String, ForgeError> {
+        let pid = Self::encode_project_id(owner, repo);
+        
+        // Ensure the tag exists or create it? GitLab release API expects tag to exist,
+        // but if it points to main it will create the tag?
+        // Let's use the Releases API.
+        
+        let url = format!("{}/projects/{pid}/releases", self.api_base);
+        let payload = serde_json::json!({
+            "name": release.name,
+            "tag_name": release.tag_name,
+            "description": release.body,
+        });
+        
+        let v = match self.post_json(&url, &payload).await {
+            Ok(v) => v,
+            Err(ForgeError::Http { status: 409, .. }) => {
+                // Already exists, just return URL if we can construct it or fetch it.
+                let check_url = format!("{}/projects/{pid}/releases/{}", self.api_base, release.tag_name);
+                self.get_json(&check_url).await?
+            }
+            Err(e) => return Err(e),
+        };
+
+        Ok(v["_links"]["self"].as_str().or_else(|| v["commit"]["web_url"].as_str()).unwrap_or("").to_string())
+    }
+
+    async fn create_discussion_or_issue(
+        &self,
+        owner: &str,
+        repo: &str,
+        req: crate::types::NewDiscussionOrIssue<'_>,
+    ) -> Result<String, ForgeError> {
+        // Fallback to creating an issue since GitLab doesn't have "Discussions" like GitHub (they have issues).
+        let pid = Self::encode_project_id(owner, repo);
+        let url = format!("{}/projects/{pid}/issues", self.api_base);
+        
+        let mut labels = vec![];
+        if let Some(c) = req.category {
+            labels.push(c);
+        }
+        
+        let payload = serde_json::json!({
+            "title": req.title,
+            "description": req.body,
+            "labels": labels.join(","),
+        });
+        
+        let v = self.post_json(&url, &payload).await?;
+        Ok(v["web_url"].as_str().unwrap_or("").to_string())
     }
 
     async fn health_check(&self) -> Result<Option<u32>, ForgeError> {

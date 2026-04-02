@@ -2,7 +2,7 @@
 title: "Tutorial: Actor Basics"
 description: "Official documentation for Tutorial: Actor Basics for the Vox language. Detailed technical reference, architecture guides, and implementa"
 category: "tutorial"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 # Tutorial: Actor Basics
@@ -63,5 +63,5 @@ Actors provide:
 ---
 
 **Next Steps**:
-- [Workflow Durability](tut-workflow-durability.md) — Combine actors with durable execution.
+- [Workflow Durability](tut-workflow-durability.md) — Use workflows for **workflow-scoped** step replay in the interpreted runtime; actors use `state_load` / `state_save` for a different persistence model. See [Actors & Workflows](../explanation/expl-actors-workflows.md).
 - [UI Integration](tut-ui-integration.md) — Bind actor state to React components.

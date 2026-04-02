@@ -1,4 +1,10 @@
 //! HTTP inference loop: budget gate, provider dispatch, Ollama fallback, usage recording.
+//!
+//! ## LLM cost bus events (`VOX_MCP_LLM_COST_EVENTS`)
+//! After a successful completion, [`should_emit_llm_cost_events`] gates [`vox_orchestrator::AgentEventKind::CostIncurred`] on the
+//! orchestrator bus. **Unset env + Codex attached** ⇒ **no bus emit** (usage is already persisted via
+//! [`vox_orchestrator::usage::UsageTracker`] / budget paths). **Unset + no DB** ⇒ **emit** so operators still see cost signals.
+//! Truthy `1`/`true` forces emits even with DB; `0`/`false` disables. Full semantics: `docs/src/reference/env-vars.md`.
 
 use vox_config::inference_profile_allows_local_ollama_http;
 use vox_orchestrator::models::{ModelSpec, ProviderType};
@@ -31,6 +37,7 @@ pub struct McpInferRouting<'a> {
     pub user_id: Option<&'a str>,
 }
 
+/// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
 fn should_emit_llm_cost_events(state: &ServerState) -> bool {
     match std::env::var("VOX_MCP_LLM_COST_EVENTS").ok() {
         Some(v) => {
@@ -139,13 +146,48 @@ fn google_direct_fallback_for_gemini(
 pub async fn mcp_infer_completion(
     state: &ServerState,
     mut model: ModelSpec,
-    _tool: &str,
+    tool: &str,
     system_prompt: &str,
     routing: &McpInferRouting<'_>,
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
 ) -> Result<(String, String, u64), String> {
+    mcp_infer_tool_completion(
+        state,
+        model,
+        tool,
+        system_prompt,
+        routing,
+        max_tokens,
+        temperature,
+        json_mode,
+        None,
+        None,
+    )
+    .await
+}
+
+/// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.) with explicit tools/tool_choice.
+pub async fn mcp_infer_tool_completion(
+    state: &ServerState,
+    mut model: ModelSpec,
+    tool: &str,
+    system_prompt: &str,
+    routing: &McpInferRouting<'_>,
+    max_tokens: u64,
+    temperature: f32,
+    json_mode: bool,
+    tools: Option<serde_json::Value>,
+    tool_choice: Option<serde_json::Value>,
+) -> Result<(String, String, u64), String> {
+    if tool == "vox_plan" && super::infer_test_stub::infer_stub_env_active() {
+        if let Some(body) = super::infer_test_stub::stub_completion_body() {
+            let id = super::infer_test_stub::stub_plan_model_spec().id;
+            return Ok((body, id, 0));
+        }
+    }
+
     let max_t = super::clamp_http_max_output_tokens(max_tokens);
     let client = &state.http_client;
     let allow_ollama_fallback =
@@ -188,13 +230,25 @@ pub async fn mcp_infer_completion(
         let usage = model.llm_usage_key();
 
         if let Some(db) = state.db.as_ref() {
+            let orch_arc = state.orchestrator.budget_manager_handle();
+            let orch_attention = {
+                let g = vox_orchestrator::sync_lock::rw_read(&*orch_arc);
+                g.attention_snapshot()
+            };
             let tracker = if let Some(user_id) = routing.user_id {
                 UsageTracker::with_user(db.as_ref(), user_id)
             } else {
                 UsageTracker::new_ref(db.as_ref())
             };
-            let gate = BudgetGate::new(state.budget_manager.as_ref(), &tracker);
-            match gate.allow(MCP_GLOBAL_LLM_AGENT, &usage, 0).await {
+            let gate = BudgetGate::new(
+                state.budget_manager.as_ref(),
+                &tracker,
+                &state.orchestrator_config,
+            );
+            match gate
+                .allow_with_pilot_attention(MCP_GLOBAL_LLM_AGENT, &usage, Some(orch_attention), 0)
+                .await
+            {
                 GateResult::Allowed => {}
                 GateResult::BudgetExceeded { message } => {
                     if allow_ollama_fallback && !matches!(model.provider_type, ProviderType::Ollama)
@@ -271,6 +325,8 @@ pub async fn mcp_infer_completion(
             max_t,
             temperature,
             json_mode,
+            tools.clone(),
+            tool_choice.clone(),
         )
         .await;
 
@@ -301,7 +357,11 @@ pub async fn mcp_infer_completion(
                     } else {
                         UsageTracker::new_ref(db.as_ref())
                     };
-                    let gate = BudgetGate::new(state.budget_manager.as_ref(), &tracker);
+                    let gate = BudgetGate::new(
+                        state.budget_manager.as_ref(),
+                        &tracker,
+                        &state.orchestrator_config,
+                    );
                     gate.record_usage_detailed(
                         MCP_GLOBAL_LLM_AGENT,
                         &usage,
@@ -327,7 +387,7 @@ pub async fn mcp_infer_completion(
                         output_tokens: ct,
                         cost_usd: reconciled_usd,
                         temporal_context: Some(serde_json::json!({
-                            "tool": _tool,
+                            "tool": tool,
                             "provider_request_id": provider_request_id,
                             "user_id": routing.user_id,
                             "cost_source": cost_source,

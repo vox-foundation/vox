@@ -30,7 +30,7 @@ training_eligible: false
 
 ## `latin_ns` (command-registry group labels)
 
-Values come from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml). They are **telemetry / grouping buckets**, not extra argv you must type. Optional Latin **routes** are `vox fabrica`, `vox diag`, `vox ars`, `vox mens`, `vox recensio` (see [CLI reference](../reference/cli.md)); English paths remain canonical.
+Values come from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml). They are **telemetry / grouping buckets**, not extra argv you must type. Optional Latin **routes** are `vox fabrica`, `vox diag`, `vox ars`, `vox mens`, `vox recensio` (see [CLI reference](../reference/cli.md)); English paths remain canonical.
 
 | `latin_ns` | Theme (mnemonic) | Example English commands |
 |------------|------------------|---------------------------|
@@ -72,7 +72,7 @@ Values come from [`contracts/cli/command-registry.yaml`](../../contracts/cli/com
 
 | Legacy | Canonical |
 |--------|-----------|
-| **`vox.mens`** (bundled `populi.skill.md`) | **`vox.populi`** — [`SkillRegistry::get`](../../crates/vox-skills/src/registry.rs) and `uninstall` treat `vox.mens` as an alias for `vox.populi`. |
+| **`vox.mens`** (bundled `populi.skill.md`) | **`vox.populi`** — [`SkillRegistry::get`](../../../crates/vox-skills/src/registry.rs) and `uninstall` treat `vox.mens` as an alias for `vox.populi`. |
 
 ## Doc link canonicals
 

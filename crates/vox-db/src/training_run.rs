@@ -1,10 +1,10 @@
 //! VoxDB CRUD operations for training run tracking.
 //!
 //! Provides persistence for Mens QLoRA training runs so that progress
-//! survives crashes and can be queried from external tooling. The table is
-//! created lazily on first write (no migration required).
+//! survives crashes and can be queried from external tooling.
+//! The `populi_training_run` table is created by Arca baseline ([`crate::schema::spec::POPULI_TRAINING_RUN_DDL`]).
 //!
-//! ## Table schema (created on first write)
+//! ## Table schema
 //!
 //! ```sql
 //! CREATE TABLE IF NOT EXISTS populi_training_run (
@@ -30,32 +30,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{StoreError, VoxDb};
 
-/// DDL executed lazily to ensure the table exists before any write.
-const CREATE_TABLE: &str = "
-CREATE TABLE IF NOT EXISTS populi_training_run (
-    run_id               TEXT    NOT NULL PRIMARY KEY,
-    adapter_tag          TEXT,
-    model_name           TEXT,
-    output_dir           TEXT    NOT NULL,
-    data_dir             TEXT    NOT NULL,
-    status               TEXT    NOT NULL DEFAULT 'running',
-    epoch                INTEGER NOT NULL DEFAULT 0,
-    global_step          INTEGER NOT NULL DEFAULT 0,
-    planned_steps        INTEGER,
-    last_loss            REAL,
-    last_checkpoint_path TEXT,
-    created_at           INTEGER NOT NULL,
-    updated_at           INTEGER NOT NULL
-);";
-
 /// Row returned from [`VoxDb::get_training_run`].
+///
+/// Table DDL lives in Arca baseline ([`crate::schema::spec::POPULI_TRAINING_RUN_DDL`]).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingRunRecord {
     /// Unique run identifier (matches `LoraTrainingConfig::run_id`).
     pub run_id: String,
     /// Optional adapter tag (`--adapter-tag` CLI flag).
     pub adapter_tag: Option<String>,
-    /// Base model identifier (e.g. `Qwen/Qwen2.5-Coder-3B-Instruct`).
+    /// Base model identifier (e.g. `Qwen/Qwen3.5-4B`).
     pub model_name: Option<String>,
     /// Absolute path to the output directory.
     pub output_dir: String,
@@ -106,12 +90,7 @@ fn unix_now() -> i64 {
 impl VoxDb {
     /// Ensure the `populi_training_run` table exists.
     async fn ensure_training_run_table(&self) -> Result<(), StoreError> {
-        self.conn
-            .execute_batch(CREATE_TABLE)
-            .await
-            .map_err(|e: turso::Error| {
-                StoreError::NotFound(format!("ensure training_run table: {e}"))
-            })?;
+        // Baseline migration creates `populi_training_run`; keep hook for call sites.
         Ok(())
     }
 

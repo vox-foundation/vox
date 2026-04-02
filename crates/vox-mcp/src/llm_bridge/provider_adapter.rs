@@ -19,13 +19,15 @@ pub(crate) struct ProviderInferResult {
     pub provider_reported_cost_usd: Option<f64>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct InferRequest<'a> {
     pub system_prompt: &'a str,
     pub user_prompt: &'a str,
     pub max_t: u64,
     pub temperature: f32,
     pub json_mode: bool,
+    pub tools: Option<serde_json::Value>,
+    pub tool_choice: Option<serde_json::Value>,
 }
 
 trait ProviderAdapter: Send + Sync {
@@ -150,6 +152,8 @@ impl ProviderAdapter for OpenAiCompatAdapter {
                     req.max_t,
                     req.temperature,
                     req.json_mode,
+                    req.tools.clone(),
+                    req.tool_choice.clone(),
                     &headers,
                 )
                 .await?;
@@ -174,6 +178,8 @@ pub(crate) async fn infer_via_provider_adapter(
     max_t: u64,
     temperature: f32,
     json_mode: bool,
+    tools: Option<serde_json::Value>,
+    tool_choice: Option<serde_json::Value>,
 ) -> Result<ProviderInferResult, HttpInferError> {
     let req = InferRequest {
         system_prompt,
@@ -181,10 +187,12 @@ pub(crate) async fn infer_via_provider_adapter(
         max_t,
         temperature,
         json_mode,
+        tools,
+        tool_choice,
     };
     for adapter in adapters() {
         if adapter.supports(&model.provider_type) {
-            return adapter.infer(client, model, req).await;
+            return adapter.infer(client, model, req.clone()).await;
         }
     }
     Err(HttpInferError {

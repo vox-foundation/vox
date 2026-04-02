@@ -35,6 +35,10 @@
     "vox-pm": {
       "role": "Package manager and dependency resolver",
       "path_pattern": "crates/vox-pm/src/**/*.rs"
+    },
+    "vox-cli": {
+      "role": "Primary `vox` CLI, CI guards, and workspace tooling",
+      "path_pattern": "crates/vox-cli/src/**/*.rs"
     }
   },
   "staging_policy": {

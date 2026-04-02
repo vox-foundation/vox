@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.org/contracts/telemetry/scientia-novelty-decision-calibration.v1.schema.json",
+  "title": "scientia novelty decision calibration v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "publication_id",
+    "candidate_id",
+    "bundle_id",
+    "decision_latency_ms",
+    "offline_prior_art_fetch",
+    "prior_art_hit_count",
+    "max_lexical_overlap",
+    "worthiness_decision",
+    "worthiness_score",
+    "hard_metrics_ok"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "publication_id": { "type": "string", "minLength": 1 },
+    "candidate_id": { "type": "string", "minLength": 1 },
+    "bundle_id": { "type": "string", "minLength": 1 },
+    "decision_latency_ms": { "type": "integer", "minimum": 0 },
+    "offline_prior_art_fetch": { "type": "boolean" },
+    "prior_art_hit_count": { "type": "integer", "minimum": 0 },
+    "max_lexical_overlap": { "type": "number", "minimum": 0, "maximum": 1 },
+    "worthiness_decision": { "type": "string" },
+    "worthiness_score": { "type": "number" },
+    "hard_metrics_ok": { "type": "boolean" },
+    "false_novelty_alarm_reported": { "type": ["boolean", "null"] },
+    "missed_prior_art_reported": { "type": ["boolean", "null"] },
+    "reviewer_disagreement_reported": { "type": ["boolean", "null"] }
+  }
+}

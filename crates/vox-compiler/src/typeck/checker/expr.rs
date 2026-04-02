@@ -764,6 +764,42 @@ impl<'a> Checker<'a> {
                 }
                 Ty::Element
             }
+
+            HirExpr::Try(hir_try) => {
+                let inner_ty = self.check_expr(hir_try.target.as_ref());
+                let resolved = self.uf.resolve(&inner_ty);
+                let resolved = self.uf.instantiate(&resolved);
+                match resolved {
+                    Ty::Result(ok_ty) => {
+                        if let Some(expected_ret) = self.env.current_return_type() {
+                            let expected_ret_inst = self.uf.instantiate(expected_ret);
+                            match self.uf.resolve(&expected_ret_inst) {
+                                Ty::Result(_) => {}
+                                Ty::Error => {}
+                                _ => {
+                                    self.diags.push(Diagnostic::error(
+                                        "Cannot use `?` operator in a function that does not return a Result".into(),
+                                        hir_try.span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                        }
+                        (*ok_ty).clone()
+                    }
+                    Ty::Error => Ty::Error,
+                    other => {
+                        self.diags.push(Diagnostic::error(
+                            format!(
+                                "`?` can only be used on Result types; found incompatible type ({other:?})"
+                            ),
+                            hir_try.span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
+                }
+            }
         }
     }
 }

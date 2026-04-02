@@ -1,3 +1,9 @@
+//! Orchestrator status JSON for `vox_orchestrator_status`, including optional mesh snapshot persistence.
+//!
+//! ## Mesh snapshot → Codex
+//! [`persist_mesh_snapshot_codex_opt`] records a **`populi_control`-class** row only when **`VOX_MESH_CODEX_TELEMETRY=1`** and
+//! Codex is attached — **off by default** so federation snapshots are not written unless explicitly opted in.
+
 use crate::sync_poison::poison_rw_read;
 use crate::{AgentInfo, ServerState, StatusResponse, ToolResult};
 
@@ -80,6 +86,14 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         "codex_and_transient"
     } else {
         "transient_only"
+    };
+    let topology = Some(state.orchestrator.topology_snapshot());
+    let persistence_outbox_lifecycle = {
+        let key = "orchestrator/persistence_outbox_lifecycle";
+        let store = state.orchestrator.context_store();
+        vox_orchestrator::sync_lock::rw_read(&*store)
+            .get(key)
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
     };
 
     let populi_federation_cache = serde_json::to_value(
@@ -165,7 +179,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     let mut markdown = format!(
         "### 🤖 Vox DEI Status\n\n**Agents Active:** {}\n**Tasks In Progress:** {}\n**Tasks Completed:** {}\n\n{}",
         status.agents.len(),
-        status.agents.iter().map(|a| a.queued).sum::<usize>(),
+        status.total_in_progress,
         status.total_completed,
         scaling_line
     );
@@ -222,9 +236,18 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         ));
     }
 
+    let mut daemon_orch_status: Option<serde_json::Value> = None;
+    let mut daemon_orch_status_rpc_error: Option<String> = None;
+    if let Some(client) = state.orch_daemon_client_for_status_tool_rpc() {
+        match client.orchestrator_status().await {
+            Ok(v) => daemon_orch_status = Some(v),
+            Err(e) => daemon_orch_status_rpc_error = Some(e.to_string()),
+        }
+    }
+
     let response = StatusResponse {
         agent_count: status.agents.len(),
-        in_progress: status.agents.iter().map(|a| a.queued).sum(),
+        in_progress: status.total_in_progress,
         completed: status.total_completed,
         agents,
         scaling_profile,
@@ -239,11 +262,15 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         mesh_snapshot,
         populi_federation_cache,
         planning,
+        topology,
+        persistence_outbox_lifecycle,
         execution_mode,
         worker_runtime_attached,
         registered_worker_processes,
         db_configured,
         event_feed_mode: event_feed_mode.to_string(),
+        daemon_orch_status,
+        daemon_orch_status_rpc_error,
     };
 
     Ok(ToolResult::ok(response).to_json())
@@ -258,6 +285,7 @@ fn mesh_codex_telemetry_enabled() -> bool {
         .unwrap_or(false)
 }
 
+/// When `VOX_MESH_CODEX_TELEMETRY` is truthy, store a bounded summary of the DEI mesh snapshot for this repo.
 async fn persist_mesh_snapshot_codex_opt(state: &ServerState, snap: &serde_json::Value) {
     if !mesh_codex_telemetry_enabled() {
         return;

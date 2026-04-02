@@ -206,8 +206,9 @@ pub(crate) fn now_ms() -> u64 {
 mod node_registry;
 
 pub use node_registry::{
-    LocalRegistry, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
-    filter_registry_by_max_stale_ms,
+    LocalRegistry, MAX_MAINTENANCE_FOR_MS, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
+    filter_registry_by_max_stale_ms, node_maintenance_blocks_new_work,
+    sweep_expired_maintenance_on_nodes,
 };
 
 /// Resolve `Vox.toml` path next to the current working directory (nearest manifest root).
@@ -235,7 +236,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             caps.labels.push(lab);
         }
     }
-    NodeRecord {
+    let mut rec = NodeRecord {
         id: node_id,
         capabilities: caps,
         listen_addr,
@@ -248,9 +249,32 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         workload_classes: None,
         privacy_class: None,
         maintenance: None,
+        maintenance_until_unix_ms: None,
         provider: None,
+        gpu_total_count: None,
+        gpu_healthy_count: None,
+        gpu_allocatable_count: None,
+        gpu_inventory_source: None,
+        gpu_truth_layer: None,
+        nvidia_driver_version: None,
+        cuda_driver_version: None,
+        gpu_readiness_ok: None,
+        gpu_readiness_reason: None,
+        gpu_readiness_checked_unix_ms: None,
         quarantined: None,
+    };
+    // ADR 018 Layer A: optional NVML probe (`vox-repository/nvml-probe` via `vox-populi/nvml-gpu-probe`).
+    if let Some(snap) = vox_repository::probe_nvidia_gpu_inventory_best_effort() {
+        rec.gpu_total_count = Some(snap.gpu_total_count);
+        rec.gpu_healthy_count = Some(snap.gpu_healthy_count);
+        rec.gpu_allocatable_count = Some(snap.gpu_allocatable_count);
+        rec.gpu_inventory_source = Some("nvml".to_string());
+        rec.gpu_truth_layer = Some("layer_a_verified".to_string());
+        if rec.capabilities.min_vram_mb.is_none() {
+            rec.capabilities.min_vram_mb = snap.min_vram_mb;
+        }
     }
+    rec
 }
 
 /// Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off).
@@ -285,8 +309,6 @@ pub fn local_registry_path() -> PathBuf {
 #[cfg(feature = "mens")]
 pub mod mens;
 
-#[cfg(feature = "transport")]
-mod bounded_fs;
 #[cfg(feature = "transport")]
 pub mod http_client;
 #[cfg(feature = "transport")]

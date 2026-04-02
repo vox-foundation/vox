@@ -26,7 +26,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 
 [`vox-codegen-ts`](../../../crates/vox-compiler/src/codegen_ts/routes.rs) can emit **`server.ts`**, an **Express** app that duplicates `@server` and `http` route registration.
 
-- **Default:** emission is **off** unless **`VOX_EMIT_EXPRESS_SERVER=1`** is set in the environment when running codegen (e.g. `vox build`). The supported client for `@server fn` against Axum is **`api.ts`** from **Rust** codegen ([`emit_api_client`](../../../crates/vox-compiler/src/codegen_rust/emit.rs)).
+- **Default:** emission is **off** unless **`VOX_EMIT_EXPRESS_SERVER=1`** is set in the environment when running codegen (e.g. `vox build`). The supported client for `@server fn` against Axum is **`api.ts`** from **Rust** codegen ([`emit_api_client`](../../../crates/vox-compiler/src/codegen_rust/emit/mod.rs)).
 - **Use case for `VOX_EMIT_EXPRESS_SERVER=1`:** Node-only demos, tests, or containers that intentionally run `npx tsx server.ts` instead of the Rust binary.
 
 ## Container images

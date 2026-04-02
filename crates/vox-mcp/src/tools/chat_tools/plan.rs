@@ -1,16 +1,22 @@
 use serde::Deserialize;
 
 use super::build_system_prompt;
-use super::params::{PlanParams, PlanReplanParams, PlanResult, PlanStatusParams, PlanTask};
+use super::params::{
+    PlanDepth, PlanLoopMode, PlanParams, PlanReplanParams, PlanResult, PlanStatusParams, PlanTask,
+};
+use super::plan_gap;
 use super::plan_loop;
+use vox_orchestrator::planning::{ContentBlock, markdown_to_content_blocks};
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::params::ToolResult;
 use crate::server::ServerState;
+use crate::tools::attention_policy::{
+    evaluate_with_state, pending_backlog_for_session, plan_review_signals, trust_for_session,
+};
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{
-    clarification_turn_for_session, mcp_questioning_session_key, socrates_tool_meta,
-    socrates_surface_tags, spawn_questioning_trace_from_socrates,
-    spawn_socrates_telemetry_with_meta,
+    clarification_turn_for_session, mcp_questioning_session_key, socrates_surface_tags,
+    socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
 };
 
 const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
@@ -18,8 +24,152 @@ const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
 const REM_PLAN_JSON: &str = "Retry planning with a simpler goal or lower `max_tasks`; ensure the model returns valid JSON in a ```json block.";
+const REM_PLAN_ADEQUACY_ENFORCE: &str = "Widen scope with concrete steps, paths, and verification; increase `plan_depth`; enable refinement (`loop_mode`) or raise caps; or set `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE=false` on the MCP host.";
 const REM_DEI_DAEMON: &str =
     "Start `vox-dei-d` (DeI daemon) or verify IPC/socket configuration for this workspace.";
+
+/// When true, `vox_plan` must not return success if the tier‑1 report is still thin.
+pub(crate) fn plan_result_blocked_by_adequacy_enforce(
+    cfg: &vox_orchestrator::OrchestratorConfig,
+    report: &vox_orchestrator::planning::PlanRefinementReport,
+) -> bool {
+    cfg.plan_adequacy_enforce && report.adequacy.is_too_thin
+}
+
+fn plan_depth_rider(depth: PlanDepth) -> &'static str {
+    match depth {
+        PlanDepth::Minimal => {
+            "Planning depth: MINIMAL — use fewer, broader tasks when possible, but still name explicit verification for risky or data-moving work."
+        }
+        PlanDepth::Standard => {
+            "Planning depth: STANDARD — balanced decomposition with clear dependencies and explicit tests where appropriate."
+        }
+        PlanDepth::Deep => {
+            "Planning depth: DEEP — produce MORE granular tasks: narrow scopes, explicit file paths where inferable, strong dependency chains, plus verification, migration, and rollback steps as applicable."
+        }
+    }
+}
+
+fn initial_plan_max_tokens(depth: PlanDepth) -> u64 {
+    match depth {
+        PlanDepth::Minimal => 3072,
+        PlanDepth::Standard => 4096,
+        PlanDepth::Deep => 8192,
+    }
+}
+
+fn strip_plan_json_fence(block: &str) -> &str {
+    let block = block.trim();
+    if block.starts_with("```json") {
+        block
+            .strip_prefix("```json")
+            .unwrap_or(block)
+            .strip_suffix("```")
+            .unwrap_or(block)
+            .trim()
+    } else if block.starts_with("```") {
+        block
+            .strip_prefix("```")
+            .unwrap_or(block)
+            .strip_suffix("```")
+            .unwrap_or(block)
+            .trim()
+    } else {
+        block
+    }
+}
+
+fn parse_plan_payload(raw: &str) -> Result<PlanResponseSchema, serde_json::Error> {
+    let cleaned = strip_plan_json_fence(raw);
+    serde_json::from_str(cleaned)
+}
+
+fn effective_loop_mode_label(params: &PlanParams) -> String {
+    let base = params.loop_mode.unwrap_or_default();
+    let mut s = format!("{base:?}").to_ascii_lowercase();
+    if matches!(base, PlanLoopMode::Off) && params.auto_expand_thin_plan != Some(false) {
+        s.push_str("+auto_expand_thin");
+    }
+    s
+}
+
+fn should_emit_plan_interrupt(
+    state: &ServerState,
+    surface: &'static str,
+    session_key: &str,
+    expected_gain_bits: f64,
+    expected_user_cost: f64,
+    high_risk: bool,
+) -> bool {
+    if !state.orchestrator_config.attention_enabled {
+        return true;
+    }
+    let bm = state.orchestrator.budget_manager_handle();
+    let att_snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
+    let backlog = pending_backlog_for_session(state, Some(session_key));
+    let trust = trust_for_session(state, Some(session_key));
+    let signals = plan_review_signals(
+        expected_gain_bits,
+        expected_user_cost,
+        backlog,
+        trust,
+        high_risk,
+        state.orchestrator_config.attention_interrupt_cost_ms,
+    );
+    match evaluate_with_state(state, &signals, &att_snap) {
+        vox_orchestrator::InterruptionDecision::InterruptNow { .. }
+        | vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue { .. } => true,
+        vox_orchestrator::InterruptionDecision::DeferUntilCheckpoint { reason }
+        | vox_orchestrator::InterruptionDecision::BatchWithExistingPrompt { reason } => {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            state.record_attention_event(vox_orchestrator::AttentionEvent {
+                agent_id: state
+                    .orchestrator
+                    .agent_for_session_id(session_key)
+                    .unwrap_or(vox_orchestrator::AgentId(0)),
+                task_id: None,
+                event_type: vox_orchestrator::AttentionEventType::PolicyDeferred,
+                tier: vox_orchestrator::ApprovalTier::Confirm,
+                cost_ms: 0,
+                outcome: vox_orchestrator::ApprovalOutcome::AutoApproved,
+                trust_score_at_time: trust,
+                effective_complexity: (expected_user_cost * 10.0).clamp(0.0, 10.0),
+                decision_entropy_bits: expected_gain_bits,
+                timestamp_ms: ts,
+                channel: Some(surface.to_string()),
+                policy_reason: Some(reason),
+            });
+            false
+        }
+        vox_orchestrator::InterruptionDecision::ProceedAutonomously { reason } => {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            state.record_attention_event(vox_orchestrator::AttentionEvent {
+                agent_id: state
+                    .orchestrator
+                    .agent_for_session_id(session_key)
+                    .unwrap_or(vox_orchestrator::AgentId(0)),
+                task_id: None,
+                event_type: vox_orchestrator::AttentionEventType::PolicyProceedAuto,
+                tier: vox_orchestrator::ApprovalTier::AutoApprove,
+                cost_ms: 0,
+                outcome: vox_orchestrator::ApprovalOutcome::AutoApproved,
+                trust_score_at_time: trust,
+                effective_complexity: (expected_user_cost * 10.0).clamp(0.0, 10.0),
+                decision_entropy_bits: expected_gain_bits,
+                timestamp_ms: ts,
+                channel: Some(surface.to_string()),
+                policy_reason: Some(reason),
+            });
+            false
+        }
+    }
+}
 
 #[derive(Deserialize)]
 struct PlanResponseSchema {
@@ -33,6 +183,7 @@ struct PlanResponseSchema {
 /// This backs the Cursor-style "Planning Mode" in the extension and in Vox agents.
 pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
     let max_tasks = params.max_tasks.unwrap_or(30);
+    let plan_depth = params.plan_depth.unwrap_or_default();
     let scope_note = if params.scope_files.is_empty() {
         String::new()
     } else {
@@ -46,6 +197,8 @@ pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
         r#"You are an expert software architect and planner.
 
 GOAL: {goal}{scope_note}
+
+{depth_rider}
 
 Generate a comprehensive, ordered task list to achieve this goal. You MUST output a valid JSON object matching this schema, embedded in a ```json codeblock.
 
@@ -72,7 +225,8 @@ Rules:
 - Do NOT include filler tasks like 'Review and refactor'."#,
         goal = params.goal,
         max_tasks = max_tasks,
-        scope_note = scope_note
+        scope_note = scope_note,
+        depth_rider = plan_depth_rider(plan_depth),
     );
 
     let system_prompt = build_system_prompt(state).await;
@@ -115,20 +269,21 @@ Rules:
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
         sticky_model_pref: pref.as_deref(),
-        resolution_template,
+        resolution_template: resolution_template.clone(),
         free_only,
         allow_cloud_ollama_fallback: true,
         user_id: params.session_id.as_deref(),
     };
 
     let plan_llm_started = std::time::Instant::now();
-    let (response_json, model_used, _tokens) = match mcp_infer_completion(
+    let initial_cap = initial_plan_max_tokens(plan_depth);
+    let (mut response_json, mut model_used, _tokens) = match mcp_infer_completion(
         state,
-        model,
+        model.clone(),
         "vox_plan",
         &system_prompt,
         &routing,
-        4096,
+        initial_cap,
         0.3,
         true, // Enforce strict JSON mode for planning
     )
@@ -144,6 +299,69 @@ Rules:
         }
     };
 
+    let parsed: PlanResponseSchema = match parse_plan_payload(&response_json) {
+        Ok(p) => p,
+        Err(e) => {
+            let snippet: String = response_json.chars().take(1800).collect();
+            let fix_prompt = format!(
+                r#"Your previous planner output was not valid JSON (parse error: {err}).
+
+Output ONLY a ```json fenced block containing a single object with keys "summary" and "tasks" (array of task objects with id, description, files, estimated_complexity, depends_on). No surrounding prose.
+
+Invalid prior output (may be truncated):
+{snippet}"#,
+                err = e,
+                snippet = snippet
+            );
+            let routing_fix = McpInferRouting {
+                user_prompt: &fix_prompt,
+                sticky_model_pref: pref.as_deref(),
+                resolution_template: resolution_template.clone(),
+                free_only,
+                allow_cloud_ollama_fallback: true,
+                user_id: params.session_id.as_deref(),
+            };
+            let retry_cap = initial_cap.max(8192);
+            match mcp_infer_completion(
+                state,
+                model.clone(),
+                "vox_plan_retry_json",
+                &system_prompt,
+                &routing_fix,
+                retry_cap,
+                0.15,
+                true,
+            )
+            .await
+            {
+                Ok((rj2, m2, _)) => {
+                    response_json = rj2;
+                    model_used = m2;
+                    match parse_plan_payload(&response_json) {
+                        Ok(p) => p,
+                        Err(e2) => {
+                            let cleaned = strip_plan_json_fence(&response_json);
+                            tracing::error!(error = %e2, raw = cleaned, "plan_goal: JSON decode failed after retry");
+                            return ToolResult::<String>::err_with_remediation(
+                                format!("Failed to parse task list JSON: {e2}"),
+                                REM_PLAN_JSON,
+                            )
+                            .to_json();
+                        }
+                    }
+                }
+                Err(e_fix) => {
+                    tracing::error!(error = %e, fix_error = %e_fix, raw = strip_plan_json_fence(&response_json), "plan_goal: JSON decode failed; retry LLM failed");
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("Failed to parse task list JSON: {e}"),
+                        REM_PLAN_JSON,
+                    )
+                    .to_json();
+                }
+            }
+        }
+    };
+
     let plan_session_key =
         mcp_questioning_session_key(state, "vox_plan", params.session_id.as_deref());
     state.record_questioning_attention_spend(
@@ -151,44 +369,21 @@ Rules:
         plan_llm_started.elapsed().as_millis() as u64,
     );
 
-    // Strip any markdown fences if the model still included them despite JSON mode
-    let block = response_json.trim();
-    let cleaned = if block.starts_with("```json") {
-        block
-            .strip_prefix("```json")
-            .unwrap_or(block)
-            .strip_suffix("```")
-            .unwrap_or(block)
-            .trim()
-    } else if block.starts_with("```") {
-        block
-            .strip_prefix("```")
-            .unwrap_or(block)
-            .strip_suffix("```")
-            .unwrap_or(block)
-            .trim()
-    } else {
-        block
-    };
-
-    let parsed: PlanResponseSchema = match serde_json::from_str(cleaned) {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::error!(error = %e, raw = cleaned, "plan_goal: JSON decode failed after cleanup");
-            return ToolResult::<String>::err_with_remediation(
-                format!("Failed to parse task list JSON: {e}"),
-                REM_PLAN_JSON,
-            )
-            .to_json();
-        }
-    };
-
     let summary = if parsed.summary.is_empty() {
         "No summary provided.".to_string()
     } else {
         parsed.summary
     };
     let mut tasks = parsed.tasks;
+    let task_count_before_refine = tasks.len();
+    let pre_refine_report = plan_gap::analyze_plan_gaps(
+        &params.goal,
+        params.scope_files.len(),
+        None,
+        params.plan_depth,
+        &tasks,
+        None,
+    );
 
     let loop_sess = mcp_questioning_session_key(state, "vox_plan", params.session_id.as_deref());
     let complexity_for_refine = match params.max_tasks {
@@ -207,17 +402,74 @@ Rules:
     tasks = refined_tasks;
     let summary = refined_summary;
 
+    if let Some(rep) = loop_state.last_gap_report.as_ref()
+        && plan_result_blocked_by_adequacy_enforce(&state.orchestrator_config, rep)
+    {
+        let reasons = rep.adequacy.reason_codes.join(", ");
+        return ToolResult::<String>::err_with_remediation(
+            format!(
+                "Plan adequacy: refined plan is still too thin for this goal (score {:.2}; codes: {}).",
+                rep.adequacy.score, reasons
+            ),
+            REM_PLAN_ADEQUACY_ENFORCE,
+        )
+        .to_json();
+    }
+
     if let Some(db) = state.db.as_ref() {
         if let Some(pid) = params.plan_telemetry_session_id.as_deref() {
-            let strat = format!("mcp_plan:{:?}", params.loop_mode.unwrap_or_default());
+            let strat = format!(
+                "mcp_plan:{}:{}",
+                effective_loop_mode_label(&params),
+                format!("{:?}", params.plan_depth.unwrap_or_default()).to_ascii_lowercase()
+            );
             let _ = db
                 .create_plan_session(pid, params.session_id.as_deref(), &params.goal, &strat)
                 .await;
+            let post = loop_state.last_gap_report.as_ref();
+            let adeq_improved = post.map(|g| {
+                let score_up = g.adequacy.score > pre_refine_report.adequacy.score + 0.01;
+                let thin_cleared =
+                    pre_refine_report.adequacy.is_too_thin && !g.adequacy.is_too_thin;
+                let risk_down = g.aggregate_unresolved_risk + 0.02
+                    < pre_refine_report.aggregate_unresolved_risk;
+                score_up || thin_cleared || risk_down
+            });
             let meta = serde_json::json!({
                 "refinement_rounds": loop_state.refinement_rounds,
                 "loop_status": loop_state.loop_status,
                 "stop_reason": loop_state.stop_reason,
                 "telemetry": "vox_mcp_iterative_plan",
+                "plan_depth": format!("{:?}", params.plan_depth.unwrap_or_default()).to_ascii_lowercase(),
+                "initial_plan_max_output_tokens": initial_cap,
+                "task_count_before_refine": task_count_before_refine,
+                "task_count_after_refine": tasks.len(),
+                "adequacy_improved_heuristic": adeq_improved,
+                "adequacy_before": {
+                    "score": pre_refine_report.adequacy.score,
+                    "is_too_thin": pre_refine_report.adequacy.is_too_thin,
+                    "reason_codes": pre_refine_report.adequacy.reason_codes,
+                    "aggregate_unresolved_risk": pre_refine_report.aggregate_unresolved_risk,
+                },
+                "adequacy_after": post.map(|g| {
+                    serde_json::json!({
+                        "score": g.adequacy.score,
+                        "is_too_thin": g.adequacy.is_too_thin,
+                        "reason_codes": g.adequacy.reason_codes,
+                        "detail_target_min_tasks": g.adequacy.detail_target_min_tasks,
+                        "estimated_goal_complexity": g.adequacy.estimated_goal_complexity,
+                    })
+                }),
+                "adequacy": post.map(|g| {
+                    serde_json::json!({
+                        "score": g.adequacy.score,
+                        "is_too_thin": g.adequacy.is_too_thin,
+                        "reason_codes": g.adequacy.reason_codes,
+                        "detail_target_min_tasks": g.adequacy.detail_target_min_tasks,
+                        "estimated_goal_complexity": g.adequacy.estimated_goal_complexity,
+                    })
+                }),
+                "aggregate_unresolved_risk": post.map(|g| g.aggregate_unresolved_risk),
             });
             let _ = db
                 .update_plan_session_iterative_fields(
@@ -308,6 +560,9 @@ Rules:
         false
     };
 
+    // Build typed content_blocks from plan_md, then append clarifying questions.
+    let mut content_blocks = markdown_to_content_blocks(&base_plan_md);
+
     let gap_report_json = loop_state
         .last_gap_report
         .as_ref()
@@ -326,6 +581,23 @@ Rules:
         vec![]
     };
 
+    // Append clarifying questions as structured Question blocks (after prose+task blocks).
+    for q in &clarifying {
+        content_blocks.push(ContentBlock::Question { text: q.clone() });
+    }
+
+    let (adeq_score, too_thin, adeq_codes) = loop_state
+        .last_gap_report
+        .as_ref()
+        .map(|g| {
+            (
+                Some(g.adequacy.score),
+                g.adequacy.is_too_thin,
+                g.adequacy.reason_codes.clone(),
+            )
+        })
+        .unwrap_or((None, false, Vec::new()));
+
     let result = PlanResult {
         goal: params.goal.clone(),
         tasks: tasks_for_payload,
@@ -334,13 +606,18 @@ Rules:
         written_to_disk,
         plan_total_tasks,
         plan_page_offset: page_off,
-        loop_mode_effective: format!("{:?}", params.loop_mode.unwrap_or_default())
-            .to_ascii_lowercase(),
+        loop_mode_effective: effective_loop_mode_label(&params),
         refinement_rounds: loop_state.refinement_rounds,
         loop_stop_reason: loop_state.stop_reason,
         last_aggregate_gap_risk: last_risk,
         gap_report: gap_report_json,
         clarifying_questions: clarifying,
+        plan_adequacy_score: adeq_score,
+        plan_too_thin: too_thin,
+        adequacy_reason_codes: adeq_codes,
+        plan_depth_effective: format!("{:?}", params.plan_depth.unwrap_or_default())
+            .to_ascii_lowercase(),
+        content_blocks,
     };
 
     let grounding = if params.scope_files.is_empty() {
@@ -352,7 +629,7 @@ Rules:
     let session_key = plan_session_key;
     let turn = clarification_turn_for_session(state, &session_key).await;
     let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
-    let soc = socrates_tool_meta(&pol, grounding, false, turn, spent_att, max_att);
+    let soc = socrates_tool_meta(&pol, grounding, false, turn, spent_att, max_att, None);
     spawn_socrates_telemetry_with_meta(
         state,
         "vox_plan",
@@ -363,13 +640,18 @@ Rules:
             &["planning", "decomposition"],
         )),
     );
-    spawn_questioning_trace_from_socrates(
-        state,
-        "vox_plan",
-        soc.clone(),
-        Some(session_key.clone()),
-        Some(params.goal.clone()),
-    );
+    let plan_high_risk = loop_state.last_gap_report.as_ref().is_some_and(|g| {
+        g.critical_count > 0 || g.adequacy.is_too_thin || g.aggregate_unresolved_risk > 0.35
+    });
+    if should_emit_plan_interrupt(state, "vox_plan", &session_key, 0.16, 0.28, plan_high_risk) {
+        spawn_questioning_trace_from_socrates(
+            state,
+            "vox_plan",
+            soc.clone(),
+            Some(session_key.clone()),
+            Some(params.goal.clone()),
+        );
+    }
     let mut v = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
     if let Some(obj) = v.as_object_mut() {
         obj.insert("socrates".to_string(), soc);
@@ -392,7 +674,7 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                 mcp_questioning_session_key(state, "vox_replan", Some(params.session_id.as_str()));
             let turn = clarification_turn_for_session(state, &session_key).await;
             let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
-            let soc = socrates_tool_meta(&pol, 0.62, false, turn, spent_att, max_att);
+            let soc = socrates_tool_meta(&pol, 0.62, false, turn, spent_att, max_att, None);
             spawn_socrates_telemetry_with_meta(
                 state,
                 "vox_replan",
@@ -400,13 +682,15 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                 None,
                 Some(socrates_surface_tags("planning", &["planning", "replan"])),
             );
-            spawn_questioning_trace_from_socrates(
-                state,
-                "vox_replan",
-                soc.clone(),
-                Some(session_key.clone()),
-                Some(params.delta_hint.clone()),
-            );
+            if should_emit_plan_interrupt(state, "vox_replan", &session_key, 0.14, 0.24, false) {
+                spawn_questioning_trace_from_socrates(
+                    state,
+                    "vox_replan",
+                    soc.clone(),
+                    Some(session_key.clone()),
+                    Some(params.delta_hint.clone()),
+                );
+            }
             if let Some(obj) = v.as_object_mut() {
                 obj.insert("socrates".to_string(), soc);
             }
@@ -432,21 +716,27 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
             );
             let turn = clarification_turn_for_session(state, &session_key).await;
             let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
-            let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att);
+            let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att, None);
             spawn_socrates_telemetry_with_meta(
                 state,
                 "vox_plan_status",
                 soc.clone(),
                 None,
-                Some(socrates_surface_tags("planning_status", &["planning", "status"])),
+                Some(socrates_surface_tags(
+                    "planning_status",
+                    &["planning", "status"],
+                )),
             );
-            spawn_questioning_trace_from_socrates(
-                state,
-                "vox_plan_status",
-                soc.clone(),
-                Some(session_key.clone()),
-                None,
-            );
+            if should_emit_plan_interrupt(state, "vox_plan_status", &session_key, 0.10, 0.18, false)
+            {
+                spawn_questioning_trace_from_socrates(
+                    state,
+                    "vox_plan_status",
+                    soc.clone(),
+                    Some(session_key.clone()),
+                    None,
+                );
+            }
             if let Some(obj) = v.as_object_mut() {
                 obj.insert("socrates".to_string(), soc);
             }
@@ -456,5 +746,72 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
             ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
                 .to_json()
         }
+    }
+}
+
+#[cfg(test)]
+mod adequacy_enforce_tests {
+    use super::plan_gap;
+    use super::plan_result_blocked_by_adequacy_enforce;
+    use crate::tools::chat_tools::params::{PlanDepth, PlanTask};
+    use vox_orchestrator::OrchestratorConfig;
+
+    fn thin_plan_tasks() -> Vec<PlanTask> {
+        vec![PlanTask {
+            id: 1,
+            description: "do the work".into(),
+            files: vec![],
+            estimated_complexity: 8,
+            depends_on: vec![],
+        }]
+    }
+
+    #[test]
+    fn enforce_predicate_matches_config_and_thinness() {
+        let goal = "migrate authentication across crates/vox-auth, crates/vox-mcp, and update docs; add regression tests";
+        let tasks = thin_plan_tasks();
+        let report = plan_gap::analyze_plan_gaps(goal, 0, None, None, &tasks, None);
+        assert!(
+            report.adequacy.is_too_thin,
+            "fixture should be thin: {:?}",
+            report.adequacy
+        );
+
+        let mut cfg_on = OrchestratorConfig::for_testing();
+        cfg_on.plan_adequacy_enforce = true;
+        let mut cfg_off = OrchestratorConfig::for_testing();
+        cfg_off.plan_adequacy_enforce = false;
+
+        assert!(plan_result_blocked_by_adequacy_enforce(&cfg_on, &report));
+        assert!(!plan_result_blocked_by_adequacy_enforce(&cfg_off, &report));
+    }
+
+    #[test]
+    fn enforce_off_when_plan_not_thin() {
+        let goal = "migrate authentication across crates/vox-auth, crates/vox-mcp, and update docs; add regression tests";
+        let tasks: Vec<PlanTask> = (1..=6usize)
+            .map(|id| PlanTask {
+                id,
+                description: format!(
+                    "Step {id}: concrete change in crates/vox-auth or vox-mcp; run cargo test to verify"
+                ),
+                files: if id % 2 == 0 {
+                    vec!["crates/vox-auth/src/lib.rs".into()]
+                } else {
+                    vec!["crates/vox-mcp/src/lib.rs".into()]
+                },
+                estimated_complexity: 5,
+                depends_on: if id > 1 { vec![id - 1] } else { vec![] },
+            })
+            .collect();
+        let report =
+            plan_gap::analyze_plan_gaps(goal, 2, None, Some(PlanDepth::Deep), &tasks, None);
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.plan_adequacy_enforce = true;
+        assert!(
+            !plan_result_blocked_by_adequacy_enforce(&cfg, &report),
+            "adequate plan must not trip enforce: {:?}",
+            report.adequacy
+        );
     }
 }

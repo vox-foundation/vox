@@ -228,9 +228,7 @@ pub async fn run(
                     #[cfg(feature = "gpu")]
                     {
                         let device = device.clone().unwrap_or_else(|| "best".into());
-                        let target_model = model
-                            .clone()
-                            .unwrap_or_else(|| "Qwen/Qwen3-4B-Instruct-2507".into());
+                        let target_model = model.clone();
                         let target_preset = preset.clone().or_else(|| Some("qwen_4080_16g".into()));
 
                         // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
@@ -248,7 +246,7 @@ pub async fn run(
 
                         crate::commands::schola::train::run_train(
                             crate::commands::mens::PopuliTrainBackendCli::Qlora.into(),
-                            Some(target_model),
+                            target_model,
                             device,
                             data_dir.clone(),
                             output_dir.clone(),
@@ -273,6 +271,7 @@ pub async fn run(
                             crate::commands::mens::MensTokenizerCli::Hf.into(),
                             false, // qlora_no_double_quant
                             false, // qlora_require_full_proxy_stack
+                            false, // qlora_allow_partial_proxy_stack
                             None,  // qlora_max_skip_rate
                             false, // qlora_lm_head_only
                             None,  // qlora_proxy_max_layers

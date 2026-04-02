@@ -6,9 +6,10 @@ contracts:
     path: contracts/cli/command-registry.yaml
     owner: platform-ci
     kind: yaml
-    description: Shipped CLI and surface registry for command-compliance.
+    description: Shipped CLI registry (vox-cli rows generated from contracts/operations/catalog.v1.yaml).
     enforced_by:
       - vox ci command-compliance
+      - vox ci operations-verify
 
   - id: cli-command-registry-schema
     path: contracts/cli/command-registry.schema.json
@@ -18,6 +19,132 @@ contracts:
     enforced_by:
       - vox ci command-compliance
 
+  - id: capability-registry
+    path: contracts/capability/capability-registry.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Transport-independent capability registry (generated from operations catalog capability block + rows).
+    enforced_by:
+      - vox ci command-compliance
+      - vox ci capability-sync
+      - vox ci operations-verify
+
+  - id: capability-registry-schema
+    path: contracts/capability/capability-registry.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for capability-registry.yaml.
+    enforced_by:
+      - vox ci command-compliance
+
+  - id: operations-catalog
+    path: contracts/operations/catalog.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Single human-edited operation catalog; MCP + CLI + capability YAML are generated from it.
+    enforced_by:
+      - vox ci operations-verify
+      - vox ci operations-sync --target catalog
+
+  - id: operations-catalog-schema
+    path: contracts/operations/catalog.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for operations catalog v1.
+    enforced_by:
+      - vox ci operations-verify
+
+  - id: completion-policy-v1
+    path: contracts/operations/completion-policy.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: SSOT for completion-quality tiers (A/B/C), detector registry, and MENs/orchestrator alignment metadata.
+    enforced_by:
+      - vox ci command-compliance
+      - vox ci completion-audit
+
+  - id: completion-policy-v1-schema
+    path: contracts/operations/completion-policy.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for completion-policy.v1.yaml.
+    enforced_by:
+      - vox ci command-compliance
+
+  - id: workspace-artifact-retention-v1
+    path: contracts/operations/workspace-artifact-retention.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: SSOT for `vox ci artifact-prune` (transient targets, mens runs age/cap, scratch files).
+    enforced_by:
+      - vox ci artifact-prune
+
+  - id: telemetry-completion-run-v1-schema
+    path: contracts/telemetry/completion-run.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for VoxDB / report completion run envelopes.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-completion-finding-v1-schema
+    path: contracts/telemetry/completion-finding.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for individual completion findings (audit + VoxDB rows).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-completion-detector-snapshot-v1-schema
+    path: contracts/telemetry/completion-detector-snapshot.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for per-detector rollup snapshots.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-scientia-novelty-decision-calibration-v1-schema
+    path: contracts/telemetry/scientia-novelty-decision-calibration.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Optional calibration envelope for SCIENTIA prior-art + worthiness happy-path (latency, overlap proxy, human-reported drift flags).
+    enforced_by:
+      - vox ci contracts-index
+      - cargo test -p vox-publisher scientia_novelty
+
+  - id: terminal-exec-policy-v1-schema
+    path: contracts/terminal/exec-policy.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for terminal execution policy (PowerShell AST allowlists).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: terminal-exec-policy-v1
+    path: contracts/terminal/exec-policy.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: SSOT for agent terminal allowlists (cmdlets, binaries, blocked params, fetch domains).
+    enforced_by:
+      - vox ci contracts-index
+      - vox ci exec-policy-contract
+
+  - id: completion-baseline-v1
+    path: contracts/reports/completion-baseline.v1.json
+    owner: platform-ci
+    kind: json
+    description: Tier B regression baselines for vox ci completion-gates.
+    enforced_by:
+      - vox ci completion-gates
+
+  - id: completion-task-ledger-v1
+    path: contracts/reports/completion-task-ledger.v1.json
+    owner: platform-ci
+    kind: json
+    description: Explicit T-WS###-NN remediation task IDs for LLM premature-completion convergence (64x12).
+    enforced_by:
+      - vox ci contracts-index
+
   - id: codex-api-openapi
     path: contracts/codex-api.openapi.yaml
     owner: codex-api
@@ -25,6 +152,126 @@ contracts:
     description: Codex HTTP API surface for dashboard / run_dashboard.
     enforced_by:
       - vox ci check-codex-ssot
+
+  - id: communication-protocol-catalog
+    path: contracts/communication/protocol-catalog.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Canonical inventory of communication protocol families, delivery planes, and coexistence decisions.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: communication-protocol-catalog-schema
+    path: contracts/communication/protocol-catalog.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for the communication protocol catalog.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: communication-orchestrator-persistence-outbox-schema
+    path: contracts/communication/orchestrator-persistence-outbox.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for orchestrator persistence outbox queue and lifecycle context payloads.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: communication-interruption-decision-schema
+    path: contracts/communication/interruption-decision.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for normalized interruption-decision telemetry envelopes.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: communication-a2a-clarification-payload-schema
+    path: contracts/communication/a2a-clarification-payload.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for A2A clarification payload fields used in questioning loops.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: communication-context-envelope-schema
+    path: contracts/communication/context-envelope.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: Canonical context envelope for MCP, orchestrator, search, and Populi handoff payloads.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-repo-reconstruction-schema
+    path: contracts/orchestration/repo-reconstruction.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for compact prompt-expanded repository reconstruction campaign specs.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-context-work-item-schema
+    path: contracts/orchestration/context-work-item.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for context-management program epics, capabilities, and tasks.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-context-lifecycle-telemetry-schema
+    path: contracts/orchestration/context-lifecycle-telemetry.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: Orchestrator tracing fields for context lifecycle shadow ingest (context.capture / context.select; target vox_orchestrator::context_lifecycle).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-context-lifecycle-telemetry-fixtures
+    path: contracts/orchestration/context-lifecycle-telemetry.fixtures.json
+    owner: orchestrator
+    kind: json
+    description: Example records for context lifecycle tracing; validated in vox-orchestrator integration tests against context-lifecycle-telemetry.schema.json.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-agent-vcs-facade-schema
+    path: contracts/orchestration/agent-vcs-facade.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema $defs for MCP/CLI agent VCS JSON (snapshots, workspace, oplog, takeover handoff bundle).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-agent-harness-schema
+    path: contracts/orchestration/agent-harness.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: Portable contract-first agent harness specification for MCP submit, handoff, and remote relay surfaces.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-vox-generate-code-file-outcomes-schema
+    path: contracts/orchestration/vox-generate-code-file-outcomes.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: Schema for optional vox_generate_code meta.file_outcomes when output_path writes UTF-8 under the repo root.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-journey-envelope-v1-schema
+    path: contracts/orchestration/journey-envelope.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: Versioned journey envelope for MCP chat/codegen structured transcripts, routing_decisions joins, and incremental CLI alignment.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: workflow-journal-v1-schema
+    path: contracts/workflow/workflow-journal.v1.schema.json
+    owner: workflow-runtime
+    kind: json-schema
+    description: JSON Schema for interpreted durable workflow journal event envelopes (`journal_version = 1`).
+    enforced_by:
+      - vox ci contracts-index
 
   - id: dei-rpc-envelope-schema
     path: contracts/dei/rpc-methods.schema.json
@@ -49,6 +296,14 @@ contracts:
     description: JSON Schema for benchmark-matrix.json.
     enforced_by:
       - vox ci eval-matrix
+
+  - id: mens-training-presets-v1
+    path: contracts/mens/training-presets.v1.yaml
+    owner: mens
+    kind: yaml
+    description: SSOT registry of Mens training `--preset` ids; parity-tested against Rust KNOWN_PRESETS.
+    enforced_by:
+      - vox ci contracts-index
 
   - id: eval-syntax-k-event-schema
     path: contracts/eval/syntax-k-event.schema.json
@@ -149,10 +404,109 @@ contracts:
     path: contracts/mcp/tool-registry.canonical.yaml
     owner: platform-ci
     kind: yaml
-    description: Canonical MCP tool names and descriptions; built into Rust via vox-mcp-registry.
+    description: Canonical MCP tool names, descriptions, and product_lane; built into Rust via vox-mcp-registry.
     enforced_by:
       - vox ci command-compliance
       - cargo build -p vox-mcp-registry
+
+  - id: mcp-http-gateway-openapi
+    path: contracts/mcp/http-gateway.openapi.yaml
+    owner: platform-ci
+    kind: openapi-yaml
+    description: Optional MCP HTTP/WebSocket gateway contract for remote/mobile control.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: mcp-http-read-role-governance
+    path: contracts/mcp/http-read-role-governance.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Canonical MCP HTTP read-role tool profile used by command-compliance governance checks.
+    enforced_by:
+      - vox ci command-compliance
+
+  - id: mcp-http-read-role-governance-schema
+    path: contracts/mcp/http-read-role-governance.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for MCP HTTP read-role governance profile YAML.
+    enforced_by:
+      - vox ci command-compliance
+      - vox ci contracts-index
+
+  - id: mcp-tool-registry-schema
+    path: contracts/mcp/tool-registry.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for tool-registry.canonical.yaml (product_lane enum parity with CLI).
+    enforced_by:
+      - vox ci command-compliance
+      - vox ci contracts-index
+
+  - id: populi-control-plane-openapi
+    path: contracts/populi/control-plane.openapi.yaml
+    owner: populi
+    kind: openapi-yaml
+    description: Populi mesh control-plane and A2A relay HTTP contract.
+    enforced_by:
+      - cargo test -p vox-populi --features transport openapi_paths
+      - vox ci contracts-index
+
+  - id: rust-ecosystem-support
+    path: contracts/rust/ecosystem-support.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Canonical Rust crate-family support matrix for Vox product lanes (tier, boundary, capability, debt).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: rust-ecosystem-support-schema
+    path: contracts/rust/ecosystem-support.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for rust ecosystem support registry YAML.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: repository-repo-path-resolution-schema
+    path: contracts/repository/repo-path-resolution.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Enum of vox_repository path_safety resolution modes (strict relative, local under root, metadata-relative).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: repository-repo-workspace-status-schema
+    path: contracts/repository/repo-workspace-status.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON for `vox repo status` / MCP `vox_repo_status` discovery payload.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: repository-vox-project-scaffold-result-schema
+    path: contracts/repository/vox-project-scaffold-result.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Success JSON for MCP `vox_project_init` / `vox_project_scaffold::ScaffoldSummary`.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: repository-repo-catalog
+    path: contracts/repository/repo-catalog.example.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Example workspace repo catalog manifest for explicit local and remote repository descriptors.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: repository-repo-catalog-schema
+    path: contracts/repository/repo-catalog.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for explicit local-first repo catalog manifests and remote adapter descriptors.
+    enforced_by:
+      - vox ci contracts-index
 
   - id: openclaw-connect-challenge-fixture
     path: contracts/openclaw/protocol/connect.challenge.json
@@ -220,6 +574,14 @@ contracts:
       - vox ci scientia-worthiness-contract
       - vox ci ssot-drift
 
+  - id: scientia-impact-readership-projection-seed-v1
+    path: contracts/scientia/impact-readership-projection.seed.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Tunable seed for impact/readership projection weights, horizons, and field buckets (orthogonal to novelty prior-art); rationale in scientia-impact-readership-research-2026.md.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: scientia-arxiv-handoff-schema
     path: contracts/scientia/arxiv-handoff.schema.json
     owner: scientia
@@ -228,6 +590,73 @@ contracts:
     enforced_by:
       - cargo test -p vox-publisher submission_package
       - vox ci ssot-drift
+
+  - id: scientia-discovery-signal-schema
+    path: contracts/scientia/discovery-signal.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Typed SCIENTIA discovery signal catalog (strength, family, provenance).
+    enforced_by:
+      - vox ci contracts-index
+      - cargo test -p vox-publisher scientia
+
+  - id: scientia-finding-candidate-v1-schema
+    path: contracts/scientia/finding-candidate.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Finding candidate ledger record (internal signals → novelty bundle → worthiness).
+    enforced_by:
+      - vox ci scientia-novelty-ledger-contracts
+      - vox ci contracts-index
+
+  - id: scientia-novelty-evidence-bundle-v1-schema
+    path: contracts/scientia/novelty-evidence-bundle.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Novelty / prior-art evidence bundle (federated sources, normalized hits).
+    enforced_by:
+      - vox ci scientia-novelty-ledger-contracts
+      - vox ci contracts-index
+
+  - id: scientia-finding-candidate-example-v1
+    path: contracts/reports/scientia-finding-candidate.example.v1.json
+    owner: scientia
+    kind: json
+    description: Example finding-candidate JSON for schema validation CI.
+    enforced_by:
+      - vox ci scientia-novelty-ledger-contracts
+
+  - id: scientia-novelty-evidence-bundle-example-v1
+    path: contracts/reports/scientia-novelty-evidence-bundle.example.v1.json
+    owner: scientia
+    kind: json
+    description: Example novelty-evidence bundle JSON for schema validation CI.
+    enforced_by:
+      - vox ci scientia-novelty-ledger-contracts
+
+  - id: scientia-evidence-graph-schema
+    path: contracts/scientia/scientia-evidence-graph.schema.json
+    owner: scientia
+    kind: json-schema
+    description: metadata_json.scientia_evidence shared evidence graph shape (signals, conflicts, linked artifacts).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-manifest-completion-schema
+    path: contracts/scientia/manifest-completion.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Operator-facing manifest completion / field-provenance report (clerical).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-machine-suggestion-block-schema
+    path: contracts/scientia/machine-suggestion-block.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Labels for LLM/heuristic SCIENTIA assists (machine_suggested, requires_human_review).
+    enforced_by:
+      - vox ci contracts-index
 
   - id: scientia-distribution-schema
     path: contracts/scientia/distribution.schema.json

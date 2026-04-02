@@ -7,6 +7,16 @@ training_eligible: true
 ---
 # Mens native training SSOT (Candle QLoRA–first)
 
+## VoxMens quick start
+
+With `train.jsonl` under the default training data directory (see `vox_corpus` / mix SSOT), the minimal operator path is:
+
+```bash
+vox mens train --device cuda
+```
+
+`--backend qlora` and `--tokenizer hf` are already the CLI defaults. When `--model` is omitted on the Candle QLoRA path, the base model defaults to the SSOT id `Qwen/Qwen3.5-4B` (`vox_populi::mens::DEFAULT_MODEL_ID`, mirrored in `contracts/mens/training-presets.v1.yaml` as `default_base_model`). Add `--output-dir <dir>` to place run artifacts. On CUDA, the full QLoRA proxy stack is required by default; use `--qlora-allow-partial-proxy-stack` only when you accept partial-stack semantics. For multi-model fine-tuning, pass an explicit `--model <hf/repo>`.
+
 > **Code SSOT:** `vox mens train` dispatches through `vox_populi::mens::tensor::run_mens_training` ([`lora_train.rs`](../../../crates/vox-populi/src/mens/tensor/lora_train.rs)). **`PopuliTrainBackend::BurnLora` is rejected at runtime** with an explicit error; the **supported** native trainer is **`CandleQlora`** (`--backend qlora`, `--tokenizer hf` for HF-shaped models). Docs below still describe Burn for **merge-weights / `vox mens serve`** and historical parity—treat **Burn training** as legacy/optional tooling, not an active `schola train` backend.
 
 ## Truth tables (train → merge → serve)
@@ -77,15 +87,33 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 | **`vox-populi`** `TrainingBackend` | Trait in `tensor/backend.rs`; Candle implementation in `tensor/backend_candle_qlora.rs` + `tensor/candle_qlora_train` modules. |
 | **`vox-populi`** `run_mens_training` | Dispatch in `tensor/lora_train.rs` with contract/planner/preflight gates. |
 | **`vox-populi`** `LoraTrainingConfig` | `tensor/training_config.rs` (`MensTokenizerMode`, provenance/trajectory knobs). |
-| **`vox train`** | Legacy: **`--provider local`** bails with the canonical **`vox mens train --backend qlora …`** command (no shipped `train_qlora.vox`). **`--native`** uses the old Burn scratch trainer when built with **`mens-dei`**. Together remote unchanged. |
+| **`vox train`** | Legacy: **`--provider local`** **spawns** **`vox mens train`** with **`--data-mode strict`** (stale fingerprint → blocking refresh, then train) and a default 4080-class QLoRA recipe (see `crates/vox-cli/src/commands/ai/train.rs`). **`--native`** uses the old Burn scratch trainer when built with **`mens-dei`**. Together remote unchanged. |
 | **`vox mens train-uv`** | **Retired** — bails; use **`vox mens train --backend qlora`**. |
+| **`vox-schola train`** | When `vox` is discoverable (`VOX_EXE`, sibling of `vox-schola`, or `PATH`), **`train` forwards to `vox mens train`** with the same QLoRA flags (set **`VOX_SCHOLA_FORWARD=never`** to run the standalone schola trainer; **`VOX_SCHOLA_FORWARD=always`** requires `vox`). |
+
+## Training data mode (`--data-mode`)
+
+- **`strict`**: if the corpus fingerprint is stale, **`train_arm` runs the same refresh** as `auto-refresh` (synthetic regen, `vox mens pipeline` with train skipped, mix copy) **before** training; **any refresh step failure aborts**. Use for CI, release gates, and reproducible local runs.
+- **`auto-refresh`** (default): when stale, run that refresh path but **log warnings** for non-fatal failures and may still proceed to training (still respects `VOX_TRAIN_SKIP_CORPUS_MIX`).
+
+**Preset id SSOT** (parity-tested vs Rust `KNOWN_PRESETS`): [`contracts/mens/training-presets.v1.yaml`](../../../contracts/mens/training-presets.v1.yaml).
 
 ## Data prep orchestration (SSOT)
 
-- **Mix + train input**: `vox_corpus::training::mix_prepare` — refresh `mens/config/mix.yaml`, optional sync of `data_dir/train.jsonl` into the mix **primary** source path (workspace-relative), resolve mixed output relative to **workspace root** (not mutable CWD). Used by `vox mens train` (`schola/train/gpu.rs`), `vox-schola train`, and the **Mix** stage of `vox mens pipeline`.
-- **Pipeline / stale-regen**: after `vox mens pipeline` has already run **Mix**, `train_arm` copies the mixed artifact into `data_dir/train.jsonl` via `copy_mix_output_to_train_jsonl` and sets `VOX_TRAIN_SKIP_CORPUS_MIX=1` so training does **not** run mix twice.
+- **Mix + train input**: `vox_corpus::training::mix_prepare` — refresh `mens/config/mix.yaml`, optional sync of `data_dir/train.jsonl` into the mix **primary** source path (workspace-relative), resolve mixed output relative to **workspace root** (not mutable CWD). Used by `vox mens train` (`schola/train/gpu.rs`), `vox-schola train` (or forwarded `vox mens train`), and the **Mix** stage of `vox mens pipeline`.
+- **Pipeline / stale-regen**: after a stale fingerprint is detected (both modes, unless `VOX_TRAIN_SKIP_CORPUS_MIX` / skip env applies), `train_arm` runs pipeline + `copy_mix_output_to_train_jsonl` and may set `VOX_TRAIN_SKIP_CORPUS_MIX=1`. **`strict`** requires the refresh path to succeed; **`auto-refresh`** tolerates some failures with stderr warnings.
 - **Hugging Face base weights**: `vox_populi::mens::hub::download_model_blocking` — shared blocking download used by CLI GPU train and `vox-schola train` (same behavior as the previous per-call-site `Runtime::block_on` threads).
-- **Normative CLI for operators**: **`vox mens train`**; **`vox-schola`** remains a specialized binary for the same Candle QLoRA path with a narrower flag surface.
+- **Normative CLI for operators**: **`vox mens train`**; **`vox-schola`** defaults to forwarding into `vox` when present (see table above).
+
+## Documentation corpus lane
+
+Documentation extraction exists, but keep the current boundaries explicit:
+
+- `vox mens pipeline` extracts `docs/src` into `mens/data/mix_sources/docs.jsonl`.
+- `crates/vox-corpus/src/corpus/extract_docs.rs` can emit both code-oriented rows and prose Q&A rows.
+- The default production mix in `mens/config/mix.yaml` remains `vox_codegen`-only.
+- That means VoxMens is still primarily a code-oriented training path today, not a general architecture-question answering system.
+- Documentation metadata and traceability are being carried forward so later opt-in docs-QA or retrieval paths can cite exact source pages and headings without changing the default production lane.
 
 ## Who / when
 
@@ -132,7 +160,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
   > **Windows MSVC/NVCC constraint**: Building the CUDA `candle-kernels` completely fails if executed through a nested subshell (e.g. `cmd.exe /c "vcvars64.bat && cargo build"`). The inner `bindgen_cuda` executable natively drops nested path states, leading to an immediate `'cl.exe' is not recognized` failure. You **must** interactively open the VS Developer Command Prompt or physically run `vcvars64.bat` in your persistent PowerShell window before typing cargo commands for CUDA.
 - **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-populi` optional deps. Keep notes in `VOX_PATCH.md` synchronized with whichever qlora-rs patches are active for trainer stability.
 - **Input**: `train.jsonl` (and `mens/config/training_contract.yaml` / preflight overrides).
-- **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys. **VoxDB persistence** uses the canonical store ([`DbConfig::resolve_canonical`](../../crates/vox-db/src/config.rs)) via `connect_default_with_training_fallback`; if `vox.db` is legacy, runs may land in `vox_training_telemetry.db` until cutover — see [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
+- **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys. **VoxDB persistence** uses the canonical store ([`DbConfig::resolve_canonical`](../../../crates/vox-db/src/config.rs)) via `connect_default_with_training_fallback`; if `vox.db` is legacy, runs may land in `vox_training_telemetry.db` until cutover — see [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
 
 ## Training objective mismatch (Burn vs Candle)
 
@@ -222,7 +250,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
   - **Train**: `vox mens train … --background` or `vox mens train … --log-dir mens/runs/logs` — parent exits immediately; monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`).
   - **CUDA `cargo` build**: normal terminal or `Tee-Object`; detached build: [`scripts/populi/cursor_background_cuda_build_detached.ps1`](../../../scripts/populi/cursor_background_cuda_build_detached.ps1) (and `scripts/mens/…` copies if present). Example train launcher: [`scripts/populi/cursor_background_train_example.ps1`](../../../scripts/populi/cursor_background_train_example.ps1).
   - **Skip corpus mix** (optional): `VOX_TRAIN_SKIP_CORPUS_MIX=1` skips the pre-train `mix` refresh when you already have the desired `train.jsonl` or need a shorter path under automation.
-- **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached. Syntax-K runs can be routed independently with **`VOX_SYNTAX_K_TELEMETRY=1`** (`metric_type = syntax_k_event`, session `syntaxk:<repository_id>`), with fallback to `VOX_BENCHMARK_TELEMETRY` when unset.
+- **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached. Syntax-K runs can be routed independently with **`VOX_SYNTAX_K_TELEMETRY=1`** (`metric_type = syntax_k_event`, session `syntaxk:<repository_id>`), with fallback to `VOX_BENCHMARK_TELEMETRY` when unset. Variable SSOT: [env-vars](env-vars.md); trust framing: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md).
 - **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped. See **[`mens-training-data-contract.md`](mens-training-data-contract.md)**; set **`VOX_MENS_TRAIN_JSONL_STRICT=1`** to fail on malformed non-empty lines instead of skipping them.
 - **Full-graph forward (current implementation)**: one forward pass per row/micro-batch item over loaded decoder layers, then masked CE on supervised suffix positions.
 - **Suffix CE (`--qlora-ce-last-k K`)**: default **`64`**. `K=0` uses all supervised assistant positions; `K>0` uses only the last `K` supervised positions from the trimmed sequence.
@@ -233,7 +261,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 ## Pre-push release gate (acceptance matrix)
 
 - **Canonical (cross-platform)**: `cargo run -p vox-cli -- ci mesh-gate --profile training` (add `--profile ci_full` for the wider matrix; alias: `mens-gate`).  
-  Steps live in [`scripts/populi/gates.yaml`](../../../scripts/populi/gates.yaml) (legacy fallback `scripts/mens/gates.yaml`). Nested `cargo` steps use `target/nested-ci` (see flight checklist above).
+  Steps live in [`scripts/populi/gates.yaml`](../../../scripts/populi/gates.yaml) (legacy fallback `scripts/mens/gates.yaml`). Nested `cargo` steps use OS temp `…/vox-targets/<repo-hash>/nested-ci` as `CARGO_TARGET_DIR` (not under repo `target/`).
 - **Thin shims**: `pwsh scripts/populi/release_training_gate.ps1`, `pwsh scripts/populi/release_ci_full_gate.ps1`, `pwsh scripts/mens_release_gate.ps1` (m1m4) — all forward to [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1). **Cursor / agent wall-clock limits:** run **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** (or **`release_ci_full_gate.ps1 -Detach`**) so a **new** PowerShell process owns the multi-minute nested `cargo test` work; tail **`target/mens-gate-logs/mens_gate_*.log`**. Optional **`-LogFile C:\path\to\gate.log`** pins the tee path. Bash peers remain where present — mirrors [`mens-finetune-acceptance-runbook.md`](../architecture/mens-finetune-acceptance-runbook.md) rows 1–10 (planner, keymap, strict preflight, Burn smoke, parity tests, merge, `merge_v2`).
 
 ## Regression tests

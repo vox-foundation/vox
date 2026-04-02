@@ -1,3 +1,9 @@
+---
+title: "Additive schema plan: scholarly external jobs and snapshots"
+description: "Maps current publish_cloud tables for outbound jobs, attempts, snapshots, and receipts; proposes optional future tables and columns; requires additive migrations shipped with store ops, tests, and documented error/status strings."
+category: "architecture"
+---
+
 # Additive schema plan: scholarly external jobs and snapshots
 
 Operational tables live in the **publish_cloud** domain ([`publish_cloud.rs`](../../../crates/vox-db/src/schema/domains/publish_cloud.rs)). Migrations should remain **additive** (new tables/columns/indexes) unless a breaking cutover is explicitly scheduled.

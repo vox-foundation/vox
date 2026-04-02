@@ -2,8 +2,8 @@
 
 use vox_orchestrator::Orchestrator;
 use vox_orchestrator::models::{ModelSpec, ProviderType};
-use vox_orchestrator::types::TaskCategory;
 use vox_orchestrator::usage::{RemainingBudget, UsageTracker};
+use vox_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
 
 use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_ollama_model_allowed};
@@ -27,6 +27,13 @@ pub fn resolve_mcp_chat_model_sync(
     res: McpChatModelResolution,
     availability_hint: Option<&[RemainingBudget]>,
 ) -> Result<(ModelSpec, bool), String> {
+    if crate::llm_bridge::infer_test_stub::infer_stub_env_active() {
+        return Ok((
+            crate::llm_bridge::infer_test_stub::stub_plan_model_spec(),
+            true,
+        ));
+    }
+
     let models_handle = orch.models_handle();
     let registry = crate::sync_lock::rw_read(&*models_handle);
     let preference = {
@@ -49,7 +56,7 @@ pub fn resolve_mcp_chat_model_sync(
         }
     }
 
-    let task = TaskCategory::CodeGen;
+    let task = res.task_category;
 
     if res.free_tier_latency_critical {
         if let Some(m) = registry.best_free_for_with_filter(task, mcp_ollama_model_allowed) {
@@ -125,19 +132,19 @@ pub async fn resolve_mcp_chat_model(
     )
 }
 
-/// Telemetry `(provider_family, route_choice)` aligned with [`vox_runtime::model_resolution::route_telemetry_labels`]
-/// wherever MCP [`ProviderType`] maps to the same HTTP lane (local Ollama/Mens vs OpenRouter).
+/// Telemetry `(provider_family, route_choice)` — delegates to [`vox_runtime::model_resolution::backend_telemetry_labels`]
+/// so MCP and runtime chat lanes share one string SSOT.
 #[must_use]
 pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, &'static str) {
-    match provider {
-        ProviderType::GoogleDirect => ("google", "direct"),
-        ProviderType::OpenRouter => ("openrouter", "openrouter"),
-        ProviderType::Ollama => ("mens", "populi_local"),
-        ProviderType::Groq => ("groq", "groq"),
-        ProviderType::Cerebras => ("cerebras", "cerebras"),
-        ProviderType::Mistral => ("mistral", "mistral"),
-        ProviderType::DeepSeek => ("deepseek", "deepseek"),
-        ProviderType::SambaNova => ("sambanova", "sambanova"),
-        ProviderType::Custom(_) => ("custom", "custom"),
-    }
+    backend_telemetry_labels(match provider {
+        ProviderType::GoogleDirect => ChatRouteBackend::GeminiDirect,
+        ProviderType::OpenRouter => ChatRouteBackend::OpenRouter,
+        ProviderType::Ollama => ChatRouteBackend::Ollama,
+        ProviderType::Groq
+        | ProviderType::Cerebras
+        | ProviderType::Mistral
+        | ProviderType::DeepSeek
+        | ProviderType::SambaNova
+        | ProviderType::Custom(_) => ChatRouteBackend::CascadeFallback,
+    })
 }

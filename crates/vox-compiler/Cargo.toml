@@ -12,14 +12,18 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 miette = { workspace = true }
-anyhow = { workspace = true }
-regex = { workspace = true }
 sha3 = { workspace = true }
 flate2 = "1.1.9"
 bzip2 = "0.6.1"
 zstd = "0.13.3"
 
+[build-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = { workspace = true }
+
 [dev-dependencies]
+serde_yaml = { workspace = true }
+jsonschema = { workspace = true }
 
 [lints]
 workspace = true

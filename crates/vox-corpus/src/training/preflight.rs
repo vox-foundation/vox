@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
-use crate::bounded_fs::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Primary training filename inside a data directory.
 pub const PRIMARY_TRAIN_FILE: &str = "train.jsonl";

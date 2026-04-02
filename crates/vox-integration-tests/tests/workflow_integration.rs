@@ -76,15 +76,15 @@ workflow main_flow() to Result[str] {
 #[test]
 fn test_with_operator_associativity() {
     let src = r#"
-fn f() to int {
-    let x = 1 with { meta: "data" }
+fn f() to Result[int] {
+    let x = Ok(1) with { meta: "data" }
     x
 }
 "#;
     let errs = errors(src);
     assert!(
         errs.is_empty(),
-        "With syntax on int literal should be valid structurally, got: {:?}",
+        "`with` applies to Result operands; Ok(1) with options should typecheck, got: {:?}",
         errs
     );
 }

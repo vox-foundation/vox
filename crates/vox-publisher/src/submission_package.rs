@@ -342,6 +342,14 @@ pub fn validate_arxiv_submission_tar_gz(bytes: &[u8]) -> Vec<ValidationFinding> 
                 .into(),
         });
     }
+    if tex_count > 1 {
+        findings.push(ValidationFinding {
+            code: "arxiv_multiple_tex_sources",
+            message: format!(
+                "bundle contains {tex_count} `.tex` files — ensure `main.tex` is the unique entrypoint or split submissions deliberately"
+            ),
+        });
+    }
     findings
 }
 
@@ -509,11 +517,61 @@ pub fn validate_scholarly_staging(
         findings.extend(content_checks(&p, art.relative_path.as_str(), venue));
     }
 
+    if matches!(venue, ScholarlyVenue::ArxivAssist) {
+        findings.extend(arxiv_staging_handoff_quality_notes(out_dir, manifest));
+    }
+
     if findings.is_empty() {
         Ok(())
     } else {
         Err(findings)
     }
+}
+
+/// Advisory completeness checks for operator-assisted arXiv staging (non-blocking collection).
+fn arxiv_staging_handoff_quality_notes(
+    out_dir: &Path,
+    manifest: &PublicationManifest,
+) -> Vec<ValidationFinding> {
+    let mut v = Vec::new();
+    let handoff_p = out_dir.join("arxiv_handoff.json");
+    if handoff_p.is_file()
+        && let Ok(raw) = fs::read_to_string(&handoff_p)
+        && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+    {
+        if !validate_arxiv_handoff_value(&val) {
+            v.push(ValidationFinding {
+                code: "arxiv_handoff_contract_mismatch",
+                message: "arxiv_handoff.json failed contract validation against expected arXiv assist operator envelope".into(),
+            });
+        }
+        let digest_ok = val.get("content_sha3_256").and_then(|x| x.as_str())
+            == Some(manifest.content_sha3_256().as_str());
+        if !digest_ok {
+            v.push(ValidationFinding {
+                code: "arxiv_handoff_digest_mismatch",
+                message: "arxiv_handoff.json content_sha3_256 does not match current manifest digest — regenerate staging".into(),
+            });
+        }
+    }
+    let checksums = out_dir.join("staging_checksums.json");
+    if checksums.is_file()
+        && let Ok(raw) = fs::read_to_string(&checksums)
+        && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+    {
+        let has_bundle = val
+            .get("sha3_256")
+            .and_then(|m| m.as_object())
+            .is_some_and(|m| m.contains_key("arxiv_bundle.tar.gz"));
+        if !has_bundle {
+            v.push(ValidationFinding {
+                code: "staging_checksums_missing_arxiv_bundle",
+                message: "staging_checksums.json should record arxiv_bundle.tar.gz for custody"
+                    .into(),
+            });
+        }
+    }
+    v
 }
 
 fn content_checks(
@@ -572,6 +630,16 @@ fn content_checks(
                         });
                     }
                 }
+                let lower_tex = text.to_ascii_lowercase();
+                if lower_tex.contains("\\usepackage{minted}") {
+                    out.push(ValidationFinding {
+                        code: "staging_arxiv_minted_package",
+                        message: format!(
+                            "{} uses `minted` — arXiv may require `-shell-escape` / custom packaging; verify venue policy",
+                            path.display()
+                        ),
+                    });
+                }
             }
         }
         _ => {}
@@ -592,16 +660,15 @@ fn content_checks(
     if matches!(venue, ScholarlyVenue::ArxivAssist)
         && relative_path == "arxiv_handoff.json"
         && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes)
+        && !validate_arxiv_handoff_value(&val)
     {
-        if !validate_arxiv_handoff_value(&val) {
-            out.push(ValidationFinding {
-                    code: "staging_arxiv_handoff_shape",
-                    message: format!(
-                        "{} must include schema_version=1, workflow=arxiv_operator_assist, publication_id, title, primary_author, content_sha3_256, main_tex_relpath, body_markdown_relpath, arxiv_bundle_relpath, staging_checksums_relpath",
-                        path.display()
-                    ),
-                });
-        }
+        out.push(ValidationFinding {
+            code: "staging_arxiv_handoff_shape",
+            message: format!(
+                "{} must include schema_version=1, workflow=arxiv_operator_assist, publication_id, title, primary_author, content_sha3_256, main_tex_relpath, body_markdown_relpath, arxiv_bundle_relpath, staging_checksums_relpath",
+                path.display()
+            ),
+        });
     }
     if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_bundle.tar.gz" {
         for f in validate_arxiv_submission_tar_gz(&bytes) {

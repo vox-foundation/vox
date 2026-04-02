@@ -50,7 +50,7 @@ pub struct MensConfig {
 impl Default for MensConfig {
     fn default() -> Self {
         Self {
-            base_url: "http://localhost:11434".to_string(),
+            base_url: vox_config::LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT.to_string(),
             api_key: None,
             model: "default-model".to_string(),
             temperature: 0.7,
@@ -64,7 +64,7 @@ impl MensConfig {
     pub fn from_env() -> Self {
         Self {
             base_url: vox_config::inference::local_ollama_populi_base_url(),
-            api_key: std::env::var("POPULI_API_KEY").ok(),
+            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliApiKey).expose().map(|s| s.to_string()),
             model: std::env::var("POPULI_MODEL").unwrap_or_else(|_| "default-model".to_string()),
             temperature: std::env::var("POPULI_TEMPERATURE")
                 .ok()
@@ -141,7 +141,7 @@ impl PopuliClient {
     /// Create a new client from config.
     pub fn new(config: MensConfig) -> Self {
         Self {
-            http: reqwest::Client::new(),
+            http: vox_reqwest_defaults::client(),
             config,
         }
     }

@@ -1,3 +1,9 @@
+---
+title: "CLI baseline metrics"
+description: "Checklist for local and CI timing (cargo check --timings, vox ci build-timings), vox-cli dependency graph review, and command-surface diffs against fixtures and vox ci command-compliance when changing the CLI surface or registry."
+category: "ci"
+---
+
 # CLI baseline metrics
 
 Use this checklist when changing `vox-cli` command surface, registry, or compile time.

@@ -1,6 +1,6 @@
 //! External **DeI daemon** (`vox-dei-d`) integration boundary.
 //!
-//! The workspace-excluded `crates/vox-dei` tree is not linked into `vox-cli`. All DeI RPC that the
+//! The staging `crates/vox-dei` library is not linked into `vox-cli` (see `vox ci no-vox-dei-import`). All DeI RPC that the
 //! slim CLI performs goes through the same JSON-line [`DispatchRequest`] / [`DispatchResponse`]
 //! protocol as [`crate::dispatch::call_daemon`], with method names centralized here to avoid drift.
 

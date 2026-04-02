@@ -1,12 +1,15 @@
 #![cfg(feature = "dei")]
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_orchestrator::{AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority};
+use vox_orchestrator::{
+    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
+    build_repo_scoped_orchestrator, discover_repository_from_cwd, json_vcs_facade,
+};
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
 pub async fn status() -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
     let status = orch.status();
 
     println!("{}", "╔══════════════════════════════════════╗".cyan());
@@ -95,9 +98,14 @@ pub async fn status() -> Result<()> {
 }
 
 /// `vox orchestrator submit` — manually submit a task.
-pub async fn submit(description: &str, files: &[String], priority: Option<&str>) -> Result<()> {
+pub async fn submit(
+    description: &str,
+    files: &[String],
+    priority: Option<&str>,
+    session_id: Option<String>,
+) -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
 
     let file_manifest: Vec<FileAffinity> = files.iter().map(FileAffinity::write).collect();
 
@@ -108,7 +116,7 @@ pub async fn submit(description: &str, files: &[String], priority: Option<&str>)
     };
 
     match orch
-        .submit_task(description, file_manifest, priority, None)
+        .submit_task(description, file_manifest, priority, session_id)
         .await
     {
         Ok(task_id) => {
@@ -127,10 +135,43 @@ pub async fn submit(description: &str, files: &[String], priority: Option<&str>)
     Ok(())
 }
 
+/// Read stdin lines (until EOF or empty line) and submit each as a task under a shared session id.
+pub async fn assistant(session_id: String, files: &[String], priority: Option<&str>) -> Result<()> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
+    let sid = session_id.trim().to_string();
+    if sid.is_empty() {
+        anyhow::bail!("session_id must be non-empty");
+    }
+    let file_list: Vec<String> = if files.is_empty() {
+        vec![".".to_string()]
+    } else {
+        files.to_vec()
+    };
+    println!(
+        "{}",
+        format!(
+            "Vox orchestrator assistant — session `{}`. Enter tasks (empty line to finish).",
+            sid
+        )
+        .cyan()
+    );
+    let stdin = BufReader::new(tokio::io::stdin());
+    let mut lines = stdin.lines();
+    while let Some(line) = lines.next_line().await? {
+        let t = line.trim();
+        if t.is_empty() {
+            break;
+        }
+        submit(t, &file_list, priority, Some(sid.clone())).await?;
+    }
+    Ok(())
+}
+
 /// `vox orchestrator queue` — show a specific agent's queue.
 pub async fn queue(agent_id: u64) -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
 
     let id = AgentId(agent_id);
     match orch.agent_queue(id) {
@@ -150,7 +191,7 @@ pub async fn queue(agent_id: u64) -> Result<()> {
 /// `vox orchestrator rebalance` — trigger manual rebalancing.
 pub async fn rebalance() -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
 
     let moved = orch.rebalance();
     if moved > 0 {
@@ -215,7 +256,7 @@ pub async fn config() -> Result<()> {
 /// `vox orchestrator pause` — pause an agent.
 pub async fn pause(agent_id: u64) -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
     let id = AgentId(agent_id);
 
     match orch.pause_agent(id) {
@@ -229,7 +270,7 @@ pub async fn pause(agent_id: u64) -> Result<()> {
 /// `vox orchestrator resume` — resume an agent.
 pub async fn resume(agent_id: u64) -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
     let id = AgentId(agent_id);
 
     match orch.resume_agent(id) {
@@ -243,7 +284,7 @@ pub async fn resume(agent_id: u64) -> Result<()> {
 /// `vox orchestrator save` — manually save orchestrator state.
 pub async fn save() -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config.clone());
+    let orch = build_repo_scoped_orchestrator_cli(config.clone());
     let state = vox_orchestrator::state::OrchestratorState::from_status(&orch.status(), &config);
 
     match state.save(std::path::Path::new(".vox_orch_state.json")) {
@@ -257,7 +298,7 @@ pub async fn save() -> Result<()> {
 /// `vox orchestrator load` — manually load orchestrator state.
 pub async fn load() -> Result<()> {
     let config = load_config();
-    let _orch = Orchestrator::new(config);
+    let _orch = build_repo_scoped_orchestrator_cli(config);
 
     match vox_orchestrator::state::OrchestratorState::load(std::path::Path::new(
         ".vox_orch_state.json",
@@ -273,7 +314,7 @@ pub async fn load() -> Result<()> {
 /// `vox orchestrator undo` — undo the last N operations.
 pub async fn undo(count: usize) -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
 
     if let Ok(store) = vox_db::VoxDb::open_default().await {
         let _ = orch.init_db(std::sync::Arc::new(store)).await;
@@ -331,7 +372,7 @@ pub async fn undo(count: usize) -> Result<()> {
 /// `vox orchestrator redo` — redo the last N undone operations.
 pub async fn redo(count: usize) -> Result<()> {
     let config = load_config();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator_cli(config);
 
     if let Ok(store) = vox_db::VoxDb::open_default().await {
         let _ = orch.init_db(std::sync::Arc::new(store)).await;
@@ -400,6 +441,19 @@ pub enum DeiCli {
         /// Optional: priority (urgent, background).
         #[arg(short, long)]
         priority: Option<String>,
+        /// Optional session id (context envelope / Socrates grouping; same as MCP `session_id`).
+        #[arg(long)]
+        session_id: Option<String>,
+    },
+    /// Multi-line interactive submit loop with a stable session id (developer pair-programming path).
+    Assistant {
+        /// Stable session key for all tasks in this loop (default `cli-assistant`).
+        #[arg(long, default_value = "cli-assistant")]
+        session_id: String,
+        #[arg(short, long)]
+        files: Vec<String>,
+        #[arg(short, long)]
+        priority: Option<String>,
     },
     /// Show a specific agent's queue.
     Queue {
@@ -436,6 +490,82 @@ pub enum DeiCli {
         #[arg(default_value_t = 1)]
         count: usize,
     },
+    /// Agent workspace lifecycle (parity with MCP `vox_workspace_*`).
+    Workspace {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: DeiWorkspaceCmd,
+    },
+    /// Filesystem snapshots (parity with MCP `vox_snapshot_*`).
+    Snapshot {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: DeiSnapshotCmd,
+    },
+    /// Operation log inspection (parity with MCP `vox_oplog`).
+    Oplog {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: DeiOplogCmd,
+    },
+    /// Aggregated repo + workspace + snapshot/oplog tails for human handoff (JSON stdout).
+    #[command(name = "takeover-status")]
+    TakeoverStatus {
+        /// Agent scope for workspace/snapshot/oplog tails.
+        #[arg(long, default_value_t = 0)]
+        agent_id: u64,
+        /// Print a short human summary before the JSON blob.
+        #[arg(long)]
+        human: bool,
+    },
+}
+
+/// `vox dei workspace …`
+#[derive(clap::Subcommand, Debug)]
+pub enum DeiWorkspaceCmd {
+    /// Create a workspace for an agent (captures a base snapshot).
+    Create {
+        /// Agent numeric ID.
+        agent_id: u64,
+    },
+    /// Show modified files and base snapshot for an agent workspace.
+    Status {
+        /// Agent numeric ID.
+        agent_id: u64,
+    },
+    /// Merge workspace changes and drop the workspace record.
+    Merge {
+        /// Agent numeric ID.
+        agent_id: u64,
+    },
+}
+
+/// `vox dei snapshot …`
+#[derive(clap::Subcommand, Debug)]
+pub enum DeiSnapshotCmd {
+    /// List recent snapshots, optionally filtered by agent.
+    List {
+        #[arg(long)]
+        agent_id: Option<u64>,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
+    /// Diff two snapshots by numeric id (see `list` output).
+    Diff { before: u64, after: u64 },
+    /// Restore tracked files from a snapshot (`S-123` or numeric).
+    Restore { snapshot_id: String },
+}
+
+/// `vox dei oplog …`
+#[derive(clap::Subcommand, Debug)]
+pub enum DeiOplogCmd {
+    /// List recent oplog entries.
+    List {
+        #[arg(long)]
+        agent_id: Option<u64>,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
 }
 
 /// Dispatch DEI subcommands.
@@ -446,7 +576,21 @@ pub async fn run(cli: DeiCli) -> Result<()> {
             description,
             files,
             priority,
-        } => submit(&description, &files, priority.as_deref()).await,
+            session_id,
+        } => {
+            submit(
+                &description,
+                &files,
+                priority.as_deref(),
+                session_id.filter(|s| !s.trim().is_empty()),
+            )
+            .await
+        }
+        DeiCli::Assistant {
+            session_id,
+            files,
+            priority,
+        } => assistant(session_id, &files, priority.as_deref()).await,
         DeiCli::Queue { agent_id } => queue(agent_id).await,
         DeiCli::Rebalance => rebalance().await,
         DeiCli::Config => config().await,
@@ -456,7 +600,163 @@ pub async fn run(cli: DeiCli) -> Result<()> {
         DeiCli::Load => load().await,
         DeiCli::Undo { count } => undo(count).await,
         DeiCli::Redo { count } => redo(count).await,
+        DeiCli::Workspace { cmd } => run_dei_workspace(cmd).await,
+        DeiCli::Snapshot { cmd } => run_dei_snapshot(cmd).await,
+        DeiCli::Oplog { cmd } => run_dei_oplog(cmd).await,
+        DeiCli::TakeoverStatus { agent_id, human } => {
+            run_dei_takeover_status(agent_id, human).await
+        }
     }
+}
+
+fn print_dei_json(v: &serde_json::Value) -> Result<()> {
+    println!("{}", serde_json::to_string_pretty(v)?);
+    Ok(())
+}
+
+async fn run_dei_workspace(cmd: DeiWorkspaceCmd) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    let v = match cmd {
+        DeiWorkspaceCmd::Create { agent_id } => {
+            json_vcs_facade::workspace_create_json(&orch, agent_id)
+        }
+        DeiWorkspaceCmd::Status { agent_id } => {
+            json_vcs_facade::workspace_status_json(&orch, agent_id)
+        }
+        DeiWorkspaceCmd::Merge { agent_id } => {
+            json_vcs_facade::workspace_merge_json(&orch, agent_id)
+        }
+    };
+    if v.get("merged") == Some(&serde_json::Value::Bool(false)) {
+        anyhow::bail!(
+            "no active workspace for this agent (same condition as MCP `vox_workspace_merge`)"
+        );
+    }
+    print_dei_json(&v)?;
+    Ok(())
+}
+
+async fn run_dei_snapshot(cmd: DeiSnapshotCmd) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    match cmd {
+        DeiSnapshotCmd::List { agent_id, limit } => {
+            let v = json_vcs_facade::snapshot_list_json(&orch, agent_id, limit);
+            print_dei_json(&v)?;
+        }
+        DeiSnapshotCmd::Diff { before, after } => {
+            let v = json_vcs_facade::snapshot_diff_json(&orch, before, after);
+            if v.get("error").is_some() {
+                anyhow::bail!("snapshot diff: one or both snapshot ids not found");
+            }
+            print_dei_json(&v)?;
+        }
+        DeiSnapshotCmd::Restore { snapshot_id } => {
+            let v = json_vcs_facade::snapshot_restore_json(&orch, &snapshot_id)
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
+            print_dei_json(&v)?;
+        }
+    }
+    Ok(())
+}
+
+async fn run_dei_oplog(cmd: DeiOplogCmd) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    match cmd {
+        DeiOplogCmd::List { agent_id, limit } => {
+            let v = json_vcs_facade::oplog_list_json(&orch, agent_id, limit).await;
+            print_dei_json(&v)?;
+        }
+    }
+    Ok(())
+}
+
+async fn run_dei_takeover_status(agent_id: u64, human: bool) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    let repo = discover_repository_from_cwd(None);
+    let v = json_vcs_facade::takeover_handoff_json(
+        &orch,
+        &repo.root.display().to_string(),
+        &repo.repository_id,
+        agent_id,
+    )
+    .await;
+    if human {
+        print_takeover_human_summary(&v);
+        println!();
+    }
+    print_dei_json(&v)?;
+    Ok(())
+}
+
+fn print_takeover_human_summary(v: &serde_json::Value) {
+    println!("{}", "Takeover handoff (summary)".cyan().bold());
+    if let Some(repo) = v.get("repository").and_then(|x| x.as_object()) {
+        if let Some(id) = repo.get("repository_id").and_then(|x| x.as_str()) {
+            println!("  {} {}", "repository_id:".bold(), id);
+        }
+        if let Some(root) = repo.get("root").and_then(|x| x.as_str()) {
+            println!("  {} {}", "root:".bold(), root);
+        }
+    }
+    let agent_id = v.get("agent_id").and_then(|x| x.as_u64()).unwrap_or(0);
+    println!("  {} {}", "agent_id:".bold(), agent_id);
+    if let Some(ws) = v.get("workspace").and_then(|x| x.as_object()) {
+        let has = ws
+            .get("has_workspace")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        if has {
+            let n = ws
+                .get("modified_count")
+                .and_then(|x| x.as_u64())
+                .or_else(|| {
+                    ws.get("modified_files")
+                        .and_then(|x| x.as_array())
+                        .map(|a| a.len() as u64)
+                })
+                .unwrap_or(0);
+            let base = ws
+                .get("base_snapshot")
+                .and_then(|x| x.as_str())
+                .unwrap_or("—");
+            println!(
+                "  {} active workspace; {} modified file(s); base_snapshot {}",
+                "workspace:".bold(),
+                n,
+                base
+            );
+        } else {
+            println!("  {} none", "workspace:".bold());
+        }
+    }
+    let snap_n = v
+        .get("snapshots")
+        .and_then(|x| x.get("snapshots"))
+        .and_then(|x| x.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    println!(
+        "  {} {} recent snapshot(s) in bundle",
+        "snapshots:".bold(),
+        snap_n
+    );
+    let op_n = v
+        .get("oplog")
+        .and_then(|x| x.get("operations"))
+        .and_then(|x| x.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    println!(
+        "  {} {} recent oplog entr{} in bundle",
+        "oplog:".bold(),
+        op_n,
+        if op_n == 1 { "y" } else { "ies" }
+    );
 }
 
 /// Load orchestrator config from Vox.toml or defaults.
@@ -471,4 +771,8 @@ fn load_config() -> OrchestratorConfig {
         .unwrap_or_default();
     config.merge_env_overrides();
     config
+}
+
+fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> Orchestrator {
+    build_repo_scoped_orchestrator(config, None).orchestrator
 }

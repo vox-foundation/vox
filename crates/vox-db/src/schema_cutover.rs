@@ -25,66 +25,180 @@ fn has_col(cols: &[String], name: &str) -> bool {
     cols.iter().any(|c| c == name)
 }
 
-/// Baseline `CREATE IF NOT EXISTS` does not run on already-migrated DBs; ensure lineage table exists.
-///
-/// Note: greenfield databases already get this DDL from `schema/domains/sql/coordination.sql`; this
-/// cutover remains for stores created before that fragment landed.
-async fn align_orchestration_lineage_events(conn: &Connection) -> Result<(), StoreError> {
-    let batch = r#"
-CREATE TABLE IF NOT EXISTS orchestration_lineage_events (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    repository_id     TEXT    NOT NULL DEFAULT '',
-    kind              TEXT    NOT NULL,
-    task_id           INTEGER NOT NULL,
-    agent_id          INTEGER,
-    session_id        TEXT,
-    workflow_id       TEXT,
-    plan_session_id   TEXT,
-    plan_node_id      TEXT,
-    payload_json      TEXT,
-    created_at_ms     INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_orch_lineage_repo_task
-    ON orchestration_lineage_events(repository_id, task_id);
-CREATE INDEX IF NOT EXISTS idx_orch_lineage_repo_ts
-    ON orchestration_lineage_events(repository_id, created_at_ms);
-CREATE INDEX IF NOT EXISTS idx_orch_lineage_repo_kind
-    ON orchestration_lineage_events(repository_id, kind);
-"#;
-    conn.execute_batch(batch).await?;
-    Ok(())
-}
-
 /// Apply additive migrations and renames that baseline `IF NOT EXISTS` cannot perform.
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), StoreError> {
-    align_orchestration_lineage_events(conn).await?;
+    align_workflow_activity_log(conn).await?;
+    align_workflow_run_log(conn).await?;
     align_question_sessions_belief(conn).await?;
     align_plan_sessions_iterative(conn).await?;
     align_a2a_claim_columns(conn).await?;
     align_agent_events(conn).await?;
     migrate_published_news_news_id(conn).await?;
     migrate_published_news_content_digest(conn).await?;
-    apply_performance_indexes(conn).await?;
+    align_conversations_workspace_journey(conn).await?;
+    align_routing_decisions_table(conn).await?;
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
     crate::ludus_schema_cutover::apply_ludus_gamify_cutover(conn).await?;
     Ok(())
 }
 
-/// Idempotent composite / reporting indexes (safe on legacy DBs; `IF NOT EXISTS`).
-async fn apply_performance_indexes(conn: &Connection) -> Result<(), StoreError> {
-    let batch = r#"
-CREATE INDEX IF NOT EXISTS idx_memories_agent_created ON memories(agent_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_behavior_user_created ON behavior_events(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_codex_change_log_topic_id ON codex_change_log(topic, id);
-CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
-CREATE INDEX IF NOT EXISTS idx_a2a_ack_created ON a2a_messages(acknowledged, created_at);
-CREATE INDEX IF NOT EXISTS idx_a2a_inbox_claim ON a2a_messages(receiver_agent, repository_id, acknowledged, claim_until_ms);
-CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo_ts ON agent_oplog(repository_id, timestamp_ms);
-CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attempts(news_id);
-CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id ON publication_status_events(publication_id, id);
-"#;
-    conn.execute_batch(batch).await?;
+/// Add workspace/journey identity columns to structured transcript tables (Unified Vox Request Journey).
+async fn align_conversations_workspace_journey(conn: &Connection) -> Result<(), StoreError> {
+    let ccols = table_column_names(conn, "PRAGMA table_info(conversations)").await?;
+    if !ccols.is_empty() {
+        if !has_col(&ccols, "repository_id") {
+            conn.execute("ALTER TABLE conversations ADD COLUMN repository_id TEXT", ())
+                .await?;
+        }
+        if !has_col(&ccols, "external_session_id") {
+            conn.execute(
+                "ALTER TABLE conversations ADD COLUMN external_session_id TEXT",
+                (),
+            )
+            .await?;
+        }
+        if !has_col(&ccols, "thread_id") {
+            conn.execute("ALTER TABLE conversations ADD COLUMN thread_id TEXT", ())
+                .await?;
+        }
+        if !has_col(&ccols, "origin_surface") {
+            conn.execute("ALTER TABLE conversations ADD COLUMN origin_surface TEXT", ())
+                .await?;
+        }
+    }
+
+    let mcols = table_column_names(conn, "PRAGMA table_info(conversation_messages)").await?;
+    if !mcols.is_empty() {
+        if !has_col(&mcols, "external_turn_id") {
+            conn.execute(
+                "ALTER TABLE conversation_messages ADD COLUMN external_turn_id TEXT",
+                (),
+            )
+            .await?;
+        }
+        if !has_col(&mcols, "model_used") {
+            conn.execute("ALTER TABLE conversation_messages ADD COLUMN model_used TEXT", ())
+                .await?;
+        }
+        if !has_col(&mcols, "token_count") {
+            conn.execute(
+                "ALTER TABLE conversation_messages ADD COLUMN token_count INTEGER",
+                (),
+            )
+            .await?;
+        }
+        if !has_col(&mcols, "context_files_json") {
+            conn.execute(
+                "ALTER TABLE conversation_messages ADD COLUMN context_files_json TEXT",
+                (),
+            )
+            .await?;
+        }
+    }
+
+    // Partial unique index (idempotent): one conversation row per (repository, MCP session).
+    let _ = conn
+        .execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_repo_ext_session
+             ON conversations(repository_id, external_session_id)
+             WHERE repository_id IS NOT NULL AND external_session_id IS NOT NULL",
+            (),
+        )
+        .await;
+    let _ = conn
+        .execute(
+            "CREATE INDEX IF NOT EXISTS idx_conversation_messages_external_turn
+             ON conversation_messages(external_turn_id)",
+            (),
+        )
+        .await;
+    let _ = conn
+        .execute(
+            "CREATE INDEX IF NOT EXISTS idx_conversations_repository ON conversations(repository_id)",
+            (),
+        )
+        .await;
+
+    Ok(())
+}
+
+/// Bounded routing decision log for analysis (no prompt/body content).
+async fn align_routing_decisions_table(conn: &Connection) -> Result<(), StoreError> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS routing_decisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            journey_id TEXT,
+            repository_id TEXT,
+            session_id TEXT,
+            surface TEXT NOT NULL DEFAULT '',
+            model_id TEXT,
+            reason_json TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_routing_decisions_created ON routing_decisions(created_at);
+        CREATE INDEX IF NOT EXISTS idx_routing_decisions_journey ON routing_decisions(journey_id);
+        ",
+    )
+    .await?;
+    Ok(())
+}
+
+async fn align_workflow_run_log(conn: &Connection) -> Result<(), StoreError> {
+    let cols = table_column_names(conn, "PRAGMA table_info(workflow_run_log)").await?;
+    if cols.is_empty() {
+        return Ok(());
+    }
+    if !has_col(&cols, "lease_owner") {
+        conn.execute(
+            "ALTER TABLE workflow_run_log ADD COLUMN lease_owner TEXT",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "lease_until_ms") {
+        conn.execute(
+            "ALTER TABLE workflow_run_log ADD COLUMN lease_until_ms INTEGER",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "plan_session_id") {
+        conn.execute(
+            "ALTER TABLE workflow_run_log ADD COLUMN plan_session_id TEXT",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "plan_node_id") {
+        conn.execute(
+            "ALTER TABLE workflow_run_log ADD COLUMN plan_node_id TEXT",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "plan_version") {
+        conn.execute(
+            "ALTER TABLE workflow_run_log ADD COLUMN plan_version INTEGER",
+            (),
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+async fn align_workflow_activity_log(conn: &Connection) -> Result<(), StoreError> {
+    let cols = table_column_names(conn, "PRAGMA table_info(workflow_activity_log)").await?;
+    if cols.is_empty() {
+        return Ok(());
+    }
+    if !has_col(&cols, "result_json") {
+        conn.execute(
+            "ALTER TABLE workflow_activity_log ADD COLUMN result_json TEXT",
+            (),
+        )
+        .await?;
+    }
     Ok(())
 }
 

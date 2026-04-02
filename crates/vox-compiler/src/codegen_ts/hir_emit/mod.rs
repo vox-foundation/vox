@@ -274,6 +274,11 @@ pub fn emit_hir_expr(
                 arms_out.join(" ")
             )
         }
+        HirExpr::Try(h) => {
+            // No direct equivalent of `?` in TS unless it's a specific pattern, but we'll try to emulate or just emit `await`/direct expression for now since it's just TS generation.
+            // A common TS code pattern is to just emit the target since actual error bubbling requires explicit branching. For basic TS compat we'll emit the unwrapped expression.
+            emit_hir_expr(h.target.as_ref(), state_names, island_names)
+        }
         _ => "null".to_string(),
     }
 }

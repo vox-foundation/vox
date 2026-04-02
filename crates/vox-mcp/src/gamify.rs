@@ -205,6 +205,12 @@ pub struct AgentHandoffParams {
     #[serde(default)]
     /// Checklist the receiver can use to validate completion.
     pub verification_criteria: Vec<String>,
+    #[serde(default)]
+    /// Optional canonical context envelope JSON attached as handoff metadata.
+    pub context_envelope_json: Option<String>,
+    #[serde(default)]
+    /// Optional portable harness contract JSON attached as handoff metadata.
+    pub harness_spec_json: Option<String>,
 }
 
 /// Emit a [`vox_orchestrator::handoff::HandoffPayload`] (side effect: event bus + downstream listeners).
@@ -217,6 +223,107 @@ pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> S
     );
     payload.unresolved_objectives = params.unresolved_objectives;
     payload.verification_criteria = params.verification_criteria;
+    if let Some(context_json) = params
+        .context_envelope_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        let env = match serde_json::from_str::<vox_orchestrator::ContextEnvelope>(context_json) {
+            Ok(e) => e,
+            Err(err) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("invalid context_envelope_json: {err}"),
+                    REM_HANDOFF,
+                )
+                .to_json();
+            }
+        };
+        let expectations = vox_orchestrator::context_lifecycle::ContextIngestExpectations {
+            repository_id: state.repository.repository_id.as_str(),
+            session_id: env
+                .subject
+                .session_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
+        };
+        if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
+            &state.orchestrator_config,
+            &env,
+            expectations,
+            vox_orchestrator::context_lifecycle::ContextIngestSource::McpHandoffTool,
+        ) {
+            return ToolResult::<String>::err_with_remediation(
+                format!("context lifecycle policy rejected handoff envelope: {e}"),
+                REM_HANDOFF,
+            )
+            .to_json();
+        }
+        payload.metadata.push((
+            vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY.to_string(),
+            context_json.to_string(),
+        ));
+    }
+    if let Some(harness_json) = params
+        .harness_spec_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        let mut harness =
+            match serde_json::from_str::<vox_orchestrator::AgentHarnessSpec>(harness_json) {
+                Ok(h) => h,
+                Err(err) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("invalid harness_spec_json: {err}"),
+                        REM_HANDOFF,
+                    )
+                    .to_json();
+                }
+            };
+        let expected_session_id = payload
+            .metadata
+            .iter()
+            .rev()
+            .find(|(k, _)| k == vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
+            .and_then(|(_, raw)| serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok())
+            .and_then(|env| env.subject.session_id);
+        let expected_thread_id = payload
+            .metadata
+            .iter()
+            .rev()
+            .find(|(k, _)| k == vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
+            .and_then(|(_, raw)| serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok())
+            .and_then(|env| env.subject.thread_id);
+        let expectations = vox_orchestrator::HarnessIngestExpectations {
+            repository_id: state.repository.repository_id.as_str(),
+            session_id: expected_session_id.as_deref(),
+            thread_id: expected_thread_id.as_deref(),
+        };
+        vox_orchestrator::apply_harness_subject_defaults(&mut harness, expectations);
+        if let Err(errs) = vox_orchestrator::validate_agent_harness_ingest(&harness, expectations) {
+            return ToolResult::<String>::err_with_remediation(
+                format!("invalid harness_spec_json: {}", errs.join("; ")),
+                REM_HANDOFF,
+            )
+            .to_json();
+        }
+        let normalized = match serde_json::to_string(&harness) {
+            Ok(v) => v,
+            Err(err) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("failed to normalize harness_spec_json: {err}"),
+                    REM_HANDOFF,
+                )
+                .to_json();
+            }
+        };
+        payload.metadata.push((
+            vox_orchestrator::handoff::HARNESS_SPEC_JSON_METADATA_KEY.to_string(),
+            normalized,
+        ));
+    }
     if let Err(e) = vox_orchestrator::handoff::execute_handoff(&payload, orch.event_bus()) {
         return ToolResult::<String>::err_with_remediation(e.to_string(), REM_HANDOFF).to_json();
     }

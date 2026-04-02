@@ -80,4 +80,8 @@ async fn test_agent_reliability_scoring() {
     assert_eq!(scores.len(), 1);
     assert_eq!(scores[0].0, agent_id);
     assert!(scores[0].1 > 0.6); // (1+1)/(1+0+2) = 2/3 approx 0.66
+
+    let one = store.get_agent_reliability(agent_id).await.unwrap();
+    assert!(one.is_some_and(|r| (r - scores[0].1).abs() < 1e-9));
+    assert!(store.get_agent_reliability("missing").await.unwrap().is_none());
 }

@@ -27,7 +27,7 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 
 /// Parse a .vox file and return its Module AST.
 pub(crate) fn parse_vox_module(path: &str) -> Result<vox_compiler::ast::decl::Module, String> {
-    let source = crate::bounded_fs::read_utf8_path_capped(Path::new(path))
+    let source = vox_bounded_fs::read_utf8_path_capped(Path::new(path))
         .map_err(|e| format!("Cannot read file '{}': {}", path, e))?;
     let tokens = vox_compiler::lexer::cursor::lex(&source);
     let module = vox_compiler::parser::parse(tokens).map_err(|errs| {

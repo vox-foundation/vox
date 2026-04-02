@@ -17,6 +17,8 @@ reliably across process and machine boundaries.
 > persists to Turso when `VOX_MESH_ENABLED=1`. On a single machine without mens
 > these remain in-process only for zero-overhead local development.
 
+**Mental model:** “Distributed” here means **many orchestrator processes** (e.g. two `vox-mcp` hosts) sharing **durable Turso rows** and **HTTP A2A** — not a single long-lived orchestrator singleton in one OS process. File routing and per-process structures still exist in each process; cross-node arbitration uses coordination tables (`distributed_locks`, etc.). The shared bootstrap factory lives in [`vox_orchestrator::bootstrap`](../../../crates/vox-orchestrator/src/bootstrap.rs).
+
 ---
 
 ## 1. Architecture Overview

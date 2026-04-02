@@ -8,11 +8,13 @@ mod manifest;
 mod pragmas;
 
 pub mod domains;
+pub mod spec;
 
 pub use manifest::{
     BASELINE_VERSION, CODEX_API_REQUIRED_TABLES, CODEX_CHAT_TABLES, CODEX_REACTIVITY_TABLES,
     SCHEMA_FRAGMENTS, SchemaFragment, baseline_sql, schema_baseline_digest_hex,
 };
+pub use spec::orchestrator_schema_digest;
 
 #[cfg(test)]
 mod migration_chain_tests {
@@ -51,6 +53,17 @@ mod migration_chain_tests {
         assert!(
             agents.contains("agent_session_events") && agents.contains("agent_events"),
             "agents must define session + telemetry tables"
+        );
+        let sql = super::baseline_sql();
+        assert!(
+            sql.contains("populi_training_run") && sql.contains("codex_capability_map"),
+            "baseline_sql must include spec-appended training + capability map DDL"
+        );
+        assert!(
+            sql.contains("idx_memories_agent_created")
+                && sql.contains("idx_a2a_ack_created")
+                && sql.contains("idx_news_publish_attempts_news"),
+            "baseline_sql must embed former cutover performance indexes (domain DDL SSOT)"
         );
     }
 }

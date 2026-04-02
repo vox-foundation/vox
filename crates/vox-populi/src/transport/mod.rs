@@ -52,15 +52,16 @@ pub struct LeaveRequest {
 /// Request to deliver an A2A message to a local agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A2ADeliverRequest {
-    /// Sender agent ID.
+    /// Sender agent id: non-empty **decimal digit** string after trim (orchestrator `AgentId` / `u64` wire form).
     pub sender_agent_id: String,
-    /// Receiver agent ID.
+    /// Receiver agent id: same constraints as [`Self::sender_agent_id`].
     pub receiver_agent_id: String,
     /// The message type/schema name.
     pub message_type: String,
     /// The JSON or raw payload.
     pub payload: String,
-    /// Idempotency key: duplicate delivers return the same `message_id` while pending.
+    /// Idempotency key: duplicate delivers return the same `message_id` while pending. If omitted, each
+    /// request gets a new `message_id` (server does **not** synthesize a default; see Populi / MCP docs).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
     /// Privacy / isolation class for claim-side policy (e.g. `public`, `private`, `trusted`).
@@ -128,6 +129,12 @@ pub struct A2AInboxRequest {
     /// When set, only return messages unleased, leased to this node, or with expired lease; may refresh lease on first matching row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claimer_node_id: Option<String>,
+    /// Optional maximum row count for non-claimer inbox fetches.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_messages: Option<usize>,
+    /// Optional cursor for non-claimer inbox fetches (return rows with `id < before_message_id`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before_message_id: Option<u64>,
 }
 
 /// Inbox poll: queued messages for the receiver.
@@ -144,6 +151,76 @@ pub struct A2AAckRequest {
     pub receiver_agent_id: String,
     /// [`A2AStoredMessage::id`] to acknowledge.
     pub message_id: u64,
+}
+
+/// Grant or refresh a **remote execution** lease for an opaque `scope_key` (correlation id for a task /
+/// workflow slice / resource slot). Distinct from per-A2A-row inbox leases; stored in-memory on the
+/// control plane only. TTL uses the same wall clock as inbox leases ([`a2a_lease_duration_ms`]).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteExecLeaseGrantRequest {
+    /// Node id requesting the lease (must be registered via join).
+    pub claimer_node_id: String,
+    /// Opaque key identifying what is leased (e.g. `workflow_run:…` / `task:…`); trimmed; must be non-empty.
+    pub scope_key: String,
+}
+
+/// Server response for [`RemoteExecLeaseGrantRequest`]: includes stable `lease_id` for renew/release.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteExecLeaseGrantResponse {
+    /// Monotonic decimal lease id (correlation handle).
+    pub lease_id: String,
+    /// Echo of normalized `scope_key`.
+    pub scope_key: String,
+    /// Holder after grant (same as request `claimer_node_id` when successful).
+    pub holder_node_id: String,
+    /// Wall time when the lease expires if not renewed (unix ms).
+    pub expires_unix_ms: u64,
+}
+
+/// Extend an active remote execution lease held by `claimer_node_id`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteExecLeaseRenewRequest {
+    /// [`RemoteExecLeaseGrantResponse::lease_id`].
+    pub lease_id: String,
+    /// Must match the current holder.
+    pub claimer_node_id: String,
+}
+
+/// Release a remote execution lease held by `claimer_node_id`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteExecLeaseReleaseRequest {
+    /// [`RemoteExecLeaseGrantResponse::lease_id`].
+    pub lease_id: String,
+    /// Must match the current holder.
+    pub claimer_node_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct RemoteExecLeaseRow {
+    pub(super) lease_id: String,
+    pub(super) scope_key: String,
+    pub(super) holder_node_id: String,
+    pub(super) expires_unix_ms: u64,
+}
+
+/// One non-expired remote execution lease for observability ([`GET /v1/populi/exec/leases`]).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteExecLeaseListItem {
+    /// Lease id returned by grant.
+    pub lease_id: String,
+    /// Correlation key (e.g. `task:<id>`).
+    pub scope_key: String,
+    /// Node id of the current holder.
+    pub holder_node_id: String,
+    /// Wall-clock expiry (Unix ms).
+    pub expires_unix_ms: u64,
+}
+
+/// Response for [`GET /v1/populi/exec/leases`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteExecLeaseListResponse {
+    /// Active leases after server-side expiry sweep.
+    pub leases: Vec<RemoteExecLeaseListItem>,
 }
 
 /// Extend an active inbox lease held by `claimer_node_id`.
@@ -164,6 +241,28 @@ pub struct AdminQuarantineRequest {
     pub node_id: String,
     /// When true, claimers with this node id cannot receive new leases.
     pub quarantined: bool,
+}
+
+/// Operator maintenance toggle (blocks new A2A claims for a node while enabled).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminMaintenanceRequest {
+    /// [`NodeRecord::id`].
+    pub node_id: String,
+    /// When true, claimers with this node id cannot receive new leases.
+    pub maintenance: bool,
+    /// When `maintenance` is true, clear drain automatically at this Unix ms (optional).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maintenance_until_unix_ms: Option<u64>,
+    /// When `maintenance` is true and `maintenance_until_unix_ms` is unset, server sets deadline to `now + min(for_ms, MAX_MAINTENANCE_FOR_MS)]`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maintenance_for_ms: Option<u64>,
+}
+
+/// Operator removal of a remote execution lease row (does not require holder cooperation).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminExecLeaseRevokeRequest {
+    /// [`RemoteExecLeaseGrantResponse::lease_id`].
+    pub lease_id: String,
 }
 
 /// Request a one-time bootstrap exchange for mesh join.
@@ -188,9 +287,12 @@ pub struct PopuliTransportState {
     inner: Arc<RwLock<PopuliRegistryFile>>,
     a2a_messages: Arc<RwLock<Vec<A2AStoredMessage>>>,
     a2a_id_gen: Arc<AtomicU64>,
+    exec_leases: Arc<RwLock<Vec<RemoteExecLeaseRow>>>,
+    exec_lease_id_gen: Arc<AtomicU64>,
     /// JWT `jti` replay + A2A idempotency keys; optionally persisted (`mesh-replay-state.json`).
     pub(crate) mesh_replay: Arc<mesh_replay::MeshReplayState>,
     a2a_store_path: Option<PathBuf>,
+    exec_lease_store_path: Option<PathBuf>,
     bootstrap_token: Option<Arc<str>>,
     bootstrap_expires_unix_ms: Option<u64>,
     bootstrap_used: Arc<AtomicBool>,
@@ -228,8 +330,11 @@ impl PopuliTransportState {
             })),
             a2a_messages: Arc::new(RwLock::new(Vec::new())),
             a2a_id_gen: Arc::new(AtomicU64::new(1)),
+            exec_leases: Arc::new(RwLock::new(Vec::new())),
+            exec_lease_id_gen: Arc::new(AtomicU64::new(1)),
             mesh_replay: mesh_replay::MeshReplayState::in_memory(),
             a2a_store_path: None,
+            exec_lease_store_path: None,
             bootstrap_token: None,
             bootstrap_expires_unix_ms: None,
             bootstrap_used: Arc::new(AtomicBool::new(false)),
@@ -243,6 +348,7 @@ impl PopuliTransportState {
     pub fn new_for_serve() -> Self {
         let mut s = Self::with_required_scope(crate::populi_scope_id_from_env());
         let store_path = store::a2a_store_path_from_env();
+        let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
         if let Some(path) = &store_path
             && let Ok(existing) = store::load_a2a_store(path)
         {
@@ -255,7 +361,20 @@ impl PopuliTransportState {
             s.a2a_messages = Arc::new(RwLock::new(existing));
             s.a2a_id_gen = Arc::new(AtomicU64::new(next_id));
         }
+        if let Some(path) = &exec_lease_store_path
+            && let Ok(existing) = store::load_exec_lease_store(path)
+        {
+            let next_lease_id = existing
+                .iter()
+                .filter_map(|r| r.lease_id.parse::<u64>().ok())
+                .max()
+                .unwrap_or(0)
+                .saturating_add(1);
+            s.exec_leases = Arc::new(RwLock::new(existing));
+            s.exec_lease_id_gen = Arc::new(AtomicU64::new(next_lease_id));
+        }
         s.a2a_store_path = store_path;
+        s.exec_lease_store_path = exec_lease_store_path;
         s.bootstrap_token = std::env::var("VOX_MESH_BOOTSTRAP_TOKEN")
             .ok()
             .map(|v| v.trim().to_string())
@@ -271,7 +390,7 @@ impl PopuliTransportState {
     /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
     pub async fn load_from_path(path: &std::path::Path) -> Result<Self, PopuliRegistryError> {
         let reg = if path.is_file() {
-            let raw = crate::bounded_fs::read_utf8_path_capped(path)
+            let raw = vox_bounded_fs::read_utf8_path_capped(path)
                 .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
             serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))?
         } else {
@@ -281,8 +400,14 @@ impl PopuliTransportState {
             }
         };
         let store_path = store::a2a_store_path_from_env();
+        let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
         let rows = if let Some(sp) = &store_path {
             store::load_a2a_store(sp).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let exec_lease_rows = if let Some(sp) = &exec_lease_store_path {
+            store::load_exec_lease_store(sp).unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -297,8 +422,18 @@ impl PopuliTransportState {
             inner: Arc::new(RwLock::new(reg)),
             a2a_messages: Arc::new(RwLock::new(rows)),
             a2a_id_gen: Arc::new(AtomicU64::new(next_id)),
+            exec_leases: Arc::new(RwLock::new(exec_lease_rows.clone())),
+            exec_lease_id_gen: Arc::new(AtomicU64::new(
+                exec_lease_rows
+                    .iter()
+                    .filter_map(|r| r.lease_id.parse::<u64>().ok())
+                    .max()
+                    .unwrap_or(0)
+                    .saturating_add(1),
+            )),
             mesh_replay: mesh_replay::MeshReplayState::load(replay_path),
             a2a_store_path: store_path,
+            exec_lease_store_path,
             bootstrap_token: None,
             bootstrap_expires_unix_ms: None,
             bootstrap_used: Arc::new(AtomicBool::new(false)),
@@ -363,6 +498,11 @@ pub(super) fn a2a_sweep_expired_leases(messages: &mut [A2AStoredMessage], now_ms
             m.lease_expires_unix_ms = None;
         }
     }
+}
+
+/// Drop expired remote execution leases (same wall clock as inbox leases).
+pub(super) fn exec_lease_sweep(rows: &mut Vec<RemoteExecLeaseRow>, now_ms: u64) {
+    rows.retain(|r| r.expires_unix_ms > now_ms);
 }
 
 /// Inbox lease duration in milliseconds (claimer flows). Override with **`VOX_MESH_A2A_LEASE_MS`**.

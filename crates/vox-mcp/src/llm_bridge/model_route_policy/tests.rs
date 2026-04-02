@@ -1,7 +1,9 @@
 use std::sync::Mutex;
 use vox_orchestrator::Orchestrator;
 use vox_orchestrator::config::{CostPreference, OrchestratorConfig};
-use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
+use vox_orchestrator::models::{
+    ModelRegistry, ModelRouteBackend, ModelSpec, ProviderType, route_backend_for_model,
+};
 
 use super::{
     McpChatModelResolution, mcp_global_llm_context_fill_ratio, mcp_provider_telemetry_labels,
@@ -168,6 +170,153 @@ fn mcp_ollama_label_matches_runtime_populi_local_telemetry() {
     assert_eq!(
         route_telemetry_labels(&route),
         mcp_provider_telemetry_labels(&ProviderType::Ollama)
+    );
+}
+
+#[test]
+fn mcp_google_direct_label_matches_runtime_manual_gemini_route_telemetry() {
+    use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+    let route = ChatProviderRouteKind::ManualOpenAiCompatible {
+        base_url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+            .into(),
+        model: "gemini-2.0-flash".into(),
+        bearer: None,
+    };
+    assert_eq!(
+        route_telemetry_labels(&route),
+        mcp_provider_telemetry_labels(&ProviderType::GoogleDirect)
+    );
+}
+
+#[test]
+fn mcp_cascade_label_matches_runtime_hf_and_manual_byok_telemetry() {
+    use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+    let manual = ChatProviderRouteKind::ManualOpenAiCompatible {
+        base_url: "https://api.custom/v1/chat/completions".into(),
+        model: "m".into(),
+        bearer: None,
+    };
+    assert_eq!(
+        route_telemetry_labels(&manual),
+        mcp_provider_telemetry_labels(&ProviderType::Groq)
+    );
+    let ep = vox_runtime::inference_env::resolve_huggingface_router("org/hf-model");
+    let hf = ChatProviderRouteKind::HuggingFaceRouter(ep);
+    assert_eq!(
+        route_telemetry_labels(&hf),
+        mcp_provider_telemetry_labels(&ProviderType::Mistral)
+    );
+}
+
+#[test]
+fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
+    use vox_runtime::model_resolution::{
+        ChatProviderRouteKind, ChatRouteBackend, route_backend_for_chat_route,
+    };
+
+    fn chat_lane_for_orchestrator_backend(b: ModelRouteBackend) -> ChatRouteBackend {
+        match b {
+            ModelRouteBackend::GeminiDirect => ChatRouteBackend::GeminiDirect,
+            ModelRouteBackend::OpenRouter => ChatRouteBackend::OpenRouter,
+            ModelRouteBackend::Ollama => ChatRouteBackend::Ollama,
+            ModelRouteBackend::CascadeFallback => ChatRouteBackend::CascadeFallback,
+        }
+    }
+
+    let gemini_spec = ModelSpec {
+        id: "gemini-2.0-flash".into(),
+        canonical_slug: "google/gemini-2.0-flash".into(),
+        provider: "google".into(),
+        provider_type: ProviderType::GoogleDirect,
+        max_tokens: 1000,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: false,
+        strengths: vec![],
+        capabilities: Default::default(),
+        supported_parameters: vec![],
+    };
+    let gemini_route = ChatProviderRouteKind::ManualOpenAiCompatible {
+        base_url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+            .into(),
+        model: gemini_spec.id.clone(),
+        bearer: None,
+    };
+    let gb = route_backend_for_model(&gemini_spec);
+    assert_eq!(
+        route_backend_for_chat_route(&gemini_route),
+        chat_lane_for_orchestrator_backend(gb)
+    );
+
+    let or_spec = ModelSpec {
+        id: "openai/gpt-4o".into(),
+        canonical_slug: "openai/gpt-4o".into(),
+        provider: "openrouter".into(),
+        provider_type: ProviderType::OpenRouter,
+        max_tokens: 1000,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: false,
+        strengths: vec![],
+        capabilities: Default::default(),
+        supported_parameters: vec![],
+    };
+    let or_route = ChatProviderRouteKind::OpenRouter {
+        model: or_spec.id.clone(),
+    };
+    assert_eq!(
+        route_backend_for_chat_route(&or_route),
+        chat_lane_for_orchestrator_backend(route_backend_for_model(&or_spec))
+    );
+
+    let ollama_spec = ModelSpec {
+        id: "llama-local".into(),
+        canonical_slug: "local/llama".into(),
+        provider: "ollama".into(),
+        provider_type: ProviderType::Ollama,
+        max_tokens: 1000,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: true,
+        strengths: vec![],
+        capabilities: Default::default(),
+        supported_parameters: vec![],
+    };
+    let ollama_route = ChatProviderRouteKind::PopuliLocal {
+        base_url: "http://127.0.0.1:11434".into(),
+        model: ollama_spec.id.clone(),
+    };
+    assert_eq!(
+        route_backend_for_chat_route(&ollama_route),
+        chat_lane_for_orchestrator_backend(route_backend_for_model(&ollama_spec))
+    );
+
+    // Groq id without `/` → orchestrator CascadeFallback; manual BYOK chat route matches.
+    let groq_spec = ModelSpec {
+        id: "llama-3.1-70b".into(),
+        canonical_slug: "groq/llama-3.1-70b".into(),
+        provider: "groq".into(),
+        provider_type: ProviderType::Groq,
+        max_tokens: 1000,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: false,
+        strengths: vec![],
+        capabilities: Default::default(),
+        supported_parameters: vec![],
+    };
+    let cascade_route = ChatProviderRouteKind::ManualOpenAiCompatible {
+        base_url: "https://api.groq.com/openai/v1/chat/completions".into(),
+        model: groq_spec.id.clone(),
+        bearer: None,
+    };
+    assert_eq!(
+        route_backend_for_chat_route(&cascade_route),
+        chat_lane_for_orchestrator_backend(route_backend_for_model(&groq_spec))
     );
 }
 

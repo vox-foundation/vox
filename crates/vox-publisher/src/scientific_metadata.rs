@@ -86,6 +86,36 @@ pub fn build_scientia_metadata_json(
     Ok(serde_json::Value::Object(root).to_string())
 }
 
+/// Merge [`crate::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE`] into existing `metadata_json` without dropping sibling keys.
+pub fn merge_scientia_evidence_into_metadata_json(
+    metadata_json: Option<&str>,
+    evidence: &crate::scientia_evidence::ScientiaEvidenceContext,
+    prepared_by: Option<&str>,
+) -> serde_json::Result<String> {
+    let mut map = match metadata_json {
+        Some(raw) if !raw.trim().is_empty() => {
+            let v: serde_json::Value = serde_json::from_str(raw)?;
+            if let Some(o) = v.as_object() {
+                o.clone()
+            } else {
+                serde_json::Map::new()
+            }
+        }
+        _ => serde_json::Map::new(),
+    };
+    map.insert(
+        crate::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE.to_string(),
+        serde_json::to_value(evidence)?,
+    );
+    if let Some(pb) = prepared_by.map(str::trim).filter(|s| !s.is_empty()) {
+        map.insert(
+            "prepared_by".to_string(),
+            serde_json::Value::String(pb.to_string()),
+        );
+    }
+    serde_json::to_string(&serde_json::Value::Object(map))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,11 +9,14 @@ training_eligible: true
 
 ```vox
 # Vox Workflow Example
-# Demonstrates durable workflows with steps, retries, and activity calls.
+# Demonstrates workflow syntax: steps, `with` options, and activity calls.
 #
-# Workflows are long-running, fault-tolerant execution graphs.
-# Each step is durably recorded so execution survives crashes.
-# Activities are retryable async operations called within workflows.
+# Intent: long-running orchestration. Today, durable step replay is the
+# interpreted `vox mens workflow ...` path with a stable run id and
+# `activity_id`; generated Rust is not yet a full durable state machine.
+# See expl-actors-workflows.md. Interpreted durable runs now honor retry/
+# backoff for `mesh_*` activity execution; ordinary activities in examples
+# like this still mainly show language shape and stable `activity_id` usage.
 
 # An activity that fetches data from an external API.
 # Activities are the only place for side effects in workflows.
@@ -29,8 +32,8 @@ activity send_notification(email: str, body: str) to Result[bool]:
 
 # A multi-step onboarding workflow.
 #
-# If the process crashes after step 1, it will resume at step 2
-# when restarted. This is "durable execution" — no work is lost.
+# With the interpreted runtime + same run id + stable activity ids, completed
+# steps can be skipped on restart; idempotent activities still matter.
 workflow onboard_user(user_id: str, email: str) to Result[str]:
     # Step 1: Fetch user profile
     let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" }

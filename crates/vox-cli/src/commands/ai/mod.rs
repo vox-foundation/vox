@@ -1,7 +1,7 @@
 //! AI and orchestration: generate, train, workflow, serve.
 //!
 //! Legacy in-process **agent / dei / hud / learn** lived here behind a `dashboard` flag but depended on
-//! the workspace-excluded `vox-dei` crate. Dashboard UX is now the VS Code extension — not these modules.
+//! the unwired historical `vox-dei` module graph. Dashboard UX is now the VS Code extension — not these modules.
 
 /// Defaults for Mens inference bind/port/temperature (shared with `vox mens serve`).
 pub mod inference_defaults;

@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS news_publish_attempts (
     result_json TEXT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attempts(news_id);
+
 CREATE TABLE IF NOT EXISTS publication_manifests (
     publication_id TEXT PRIMARY KEY,
     content_type TEXT NOT NULL,
@@ -181,6 +183,9 @@ CREATE TABLE IF NOT EXISTS publication_status_events (
     detail_json TEXT,
     recorded_at_ms INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id
+    ON publication_status_events(publication_id, id);
 
 -- external_submission_jobs.status (operational queue; migration-safe vocabulary):
 --   queued | running | retryable_failed | failed | succeeded

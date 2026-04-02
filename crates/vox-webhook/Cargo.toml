@@ -19,10 +19,9 @@ sha3             = { workspace = true }
 data-encoding    = { workspace = true }
 # HTTP server
 axum             = { version = "0.8", features = ["macros"] }
-tower            = { version = "0.5" }
-hyper            = { version = "1" }
 # HTTP client (for outbound webhooks)
 reqwest          = { workspace = true }
+vox-reqwest-defaults = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

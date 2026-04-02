@@ -1,58 +1,85 @@
 use crate::server::ServerState;
 use serde_json::{Value, json};
 use std::path::PathBuf;
+use vox_compiler::language_surface;
 use vox_compiler::lexer::cursor::lex;
-use vox_compiler::lexer::token::Token;
 use vox_compiler::parser::parse;
 
-/// `vox_language_surface` — returns all primary keywords, decorators, and builtins.
-pub fn language_surface() -> Value {
-    let keywords = vec![
-        "fn", "let", "mut", "if", "else", "for", "while", "match", "ret", "type", "import",
-        "actor", "workflow", "activity", "spawn", "http", "pub", "with", "on", "struct", "enum",
-        "trait", "impl", "const", "message", "state", "routes", "to", "from", "use",
-    ];
+/// Decorators advertised to agents that are **not** yet dedicated lexer tokens (roadmap / docs).
+const MCP_ROADMAP_DECORATORS: &[&str] = &[
+    "@action",
+    "@collection",
+    "@vector_index",
+    "@search_index",
+    "@layout",
+    "@not_found",
+    "@error_boundary",
+    "@fixture",
+    "@mock",
+    "@trace",
+    "@health",
+    "@metric",
+    "@scheduled",
+    "@agent_def",
+    "@skill",
+    "@py_import",
+    "@deprecated",
+    "@pure",
+    "@require",
+    "@theme",
+    "@keyframes",
+];
 
-    let decorators = vec![
-        "@table",
-        "@query",
-        "@mutation",
-        "@action",
-        "@collection",
-        "@index",
-        "@vector_index",
-        "@search_index",
-        "@layout",
-        "@loading",
-        "@not_found",
-        "@error_boundary",
-        "@test",
-        "@fixture",
-        "@mock",
-        "@trace",
-        "@health",
-        "@metric",
-        "@scheduled",
-        "@mcp.tool",
-        "@mcp.resource",
-        "@agent_def",
-        "@skill",
-        "@v0",
-        "@py_import",
-        "@deprecated",
-        "@pure",
-        "@require",
-        "@theme",
-        "@keyframes",
-        "@server",
-    ];
+/// `vox_language_surface` — keywords/types/builtins from `vox_compiler::language_surface`; decorators =
+/// lexer-backed + [`MCP_ROADMAP_DECORATORS`].
+pub fn language_surface() -> Value {
+    let mut keywords: Vec<&str> = language_surface::LEXER_KEYWORDS.to_vec();
+    for &(w, _) in language_surface::LSP_KEYWORD_SNIPPETS {
+        if !keywords.contains(&w) {
+            keywords.push(w);
+        }
+    }
+    keywords.sort_unstable();
+
+    let mut decorators: Vec<&str> = language_surface::LEXER_DECORATORS.to_vec();
+    for d in MCP_ROADMAP_DECORATORS {
+        if !decorators.contains(d) {
+            decorators.push(d);
+        }
+    }
+    decorators.sort_unstable();
 
     json!({
         "keywords": keywords,
         "decorators": decorators,
-        "types": ["int", "str", "bool", "float", "Unit", "Element", "List", "Map", "Set", "Result", "Option"],
-        "builtins": ["print", "len", "push", "pop", "now", "sleep", "hash", "uuid", "random"]
+        "types": language_surface::SURFACE_TYPE_NAMES,
+        "builtins": language_surface::SURFACE_BUILTIN_NAMES,
     })
+}
+
+/// `vox_capability_model_manifest` — live merge of capability registry + MCP tool names + active CLI paths
+/// (same composition as `vox ci capability-sync` output, without writing the generated JSON file).
+pub fn capability_model_manifest(state: &ServerState) -> Result<Value, anyhow::Error> {
+    let root = state
+        .workspace_root
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("workspace_root not set"))?;
+    let cap_path = root.join(vox_capability_registry::CAPABILITY_REGISTRY_REL);
+    let cap_raw = vox_bounded_fs::read_utf8_path_capped(&cap_path)
+        .map_err(|e| anyhow::anyhow!("read {}: {e}", cap_path.display()))?;
+    let doc: vox_capability_registry::CapabilityRegistryDoc = serde_yaml::from_str(&cap_raw)
+        .map_err(|e| anyhow::anyhow!("parse {}: {e}", cap_path.display()))?;
+    let reg_path = root.join(vox_capability_registry::COMMAND_REGISTRY_REL);
+    let reg_raw = vox_bounded_fs::read_utf8_path_capped(&reg_path)
+        .map_err(|e| anyhow::anyhow!("read {}: {e}", reg_path.display()))?;
+    let cli_paths =
+        vox_capability_registry::active_vox_cli_paths_from_command_registry_yaml(&reg_raw)?;
+    let mcp_tools: Vec<String> = vox_mcp_registry::TOOL_REGISTRY
+        .iter()
+        .map(|e| e.name.to_string())
+        .collect();
+    let manifest = vox_capability_registry::build_model_manifest(&doc, &mcp_tools, &cli_paths);
+    serde_json::to_value(manifest).map_err(|e| anyhow::anyhow!(e))
 }
 
 /// `vox_compiler::ast_inspect` — parses a file and returns its AST as JSON.
@@ -88,21 +115,28 @@ pub async fn pipeline_status() -> Value {
     })
 }
 
-/// `vox_decorator_registry` — detailed metadata for all decorators.
+/// `vox_decorator_registry` — starts from [`language_surface::LSP_DECORATOR_DOCS`], then MCP-only rows.
 pub fn decorator_registry() -> Value {
-    json!([
-        { "name": "@table", "desc": "Declares a persistent database table.", "args": "name: str" },
-        { "name": "@query", "desc": "Declares a database query function.", "args": "name: str" },
-        { "name": "@mutation", "desc": "Declares a database mutation function.", "args": "name: str" },
-        { "name": "@action", "desc": "Declares a side-effecting action.", "args": "name: str" },
-        { "name": "@collection", "desc": "Declares a NoSQL collection.", "args": "name: str" },
-        { "name": "@index", "desc": "Declares a database index.", "args": "fields: List[str]" },
-        { "name": "@test", "desc": "Marks a function as a test case.", "args": null },
-        { "name": "@mcp.tool", "desc": "Exposes a function as an MCP tool.", "args": "name: str, desc: str" },
-        { "name": "@server", "desc": "Marks a function to run only on the server.", "args": null },
-        { "name": "@pure", "desc": "Marks a function as side-effect free.", "args": null },
-        { "name": "@deprecated", "desc": "Marks a function as deprecated.", "args": "reason: str" }
-    ])
+    let mut rows: Vec<Value> = language_surface::LSP_DECORATOR_DOCS
+        .iter()
+        .map(|(name, desc)| {
+            json!({
+                "name": name,
+                "desc": desc,
+                "args": serde_json::Value::Null
+            })
+        })
+        .collect();
+    rows.extend([
+        json!({"name": "@action", "desc": "Declares a side-effecting action.", "args": "name: str"}),
+        json!({"name": "@collection", "desc": "Declares a NoSQL collection.", "args": "name: str"}),
+        json!({"name": "@pure", "desc": "Marks a function as side-effect free.", "args": serde_json::Value::Null}),
+        json!({"name": "@deprecated", "desc": "Marks a function as deprecated.", "args": "reason: str"}),
+        json!({"name": "@agent_def", "desc": "Declares an agent definition surface.", "args": serde_json::Value::Null}),
+        json!({"name": "@skill", "desc": "Declares a skill binding.", "args": serde_json::Value::Null}),
+        json!({"name": "@scheduled", "desc": "Cron/interval scheduled function.", "args": serde_json::Value::Null}),
+    ]);
+    json!(rows)
 }
 
 /// `vox_builtin_registry` — detailed signatures for builtin functions.
@@ -113,7 +147,21 @@ pub fn builtin_registry() -> Value {
         { "name": "push", "sig": "fn push(col: mut List[T], item: T) -> Unit", "doc": "Appends an item to a list." },
         { "name": "pop", "sig": "fn pop(col: mut List[T]) -> Option[T]", "doc": "Removes and returns the last item from a list." },
         { "name": "now", "sig": "fn now() -> int", "doc": "Returns current unix timestamp." },
-        { "name": "uuid", "sig": "fn uuid() -> str", "doc": "Generates a random UUID v4." }
+        { "name": "uuid", "sig": "fn uuid() -> str", "doc": "Generates a random UUID v4." },
+        { "name": "OpenClaw.list_skills", "sig": "fn OpenClaw.list_skills() -> Result[str]", "doc": "List remote skills JSON via the OpenClaw runtime adapter." },
+        { "name": "OpenClaw.call", "sig": "fn OpenClaw.call(method: str, params_json: str) -> Result[str]", "doc": "Gateway WS call with JSON params object string." },
+        { "name": "OpenClaw.subscribe", "sig": "fn OpenClaw.subscribe(domain: str) -> Result[str]", "doc": "Subscribe session to a gateway domain." },
+        { "name": "OpenClaw.unsubscribe", "sig": "fn OpenClaw.unsubscribe(domain: str) -> Result[str]", "doc": "Unsubscribe session from a gateway domain." },
+        { "name": "OpenClaw.notify", "sig": "fn OpenClaw.notify(domain: str, message: str) -> Result[str]", "doc": "Send a domain-scoped gateway notification." },
+        { "name": "Browser.open", "sig": "fn Browser.open(url: str, headless: bool) -> Result[str]", "doc": "Opens a Chromium tab (CDP); returns page_id. Native scripts only; WASI returns Error." },
+        { "name": "Browser.close", "sig": "fn Browser.close(page_id: str) -> Result[unit]", "doc": "Closes a tab; shuts down the host when no tabs remain." },
+        { "name": "Browser.goto", "sig": "fn Browser.goto(page_id: str, url: str) -> Result[unit]", "doc": "Navigates an open tab to url." },
+        { "name": "Browser.click", "sig": "fn Browser.click(page_id: str, target: str) -> Result[unit]", "doc": "CSS selector or xpath:… prefix for XPath." },
+        { "name": "Browser.fill", "sig": "fn Browser.fill(page_id: str, target: str, value: str) -> Result[unit]", "doc": "Focus and type into an input-like element." },
+        { "name": "Browser.wait_for", "sig": "fn Browser.wait_for(page_id: str, target: str, timeout_secs: int) -> Result[unit]", "doc": "Poll until selector or xpath matches (deadline in seconds)." },
+        { "name": "Browser.text", "sig": "fn Browser.text(page_id: str, target: str) -> Result[str]", "doc": "Element inner_text." },
+        { "name": "Browser.html", "sig": "fn Browser.html(page_id: str, target: str) -> Result[str]", "doc": "Fragment outer HTML, or full document when target is empty." },
+        { "name": "Browser.screenshot", "sig": "fn Browser.screenshot(page_id: str, path: str) -> Result[str]", "doc": "Full-page PNG to path; returns path string." }
     ])
 }
 
@@ -208,5 +256,6 @@ mod tests {
         assert!(kw.iter().any(|x| x.as_str() == Some("fn")));
         let dec = v["decorators"].as_array().expect("decorators array");
         assert!(dec.iter().any(|x| x.as_str() == Some("@mcp.tool")));
+        assert!(dec.iter().any(|x| x.as_str() == Some("@mcp.resource")));
     }
 }

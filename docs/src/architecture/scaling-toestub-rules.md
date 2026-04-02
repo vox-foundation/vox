@@ -1,3 +1,9 @@
+---
+title: "TOESTUB scaling rules (SSOT)"
+description: "SSOT for the scaling/surfaces detector: Rust analysis foundations, JSON envelope schemas, gold/suppression/remediation contracts, rule IDs and severities, suppressions, policy YAML, governance owners, and CI promotion/canary flags."
+category: "architecture"
+---
+
 # TOESTUB scaling rules (SSOT)
 
 Detector id: **`scaling/surfaces`** (`crates/vox-toestub/src/detectors/scaling.rs`).

@@ -1,45 +1,75 @@
-# Agents, secrets, and where architecture lives
+# Agents Policy (Cross-Tool, Session-Critical)
 
-This file is the **required** SSOT for **secret management (Clavis)**. It does **not** replace language/compiler architecture docs.
+This file is the always-loaded policy surface for contributors and coding agents.
+Keep it short, stable, and implementation-oriented.
 
-## Architecture & compiler pipeline (pointers)
+## Scope
 
-- **End-to-end pipeline (lex → parse → AST → HIR → typecheck → codegen):** [`docs/src/explanation/expl-architecture.md`](docs/src/explanation/expl-architecture.md)
-- **Internal web IR strategy (compiler frontend boundary):** [`docs/src/adr/012-internal-web-ir-strategy.md`](docs/src/adr/012-internal-web-ir-strategy.md) — Phase 0 schema lives in **`crates/vox-compiler/src/web_ir/`** (`mod.rs`, `validate.rs`).
-- **Bell-curve app scope / product lanes / ranking model:** [`docs/src/architecture/vox-bell-curve-strategy.md`](docs/src/architecture/vox-bell-curve-strategy.md)
-- **Where new app capability should land first:** [`docs/src/architecture/feature-growth-boundaries.md`](docs/src/architecture/feature-growth-boundaries.md)
-- **Interop tiers / approved wrappers / escape-hatch policy:** [`docs/src/architecture/interop-tier-policy.md`](docs/src/architecture/interop-tier-policy.md)
-- **Lowering / HIR:** [`docs/src/explanation/expl-compiler-lowering.md`](docs/src/explanation/expl-compiler-lowering.md)
-- **Runtime / execution context:** [`docs/src/explanation/expl-runtime.md`](docs/src/explanation/expl-runtime.md)
-- **CLI surface:** [`docs/src/reference/cli.md`](docs/src/reference/cli.md)
-- **Cross-platform CI & runners:** [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
-- **Python / shell scripts vs `vox` (migration SSOT):** [`docs/src/architecture/script-surface-audit.md`](docs/src/architecture/script-surface-audit.md)
-- **Contributor governance / TOESTUB:** [`docs/agents/governance.md`](docs/agents/governance.md) — includes **scratch vs TOESTUB** (`.gitignore` for artifacts; TOESTUB for tracked source / CRLF).
-- **Doc ↔ code acceptance:** [`docs/src/architecture/doc-to-code-acceptance-checklist.md`](docs/src/architecture/doc-to-code-acceptance-checklist.md)
-- **Diagnostic categories (parse / type / HIR / lint):** [`docs/src/reference/diagnostic-taxonomy.md`](docs/src/reference/diagnostic-taxonomy.md)
-- **MENS long runs (train, CUDA build, `mens-gate`):** prefer detached processes + log tails; see **IDE / Cursor timeouts** in [`docs/src/reference/mens-training.md`](docs/src/reference/mens-training.md) and [`scripts/populi/mens_gate_safe.ps1`](scripts/populi/mens_gate_safe.ps1) **`-Detach`**.
+- Use this file for non-negotiable project policy that should apply in every session.
+- Do not turn this file into a full repository table of contents.
+- Put detailed rationale and long reference maps in contributor docs, then link from here.
 
----
+Primary navigation:
 
-# Secret Management: Use Clavis (Required)
+- Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
+- Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
+- Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
 
-For API keys, tokens, and credentials, use the Clavis system instead of hard-coded `std::env::var(...)` callsites.
+## Telemetry trust (SSOT)
 
-- **Why**: Clavis is the SSOT for secret names, aliases, precedence, policy, remediation, and CI guardrails.
-- **Define metadata in one place**: add/update secret IDs and env aliases in `crates/vox-clavis/src/spec.rs`.
-- **Use Clavis resolution in code**: read secrets with `vox_clavis::resolve_secret(...)` from consumers; avoid new direct secret env reads.
-- **CLI lifecycle surface**: `crates/vox-cli/src/commands/clavis.rs` is the canonical UX for `doctor`, `set/get`, backend status, and auth-store migration.
-- **Source/precedence logic**: keep resolver/source behavior in `crates/vox-clavis/src/resolver.rs` and `crates/vox-clavis/src/sources/*`.
-- **Guardrails and parity**: update and run `vox ci secret-env-guard` and `vox ci clavis-parity` after secret-surface changes.
-- **Naming rule**:
-  - use `VOX_*` for Vox-owned platform boundaries
-  - keep provider-native keys as canonicals for upstream compatibility
-  - if adding migration aliases, mark old names as deprecated and surface via doctor warnings
-- **Required vs optional**: model blocking requirements as workflow/profile requirement groups (`AnyOf`/`AllOf`), not as a flat global key list.
+- Map and boundaries: [`docs/src/architecture/telemetry-trust-ssot.md`](docs/src/architecture/telemetry-trust-ssot.md); optional explicit remote upload: [`docs/src/adr/023-optional-telemetry-remote-upload.md`](docs/src/adr/023-optional-telemetry-remote-upload.md), [`docs/src/architecture/telemetry-remote-sink-spec.md`](docs/src/architecture/telemetry-remote-sink-spec.md), **`vox telemetry`**
+- Research: [`docs/src/architecture/telemetry-unification-research-findings-2026.md`](docs/src/architecture/telemetry-unification-research-findings-2026.md)
+- Implementation plan + checklist: [`docs/src/architecture/telemetry-implementation-blueprint-2026.md`](docs/src/architecture/telemetry-implementation-blueprint-2026.md), [`docs/src/architecture/telemetry-implementation-backlog-2026.md`](docs/src/architecture/telemetry-implementation-backlog-2026.md)
 
-## When adding a new API key
+## Secret Management (Required, SSOT)
 
-1. Add `SecretId` + `SecretSpec` entry in `crates/vox-clavis/src/spec.rs`.
-2. Migrate consumer callsites to `vox_clavis::resolve_secret(...)`.
-3. Add/update `vox clavis doctor` workflow/profile expectations if needed.
-4. Ensure docs parity in `docs/src/reference/clavis-ssot.md`.
+Use Clavis for API keys, tokens, and credentials. Do not introduce new direct secret reads from environment variables in consumers.
+
+- Define and maintain secret metadata in `crates/vox-clavis/src/spec.rs`.
+- Resolve secrets with `vox_clavis::resolve_secret(...)`.
+- Keep resolver/source behavior in `crates/vox-clavis/src/resolver.rs` and `crates/vox-clavis/src/sources/*`.
+- After secret-surface changes, run `vox ci secret-env-guard` and `vox ci clavis-parity`.
+
+Naming policy:
+
+- Use `VOX_*` for Vox-owned platform boundaries.
+- Keep provider-native keys as canonical when upstream compatibility matters.
+- Mark migration aliases as deprecated and expose them through doctor warnings.
+
+API key lifecycle checklist:
+
+1. Add `SecretId` and `SecretSpec` entries in `crates/vox-clavis/src/spec.rs`.
+2. Migrate callsites to `vox_clavis::resolve_secret(...)`.
+3. Update `vox clavis doctor` workflow/profile expectations when requirements change.
+4. Keep docs in sync at `docs/src/reference/clavis-ssot.md`.
+
+## Cross-Platform Shell Discipline (Stable Rules)
+
+- **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for interactive terminal work and agent-driven shell steps so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
+- **CI vs local:** Repository CI jobs often run under **bash** on Linux self-hosted runners ([`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)); that does not override the **local/agent** preference for `pwsh` when you have it.
+- Prefer structured tooling and project CLIs (`vox`, `cargo`, `pnpm`, `uv`, `rg`) over ad hoc shell pipelines.
+- Do not rely on shell-specific one-liners as policy boundaries; approvals and allowlists vary across IDEs.
+- Keep commands decomposed into clear steps when safety or portability is at risk.
+
+Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md).
+
+Research synthesis (IDE matchers, PowerShell-first, SSOT terminal policy): [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](docs/src/architecture/terminal-exec-policy-research-findings-2026.md). Machine-checked policy entrypoint: [`docs/src/architecture/terminal-ast-validation-research-2026.md`](docs/src/architecture/terminal-ast-validation-research-2026.md).
+
+## Structural Limits & Code Quality
+
+Agents and contributors must strictly adhere to these invariants. These take precedence over general coding guidelines.
+
+- **TOESTUB / Skeleton Code:** Structural quality is enforced via TOESTUB. Finding IDs (`stub/todo`, `stub/unimplemented`, `empty-body`, etc.) in non-test code are CI blockers.
+- **Verification Ritual:** Before completing work, mentally (or physically) run `vox stub-check --path <changed-dirs>` to ensure no skeleton code leaked.
+- **God Object Limit:** Maximum 500 lines or 12 methods per struct/class. Refactor into domains before adding logic.
+- **Sprawl Limit:** Maximum 20 files per directory. Create sub-modules if you exceed this.
+- **Frozen Modules:** Do not expose new `pub` items in modules marked as FROZEN.
+- **Scripting Restraint:** Do not write new `.py` files in the `scripts/` directory; prefer Rust tooling.
+- **Completion Policy:** Understand `contracts/operations/completion-policy.v1.yaml` (Tier A, Tier B, Tier C detectors).
+
+## Related Operational Surfaces
+
+- CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
+- Workspace artifact hygiene (Cargo target sprawl, `mens/runs`, scratch): [`docs/agents/governance.md`](docs/agents/governance.md) — `vox ci artifact-audit` / `artifact-prune`, retention SSOT [`contracts/operations/workspace-artifact-retention.v1.yaml`](contracts/operations/workspace-artifact-retention.v1.yaml)
+- Continuation prompt strategy: [`docs/src/contributors/continuation-prompt-engineering.md`](docs/src/contributors/continuation-prompt-engineering.md)
+- Governance and TOESTUB policy: [`docs/agents/governance.md`](docs/agents/governance.md)

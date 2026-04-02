@@ -16,6 +16,23 @@ body {
   color-scheme: light dark;
 }
 
+/* Sidebar webview shell — theme tokens without inline styles */
+.vox-root {
+  background: var(--vscode-sideBar-background, #09090b);
+  color: var(--vscode-sideBar-foreground, #e4e4e7);
+}
+
+.vox-nav-rail {
+  border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.06));
+  background: var(--vscode-sideBar-background, rgba(255, 255, 255, 0.02));
+}
+
+.vox-exec-hint {
+  border-color: var(--vscode-panel-border);
+  background: var(--vscode-editor-inactiveSelectionBackground, rgba(100, 100, 100, 0.15));
+  color: var(--vscode-descriptionForeground, inherit);
+}
+
 .glass {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(12px);
@@ -68,7 +85,9 @@ body {
 .gap-4 { gap: 1rem; }
 .gap-6 { gap: 1.5rem; }
 .gap-8 { gap: 2rem; }
+.gap-1 { gap: 0.25rem; }
 .p-2 { padding: 0.5rem; }
+.p-3 { padding: 0.75rem; }
 .p-4 { padding: 1rem; }
 .p-8 { padding: 2rem; }
 .p-10 { padding: 2.5rem; }
@@ -123,6 +142,9 @@ body {
 
 .text-xs { font-size: 0.75rem; }
 .text-sm { font-size: 0.875rem; }
+.text-\[11px\] { font-size: 11px; }
+.text-\[10px\] { font-size: 10px; }
+.text-\[13px\] { font-size: 13px; }
 .text-2xl { font-size: 1.5rem; }
 .text-3xl { font-size: 1.875rem; }
 .text-4xl { font-size: 2.25rem; }
@@ -141,6 +163,7 @@ body {
 .leading-tight { line-height: 1.25; }
 
 .grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 .grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .col-span-12 { grid-column: span 12 / span 12; }
@@ -169,6 +192,13 @@ body {
 
 .w-full { width: 100%; }
 .h-full { height: 100%; }
+.flex-1 { flex: 1 1 0%; }
+.shrink-0 { flex-shrink: 0; }
+.flex-wrap { flex-wrap: wrap; }
+.min-h-0 { min-height: 0; }
+.min-h-\[72px\] { min-height: 72px; }
+.min-h-\[88px\] { min-height: 88px; }
+.min-h-\[92px\] { min-height: 92px; }
 .w-2 { width: 0.5rem; }
 .h-2 { height: 0.5rem; }
 .w-8 { width: 2rem; }
@@ -178,9 +208,12 @@ body {
 .w-16 { height: 4rem; }
 .h-16 { height: 4rem; }
 .max-w-2xl { max-width: 42rem; }
+.max-h-56 { max-height: 14rem; }
+.max-h-40 { max-height: 10rem; }
 
 .overflow-y-auto { overflow-y: auto; }
-.overflow-hidden { overflow-hidden: hidden; }
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
 
 .relative { position: relative; }
 .absolute { position: absolute; }
@@ -192,6 +225,42 @@ body {
 .-right-10 { right: -2.5rem; }
 .z-10 { z-index: 10; }
 .-z-0 { z-index: -1; }
+.self-start { align-self: flex-start; }
+.pr-1 { padding-right: 0.25rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
+.space-y-3 > * + * { margin-top: 0.75rem; }
+
+.chat-markdown p {
+  margin: 0 0 0.6rem;
+}
+
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown pre,
+.chat-markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.chat-markdown pre {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  overflow: auto;
+}
+
+.chat-markdown code {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.3rem;
+}
 
 /* Execution Mode Visuals */
 .mode-efficient {
@@ -289,4 +358,33 @@ body {
 @keyframes warningPulse {
   0%, 100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0.4); }
   50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.8); }
+}
+
+/* Shiki syntax highlighting */
+.shiki-block {
+  margin: 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shiki-block pre {
+  margin: 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: transparent !important;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shiki-block code {
+  background: transparent !important;
+  padding: 0;
+  border: none;
+}
+
+.shiki-loading {
+  opacity: 0.5;
+  filter: grayscale(100%);
 }

@@ -41,7 +41,7 @@ fn maps_from_file(path: &Path) -> Result<MeshReplayMaps, PopuliRegistryError> {
     if !path.is_file() {
         return Ok(MeshReplayMaps::default());
     }
-    let raw = crate::bounded_fs::read_utf8_path_capped(path)
+    let raw = vox_bounded_fs::read_utf8_path_capped(path)
         .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
     let f: MeshReplayFile =
         serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;

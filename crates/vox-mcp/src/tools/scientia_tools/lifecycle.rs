@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::publication_preflight::PreflightProfile;
+use vox_publisher::scientia_discovery::DiscoveryIntakeGate;
+use vox_publisher::scientia_evidence::ScientiaEvidenceContext;
 use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
 
 use vox_publisher::scholarly_external_jobs::publication_scholarly_submit_with_ledger;
@@ -28,6 +30,30 @@ pub struct VoxScientiaPublicationPrepareParams {
     pub preflight: bool,
     #[serde(default)]
     pub preflight_profile: Option<PreflightProfileParam>,
+    /// Optional [`ScientiaEvidenceContext`] merged under `metadata_json.scientia_evidence`.
+    #[serde(default)]
+    pub scientia_evidence: Option<serde_json::Value>,
+    #[serde(default)]
+    pub discovery_intake_gate: DiscoveryIntakeGateParam,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoveryIntakeGateParam {
+    #[default]
+    None,
+    StrongSignalsOnly,
+    AllowReviewSuggested,
+}
+
+impl From<DiscoveryIntakeGateParam> for DiscoveryIntakeGate {
+    fn from(p: DiscoveryIntakeGateParam) -> Self {
+        match p {
+            DiscoveryIntakeGateParam::None => Self::None,
+            DiscoveryIntakeGateParam::StrongSignalsOnly => Self::StrongSignalsOnly,
+            DiscoveryIntakeGateParam::AllowReviewSuggested => Self::AllowReviewSuggested,
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -37,6 +63,7 @@ pub enum PreflightProfileParam {
     Default,
     DoubleBlind,
     MetadataComplete,
+    ArxivAssist,
 }
 
 impl From<PreflightProfileParam> for PreflightProfile {
@@ -45,6 +72,7 @@ impl From<PreflightProfileParam> for PreflightProfile {
             PreflightProfileParam::Default => Self::Default,
             PreflightProfileParam::DoubleBlind => Self::DoubleBlind,
             PreflightProfileParam::MetadataComplete => Self::MetadataComplete,
+            PreflightProfileParam::ArxivAssist => Self::ArxivAssist,
         }
     }
 }
@@ -181,11 +209,45 @@ pub async fn vox_scientia_publication_prepare(
         },
     };
     let profile: PreflightProfile = params.preflight_profile.unwrap_or_default().into();
+    let scientia_evidence: Option<ScientiaEvidenceContext> = match params.scientia_evidence.as_ref()
+    {
+        None => None,
+        Some(v) => match serde_json::from_value::<ScientiaEvidenceContext>(v.clone()) {
+            Ok(e) => Some(e),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("scientia_evidence: {e}"),
+                    REM_SCIENTIA_METADATA,
+                )
+                .to_json();
+            }
+        },
+    };
+    let intake_gate: DiscoveryIntakeGate = params.discovery_intake_gate.into();
+    if intake_gate != DiscoveryIntakeGate::None {
+        let empty_rank_evidence = ScientiaEvidenceContext::default();
+        let ev_ref = scientia_evidence.as_ref().unwrap_or(&empty_rank_evidence);
+        let rank = vox_publisher::scientia_discovery::rank_candidate(
+            params.publication_id.as_str(),
+            Some("mcp://vox_scientia_publication_prepare"),
+            ev_ref,
+        );
+        if !vox_publisher::scientia_discovery::intake_gate_allows(intake_gate, &rank) {
+            return ToolResult::<()>::err_with_remediation(
+                format!(
+                    "discovery_intake_gate rejected prepare: gate={intake_gate:?} rank={}",
+                    serde_json::to_string(&rank).unwrap_or_default()
+                ),
+                "Relax `discovery_intake_gate`, attach a stronger `scientia_evidence` block, or use `vox db publication-prepare` with repo-local eval/benchmark sidecars.",
+            )
+            .to_json();
+        }
+    }
     let metadata_json = match vox_publisher::scientific_metadata::build_scientia_metadata_json(
         "vox_scientia_publication_prepare",
         Some(state.repository.repository_id.as_str()),
         scientific.as_ref(),
-        None,
+        scientia_evidence.as_ref(),
     ) {
         Ok(s) => s,
         Err(e) => {
@@ -385,6 +447,10 @@ struct ScientiaPublicationStatusBody {
     version: i64,
     approvals_for_digest: i64,
     preflight_report: vox_publisher::publication_preflight::PreflightReport,
+    discovery_rank: vox_publisher::scientia_discovery::DiscoveryCandidateRank,
+    manifest_completion: vox_publisher::scientia_discovery::ManifestCompletionReport,
+    evidence_completeness_0_100: u8,
+    transform_preview: serde_json::Value,
     scholarly_submissions: Vec<vox_db::ScholarlySubmissionRow>,
     media_assets: Vec<vox_db::PublicationMediaAssetRow>,
     publication_attempts: Vec<vox_db::PublicationAttemptRow>,
@@ -493,6 +559,24 @@ pub async fn vox_scientia_publication_status(
             .to_json();
         }
     };
+    let evidence =
+        vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref());
+    let evidence_fallback = vox_publisher::scientia_evidence::ScientiaEvidenceContext::default();
+    let evidence_ref = evidence.as_ref().unwrap_or(&evidence_fallback);
+    let discovery_rank = vox_publisher::scientia_discovery::rank_candidate(
+        params.publication_id.as_str(),
+        row.source_ref.as_deref(),
+        evidence_ref,
+    );
+    let manifest_completion =
+        vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::default();
+    let evidence_completeness_0_100 =
+        vox_publisher::scientia_discovery::evidence_completeness_score(evidence_ref, &scientia_h);
+    let transform_preview = vox_publisher::scientia_discovery::destination_transform_previews(
+        &manifest,
+        evidence.as_ref(),
+    );
     ToolResult::ok(ScientiaPublicationStatusBody {
         publication_id: row.publication_id,
         content_type: row.content_type,
@@ -501,6 +585,10 @@ pub async fn vox_scientia_publication_status(
         version: row.version,
         approvals_for_digest: approvals,
         preflight_report,
+        discovery_rank,
+        manifest_completion,
+        evidence_completeness_0_100,
+        transform_preview,
         scholarly_submissions: submissions,
         media_assets,
         publication_attempts,

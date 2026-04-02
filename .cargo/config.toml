@@ -13,6 +13,7 @@ vox-schola-cuda      = "build -p vox-schola --release"
 [build]
 # Use all available CPU cores for rustc parallelism
 jobs = 8
+rustdocflags = ["-D", "warnings"]
 
 [target.x86_64-pc-windows-msvc]
 # Use lld linker for faster linking on Windows (rustup component add llvm-tools)

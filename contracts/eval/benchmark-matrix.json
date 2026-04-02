@@ -28,7 +28,9 @@
       "id": "m3-dei-contracts",
       "name": "Vox Dei wire contracts and orchestration invariants",
       "benchmark_classes": [
+        "vox_agent_harness_contract",
         "vox_cli_dispatch_dei_schema",
+        "vox_context_envelope_contract",
         "vox_orchestrator_a2a_message_ids"
       ],
       "min_pass_rate": 1.0,

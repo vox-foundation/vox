@@ -1,4 +1,8 @@
 //! Information-theoretic questioning telemetry and dual-write persistence helpers.
+//!
+//! `metric_type = questioning_event` rows are **S1–S2**: KPIs and session-scoped metadata for scientia / questioning loops.
+//! They are **not** a substitute for content classification of publication bodies or chat transcripts
+//! (see `docs/src/architecture/telemetry-retention-sensitivity-ssot.md`).
 
 use crate::VoxDb;
 use crate::research_metrics_contract::METRIC_TYPE_QUESTIONING_EVENT;

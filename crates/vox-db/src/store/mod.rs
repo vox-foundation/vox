@@ -31,8 +31,8 @@ pub use types::{
     RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
     ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
     SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
-    ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry, UserEntry, WarningRow,
-    WorkflowExecutionRow,
+    ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry, UserEntry,
+    WarningRow, WorkflowExecutionRow,
 };
 
 pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};
@@ -44,6 +44,7 @@ mod ops_agents;
 pub mod ops_build;
 mod ops_cas;
 mod ops_codex;
+mod ops_completion;
 mod ops_learning;
 mod ops_lineage;
 mod ops_ludus;

@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/orchestration/agent-harness.schema.json",
+  "title": "AgentHarnessSpec",
+  "description": "Portable contract-first natural-language agent harness representation for Vox orchestration, MCP handoff, and remote relay surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "harness_id",
+    "runtime_charter",
+    "subject",
+    "roles",
+    "stages",
+    "contracts",
+    "state",
+    "failure_taxonomy"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "harness_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "task_family": {
+      "type": "string"
+    },
+    "runtime_charter": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id"],
+      "properties": {
+        "repository_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "thread_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role_id", "prompt_purpose", "responsibilities"],
+        "properties": {
+          "role_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt_purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "responsibilities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "permission_mode": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage_id", "role_id", "summary"],
+        "properties": {
+          "stage_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input_artifacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "output_artifacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "completion_gate_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "failure_mode_codes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_outputs",
+        "completion_gates",
+        "requires_artifact_backed_completion"
+      ],
+      "properties": {
+        "required_outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifact_id", "kind", "required"],
+            "properties": {
+              "artifact_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path_hint": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "completion_gates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["gate_id", "description"],
+            "properties": {
+              "gate_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_required": {
+                "type": "boolean"
+              },
+              "independent_verification": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requires_artifact_backed_completion": {
+          "type": "boolean"
+        }
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["adapter_id", "kind", "description"],
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_ref": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_root", "path_addressable", "compaction_stable"],
+      "properties": {
+        "state_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "child_workspace_root": {
+          "type": "string"
+        },
+        "task_history_path": {
+          "type": "string"
+        },
+        "artifact_manifest_path": {
+          "type": "string"
+        },
+        "path_addressable": {
+          "type": "boolean"
+        },
+        "compaction_stable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "failure_taxonomy": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "description", "retryable"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "recovery_stage_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {}
+  }
+}

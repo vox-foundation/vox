@@ -1,0 +1,888 @@
+{
+  "metadata": {
+    "title": "AI IDE feature matrix 2026",
+    "status": "research",
+    "last_updated": "2026-03-31",
+    "purpose": "Machine-readable comparison of modern AI IDE features and Vox implementation opportunities.",
+    "methodology": {
+      "primary_sources": "Official docs, official release notes, official changelogs, and official product pages were preferred. Community or secondary sources are only reflected indirectly through lowered confidence notes.",
+      "scoring_note": "Composite scores are synthesized from documented feature coverage, workflow safety, extensibility, and review ergonomics. They are not benchmark scores.",
+      "support_scale": [
+        "strong",
+        "partial",
+        "limited",
+        "none",
+        "unclear"
+      ],
+      "confidence_scale": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "loc_bands": [
+        "50-200",
+        "200-800",
+        "800-2500",
+        "2500-8000",
+        "8000+"
+      ],
+      "difficulty_scale": [
+        "low",
+        "medium",
+        "high",
+        "very high"
+      ],
+      "necessity_scale": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "product_order": [
+    "cursor",
+    "windsurf",
+    "antigravity",
+    "claude_code",
+    "chatgpt_codex",
+    "gemini_code_assist",
+    "github_copilot",
+    "zed",
+    "aider",
+    "cline",
+    "roo_code",
+    "replit_agent",
+    "devin",
+    "continue"
+  ],
+  "products": [
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "category": "AI-native IDE",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://cursor.com/help/ai-features/agent",
+        "https://cursor.com/en/features",
+        "https://cursor.com/docs/subagents"
+      ],
+      "pricing_signal": "Usage-based premium IDE with free and paid tiers.",
+      "scorecard": {
+        "productivity_composite_100": 95,
+        "agent_depth_5": 5,
+        "review_safety_5": 5,
+        "customization_memory_5": 5,
+        "extensibility_5": 5,
+        "multimodal_surface_5": 4
+      },
+      "notes": "Best-documented all-around agent IDE in this comparison set; unusually strong mode separation, subagents, and review affordances."
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "category": "AI-native IDE",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://docs.windsurf.com/windsurf/cascade/cascade",
+        "https://docs.windsurf.com/windsurf/cascade/memories",
+        "https://docs.windsurf.com/windsurf/cascade/workflows"
+      ],
+      "pricing_signal": "Premium AI IDE with strong workspace customizations and enterprise policy surface.",
+      "scorecard": {
+        "productivity_composite_100": 91,
+        "agent_depth_5": 5,
+        "review_safety_5": 4,
+        "customization_memory_5": 5,
+        "extensibility_5": 4,
+        "multimodal_surface_5": 4
+      },
+      "notes": "Especially strong on memories, rules, reusable workflows, and real-time awareness."
+    },
+    {
+      "id": "antigravity",
+      "name": "Antigravity",
+      "category": "Agent-first IDE",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "low",
+      "official_sources": [
+        "https://developers.googleblog.com/build-with-google-antigravity-our-new-agentic-development-platform",
+        "https://antigravity.im/documentation"
+      ],
+      "pricing_signal": "Public preview positioning, pricing surface not mature in fetched evidence.",
+      "scorecard": {
+        "productivity_composite_100": 88,
+        "agent_depth_5": 5,
+        "review_safety_5": 4,
+        "customization_memory_5": 3,
+        "extensibility_5": 3,
+        "multimodal_surface_5": 5
+      },
+      "notes": "Compelling directionally, but evidence quality is weaker than the rest of the set and should be treated cautiously."
+    },
+    {
+      "id": "claude_code",
+      "name": "Claude Code",
+      "category": "Agentic coding CLI",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "http://code.claude.com/docs/en/tools-reference",
+        "https://code.claude.com/docs/en/sub-agents",
+        "https://code.claude.com/docs/en/hooks-guide"
+      ],
+      "pricing_signal": "Model-usage-driven agent workflow rather than conventional IDE subscription.",
+      "scorecard": {
+        "productivity_composite_100": 89,
+        "agent_depth_5": 5,
+        "review_safety_5": 4,
+        "customization_memory_5": 5,
+        "extensibility_5": 5,
+        "multimodal_surface_5": 2
+      },
+      "notes": "Not an IDE in the classic sense, but one of the strongest references for tool-use architecture, hooks, and subagents."
+    },
+    {
+      "id": "chatgpt_codex",
+      "name": "ChatGPT desktop plus Codex app",
+      "category": "Desktop AI app plus coding workspace",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://help.openai.com/en/articles/9703738-desktop-app-release-notes",
+        "https://developers.openai.com/codex/app/features"
+      ],
+      "pricing_signal": "Separate ChatGPT app tiers plus Codex workflow value in desktop app and coding surfaces.",
+      "scorecard": {
+        "productivity_composite_100": 85,
+        "agent_depth_5": 4,
+        "review_safety_5": 5,
+        "customization_memory_5": 4,
+        "extensibility_5": 5,
+        "multimodal_surface_5": 5
+      },
+      "notes": "Strong on worktrees, integrated terminal, voice, IDE sync, and Git review controls."
+    },
+    {
+      "id": "gemini_code_assist",
+      "name": "Gemini Code Assist",
+      "category": "AI coding assistant in IDEs",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://developers.google.com/gemini-code-assist/docs/code-overview",
+        "https://developers.google.com/gemini-code-assist/docs/chat-overview",
+        "https://developers.google.com/gemini-code-assist/resources/release-notes"
+      ],
+      "pricing_signal": "Free, Standard, and Enterprise tiers with IDE and enterprise positioning.",
+      "scorecard": {
+        "productivity_composite_100": 83,
+        "agent_depth_5": 4,
+        "review_safety_5": 4,
+        "customization_memory_5": 4,
+        "extensibility_5": 3,
+        "multimodal_surface_5": 3
+      },
+      "notes": "Strong breadth across chat, context targeting, outlines, finish-changes, and rules, but not as open-ended as Cursor or Claude Code."
+    },
+    {
+      "id": "github_copilot",
+      "name": "GitHub Copilot coding agent",
+      "category": "Assistant plus coding agent",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent"
+      ],
+      "pricing_signal": "Integrated into Copilot plan tiers and broader GitHub workflow value.",
+      "scorecard": {
+        "productivity_composite_100": 82,
+        "agent_depth_5": 4,
+        "review_safety_5": 5,
+        "customization_memory_5": 4,
+        "extensibility_5": 5,
+        "multimodal_surface_5": 3
+      },
+      "notes": "Especially strong when the desired workflow is issue-to-PR and GitHub-native collaboration."
+    },
+    {
+      "id": "zed",
+      "name": "Zed AI",
+      "category": "Native AI code editor",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://zed.dev/docs/ai/overview",
+        "https://zed.dev/docs/ai/agent-panel.html",
+        "https://zed.dev/docs/ai/tools.html"
+      ],
+      "pricing_signal": "Editor-first with hosted and BYO-provider options.",
+      "scorecard": {
+        "productivity_composite_100": 86,
+        "agent_depth_5": 4,
+        "review_safety_5": 5,
+        "customization_memory_5": 4,
+        "extensibility_5": 5,
+        "multimodal_surface_5": 3
+      },
+      "notes": "Excellent example of how to keep agent features powerful while still feeling editor-native and review-friendly."
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "category": "Git-native coding CLI",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://aider.chat/docs/git.html",
+        "https://aider.chat/docs/usage/commands.html",
+        "https://aider.chat/docs/config/options.html"
+      ],
+      "pricing_signal": "Open-source CLI with model costs depending on the provider you choose.",
+      "scorecard": {
+        "productivity_composite_100": 74,
+        "agent_depth_5": 3,
+        "review_safety_5": 5,
+        "customization_memory_5": 2,
+        "extensibility_5": 2,
+        "multimodal_surface_5": 3
+      },
+      "notes": "A strong reference for Git-centric safety and fast local coding workflows, but not for GUI-heavy IDE ergonomics."
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "category": "Agentic coding extension",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "medium",
+      "official_sources": [
+        "https://docs.cline.bot/features/plan-and-act",
+        "https://docs.cline.bot/core-workflows/checkpoints",
+        "https://docs.cline.bot/mcp/mcp-overview"
+      ],
+      "pricing_signal": "Extension-first agent workflow with provider-dependent cost.",
+      "scorecard": {
+        "productivity_composite_100": 81,
+        "agent_depth_5": 4,
+        "review_safety_5": 5,
+        "customization_memory_5": 3,
+        "extensibility_5": 4,
+        "multimodal_surface_5": 2
+      },
+      "notes": "A good reference for explicit plan-versus-act ergonomics and checkpoint behavior."
+    },
+    {
+      "id": "roo_code",
+      "name": "Roo Code",
+      "category": "Mode-centric coding agent",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://docs.roocode.com/basic-usage/using-modes/",
+        "https://docs.roocode.com/features/boomerang-tasks"
+      ],
+      "pricing_signal": "Tool-and-provider-driven rather than a single closed paid IDE surface.",
+      "scorecard": {
+        "productivity_composite_100": 80,
+        "agent_depth_5": 4,
+        "review_safety_5": 3,
+        "customization_memory_5": 4,
+        "extensibility_5": 4,
+        "multimodal_surface_5": 2
+      },
+      "notes": "Strong reference for mode design and orchestration delegation in constrained contexts."
+    },
+    {
+      "id": "replit_agent",
+      "name": "Replit Agent",
+      "category": "Cloud workspace agent",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://docs.replit.com/replitai/agent-v2",
+        "https://docs.replit.com/core-concepts/agent/checkpoints-and-rollbacks"
+      ],
+      "pricing_signal": "Core and Pro plans with explicit Agent billing and mode differentiation.",
+      "scorecard": {
+        "productivity_composite_100": 84,
+        "agent_depth_5": 5,
+        "review_safety_5": 5,
+        "customization_memory_5": 3,
+        "extensibility_5": 3,
+        "multimodal_surface_5": 5
+      },
+      "notes": "Cloud-first and more end-user friendly than most IDE tools; strong on checkpoints, app testing, and visual canvas workflows."
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "category": "Autonomous software engineer product",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "high",
+      "official_sources": [
+        "https://docs.devin.ai/work-with-devin/interactive-planning",
+        "https://docs.devin.ai/product-guides/knowledge",
+        "https://docs.devin.ai/get-started/first-run"
+      ],
+      "pricing_signal": "Premium autonomous agent workflow positioned above ordinary assistant pricing.",
+      "scorecard": {
+        "productivity_composite_100": 88,
+        "agent_depth_5": 5,
+        "review_safety_5": 4,
+        "customization_memory_5": 5,
+        "extensibility_5": 3,
+        "multimodal_surface_5": 3
+      },
+      "notes": "A strong reference for planning, codebase indexing, persistent knowledge, and long-running autonomous sessions."
+    },
+    {
+      "id": "continue",
+      "name": "Continue",
+      "category": "Open configuration-driven coding assistant",
+      "evidence_checked_on": "2026-03-31",
+      "evidence_confidence": "medium",
+      "official_sources": [
+        "https://docs.continue.dev/guides/configuring-models-rules-tools",
+        "https://docs.continue.dev/customize/deep-dives/mcp"
+      ],
+      "pricing_signal": "Open configuration surface; value comes from configurability, models, and community hub rather than a single polished premium UX.",
+      "scorecard": {
+        "productivity_composite_100": 72,
+        "agent_depth_5": 3,
+        "review_safety_5": 2,
+        "customization_memory_5": 5,
+        "extensibility_5": 5,
+        "multimodal_surface_5": 1
+      },
+      "notes": "Best thought of as a highly configurable AI plumbing layer rather than a polished opinionated AI IDE."
+    }
+  ],
+  "vox_baseline": {
+    "extension_surfaces": [
+      "vox-vscode/src/SidebarProvider.ts",
+      "vox-vscode/src/core/VoxMcpClient.ts",
+      "vox-vscode/webview-ui/src/index.tsx"
+    ],
+    "core_surfaces": [
+      "crates/vox-mcp/src/tools/chat_tools/",
+      "crates/vox-mcp/src/tools/task_tools.rs",
+      "crates/vox-orchestrator/src/context_lifecycle.rs",
+      "crates/vox-search/src/execution.rs",
+      "contracts/mcp/tool-registry.canonical.yaml"
+    ],
+    "summary": "Vox already has unusually deep backend infrastructure for planning, tasks, snapshots, browser tooling, memory, and retrieval. The primary gap is not raw capability count but developer-facing productization, transparency, and review ergonomics inside the extension."
+  },
+  "feature_matrix": [
+    {
+      "id": "inline_edits_and_completion",
+      "name": "Inline edits and low-latency completion",
+      "importance_1_to_5": 5,
+      "why_it_matters": "This is the highest-frequency AI loop in daily coding and often the first feature developers fall in love with.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "limited",
+        "chatgpt_codex": "partial",
+        "gemini_code_assist": "strong",
+        "github_copilot": "strong",
+        "zed": "strong",
+        "aider": "limited",
+        "cline": "partial",
+        "roo_code": "partial",
+        "replit_agent": "partial",
+        "devin": "limited",
+        "continue": "strong"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "vox-vscode/src/inline/GhostTextProvider.ts",
+          "vox-vscode/src/inline/InlineEditController.ts",
+          "crates/vox-mcp/src/tools/chat_tools/ghost_text.rs"
+        ],
+        "implementation_locus": "Mostly extension polish and MCP registry parity, with optional Mens latency work later.",
+        "loc_band": "200-800",
+        "difficulty": "medium",
+        "necessity": "critical",
+        "strategic_value": "high",
+        "notes": "Close an obvious UX gap by tightening latency, discoverability, acceptance controls, and MCP parity around ghost text."
+      }
+    },
+    {
+      "id": "agentic_multi_file_execution",
+      "name": "Agentic multi-file execution",
+      "importance_1_to_5": 5,
+      "why_it_matters": "This is the major time-saver beyond autocomplete: natural-language tasks turn into coordinated multi-file work.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "strong",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "strong",
+        "github_copilot": "strong",
+        "zed": "strong",
+        "aider": "partial",
+        "cline": "strong",
+        "roo_code": "strong",
+        "replit_agent": "strong",
+        "devin": "strong",
+        "continue": "partial"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "vox-vscode/src/SidebarProvider.ts",
+          "vox-vscode/src/core/VoxMcpClient.ts",
+          "crates/vox-mcp/src/tools/task_tools.rs"
+        ],
+        "implementation_locus": "Extension UX plus task-orchestrator handoff and richer apply/review loops.",
+        "loc_band": "800-2500",
+        "difficulty": "high",
+        "necessity": "critical",
+        "strategic_value": "high",
+        "notes": "The backend already exists; what is missing is a best-in-class agent workspace that makes task execution obvious, inspectable, and pleasant."
+      }
+    },
+    {
+      "id": "mode_separation_plan_ask_debug",
+      "name": "Mode separation: ask, plan, debug, execute",
+      "importance_1_to_5": 5,
+      "why_it_matters": "Developers trust AI more when there is a crisp boundary between exploration, planning, and action.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "strong",
+        "chatgpt_codex": "limited",
+        "gemini_code_assist": "partial",
+        "github_copilot": "partial",
+        "zed": "partial",
+        "aider": "partial",
+        "cline": "strong",
+        "roo_code": "strong",
+        "replit_agent": "strong",
+        "devin": "strong",
+        "continue": "limited"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "crates/vox-mcp/src/tools/chat_tools/plan.rs",
+          "vox-vscode/src/SidebarProvider.ts"
+        ],
+        "implementation_locus": "Extension command surface and webview state model.",
+        "loc_band": "200-800",
+        "difficulty": "medium",
+        "necessity": "high",
+        "strategic_value": "high",
+        "notes": "Vox already has plan tooling. Turning it into explicit first-class user modes would significantly improve trust and user education."
+      }
+    },
+    {
+      "id": "checkpoints_revert_and_review",
+      "name": "Checkpoints, revert, and review UX",
+      "importance_1_to_5": 5,
+      "why_it_matters": "Safety is one of the biggest drivers of developer affection for agentic tools because it lowers the emotional cost of experimentation.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "partial",
+        "claude_code": "partial",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "strong",
+        "github_copilot": "strong",
+        "zed": "strong",
+        "aider": "strong",
+        "cline": "strong",
+        "roo_code": "limited",
+        "replit_agent": "strong",
+        "devin": "partial",
+        "continue": "limited"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "vox-vscode/src/vcs/SnapshotProvider.ts",
+          "crates/vox-mcp/src/tools/vcs_tools/",
+          "crates/vox-orchestrator/src/json_vcs_facade.rs"
+        ],
+        "implementation_locus": "Mostly extension/UI work on top of existing snapshot and workspace machinery.",
+        "loc_band": "800-2500",
+        "difficulty": "high",
+        "necessity": "critical",
+        "strategic_value": "high",
+        "notes": "This is one of the clearest 'already have the backend, need the product surface' opportunities in Vox."
+      }
+    },
+    {
+      "id": "tool_use_terminal_browser_transparency",
+      "name": "Terminal, browser, and tool-use transparency",
+      "importance_1_to_5": 5,
+      "why_it_matters": "Advanced developers want autonomy, but only when they can see what the agent is doing and why.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "strong",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "partial",
+        "github_copilot": "partial",
+        "zed": "strong",
+        "aider": "partial",
+        "cline": "strong",
+        "roo_code": "partial",
+        "replit_agent": "strong",
+        "devin": "strong",
+        "continue": "partial"
+      },
+      "vox": {
+        "status": "backend-only",
+        "primary_surfaces": [
+          "contracts/mcp/tool-registry.canonical.yaml",
+          "vox-vscode/src/core/VoxMcpClient.ts",
+          "crates/vox-mcp/src/tools/repo_catalog_tools.rs"
+        ],
+        "implementation_locus": "Extension/webview event model and chat transcript rendering, not core capability invention.",
+        "loc_band": "800-2500",
+        "difficulty": "high",
+        "necessity": "high",
+        "strategic_value": "high",
+        "notes": "Vox exposes many tools already. The missing piece is a chat thread or dashboard that narrates and reviews those tool calls coherently."
+      }
+    },
+    {
+      "id": "subagents_parallelism_orchestration",
+      "name": "Subagents, parallelism, and orchestration",
+      "importance_1_to_5": 4,
+      "why_it_matters": "This is a major unlock for larger tasks and one of the clearest separators between basic assistants and serious AI IDEs.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "strong",
+        "chatgpt_codex": "limited",
+        "gemini_code_assist": "limited",
+        "github_copilot": "partial",
+        "zed": "strong",
+        "aider": "none",
+        "cline": "limited",
+        "roo_code": "strong",
+        "replit_agent": "strong",
+        "devin": "partial",
+        "continue": "limited"
+      },
+      "vox": {
+        "status": "backend-only",
+        "primary_surfaces": [
+          "crates/vox-mcp/src/tools/task_tools.rs",
+          "crates/vox-orchestrator/src/orchestrator/",
+          "vox-vscode/src/agents/AgentController.ts"
+        ],
+        "implementation_locus": "Substantial extension and orchestration UX work, but with strong backend foundations already present.",
+        "loc_band": "2500-8000",
+        "difficulty": "very high",
+        "necessity": "medium",
+        "strategic_value": "high",
+        "notes": "Vox can differentiate here long term, but should first improve single-agent transparency and review workflows."
+      }
+    },
+    {
+      "id": "context_targeting_search_and_mentions",
+      "name": "Context targeting, indexing, search, and mentions",
+      "importance_1_to_5": 5,
+      "why_it_matters": "Good context controls reduce hallucinations and make AI feel fast rather than clumsy.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "partial",
+        "claude_code": "partial",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "strong",
+        "github_copilot": "strong",
+        "zed": "strong",
+        "aider": "limited",
+        "cline": "partial",
+        "roo_code": "partial",
+        "replit_agent": "partial",
+        "devin": "strong",
+        "continue": "partial"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "crates/vox-search/src/execution.rs",
+          "vox-vscode/src/context/WorkspaceContextEngine.ts",
+          "vox-vscode/src/SidebarProvider.ts"
+        ],
+        "implementation_locus": "Blend extension affordances with search-ranking polish and context envelope rollout.",
+        "loc_band": "800-2500",
+        "difficulty": "high",
+        "necessity": "critical",
+        "strategic_value": "high",
+        "notes": "This is a prime area for Mens later, but even before model training there is large product value in better context picking and retrieval defaults."
+      }
+    },
+    {
+      "id": "rules_memories_workflows_and_skills",
+      "name": "Rules, memories, workflows, and skills",
+      "importance_1_to_5": 5,
+      "why_it_matters": "Persistent customization is where casual usefulness becomes repeatable team productivity.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "partial",
+        "claude_code": "strong",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "strong",
+        "github_copilot": "strong",
+        "zed": "strong",
+        "aider": "limited",
+        "cline": "partial",
+        "roo_code": "strong",
+        "replit_agent": "limited",
+        "devin": "strong",
+        "continue": "strong"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "crates/vox-mcp/src/memory/handlers_memory.rs",
+          "vox-vscode/src/core/preferenceKeys.ts",
+          "crates/vox-mcp/src/tools/repo_catalog_tools.rs"
+        ],
+        "implementation_locus": "Extension-facing UX for repository rules and reusable workflows, backed by existing memory and skills surfaces.",
+        "loc_band": "800-2500",
+        "difficulty": "high",
+        "necessity": "high",
+        "strategic_value": "high",
+        "notes": "A repo-visible rules/workflows lane would be one of the highest leverage ways to make Vox feel sticky without changing the language."
+      }
+    },
+    {
+      "id": "extensibility_mcp_hooks_custom_agents",
+      "name": "Extensibility: MCP, hooks, custom agents, custom tools",
+      "importance_1_to_5": 4,
+      "why_it_matters": "Advanced users and teams want their IDE to plug into existing systems, not replace them.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "partial",
+        "claude_code": "strong",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "partial",
+        "github_copilot": "strong",
+        "zed": "strong",
+        "aider": "limited",
+        "cline": "strong",
+        "roo_code": "strong",
+        "replit_agent": "limited",
+        "devin": "limited",
+        "continue": "strong"
+      },
+      "vox": {
+        "status": "shipped",
+        "primary_surfaces": [
+          "contracts/mcp/tool-registry.canonical.yaml",
+          "docs/src/architecture/capability-registry-ssot.md",
+          "vox-vscode/src/core/mcpToolRegistry.generated.ts"
+        ],
+        "implementation_locus": "Mostly discoverability, docs, and UI surfacing rather than backend build-out.",
+        "loc_band": "200-800",
+        "difficulty": "medium",
+        "necessity": "medium",
+        "strategic_value": "high",
+        "notes": "This is already a Vox strength. The work is to surface it visibly and make it pleasant to use from the extension."
+      }
+    },
+    {
+      "id": "git_pr_and_workspace_isolation",
+      "name": "Git, PR, and workspace isolation",
+      "importance_1_to_5": 4,
+      "why_it_matters": "The more autonomous the agent, the more developers demand safe isolation and credible review paths.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "partial",
+        "antigravity": "partial",
+        "claude_code": "strong",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "partial",
+        "github_copilot": "strong",
+        "zed": "partial",
+        "aider": "strong",
+        "cline": "limited",
+        "roo_code": "limited",
+        "replit_agent": "partial",
+        "devin": "partial",
+        "continue": "limited"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "crates/vox-mcp/src/tools/vcs_tools/workspaces.rs",
+          "crates/vox-mcp/src/tools/vcs_tools/snapshots.rs",
+          "crates/vox-orchestrator/src/json_vcs_facade.rs"
+        ],
+        "implementation_locus": "Deep integration work if Vox wants parity with Git-native worktrees and PR loops.",
+        "loc_band": "2500-8000",
+        "difficulty": "very high",
+        "necessity": "medium",
+        "strategic_value": "medium",
+        "notes": "Useful, but not the first thing to build unless Vox wants to compete directly with Codex or GitHub-native agent workflows."
+      }
+    },
+    {
+      "id": "multimodal_input_and_gui_surfaces",
+      "name": "Multimodal input and GUI surfaces",
+      "importance_1_to_5": 4,
+      "why_it_matters": "Voice, images, canvases, and visual review make AI feel more like a product than just a chat box.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "limited",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "partial",
+        "github_copilot": "partial",
+        "zed": "partial",
+        "aider": "partial",
+        "cline": "limited",
+        "roo_code": "limited",
+        "replit_agent": "strong",
+        "devin": "partial",
+        "continue": "limited"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "vox-vscode/src/speech/registerOratioSpeechCommands.ts",
+          "vox-vscode/src/VisualEditorPanel.ts",
+          "vox-vscode/webview-ui/src/components/"
+        ],
+        "implementation_locus": "Primarily extension/webview work; Mens and Oratio become differentiators later rather than prerequisites now.",
+        "loc_band": "200-800",
+        "difficulty": "medium",
+        "necessity": "medium",
+        "strategic_value": "medium",
+        "notes": "Vox already has more here than most repos would; the next step is coherence and polish rather than raw feature count."
+      }
+    },
+    {
+      "id": "automated_verification_and_autofix",
+      "name": "Automated verification, diagnostics, and autofix loops",
+      "importance_1_to_5": 5,
+      "why_it_matters": "The best developer feeling is not just fast generation but fast confident closure after tests, lints, and evidence checks pass.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "strong",
+        "antigravity": "strong",
+        "claude_code": "strong",
+        "chatgpt_codex": "strong",
+        "gemini_code_assist": "partial",
+        "github_copilot": "partial",
+        "zed": "strong",
+        "aider": "partial",
+        "cline": "partial",
+        "roo_code": "partial",
+        "replit_agent": "strong",
+        "devin": "strong",
+        "continue": "partial"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "crates/vox-mcp/src/tools/compiler_tools.rs",
+          "crates/vox-mcp/src/tools/chat_tools/plan.rs",
+          "vox-vscode/src/chat/ChatController.ts"
+        ],
+        "implementation_locus": "UI-driven verification flows on top of already-shipped test, check, and adequacy tooling.",
+        "loc_band": "200-800",
+        "difficulty": "medium",
+        "necessity": "high",
+        "strategic_value": "high",
+        "notes": "This is one of the easiest high-value wins because most of the core logic already exists in MCP and orchestrator layers."
+      }
+    },
+    {
+      "id": "collaboration_tracking_and_shareability",
+      "name": "Collaboration, tracking, and shareability",
+      "importance_1_to_5": 3,
+      "why_it_matters": "These features matter most after core single-user loops already feel excellent.",
+      "product_support": {
+        "cursor": "strong",
+        "windsurf": "partial",
+        "antigravity": "partial",
+        "claude_code": "limited",
+        "chatgpt_codex": "partial",
+        "gemini_code_assist": "limited",
+        "github_copilot": "strong",
+        "zed": "limited",
+        "aider": "none",
+        "cline": "limited",
+        "roo_code": "limited",
+        "replit_agent": "strong",
+        "devin": "strong",
+        "continue": "limited"
+      },
+      "vox": {
+        "status": "partial",
+        "primary_surfaces": [
+          "vox-vscode/src/agents/AgentController.ts",
+          "crates/vox-orchestrator/src/events.rs",
+          "crates/vox-mcp/src/tools/task_tools.rs"
+        ],
+        "implementation_locus": "Would require product design decisions, not just engineering effort.",
+        "loc_band": "800-2500",
+        "difficulty": "high",
+        "necessity": "medium",
+        "strategic_value": "medium",
+        "notes": "Important later, but should come after trust, context, review, and rules/workflows."
+      }
+    }
+  ],
+  "priority_recommendations": [
+    {
+      "rank": 1,
+      "feature_id": "checkpoints_revert_and_review",
+      "rationale": "Highest user-trust gain with strong existing Vox backend leverage."
+    },
+    {
+      "rank": 2,
+      "feature_id": "rules_memories_workflows_and_skills",
+      "rationale": "Turns one-off usefulness into repeatable team productivity without changing the Vox language."
+    },
+    {
+      "rank": 3,
+      "feature_id": "context_targeting_search_and_mentions",
+      "rationale": "Improves quality, speed, and differentiation while also preparing the ground for Mens."
+    },
+    {
+      "rank": 4,
+      "feature_id": "mode_separation_plan_ask_debug",
+      "rationale": "Low-to-medium effort UX improvement with high trust payoff."
+    },
+    {
+      "rank": 5,
+      "feature_id": "automated_verification_and_autofix",
+      "rationale": "Pairs well with existing Vox checks and reduces the gap between agent output and developer confidence."
+    }
+  ],
+  "defer_or_limit": [
+    {
+      "feature_id": "git_pr_and_workspace_isolation",
+      "reason": "Useful but expensive and less urgent than review, context, and workflow customization."
+    },
+    {
+      "feature_id": "subagents_parallelism_orchestration",
+      "reason": "Vox should productize single-agent trust and transparency before going deeper on visible multi-agent complexity."
+    }
+  ],
+  "mens_specific_opportunities": [
+    "Use Mens for low-latency completion and edit routing once the extension UX is already compelling.",
+    "Use Mens or search-ranking models to improve context selection and retrieval quality rather than leading with a model-first strategy.",
+    "Use Mens to personalize rules, workflow suggestions, and voice-to-code only after deterministic repository-visible controls exist."
+  ]
+}

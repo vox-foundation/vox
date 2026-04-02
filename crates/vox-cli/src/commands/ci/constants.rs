@@ -66,6 +66,7 @@ pub(crate) const MANIFEST_SNIPPETS: &[&str] = &[
     "BASELINE_VERSION",
     "SCHEMA_FRAGMENTS",
     "schema_baseline_digest_hex",
+    "super::spec",
 ];
 
 pub(crate) const FEATURE_SETS: &[&str] = &[

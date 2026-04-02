@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/repository/repo-workspace-status.schema.json",
+  "title": "RepoWorkspaceStatus",
+  "description": "Payload for `vox repo status` (JSON) and MCP `vox_repo_status` (`RepoWorkspaceStatus` in crates/vox-repository).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "root",
+    "repository_id",
+    "has_vox_agents_dir",
+    "capabilities",
+    "cargo_workspace_members"
+  ],
+  "properties": {
+    "root": { "type": "string", "description": "Canonical repository root path" },
+    "repository_id": { "type": "string", "minLength": 1 },
+    "origin_url": { "type": "string" },
+    "git_root": { "type": "string" },
+    "has_vox_agents_dir": { "type": "boolean" },
+    "vox_toml": { "type": "string" },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vox_project",
+        "cargo_workspace",
+        "cargo_package",
+        "node_workspace",
+        "python_project",
+        "go_module",
+        "git"
+      ],
+      "properties": {
+        "vox_project": { "type": "boolean" },
+        "cargo_workspace": { "type": "boolean" },
+        "cargo_package": { "type": "boolean" },
+        "node_workspace": { "type": "boolean" },
+        "python_project": { "type": "boolean" },
+        "go_module": { "type": "boolean" },
+        "git": { "type": "boolean" }
+      }
+    },
+    "cargo_workspace_members": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

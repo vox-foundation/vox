@@ -43,12 +43,16 @@ fn pipeline_codegen_produces_chatbot_ts_bundle_without_express() {
     let output = generate_without_express!(&module);
     assert_eq!(
         output.files.len(),
-        3,
-        "types.ts + vox-tanstack-query.tsx + Chat.tsx (Express server.ts is opt-in via VOX_EMIT_EXPRESS_SERVER)"
+        4,
+        "types.ts + vox-app-contract.json + vox-tanstack-query.tsx + Chat.tsx (Express server.ts is opt-in via VOX_EMIT_EXPRESS_SERVER)"
     );
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(filenames.contains(&"types.ts"), "Should produce types.ts");
+    assert!(
+        filenames.contains(&"vox-app-contract.json"),
+        "Should emit app contract JSON"
+    );
     assert!(
         filenames.contains(&"vox-tanstack-query.tsx"),
         "Should emit TanStack query helper"

@@ -129,6 +129,15 @@ struct KpiContractAlignment {
     mens_scorecard_event_schema_id: String,
 }
 
+/// Crosswalk from Mens anti-stub metrics to the unified completion-quality SSOT / telemetry chain.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CompletionPolicyCrosswalk {
+    /// Repo-relative path to the completion policy contract.
+    policy_contract_rel: String,
+    /// Human-readable note for eval consumers mapping scorecard rates to `vox ci completion-*` + VoxDB ingest.
+    gate_integration_note: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ScorecardSummary {
     schema: String,
@@ -140,6 +149,8 @@ struct ScorecardSummary {
     conditions: Vec<ConditionSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     kpi_contract_alignment: Option<KpiContractAlignment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    completion_policy: Option<CompletionPolicyCrosswalk>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -554,6 +565,10 @@ pub async fn run_execute(root: &Path, spec_path: &Path, out_dir: Option<&Path>) 
             runtime_generation_kpi_schema: "vox_runtime_generation_kpi_v1".to_string(),
             mens_scorecard_event_schema_id:
                 "https://vox-lang.org/schemas/eval/mens-scorecard-event.schema.json".to_string(),
+        }),
+        completion_policy: Some(CompletionPolicyCrosswalk {
+            policy_contract_rel: super::completion_quality::COMPLETION_POLICY_REL.to_string(),
+            gate_integration_note: "Mens anti-stub metrics (placeholder/trivial_placeholder/construct_richness/anti_stub_pass) feed the same governance chain as vox ci completion-audit|gates and contracts/telemetry/completion-*.schema.json.".to_string(),
         }),
     };
 

@@ -54,19 +54,39 @@ pub struct ChatMessageParams {
     /// Optional logical grouping identifier for this chat thread.
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Editor thread id (e.g. VS Code); joins the same journey envelope as `session_id`.
+    #[serde(default)]
+    pub thread_id: Option<String>,
+    /// Stable id for this user request across routing, storage, and telemetry (generated if omitted).
+    #[serde(default)]
+    pub journey_id: Option<String>,
     /// Optionally selects a specific LLM routing profile (e.g. "reasoning", "fast", "creative").
     #[serde(default)]
     pub cognitive_profile: Option<String>,
     /// If true, enforces strict JSON output from the LLM.
     #[serde(default)]
     pub json_mode: bool,
+    /// Optional end-to-end trace id; forwarded to retrieval (`vox-search`) for logging and sidecar HTTP.
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    /// Optional correlation id; used for retrieval when `trace_id` is unset.
+    #[serde(default)]
+    pub correlation_id: Option<String>,
+}
+
+fn default_chat_history_session_id() -> String {
+    "default".to_string()
 }
 
 /// Retrieve history for a specific session ID.
 #[derive(Debug, Deserialize)]
 pub struct ChatHistoryParams {
-    /// Logical grouping identifier to fetch history for.
+    /// Logical grouping identifier to fetch history for. Omitted JSON / `{}` deserializes to `"default"`.
+    #[serde(default = "default_chat_history_session_id")]
     pub session_id: String,
+    /// Optional correlation for retrieval / logging parity with `vox_chat_message`.
+    #[serde(default)]
+    pub trace_id: Option<String>,
 }
 
 /// Arguments for `vox_inline_edit` (range replacement inside one file).
@@ -127,6 +147,18 @@ pub enum PlanLoopMode {
     Force,
 }
 
+/// Target detail level for `vox_plan` (output token budget + minimum task floor).
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanDepth {
+    /// Fewer tasks and lower LLM output cap.
+    Minimal,
+    #[default]
+    Standard,
+    /// More tasks expected; higher output cap; stronger adequacy expansion.
+    Deep,
+}
+
 /// Arguments for `vox_plan` structured planning tool.
 #[derive(Debug, Deserialize)]
 pub struct PlanParams {
@@ -144,6 +176,12 @@ pub struct PlanParams {
     /// Optional tenant/session partition key for usage attribution.
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Planning depth / verbosity tier (`standard` when omitted).
+    #[serde(default)]
+    pub plan_depth: Option<PlanDepth>,
+    /// When not `false` (default), run bounded refinement if the plan is structurally thin even when `loop_mode` is off.
+    #[serde(default)]
+    pub auto_expand_thin_plan: Option<bool>,
     /// Optional iterative refinement (`off` when omitted).
     #[serde(default)]
     pub loop_mode: Option<PlanLoopMode>,
@@ -242,12 +280,31 @@ pub struct PlanResult {
     /// Aggregate risk from the last gap pass (0..1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_aggregate_gap_risk: Option<f32>,
-    /// Structured gap report for analytics (optional).
+    /// Structured gap + adequacy report for analytics (optional).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gap_report: Option<serde_json::Value>,
+    /// Plan adequacy score 0..1 (higher = better structural fit for goal complexity).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_adequacy_score: Option<f32>,
+    /// True when tier-1 heuristics recommend more decomposition or verification tasks.
+    #[serde(default)]
+    pub plan_too_thin: bool,
+    /// Orchestrator-style adequacy reason codes (`too_few_tasks`, etc.).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub adequacy_reason_codes: Vec<String>,
+    /// Effective planning depth (snake_case string).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub plan_depth_effective: String,
     /// Ranked clarification prompts derived from gap codes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clarifying_questions: Vec<String>,
+    /// Typed content blocks for structured rendering.
+    ///
+    /// Mirrors `plan_md` but pre-split for CLI (`render.rs`) and webview (shiki).
+    /// Additive: consumers that do not read this field see no change — the field
+    /// is omitted from the wire when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_blocks: Vec<vox_orchestrator::planning::ContentBlock>,
 }
 
 /// Parameters for the `vox_ghost_text` MCP tool.
@@ -293,4 +350,26 @@ pub struct AmbientStateParams {
     /// Maximum number of decorations to return. Defaults to 100.
     #[serde(default)]
     pub limit: Option<usize>,
+}
+
+#[cfg(test)]
+mod chat_history_params_tests {
+    use super::ChatHistoryParams;
+
+    #[test]
+    fn chat_history_empty_object_defaults_session() {
+        let p: ChatHistoryParams = serde_json::from_str("{}").expect("deserialize");
+        assert_eq!(p.session_id, "default");
+        assert!(p.trace_id.is_none());
+    }
+
+    #[test]
+    fn chat_history_explicit_session_round_trips() {
+        let p: ChatHistoryParams = serde_json::from_str(
+            r#"{"session_id":"vscode-sidebar","trace_id":"t1"}"#,
+        )
+        .expect("deserialize");
+        assert_eq!(p.session_id, "vscode-sidebar");
+        assert_eq!(p.trace_id.as_deref(), Some("t1"));
+    }
 }

@@ -257,6 +257,13 @@ pub enum Expr {
         /// Span covering the whole `if`.
         span: Span,
     },
+    /// Try expression: `x?`
+    Try {
+        /// The expression being tried.
+        target: Box<Expr>,
+        /// Span covering `?`.
+        span: Span,
+    },
     /// For expression (used in JSX): `for x in list: <elem>`
     For {
         /// Loop binding name.
@@ -351,6 +358,7 @@ impl Expr {
             | Expr::Pipe { span, .. }
             | Expr::Spawn { span, .. }
             | Expr::With { span, .. }
+            | Expr::Try { span, .. }
             | Expr::StringInterp { span, .. }
             | Expr::Block { span, .. } => *span,
             Expr::Jsx(el) => el.span,

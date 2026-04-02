@@ -55,6 +55,28 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
     for m in &module.mcp_tools {
         validate_fn(&m.func, "mcp tool", &mut errors);
     }
+    let mut seen_resource_uris = std::collections::HashSet::<&str>::new();
+    for m in &module.mcp_resources {
+        validate_fn(&m.func, "mcp resource", &mut errors);
+        if m.uri.trim().is_empty() {
+            errors.push(HirValidationError {
+                message: "mcp resource URI must not be empty".into(),
+                span: m.func.span,
+            });
+        }
+        if !seen_resource_uris.insert(m.uri.as_str()) {
+            errors.push(HirValidationError {
+                message: format!("duplicate @mcp.resource URI: {}", m.uri),
+                span: m.func.span,
+            });
+        }
+        if !m.func.params.is_empty() {
+            errors.push(HirValidationError {
+                message: "mcp resource function must take no parameters (MCP resources/read supplies only `uri`)".into(),
+                span: m.func.span,
+            });
+        }
+    }
 
     for w in &module.workflows {
         if w.name.is_empty() {

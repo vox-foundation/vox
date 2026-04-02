@@ -3,6 +3,7 @@
 //! Provides a JJ-inspired durable versioning surface on top of `SnapshotStore`,
 //! `OpLog`, and the optional Codex `db_snapshots` table.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -101,18 +102,124 @@ impl crate::orchestrator::Orchestrator {
                     .await
             }
         };
+        let (op_id, entry_meta) = {
+            let mut oplog = crate::sync_lock::rw_write(&*self.oplog);
+            let op_id = oplog.record(
+                agent_id,
+                kind,
+                desc,
+                snapshot_before,
+                snapshot_after,
+                db_snap_before,
+                db_snapshot_after,
+                None,
+                None,
+            );
+            let entry_meta = oplog.get(op_id).map(|entry| {
+                (
+                    entry.kind.clone(),
+                    entry.description.clone(),
+                    entry.predecessor_hash.clone(),
+                    entry.model_id.clone(),
+                    entry.change_id,
+                    entry.timestamp_ms,
+                )
+            });
+            (op_id, entry_meta)
+        };
+        self.persist_oplog_entry(agent_id, op_id, entry_meta).await;
+        op_id
+    }
 
-        crate::sync_lock::rw_write(&*self.oplog).record(
-            agent_id,
-            kind,
-            desc,
-            snapshot_before,
-            snapshot_after,
-            db_snap_before,
-            db_snapshot_after,
-            None,
-            None,
-        )
+    pub(crate) async fn persist_oplog_entry(
+        &self,
+        agent_id: AgentId,
+        op_id: OperationId,
+        entry_meta: Option<(
+            OperationKind,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<crate::workspace::ChangeId>,
+            u64,
+        )>,
+    ) {
+        let db_opt = { crate::sync_lock::rw_read(&*self.db).clone() };
+        if let (
+            Some(db),
+            Some((kind, description, predecessor_hash, model_id, change_id, timestamp_ms)),
+        ) = (db_opt, entry_meta)
+        {
+            let repo = crate::lineage::repository_id();
+            let op_id_str = op_id.to_string();
+            if let Err(e) = crate::oplog::append_to_db_with_breaker(
+                &db,
+                agent_id,
+                op_id_str.as_str(),
+                &kind,
+                description.as_str(),
+                predecessor_hash.as_deref(),
+                model_id.as_deref(),
+                change_id,
+                timestamp_ms,
+                repo.as_str(),
+            )
+            .await
+            {
+                tracing::warn!(
+                    target: "vox.orchestrator.oplog",
+                    error = %e,
+                    operation_id = %op_id_str,
+                    "failed to persist oplog entry to db"
+                );
+            }
+        }
+    }
+
+    pub async fn list_recent_operations(
+        &self,
+        agent: Option<AgentId>,
+        limit: usize,
+    ) -> Vec<crate::oplog::OperationEntry> {
+        let fetch_limit = limit.saturating_mul(4).min(2048).max(limit);
+        let mem_entries: Vec<crate::oplog::OperationEntry> = {
+            let oplog = crate::sync_lock::rw_read(&*self.oplog);
+            oplog
+                .list(agent, fetch_limit)
+                .into_iter()
+                .cloned()
+                .collect()
+        };
+
+        let db_opt = { crate::sync_lock::rw_read(&*self.db).clone() };
+        let Some(db) = db_opt else {
+            return mem_entries.into_iter().take(limit).collect();
+        };
+        let repo = crate::lineage::repository_id();
+        let db_limit = u32::try_from(fetch_limit).unwrap_or(u32::MAX);
+        match crate::oplog::list_from_db(&db, agent, repo.as_str(), db_limit).await {
+            Ok(mut db_entries) => {
+                let mut seen: HashSet<String> =
+                    db_entries.iter().map(|e| e.id.to_string()).collect();
+                for entry in mem_entries {
+                    let id = entry.id.to_string();
+                    if seen.insert(id) {
+                        db_entries.push(entry);
+                    }
+                }
+                db_entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+                db_entries.truncate(limit);
+                db_entries
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "vox.orchestrator.oplog",
+                    error = %e,
+                    "failed to list db oplog entries; falling back to memory"
+                );
+                mem_entries.into_iter().take(limit).collect()
+            }
+        }
     }
 
     /// Take a lightweight schema-level snapshot of the Codex database state.
@@ -165,6 +272,18 @@ impl crate::orchestrator::Orchestrator {
                 agent_id: crate::types::AgentId(0),
                 operation_id: op_id.to_string(),
             });
+        let db_opt = { crate::sync_lock::rw_read(&self.db).clone() };
+        if let Some(db) = db_opt {
+            let op_id_s = op_id.to_string();
+            if let Err(e) = crate::oplog::mark_undone_in_db(&db, &op_id_s, true).await {
+                tracing::warn!(
+                    target: "vox.orchestrator.oplog",
+                    error = %e,
+                    operation_id = %op_id_s,
+                    "failed to persist undone=true in db"
+                );
+            }
+        }
 
         Ok(())
     }
@@ -193,6 +312,18 @@ impl crate::orchestrator::Orchestrator {
                 agent_id: crate::types::AgentId(0),
                 operation_id: op_id.to_string(),
             });
+        let db_opt = { crate::sync_lock::rw_read(&self.db).clone() };
+        if let Some(db) = db_opt {
+            let op_id_s = op_id.to_string();
+            if let Err(e) = crate::oplog::mark_undone_in_db(&db, &op_id_s, false).await {
+                tracing::warn!(
+                    target: "vox.orchestrator.oplog",
+                    error = %e,
+                    operation_id = %op_id_s,
+                    "failed to persist undone=false in db"
+                );
+            }
+        }
 
         Ok(())
     }

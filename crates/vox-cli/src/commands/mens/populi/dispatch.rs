@@ -78,7 +78,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             crate::commands::schola::train::run_train(
                 PopuliTrainBackendCli::Qlora.into(),
-                Some("Qwen/Qwen3.5-4B".into()),
+                None,
                 "cuda".into(),
                 data_dir,
                 output_dir,
@@ -103,6 +103,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 MensTokenizerCli::Hf.into(),
                 false, // qlora_no_double_quant
                 true,  // qlora_require_full_proxy_stack
+                false, // qlora_allow_partial_proxy_stack
                 None,  // qlora_max_skip_rate
                 false, // qlora_lm_head_only
                 None,  // qlora_proxy_max_layers
@@ -155,6 +156,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             tokenizer,
             qlora_no_double_quant,
             qlora_require_full_proxy_stack,
+            qlora_allow_partial_proxy_stack,
             qlora_lm_head_only,
             qlora_max_skip_rate,
             qlora_proxy_max_layers,
@@ -180,6 +182,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             validation_split_ratio,
             curriculum,
             optimizer_experiment_mode,
+            data_mode,
         } => {
             super::train_arm::run_train(
                 model,
@@ -209,6 +212,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 tokenizer,
                 qlora_no_double_quant,
                 qlora_require_full_proxy_stack,
+                qlora_allow_partial_proxy_stack,
                 qlora_lm_head_only,
                 qlora_max_skip_rate,
                 qlora_proxy_max_layers,
@@ -234,6 +238,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 validation_split_ratio,
                 curriculum,
                 optimizer_experiment_mode.into(),
+                data_mode,
             )
             .await
         }

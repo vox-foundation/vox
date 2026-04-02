@@ -75,6 +75,20 @@ impl OrchestratorConfig {
                 self.socrates_reputation_weight,
             );
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED") {
+            self.trust_gate_relax_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED",
+                &val,
+                self.trust_gate_relax_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY") {
+            self.trust_gate_relax_min_reliability = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY",
+                &val,
+                self.trust_gate_relax_min_reliability,
+            );
+        }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_LOG_LEVEL") {
             self.log_level = val;
         }
@@ -244,6 +258,23 @@ impl OrchestratorConfig {
                 self.populi_routing_experimental,
             );
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP")
+        {
+            self.populi_rebalance_on_remote_schedulable_drop = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP",
+                &val,
+                self.populi_rebalance_on_remote_schedulable_drop,
+            );
+        }
+        if let Ok(val) = std::env::var(
+            "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
+        ) {
+            self.populi_replay_queued_routes_on_remote_schedulable_drop = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
+                &val,
+                self.populi_replay_queued_routes_on_remote_schedulable_drop,
+            );
+        }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL") {
             self.populi_training_routing_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL",
@@ -287,6 +318,56 @@ impl OrchestratorConfig {
                 &val,
                 self.populi_remote_result_poll_interval_secs,
             );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL")
+        {
+            self.populi_remote_result_max_messages_per_poll = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL",
+                &val,
+                self.populi_remote_result_max_messages_per_poll,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS") {
+            self.populi_remote_worker_poll_interval_secs = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS",
+                &val,
+                self.populi_remote_worker_poll_interval_secs,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED") {
+            self.populi_remote_lease_gating_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED",
+                &val,
+                self.populi_remote_lease_gating_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES") {
+            let mut roles = Vec::new();
+            for part in val.split(',') {
+                let p = part.trim();
+                if p.is_empty() {
+                    continue;
+                }
+                let r = match p.to_ascii_lowercase().as_str() {
+                    "planner" => Some(crate::reconstruction::AgentExecutionRole::Planner),
+                    "builder" => Some(crate::reconstruction::AgentExecutionRole::Builder),
+                    "verifier" => Some(crate::reconstruction::AgentExecutionRole::Verifier),
+                    "reproducer" => Some(crate::reconstruction::AgentExecutionRole::Reproducer),
+                    "researcher" => Some(crate::reconstruction::AgentExecutionRole::Researcher),
+                    _ => None,
+                };
+                if let Some(role) = r {
+                    if !roles.contains(&role) {
+                        roles.push(role);
+                    }
+                } else {
+                    tracing::warn!(
+                        "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES: unknown role token {:?} (ignored)",
+                        p
+                    );
+                }
+            }
+            self.populi_remote_lease_gated_roles = roles;
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CHATML_STRICT") {
             self.chatml_strict =
@@ -339,6 +420,48 @@ impl OrchestratorConfig {
                 "VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT",
                 &val,
                 self.planning_rollout_percent,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW") {
+            self.plan_adequacy_shadow = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW",
+                &val,
+                self.plan_adequacy_shadow,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE") {
+            self.plan_adequacy_enforce = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE",
+                &val,
+                self.plan_adequacy_enforce,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW") {
+            self.context_lifecycle_shadow = parse_or_warn(
+                "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW",
+                &val,
+                self.context_lifecycle_shadow,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE") {
+            self.context_lifecycle_enforce = parse_or_warn(
+                "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE",
+                &val,
+                self.context_lifecycle_enforce,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW") {
+            self.completion_grounding_shadow = parse_or_warn(
+                "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW",
+                &val,
+                self.completion_grounding_shadow,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE") {
+            self.completion_grounding_enforce = parse_or_warn(
+                "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE",
+                &val,
+                self.completion_grounding_enforce,
             );
         }
         // Phase 15: Attention Budget env overrides

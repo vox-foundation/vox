@@ -1,6 +1,6 @@
 use secrecy::SecretString;
 
-use crate::bounded_fs::read_utf8_path_capped;
+use crate::errors::SecretError;
 use crate::types::SecretSource;
 
 fn candidate_mesh_env_paths() -> Vec<std::path::PathBuf> {
@@ -36,7 +36,9 @@ pub fn read_populi_env_key(canonical_key: &str) -> Option<(SecretString, SecretS
         return None;
     }
     for path in candidate_mesh_env_paths() {
-        let raw = match read_utf8_path_capped(&path) {
+        let raw = match vox_bounded_fs::read_utf8_path_capped(&path)
+            .map_err(|e| SecretError::Io(e.to_string()))
+        {
             Ok(raw) => raw,
             Err(_) => continue,
         };

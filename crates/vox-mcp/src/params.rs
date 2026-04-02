@@ -188,6 +188,10 @@ pub struct SubmitTaskParams {
     pub capabilities: Option<vox_orchestrator::TaskCapabilityHints>,
     /// Optional session identifier for Mens telemetry grouping.
     pub session_id: Option<String>,
+    /// Optional logical thread id for branch continuity within a session.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub thread_id: Option<String>,
     /// Optional planning mode (`auto`, `direct`, `force_plan`, `workflow_only`).
     pub planning_mode: Option<String>,
     /// Optional semantic goal type hint for planning.
@@ -199,6 +203,14 @@ pub struct SubmitTaskParams {
     /// Optional retrieval envelope to seed Socrates task context.
     #[serde(default)]
     pub retrieval: Option<crate::memory::RetrievalEvidenceEnvelope>,
+    /// Optional canonical context envelope JSON to seed Socrates context and session state.
+    #[serde(default)]
+    #[schemars(length(min = 1))]
+    pub context_envelope_json: Option<String>,
+    /// Optional portable harness contract JSON aligned with `contracts/orchestration/agent-harness.schema.json`.
+    #[serde(default)]
+    #[schemars(length(min = 1))]
+    pub harness_spec_json: Option<String>,
     /// Optional task category for model routing (`parsing`, `type_checking`, `debugging`, `research`, `testing`, `codegen`, `review`).
     #[serde(default)]
     #[schemars(length(max = 256))]
@@ -223,6 +235,25 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 64))]
     pub benchmark_tier: Option<String>,
+    /// Optional end-to-end trace id; copied into merged context envelope provenance for cross-plane correlation.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub trace_id: Option<String>,
+    /// Optional correlation id (e.g. client thread); stored alongside `trace_id` on envelope provenance.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub correlation_id: Option<String>,
+}
+
+/// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.
+#[derive(Debug, Clone, Serialize)]
+pub struct SubmitShadowAdequacy {
+    /// Structural adequacy score (0 = thin … 1 = adequate).
+    pub score: f32,
+    pub is_too_thin: bool,
+    pub reason_codes: Vec<String>,
+    pub critical_count: usize,
+    pub aggregate_unresolved_risk: f32,
 }
 
 /// Identifier payload returned after a successful [`SubmitTaskParams`] submission.
@@ -244,6 +275,9 @@ pub struct SubmitTaskResponse {
     /// Present when [`OrchestratorConfig::orchestration_migration`] has v2 enabled (MCP hint).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub orchestration_contract: Option<String>,
+    /// Set when `plan_adequacy_shadow` is enabled and this was a direct submit (not `submit_goal`): single pseudo-task heuristic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shadow_plan_adequacy: Option<SubmitShadowAdequacy>,
 }
 
 /// Query the status of a single task by id.
@@ -267,6 +301,9 @@ pub struct CompleteTaskParams {
     /// Optional list of checks that were run before completion.
     #[serde(default)]
     pub checks_passed: Vec<String>,
+    /// Evidence substrings that should appear in the session context envelope (same as `[[voxcite:...]]` markers).
+    #[serde(default)]
+    pub evidence_citations: Vec<String>,
     /// Optional task artifacts to validate (workspace-relative preferred).
     #[serde(default)]
     pub artifact_paths: Vec<String>,
@@ -410,6 +447,129 @@ fn default_true() -> bool {
     true
 }
 
+/// Open a Chromium tab (CDP via `chromiumoxide`; no Playwright/Node required).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserOpenParams {
+    /// Initial URL to navigate to.
+    #[schemars(length(min = 1, max = 8192))]
+    pub url: String,
+    /// When false, run a visible browser window (default true = headless).
+    #[serde(default = "default_headless_true")]
+    pub headless: bool,
+}
+
+fn default_headless_true() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserPageParams {
+    /// Session id returned by `vox_browser_open`.
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserGotoParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 8192))]
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserTargetParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// CSS selector, or `xpath:/absolute/xpath` for XPath.
+    #[schemars(length(min = 1, max = 4096))]
+    pub target: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserFillParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 4096))]
+    pub target: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserWaitParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 4096))]
+    pub target: String,
+    #[serde(default = "default_wait_timeout")]
+    #[schemars(range(min = 1, max = 600))]
+    pub timeout_secs: u64,
+}
+
+fn default_wait_timeout() -> u64 {
+    30
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserScreenshotParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Workspace-relative or absolute PNG path.
+    #[schemars(length(min = 1, max = 4096))]
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserHtmlParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Empty string = full document HTML; otherwise CSS or `xpath:…` for a fragment.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub target: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserExtractParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Natural-language extraction instruction (requires configured MCP chat model).
+    #[schemars(length(min = 1, max = 131072))]
+    pub instruction: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserExtractJsonParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// JSON Schema string (draft-07 subset) describing the desired object root.
+    #[schemars(length(min = 1, max = 131072))]
+    pub schema_json: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub instruction: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserActParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Goal in natural language; model returns a small action JSON (requires MCP chat model).
+    #[schemars(length(min = 1, max = 131072))]
+    pub instruction: String,
+}
+
 /// Publish a bulletin-board style message (orchestrator-internal).
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -452,6 +612,17 @@ pub struct OrchestratorRuntimeProbe {
     pub agent_fleet_loop_running: bool,
     /// Static note for clients that assumed a separate fleet process.
     pub note: &'static str,
+    /// When **`VOX_MCP_ORCHESTRATOR_START_RPC`** or **`VOX_MCP_ORCHESTRATOR_RPC_READS`** is on and the daemon probe aligned repo ids, **`orch.status`** `agent_count` (may differ from embedded `agent_count` until IPC-first).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_reported_agent_count: Option<u64>,
+    /// Populated when daemon **`orch.status`** could not be fetched.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_status_rpc_error: Option<String>,
+    /// **`orch.agent_ids`** from the daemon when the same pilots are enabled (order may differ; compare sorted).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_reported_agent_ids: Option<Vec<u64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_agent_ids_rpc_error: Option<String>,
 }
 
 /// Spawn a new orchestrator agent queue.
@@ -463,6 +634,13 @@ pub struct SpawnAgentParams {
     pub name: String,
     /// When true, use [`Orchestrator::spawn_dynamic_agent`] (auto-retire when idle).
     pub dynamic: Option<bool>,
+    /// Optional parent agent id for delegation-aware dynamic spawns.
+    pub parent_agent_id: Option<u64>,
+    /// Optional delegation reason annotation.
+    #[schemars(length(min = 1, max = 256))]
+    pub delegation_reason: Option<String>,
+    /// Optional source task id for topology lineage.
+    pub source_task_id: Option<u64>,
 }
 
 /// Single `agent_id` argument for lifecycle helpers.
@@ -516,6 +694,12 @@ pub struct StatusResponse {
     /// Optional planning summary from persisted plan sessions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub planning: Option<serde_json::Value>,
+    /// Delegation/topology snapshot for parent/child agent relationships.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub topology: Option<vox_orchestrator::AgentTopologySnapshot>,
+    /// Persistence outbox lifecycle telemetry snapshot from orchestrator context.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persistence_outbox_lifecycle: Option<serde_json::Value>,
     /// `queue_only` unless at least one vox-runtime worker handle is registered.
     pub execution_mode: String,
     /// True when `registered_worker_processes > 0`.
@@ -526,6 +710,11 @@ pub struct StatusResponse {
     pub db_configured: bool,
     /// `codex_and_transient` when DB is set; otherwise `transient_only` for poll_events.
     pub event_feed_mode: String,
+    /// When **`VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC`** or **`VOX_MCP_ORCHESTRATOR_RPC_READS`** is on and repo ids align, JSON from daemon **`orch.status`** (compare with embedded fields until IPC-first).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_orch_status: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_orch_status_rpc_error: Option<String>,
 }
 
 /// Single LSP-style diagnostic for validate-file responses.

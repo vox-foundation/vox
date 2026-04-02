@@ -10,6 +10,7 @@ use rand::distr::weighted::WeightedIndex;
 use tokenizers::Tokenizer;
 use tracing::{debug, trace};
 
+use super::logit_processors::{LogitProcessor, LogitStepContext, NoopLogitProcessor};
 use candle_transformers::models::whisper::{self as m, Config};
 
 /// Whisper decoding task (transcribe in-language vs translate to English).
@@ -92,6 +93,30 @@ pub(crate) struct Decoder {
     no_speech_token: u32,
     no_timestamps_token: u32,
     language_token: Option<u32>,
+    logit_processor: Box<dyn LogitProcessor>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) enum StreamEvent {
+    SegmentStart {
+        segment_index: usize,
+        seek_frames: usize,
+        segment_frames: usize,
+    },
+    SegmentText {
+        segment_index: usize,
+        text: String,
+        avg_logprob: f64,
+        no_speech_prob: f64,
+    },
+    TokenDecoded {
+        segment_index: usize,
+        token: u32,
+    },
+    FinalText {
+        text: String,
+    },
 }
 
 impl Decoder {
@@ -106,6 +131,7 @@ impl Decoder {
         timestamps: bool,
         max_initial_timestamp_index: Option<u32>,
         verbose: bool,
+        logit_processor: Option<Box<dyn LogitProcessor>>,
     ) -> Result<Self> {
         let no_timestamps_token = token_id(&tokenizer, m::NO_TIMESTAMPS_TOKEN)
             .map_err(|e| anyhow::anyhow!("tokenizer: {e}"))?;
@@ -151,10 +177,17 @@ impl Decoder {
             no_speech_token,
             language_token,
             no_timestamps_token,
+            logit_processor: logit_processor.unwrap_or_else(|| Box::new(NoopLogitProcessor)),
         })
     }
 
-    fn decode(&mut self, mel: &Tensor, t: f64) -> Result<DecodingResult> {
+    fn decode(
+        &mut self,
+        mel: &Tensor,
+        t: f64,
+        mut on_token: Option<&mut dyn FnMut(u32)>,
+    ) -> Result<DecodingResult> {
+        self.logit_processor.reset_for_decode();
         let audio_features = self
             .model
             .encoder_forward(mel, true)
@@ -220,6 +253,12 @@ impl Decoder {
             } else {
                 logits
             };
+            let ctx = LogitStepContext {
+                step: i,
+                temperature: t,
+                generated_tokens: tokens.clone(),
+            };
+            let logits = self.logit_processor.apply(&ctx, &logits)?;
 
             let logits = logits
                 .broadcast_add(&self.suppress_tokens)
@@ -240,6 +279,10 @@ impl Decoder {
                     .unwrap()
             };
             tokens.push(next_token);
+            self.logit_processor.on_token_decoded(next_token);
+            if let Some(ref mut emit) = on_token {
+                emit(next_token);
+            }
             let prob = softmax(&logits, D::Minus1)
                 .map_err(|e| anyhow::anyhow!("{e}"))?
                 .i(next_token as usize)
@@ -266,9 +309,43 @@ impl Decoder {
         })
     }
 
-    fn decode_with_fallback(&mut self, segment: &Tensor) -> Result<DecodingResult> {
+    fn decode_with_fallback(
+        &mut self,
+        segment: &Tensor,
+        on_token: Option<&mut dyn FnMut(u32)>,
+    ) -> Result<DecodingResult> {
+        if let Some(mut emit) = on_token {
+            let mut selected: Option<f64> = None;
+            for (i, &t) in m::TEMPERATURES.iter().enumerate() {
+                let dr: Result<DecodingResult> = self.decode(segment, t, None);
+                if i == m::TEMPERATURES.len() - 1 {
+                    if let Ok(final_dr) = dr {
+                        selected = Some(final_dr.temperature);
+                    } else {
+                        return dr;
+                    }
+                    break;
+                }
+                match dr {
+                    Ok(dr) => {
+                        let needs_fallback = dr.compression_ratio > m::COMPRESSION_RATIO_THRESHOLD
+                            || dr.avg_logprob < m::LOGPROB_THRESHOLD;
+                        if !needs_fallback || dr.no_speech_prob > m::NO_SPEECH_THRESHOLD {
+                            selected = Some(dr.temperature);
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        debug!(temperature = t, error = %err, "whisper decode retry");
+                    }
+                }
+            }
+            let chosen_t = selected.unwrap_or(0.0);
+            return self.decode(segment, chosen_t, Some(&mut emit));
+        }
+
         for (i, &t) in m::TEMPERATURES.iter().enumerate() {
-            let dr: Result<DecodingResult> = self.decode(segment, t);
+            let dr: Result<DecodingResult> = self.decode(segment, t, None);
             if i == m::TEMPERATURES.len() - 1 {
                 return dr;
             }
@@ -462,68 +539,118 @@ impl Decoder {
         Ok(logits)
     }
 
-    pub(crate) fn run_collected(&mut self, mel: &Tensor) -> Result<String> {
+    pub(crate) fn processor_name(&self) -> &'static str {
+        self.logit_processor.name()
+    }
+
+    fn decode_result_text(&self, dr: &DecodingResult) -> Result<String> {
+        if self.timestamps {
+            let mut segment_parts = Vec::<String>::new();
+            let mut tokens_to_decode = vec![];
+            for &token in &dr.tokens {
+                if token == self.sot_token || token == self.eot_token {
+                    continue;
+                }
+                if token > self.no_timestamps_token {
+                    if !tokens_to_decode.is_empty() {
+                        let text = self
+                            .tokenizer
+                            .decode(&tokens_to_decode, true)
+                            .map_err(E::msg)?;
+                        if !text.is_empty() {
+                            segment_parts.push(text);
+                        }
+                        tokens_to_decode.clear();
+                    }
+                } else {
+                    tokens_to_decode.push(token);
+                }
+            }
+            if !tokens_to_decode.is_empty() {
+                let text = self
+                    .tokenizer
+                    .decode(&tokens_to_decode, true)
+                    .map_err(E::msg)?;
+                if !text.is_empty() {
+                    segment_parts.push(text);
+                }
+            }
+            return Ok(segment_parts
+                .join(" ")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" "));
+        }
+        Ok(dr.text.clone())
+    }
+
+    pub(crate) fn run_streaming(
+        &mut self,
+        mel: &Tensor,
+        emit_tokens: bool,
+        mut on_event: impl FnMut(StreamEvent),
+    ) -> Result<String> {
         let (_, _, content_frames) = mel.dims3().map_err(|e| anyhow::anyhow!("{e}"))?;
         let mut seek = 0;
         let mut parts = Vec::new();
+        let mut segment_index = 0usize;
         while seek < content_frames {
             let start = std::time::Instant::now();
             let segment_size = usize::min(content_frames - seek, m::N_FRAMES);
+            on_event(StreamEvent::SegmentStart {
+                segment_index,
+                seek_frames: seek,
+                segment_frames: segment_size,
+            });
             let mel_segment = mel
                 .narrow(2, seek, segment_size)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
-            let dr = self.decode_with_fallback(&mel_segment)?;
+            let mut token_cb = |token: u32| {
+                on_event(StreamEvent::TokenDecoded {
+                    segment_index,
+                    token,
+                });
+            };
+            let dr = if emit_tokens {
+                self.decode_with_fallback(&mel_segment, Some(&mut token_cb))?
+            } else {
+                self.decode_with_fallback(&mel_segment, None)?
+            };
             seek += segment_size;
             if dr.no_speech_prob > m::NO_SPEECH_THRESHOLD && dr.avg_logprob < m::LOGPROB_THRESHOLD {
                 debug!(seek, ?dr, "whisper: no speech segment skipped");
+                segment_index = segment_index.saturating_add(1);
                 continue;
             }
-            if self.timestamps {
-                let mut tokens_to_decode = vec![];
-                let mut prev_timestamp_s = 0f32;
-                for &token in dr.tokens.iter() {
-                    if token == self.sot_token || token == self.eot_token {
-                        continue;
-                    }
-                    if token > self.no_timestamps_token {
-                        let timestamp_s = (token - self.no_timestamps_token + 1) as f32 / 50.;
-                        if !tokens_to_decode.is_empty() {
-                            let text = self
-                                .tokenizer
-                                .decode(&tokens_to_decode, true)
-                                .map_err(E::msg)?;
-                            if !text.is_empty() {
-                                parts.push(text);
-                            }
-                            tokens_to_decode.clear();
-                        }
-                        prev_timestamp_s = timestamp_s;
-                    } else {
-                        tokens_to_decode.push(token);
-                    }
-                }
-                if !tokens_to_decode.is_empty() {
-                    let text = self
-                        .tokenizer
-                        .decode(&tokens_to_decode, true)
-                        .map_err(E::msg)?;
-                    if !text.is_empty() {
-                        parts.push(text);
-                    }
-                }
-                let _ = prev_timestamp_s;
-            } else if !dr.text.is_empty() {
-                parts.push(dr.text.clone());
+            let segment_text = self.decode_result_text(&dr)?.trim().to_string();
+            if !segment_text.is_empty() {
+                parts.push(segment_text.clone());
+                on_event(StreamEvent::SegmentText {
+                    segment_index,
+                    text: segment_text,
+                    avg_logprob: dr.avg_logprob,
+                    no_speech_prob: dr.no_speech_prob,
+                });
             }
             if self.verbose {
                 trace!(seek, elapsed = ?start.elapsed(), "whisper segment");
             }
+            segment_index = segment_index.saturating_add(1);
         }
-        Ok(parts
+        let final_text = parts
             .join(" ")
             .split_whitespace()
             .collect::<Vec<_>>()
-            .join(" "))
+            .join(" ");
+        on_event(StreamEvent::FinalText {
+            text: final_text.clone(),
+        });
+        Ok(final_text)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn run_collected(&mut self, mel: &Tensor) -> Result<String> {
+        self.run_streaming(mel, false, |_| {})
     }
 
     pub(crate) fn into_whisper_model(self) -> WhisperModel {

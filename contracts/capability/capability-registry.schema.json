@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/capability-registry.schema.json",
+  "title": "Vox transport-independent capability registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "auto_mcp_capabilities": {
+      "type": "boolean",
+      "description": "When true, every MCP tool in tool-registry.canonical.yaml implicitly maps to capability id mcp.<tool_name> unless overridden in curated."
+    },
+    "auto_cli_capabilities": {
+      "type": "boolean",
+      "description": "When true, every active vox-cli operation maps to capability id cli.<path.join('.')> unless overridden."
+    },
+    "curated": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "runtime_builtin_maps": {
+      "type": "array",
+      "description": "Maps Vox script std.* surfaces to logical capability ids for docs and planner hints.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["namespace", "method", "capability_id"],
+        "properties": {
+          "namespace": { "type": "string" },
+          "method": { "type": "string" },
+          "capability_id": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "exemptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cli_paths": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": ["string", "null"] },
+        "description_human": { "type": ["string", "null"] },
+        "description_model": { "type": ["string", "null"] },
+        "intent_tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "side_effect_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "none",
+                "read_only",
+                "writes_files",
+                "spawns_process",
+                "network",
+                "destructive",
+                "mixed",
+                "unknown"
+              ]
+            }
+          ]
+        },
+        "scope_kind": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "global",
+                "repository",
+                "workspace",
+                "session",
+                "process",
+                "unknown"
+              ]
+            }
+          ]
+        },
+        "reversible": { "type": ["boolean", "null"] },
+        "requires_repo": { "type": ["boolean", "null"] },
+        "requires_git": { "type": ["boolean", "null"] },
+        "preferred_for_models": { "type": ["boolean", "null"] },
+        "human_takeover_friendly": { "type": ["boolean", "null"] },
+        "mens_planner_visible": { "type": ["boolean", "null"] },
+        "mcp_tool": { "type": ["string", "null"] },
+        "cli_path": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

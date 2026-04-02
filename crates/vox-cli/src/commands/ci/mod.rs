@@ -2,18 +2,24 @@
 
 pub(crate) mod bounded_read;
 pub mod build_timings;
+mod capability_sync;
 mod check_links;
 mod command_compliance;
 mod command_sync;
+pub mod completion_quality;
 mod contracts_index;
 mod eval_matrix;
+mod exec_policy_contract;
 mod line_endings;
 mod mens_scorecard;
 mod openclaw_contract;
+mod operations_catalog;
 mod pm_provenance;
 mod release_build;
 mod scaling_audit;
 mod scientia_worthiness_contract;
+mod scientia_novelty_ledger_contract;
+pub mod workspace_artifacts;
 
 mod cmd_enums;
 mod constants;
@@ -27,7 +33,7 @@ use anyhow::Result;
 
 pub use cmd_enums::{
     CiCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, MensScorecardCmd,
-    ScalingAuditCmd,
+    OperationsSyncTarget, ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

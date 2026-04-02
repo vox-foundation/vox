@@ -3,8 +3,9 @@
 use super::super::Parser;
 use crate::ast::decl::{
     ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
-    IslandProp, LoadingDecl, McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, QueryDecl,
-    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ServerFnDecl, TestDecl,
+    IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    OnMountDecl, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport,
+    ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -370,6 +371,94 @@ impl Parser {
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::McpTool(McpToolDecl {
             description: desc,
+            func: f,
+        }))
+    }
+
+    /// `@mcp.resource ("uri", "desc") fn ...` or `@mcp.resource "uri" "desc" fn ...`.
+    pub(crate) fn parse_mcp_resource(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @mcp.resource
+        let (uri, description) = match self.peek().clone() {
+            Token::LParen => {
+                self.advance();
+                let u = match self.peek().clone() {
+                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected string literal for resource URI",
+                            vec!["\"...\"".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                };
+                self.expect(&Token::Comma)?;
+                let d = match self.peek().clone() {
+                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected string literal for resource description",
+                            vec!["\"...\"".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                };
+                self.expect(&Token::RParen)?;
+                (u, d)
+            }
+            Token::StringLit(_) | Token::SingleQuoteStringLit(_) => {
+                let u = match self.peek().clone() {
+                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    _ => unreachable!(),
+                };
+                let d = match self.peek().clone() {
+                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected second string literal (description) after resource URI",
+                            vec!["\"...\"".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                };
+                (u, d)
+            }
+            _ => {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected `(` or string literal after @mcp.resource",
+                    vec!["(\"uri\", \"desc\")".into(), "\"uri\"".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+        };
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::McpResource(McpResourceDecl {
+            uri,
+            description,
             func: f,
         }))
     }

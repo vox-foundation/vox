@@ -192,6 +192,14 @@ pub enum AgentEventKind {
         from: AgentId,
         to: AgentId,
         plan_summary: String,
+        #[serde(default)]
+        has_context_envelope: bool,
+        #[serde(default)]
+        has_harness_spec: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        thread_id: Option<String>,
     },
 
     /// A scope violation was detected.
@@ -263,6 +271,14 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         from: AgentId,
         plan_summary: String,
+        #[serde(default)]
+        has_context_envelope: bool,
+        #[serde(default)]
+        has_harness_spec: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        thread_id: Option<String>,
     },
     /// Load balancer moved tasks due to urgent queue depth.
     UrgentRebalanceTriggered {

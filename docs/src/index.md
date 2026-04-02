@@ -1,10 +1,11 @@
 ---
 title: "Vox: The AI-Native Programming Language"
-description: "Vox is a unified full-stack language that compiles to Rust and TypeScript. Zero null states, durable workflows, native MCP support, and a built-in ML training pipeline."
+description: "Vox is a full-stack language and toolchain with Rust and TypeScript outputs, explicit contracts, and a growing AI-native workflow."
 category: "getting-started"
+status: "current"
 sort_order: 0
 keywords: ["Vox programming language", "AI-native language", "Rust compiler", "full-stack language"]
-last_updated: 2026-03-24
+last_updated: 2026-03-28
 training_eligible: true
 difficulty: "beginner"
 ---
@@ -12,29 +13,37 @@ difficulty: "beginner"
 <div class="vox-hero">
   <img src="assets/logo.png" alt="Vox Logo" class="logo" />
   <h1>Vox Programming Language</h1>
-  <p class="subtitle">Your backend, frontend, and database. One file. One binary. Zero nulls.</p>
+  <p class="subtitle">One language for application structure, with Rust and TypeScript outputs and explicit repository contracts.</p>
   <div class="vox-cta-container">
-    <a href="how-to/first-full-stack-app.html" class="vox-cta primary">Get Started</a>
+    <a href="tutorials/tut-getting-started.html" class="vox-cta primary">Get Started</a>
     <a href="explanation/faq.html" class="vox-cta secondary">Read the FAQ</a>
     <a href="https://github.com/vox-foundation/vox" class="vox-cta secondary">GitHub</a>
   </div>
 </div>
 
 **What is Vox?** 
-Vox is a unified, full-stack programming language designed to bridge the gap between high-level AI intent and low-level system performance. By compiling directly to **Rust** for backend durability and **TypeScript** for frontend reactivity, Vox enables developers to write their entire application stack in a single, LLM-friendly syntax.
+Vox is a full-stack programming language and toolchain that aims to keep application structure, data modeling, and generated artifacts closer together. In the current repository, Vox is documented as a compiler and CLI that produce **Rust** and **TypeScript** outputs, plus a broader set of orchestration, MCP, and Mens-related surfaces that are at different maturity levels.
 
 ## Why Vox?
 
-The software industry has fragmented into hundreds of specialized frameworks. Vox solves this by unifying the stack natively:
-- **AI-Native Grammar**: The grammar is free of syntactical ambiguities, making it easier for Large Language Models (LLMs) to generate pristine Abstract Syntax Trees (AST).
-- **Uniformity**: Frontend components, backend services, and database schemas live together in one `.vox` file. Define a `@table` and you get the schema, the CRUD API, and the React types for free.
-- **Durable Execution**: Workflows survive machine failures. If a server goes down during a multi-step `workflow`, Vox automatically resumes exactly where it left off upon restart.
-- **Zero Null States**: Null references are completely banned from the language. All absence of value must be represented by `Option[T]` or `Result`, eliminating the most common source of runtime crashes.
-- **Native ML Pipeline**: Integrated training with **Mens** allows you to perform Quantized Low-Rank Adaptation (QLoRA) directly within the Vox ecosystem.
-- **First-Class AI Agents**: Adding `@mcp.tool` to any function instantly exposes it as a Model Context Protocol generic tool for external AI agents.
+The repo is trying to make several hard things feel more coherent:
+
+- **One language surface**: application structure, backend codegen, and web-facing artifacts are described from one source language.
+- **Explicit contracts**: docs, contracts, and CI guards are intended to move together.
+- **Durable and actor-oriented execution**: workflows and actor patterns are central to the design language of the project.
+- **Zero-null discipline**: absence is modeled explicitly with `Option` or `Result`.
+- **AI-aware tooling**: the repo includes MCP surfaces, agent tooling, and Mens training lanes, but not every lane is equally mature.
+
+## Read this site by intent
+
+- Start with [Getting Started](tutorials/tut-getting-started.md) if you want a guided path.
+- Use the [FAQ](explanation/faq.md) if you want current answers about language, runtime, MCP, or Mens.
+- Use [Reference](reference/cli.md) when you need exact behavior.
+- Use the [Contributor hub](contributors/contributor-hub.md) if you are changing this repository.
+- **VS Code / Cursor:** build or sideload **[`vox-vscode`](../../vox-vscode/README.md)** from this repo for LSP, MCP workspace chat, Oratio speech actions, and snapshots — [VS Code ↔ MCP compatibility](reference/vscode-mcp-compat.md).
 
 ## Quick Start
-Get your first Vox app running and deployed locally in under 5 minutes:
+Use this flow to understand the current toolchain:
 
 ### 1. Install the CLI
 Ensure you have Rust installed, then install the Vox compiler CLI directly:
@@ -45,12 +54,15 @@ cargo install --locked --path crates/vox-cli
 ### 2. Initialize a Project
 Use the CLI to scaffold a new project with the default TanStack template:
 ```bash
-vox init my-app && cd my-app
+vox init my-app
+cd my-app
+vox commands --recommended
 ```
 
 ### 3. Run Your Application
-Start the development server, which hot-reloads both your Rust backend and TypeScript frontend:
+Build or run a `.vox` entrypoint:
 ```bash
+vox build src/main.vox
 vox run src/main.vox
 ```
 
@@ -148,9 +160,9 @@ match complete_task(task_id) {
 }
 ```
 
-### Durable Workflows That Survive Crashes
+### Durable Workflow Replay in the Interpreted Runtime
 
-If your server crashes halfway through charging a card, Vox picks up exactly where it left off on restart. Workflows coordinate retries natively.
+If your server crashes halfway through charging a card, the interpreted workflow runtime can replay stored results for completed linear steps when the workflow is resumed with the same durable run id and step ids. Generated Rust workflows are not yet full durable state machines, so this is a workflow-runtime feature, not a blanket guarantee for every compiled Vox program.
 
 ```vox
 activity charge_payment(amount: int, token: str) to Result[str] {
@@ -168,7 +180,7 @@ fn process_order(customer: str, amount: int) to Result[str] {
 
 ### Persistent Actors
 
-A Vox `actor` persists its state automatically across server restarts. You do not write serialization, storage, or cache invalidation code.
+A Vox `actor` can persist state across restarts when you use `state_load` and `state_save`. This is a different mechanism from workflow durability.
 
 ```vox
 actor PersistentCounter {
@@ -204,7 +216,7 @@ Vox installation is managed via a unified bootstrap path that keeps logic in Rus
 - **Contributors (repo checkout):** the same scripts prefer `cargo run --locked -p vox-bootstrap` when run from the repo with Cargo available.
 - With **`--install`**, bootstrap tries prebuilt **`vox`** release binaries first, then falls back to building from source when a repo checkout + Cargo are present.
 
-Supported artifact names and targets are documented in [`docs/src/ci/binary-release-contract.md`](docs/src/ci/binary-release-contract.md).
+Supported artifact names and targets are documented in [`ci/binary-release-contract.md`](ci/binary-release-contract.md).
 
 ### 1. Unified Install (Mac/Linux)
 ```bash

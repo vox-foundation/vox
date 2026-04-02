@@ -5,6 +5,9 @@ use std::path::Path;
 
 use super::types::Page;
 
+const FEED_BASE_URL: &str = "https://vox-lang.org";
+const CHANGELOG_URL: &str = "https://vox-lang.org/changelog.html";
+
 /// Parse an ISO `YYYY-MM-DD` date string to RFC 822 (`Tue, 24 Mar 2026 00:00:00 GMT`).
 fn iso_to_rfc822(iso: &str) -> Option<String> {
     let parts: Vec<&str> = iso.trim().split('-').collect();
@@ -146,7 +149,6 @@ fn xml_escape(s: &str) -> String {
 
 /// Generate `docs/src/feed.xml` from pages that have `last_updated`.
 pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
-    const BASE_URL: &str = "https://vox-lang.org";
     const MAX_ITEMS: usize = 20;
 
     let mut dated: Vec<&Page> = pages.iter().filter(|p| p.last_updated.is_some()).collect();
@@ -166,18 +168,18 @@ pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
          <channel>\n",
     );
     xml.push_str("  <title>Vox Language Updates</title>\n");
-    xml.push_str(&format!("  <link>{BASE_URL}/</link>\n"));
+    xml.push_str(&format!("  <link>{FEED_BASE_URL}/</link>\n"));
     xml.push_str("  <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>\n");
     xml.push_str("  <language>en-us</language>\n");
     xml.push_str(&format!("  <lastBuildDate>{build_date}</lastBuildDate>\n"));
     xml.push_str(&format!(
-        "  <atom:link href=\"{BASE_URL}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n"
+        "  <atom:link href=\"{FEED_BASE_URL}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n"
     ));
     xml.push('\n');
 
     for page in &dated {
         let slug = page.path.trim_end_matches(".md").replace('\\', "/");
-        let url = format!("{BASE_URL}/{slug}.html");
+        let url = format!("{FEED_BASE_URL}/{slug}.html");
         let title = xml_escape(&page.title);
         let description = xml_escape(page.description.as_deref().unwrap_or(&page.title));
         let pub_date = page
@@ -195,32 +197,33 @@ pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
         xml.push_str("  </item>\n\n");
     }
 
-    xml.push_str(
+    xml.push_str(&format!(
         r#"  <item>
     <title>v0.8.0 — @require, @pure, @deprecated Decorators; 10 LSP Features</title>
-    <link>https://vox-foundation.github.io/vox/changelog.html</link>
-    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.8.0</guid>
+    <link>{changelog_url}</link>
+    <guid>{changelog_url}#v0.8.0</guid>
     <description>Added @require, @pure, and @deprecated decorators. Implemented 10 Language Server Protocol features including hover, go-to-definition, and inline diagnostics.</description>
     <pubDate>Thu, 26 Feb 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
     <title>v0.7.0 — QLoRA Training Pipeline; Socrates Anti-Hallucination Protocol</title>
-    <link>https://vox-foundation.github.io/vox/changelog.html</link>
-    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.7.0</guid>
+    <link>{changelog_url}</link>
+    <guid>{changelog_url}#v0.7.0</guid>
     <description>Native QLoRA fine-tuning via Candle and qlora-rs. Socrates confidence protocol integrated into the orchestrator for anti-hallucination validation of agent outputs.</description>
     <pubDate>Mon, 03 Feb 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
     <title>v0.6.0 — Mens Transport; Durable Workflow Runtime MVP</title>
-    <link>https://vox-foundation.github.io/vox/changelog.html</link>
-    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.6.0</guid>
+    <link>{changelog_url}</link>
+    <guid>{changelog_url}#v0.6.0</guid>
     <description>CPU-first mens registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mens activity hooks.</description>
     <pubDate>Thu, 15 Jan 2026 00:00:00 GMT</pubDate>
   </item>
 "#,
-    );
+        changelog_url = CHANGELOG_URL
+    ));
 
     xml.push_str("</channel>\n</rss>\n");
 

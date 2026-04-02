@@ -10,6 +10,13 @@ use std::collections::VecDeque;
 use crate::contract::TaskCapabilityHints;
 use crate::types::{AgentId, AgentTask, TaskId};
 
+/// [`AgentQueue::hold_for_populi_remote`] could not reserve the in-progress slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PopuliRemoteHoldError {
+    /// Another task is already running on this agent queue.
+    AgentBusy,
+}
+
 /// Per-agent priority task queue.
 ///
 /// Tasks are stored in priority order (Urgent > Normal > Background).

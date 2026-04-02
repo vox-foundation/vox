@@ -35,13 +35,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Degraded optional: MCP must keep serving stdio even if Codex is misconfigured (see
     // `vox_db::connect_policy` + `docs/src/architecture/voxdb-connect-policy.md`).
-    if let Some(db) = vox_db::connect_canonical_optional(vox_db::DbConnectSurface::Mcp, false).await
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Mcp, false).await
     {
         state = state.with_db_initialized(db).await;
-        info!("database connected and linked to state (orchestrator schema synced)");
+        info!("workspace journey database connected and linked to state (orchestrator schema synced)");
     }
 
     vox_mcp::populi_startup::publish_mesh_on_mcp_start(&state).await;
+
+    state.probe_external_orchestrator_daemon_if_configured().await;
+
+    // Optional remote/mobile control plane (HTTP + WebSocket). Disabled unless explicitly enabled.
+    let _http_gateway = vox_mcp::http_gateway::spawn_http_gateway_if_enabled(state.clone())?;
 
     let server = VoxMcpServer::new(state);
     info!("server state initialized, starting stdio transport...");

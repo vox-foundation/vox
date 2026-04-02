@@ -36,6 +36,8 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
 | `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
+| `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
+| `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
 | `VOX_MESH_TOKEN` | Populi control-plane auth (legacy full-access token) | Workflow-specific required (any mesh-class token) | Mesh transport/auth |
 | `VOX_MESH_WORKER_TOKEN` | Worker-scoped populi HTTP bearer | Optional (advance pools) | `POST` join/heartbeat/inbox/ack |
 | `VOX_MESH_SUBMITTER_TOKEN` | Submitter-scoped populi HTTP bearer | Optional | `POST` A2A deliver only |
@@ -63,6 +65,10 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 - `VOX_GITHUB_TOKEN`
 - `VOX_NEWS_GITHUB_TOKEN`
 - `GH_TOKEN`
+- `FORGE_TOKEN`
+- `VOX_FORGE_TOKEN`
+- `GITLAB_TOKEN`
+- `GL_TOKEN`
 - `VOX_NEWS_TWITTER_TOKEN`
 - `VOX_NEWS_OPENCOLLECTIVE_TOKEN`
 - `VOX_SOCIAL_REDDIT_CLIENT_ID`
@@ -78,6 +84,8 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 - `VOX_OPENREVIEW_EMAIL`
 - `OPENREVIEW_PASSWORD`
 - `VOX_OPENREVIEW_PASSWORD`
+- `POPULI_API_KEY`
+- `VOX_POPULI_API_KEY`
 - `CROSSREF_PLUS_API_KEY`
 - `VOX_CROSSREF_PLUS_API_KEY`
 - `VOX_ARXIV_ASSIST_HANDOFF_SECRET`
@@ -108,6 +116,9 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 - `VOX_DB_TOKEN`
 - `VOX_TURSO_TOKEN`
 - `TURSO_AUTH_TOKEN`
+- `VOX_TELEMETRY_UPLOAD_URL`
+- `VOX_TELEMETRY_UPLOAD_TOKEN`
+- `VOX_SEARCH_QDRANT_API_KEY`
 - `VOX_MESH_TOKEN`
 - `VOX_MESH_WORKER_TOKEN`
 - `VOX_MESH_SUBMITTER_TOKEN`

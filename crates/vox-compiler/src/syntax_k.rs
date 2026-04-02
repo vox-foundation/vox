@@ -2,6 +2,11 @@
 //!
 //! This module implements practical compression-based proxies over canonicalized
 //! output bytes and an optional NCD delta vs a baseline payload.
+//!
+//! ## Telemetry hook
+//! [`measure_syntax_k_event`] builds a versioned [`SyntaxKEvent`] for `research_metrics` rows (`syntax_k_event` metric type).
+//! JSON schema SSOT: `contracts/eval/syntax-k-event.schema.json`. Callers (e.g. CLI `vox ci` / eval harness) gate persistence
+//! on Codex attach + opt-in flags; see `docs/src/architecture/telemetry-trust-ssot.md`.
 
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};

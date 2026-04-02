@@ -60,12 +60,59 @@ CREATE TABLE IF NOT EXISTS workflow_activity_log (
     activity_name   TEXT NOT NULL,
     activity_id     TEXT NOT NULL,
     status          TEXT NOT NULL,
+    result_json     TEXT,
     recorded_at_ms  INTEGER NOT NULL,
     PRIMARY KEY (run_id, workflow_name, activity_id, status)
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflow_activity_run ON workflow_activity_log(run_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_activity_workflow ON workflow_activity_log(workflow_name);
+
+CREATE TABLE IF NOT EXISTS workflow_run_log (
+    run_id           TEXT PRIMARY KEY,
+    workflow_name    TEXT NOT NULL,
+    status           TEXT NOT NULL,
+    planned_steps    INTEGER NOT NULL DEFAULT 0,
+    completed_steps  INTEGER NOT NULL DEFAULT 0,
+    plan_session_id  TEXT,
+    plan_node_id     TEXT,
+    plan_version     INTEGER,
+    lease_owner      TEXT,
+    lease_until_ms   INTEGER,
+    started_at_ms    INTEGER NOT NULL,
+    updated_at_ms    INTEGER NOT NULL,
+    completed_at_ms  INTEGER,
+    last_error       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_run_status ON workflow_run_log(status);
+CREATE INDEX IF NOT EXISTS idx_workflow_run_workflow ON workflow_run_log(workflow_name);
+
+CREATE TABLE IF NOT EXISTS workflow_signal_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id          TEXT NOT NULL,
+    signal_key      TEXT NOT NULL,
+    payload_json    TEXT,
+    recorded_at_ms  INTEGER NOT NULL,
+    consumed_at_ms  INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_signal_run_key ON workflow_signal_log(run_id, signal_key, consumed_at_ms);
+
+CREATE TABLE IF NOT EXISTS workflow_activity_attempt_log (
+    run_id          TEXT NOT NULL,
+    workflow_name   TEXT NOT NULL,
+    activity_id     TEXT NOT NULL,
+    attempt_no      INTEGER NOT NULL,
+    status          TEXT NOT NULL,
+    worker_owner    TEXT,
+    lease_until_ms  INTEGER,
+    error           TEXT,
+    recorded_at_ms  INTEGER NOT NULL,
+    PRIMARY KEY (run_id, workflow_name, activity_id, attempt_no, status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_attempt_run_activity ON workflow_activity_attempt_log(run_id, workflow_name, activity_id);
 
 CREATE TABLE IF NOT EXISTS actor_state (
     key TEXT PRIMARY KEY,
@@ -129,4 +176,42 @@ CREATE TABLE IF NOT EXISTS plan_node_attempts (
 CREATE INDEX IF NOT EXISTS idx_plan_sessions_status ON plan_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_plan_nodes_status ON plan_nodes(status);
 CREATE INDEX IF NOT EXISTS idx_plan_attempts_node ON plan_node_attempts(plan_session_id, version, node_id);
+
+-- Repository reconstruction campaign spec (compact prompt-expanded contract).
+CREATE TABLE IF NOT EXISTS reconstruction_campaign_spec (
+    campaign_id TEXT PRIMARY KEY,
+    benchmark_tier TEXT NOT NULL,
+    objective TEXT NOT NULL,
+    spec_json TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
+-- Retrieval-first artifact state graph for reconstruction runs.
+CREATE TABLE IF NOT EXISTS reconstruction_artifacts (
+    campaign_id TEXT NOT NULL,
+    artifact_id TEXT NOT NULL,
+    artifact_kind TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    source TEXT,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL,
+    PRIMARY KEY (campaign_id, artifact_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_recon_artifacts_kind ON reconstruction_artifacts(artifact_kind);
+CREATE INDEX IF NOT EXISTS idx_recon_artifacts_campaign_kind ON reconstruction_artifacts(campaign_id, artifact_kind);
+
+-- Ladder KPIs by benchmark tier snapshot.
+CREATE TABLE IF NOT EXISTS reconstruction_benchmark_kpis (
+    campaign_id TEXT NOT NULL,
+    benchmark_tier TEXT NOT NULL,
+    elapsed_ms INTEGER NOT NULL DEFAULT 0,
+    autonomous_recovery_rate REAL NOT NULL DEFAULT 0.0,
+    regenerated_file_success_rate REAL NOT NULL DEFAULT 0.0,
+    cost_per_success_step REAL NOT NULL DEFAULT 0.0,
+    recorded_at_ms INTEGER NOT NULL,
+    PRIMARY KEY (campaign_id, benchmark_tier)
+);
 ";

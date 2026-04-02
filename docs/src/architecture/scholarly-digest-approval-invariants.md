@@ -1,3 +1,9 @@
+---
+title: "Scholarly publication: digest-bound approval invariants"
+description: "Invariants for CLI, MCP, and publisher worker paths: dual approvers tied to manifest digest, job row digest consistency with publication_manifests, adapter error handling, and preflight ledger semantics."
+category: "architecture"
+---
+
 # Scholarly publication: digest-bound approval invariants
 
 These rules apply to **CLI** (`vox db publication-submit-local`, `publication-external-jobs-tick`), **MCP** (`vox_scientia_publication_submit_local`, `vox_scientia_publication_external_jobs_tick`), and the shared worker in [`vox_publisher::scholarly_external_jobs`](../../../crates/vox-publisher/src/scholarly_external_jobs.rs).
@@ -15,7 +21,7 @@ These rules apply to **CLI** (`vox db publication-submit-local`, `publication-ex
 ## Adapter routes
 
 - New HTTP-backed adapters must:
-  - Respect [`VOX_SCHOLARLY_DISABLE*`](../../reference/env-vars.md) (see [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs)).
+  - Respect [`VOX_SCHOLARLY_DISABLE*`](../reference/env-vars.md) (see [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs)).
   - Return failures as [`ScholarlyError`](../../../crates/vox-publisher/src/scholarly/error.rs) so `error_class`, `retryable`, and `scholarly_http_status_code` populate `external_submission_attempts` consistently.
   - Use [`classify_scholarly_http`](../../../crates/vox-publisher/src/scholarly/error.rs) for HTTP error mapping unless the adapter needs venue-specific classification (then extend the shared helper rather than forking logic).
 

@@ -22,12 +22,12 @@ pub(crate) fn parse_github_owner_repo(url: &str) -> Option<(String, String)> {
     Some((owner, repo))
 }
 
-/// Resolve GitHub token: `GITHUB_TOKEN` / `GH_TOKEN`.
-pub(crate) fn github_token() -> Result<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::GitHubToken)
+/// Resolve Forge token: `FORGE_TOKEN` / `GITHUB_TOKEN`.
+pub(crate) fn forge_token() -> Result<String> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::ForgeToken)
         .expose()
         .map(std::string::ToString::to_string)
-        .context("GITHUB_TOKEN or GH_TOKEN required. Set env or configure Clavis.")
+        .context("Forge token required: set FORGE_TOKEN, GITHUB_TOKEN, or GITLAB_TOKEN.")
 }
 
 pub(crate) fn owner_repo_from_path(path: &Path) -> Result<(String, String)> {

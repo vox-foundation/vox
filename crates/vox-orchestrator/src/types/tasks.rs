@@ -116,6 +116,19 @@ pub enum TaskCategory {
     Review,
 }
 
+/// Populi mesh holds execution authority for this task; local actors must not dequeue it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PopuliRemoteDelegate {
+    /// Same key as [`crate::a2a::RemoteTaskEnvelope::idempotency_key`] for cancel/result correlation.
+    pub idempotency_key: String,
+    /// Populi execution lease id when lease APIs are active for this task class.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_id: Option<String>,
+    /// Claimer node identity used for lease renew/release calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimer_node_id: Option<String>,
+}
+
 /// Optional hints applied at enqueue time and merged into [`AgentTask`] for routing / telemetry.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskEnqueueHints {
@@ -140,6 +153,12 @@ pub struct TaskEnqueueHints {
     /// Optional explicit specialization role for multi-agent protocol runs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_role: Option<crate::reconstruction::AgentExecutionRole>,
+    /// Optional logical thread id preserving branch continuity inside a session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
+    /// Optional portable harness contract supplied by the caller.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_spec_json: Option<String>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
@@ -151,6 +170,10 @@ pub struct CompletionAttestation {
     /// Optional list of checks the caller claims were run.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub checks_passed: Vec<String>,
+    /// Evidence references that must appear in the session [`crate::ContextEnvelope`] (substring match).
+    /// Also see `[[voxcite:...]]` markers in [`Self::completion_summary`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_citations: Vec<String>,
     /// Optional artifacts produced by the task (workspace-relative paths preferred).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifact_paths: Vec<PathBuf>,
@@ -184,6 +207,9 @@ pub struct TaskDescriptor {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Optional logical thread id preserving branch continuity for handoff or remote execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
 }
 
 /// A unit of work to be executed by an agent.
@@ -233,6 +259,9 @@ pub struct AgentTask {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Optional logical thread id preserving branch continuity for handoff or remote execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
     /// Effective attention weight computed at gate time (Phase 15). 0.0 = not yet computed.
     #[serde(default, skip_serializing_if = "is_zero_f64")]
     pub attention_weight: f64,
@@ -260,6 +289,12 @@ pub struct AgentTask {
     /// Optional explicit execution role (planner/builder/verifier/reproducer/researcher).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_role: Option<crate::reconstruction::AgentExecutionRole>,
+    /// Optional portable harness contract attached to the task for relay, audit, and replay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_spec_json: Option<String>,
+    /// When set, this task was handed to Populi A2A remote execution; local queue must not run it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub populi_remote_delegate: Option<PopuliRemoteDelegate>,
 }
 
 impl AgentTask {
@@ -290,6 +325,7 @@ impl AgentTask {
             socrates: None,
             capability_requirements: None,
             session_id: None,
+            thread_id: None,
             attention_weight: 0.0,
             approval_tier: None,
             plan_session_id: None,
@@ -299,6 +335,8 @@ impl AgentTask {
             campaign_id: None,
             benchmark_tier: None,
             execution_role: None,
+            harness_spec_json: None,
+            populi_remote_delegate: None,
         }
     }
 
@@ -456,6 +494,8 @@ mod tests {
             campaign_id: Some("camp-123".to_string()),
             benchmark_tier: Some(crate::reconstruction::ReconstructionBenchmarkTier::CrateRegen),
             execution_role: Some(crate::reconstruction::AgentExecutionRole::Verifier),
+            thread_id: Some("thread-123".to_string()),
+            harness_spec_json: Some("{\"schema_version\":1}".to_string()),
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");
@@ -468,5 +508,7 @@ mod tests {
             back.execution_role,
             Some(crate::reconstruction::AgentExecutionRole::Verifier)
         );
+        assert_eq!(back.thread_id.as_deref(), Some("thread-123"));
+        assert_eq!(back.harness_spec_json.as_deref(), Some("{\"schema_version\":1}"));
     }
 }

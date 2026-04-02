@@ -3,10 +3,10 @@
 use serde::{Deserialize, Serialize};
 use vox_socrates_policy::{ConfidencePolicy, RiskBand, RiskDecision};
 
-/// Context-store key prefix shared with MCP (`vox_chat_message` stores JSON here per session).
+/// Context-store key prefix for canonical context envelope JSON persisted per session.
 #[must_use]
-pub fn session_retrieval_envelope_key(session_id: &str) -> String {
-    format!("retrieval_envelope:{session_id}")
+pub fn session_context_envelope_key(session_id: &str) -> String {
+    format!("context_envelope:{session_id}")
 }
 
 /// Retrieval telemetry shape persisted by MCP (extra fields ignored on deserialize).
@@ -22,6 +22,11 @@ pub struct SessionRetrievalEnvelope {
     #[serde(default)]
     pub chunk_hit_count: usize,
     #[serde(default)]
+    pub repo_hit_count: usize,
+    /// RRF fused excerpt count (matches MCP [`RetrievalEvidenceEnvelope::rrf_fused_hit_count`] JSON).
+    #[serde(default)]
+    pub rrf_fused_hit_count: usize,
+    #[serde(default)]
     pub used_vector: bool,
     #[serde(default)]
     pub used_bm25: bool,
@@ -29,9 +34,36 @@ pub struct SessionRetrievalEnvelope {
     pub used_lexical_fallback: bool,
     #[serde(default)]
     pub contradiction_count: usize,
+    #[serde(default)]
+    pub source_diversity: usize,
+    #[serde(default)]
+    pub evidence_quality: f64,
+    #[serde(default)]
+    pub citation_coverage: f64,
+    #[serde(default)]
+    pub verification_performed: bool,
+    #[serde(default)]
+    pub verification_reason: Option<String>,
+    #[serde(default)]
+    pub recommended_next_action: Option<String>,
 }
 
 impl SessionRetrievalEnvelope {
+    /// Parse retrieval envelope projection from a canonical context envelope payload.
+    #[must_use]
+    pub fn from_context_envelope(env: &crate::ContextEnvelope) -> Option<Self> {
+        if !matches!(
+            env.envelope_type,
+            crate::ContextEnvelopeType::RetrievalEvidence
+        ) {
+            return None;
+        }
+        env.content
+            .structured_payload
+            .as_ref()
+            .and_then(|v| serde_json::from_value::<Self>(v.clone()).ok())
+    }
+
     /// Refreshes evidence fields from a new retrieval pass while preserving budget hints
     /// (`risk_budget`, `factual_mode`) from a prior task context.
     #[must_use]
@@ -46,6 +78,15 @@ impl SessionRetrievalEnvelope {
         base.required_citations = fresh.required_citations;
         base.evidence_count = fresh.evidence_count;
         base.contradiction_hints = fresh.contradiction_hints;
+        base.source_diversity = fresh.source_diversity;
+        base.evidence_quality = fresh.evidence_quality;
+        base.citation_coverage = fresh.citation_coverage;
+        base.verification_performed = fresh.verification_performed;
+        base.verification_reason = fresh.verification_reason;
+        base.recommended_next_action = fresh.recommended_next_action;
+        if fresh.retrieval_diagnosis.is_some() {
+            base.retrieval_diagnosis = fresh.retrieval_diagnosis;
+        }
         base
     }
 
@@ -54,16 +95,21 @@ impl SessionRetrievalEnvelope {
     pub fn to_task_context(&self) -> SocratesTaskContext {
         let doc_graph_hits = self
             .knowledge_hit_count
-            .saturating_add(self.chunk_hit_count);
-        let required_citations = if self.memory_hit_count == 0 && doc_graph_hits == 0 {
-            1_u8
+            .saturating_add(self.chunk_hit_count)
+            .saturating_add(self.repo_hit_count);
+        let required_citations =
+            if self.memory_hit_count == 0 && doc_graph_hits == 0 && self.rrf_fused_hit_count == 0 {
+                1_u8
+            } else {
+                0_u8
+            };
+        let base_total = self.memory_hit_count.saturating_add(doc_graph_hits);
+        let evidence_total = (if base_total == 0 && self.rrf_fused_hit_count > 0 {
+            1usize
         } else {
-            0_u8
-        };
-        let evidence_total = self
-            .memory_hit_count
-            .saturating_add(doc_graph_hits)
-            .min(u8::MAX as usize) as u8;
+            base_total
+        })
+        .min(u8::MAX as usize) as u8;
         SocratesTaskContext {
             risk_budget: "normal".to_string(),
             factual_mode: true,
@@ -73,8 +119,36 @@ impl SessionRetrievalEnvelope {
             retrieval_tier: Some(self.retrieval_tier.clone()),
             retrieval_used_vector: self.used_vector,
             retrieval_used_lexical_fallback: self.used_lexical_fallback,
+            source_diversity: self.source_diversity.min(u8::MAX as usize) as u8,
+            evidence_quality: self.evidence_quality.clamp(0.0, 1.0),
+            citation_coverage: self.citation_coverage.clamp(0.0, 1.0),
+            verification_performed: self.verification_performed,
+            verification_reason: self.verification_reason.clone(),
+            recommended_next_action: self.recommended_next_action.clone(),
+            retrieval_diagnosis: None,
+            fatigue_active: false,
         }
     }
+}
+
+/// Corpus-level retrieval outcome for critique loops (orchestrator / MCP parity).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RetrievalDiagnosis {
+    /// Corpora that returned at least one hit.
+    #[serde(default)]
+    pub corpora_with_hits: Vec<String>,
+    /// Corpora in the planner set that returned no hits.
+    #[serde(default)]
+    pub corpora_empty: Vec<String>,
+    /// Effective [`vox_search::SearchPolicy::version`].
+    #[serde(default)]
+    pub policy_version: u32,
+    /// `Debug` lowercased intent label from [`vox_db::SearchPlan`].
+    #[serde(default)]
+    pub planner_intent: String,
+    /// High-level shape of remaining risk for refiners.
+    #[serde(default)]
+    pub evidence_shape: String,
 }
 
 /// Structured evidence / risk hints attached to an [`crate::types::AgentTask`].
@@ -104,6 +178,28 @@ pub struct SocratesTaskContext {
     /// True when retrieval had to fall back to lexical substring matching.
     #[serde(default)]
     pub retrieval_used_lexical_fallback: bool,
+    /// Number of distinct corpora that returned evidence.
+    #[serde(default)]
+    pub source_diversity: u8,
+    /// Retrieval-side evidence quality proxy in `[0, 1]`.
+    #[serde(default)]
+    pub evidence_quality: f64,
+    /// Retrieval-side citation coverage proxy in `[0, 1]`.
+    #[serde(default)]
+    pub citation_coverage: f64,
+    /// Whether a verification pass was already attempted before completion.
+    #[serde(default)]
+    pub verification_performed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verification_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_next_action: Option<String>,
+    /// Optional orchestrator-owned retrieval diagnosis (native search path).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retrieval_diagnosis: Option<RetrievalDiagnosis>,
+    /// Phase 2B: Indicates if human is working while fatigued. Prompts Socratic Verification Lockout.
+    #[serde(default)]
+    pub fatigue_active: bool,
 }
 
 /// Result of applying the completion gate.
@@ -138,7 +234,7 @@ pub fn evaluate_socrates_gate(
         (f64::from(ctx.evidence_count) / f64::from(ctx.required_citations)).clamp(0.0, 1.0)
     };
 
-    let mut confidence = coverage;
+    let mut confidence = coverage.max(ctx.citation_coverage);
     if matches!(ctx.retrieval_tier.as_deref(), Some("hybrid") | Some("bm25")) {
         confidence = (confidence + 0.05).clamp(0.0, 1.0);
     }
@@ -148,6 +244,35 @@ pub fn evaluate_socrates_gate(
     if ctx.factual_mode && ctx.required_citations > 0 && ctx.evidence_count < ctx.required_citations
     {
         confidence *= policy.abstain_threshold;
+    }
+    confidence = (confidence + (ctx.evidence_quality.clamp(0.0, 1.0) * 0.10)).clamp(0.0, 1.0);
+    if ctx.source_diversity > 1 {
+        confidence = (confidence + 0.04).clamp(0.0, 1.0);
+    }
+    if ctx.verification_performed && ctx.evidence_quality >= 0.60 {
+        confidence = (confidence + 0.03).clamp(0.0, 1.0);
+    }
+
+    if let Some(ref diag) = ctx.retrieval_diagnosis {
+        match diag.evidence_shape.as_str() {
+            "contradictory" => {
+                confidence = (confidence - 0.10).clamp(0.0, 1.0);
+            }
+            "empty" => {
+                confidence = (confidence - 0.12).clamp(0.0, 1.0);
+            }
+            "narrow" => {
+                confidence = (confidence - 0.03).clamp(0.0, 1.0);
+            }
+            _ => {}
+        }
+    }
+
+    if ctx.fatigue_active {
+        // High penalty for Socratic Verification Lockout (Phase 2B).
+        // This forces either explicit manual override or strict compliance to prevent sloppy
+        // commits when the human is compromised due to burnout/late hours.
+        confidence = (confidence - 0.40).clamp(0.0, 1.0);
     }
 
     let band = policy.classify_risk(confidence, contradiction_ratio);
@@ -176,5 +301,78 @@ mod tests {
         };
         let o = evaluate_socrates_gate(&ctx, &p);
         assert_eq!(o.decision, RiskDecision::Abstain);
+    }
+
+    #[test]
+    fn retrieval_diagnosis_contradictory_lowers_confidence() {
+        let p = ConfidencePolicy::default();
+        let base_ctx = SocratesTaskContext {
+            factual_mode: false,
+            required_citations: 0,
+            evidence_count: 5,
+            evidence_quality: 0.9,
+            citation_coverage: 0.9,
+            ..Default::default()
+        };
+        let mut with_diag = base_ctx.clone();
+        with_diag.retrieval_diagnosis = Some(RetrievalDiagnosis {
+            evidence_shape: "contradictory".into(),
+            ..Default::default()
+        });
+        let with = evaluate_socrates_gate(&with_diag, &p);
+        let without = evaluate_socrates_gate(&base_ctx, &p);
+        assert!(with.confidence < without.confidence);
+    }
+
+    #[test]
+    fn session_envelope_rrf_hits_satisfy_evidence_floor() {
+        let env = SessionRetrievalEnvelope {
+            retrieval_tier: "hybrid".to_string(),
+            memory_hit_count: 0,
+            knowledge_hit_count: 0,
+            chunk_hit_count: 0,
+            repo_hit_count: 0,
+            rrf_fused_hit_count: 3,
+            used_vector: true,
+            used_bm25: false,
+            used_lexical_fallback: false,
+            contradiction_count: 0,
+            source_diversity: 0,
+            evidence_quality: 0.0,
+            citation_coverage: 0.0,
+            verification_performed: false,
+            verification_reason: None,
+            recommended_next_action: None,
+        };
+        let ctx = env.to_task_context();
+        assert_eq!(ctx.required_citations, 0);
+        assert_eq!(ctx.evidence_count, 1);
+    }
+
+    #[test]
+    fn session_envelope_can_parse_from_context_envelope_projection() {
+        let retrieval = SessionRetrievalEnvelope {
+            retrieval_tier: "hybrid".to_string(),
+            memory_hit_count: 1,
+            knowledge_hit_count: 2,
+            chunk_hit_count: 3,
+            repo_hit_count: 4,
+            rrf_fused_hit_count: 5,
+            used_vector: true,
+            used_bm25: true,
+            used_lexical_fallback: false,
+            contradiction_count: 1,
+            source_diversity: 3,
+            evidence_quality: 0.9,
+            citation_coverage: 0.8,
+            verification_performed: true,
+            verification_reason: Some("contradiction_detected".to_string()),
+            recommended_next_action: Some("retry_hybrid".to_string()),
+        };
+        let env = crate::ContextEnvelope::from_session_retrieval("repo-1", "sid-1", &retrieval);
+        let parsed = SessionRetrievalEnvelope::from_context_envelope(&env).expect("parse");
+        assert_eq!(parsed.retrieval_tier, "hybrid");
+        assert_eq!(parsed.memory_hit_count, 1);
+        assert_eq!(parsed.rrf_fused_hit_count, 5);
     }
 }

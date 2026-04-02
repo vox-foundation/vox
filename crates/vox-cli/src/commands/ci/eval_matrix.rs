@@ -43,10 +43,19 @@ const FILTER_MENS_HUB_TESTS: &str = "mens::hub::tests";
 const FILTER_COMPILER_SYNTAX_K_GOLDEN: &str = "all_golden_vox_examples_parse_and_lower";
 const FILTER_COMPILER_SYNTAX_K_PARITY: &str = "syntax_k_artifact_for_parity_chain";
 const FILTER_COMPILER_SYNTAX_K_GATE: &str = "syntax_k_regression_gate_observe_only";
+const FILTER_CONTEXT_ENVELOPE_ORCH: &str =
+    "context_envelope_projection_validates_against_contract_schema";
+const FILTER_CONTEXT_ENVELOPE_MCP: &str =
+    "retrieval_evidence_projection_validates_against_context_envelope_schema";
+const FILTER_AGENT_HARNESS_CONTRACT: &str =
+    "agent_harness_projection_validates_against_contract_schema";
+const FILTER_CONTEXT_LIFECYCLE_TELEMETRY_FIXTURES: &str =
+    "context_lifecycle_telemetry_fixtures_validate_against_schema";
 
 /// Every `benchmark_classes` id in the matrix + JSON Schema enum; sorted lexicographically.
 pub(crate) const BENCHMARK_CLASS_IDS: &[&str] = &[
     "contracts_eval_benchmark_matrix_schema",
+    "vox_agent_harness_contract",
     "vox_ci_command_compliance",
     "vox_cli_dispatch_dei_schema",
     "vox_cli_gpu_check",
@@ -54,6 +63,7 @@ pub(crate) const BENCHMARK_CLASS_IDS: &[&str] = &[
     "vox_compiler_syntax_k_emit",
     "vox_compiler_syntax_k_regression_gate",
     "vox_compiler_syntax_k_webir",
+    "vox_context_envelope_contract",
     "vox_doc_inventory_relevance_score",
     "vox_mcp_introspection_language_surface",
     "vox_mcp_route_telemetry_parity",
@@ -233,6 +243,52 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
                 FILTER_ORCH_A2A_MESSAGE_IDS,
             ],
         ),
+        "vox_agent_harness_contract" => cargo_test_nocapture(
+            repo_root,
+            &[
+                "test",
+                "-p",
+                PKG_VOX_ORCHESTRATOR,
+                "--test",
+                "agent_harness_contract",
+                FILTER_AGENT_HARNESS_CONTRACT,
+            ],
+        ),
+        "vox_context_envelope_contract" => {
+            cargo_test_nocapture(
+                repo_root,
+                &[
+                    "test",
+                    "-p",
+                    PKG_VOX_ORCHESTRATOR,
+                    "--test",
+                    "context_envelope_contract",
+                    FILTER_CONTEXT_ENVELOPE_ORCH,
+                ],
+            )?;
+            cargo_test_nocapture(
+                repo_root,
+                &[
+                    "test",
+                    "-p",
+                    PKG_VOX_ORCHESTRATOR,
+                    "--test",
+                    "context_lifecycle_telemetry_fixtures",
+                    FILTER_CONTEXT_LIFECYCLE_TELEMETRY_FIXTURES,
+                ],
+            )?;
+            cargo_test_nocapture(
+                repo_root,
+                &[
+                    "test",
+                    "-p",
+                    PKG_VOX_MCP,
+                    "--test",
+                    "retrieval_evidence_context_envelope_contract",
+                    FILTER_CONTEXT_ENVELOPE_MCP,
+                ],
+            )
+        }
         "vox_mcp_introspection_language_surface" => cargo_test_nocapture(
             repo_root,
             &["test", "-p", PKG_VOX_MCP, FILTER_MCP_LANGUAGE_SURFACE],

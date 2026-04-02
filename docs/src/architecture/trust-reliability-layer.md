@@ -1,3 +1,9 @@
+---
+title: "Trust Reliability Layer (SSOT)"
+description: "Defines unified trust observation vocabulary, trust_observations / trust_rollups persistence, EWMA rollups, producers and consumers (orchestrator, endpoints, Socrates), degradation/outbox health signals, and MCP/CLI trust surfaces."
+category: "architecture"
+---
+
 # Trust Reliability Layer (SSOT)
 
 This document defines the current trust/reliability architecture used by orchestrator routing, Socrates telemetry, endpoint reliability, and downstream analytics.
@@ -46,6 +52,17 @@ Current producers that write into the trust layer:
 - endpoint reliability writes `endpoint` observations for factuality/contradiction/infra dimensions
 - Socrates surface telemetry writes `model` observations for factuality/contradiction/refusal dimensions
 
+When persistence writes fail in task completion/failure paths, orchestrator now emits explicit degradation signals in shared context keys under:
+
+- `orchestrator/persistence_health/trust/reliability_observation`
+- `orchestrator/persistence_health/trust/observation`
+- `orchestrator/persistence_health/lineage/task_completed`
+- `orchestrator/persistence_health/lineage/task_failed`
+
+Each key carries `status`, `degraded_count`, `last_error`, and `last_error_unix_ms` so operators can detect silent durability regressions.
+
+The orchestrator also writes outbox lifecycle health to `orchestrator/persistence_outbox_lifecycle` with `queued`, `pruned_last_run`, `retried_last_run`, `replayed_last_run`, and `last_run_unix_ms`. Replay diagnostics now include `replay_failed_last_run` (count of replay attempts that failed in the latest tick) and `replay_failed_by_op` (map keyed by replay operation label, usually `replay.op`, with `unknown` fallback) so operators can identify stuck replay classes without inspecting raw queue payloads.
+
 ## Runtime consumers
 
 Current consumers:
@@ -53,8 +70,13 @@ Current consumers:
 - routing uses scoped `agent` `task_completion` trust rollups as floor + weighted utility
 - `vox db reliability-list --domain trust` shows trust rollups for operators
 - MCP `vox_db_trust_rollups` lists scoped rollup rows; `vox_db_trust_summary` returns grouped aggregates (by dimension, domain, entity type, or combined keys); `vox_db_trust_drift` compares recent vs prior window means on raw observations; `vox_db_trust_propagate` runs domain-clique affinity smoothing over model rollups (optional persist to `*_propagated` dimensions)
+- `vox_db_trust_drift` can now include forensic payloads when requested:
+  - `include_raw_observations: true` returns raw `trust_observations` rows (optionally filtered by `task_id`/`since_ms`/`raw_limit`)
+  - `include_lineage_for_task: true` with `task_id` and repository scope returns task lineage rows for trust/lineage correlation
 - `vox ci mens-scorecard ingest-trust --summary <path>` ingests a validated `vox_mens_scorecard_summary_v1` `summary.json` into `trust_observations` / rollups for the workspace repository id
 - `vox_scientia_worthiness_evaluate` with `with_live_trust: true` attaches `live_trust_rollups` summaries for the workspace repository when VoxDb is connected
+- MCP `vox_orchestrator_status` now includes `persistence_outbox_lifecycle` so clients can read outbox replay health (`replayed_last_run`, `replay_failed_last_run`, `replay_failed_by_op`) without direct context-store access
+- MCP also provides dedicated outbox inspection tools: `vox_orchestrator_persistence_outbox_lifecycle` (typed lifecycle snapshot) and `vox_orchestrator_persistence_outbox_queue` (queued lane entries with optional lane filter and replay redaction)
 
 ## Notes on score semantics
 

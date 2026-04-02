@@ -34,6 +34,7 @@ pub async fn run_train(
     tokenizer_mode: vox_populi::mens::MensTokenizerMode,
     qlora_no_double_quant: bool,
     qlora_require_full_proxy_stack: bool,
+    qlora_allow_partial_proxy_stack: bool,
     qlora_max_skip_rate: Option<f32>,
     qlora_lm_head_only: bool,
     qlora_proxy_max_layers: Option<usize>,
@@ -77,14 +78,40 @@ pub async fn run_train(
     {
         anyhow::bail!(vox_populi::mens::operator_messages::QLORA_REQUIRES_HF_TOKENIZER);
     }
+    if qlora_allow_partial_proxy_stack && qlora_require_full_proxy_stack {
+        anyhow::bail!(
+            "`--qlora-allow-partial-proxy-stack` cannot be combined with `--qlora-require-full-proxy-stack`."
+        );
+    }
     if let Some(r) = qlora_max_skip_rate {
         if !r.is_finite() || !(0.0..=1.0).contains(&r) {
             anyhow::bail!("--qlora-max-skip-rate must be between 0.0 and 1.0 (got {r})");
         }
     }
-    if qlora_require_full_proxy_stack && qlora_lm_head_only {
+
+    let mut model = model;
+    if matches!(
+        train_backend,
+        vox_populi::mens::PopuliTrainBackend::CandleQlora
+    ) && model.is_none()
+    {
+        model = Some(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+        tracing::info!(
+            model = %vox_populi::mens::DEFAULT_MODEL_ID,
+            "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
+        );
+    }
+
+    let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack
+        && (qlora_require_full_proxy_stack
+            || (matches!(
+                train_backend,
+                vox_populi::mens::PopuliTrainBackend::CandleQlora
+            ) && matches!(device_kind, vox_populi::mens::DeviceKind::Cuda)));
+
+    if effective_qlora_require_full_proxy_stack && qlora_lm_head_only {
         anyhow::bail!(
-            "--qlora-require-full-proxy-stack conflicts with --qlora-lm-head-only; pick one."
+            "Full proxy stack (CUDA default or `--qlora-require-full-proxy-stack`) conflicts with `--qlora-lm-head-only`; pick one."
         );
     }
     if qlora_lm_head_only && qlora_proxy_max_layers.is_some_and(|m| m > 0) {
@@ -136,6 +163,8 @@ pub async fn run_train(
         seed,
         qlora_no_double_quant,
         qlora_require_full_proxy_stack,
+        qlora_allow_partial_proxy_stack,
+        effective_qlora_require_full_proxy_stack,
         qlora_lm_head_only,
         ?qlora_max_skip_rate,
         ?qlora_proxy_max_layers,
@@ -213,7 +242,7 @@ pub async fn run_train(
     );
 
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
-    eprintln!("{}", "║   Vox Mens — Native LoRA Training     ║".cyan());
+    eprintln!("{}", "║   VoxMens — native fine-tuning (QLoRA)  ║".cyan());
     eprintln!("{}", "╚══════════════════════════════════════════╝".cyan());
     eprintln!();
     eprintln!(
@@ -259,7 +288,7 @@ pub async fn run_train(
             deployment_target,
             tokenizer_mode,
             qlora_no_double_quant,
-            qlora_require_full_proxy_stack,
+            effective_qlora_require_full_proxy_stack,
             qlora_max_skip_rate,
             qlora_lm_head_only,
             qlora_proxy_max_layers,
@@ -316,6 +345,7 @@ pub async fn run_train(
             tokenizer_mode,
             qlora_no_double_quant,
             qlora_require_full_proxy_stack,
+            qlora_allow_partial_proxy_stack,
             qlora_max_skip_rate,
             qlora_lm_head_only,
             qlora_proxy_max_layers,

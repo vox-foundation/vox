@@ -50,7 +50,7 @@ impl UnwiredModuleDetector {
                 continue;
             };
             let inc_path = parent.join(rel);
-            if let Ok(body) = crate::bounded_fs::read_utf8_path_capped(&inc_path) {
+            if let Ok(body) = vox_bounded_fs::read_utf8_path_capped(&inc_path) {
                 out.push('\n');
                 out.push_str(&body);
             }

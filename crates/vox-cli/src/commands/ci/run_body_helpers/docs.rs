@@ -8,10 +8,13 @@ use super::guards::run_sql_surface_guard;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
+use crate::commands::ci::completion_quality;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
 use crate::commands::ci::contracts_index;
+use crate::commands::ci::exec_policy_contract;
+use crate::commands::ci::scientia_novelty_ledger_contract;
 use crate::commands::ci::scientia_worthiness_contract;
 
 pub(crate) fn run_manifest(root: &Path) -> Result<()> {
@@ -104,6 +107,7 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
         "crates/vox-mens/",
         "crates/vox-codex-api/",
     ];
+    const DOC_PATH_BANNED: &[&str] = &["docs/how-to-ai-agents.md", "docs/src/how-to-ai-agents.md"];
 
     let wf_dir = root.join(".github/workflows");
     if wf_dir.is_dir() {
@@ -128,10 +132,16 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
         }
     }
 
-    let docs_src = root.join("docs/src");
-    if docs_src.is_dir() {
+    let docs_dir = root.join("docs");
+    if docs_dir.is_dir() {
         let mut files = Vec::new();
-        collect_text_files_under(&docs_src, &mut files)?;
+        collect_text_files_under(&docs_dir, &mut files)?;
+        for rel in ["README.md", "AGENTS.md", "CONTRIBUTING.md"] {
+            let p = root.join(rel);
+            if p.is_file() {
+                files.push(p);
+            }
+        }
         for p in files {
             let ext = p.extension().and_then(|x| x.to_str());
             if ext != Some("md") && ext != Some("yml") && ext != Some("yaml") {
@@ -156,6 +166,15 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
                     ));
                 }
             }
+            for b in DOC_PATH_BANNED {
+                if text.contains(b) {
+                    return Err(anyhow!(
+                        "{}: stale docs path {:?} — link the canonical mdBook path instead",
+                        p.display(),
+                        b
+                    ));
+                }
+            }
         }
     }
 
@@ -170,7 +189,7 @@ fn collect_text_files_under(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let t = entry.file_type()?;
         if t.is_dir() {
             let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if name == "target" || name == ".git" || name == "book" {
+            if name == "target" || name == ".git" || name == "book" || name == "theme" {
                 continue;
             }
             collect_text_files_under(&p, out)?;
@@ -210,17 +229,13 @@ fn parse_workspace_crate_block(md: &str) -> std::collections::HashSet<String> {
 
 fn read_package_name(toml_path: &Path) -> Result<String> {
     let text = read_utf8_path_capped(toml_path)?;
-    let re = regex::Regex::new(r#"^name\s*=\s*"([^"]+)""#)?;
-    for line in text.lines() {
-        let t = line.trim();
-        if let Some(c) = re.captures(t) {
-            return Ok(c.get(1).unwrap().as_str().to_string());
-        }
-    }
-    Err(anyhow!(
-        "could not read package name from {}",
-        toml_path.display()
-    ))
+    let v: toml::Value =
+        toml::from_str(&text).with_context(|| format!("parse TOML {}", toml_path.display()))?;
+    v.get("package")
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .map(str::to_string)
+        .ok_or_else(|| anyhow!("could not read package.name from {}", toml_path.display()))
 }
 
 fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
@@ -263,6 +278,21 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
             manifest_path.display()
         ));
     }
+    let digest_expected = v
+        .get("policy")
+        .and_then(|p| p.get("repository_baseline_digest_hex"))
+        .and_then(|x| x.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if let Some(ed) = digest_expected {
+        let digest_got = vox_db::schema::schema_baseline_digest_hex();
+        if digest_got != ed {
+            return Err(anyhow!(
+                "baseline digest mismatch: {} policy.repository_baseline_digest_hex={ed:?}, vox_db baseline_sql Keccak256={digest_got:?} (update the contract when SCHEMA_FRAGMENTS or schema::spec DDL changes)",
+                policy_path.display()
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -271,9 +301,14 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     check_codex_ssot(root)?;
     // Full-workspace scan; transitional allowlist in docs/agents/sql-connection-api-allowlist.txt
     run_sql_surface_guard(root, true)?;
+    crate::commands::ci::operations_catalog::verify(root)?;
     command_compliance::run(root)?;
+    crate::commands::ci::capability_sync::run(root, false)?;
     contracts_index::run(root)?;
+    exec_policy_contract::run(root)?;
+    completion_quality::run_audit_verify_ssot(root)?;
     scientia_worthiness_contract::run(root)?;
+    scientia_novelty_ledger_contract::run(root)?;
     super::run_data_ssot_guards(root)?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())

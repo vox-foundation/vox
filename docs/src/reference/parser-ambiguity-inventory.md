@@ -34,5 +34,5 @@ Automated **no-panic** corpus: [`crates/vox-compiler/tests/parser_corpus_no_pani
 
 ## Related
 
-- [Lexer / tokens — lexicon](lexicon.md)
-- [STYLE / examples](../../examples/STYLE.md)
+- [Lexer / tokens — lexicon](ref-language.md)
+- [STYLE / examples](../../../examples/STYLE.md)

@@ -10,6 +10,15 @@ const vscode = getVsCodeApi();
 const surfaceMuted = 'var(--vscode-descriptionForeground, rgba(161,161,170,1))';
 const accentText = 'var(--vscode-textLink-foreground, #60a5fa)';
 
+function opRowTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
+  const normalized = status.toLowerCase();
+  if (normalized.includes('run')) return 'info';
+  if (normalized.includes('success') || normalized.includes('complete')) return 'success';
+  if (normalized.includes('fail') || normalized.includes('error')) return 'danger';
+  if (normalized.includes('queue') || normalized.includes('block')) return 'warning';
+  return 'neutral';
+}
+
 export const Dashboard = ({ ops = [], stats = {}, pipeline = null }: any) => {
   return (
     <div
@@ -34,7 +43,8 @@ export const Dashboard = ({ ops = [], stats = {}, pipeline = null }: any) => {
           </div>
         </h2>
         <p className="text-sm max-w-2xl font-medium tracking-wide" style={{ color: surfaceMuted }}>
-          Orchestrator monitoring and compiler telemetry from the connected MCP server.
+          Orchestrator monitoring and compiler telemetry from the connected MCP server (operator diagnostics; disclosure SSOT:
+          docs/src/architecture/telemetry-client-disclosure-ssot.md).
         </p>
       </div>
 

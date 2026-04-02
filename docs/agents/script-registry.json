@@ -181,14 +181,14 @@
     {
       "path": "scripts/run_qwen25_qlora_real_4080.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir target/dogfood --output-dir mens/runs/qwen25_real --device cuda --background --log-dir mens/runs/logs (build: cargo vox-cuda-release)",
+      "replacement": "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_real --device cuda --background --log-dir mens/runs/logs (SSOT base model when --model omitted; build: cargo vox-cuda-release)",
       "status": "operator",
       "notes": "Windows helper: build + background QLoRA; SSOT: docs/src/architecture/mens-training-ssot.md"
     },
     {
       "path": "scripts/populi/dogfood_qlora_cuda.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir target/dogfood --output-dir mens/runs/qwen25_qlora_dogfood --device cuda --background --log-dir mens/runs/logs",
+      "replacement": "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_qlora_dogfood --device cuda --background --log-dir mens/runs/logs",
       "status": "operator"
     },
     {

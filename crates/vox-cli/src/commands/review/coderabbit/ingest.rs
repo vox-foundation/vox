@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tracing::debug;
 use vox_git::GitBridge;
 
-use super::github::{github_token, parse_github_owner_repo};
+use super::github::{forge_token, parse_github_owner_repo};
 
 /// Normalized review item schema (ingestion output).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -311,7 +311,7 @@ pub async fn ingest_pr(pr_number: u64, path: &Path) -> Result<Vec<NormalizedRevi
     let (owner, repo) =
         parse_github_owner_repo(&remote_url).context("Parse owner/repo from remote URL")?;
 
-    let token = github_token()?;
+    let token = forge_token()?;
     let comments = fetch_all_pr_comments(&token, &owner, &repo, pr_number).await?;
 
     let mut items = Vec::new();

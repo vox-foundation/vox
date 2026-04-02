@@ -7,7 +7,7 @@ last_updated: 2026-03-25
 
 # First `.vox` app — checkpoints
 
-Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and [golden examples](../../examples/golden/hello.vox).
+Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and [golden examples](../../../examples/golden/hello.vox).
 
 ## Checkpoint A — parse
 

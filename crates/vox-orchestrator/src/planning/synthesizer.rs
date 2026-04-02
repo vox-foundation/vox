@@ -118,6 +118,60 @@ fn split_goal_clauses(goal: &str) -> Vec<String> {
     pieces
 }
 
+/// When clause splitting yields one very long paragraph, break it into sequential steps so native
+/// synthesis does not collapse complex goals into a single node.
+fn burst_long_monolithic_clause(text: &str) -> Vec<String> {
+    let t = text.trim();
+    if t.is_empty() {
+        return vec![];
+    }
+    let words = t.split_whitespace().count();
+    if words <= 36 {
+        return vec![t.to_string()];
+    }
+
+    let semi_split: Vec<String> = t
+        .split(';')
+        .map(|s| s.trim().trim_end_matches('.').trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if semi_split.len() >= 2 {
+        return semi_split;
+    }
+
+    let core = semi_split
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| t.to_string());
+
+    let mut sentences: Vec<String> = Vec::new();
+    for raw in core.split(". ") {
+        let u = raw.trim();
+        if u.split_whitespace().count() < 5 {
+            continue;
+        }
+        let mut piece = u.to_string();
+        if !piece.ends_with('.') {
+            piece.push('.');
+        }
+        sentences.push(piece);
+    }
+    if sentences.len() >= 2 {
+        return sentences;
+    }
+
+    let basis = sentences.into_iter().next().unwrap_or(core);
+    let w: Vec<&str> = basis.split_whitespace().collect();
+    const STRIDE: usize = 16;
+    if w.len() <= STRIDE {
+        return vec![basis];
+    }
+    w.chunks(STRIDE)
+        .map(|c| c.join(" "))
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 pub fn synthesize_plan_nodes(goal: &str) -> Vec<PlanNode> {
     let mut parts = split_goal_clauses(goal);
     if parts.is_empty() {
@@ -126,6 +180,9 @@ pub fn synthesize_plan_nodes(goal: &str) -> Vec<PlanNode> {
             return vec![];
         }
         parts.push(trimmed.to_string());
+    }
+    if parts.len() == 1 {
+        parts = burst_long_monolithic_clause(&parts[0]);
     }
 
     let mut nodes = Vec::with_capacity(parts.len());
@@ -235,6 +292,21 @@ mod tests {
                 .filter(|node| node.workflow_invocation.as_deref() == Some("verification_stack"))
                 .count()
                 == 0
+        );
+    }
+
+    #[test]
+    fn long_monolithic_line_splits_into_chain() {
+        let mut words: Vec<&str> = Vec::new();
+        for i in 0..50 {
+            words.push(if i % 10 == 0 { "then" } else { "step" });
+        }
+        let g = words.join(" ");
+        let n = synthesize_plan_nodes(&g);
+        assert!(
+            n.len() >= 3,
+            "expected burst into multiple nodes, got {}",
+            n.len()
         );
     }
 }

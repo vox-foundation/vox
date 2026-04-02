@@ -120,8 +120,8 @@ Workflows orchestrate activities with retry and journaling intent.
 
 Current state:
 
-- **Implemented semantics:** workflow syntax, `with { ... }` parsing/typechecking, generated async Rust functions, interpreted workflow planning/journaling.
-- **Planned semantics:** full durable state-machine execution for the generated Rust path and complete retry/backoff fidelity.
+- **Implemented semantics:** workflow syntax, `with { ... }` parsing/typechecking, generated async Rust functions, interpreted workflow planning/journaling, stored step-result replay, and retry/backoff for interpreted `mesh_*` activities.
+- **Planned semantics:** full durable state-machine execution for the generated Rust path and richer replay models for branching/loops.
 - **Escape hatch / current durable path:** the interpreted workflow runtime used by `vox mens workflow ...`.
 
 ```vox
@@ -139,22 +139,22 @@ workflow onboard_user(user_id: str, email: str) to Result[str]:
 
 ### The `with` Expression
 
-The `with` expression carries workflow activity options. Some are honored today in the interpreted runtime, while others are accepted syntax with partial or planned semantics:
+The `with` expression carries workflow activity options. Some are honored today in the interpreted runtime, while others only matter on specific runtime paths:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `retries` | `int` | Accepted today; interpreted runtime retry behavior is still being completed |
+| `retries` | `int` | Honored for interpreted `mesh_*` activity execution; local interpreted steps remain journal-only no-ops |
 | `timeout` | `str` | Parsed today for interpreted runtime activity planning |
-| `initial_backoff` | `str` | Accepted syntax; durable backoff scheduling is planned |
+| `initial_backoff` | `str` | Honored for interpreted `mesh_*` retries |
 | `activity_id` | `str` | Explicit durable/journal key |
-| `id` | `str` | Alias for `activity_id` in the interpreted planner |
+| `id` | `str` | Alias for `activity_id` in `with { ... }`; honored in interpreted planning and generated Rust activity-option lowering |
 | `mens` | `str` | Mesh control override for interpreted `mesh_*` activities |
 
 ### Durable Execution
 
-The interpreted workflow runtime can skip previously completed activities when restarted with the same workflow and activity ids, because it records journal/tracker data before replay. Generated Rust workflows do **not** yet compile into a durable state machine.
+The interpreted workflow runtime can skip previously completed activities when restarted with the same workflow, run id, and activity ids because it records journal/tracker data before replay and now stores step result payloads for linear replay. Generated Rust workflows do **not** yet compile into a durable state machine.
 
-**Durable spine (today):** the supported replay/idempotency story is the interpreted `vox mens workflow …` runtime. Rust-emitted `async fn` workflows are orchestration helpers only until generated code adopts the same journaling contract.
+**Durable spine (today):** the supported replay/idempotency story is the interpreted `vox mens workflow …` runtime. Rust-emitted `async fn` workflows are orchestration helpers only until generated code adopts the same journaling contract. Generated-workflow parity remains intentionally out of scope until Vox has a formal replay model and ADR for it.
 
 ### How Workflows Compile
 
@@ -162,8 +162,8 @@ The interpreted workflow runtime can skip previously completed activities when r
 |-------------|------------------------------------|
 | `workflow` | Generated as a plain `async fn` in Rust codegen |
 | `activity` | Generated as a plain `async fn`; `with` lowering adds helper wiring in some paths |
-| `with { retries: 3 }` | Parsed and typechecked; interpreted runtime support is partial |
-| Step completion | Interpreted runtime journals events; generated Rust path is not yet a durable state machine |
+| `with { retries: 3 }` | Interpreted runtime honors it for `mesh_*` activity execution; local interpreted steps stay journal-only |
+| Step completion | Interpreted runtime journals versioned events and stores replayable step results; generated Rust path is not yet a durable state machine |
 
 ---
 

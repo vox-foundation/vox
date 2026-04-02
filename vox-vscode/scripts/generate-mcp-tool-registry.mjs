@@ -13,10 +13,11 @@ const outPath = path.join(__dirname, '..', 'src', 'core', 'mcpToolRegistry.gener
 
 const raw = fs.readFileSync(yamlPath, 'utf8');
 const names = [];
-const re = /^\s*-\s*name:\s*"([^"]+)"/gm;
+// Quoted or bare tool id after `tools:` list items (see contracts/mcp/tool-registry.canonical.yaml).
+const re = /^\s*-\s*name:\s*(?:"([^"]+)"|([a-zA-Z0-9_:]+))/gm;
 let m;
 while ((m = re.exec(raw)) !== null) {
-    names.push(m[1]);
+    names.push(m[1] ?? m[2]);
 }
 if (names.length === 0) {
     throw new Error(`No tool names parsed from ${yamlPath}`);
@@ -33,6 +34,9 @@ const extensionExpected = [
     'vox_cost_history',
     'vox_list_models',
     'vox_compiler::ast_inspect',
+    // Oratio speech commands (palette + webview capture) degrade without these tools.
+    'vox_oratio_transcribe',
+    'vox_speech_to_code',
 ];
 
 for (const n of extensionExpected) {

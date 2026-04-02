@@ -19,4 +19,4 @@ Weight higher-quality, compiler-validated rows; cap aggressive ASR-only pairs. S
 
 ## QA / labeling
 
-Use [`contracts/speech-to-code/labeling_rubric.md`](../../contracts/speech-to-code/labeling_rubric.md) for human or LLM-assisted labels (`intent_ok`, `compile_ok`, `semantic_ok`, verbatim-sensitive spans). Export traces with `failure_category` (not a loose free-form `category` string) for KPI joins.
+Use [`contracts/speech-to-code/labeling_rubric.md`](../../../contracts/speech-to-code/labeling_rubric.md) for human or LLM-assisted labels (`intent_ok`, `compile_ok`, `semantic_ok`, verbatim-sensitive spans). Export traces with `failure_category` (not a loose free-form `category` string) for KPI joins.

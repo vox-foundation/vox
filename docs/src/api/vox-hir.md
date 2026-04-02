@@ -1,11 +1,14 @@
 ---
-title: "Crate API: vox-hir"
-description: "Official documentation for Crate API: vox-hir for the Vox language. Detailed technical reference, architecture guides, and implementation"
+title: "Compiler Module: vox-hir"
+description: "Official documentation for Compiler Module: vox-hir for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
 ---
-# Crate API: vox-hir
+# Compiler Module: vox-hir
+
+> [!WARNING]
+> This is not a standalone crate. It is a sub-module located at `crates/vox-compiler/src/hir/`.
 
 ## Overview
 

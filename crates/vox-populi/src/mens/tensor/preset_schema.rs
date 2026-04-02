@@ -46,6 +46,10 @@ pub struct TrainPresetProfile {
 
 pub const DEFAULT_PRESET: &str = "4080";
 
+/// Preset names accepted by `--preset` / planner normalization.
+///
+/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
+/// `vox-populi` integration test `training_presets_yaml_contract`).
 pub const KNOWN_PRESETS: &[&str] = &[
     "tiny",
     "safe",

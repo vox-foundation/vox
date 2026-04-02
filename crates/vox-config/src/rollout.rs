@@ -8,22 +8,28 @@ use serde::Serialize;
 #[must_use]
 pub fn env_truthy(name: &str) -> bool {
     std::env::var(name)
-        .map(|v| {
-            let v = v.trim();
-            v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes")
-        })
+        .map(|v| truthy_token(&v))
         .unwrap_or(false)
+}
+
+#[must_use]
+fn truthy_token(v: &str) -> bool {
+    let v = v.trim();
+    v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes")
 }
 
 /// Matches `DbCircuitBreaker::enabled_from_env` in `vox-db` (`1` / `true` only, lowercase trim).
 #[must_use]
 pub fn db_circuit_breaker_env_enabled() -> bool {
     std::env::var("VOX_DB_CIRCUIT_BREAKER")
-        .map(|v| {
-            let v = v.trim().to_ascii_lowercase();
-            v == "1" || v == "true"
-        })
+        .map(|v| db_circuit_breaker_token(&v))
         .unwrap_or(false)
+}
+
+#[must_use]
+fn db_circuit_breaker_token(v: &str) -> bool {
+    let v = v.trim().to_ascii_lowercase();
+    v == "1" || v == "true"
 }
 
 /// When `VOX_ORCH_LINEAGE_OFF` is truthy, skip `orchestration_lineage_events` writes.
@@ -88,5 +94,29 @@ mod tests {
         assert!(v.get("db_circuit_breaker_env").is_some());
         assert!(v.get("db_sync_remote_integration_gate").is_some());
         assert!(v.get("db_embedded_replica_integration_gate").is_some());
+    }
+
+    #[test]
+    fn workflow_journal_truthy_tokens_match_parser_contract() {
+        for token in ["1", "true", "yes", "True", " YES "] {
+            assert!(
+                truthy_token(token),
+                "token `{token}` should be treated as truthy"
+            );
+        }
+        assert!(!truthy_token("0"));
+        assert!(!truthy_token("no"));
+    }
+
+    #[test]
+    fn db_circuit_breaker_token_contract_is_strict() {
+        assert!(db_circuit_breaker_token("1"));
+        assert!(db_circuit_breaker_token("true"));
+        assert!(db_circuit_breaker_token(" TRUE "));
+        assert!(
+            !db_circuit_breaker_token("yes"),
+            "db circuit breaker only accepts `1` or `true`"
+        );
+        assert!(!db_circuit_breaker_token("0"));
     }
 }

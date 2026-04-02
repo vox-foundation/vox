@@ -44,6 +44,7 @@ activity fetch_data() to Result[str] {
     ret Ok("data")
 }
 
+
 workflow main_flow() to Result[str] {
     let res = fetch_data() with { retries: 3, timeout: "10s" }
     ret res
@@ -324,6 +325,54 @@ fn hello(name: str) to str {
 
     assert!(
         !output.files.contains_key("src/mcp_server.rs"),
-        "Should NOT produce mcp_server.rs when no @mcp.tool"
+        "Should NOT produce mcp_server.rs when no @mcp.tool / @mcp.resource"
+    );
+}
+
+#[test]
+fn codegen_mcp_resource_emits_resources_handlers() {
+    let src = r#"
+@mcp.resource("demo://x", "A demo resource") fn demo_res() to str {
+    ret "ok"
+}
+"#;
+    let tokens = lex(src);
+    let module = parse(tokens).expect("Should parse");
+    let hir = lower_module(&module);
+    assert_eq!(hir.mcp_resources.len(), 1);
+    assert_eq!(hir.mcp_resources[0].uri, "demo://x");
+
+    let output = vox_compiler::codegen_rust::generate(&hir, "with_res").unwrap();
+    assert!(output.files.contains_key("src/mcp_server.rs"));
+    let mcp = output.files.get("src/mcp_server.rs").unwrap();
+    assert!(mcp.contains("resources/list"), "expected resources/list");
+    assert!(mcp.contains("resources/read"), "expected resources/read");
+    assert!(
+        mcp.contains("dispatch_resource"),
+        "expected resource dispatch"
+    );
+    assert!(mcp.contains("demo://x"), "expected URI in dispatch");
+
+    let cargo = output.files.get("Cargo.toml").expect("Cargo.toml");
+    assert!(
+        cargo.contains("[[bin]]") && cargo.contains("mcp_server"),
+        "MCP binary should be declared in Cargo.toml:\n{cargo}"
+    );
+}
+
+#[test]
+fn codegen_mcp_tool_list_schema_supports_list_param() {
+    let src = r#"
+@mcp.tool "Echo ids" fn echo_ids(items: list[str]) to str {
+    ret "ok"
+}
+"#;
+    let tokens = lex(src);
+    let module = parse(tokens).expect("Should parse");
+    let hir = lower_module(&module);
+    let mcp = vox_compiler::codegen_rust::emit::emit_mcp_server(&hir, "lst");
+    assert!(
+        mcp.contains("\"type\": \"array\"") && mcp.contains("\"items\""),
+        "list[str] should emit array schema:\n{mcp}"
     );
 }

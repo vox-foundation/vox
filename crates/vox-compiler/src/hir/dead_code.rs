@@ -41,6 +41,9 @@ pub fn check_dead_code(module: &HirModule) -> Vec<(String, Span)> {
     for m in &module.mcp_tools {
         visit_fn(&m.func, &mut used);
     }
+    for m in &module.mcp_resources {
+        visit_fn(&m.func, &mut used);
+    }
     for q in &module.queries {
         visit_fn(&q.func, &mut used);
     }

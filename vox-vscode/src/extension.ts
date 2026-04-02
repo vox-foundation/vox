@@ -11,6 +11,9 @@ import { AgentController } from './agents/AgentController';
 import { registerCommandCatalogCommand } from './commands/commandCatalog';
 import { registerModelCommands } from './commands/model';
 import { SidebarProvider } from './SidebarProvider';
+import { registerOratioSpeechCommands } from './speech/registerOratioSpeechCommands';
+import { VisualEditorPanel } from './VisualEditorPanel';
+import { registerLinkDiagnostics } from './features/linkDiagnostics';
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Vox');
@@ -41,7 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('vox.focusSidebar', () => {
             vscode.commands.executeCommand('vox-sidebar.chat.focus');
-        })
+        }),
+        vscode.commands.registerCommand('vox.openVisualEditor', () => {
+            VisualEditorPanel.createOrShow(context.extensionUri);
+        }),
     );
 
     // ── Inline AI ────────────────────────────────────────────────────────
@@ -50,16 +56,18 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Project Commands ─────────────────────────────────────────────────
     registerProjectCommands(context);
+    
+    // ── Diagnostics ──────────────────────────────────────────────────────
+    registerLinkDiagnostics(context);
 
     // ── Model Commands ───────────────────────────────────────────────────
     registerModelCommands(context, mcp);
     registerCommandCatalogCommand(context);
+    registerOratioSpeechCommands(context, mcp);
 
-    // ── VCS / Snapshot Tree ──────────────────────────────────────────────
-    if (ConfigManager.vcsShowSnapshotBar) {
-        registerVcsCommands(context, mcp);
-        const _undoRedo = new UndoRedoManager(mcp, context);
-    }
+    // ── VCS / Snapshot Tree (commands always registered; view visibility ↔ vox.vcs.showSnapshotBar)
+    registerVcsCommands(context, mcp);
+    const _undoRedo = new UndoRedoManager(mcp, context);
 
     // ── Agent Controller (live agent polling) ────────────────────────────
     const agentController = new AgentController(mcp, agents => {

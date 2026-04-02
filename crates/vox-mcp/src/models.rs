@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use vox_orchestrator::types::TaskCategory;
 
+use crate::llm_bridge::{McpChatModelResolution, resolve_mcp_chat_model_sync};
 use crate::{ServerState, ToolResult};
 
 const REM_MODEL_CATEGORY: &str = "Use a known `task_category` (parsing, typechecking, debugging, research, testing, codegen, review) or seed the model registry.";
@@ -43,22 +44,37 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         "testing" => TaskCategory::Testing,
         "codegen" => TaskCategory::CodeGen,
         "review" => TaskCategory::Review,
-        _ => TaskCategory::CodeGen, // Default fallback
+        _ => {
+            return ToolResult::<String>::err_with_remediation(
+                "Unknown task_category",
+                REM_MODEL_CATEGORY,
+            )
+            .to_json();
+        }
     };
 
-    let preference = vox_orchestrator::sync_lock::rw_read(&*orch.config_handle()).cost_preference;
-    let complexity = 5; // Default for interactive suggestions
-    let handle = orch.models_handle();
-    if let Some(model) =
-        vox_orchestrator::sync_lock::rw_read(&*handle).best_for(category, complexity, preference)
-    {
-        ToolResult::ok(model).to_json()
-    } else {
-        ToolResult::<String>::err_with_remediation(
+    let complexity = match category {
+        TaskCategory::Parsing | TaskCategory::TypeChecking => 3,
+        TaskCategory::Testing | TaskCategory::Debugging => 5,
+        TaskCategory::CodeGen | TaskCategory::Review => 6,
+        TaskCategory::Research => 8,
+    };
+    let resolution = McpChatModelResolution {
+        allow_cheapest_fallback: true,
+        complexity,
+        task_category: category,
+        free_tier_latency_critical: false,
+        free_tier_fill_in_middle: false,
+        enforce_free_tier_only: false,
+        context_fill_ratio: None,
+    };
+    match resolve_mcp_chat_model_sync(orch, "", None, resolution, None) {
+        Ok((model, _is_free)) => ToolResult::ok(model).to_json(),
+        Err(_) => ToolResult::<String>::err_with_remediation(
             "No suitable model found for category",
             REM_MODEL_CATEGORY,
         )
-        .to_json()
+        .to_json(),
     }
 }
 

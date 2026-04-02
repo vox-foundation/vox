@@ -1,5 +1,4 @@
 pub mod backend;
-mod bounded_fs;
 pub mod errors;
 pub mod policy;
 pub mod resolver;

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/scientia/machine-suggestion-block.schema.json",
+  "title": "SCIENTIA machine suggestion envelope",
+  "description": "LLM or heuristic outputs must carry these labels; never treated as ground truth.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["machine_suggested", "requires_human_review"],
+  "properties": {
+    "machine_suggested": { "type": "boolean", "const": true },
+    "requires_human_review": { "type": "boolean", "const": true },
+    "source_grounded": { "type": "boolean" },
+    "schema_version": { "type": "integer" }
+  }
+}

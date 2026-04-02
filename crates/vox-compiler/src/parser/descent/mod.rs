@@ -165,6 +165,7 @@ impl Parser {
             Token::AtMutation => self.parse_mutation_fn(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtMcpTool => self.parse_mcp_tool(),
+            Token::AtMcpResource => self.parse_mcp_resource(),
             Token::Fn => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))

@@ -44,7 +44,7 @@ pub struct SuppressionStore {
 
 fn validate_suppression_json_instance(raw: &str) -> anyhow::Result<()> {
     let schema_path = Path::new("contracts/toestub/suppression.v1.schema.json");
-    let Ok(schema_raw) = crate::bounded_fs::read_utf8_path_capped(schema_path) else {
+    let Ok(schema_raw) = vox_bounded_fs::read_utf8_path_capped(schema_path) else {
         tracing::debug!(
             "TOESTUB suppression schema missing at {}; skipping instance validation",
             schema_path.display()
@@ -81,7 +81,7 @@ impl SuppressionStore {
         if !path.is_file() {
             return Ok(Self::empty());
         }
-        let raw = crate::bounded_fs::read_utf8_path_capped(path)
+        let raw = vox_bounded_fs::read_utf8_path_capped(path)
             .map_err(|e| anyhow::anyhow!("read suppressions {}: {e}", path.display()))?;
         validate_suppression_json_instance(&raw)?;
         let doc: SuppressionFile = serde_json::from_str(&raw)

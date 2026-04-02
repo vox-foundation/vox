@@ -7,6 +7,14 @@
 //! **Hard gate:** MCP `vox_generate_code` still depends on `validate_document_with_hir` and bounded
 //! diagnostic repair retries. Setting `VOX_MCP_GRAMMAR_MASK=1` records intent for a future bridge but
 //! does not change generation semantics until a mask backend is wired.
+//!
+//! ## Staged roadmap (constrained generation)
+//!
+//! 1. **Today:** grammar artifact + output-surface guards + HIR repair loop (this module).
+//! 2. **Next:** optional logits / mask adapter behind the same env flag, with automatic fallback to
+//!    unmasked decode when the adapter is unavailable or times out.
+//! 3. **Gate:** enable constrained decode by default only after compile\@k / latency benchmarks beat
+//!    the validator-only baseline on the frozen speech benchmark manifest.
 
 use std::path::Path;
 

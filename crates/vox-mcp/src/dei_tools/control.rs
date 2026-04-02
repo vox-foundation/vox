@@ -106,25 +106,25 @@ pub async fn reorder_task(state: &ServerState, params: crate::ReorderTaskParams)
 
 /// Drop all queued (not running) tasks for an agent.
 pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -> String {
-    let orch = &state.orchestrator;
-
-    match orch.drain_agent(vox_orchestrator::AgentId(params.agent_id)) {
-        Ok(tasks) => ToolResult::ok(format!(
+    match state
+        .drain_agent_backend(vox_orchestrator::AgentId(params.agent_id))
+        .await
+    {
+        Ok(count) => ToolResult::ok(format!(
             "Drained {} tasks from agent {}",
-            tasks.len(),
+            count,
             params.agent_id
         ))
         .to_json(),
         Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_TASK).to_json()
+            ToolResult::<String>::err_with_remediation(e, REM_ORCH_TASK).to_json()
         }
     }
 }
 
 /// Re-run the global task balancer and report how many tasks moved.
 pub async fn rebalance(state: &ServerState) -> String {
-    let orch = &state.orchestrator;
-    let moved = orch.rebalance();
+    let moved = state.rebalance_backend().await;
     ToolResult::ok(format!("Rebalanced {} tasks", moved)).to_json()
 }
 
@@ -315,11 +315,73 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
         "queue_only"
     };
     let fleet_on = mcp_agent_fleet_env_enabled();
+
+    let mut daemon_reported_agent_count: Option<u64> = None;
+    let mut daemon_status_rpc_error: Option<String> = None;
+    let mut daemon_reported_agent_ids: Option<Vec<u64>> = None;
+    let mut daemon_agent_ids_rpc_error: Option<String> = None;
+    if let Some(client) = state.orch_daemon_client_for_start_rpc() {
+        match client.orchestrator_status().await {
+            Ok(v) => {
+                daemon_reported_agent_count = v.get("agent_count").and_then(|x| x.as_u64());
+            }
+            Err(e) => {
+                daemon_status_rpc_error = Some(e.to_string());
+            }
+        }
+        match client.agent_ids().await {
+            Ok(v) => {
+                daemon_reported_agent_ids = v
+                    .get("agent_ids")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| arr.iter().filter_map(|x| x.as_u64()).collect());
+            }
+            Err(e) => {
+                daemon_agent_ids_rpc_error = Some(e.to_string());
+            }
+        }
+    }
+
+    let mut embed_ids_sorted: Vec<u64> = orch.agent_ids().iter().map(|a| a.0).collect();
+    embed_ids_sorted.sort_unstable();
+
+    let mut honest_message = format!(
+        "Embedded orchestrator is active with {agent_count} agent queue(s); \
+         {registered_worker_processes} vox-runtime worker process handle(s) registered."
+    );
+    match (&daemon_reported_agent_count, &daemon_status_rpc_error) {
+        (Some(dc), None) if (*dc as usize) != agent_count => {
+            honest_message.push_str(&format!(
+                " External vox-orchestrator-d orch.status reports agent_count={dc} (embedded {agent_count}); verify single SSOT or enable IPC-first routing."
+            ));
+        }
+        (Some(dc), None) if (*dc as usize) == agent_count => {
+            honest_message.push_str(&format!(
+                " External vox-orchestrator-d orch.status also reports agent_count={dc}."
+            ));
+        }
+        (_, Some(err)) => {
+            honest_message.push_str(&format!(
+                " External orch.status RPC failed: {err}"
+            ));
+        }
+        _ => {}
+    }
+
+    if let Some(err) = &daemon_agent_ids_rpc_error {
+        honest_message.push_str(&format!(" External orch.agent_ids RPC failed: {err}"));
+    } else if let Some(ref d_ids) = daemon_reported_agent_ids {
+        let mut d_sorted = d_ids.clone();
+        d_sorted.sort_unstable();
+        if d_sorted != embed_ids_sorted {
+            honest_message.push_str(&format!(
+                " External orch.agent_ids (sorted) {d_sorted:?} differs from embedded {embed_ids_sorted:?}."
+            ));
+        }
+    }
+
     ToolResult::ok(OrchestratorRuntimeProbe {
-        honest_message: format!(
-            "Embedded orchestrator is active with {agent_count} agent queue(s); \
-             {registered_worker_processes} vox-runtime worker process handle(s) registered."
-        ),
+        honest_message,
         agent_count,
         registered_worker_processes,
         execution_mode: execution_mode.to_string(),
@@ -331,23 +393,27 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
             "VOX_MCP_AGENT_FLEET disabled: AgentFleet loop not started at MCP boot; queues only \
              drain if worker handles are registered another way."
         },
+        daemon_reported_agent_count,
+        daemon_status_rpc_error,
+        daemon_reported_agent_ids,
+        daemon_agent_ids_rpc_error,
     })
     .to_json()
 }
 
 /// Spawn a new orchestrator agent (optionally marked dynamic / auto-retire when idle).
 pub async fn spawn_agent(state: &ServerState, params: crate::params::SpawnAgentParams) -> String {
-    let orch = &state.orchestrator;
-    let r = if params.dynamic.unwrap_or(false) {
-        orch.spawn_dynamic_agent(&params.name)
-    } else {
-        orch.spawn_agent(&params.name)
-    };
-    match r {
+    let out_name = params.name.clone();
+    let out_dynamic = params.dynamic.unwrap_or(false);
+    let out_parent = params.parent_agent_id;
+    let out_source = params.source_task_id;
+    match state.spawn_agent_backend(params).await {
         Ok(id) => ToolResult::ok(serde_json::json!({
             "agent_id": id.0,
-            "name": params.name,
-            "dynamic": params.dynamic.unwrap_or(false),
+            "name": out_name,
+            "dynamic": out_dynamic,
+            "parent_agent_id": out_parent,
+            "source_task_id": out_source,
         }))
         .to_json(),
         Err(e) => {
@@ -359,11 +425,13 @@ pub async fn spawn_agent(state: &ServerState, params: crate::params::SpawnAgentP
 
 /// Retire an agent (releases locks/affinity, drains queue metadata).
 pub async fn retire_agent(state: &ServerState, params: crate::params::AgentIdToolParams) -> String {
-    let orch = &state.orchestrator;
-    match orch.retire_agent(vox_orchestrator::AgentId(params.agent_id)) {
-        Ok(remaining) => ToolResult::ok(serde_json::json!({
+    match state
+        .retire_agent_backend(vox_orchestrator::AgentId(params.agent_id))
+        .await
+    {
+        Ok(remaining_tasks) => ToolResult::ok(serde_json::json!({
             "agent_id": params.agent_id,
-            "remaining_tasks": remaining.len(),
+            "remaining_tasks": remaining_tasks,
         }))
         .to_json(),
         Err(e) => {
@@ -375,8 +443,10 @@ pub async fn retire_agent(state: &ServerState, params: crate::params::AgentIdToo
 
 /// Pause an agent's task queue.
 pub async fn pause_agent(state: &ServerState, params: crate::params::AgentIdToolParams) -> String {
-    let orch = &state.orchestrator;
-    match orch.pause_agent(vox_orchestrator::AgentId(params.agent_id)) {
+    match state
+        .pause_agent_backend(vox_orchestrator::AgentId(params.agent_id))
+        .await
+    {
         Ok(()) => ToolResult::ok(format!("Agent {} paused", params.agent_id)).to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json()
@@ -386,8 +456,10 @@ pub async fn pause_agent(state: &ServerState, params: crate::params::AgentIdTool
 
 /// Resume a paused agent queue.
 pub async fn resume_agent(state: &ServerState, params: crate::params::AgentIdToolParams) -> String {
-    let orch = &state.orchestrator;
-    match orch.resume_agent(vox_orchestrator::AgentId(params.agent_id)) {
+    match state
+        .resume_agent_backend(vox_orchestrator::AgentId(params.agent_id))
+        .await
+    {
         Ok(()) => ToolResult::ok(format!("Agent {} resumed", params.agent_id)).to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json()

@@ -13,7 +13,7 @@
 //! | Components | `@component` |
 //! | Islands | `@island` |
 //! | Database tables & indices | `@table`, `@index` |
-//! | MCP tools | `@mcp.tool` |
+//! | MCP tools / resources | `@mcp.tool`, `@mcp.resource` |
 //! | Tests | `@test` |
 //! | Server functions | `@server` |
 //! | v0 components | `@v0` |

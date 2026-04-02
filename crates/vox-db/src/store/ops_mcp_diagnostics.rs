@@ -1,4 +1,7 @@
 //! MCP-facing introspection and legacy transcript writes (`db_sample_data`, chat persistence).
+//!
+//! Any path that persists **full MCP transcripts** or tool payloads is **S3** content-bearing; redact before
+//! treating rows as telemetry (`docs/src/architecture/telemetry-trust-ssot.md`).
 
 use turso::params;
 
@@ -104,6 +107,45 @@ impl crate::VoxDb {
                         tokens,
                         context_files_json.as_str(),
                         repository_id.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Persist a bounded routing summary row (local-first; joins [`journey_id`] across telemetry).
+    pub async fn record_routing_decision(
+        &self,
+        journey_id: Option<&str>,
+        repository_id: &str,
+        session_id: Option<&str>,
+        surface: &str,
+        model_id: Option<&str>,
+        reason_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let journey_id = journey_id.map(str::to_string);
+        let repository_id = repository_id.to_string();
+        let session_id = session_id.map(str::to_string);
+        let surface = surface.to_string();
+        let model_id = model_id.map(str::to_string);
+        let reason_json = reason_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO routing_decisions
+                    (journey_id, repository_id, session_id, surface, model_id, reason_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        journey_id.as_deref(),
+                        repository_id.as_str(),
+                        session_id.as_deref(),
+                        surface.as_str(),
+                        model_id.as_deref(),
+                        reason_json.as_deref(),
                     ],
                 )
                 .await?;

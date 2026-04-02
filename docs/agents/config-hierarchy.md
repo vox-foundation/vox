@@ -10,43 +10,27 @@ this chain is essential for correct behavior across all three layers (Extension,
 2. ENV vars       (VOX_MODEL, VOX_BUDGET_USD, OPENROUTER_API_KEY, ...)
 3. Vox.toml       (workspace-level, committed to repo)
 4. ~/.vox/        (global user config, machine-local)
-5. Compiled defaults  (defined in crates/vox-config/src/defaults.rs)
+5. Compiled defaults  (primarily `Default` impls in `crates/vox-config/src/config/vox_config.rs`)
 ```
 
 VS Code settings (`vox.*`) are **UX overrides** for items that have no workspace equivalent
 (e.g., `vox.vcsShowSnapshotBar`, `vox.mcpBinaryPath`). They are not part of the
 precedence chain for toolchain config.
 
-## Canonical Config Struct (`vox-config` crate)
+## Canonical Ownership Map (`vox-config` + domain config modules)
 
-```rust
-// crates/vox-config/src/lib.rs
-pub struct VoxConfig {
-    // Provider / Model
-    pub model: String,               // default: "anthropic/claude-sonnet-4"
-    pub openrouter_key: Option<String>,
-    pub openai_key: Option<String>,
-    pub gemini_key: Option<String>,
+Prefer source pointers over copied struct snapshots, since fields evolve frequently:
 
-    // Budget
-    pub daily_budget_usd: f64,       // default: 5.0
-    pub per_session_budget_usd: f64, // default: 1.0
+- `crates/vox-config/src/config/vox_config.rs`: `VoxConfig` type + `Default` values.
+- `crates/vox-config/src/config/impl_ops.rs`: merge/load behavior and env/file overlay operations.
+- `crates/vox-config/src/env_parse.rs`: shared env parsers for typed config values.
+- `crates/vox-config/src/inference.rs`: inference profile and provider endpoint/env resolution.
+- `crates/vox-config/src/rollout.rs`: rollout/kill-switch env helpers.
+- `crates/vox-config/src/paths.rs`: canonical data/config path resolution.
+- `crates/vox-db/src/config.rs`: DB connection config/precedence (separate domain owner; not a `VoxConfig` field mirror).
+- `crates/vox-clavis/src/spec.rs`: secret canonical names/aliases (separate from non-secret tuning config).
 
-    // Data paths
-    pub data_dir: PathBuf,           // default: target/dogfood
-    pub model_dir: PathBuf,          // default: ~/.vox/models
-
-    // Training
-    pub train_epochs: usize,         // default: 3
-    pub train_batch_size: usize,     // default: 256
-
-    // Orchestrator
-    pub mcp_binary: PathBuf,         // default: auto-detected in PATH
-    pub db_url: Option<String>,      // Turso URL or local path
-}
-```
-
-`VoxConfig::load()` applies the precedence chain automatically.
+`VoxConfig::load()` remains the entrypoint for workspace/user config resolution; secrets and DB wire config are intentionally owned by Clavis / `vox-db`.
 
 ## Vox.toml (Workspace Level)
 

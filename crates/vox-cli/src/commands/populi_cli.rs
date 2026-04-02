@@ -7,7 +7,46 @@ use crate::commands::populi_lifecycle::{
     OverlayProviderArg, PopuliConnectivityMode, PopuliLifecycleCmd,
 };
 use anyhow::Context;
-use clap::Subcommand;
+use clap::{Subcommand, ValueEnum};
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum PopuliAdminSwitch {
+    On,
+    Off,
+}
+
+/// Operator HTTP actions (`POST /v1/populi/admin/*`; mesh or admin bearer via Clavis env).
+#[derive(Subcommand)]
+pub enum PopuliAdminCmd {
+    /// Cooperative drain (blocks new exec lease grant/renew and A2A claims for this node id).
+    Maintenance {
+        /// `NodeRecord.id`
+        #[arg(long)]
+        node: String,
+        #[arg(long, value_enum)]
+        state: PopuliAdminSwitch,
+        /// Absolute Unix ms deadline when `--state on` (server drops drain after this time). Conflicts with `--for-minutes` (absolute wins).
+        #[arg(long)]
+        until_unix_ms: Option<u64>,
+        /// When `--state on`, set deadline to now + this many minutes on the server (capped by server max).
+        #[arg(long)]
+        for_minutes: Option<u64>,
+    },
+    /// Quarantine (hard block on A2A claims for this node id).
+    Quarantine {
+        /// `NodeRecord.id`
+        #[arg(long)]
+        node: String,
+        #[arg(long, value_enum)]
+        state: PopuliAdminSwitch,
+    },
+    /// Force-remove a remote exec lease row by id (no holder cooperation; mesh/admin bearer).
+    ExecLeaseRevoke {
+        /// `RemoteExecLeaseGrantResponse.lease_id` from grant (or `GET /v1/populi/exec/leases`).
+        #[arg(long)]
+        lease_id: String,
+    },
+}
 
 /// Populi mesh subcommands.
 #[derive(Subcommand)]
@@ -60,6 +99,30 @@ pub enum PopuliCli {
         #[arg(long)]
         registry: Option<PathBuf>,
     },
+    /// Maintenance and quarantine toggles on a running control plane.
+    Admin {
+        /// Control plane base (`VOX_ORCHESTRATOR_MESH_CONTROL_URL`, then `VOX_MESH_CONTROL_ADDR`, when omitted).
+        #[arg(long)]
+        control_url: Option<String>,
+        #[command(subcommand)]
+        cmd: PopuliAdminCmd,
+    },
+}
+
+fn resolve_populi_control_base(url_override: Option<String>) -> anyhow::Result<String> {
+    let raw = if let Some(u) = url_override {
+        u
+    } else if let Ok(u) = std::env::var("VOX_ORCHESTRATOR_MESH_CONTROL_URL") {
+        u.trim().to_string()
+    } else if let Some(u) = vox_populi::populi_env().control_addr {
+        u
+    } else {
+        anyhow::bail!(
+            "set --control-url or VOX_ORCHESTRATOR_MESH_CONTROL_URL or VOX_MESH_CONTROL_ADDR"
+        );
+    };
+    vox_populi::normalize_http_control_base(raw.trim())
+        .ok_or_else(|| anyhow::anyhow!("invalid or bind-all control URL: {}", raw.trim()))
 }
 
 /// Run a `vox populi` subcommand.
@@ -161,6 +224,70 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 .with_context(|| format!("populi HTTP serve on {addr}"))?;
             Ok(())
         }
+        PopuliCli::Admin { control_url, cmd } => {
+            let base = resolve_populi_control_base(control_url)?;
+            let client = vox_populi::http_client::PopuliHttpClient::new(&base).with_env_token();
+            match cmd {
+                PopuliAdminCmd::Maintenance {
+                    node,
+                    state,
+                    until_unix_ms,
+                    for_minutes,
+                } => {
+                    let node_id = node.trim().to_string();
+                    if node_id.is_empty() {
+                        anyhow::bail!("--node must be non-empty");
+                    }
+                    let on = matches!(state, PopuliAdminSwitch::On);
+                    if !on && (until_unix_ms.is_some() || for_minutes.is_some()) {
+                        anyhow::bail!("--until-unix-ms / --for-minutes require --state on");
+                    }
+                    if until_unix_ms.is_some() && for_minutes.is_some() {
+                        anyhow::bail!("use only one of --until-unix-ms or --for-minutes");
+                    }
+                    let maintenance_for_ms = for_minutes.map(|m| m.saturating_mul(60_000));
+                    client
+                        .admin_maintenance(&vox_populi::transport::AdminMaintenanceRequest {
+                            node_id,
+                            maintenance: on,
+                            maintenance_until_unix_ms: until_unix_ms,
+                            maintenance_for_ms,
+                        })
+                        .await
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                }
+                PopuliAdminCmd::Quarantine { node, state } => {
+                    let node_id = node.trim().to_string();
+                    if node_id.is_empty() {
+                        anyhow::bail!("--node must be non-empty");
+                    }
+                    client
+                        .admin_quarantine(&vox_populi::transport::AdminQuarantineRequest {
+                            node_id,
+                            quarantined: matches!(state, PopuliAdminSwitch::On),
+                        })
+                        .await
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                }
+                PopuliAdminCmd::ExecLeaseRevoke { lease_id } => {
+                    let lease_id = lease_id.trim().to_string();
+                    if lease_id.is_empty() {
+                        anyhow::bail!("--lease-id must be non-empty");
+                    }
+                    client
+                        .admin_exec_lease_revoke(
+                            &vox_populi::transport::AdminExecLeaseRevokeRequest { lease_id },
+                        )
+                        .await
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                }
+            }
+            if global_json {
+                println!("{}", serde_json::json!({ "ok": true }));
+            } else {
+                println!("ok");
+            }
+            Ok(())
+        }
     }
 }
-

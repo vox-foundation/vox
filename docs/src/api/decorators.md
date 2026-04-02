@@ -2,12 +2,14 @@
 title: "Decorators"
 description: "Official documentation for Decorators for the Vox language. Detailed technical reference, architecture guides, and implementation pattern"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 # Decorators
 
 Vox decorators provide metadata for the compiler and runtime.
+
+**MCP:** [@mcp.tool](decorators/mcp_tool.md) codegen vs shipped `vox-mcp` — [`MCP exposure from the Vox language (SSOT)`](../architecture/mcp-vox-language-exposure.md).
 
 | Decorator | Category | Description |
 |-----------|----------|-------------|
@@ -24,4 +26,5 @@ Vox decorators provide metadata for the compiler and runtime.
 | [@server](decorators/server.md) | infrastructure | Server-only function. Generates both a Rust handler and a TypeScript API client. |
 | [@scheduled](decorators/scheduled.md) | infrastructure | Cron/interval scheduled function. |
 | [@mcp.tool](decorators/mcp_tool.md) | infrastructure | Register a function as an MCP (Model Context Protocol) tool. |
+| [@mcp.resource](decorators/mcp_resource.md) | infrastructure | Register a **nullary** function as an MCP read-only resource (URI + description). |
 | [@v0](decorators/v0.md) | ui | AI-generated component placeholder via v0.dev. |

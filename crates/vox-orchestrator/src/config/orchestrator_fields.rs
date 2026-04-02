@@ -54,6 +54,14 @@ pub struct OrchestratorConfig {
     /// Weight applied to Arca `agent_reliability` when blending into routing scores (default: 1.0).
     #[serde(default = "default_socrates_reputation_weight")]
     pub socrates_reputation_weight: f64,
+    /// When true and Codex `agent_reliability` for the agent meets
+    /// [`Self::trust_gate_relax_min_reliability`], **Socrates enforce**, **completion grounding enforce**,
+    /// and **strict scope** may skip requeue / denial (see [`crate::services::PolicyEngine`] and `complete_task`).
+    #[serde(default = "default_false")]
+    pub trust_gate_relax_enabled: bool,
+    /// Minimum reliability (0.0–1.0) for [`Self::trust_gate_relax_enabled`] (default: 0.85).
+    #[serde(default = "default_trust_gate_relax_min_reliability")]
+    pub trust_gate_relax_min_reliability: f64,
     /// Log level for orchestrator events (default: "info").
     pub log_level: String,
     /// Global system idle timeout in milliseconds (default: 600000 / 10min).
@@ -68,6 +76,10 @@ pub struct OrchestratorConfig {
     #[serde(default = "default_heartbeat_interval")]
     pub heartbeat_interval_ms: u64,
     /// Threshold in milliseconds before an agent is considered stale (default: 60000).
+    ///
+    /// Also used when MCP embeds build [`crate::populi_federation::RemotePopuliRoutingHint`]:
+    /// Populi nodes whose `last_seen_unix_ms` is older than this at poll time get
+    /// `heartbeat_stale` and are excluded from experimental federation routing signals.
     #[serde(default = "default_stale_threshold")]
     pub stale_threshold_ms: u64,
     /// Whether auto-continuation is enabled (default: true).
@@ -172,6 +184,22 @@ pub struct OrchestratorConfig {
     /// Experimental: use remote populi node labels when scoring routes (no remote task execution).
     #[serde(default = "default_false", alias = "mesh_routing_experimental")]
     pub populi_routing_experimental: bool,
+    /// When [`Self::populi_routing_experimental`] is on and federation-schedulable remote node count
+    /// **drops** after a hint refresh, run [`crate::orchestrator::Orchestrator::rebalance`] once
+    /// (load work-steering across **local** queues; does not replay `RoutingService::route` per task).
+    #[serde(
+        default = "default_false",
+        alias = "mesh_rebalance_on_remote_schedulable_drop"
+    )]
+    pub populi_rebalance_on_remote_schedulable_drop: bool,
+    /// When [`Self::populi_routing_experimental`] is on and federation-schedulable remote node count
+    /// **drops**, re-run [`RoutingService::route`] for each **queued** (not in-progress) task and move
+    /// tasks whose preferred agent changed (after optional rebalance). Default off.
+    #[serde(
+        default = "default_false",
+        alias = "mesh_replay_queued_routes_on_remote_schedulable_drop"
+    )]
+    pub populi_replay_queued_routes_on_remote_schedulable_drop: bool,
     /// Experimental: apply training-task specific placement boosts/penalties.
     #[serde(
         default = "default_false",
@@ -197,6 +225,24 @@ pub struct OrchestratorConfig {
         alias = "mesh_remote_result_poll_interval_secs"
     )]
     pub populi_remote_result_poll_interval_secs: u64,
+    /// Max number of `remote_task_result` messages processed per poll tick (minimum 1).
+    #[serde(default = "default_populi_remote_result_max_messages_per_poll")]
+    pub populi_remote_result_max_messages_per_poll: usize,
+    /// Poll interval (seconds) for remote worker inbox ticks (`remote_task_envelope` consumer).
+    /// `0` disables worker polling while leaving result polling enabled.
+    #[serde(
+        default = "default_populi_remote_worker_poll_interval_secs",
+        alias = "mesh_remote_worker_poll_interval_secs"
+    )]
+    pub populi_remote_worker_poll_interval_secs: u64,
+    /// Single-owner remote path: await mesh relay before local enqueue when the task matches
+    /// [`Self::populi_remote_lease_gated_roles`].
+    #[serde(default = "default_false", alias = "mesh_remote_lease_gating_enabled")]
+    pub populi_remote_lease_gating_enabled: bool,
+    /// Roles that use lease-style gating when [`Self::populi_remote_lease_gating_enabled`] is true.
+    /// Empty means no task matches (configure explicitly).
+    #[serde(default, alias = "mesh_remote_lease_gated_roles")]
+    pub populi_remote_lease_gated_roles: Vec<crate::reconstruction::AgentExecutionRole>,
     /// When true, MCP tool LLM calls collapse system/user turns into a single string
     /// formatted with `<|im_start|>` markers instead of JSON message arrays.
     #[serde(default = "default_false")]
@@ -222,6 +268,32 @@ pub struct OrchestratorConfig {
     /// Rollout percentage for auto planning (0-100).
     #[serde(default)]
     pub planning_rollout_percent: u8,
+    /// When true (default), plan adequacy is recorded in lineage/telemetry only; enqueue behavior is unchanged.
+    #[serde(default = "default_true")]
+    pub plan_adequacy_shadow: bool,
+    /// When true, goals that produce structurally thin native plans are rejected at enqueue (after quality gate).
+    #[serde(default = "default_false")]
+    pub plan_adequacy_enforce: bool,
+
+    /// When true, validate [`crate::ContextEnvelope`] at MCP/orchestrator ingress and log violations without blocking.
+    ///
+    /// Persisted/config precedence vs session overrides: see **`docs/src/reference/env-vars.md`** (`VOX_ORCHESTRATOR_*` /
+    /// orchestrator TOML fields).
+    #[serde(default = "default_false")]
+    pub context_lifecycle_shadow: bool,
+    /// When true, reject invalid or cross-boundary context envelopes at ingress (merge + validation failures block the operation).
+    ///
+    /// Same precedence story as [`Self::context_lifecycle_shadow`]; telemetry contract
+    /// `contracts/orchestration/context-lifecycle-telemetry.schema.json`.
+    #[serde(default = "default_false")]
+    pub context_lifecycle_enforce: bool,
+
+    /// Log completion citation grounding mismatches (`[[voxcite:...]]` / `evidence_citations`).
+    #[serde(default = "default_false")]
+    pub completion_grounding_shadow: bool,
+    /// Requeue tasks when declared citations are absent from the session context envelope.
+    #[serde(default = "default_false")]
+    pub completion_grounding_enforce: bool,
 
     // ── Phase 15: Attention Budget ─────────────────────────────────────────────
     /// Enable attention budget tracking. Default: false (shadow/observe mode).
@@ -276,6 +348,9 @@ pub struct OrchestratorConfig {
     /// Approval tier gate thresholds. Override to tune auto-approve graduation.
     #[serde(default)]
     pub tier_gate: crate::attention::TierGateConfig,
+    /// Dynamic interruption calibration overrides by channel and context pressure.
+    #[serde(default)]
+    pub interruption_calibration: crate::attention::InterruptionCalibrationConfig,
     /// Configuration for the unified news publisher (docs/news/ → RSS/X/GitHub).
     #[serde(default)]
     pub news: NewsConfig,

@@ -136,6 +136,17 @@
       "docUrl": "api/decorators/mcp_tool.md"
     },
     {
+      "name": "@mcp.resource",
+      "category": "infrastructure",
+      "syntax": "@mcp.resource(\"uri\", \"description\")",
+      "hasArgs": true,
+      "argType": "string_literal",
+      "description": "Register a nullary function as an MCP read-only resource.",
+      "rustCodegen": "MCP resources/list + resources/read",
+      "tsCodegen": "N/A",
+      "docUrl": "api/decorators/mcp_resource.md"
+    },
+    {
       "name": "@v0",
       "category": "ui",
       "syntax": "@v0(prompt: \"description\")",

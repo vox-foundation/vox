@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 use crate::attention::{AgentTrustScore, ApprovalOutcome, AttentionBudget, AttentionEvent};
+use crate::fatigue_monitor::{FatigueEvent, FatigueMonitor};
 use crate::sync_lock;
 use crate::types::AgentId;
 
@@ -183,6 +184,8 @@ pub struct BudgetManager {
     attention: Arc<std::sync::RwLock<AttentionBudget>>,
     /// Phase 15: per-agent EWMA trust scores.
     trust_scores: Arc<std::sync::RwLock<HashMap<AgentId, AgentTrustScore>>>,
+    /// Phase 16: continuous developer fatigue pacing.
+    fatigue: Arc<std::sync::RwLock<FatigueMonitor>>,
 }
 
 impl BudgetManager {
@@ -192,6 +195,7 @@ impl BudgetManager {
             inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
             attention: Arc::new(std::sync::RwLock::new(AttentionBudget::default())),
             trust_scores: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            fatigue: Arc::new(std::sync::RwLock::new(FatigueMonitor::new())),
         }
     }
 
@@ -337,7 +341,7 @@ impl BudgetManager {
     /// Add MCP Socrates questioning wall-time into global [`AttentionBudget::spent_ms`].
     ///
     /// Does not create an [`AttentionEvent`] (no interrupt EWMA); use for observability parity with
-    /// [`vox_mcp::ServerState::record_questioning_attention_spend`] when mirroring is enabled.
+    /// `vox_mcp::ServerState::record_questioning_attention_spend` when mirroring is enabled.
     pub fn add_questioning_attention_debit_ms(&self, delta_ms: u64) {
         if delta_ms == 0 {
             return;
@@ -366,6 +370,25 @@ impl BudgetManager {
     /// Snapshot of all agent trust scores (for routing injection).
     pub fn trust_snapshot(&self) -> HashMap<AgentId, AgentTrustScore> {
         sync_lock::rw_read(&*self.trust_scores).clone()
+    }
+
+    // ── Phase 16: Fatigue and Pacing ───────────────────────────────────────────
+
+    /// Record an IDE context switch. Evaluates cognitive thrashing and burnout.
+    /// Returns a `FatigueEvent` if the human needs immediate pacing intervention.
+    pub fn record_ide_context_switch(&self, timestamp_ms: u64) -> Option<FatigueEvent> {
+        let mut f_mon = sync_lock::rw_write(&*self.fatigue);
+        f_mon.record_context_switch(timestamp_ms);
+
+        let att = sync_lock::rw_read(&*self.attention);
+        f_mon.evaluate_fatigue(att.spent_ratio())
+    }
+
+    /// Evaluates whether the operator is currently fatigued (for Socratic Lockout logic).
+    pub fn is_fatigued(&self) -> bool {
+        let f_mon = sync_lock::rw_read(&*self.fatigue);
+        let att = sync_lock::rw_read(&*self.attention);
+        f_mon.evaluate_fatigue(att.spent_ratio()).is_some()
     }
 }
 
@@ -471,6 +494,8 @@ mod tests {
             effective_complexity: 5.0,
             decision_entropy_bits: 0.5,
             timestamp_ms: 1_000_000,
+            channel: None,
+            policy_reason: None,
         };
         mgr.record_attention(&event);
         let signal = mgr.attention_signal(0.7);

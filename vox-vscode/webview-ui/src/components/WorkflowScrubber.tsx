@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, AlertCircle, RotateCcw, Box, Inbox, Zap, HardDrive } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, AlertCircle, RotateCcw, Box, Zap, HardDrive } from 'lucide-react';
 import { getVsCodeApi } from '../utils/vscode';
 
 const vscode = getVsCodeApi();
 
 export function WorkflowScrubber({ snapshots }: any) {
-    const [currentTime, setCurrentTime] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
 
     const workflow = snapshots;

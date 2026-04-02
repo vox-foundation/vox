@@ -37,9 +37,8 @@ pub struct MemoryFact {
 /// key-value pairs to persist them durably.
 ///
 /// When a `VoxDb` is attached via [`MemoryManager::with_db`], every `persist_fact` also
-/// writes to the `agent_memory` table, and `recall` falls back to the DB
-/// when the file-based lookup misses. Files are the hot cache; VoxDB is
-/// the durable single source of truth.
+/// writes to Codex `memories`. Recall order: **in-memory cache** (recent `persist_fact`),
+/// **MEMORY.md**, then **Codex** (via [`Self::recall_async`] — sync [`Self::recall`] stops after file).
 pub struct MemoryManager {
     pub(super) config: MemoryConfig,
     pub(super) today_log: DailyLog,
@@ -51,7 +50,7 @@ pub struct MemoryManager {
     /// Optional VoxDB backing store for SSOT persistence.
     pub(super) db: Option<Arc<vox_db::VoxDb>>,
     /// Optional service for generating embeddings.
-    pub(super) embedding_service: Option<Arc<crate::services::embeddings::EmbeddingService>>,
+    pub(super) embedding_service: Option<Arc<vox_search::EmbeddingService>>,
 }
 
 impl MemoryManager {
@@ -83,10 +82,7 @@ impl MemoryManager {
     }
 
     /// Attach an EmbeddingService for vector persistence.
-    pub fn with_embeddings(
-        mut self,
-        service: Arc<crate::services::embeddings::EmbeddingService>,
-    ) -> Self {
+    pub fn with_embeddings(mut self, service: Arc<vox_search::EmbeddingService>) -> Self {
         self.embedding_service = Some(service);
         self
     }
@@ -97,10 +93,7 @@ impl MemoryManager {
     }
 
     /// Set the embedding service after construction.
-    pub fn set_embedding_service(
-        &mut self,
-        service: Arc<crate::services::embeddings::EmbeddingService>,
-    ) {
+    pub fn set_embedding_service(&mut self, service: Arc<vox_search::EmbeddingService>) {
         self.embedding_service = Some(service);
     }
 
@@ -195,17 +188,38 @@ impl MemoryManager {
         Ok(())
     }
 
-    /// Retrieve a fact from MEMORY.md by key, falling back to VoxDB.
+    /// Retrieve a fact: **cache** → **MEMORY.md**. For Codex fallback use [`Self::recall_async`].
     pub fn recall(&self, key: &str) -> Result<Option<String>, MemoryError> {
-        // File-first (hot cache)
-        let file_result = self.long_term.get(key)?;
-        if file_result.is_some() {
-            return Ok(file_result);
-        }
-        // DB fallback — check in-memory cache for DB-sourced facts
         for fact in self.cache.iter().rev() {
             if fact.key == key {
                 return Ok(Some(fact.value.clone()));
+            }
+        }
+        self.long_term.get(key)
+    }
+
+    /// Cache → **MEMORY.md** → Codex `memories` (agent `global`, type `fact`).
+    pub async fn recall_async(&self, key: &str) -> Result<Option<String>, MemoryError> {
+        if let Ok(Some(v)) = self.recall(key) {
+            return Ok(Some(v));
+        }
+        let Some(db) = &self.db else {
+            return Ok(None);
+        };
+        let entries = db
+            .recall_memory("global", Some("fact"), 500, None)
+            .await
+            .unwrap_or_default();
+        for entry in entries {
+            if let Some((k, v)) = entry.content.split_once(": ") {
+                if k == key {
+                    tracing::debug!(
+                        target: "vox_orchestrator::memory",
+                        key,
+                        "recall_async: hit Codex memories"
+                    );
+                    return Ok(Some(v.to_string()));
+                }
             }
         }
         Ok(None)

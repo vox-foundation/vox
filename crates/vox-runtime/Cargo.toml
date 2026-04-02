@@ -21,12 +21,14 @@ vox-config = { path = "../vox-config" }
 vox-primitives = { path = "../vox-primitives" }
 vox-clavis = { workspace = true }
 vox-ars = { workspace = true }
+vox-browser = { path = "../vox-browser" }
 vox-db = { path = "../vox-db", optional = true }
 reqwest = { workspace = true, features = ["stream"] }
 vox-reqwest-defaults = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 glob = { workspace = true }
+which = "8"
 xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
 

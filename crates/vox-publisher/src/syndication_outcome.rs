@@ -68,7 +68,7 @@ impl SyndicationResult {
 
         let rss_ok = !item.syndication.rss || ok(&self.rss);
         let twitter_ok = item.syndication.twitter.is_none() || ok(&self.twitter);
-        let github_ok = item.syndication.github.is_none() || ok(&self.github);
+        let github_ok = item.syndication.forge.is_none() || ok(&self.github);
         let oc_ok = item.syndication.open_collective.is_none() || ok(&self.open_collective);
         let reddit_ok = item.syndication.reddit.is_none() || ok(&self.reddit);
         let hn_ok = item.syndication.hacker_news.is_none() || ok(&self.hacker_news);

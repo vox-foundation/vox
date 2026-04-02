@@ -1,3 +1,9 @@
+---
+title: "CLI reachability SSOT"
+description: "Stable anchor to reference/cli.md for the top-level command reachability matrix; extend the table when the CLI registry marks reachability_required and run command-compliance."
+category: "architecture"
+---
+
 # CLI reachability SSOT
 
 The **top-level reachability matrix** (`| \`build\` |` …) is authored in **[`reference/cli.md`](../reference/cli.md)** under **CLI command reachability** (content merged from the former `cli-reachability.md`).

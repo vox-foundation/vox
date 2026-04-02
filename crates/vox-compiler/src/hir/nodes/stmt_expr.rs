@@ -100,6 +100,15 @@ pub enum HirType {
     Unit,
 }
 
+/// Try expression (`x?`).
+#[derive(Debug, Clone)]
+pub struct HirTry {
+    /// Target expression being tried.
+    pub target: Box<HirExpr>,
+    /// Span covering the `?`.
+    pub span: Span,
+}
+
 /// Expression in HIR (mirrors AST but with resolved names).
 #[allow(clippy::large_enum_variant)] // `DbTableOp` carries query plans; boxing would churn the whole compiler.
 #[derive(Debug, Clone)]
@@ -165,6 +174,8 @@ pub enum HirExpr {
     JsxSelfClosing(HirJsxSelfClosing),
     /// Statement block used as expression.
     Block(Vec<HirStmt>, Span),
+    /// Error propagation (`?`).
+    Try(HirTry),
 }
 
 /// Named or positional call argument.

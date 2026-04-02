@@ -89,49 +89,59 @@ pub fn warn_deprecated(old: &str, new: &str) {
 /// ```
 pub fn print_error(message: &str) {
     if should_color_stderr() {
-        eprintln!("{} {message}", "error:".red().bold());
+        let prefix = if std::env::var("VOX_CVD_SAFE").is_ok() {
+            "❌ error:".magenta().bold().to_string()
+        } else {
+            "❌ error:".red().bold().to_string()
+        };
+        eprintln!("{} {message}", prefix);
     } else {
-        eprintln!("error: {message}");
+        eprintln!("❌ error: {message}");
     }
 }
 
 /// Print a formatted error with an actionable hint.
 pub fn print_error_with_hint(message: &str, hint: &str) {
     if should_color_stderr() {
-        eprintln!("{} {message}", "error:".red().bold());
-        eprintln!("  {} {hint}", "hint:".cyan().bold());
+        let prefix = if std::env::var("VOX_CVD_SAFE").is_ok() {
+            "❌ error:".magenta().bold().to_string()
+        } else {
+            "❌ error:".red().bold().to_string()
+        };
+        eprintln!("{} {message}", prefix);
+        eprintln!("  {} {hint}", "💡 hint:".cyan().bold());
     } else {
-        eprintln!("error: {message}");
-        eprintln!("  hint: {hint}");
+        eprintln!("❌ error: {message}");
+        eprintln!("  💡 hint: {hint}");
     }
 }
 
 /// Print a warning to stderr.
 pub fn print_warning(message: &str) {
     if should_color_stderr() {
-        eprintln!("{} {message}", "warning:".yellow().bold());
+        eprintln!("{} {message}", "⚠️ warning:".yellow().bold());
     } else {
-        eprintln!("warning: {message}");
+        eprintln!("⚠️ warning: {message}");
     }
 }
 
 /// Print a warning with an actionable hint.
 pub fn print_warning_with_hint(message: &str, hint: &str) {
     if should_color_stderr() {
-        eprintln!("{} {message}", "warning:".yellow().bold());
-        eprintln!("  {} {hint}", "hint:".cyan().bold());
+        eprintln!("{} {message}", "⚠️ warning:".yellow().bold());
+        eprintln!("  {} {hint}", "💡 hint:".cyan().bold());
     } else {
-        eprintln!("warning: {message}");
-        eprintln!("  hint: {hint}");
+        eprintln!("⚠️ warning: {message}");
+        eprintln!("  💡 hint: {hint}");
     }
 }
 
 /// Print a hint/info line to stderr (non-error context).
 pub fn print_hint(message: &str) {
     if should_color_stderr() {
-        eprintln!("  {} {message}", "hint:".cyan().bold());
+        eprintln!("  {} {message}", "💡 hint:".cyan().bold());
     } else {
-        eprintln!("  hint: {message}");
+        eprintln!("  💡 hint: {message}");
     }
 }
 
@@ -185,11 +195,11 @@ pub fn suggest_did_you_mean(input: &str, candidates: &[&str]) {
         if should_color_stderr() {
             eprintln!(
                 "  {} Did you mean `{}`?",
-                "hint:".cyan().bold(),
+                "💡 hint:".cyan().bold(),
                 suggestion.bold()
             );
         } else {
-            eprintln!("  hint: Did you mean `{}`?", suggestion);
+            eprintln!("  💡 hint: Did you mean `{}`?", suggestion);
         }
     }
 }
@@ -231,7 +241,12 @@ fn levenshtein(a: &str, b: &str) -> usize {
 /// Print a success line (green ✓) to stdout.
 pub fn print_success(message: &str) {
     if should_color_stdout() {
-        println!("{} {message}", "✓".green().bold());
+        let prefix = if std::env::var("VOX_CVD_SAFE").is_ok() {
+            "✓".cyan().bold().to_string()
+        } else {
+            "✓".green().bold().to_string()
+        };
+        println!("{} {message}", prefix);
     } else {
         println!("✓ {message}");
     }
@@ -240,9 +255,14 @@ pub fn print_success(message: &str) {
 /// Print a success line with a duration timestamp.
 pub fn print_success_with_time(message: &str, duration: std::time::Duration) {
     if should_color_stdout() {
+        let prefix = if std::env::var("VOX_CVD_SAFE").is_ok() {
+            "✓".cyan().bold().to_string()
+        } else {
+            "✓".green().bold().to_string()
+        };
         println!(
             "{} {message} {}",
-            "✓".green().bold(),
+            prefix,
             format!("({:.2?})", duration).truecolor(128, 128, 128)
         );
     } else {

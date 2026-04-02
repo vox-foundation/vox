@@ -1,6 +1,5 @@
 //! SUMMARY generation, RSS feed, and markdown lint.
 
-mod bounded_fs;
 mod feed;
 mod lint;
 mod summary;
@@ -61,12 +60,41 @@ pub fn run() {
                         rel.display()
                     );
                 }
+                LintKind::MissingCategory => {
+                    eprintln!(
+                        "  WARN   {} — frontmatter is missing `category:`; docs nav will fall back to folder-based placement",
+                        rel.display()
+                    );
+                }
+                LintKind::UnknownCategory { value } => {
+                    eprintln!(
+                        "  ERROR  {} — unknown category {:?}; use the canonical docs vocabulary",
+                        rel.display(),
+                        value
+                    );
+                }
+                LintKind::UnknownStatus { value } => {
+                    eprintln!(
+                        "  ERROR  {} — unknown status {:?}; use current|experimental|legacy|research|roadmap|deprecated",
+                        rel.display(),
+                        value
+                    );
+                }
             }
         }
 
         let hard_errors = lint_errors
             .iter()
-            .filter(|e| !matches!(e.kind, LintKind::MissingFrontmatter))
+            .filter(|e| {
+                matches!(
+                    e.kind,
+                    LintKind::UnclosedCodeFence
+                        | LintKind::ShortCodeFence { .. }
+                        | LintKind::GenericDescription
+                        | LintKind::UnknownCategory { .. }
+                        | LintKind::UnknownStatus { .. }
+                )
+            })
             .count();
         if hard_errors > 0 {
             eprintln!(
@@ -134,7 +162,7 @@ pub fn run() {
     let summary_path = docs_src.join("SUMMARY.md");
     if check_mode {
         let current =
-            bounded_fs::read_utf8_path_capped(&summary_path).unwrap_or_else(|_| String::new());
+            vox_bounded_fs::read_utf8_path_capped(&summary_path).unwrap_or_else(|_| String::new());
         if let Err(e) = assert_summary_link_targets_unique(&current) {
             eprintln!("{e:#}");
             std::process::exit(1);

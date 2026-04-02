@@ -33,7 +33,7 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
         let text = read_utf8_path_capped(p)?;
         if re.is_match(&text) {
             return Err(anyhow!(
-                "vox-cli must not reference vox_dei:: (crate is workspace-excluded). Offender: {}",
+                "vox-cli must not reference the staging vox-dei crate via Rust `use`/paths (forbidden `vox_dei` + `::`). Offender: {}",
                 p.display()
             ));
         }
@@ -95,11 +95,10 @@ fn resolve_mens_gate_manifest_path(root: &Path) -> PathBuf {
 }
 
 fn nested_cargo_target_dir(root: &Path) -> PathBuf {
-    let base = env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .map(|p| if p.is_absolute() { p } else { root.join(p) })
-        .unwrap_or_else(|| root.join("target"));
-    base.join("nested-ci")
+    // Always isolate nested CI/toestub/feature-matrix Cargo trees under OS temp — avoids
+    // `target/nested-ci` bloat and honors workspace `.cargo/config.toml` `CARGO_TARGET_DIR`
+    // without nesting under the canonical `target/` dir.
+    crate::artifact_policy::ci_nested_target(root)
 }
 
 /// Options for `vox ci mens-gate` isolated runner (temp `vox` copy).
@@ -157,7 +156,7 @@ fn run_mens_gate_windows_isolated(root: &Path, profile: &str, opts: &MensGateOpt
     let target_dir = opts
         .gate_build_target_dir
         .clone()
-        .unwrap_or_else(|| root.join("target").join("mens-gate-safe"));
+        .unwrap_or_else(|| crate::artifact_policy::gate_isolated_target(root));
 
     eprintln!(
         ">> isolated mens-gate: cargo build -p vox-cli --target-dir {}",
@@ -263,7 +262,7 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
     let target_dir = opts
         .gate_build_target_dir
         .clone()
-        .unwrap_or_else(|| root.join("target").join("mens-gate-safe"));
+        .unwrap_or_else(|| crate::artifact_policy::gate_isolated_target(root));
 
     eprintln!(
         ">> isolated mens-gate: cargo build -p vox-cli --target-dir {}",

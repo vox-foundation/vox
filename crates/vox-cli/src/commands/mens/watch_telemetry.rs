@@ -2,6 +2,8 @@
 //!
 //! JSONL lines follow Populi `telemetry::append`: `{ "ts_ms", "event", "payload" }` (see
 //! `crates/vox-populi/src/mens/tensor/telemetry.rs` + `telemetry_schema.rs`).
+//! CI guards (`vox ci data-ssot-guards`) assert this CLI still parses keys such as `eta_seconds_remaining`
+//! and `steps_per_sec_ema` from `telemetry_schema` payloads — keep them in sync when renaming fields.
 
 use regex::Regex;
 use std::io::{Read, Seek, SeekFrom, Write};

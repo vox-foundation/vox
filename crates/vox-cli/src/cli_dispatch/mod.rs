@@ -104,11 +104,22 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Sync { args } => {
             crate::commands::sync::run(args.registry.as_deref(), args.frozen).await?;
         }
+        Cli::Deploy { args } => {
+            crate::commands::deploy::run(args).await?;
+        }
         Cli::Pm { cmd } => {
             crate::commands::pm::run(cmd).await?;
         }
         Cli::Upgrade { args } => {
             crate::commands::upgrade::run(&args, global.json).await?;
+        }
+        Cli::Init {
+            name,
+            kind,
+            template,
+        } => {
+            crate::commands::init::run(name.as_deref(), kind.as_deref(), template.as_deref())
+                .await?;
         }
         Cli::Login {
             registry,
@@ -140,6 +151,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Share { cmd } => {
             run_ars_cmd(latin_cmd::ArsCmd::Share { cmd }).await?;
+        }
+        Cli::Shell { cmd } => {
+            crate::commands::runtime::shell::run(cmd).await?;
         }
         Cli::Db { cmd } => {
             crate::commands::db_cli::run(cmd).await?;
@@ -195,6 +209,10 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                     .await?;
             }
         },
+        Cli::Repo { cmd } => {
+            let cmd = cmd.unwrap_or(crate::commands::repo::RepoCmd::Status { json: false });
+            crate::commands::repo::run(cmd).await?;
+        }
         #[cfg(feature = "ars")]
         Cli::Openclaw { action } => {
             run_openclaw_subcommand(action).await?;
@@ -240,6 +258,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         #[cfg(feature = "populi")]
         Cli::Populi { cmd } => {
             crate::commands::populi_cli::run(cmd, global.json).await?;
+        }
+        Cli::Telemetry { cmd } => {
+            crate::commands::telemetry::run(cmd).await?;
         }
     }
 

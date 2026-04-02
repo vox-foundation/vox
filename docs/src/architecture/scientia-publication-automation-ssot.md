@@ -2,7 +2,7 @@
 title: "SCIENTIA publication automation SSOT"
 description: "Research-grounded SSOT for what Vox should automate, assist, or never automate in scientific publication workflows."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: 2026-04-02
 training_eligible: true
 ---
 
@@ -43,6 +43,7 @@ Internal SSOT and implementation anchors:
 - `crates/vox-cli/src/commands/db.rs`
 - `crates/vox-mcp/src/tools/scientia_tools.rs`
 - `crates/vox-db/src/schema/domains/publish_cloud.rs` (publication tables in the `publish_cloud` Arca fragment)
+- Impact / readership projection (research seed, **not** a publish gate): [scientia-impact-readership-research-2026.md](scientia-impact-readership-research-2026.md), `contracts/scientia/impact-readership-projection.seed.v1.yaml`
 
 External requirements anchors (authoritative policies/guides):
 
@@ -98,7 +99,9 @@ postPublishAudit --> codexLedger[CodexLedgerAndMetrics]
 |Metadata normalization (`authors`, ORCID, funding, license)|yes|n/a|no|
 |DOI/adapter payload generation|yes|n/a|no|
 |Final scientific claim selection and framing|no|yes|yes (fully autonomous)|
-|Novelty/significance judgment|no|yes|yes (fully autonomous)|
+|Novelty judgment|no|yes|yes (fully autonomous)|
+|Impact / “what gets cited or read” projection|no|yes|yes (as a hard gate or sole promotion criterion)|
+|Significance scoring decomposition (inspectable axes)|yes|yes|yes (uncritical promotion from scores alone)|
 |Fabrication-prone narrative sections without evidence|no|no|yes|
 |Inclusion of unverifiable benchmark deltas|no|no|yes|
 |Undisclosed AI authorship/content generation|no|no|yes|

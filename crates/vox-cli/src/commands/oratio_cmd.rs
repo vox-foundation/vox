@@ -143,6 +143,22 @@ pub enum OratioAction {
         #[arg(long)]
         emit_asr_refine: Option<PathBuf>,
     },
+    /// Record the default microphone to a WAV file, then run native STT (requires `--features oratio-mic`).
+    #[cfg(feature = "oratio-mic")]
+    RecordTranscribe {
+        /// Seconds of audio to capture (default ~8s; max 300).
+        #[arg(long, default_value_t = 8.0)]
+        seconds: f32,
+        /// Save the WAV here; default is a temp file under the system temp directory.
+        #[arg(long)]
+        output_wav: Option<PathBuf>,
+        /// Print JSON instead of plain text
+        #[arg(long, default_value_t = false)]
+        json: bool,
+        /// Emit refined transcript text when available
+        #[arg(long, default_value_t = true)]
+        refined: bool,
+    },
     /// Diagnose current Oratio runtime and configuration health.
     Doctor,
     /// Show which Oratio backends and passthrough modes are available
@@ -168,6 +184,45 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
             if use_json {
                 let payload = serde_json::json!({
                     "path": path,
+                    "raw_text": t.raw_text,
+                    "refined_text": t.refined_text,
+                    "text": text,
+                });
+                println!("{}", serde_json::to_string_pretty(&payload)?);
+            } else {
+                println!("{text}");
+            }
+            Ok(())
+        }
+        #[cfg(feature = "oratio-mic")]
+        OratioAction::RecordTranscribe {
+            seconds,
+            output_wav,
+            json,
+            refined,
+        } => {
+            let use_json = json || global_json;
+            let (wav_path, delete_after) = match output_wav {
+                Some(p) => (p, false),
+                None => (
+                    std::env::temp_dir()
+                        .join(format!("vox_oratio_mic_{}.wav", uuid::Uuid::new_v4())),
+                    true,
+                ),
+            };
+            crate::commands::oratio_mic::record_default_input_wav(&wav_path, seconds)?;
+            let t = vox_oratio::transcribe_path(&wav_path)?;
+            let text = if refined {
+                t.display_text().to_string()
+            } else {
+                t.raw_text.clone()
+            };
+            if delete_after {
+                let _ = std::fs::remove_file(&wav_path);
+            }
+            if use_json {
+                let payload = serde_json::json!({
+                    "path": wav_path,
                     "raw_text": t.raw_text,
                     "refined_text": t.refined_text,
                     "text": text,

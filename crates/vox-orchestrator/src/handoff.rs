@@ -12,6 +12,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::events::{AgentEventKind, EventBus};
 use crate::types::{AgentId, TaskId};
 
+/// Metadata key carrying serialized [`crate::ContextEnvelope`] JSON.
+pub const CONTEXT_ENVELOPE_JSON_METADATA_KEY: &str = "context_envelope_json";
+/// Metadata key carrying serialized [`crate::AgentHarnessSpec`] JSON.
+pub const HARNESS_SPEC_JSON_METADATA_KEY: &str = "harness_spec_json";
+
 /// Violation of structured handoff invariants (verification vs pending work).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum HandoffInvariantError {
@@ -21,6 +26,12 @@ pub enum HandoffInvariantError {
     /// Campaign role handoff should preserve role metadata for pending work.
     #[error("handoff with pending tasks should include execution_role metadata")]
     MissingExecutionRoleMetadata,
+    /// Metadata advertised a context envelope but it failed to parse.
+    #[error("handoff metadata contains invalid context envelope JSON: {0}")]
+    InvalidContextEnvelope(String),
+    /// Metadata advertised a harness spec but it failed validation.
+    #[error("handoff metadata contains invalid harness spec JSON: {0}")]
+    InvalidHarnessSpec(String),
 }
 
 /// A single step in the execution history preserved during handoff.
@@ -237,7 +248,83 @@ pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), Hando
     {
         return Err(HandoffInvariantError::MissingExecutionRoleMetadata);
     }
+    if let Some((_, context_json)) = payload
+        .metadata
+        .iter()
+        .rev()
+        .find(|(k, _)| k == CONTEXT_ENVELOPE_JSON_METADATA_KEY)
+        && let Err(err) = serde_json::from_str::<crate::ContextEnvelope>(context_json)
+    {
+        return Err(HandoffInvariantError::InvalidContextEnvelope(err.to_string()));
+    }
+    if let Some((_, harness_json)) = payload
+        .metadata
+        .iter()
+        .rev()
+        .find(|(k, _)| k == HARNESS_SPEC_JSON_METADATA_KEY)
+    {
+        match serde_json::from_str::<crate::AgentHarnessSpec>(harness_json) {
+            Ok(harness) => {
+                let expectations = crate::HarnessIngestExpectations {
+                    repository_id: harness.subject.repository_id.as_str(),
+                    session_id: harness.subject.session_id.as_deref(),
+                    thread_id: harness.subject.thread_id.as_deref(),
+                };
+                if let Err(errs) = crate::validate_agent_harness_ingest(&harness, expectations) {
+                    return Err(HandoffInvariantError::InvalidHarnessSpec(errs.join("; ")));
+                }
+            }
+            Err(err) => return Err(HandoffInvariantError::InvalidHarnessSpec(err.to_string())),
+        }
+    }
     Ok(())
+}
+
+/// Returns compact event metadata derived from optional handoff context / harness metadata.
+#[must_use]
+pub fn handoff_context_event_metadata(payload: &HandoffPayload) -> (bool, bool, Option<String>, Option<String>) {
+    let Some((_, context_json)) = payload
+        .metadata
+        .iter()
+        .rev()
+        .find(|(k, _)| k == CONTEXT_ENVELOPE_JSON_METADATA_KEY)
+    else {
+        let harness = payload
+            .metadata
+            .iter()
+            .rev()
+            .find(|(k, _)| k == HARNESS_SPEC_JSON_METADATA_KEY)
+            .and_then(|(_, raw)| serde_json::from_str::<crate::AgentHarnessSpec>(raw).ok());
+        let has_harness_spec = harness.is_some();
+        return (
+            false,
+            has_harness_spec,
+            harness.as_ref().and_then(|h| h.subject.session_id.clone()),
+            harness.as_ref().and_then(|h| h.subject.thread_id.clone()),
+        );
+    };
+    let parsed_context = serde_json::from_str::<crate::ContextEnvelope>(context_json).ok();
+    let session_id = parsed_context.as_ref().and_then(|env| {
+        env.subject
+            .session_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned)
+    });
+    let thread_id = parsed_context.as_ref().and_then(|env| {
+        env.subject
+            .thread_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned)
+    });
+    let has_harness_spec = payload
+        .metadata
+        .iter()
+            .any(|(k, _)| k == HARNESS_SPEC_JSON_METADATA_KEY);
+    (true, has_harness_spec, session_id, thread_id)
 }
 
 /// Execute a handoff: validate invariants, then emit the event for the receiver.
@@ -246,6 +333,8 @@ pub fn execute_handoff(
     event_bus: &EventBus,
 ) -> Result<(), HandoffInvariantError> {
     validate_handoff_invariants(payload)?;
+    let (has_context_envelope, has_harness_spec, session_id, thread_id) =
+        handoff_context_event_metadata(payload);
     let to_str = payload
         .to_agent
         .map(|a| a.to_string())
@@ -262,6 +351,10 @@ pub fn execute_handoff(
         from: payload.from_agent,
         to: payload.to_agent.unwrap_or(AgentId(0)),
         plan_summary: payload.plan_summary.clone(),
+        has_context_envelope,
+        has_harness_spec,
+        session_id,
+        thread_id,
     });
     Ok(())
 }
@@ -332,9 +425,21 @@ mod tests {
         // Event should be in the channel
         let event = rx.try_recv().expect("should have event");
         match event.kind {
-            AgentEventKind::PlanHandoff { from, to, .. } => {
+            AgentEventKind::PlanHandoff {
+                from,
+                to,
+                has_context_envelope,
+                has_harness_spec,
+                session_id,
+                thread_id,
+                ..
+            } => {
                 assert_eq!(from, AgentId(1));
                 assert_eq!(to, AgentId(2));
+                assert!(!has_context_envelope);
+                assert!(!has_harness_spec);
+                assert!(session_id.is_none());
+                assert!(thread_id.is_none());
             }
             _ => panic!("wrong event type"),
         }
@@ -383,5 +488,154 @@ mod tests {
         assert_eq!(payload.timeout_ms, Some(1000));
         assert_eq!(payload.execution_history.len(), 1);
         assert_eq!(payload.execution_history[0].task_id, TaskId(1));
+    }
+
+    #[test]
+    fn handoff_rejects_invalid_context_envelope_metadata() {
+        let bus = EventBus::new(4);
+        let payload = HandoffPayload::new(AgentId(1), None, "Work left")
+            .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, "{not-json");
+        let err = execute_handoff(&payload, &bus).unwrap_err();
+        assert!(matches!(
+            err,
+            HandoffInvariantError::InvalidContextEnvelope(_)
+        ));
+    }
+
+    #[test]
+    fn handoff_accepts_valid_context_envelope_metadata() {
+        let bus = EventBus::new(4);
+        let retrieval = crate::SessionRetrievalEnvelope {
+            retrieval_tier: "hybrid".to_string(),
+            memory_hit_count: 1,
+            knowledge_hit_count: 1,
+            chunk_hit_count: 0,
+            repo_hit_count: 0,
+            rrf_fused_hit_count: 0,
+            used_vector: true,
+            used_bm25: true,
+            used_lexical_fallback: false,
+            contradiction_count: 0,
+            source_diversity: 2,
+            evidence_quality: 0.8,
+            citation_coverage: 0.9,
+            verification_performed: false,
+            verification_reason: None,
+            recommended_next_action: None,
+        };
+        let context = crate::ContextEnvelope::from_session_retrieval("repo", "sess", &retrieval);
+        let context_json = serde_json::to_string(&context).expect("serialize context envelope");
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff")
+            .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json);
+        execute_handoff(&payload, &bus).expect("valid context envelope metadata");
+    }
+
+    #[test]
+    fn handoff_rejects_invalid_harness_spec_metadata() {
+        let bus = EventBus::new(4);
+        let payload = HandoffPayload::new(AgentId(1), None, "Work left")
+            .with_metadata(HARNESS_SPEC_JSON_METADATA_KEY, "{not-json");
+        let err = execute_handoff(&payload, &bus).unwrap_err();
+        assert!(matches!(err, HandoffInvariantError::InvalidHarnessSpec(_)));
+    }
+
+    #[test]
+    fn handoff_accepts_valid_harness_spec_metadata() {
+        let bus = EventBus::new(4);
+        let harness = crate::AgentHarnessSpec::minimal_contract_first(
+            "repo",
+            "handoff harness",
+            Some("sid-handoff"),
+            Some("thread-handoff"),
+            &["artifacts/out.md".to_string()],
+        );
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff")
+            .with_metadata(
+                HARNESS_SPEC_JSON_METADATA_KEY,
+                serde_json::to_string(&harness).expect("serialize harness"),
+            );
+        execute_handoff(&payload, &bus).expect("valid harness metadata");
+    }
+
+    #[test]
+    fn execute_handoff_emits_context_metadata_fields() {
+        let bus = EventBus::new(4);
+        let mut rx = bus.subscribe();
+        let retrieval = crate::SessionRetrievalEnvelope {
+            retrieval_tier: "hybrid".to_string(),
+            memory_hit_count: 1,
+            knowledge_hit_count: 1,
+            chunk_hit_count: 0,
+            repo_hit_count: 0,
+            rrf_fused_hit_count: 0,
+            used_vector: true,
+            used_bm25: true,
+            used_lexical_fallback: false,
+            contradiction_count: 0,
+            source_diversity: 2,
+            evidence_quality: 0.7,
+            citation_coverage: 0.8,
+            verification_performed: false,
+            verification_reason: None,
+            recommended_next_action: None,
+        };
+        let context = crate::ContextEnvelope::from_session_retrieval("repo", "sid-event", &retrieval);
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff with context")
+            .with_metadata(
+                CONTEXT_ENVELOPE_JSON_METADATA_KEY,
+                serde_json::to_string(&context).expect("serialize context"),
+            );
+        execute_handoff(&payload, &bus).expect("handoff should succeed");
+        let event = rx.try_recv().expect("should have event");
+        match event.kind {
+            AgentEventKind::PlanHandoff {
+                has_context_envelope,
+                has_harness_spec,
+                session_id,
+                thread_id,
+                ..
+            } => {
+                assert!(has_context_envelope);
+                assert!(!has_harness_spec);
+                assert_eq!(session_id.as_deref(), Some("sid-event"));
+                assert!(thread_id.is_none());
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn execute_handoff_emits_harness_metadata_fields() {
+        let bus = EventBus::new(4);
+        let mut rx = bus.subscribe();
+        let harness = crate::AgentHarnessSpec::minimal_contract_first(
+            "repo",
+            "handoff harness metadata",
+            Some("sid-harness-event"),
+            Some("thread-harness-event"),
+            &["artifacts/out.md".to_string()],
+        );
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff with harness")
+            .with_metadata(
+                HARNESS_SPEC_JSON_METADATA_KEY,
+                serde_json::to_string(&harness).expect("serialize harness"),
+            );
+        execute_handoff(&payload, &bus).expect("handoff should succeed");
+        let event = rx.try_recv().expect("should have event");
+        match event.kind {
+            AgentEventKind::PlanHandoff {
+                has_context_envelope,
+                has_harness_spec,
+                session_id,
+                thread_id,
+                ..
+            } => {
+                assert!(!has_context_envelope);
+                assert!(has_harness_spec);
+                assert_eq!(session_id.as_deref(), Some("sid-harness-event"));
+                assert_eq!(thread_id.as_deref(), Some("thread-harness-event"));
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }

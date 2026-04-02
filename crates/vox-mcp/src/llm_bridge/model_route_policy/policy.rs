@@ -2,7 +2,6 @@ use vox_config::{
     GeminiRoutePolicy, gemini_route_targets_from_env, inference_profile_allows_local_ollama_http,
 };
 use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
-use vox_orchestrator::types::TaskCategory;
 
 use super::types::McpChatModelResolution;
 
@@ -14,7 +13,7 @@ pub(super) fn enforce_free_tier_if_needed(
     if !res.enforce_free_tier_only || spec.is_free {
         return Ok(spec);
     }
-    let task = TaskCategory::CodeGen;
+    let task = res.task_category;
     registry
         .best_free_for_with_filter(task, mcp_ollama_model_allowed)
         .or_else(|| registry.cheapest_free_with_filter(mcp_ollama_model_allowed))

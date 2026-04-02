@@ -10,7 +10,7 @@ last_updated: 2026-03-25
 ## Read first
 
 - [Mens / Populi SSOT](../reference/populi.md)
-- [OpenAPI](../../../schemas/populi-control-plane.openapi.yaml)
+- [OpenAPI](../../../contracts/populi/control-plane.openapi.yaml)
 - [Deployment compose](../reference/deployment-compose.md)
 
 ## Key paths

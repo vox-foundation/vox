@@ -111,6 +111,7 @@ async fn retrieval_bundle_prefers_bm25_before_lexical_fallback() {
         "bm25 keyword token",
         RetrievalTriggerMode::ExplicitToolQuery,
         5,
+        None,
     )
     .await
     .expect("retrieval bundle");

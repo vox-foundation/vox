@@ -99,7 +99,8 @@ fn top_level_product_lane(path: &[String]) -> Option<&'static str> {
         Some("codex" | "db" | "scientia") => Some("data"),
         Some(
             "add" | "remove" | "update" | "lock" | "sync" | "upgrade" | "pm" | "ci" | "doctor"
-            | "diag" | "architect" | "stub-check" | "clavis" | "login" | "logout" | "commands",
+            | "diag" | "architect" | "stub-check" | "clavis" | "login" | "logout" | "commands"
+            | "shell",
         ) => Some("platform"),
         _ => None,
     }

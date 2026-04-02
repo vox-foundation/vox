@@ -28,6 +28,13 @@ This page ties together **how Vox is meant to run** on servers, generated apps, 
 - **Mens:** native apps act as HTTP clients: register via **`POST /v1/populi/join`** with a [`NodeRecord`](../../../crates/vox-populi/src/lib.rs), using the same **`VOX_MESH_*`** / control URL conventions as servers.
 - **Inference:** set **`VOX_INFERENCE_PROFILE`** (e.g. `mobile_litert`, `cloud_openai_compatible`) so MCP-compatible tooling does not assume desktop Ollama on loopback.
 
+## Lane R — Remote mobile workspace client
+
+- **Entry:** phone browser or mobile shell connects to a **remote** Vox host over authenticated network APIs.
+- **Role:** planning/chat, bounded edits, validation, and orchestrator monitoring happen remotely; the phone is a client, not the toolchain host.
+- **Host requirement:** the remote host owns repo checkout, Cargo/git/tooling, `.vox/cache`, and long-lived MCP/orchestrator processes.
+- **Non-goal:** Lane R does not imply on-device parity with `vox` CLI or full server-script runtime semantics.
+
 ## WASM clarification
 
 **WASI / Wasmtime** (`vox run --isolation wasm` on a workstation) is **not** the same as **in-browser WebGPU + WASM**. Browser tiers are optional and policy-gated; see [mobile / edge AI SSOT](../reference/mobile-edge-ai.md) (browser row).

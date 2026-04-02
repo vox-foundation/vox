@@ -39,6 +39,11 @@ jobs:
         with:
           mdbook-version: '0.4.40'
 
+      - name: Install mdBook tools
+        run: |
+          cargo install mdbook-metadata --locked
+          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
+
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.5
 
@@ -64,11 +69,6 @@ jobs:
 
       - name: Build mdBook
         run: mdbook build docs
-
-      - name: Install mdBook tools
-        run: |
-          cargo install mdbook-metadata --locked
-          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
 
       - name: Generate sitemap.xml
         working-directory: docs

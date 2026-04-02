@@ -36,6 +36,8 @@ pub(crate) mod db_retention;
 /// DEI decision engine commands (requires `--features dei`).
 #[cfg(feature = "dei")]
 pub mod dei;
+/// `vox deploy` — `Vox.toml` `[deploy]` execution (`vox-container`).
+pub mod deploy;
 /// Auto-reloading compilation daemon runner (`vox dev`).
 pub mod dev;
 /// Submodules for `architect`, `doctor`, `clean`, etc.
@@ -53,6 +55,8 @@ pub use extras::ars;
 pub mod fmt;
 /// `vox info` — package metadata from registry / local Arca store (`vox-pm`).
 pub mod info;
+/// `vox init` — scaffold `Vox.toml` / `src/main.vox` / skill markdown.
+pub mod init;
 /// Web island UI creation handler (`vox island`).
 #[cfg(feature = "island")]
 pub mod island;
@@ -77,6 +81,8 @@ pub mod populi_cli;
 /// One-command populi lifecycle helpers (`vox populi up|down|status`; requires `populi`).
 #[cfg(feature = "populi")]
 pub mod populi_lifecycle;
+/// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
+pub mod repo;
 pub(crate) mod repo_upgrade;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
@@ -96,13 +102,18 @@ pub mod run;
 pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
+pub(crate) mod scientia_ledger_contract;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
+/// Optional telemetry upload queue (`vox telemetry`).
+pub mod telemetry;
 pub mod update;
 
 /// Speech-to-text and transcript refinement (`vox oratio`).
 #[cfg(feature = "oratio")]
 pub mod oratio_cmd;
+#[cfg(feature = "oratio-mic")]
+pub mod oratio_mic;
 
 /// ML tooling specific commands (`vox mens`).
 #[cfg(any(feature = "mens-base", feature = "gpu"))]

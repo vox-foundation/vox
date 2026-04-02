@@ -16,8 +16,8 @@ pub mod hub;
 #[cfg(feature = "mens-cloud")]
 pub mod cloud;
 
-/// Default HuggingFace model for Mens training and serving.
-pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-3B-Instruct";
+/// Default HuggingFace model for Mens training and serving (VoxMens QLoRA SSOT).
+pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3.5-4B";
 
 #[cfg(feature = "mens-gpu")]
 pub use burn;

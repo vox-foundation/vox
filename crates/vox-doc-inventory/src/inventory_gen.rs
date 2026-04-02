@@ -39,7 +39,7 @@ pub fn generate(root: &Path, out_path: &Path) -> Result<DocInventory> {
         if !p.is_file() {
             continue;
         }
-        let text = crate::bounded_fs::read_utf8_path_capped(&p).unwrap_or_else(|_| String::new());
+        let text = vox_bounded_fs::read_utf8_path_capped(&p).unwrap_or_else(|_| String::new());
         let hints = rust_symbol_hints(&text);
         if !hints.is_empty() {
             symbol_hints.push(SymbolHintGroup {

@@ -301,12 +301,17 @@ impl RoutingService {
     }
 
     fn remote_hint_matches_task(r: &RemotePopuliRoutingHint, req: &TaskCapabilityHints) -> bool {
+        if !r.is_federation_schedulable() {
+            return false;
+        }
         if req.labels.is_empty() {
             return false;
         }
         Self::labels_cover(&r.labels, &req.labels)
             && (!req.gpu_cuda || r.gpu_cuda)
             && (!req.gpu_metal || r.gpu_metal)
+            && (!(req.gpu_cuda || req.gpu_metal || req.prefer_gpu_compute)
+                || r.is_federation_gpu_eligible())
             && match req.min_vram_mb {
                 None => true,
                 Some(need) => r.min_vram_mb.is_some_and(|have| have >= need),
@@ -327,6 +332,13 @@ impl RoutingService {
         let Some(remote) = remote_populi_hints.filter(|s| !s.is_empty()) else {
             return;
         };
+        let remote_schedulable = remote
+            .iter()
+            .filter(|r| r.is_federation_schedulable())
+            .count();
+        if remote_schedulable == 0 {
+            return;
+        }
         if !req.labels.is_empty() {
             let local_matches = agents.values().any(|q_lock| {
                 Self::labels_cover(
@@ -367,7 +379,10 @@ impl RoutingService {
             }
         }
         if req.prefer_gpu_compute || req.gpu_cuda || req.gpu_metal {
-            let remote_gpu = remote.iter().filter(|r| r.gpu_cuda || r.gpu_metal).count();
+            let remote_gpu = remote
+                .iter()
+                .filter(|r| r.is_federation_schedulable() && r.is_federation_gpu_eligible())
+                .count();
             if remote_gpu > 0 {
                 tracing::trace!(
                     target: "vox.orchestrator.routing",
@@ -457,7 +472,8 @@ impl RoutingService {
             let remote_train_gpu = remote
                 .iter()
                 .filter(|h| {
-                    h.training_labels.iter().any(|l| l.starts_with("workload="))
+                    h.is_federation_schedulable()
+                        && h.training_labels.iter().any(|l| l.starts_with("workload="))
                         && (h.gpu_cuda || h.gpu_metal)
                         && match req.min_vram_mb {
                             None => true,
@@ -699,7 +715,20 @@ mod tests {
             gpu_cuda: false,
             gpu_metal: false,
             min_vram_mb: None,
+            gpu_total_count: None,
+            gpu_healthy_count: None,
+            gpu_allocatable_count: None,
+            gpu_inventory_source: None,
+            gpu_truth_layer: None,
             training_labels: vec![],
+            maintenance: false,
+            quarantined: false,
+            heartbeat_stale: false,
+            nvidia_driver_version: None,
+            cuda_driver_version: None,
+            gpu_readiness_ok: None,
+            gpu_readiness_reason: None,
+            gpu_readiness_checked_unix_ms: None,
         }];
         let route = RoutingService::route(
             &manifest,
@@ -715,6 +744,104 @@ mod tests {
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a1));
+    }
+
+    #[test]
+    fn remote_hint_matching_ignores_quarantined_maintenance_or_stale_nodes() {
+        let req = TaskCapabilityHints {
+            labels: vec!["pool=a".to_string()],
+            gpu_cuda: true,
+            min_vram_mb: Some(12_288),
+            ..Default::default()
+        };
+        let mut quarantined = RemotePopuliRoutingHint {
+            node_id: "remote-q".into(),
+            capabilities: TaskCapabilityHints {
+                labels: vec!["pool=a".into()],
+                gpu_cuda: true,
+                min_vram_mb: Some(24_576),
+                ..Default::default()
+            },
+            labels: vec!["pool=a".into()],
+            gpu_cuda: true,
+            gpu_metal: false,
+            min_vram_mb: Some(24_576),
+            gpu_total_count: None,
+            gpu_healthy_count: None,
+            gpu_allocatable_count: None,
+            gpu_inventory_source: None,
+            gpu_truth_layer: None,
+            training_labels: vec!["workload=mens-train".into()],
+            maintenance: false,
+            quarantined: true,
+            heartbeat_stale: false,
+            nvidia_driver_version: None,
+            cuda_driver_version: None,
+            gpu_readiness_ok: None,
+            gpu_readiness_reason: None,
+            gpu_readiness_checked_unix_ms: None,
+        };
+        assert!(!RoutingService::remote_hint_matches_task(
+            &quarantined,
+            &req
+        ));
+
+        quarantined.quarantined = false;
+        quarantined.maintenance = true;
+        assert!(!RoutingService::remote_hint_matches_task(
+            &quarantined,
+            &req
+        ));
+
+        quarantined.maintenance = false;
+        assert!(RoutingService::remote_hint_matches_task(&quarantined, &req));
+
+        quarantined.heartbeat_stale = true;
+        assert!(!RoutingService::remote_hint_matches_task(
+            &quarantined,
+            &req
+        ));
+    }
+
+    #[test]
+    fn remote_hint_matching_requires_allocatable_or_healthy_gpu_for_gpu_tasks() {
+        let req = TaskCapabilityHints {
+            labels: vec!["pool=a".to_string()],
+            gpu_cuda: true,
+            ..Default::default()
+        };
+        let mut hint = RemotePopuliRoutingHint {
+            node_id: "remote-gpu".into(),
+            capabilities: TaskCapabilityHints {
+                labels: vec!["pool=a".into()],
+                gpu_cuda: true,
+                ..Default::default()
+            },
+            labels: vec!["pool=a".into()],
+            gpu_cuda: true,
+            gpu_metal: false,
+            min_vram_mb: Some(8_192),
+            gpu_total_count: Some(2),
+            gpu_healthy_count: Some(0),
+            gpu_allocatable_count: Some(0),
+            gpu_inventory_source: Some("probed".into()),
+            gpu_truth_layer: Some("layer_b_allocatable".into()),
+            training_labels: vec![],
+            maintenance: false,
+            quarantined: false,
+            heartbeat_stale: false,
+            nvidia_driver_version: None,
+            cuda_driver_version: None,
+            gpu_readiness_ok: None,
+            gpu_readiness_reason: None,
+            gpu_readiness_checked_unix_ms: None,
+        };
+        assert!(!RoutingService::remote_hint_matches_task(&hint, &req));
+        hint.gpu_healthy_count = Some(2);
+        hint.gpu_allocatable_count = Some(1);
+        assert!(RoutingService::remote_hint_matches_task(&hint, &req));
+        hint.gpu_readiness_ok = Some(false);
+        assert!(!RoutingService::remote_hint_matches_task(&hint, &req));
     }
 
     #[test]

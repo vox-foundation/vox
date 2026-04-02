@@ -20,9 +20,14 @@ export function FinancialDashboard({ stats, budgetHistory, modelList }: any) {
     return (
         <div className="p-10 bg-[#09090b] h-full overflow-y-auto text-white">
             <div className="flex justify-between items-center mb-8">
+                <div>
                 <h2 className="text-3xl font-black tracking-tighter uppercase">
                     Financial <span className="text-emerald-500">Command</span>
                 </h2>
+                <p className="text-[10px] text-zinc-500 mt-1 max-w-xl">
+                    Operator view: budget and model signals from MCP. Disclosure SSOT: docs/src/architecture/telemetry-client-disclosure-ssot.md
+                </p>
+                </div>
                 {isRunaway && (
                     <div className="flex items-center gap-2 bg-red-500/20 text-red-500 px-4 py-2 rounded-full border border-red-500/50 animate-pulse">
                         <AlertTriangle size={16} />

@@ -5,6 +5,25 @@ use vox_orchestrator::usage::RemainingBudget;
 
 use super::types::McpChatModelResolution;
 
+const QUALITY_FREE_PAID_COMPONENT: f64 = 0.35;
+const QUALITY_PAID_COMPONENT: f64 = 0.95;
+const QUALITY_TOKEN_WEIGHT: f64 = 0.6;
+const QUALITY_PAID_WEIGHT: f64 = 0.4;
+const EFFICIENCY_COST_SCALER: f64 = 100.0;
+const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
+const COMPLEXITY_LOW_CUTOFF: u8 = 3;
+const COMPLEXITY_PRECISION_BONUS: u8 = 10;
+const COMPLEXITY_EFFICIENCY_BONUS: u8 = 10;
+const COMPLEXITY_LATENCY_BONUS: u8 = 5;
+const FIM_CODE_SIGNAL_BONUS: f64 = 0.08;
+const FIM_NON_CODE_SIGNAL_PENALTY: f64 = -0.02;
+const ECONOMY_EFFICIENCY_BONUS: u8 = 15;
+const PERFORMANCE_PRECISION_BONUS: u8 = 12;
+const RATE_LIMITED_SCORE_FLOOR: f64 = -10_000.0;
+const EMPTY_BUDGET_AVAILABILITY_SCORE: f64 = 0.35;
+const BUDGET_LOG10_DIVISOR: f64 = 3.0;
+const BUDGET_AVAILABILITY_MIN: f64 = 0.4;
+
 #[must_use]
 pub(super) fn budget_match(limit_model: &str, model: &str) -> bool {
     limit_model == model
@@ -32,8 +51,13 @@ pub(super) fn model_budget_hint(
 #[must_use]
 pub(super) fn quality_score(m: &ModelSpec) -> f64 {
     let token_component = (m.max_tokens as f64).log10().clamp(1.0, 7.0) / 7.0;
-    let paid_component = if m.is_free { 0.35 } else { 0.95 };
-    ((token_component * 0.6) + (paid_component * 0.4)).clamp(0.0, 1.0)
+    let paid_component = if m.is_free {
+        QUALITY_FREE_PAID_COMPONENT
+    } else {
+        QUALITY_PAID_COMPONENT
+    };
+    ((token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT))
+        .clamp(0.0, 1.0)
 }
 
 #[must_use]
@@ -46,7 +70,7 @@ pub(super) fn efficiency_score(m: &ModelSpec) -> f64 {
     if blended <= 0.0 {
         return 1.0;
     }
-    (1.0 / (1.0 + blended * 100.0)).clamp(0.0, 1.0)
+    (1.0 / (1.0 + blended * EFFICIENCY_COST_SCALER)).clamp(0.0, 1.0)
 }
 
 #[must_use]
@@ -83,27 +107,45 @@ pub(super) fn auto_score_model(
     hints: Option<&[RemainingBudget]>,
 ) -> f64 {
     let mut w = AutoRoutingPriority::from_env();
-    if res.complexity >= 8 {
-        w.precision = w.precision.saturating_add(10);
-    } else if res.complexity <= 3 {
-        w.efficiency = w.efficiency.saturating_add(10);
-        w.latency = w.latency.saturating_add(5);
+    if res.complexity >= COMPLEXITY_HIGH_CUTOFF {
+        w.precision = w.precision.saturating_add(COMPLEXITY_PRECISION_BONUS);
+    } else if res.complexity <= COMPLEXITY_LOW_CUTOFF {
+        w.efficiency = w.efficiency.saturating_add(COMPLEXITY_EFFICIENCY_BONUS);
+        w.latency = w.latency.saturating_add(COMPLEXITY_LATENCY_BONUS);
     }
+    let fim_bias = if res.free_tier_fill_in_middle {
+        let id = m.id.to_ascii_lowercase();
+        let has_code_signal = m.strengths.iter().any(|s| s == "codegen" || s == "parsing")
+            || id.contains("coder")
+            || id.contains("code")
+            || id.contains("instruct");
+        if has_code_signal {
+            FIM_CODE_SIGNAL_BONUS
+        } else {
+            FIM_NON_CODE_SIGNAL_PENALTY
+        }
+    } else {
+        0.0
+    };
     match preference {
-        CostPreference::Economy => w.efficiency = w.efficiency.saturating_add(15),
-        CostPreference::Performance => w.precision = w.precision.saturating_add(12),
+        CostPreference::Economy => {
+            w.efficiency = w.efficiency.saturating_add(ECONOMY_EFFICIENCY_BONUS)
+        }
+        CostPreference::Performance => {
+            w.precision = w.precision.saturating_add(PERFORMANCE_PRECISION_BONUS)
+        }
     }
 
     let (remaining, rate_limited) = model_budget_hint(m, hints);
     if rate_limited {
-        return -10_000.0;
+        return RATE_LIMITED_SCORE_FLOOR;
     }
 
     let balance_bias = 1.0_f64 - f64::from(res.context_fill_ratio.unwrap_or(0.0).clamp(0.0, 1.0));
     let availability_score = if remaining == 0 {
-        0.35
+        EMPTY_BUDGET_AVAILABILITY_SCORE
     } else {
-        (f64::from(remaining).log10() / 3.0).clamp(0.4, 1.0)
+        (f64::from(remaining).log10() / BUDGET_LOG10_DIVISOR).clamp(BUDGET_AVAILABILITY_MIN, 1.0)
     };
     let total_w = f64::from(
         u16::from(w.efficiency)
@@ -120,5 +162,5 @@ pub(super) fn auto_score_model(
         + f64::from(w.availability) * availability_score
         + f64::from(w.balance) * balance_bias
         + f64::from(w.mobile) * mobile_score(m);
-    score / total_w
+    (score / total_w) + fim_bias
 }

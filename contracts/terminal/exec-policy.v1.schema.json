@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/terminal/exec-policy.v1.schema.json",
+  "title": "Vox terminal execution policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "allowed_cmdlets", "allowed_binaries", "blocked_parameters"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "allowed_cmdlets": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "allowed_binaries": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "blocked_parameters": {
+      "type": "object",
+      "description": "Map of cmdlet/binary pattern (* = all commands) to parameter names (without leading -) that must never appear.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "network_fetch_commands": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Command names (case-insensitive) treated as network-capable; string literals are scanned for http(s) URLs."
+    },
+    "network_fetch_domains": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Allowed URI hosts when a network_fetch_command is used (case-insensitive). Empty list denies all remote URLs for those commands."
+    }
+  }
+}

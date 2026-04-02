@@ -295,7 +295,7 @@ pub fn auto_assign_groups(workspace_root: &Path) -> Vec<AffinityGroup> {
 /// Callers should fall back to [`AffinityGroupRegistry::detect_from_repository_layout`] or
 /// [`AffinityGroupRegistry::defaults`].
 pub fn load_from_config(path: &Path) -> Option<AffinityGroupRegistry> {
-    let raw = crate::bounded_fs::read_utf8_path_capped(path).ok()?;
+    let raw = vox_bounded_fs::read_utf8_path_capped(path).ok()?;
     let value: toml::Value = raw.parse().ok()?;
     let root = value.as_table()?;
     let ag = root.get("affinity_groups")?;

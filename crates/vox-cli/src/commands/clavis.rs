@@ -323,5 +323,15 @@ async fn run_doctor(
         rf.db_sync_remote_integration_gate,
         rf.db_embedded_replica_integration_gate
     );
+    if !rf.workflow_journal_codex_persist {
+        println!(
+            "warning: VOX_WORKFLOW_JOURNAL_CODEX_OFF disables Codex workflow journal append (durable replay still depends on workflow_activity_log)"
+        );
+    }
+    if rf.db_circuit_breaker_env {
+        println!(
+            "warning: VOX_DB_CIRCUIT_BREAKER may gate workflow durability writes under DB stress"
+        );
+    }
     Ok(())
 }

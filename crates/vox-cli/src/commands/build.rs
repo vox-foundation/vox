@@ -12,44 +12,20 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
-    let source = read_utf8_path_capped(file)
-        .with_context(|| format!("Failed to read source file: {}", file.display()))?;
-
-    // 1. Lex
-    let tokens = vox_compiler::lexer::lex(&source);
-    tracing::info!("Lexed {} tokens", tokens.len());
-
-    // 2. Parse
-    let module = vox_compiler::parser::parse(tokens).map_err(|errors| {
-        for e in &errors {
-            eprintln!("Parse error: {} at {:?}", e.message, e.span);
-        }
-        anyhow::anyhow!("Parsing failed with {} error(s)", errors.len())
-    })?;
-    tracing::info!("Parsed {} declarations", module.declarations.len());
-
-    // 3. Type check (HIR)
-    let diagnostics = vox_compiler::typeck::typecheck_ast_module(&source, &module);
-    let has_errors = diagnostics
-        .iter()
-        .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error);
-    for d in &diagnostics {
-        match d.severity {
-            vox_compiler::typeck::diagnostics::TypeckSeverity::Error => {
-                eprintln!("error: {} at {:?}", d.message, d.span)
-            }
-            vox_compiler::typeck::diagnostics::TypeckSeverity::Warning => {
-                eprintln!("warning: {} at {:?}", d.message, d.span)
-            }
-        }
+    let frontend = crate::pipeline::run_frontend(file, false).await?;
+    crate::pipeline::print_diagnostics(&frontend, file, false);
+    if frontend.has_errors() {
+        anyhow::bail!(
+            "Build failed with {} error(s) and {} warning(s)",
+            frontend.error_count(),
+            frontend.warning_count()
+        );
     }
-    if has_errors {
-        anyhow::bail!("Type checking failed");
-    }
-    tracing::info!("Type checking passed");
-
-    // 4. Lower to HIR (reuse for codegen)
-    let hir = vox_compiler::hir::lower_module(&module);
+    tracing::info!(
+        "Frontend passed with {} warning(s)",
+        frontend.warning_count()
+    );
+    let crate::pipeline::FrontendResult { module, hir, .. } = frontend;
 
     // 5. Generate TypeScript (Frontend)
     let ts_opts = vox_compiler::codegen_ts::CodegenOptions {

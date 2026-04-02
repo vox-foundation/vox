@@ -4,8 +4,7 @@ pub fn extract_from_vox_file(
     config: &ExtractVoxConfig,
 ) -> anyhow::Result<Vec<VoxTrainingPair>> {
     let source =
-        crate::bounded_fs::read_utf8_path_capped(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        vox_bounded_fs::read_utf8_path_capped(path).with_context(|| format!("read {}", path.display()))?;
 
     if !is_eligible_for_training(&source) {
         return Ok(Vec::new());

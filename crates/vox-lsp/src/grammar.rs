@@ -55,6 +55,7 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
         // ── Decorators (index 7) ─────────────────────────────────────────────
         Token::AtComponent
         | Token::AtMcpTool
+        | Token::AtMcpResource
         | Token::AtExternal
         | Token::AtTest
         | Token::AtServer

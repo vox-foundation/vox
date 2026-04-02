@@ -53,7 +53,7 @@ pub struct TaskCapabilityHints {
 }
 
 /// Markers for tooling gates (Cargo, Node, etc.).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepoCapabilities {
     /// `Vox.toml` present at repository root.
     pub vox_project: bool,

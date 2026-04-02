@@ -12,6 +12,7 @@ mod runtime_config;
 pub mod acoustic_preprocess;
 
 pub use acoustic_preprocess::{AcousticPreprocessDiagnostics, preprocess_audio_pcm_f32_reported};
+pub mod ast_mapper;
 pub mod contextual_bias;
 
 #[cfg(feature = "stt-candle")]
@@ -22,11 +23,14 @@ pub mod failure_taxonomy;
 pub mod refine;
 pub mod routing;
 pub mod session;
+pub mod speaker_profile;
 pub mod speech_intent;
 pub mod speech_lexicon;
 pub mod speech_normalize;
 pub mod speech_policy;
+/// Env-tunable stabilization thresholds for **future** streaming decoders; offline `transcribe_path` ignores this.
 pub mod streaming_partial;
+/// Policy helpers (escalation hint, cache keys) for hosts — not required for file-based STT.
 pub mod tiering;
 pub mod trace;
 pub mod traits;
@@ -34,8 +38,14 @@ pub mod transcript_rerank;
 
 #[cfg(feature = "stt-candle")]
 pub use backends::candle_whisper::{
-    ENV_CUDA, ENV_MODEL, ENV_REVISION, LanguageEnvOverride, transcribe_audio_file,
+    ENV_CHUNK_OVERLAP_SEC, ENV_CHUNK_SEC, ENV_CUDA, ENV_EMIT_PARTIAL_PATH, ENV_MODEL, ENV_REVISION,
+    ENV_STREAM_TOKENS, LanguageEnvOverride, transcribe_audio_file,
     transcribe_audio_file_with_language,
+};
+#[cfg(feature = "stt-candle")]
+pub use backends::logit_processors::{
+    ENV_CONSTRAINED_PHRASES, ENV_CONSTRAINED_TRIE, ENV_LOGIT_BIAS_MAX_TOKENS,
+    ENV_LOGIT_BIAS_STRENGTH, ENV_LOGIT_FORBID_TOKENS, ENV_TRIE_STUCK_STEPS,
 };
 
 /// JSON status for the Candle backend (CPU/GPU feature flags, model env).
@@ -53,9 +63,9 @@ pub fn candle_backend_status_json() -> serde_json::Value {
 
 pub use routing::{RouteMode, RouteResponse, route_transcript, route_transcript_with_options};
 pub use runtime_config::{
-    HfTunables, LlmPolicyTunables, OratioRuntimeConfig, RefineTunables, RoutingTunables,
-    SessionTimingDefaults, resolved_runtime_config, runtime_config_diagnostic_json,
-    tool_route_min_confidence,
+    HfTunables, LlmPolicyTunables, LogitConstraintTunables, OratioRuntimeConfig, RefineTunables,
+    RoutingTunables, SessionTimingDefaults, resolved_runtime_config,
+    runtime_config_diagnostic_json, tool_route_min_confidence,
 };
 pub use session::{
     CaptureState, DeadlineDiagnostics, OratioDeadlineTaxonomy, OratioSessionConfig,

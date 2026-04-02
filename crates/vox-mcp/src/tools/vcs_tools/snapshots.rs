@@ -1,9 +1,8 @@
-use vox_orchestrator::{AgentId, SnapshotId};
+use vox_orchestrator::json_vcs_facade;
 
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VCS_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
 const REM_SNAPSHOT_PAIR: &str = "List snapshots with `snapshot_list` and pass valid numeric `before`/`after` ids that exist in the store.";
 const REM_SNAPSHOT_ID: &str = "Pass `snapshot_id` as `S-XXXXXX` from `snapshot_list`.";
 const REM_SNAPSHOT_RESTORE: &str =
@@ -16,34 +15,8 @@ pub async fn snapshot_list(state: &ServerState, args: serde_json::Value) -> Stri
 
     let orch = &state.orchestrator;
 
-    let agent = agent_id_val.map(AgentId);
-    let handle = orch.snapshot_store_handle();
-    let guard = match crate::sync_poison::poison_rw_read(handle.read(), "snapshot store") {
-        Ok(g) => g,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                e.to_string(),
-                REM_VCS_LOCK,
-            )
-            .to_json();
-        }
-    };
-    let snaps = guard.list(agent, limit);
-
-    let items: Vec<serde_json::Value> = snaps
-        .iter()
-        .map(|s| {
-            serde_json::json!({
-                "id": s.id.to_string(),
-                "agent_id": s.agent_id.0.to_string(),
-                "timestamp_ms": s.timestamp_ms,
-                "description": s.description,
-                "file_count": s.files.len(),
-            })
-        })
-        .collect();
-
-    ToolResult::ok(serde_json::json!({ "snapshots": items })).to_json()
+    let v = json_vcs_facade::snapshot_list_json(orch, agent_id_val, limit);
+    ToolResult::ok(v).to_json()
 }
 
 /// Show diff between two snapshots (async).
@@ -53,40 +26,15 @@ pub async fn snapshot_diff(state: &ServerState, args: serde_json::Value) -> Stri
 
     let orch = &state.orchestrator;
 
-    let store_handle = orch.snapshot_store_handle();
-    let store = match crate::sync_poison::poison_rw_read(store_handle.read(), "snapshot store") {
-        Ok(g) => g,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                e.to_string(),
-                REM_VCS_LOCK,
-            )
-            .to_json();
-        }
-    };
-    let before = store.get(SnapshotId(before_id)).cloned();
-    let after = store.get(SnapshotId(after_id)).cloned();
-
-    match (before, after) {
-        (Some(b), Some(a)) => {
-            let diffs = vox_orchestrator::snapshot::SnapshotStore::diff(&b, &a);
-            let items: Vec<serde_json::Value> = diffs
-                .iter()
-                .map(|d| {
-                    serde_json::json!({
-                        "path": d.path.display().to_string(),
-                        "kind": format!("{:?}", d.kind),
-                    })
-                })
-                .collect();
-            ToolResult::ok(serde_json::json!({ "diffs": items })).to_json()
-        }
-        _ => ToolResult::<String>::err_with_remediation(
+    let v = json_vcs_facade::snapshot_diff_json(orch, before_id, after_id);
+    if v.get("error").is_some() {
+        return ToolResult::<String>::err_with_remediation(
             "One or both snapshot IDs not found".to_string(),
             REM_SNAPSHOT_PAIR,
         )
-        .to_json(),
+        .to_json();
     }
+    ToolResult::ok(v).to_json()
 }
 
 /// Restore the workspace to a specific snapshot (async).
@@ -95,27 +43,14 @@ pub async fn snapshot_restore(state: &ServerState, args: serde_json::Value) -> S
         .get("snapshot_id")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let snapshot_id = snapshot_id_str
-        .strip_prefix("S-")
-        .and_then(|s| s.parse::<u64>().ok())
-        .map(vox_orchestrator::snapshot::SnapshotId);
-
-    let Some(sid) = snapshot_id else {
-        return ToolResult::<String>::err_with_remediation(
-            "Invalid snapshot_id format. Expected S-XXXXXX",
-            REM_SNAPSHOT_ID,
-        )
-        .to_json();
-    };
 
     let orch = &state.orchestrator;
 
-    match orch.restore_fs_snapshot(sid).await {
-        Ok(_) => ToolResult::ok(format!("Workspace restored to snapshot {}", sid)).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(
-            format!("Restore failed: {}", e),
-            REM_SNAPSHOT_RESTORE,
-        )
-        .to_json(),
+    match json_vcs_facade::snapshot_restore_json(orch, snapshot_id_str).await {
+        Ok(v) => ToolResult::ok(v).to_json(),
+        Err(e) if e.contains("invalid snapshot_id") => {
+            ToolResult::<String>::err_with_remediation(e, REM_SNAPSHOT_ID).to_json()
+        }
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_SNAPSHOT_RESTORE).to_json(),
     }
 }

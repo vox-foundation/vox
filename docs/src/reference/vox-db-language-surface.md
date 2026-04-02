@@ -53,6 +53,14 @@ Use **`Option[T]`** in the `@table` field type for **NULL** SQL columns; other f
 - `db.User.find` **without** `get` — use **`find` == `get`** as above.
 - `db.query(Task)` / Convex-only TS styles — not the Rust/Turso path; see TS codegen separately.
 
+## Data-lane crate policy
+
+The first-class data lane is `turso+vox-db` behind Vox language/database surfaces.
+
+- Treat `sqlx`, `diesel`, and `sea-orm` as deferred or escape-hatch crate families unless a concrete lane requirement is proven.
+- Prefer bounded wrappers and query capability metadata over exposing broad ORM APIs directly in Vox.
+- Re-score deferred ecosystems against capability value vs debt cost before any tier promotion.
+
 ## Related
 
 - [Environment variables](./env-vars.md) — `VOX_DB_*`, `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`.

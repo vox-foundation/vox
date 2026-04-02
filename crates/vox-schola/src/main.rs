@@ -15,6 +15,7 @@
 //! ```
 
 mod cli;
+mod forward;
 mod merge;
 mod probe;
 mod serve;

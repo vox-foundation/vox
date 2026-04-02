@@ -1,11 +1,14 @@
 ---
-title: "Crate API: vox-lexer"
-description: "Official documentation for Crate API: vox-lexer for the Vox language. Detailed technical reference, architecture guides, and implementati"
+title: "Compiler Module: vox-lexer"
+description: "Official documentation for Compiler Module: vox-lexer for the Vox language. Detailed technical reference, architecture guides, and implementati"
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
 ---
-# Crate API: vox-lexer
+# Compiler Module: vox-lexer
+
+> [!WARNING]
+> This is not a standalone crate. It is a sub-module located at `crates/vox-compiler/src/lexer/`.
 
 ## Overview
 

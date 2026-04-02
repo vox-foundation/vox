@@ -11,25 +11,20 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
 
     let has_tables = !module.tables.is_empty();
 
+    let routes = crate::codegen_shared::lower_module_routes(module);
+
     // Collect which routing methods are actually used
     let mut needs_get = false;
     let mut needs_post = false;
     let mut needs_put = false;
     let mut needs_delete = false;
-    for route in &module.routes {
+    for route in &routes {
         match route.method {
-            HirHttpMethod::Get => needs_get = true,
-            HirHttpMethod::Post => needs_post = true,
-            HirHttpMethod::Put => needs_put = true,
-            HirHttpMethod::Delete => needs_delete = true,
+            crate::codegen_shared::RouteMethod::Get => needs_get = true,
+            crate::codegen_shared::RouteMethod::Post => needs_post = true,
+            crate::codegen_shared::RouteMethod::Put => needs_put = true,
+            crate::codegen_shared::RouteMethod::Delete => needs_delete = true,
         }
-    }
-    // Server functions, @query, and @mutation use POST + JSON body
-    if !module.server_fns.is_empty()
-        || !module.query_fns.is_empty()
-        || !module.mutation_fns.is_empty()
-    {
-        needs_post = true;
     }
 
     let mut routing_methods = Vec::new();
@@ -109,7 +104,9 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str(
         "                    let target = format!(\"{}{}\", base.trim_end_matches('/'), uri);\n",
     );
-    out.push_str("                    if let Ok(client) = reqwest::Client::builder()\n");
+    out.push_str(
+        "                    if let Ok(client) = vox_reqwest_defaults::client_builder()\n",
+    );
     out.push_str("                        .timeout(std::time::Duration::from_secs(60))\n");
     out.push_str("                        .build()\n");
     out.push_str("                    {\n");
@@ -155,6 +152,31 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     if has_tables {
         out.push_str(&emit_db_setup(module));
     }
+
+    out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
+    out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
+    out.push_str("        if !wf_name.is_empty() {\n");
+    out.push_str(
+        "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
+    );
+    out.push_str(
+        "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
+    );
+    out.push_str("                Ok(v) => v,\n");
+    out.push_str("                Err(e) => {\n");
+    out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
+    out.push_str("                    std::process::exit(2);\n");
+    out.push_str("                }\n");
+    out.push_str("            };\n");
+    out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
+    out.push_str("                Ok(()) => return,\n");
+    out.push_str("                Err(e) => {\n");
+    out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+    out.push_str("                    std::process::exit(2);\n");
+    out.push_str("                }\n");
+    out.push_str("            }\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n");
 
     let has_routes = !module.routes.is_empty()
         || !module.server_fns.is_empty()
@@ -369,4 +391,28 @@ fn emit_server_fn_handler(
     }
     out.push_str("}\n\n");
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_main;
+    use crate::hir::lower_module;
+    use crate::lexer::cursor::lex;
+    use crate::parser::parse;
+
+    #[test]
+    fn emit_main_includes_generated_workflow_dispatch_env_branch() {
+        let src = r#"
+workflow hello() {
+    ret
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse");
+        let hir = lower_module(&module);
+        let output = emit_main(&hir, "generated-demo");
+        assert!(output.contains("VOX_RUN_WORKFLOW"));
+        assert!(output.contains("VOX_WORKFLOW_ARGS"));
+        assert!(output.contains("__vox_run_workflow(&wf_name, &args).await"));
+    }
 }

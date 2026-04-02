@@ -15,7 +15,8 @@ pub fn index_html() -> &'static str {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
   <title>Vox App</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,6 +88,26 @@ html, body, #root {
   background: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Mobile baseline: keep tap targets and spacing usable by default. */
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+a.button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
 }
 "#
 }
@@ -227,4 +248,25 @@ export default defineConfig({{
 }});
 "#
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn index_html_includes_mobile_viewport_contract() {
+        let html = index_html();
+        assert!(html.contains("name=\"viewport\""));
+        assert!(html.contains("width=device-width, initial-scale=1.0, viewport-fit=cover"));
+        assert!(html.contains("name=\"color-scheme\""));
+    }
+
+    #[test]
+    fn index_css_includes_mobile_tap_target_baseline() {
+        let css = index_css();
+        assert!(css.contains("Mobile baseline"));
+        assert!(css.contains("min-height: 44px;"));
+        assert!(css.contains("min-width: 44px;"));
+    }
 }

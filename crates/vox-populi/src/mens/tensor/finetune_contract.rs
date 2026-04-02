@@ -431,7 +431,7 @@ mod digest_tests {
         };
         let c_a = FineTuneContract::from_training_config(&cfg_a, PopuliTrainBackend::CandleQlora);
         let cfg_b = LoraTrainingConfig {
-            upstream_model_id: Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
+            upstream_model_id: Some("Qwen/Qwen3.5-4B".into()),
             ..Default::default()
         };
         let c_b = FineTuneContract::from_training_config(&cfg_b, PopuliTrainBackend::CandleQlora);

@@ -18,7 +18,7 @@ set -euo pipefail
 log() { echo "[vox-populi][$(date -u +%H:%M:%S)] $*" >&2; }
 
 JOB_KIND="${VOX_JOB_KIND:-train}"
-MODEL_ID="${VOX_MODEL_ID:-Qwen/Qwen2.5-Coder-3B-Instruct}"
+MODEL_ID="${VOX_MODEL_ID:-Qwen/Qwen3.5-4B}"
 SERVE_PORT="${VOX_SERVE_PORT:-8080}"
 
 log "=== Vox Mens Cloud — job_kind=$JOB_KIND model=$MODEL_ID ==="

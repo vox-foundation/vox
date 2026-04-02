@@ -1,3 +1,9 @@
+---
+title: "Mens training SSOT"
+description: "Stable bookmark to reference/mens-training.md for hardware, datasets, and smoke checks; procedural detail belongs on the reference page."
+category: "architecture"
+---
+
 # Mens training SSOT
 
 Mens training reference (hardware, datasets, smoke checks) lives in **[`reference/mens-training.md`](../reference/mens-training.md)**.

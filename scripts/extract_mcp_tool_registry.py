@@ -1,7 +1,12 @@
-"""Bootstrap: extract TOOL_REGISTRY from vox-mcp into canonical YAML; prefer editing YAML + build.rs after."""
+"""Legacy migration helper: extract TOOL_REGISTRY from vox-mcp into canonical YAML.
+
+This script is intentionally gated because contracts/mcp/tool-registry.canonical.yaml is the
+active SSOT. Prefer editing YAML directly and regenerating Rust via vox-mcp-registry/build.rs.
+"""
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -26,7 +31,9 @@ def emit_yaml(pairs: list[tuple[str, str]]) -> str:
     lines = [
         "# Canonical MCP tool names + descriptions (SSOT).",
         "# Edited here; Rust builds via crates/vox-mcp-registry/build.rs.",
-        "# Re-bootstrap from legacy mod.rs: python scripts/extract_mcp_tool_registry.py write",
+        "# Legacy recovery from mod.rs (disabled by default):",
+        "# VOX_ALLOW_LEGACY_MCP_EXTRACT=1 python scripts/extract_mcp_tool_registry.py --allow-legacy write",
+        "# After write, run: python scripts/mcp_registry_fill_product_lanes.py",
         "version: 1",
         "tools:",
     ]
@@ -37,6 +44,20 @@ def emit_yaml(pairs: list[tuple[str, str]]) -> str:
 
 
 def main() -> None:
+    allow_legacy = (
+        len(sys.argv) >= 2
+        and sys.argv[1] == "--allow-legacy"
+        and os.environ.get("VOX_ALLOW_LEGACY_MCP_EXTRACT", "").strip() == "1"
+    )
+    if not allow_legacy:
+        raise SystemExit(
+            "legacy tool disabled by default. "
+            "If you are performing one-time migration recovery, run with "
+            "VOX_ALLOW_LEGACY_MCP_EXTRACT=1 and pass --allow-legacy before other args."
+        )
+
+    argv = [a for a in sys.argv[1:] if a != "--allow-legacy"]
+
     root = Path(__file__).resolve().parents[1]
     yaml_path = root / "contracts/mcp/tool-registry.canonical.yaml"
     mod_path = root / "crates/vox-mcp/src/tools/mod.rs"
@@ -44,7 +65,7 @@ def main() -> None:
     pairs = parse_registry(text)
     print(f"found {len(pairs)} tools", file=sys.stderr)
 
-    if len(sys.argv) < 2 or sys.argv[1] != "write":
+    if len(argv) < 1 or argv[0] != "write":
         for name, desc in pairs:
             if "\n" in desc:
                 raise SystemExit(f"multiline desc for {name!r}")

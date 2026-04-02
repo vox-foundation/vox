@@ -1,10 +1,9 @@
-use vox_orchestrator::AgentId;
+use vox_orchestrator::json_vcs_facade;
 
 use super::parse::parse_operation_id_value;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VCS_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
 const REM_OPLOG_ID: &str = "Pass `operation_id` as a number or `OP-XXXXXX` from `oplog_list`.";
 const REM_OPLOG_UNDO: &str =
     "Verify the operation exists, is not already undone, and orchestrator VCS state is healthy.";
@@ -15,35 +14,8 @@ pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String 
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
     let orch = &state.orchestrator;
-    let agent = agent_id_val.map(AgentId);
-    let handle = orch.oplog_handle();
-    let guard = match crate::sync_poison::poison_rw_read(handle.read(), "oplog") {
-        Ok(g) => g,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                e.to_string(),
-                REM_VCS_LOCK,
-            )
-            .to_json();
-        }
-    };
-    let ops = guard.list(agent, limit);
-
-    let items: Vec<serde_json::Value> = ops
-        .iter()
-        .map(|e| {
-            serde_json::json!({
-                "id": e.id.to_string(),
-                "agent_id": e.agent_id.0.to_string(),
-                "timestamp_ms": e.timestamp_ms,
-                "kind": format!("{:?}", e.kind),
-                "description": e.description,
-                "undone": e.undone,
-            })
-        })
-        .collect();
-
-    ToolResult::ok(serde_json::json!({ "operations": items })).to_json()
+    let v = json_vcs_facade::oplog_list_json(orch, agent_id_val, limit).await;
+    ToolResult::ok(v).to_json()
 }
 
 /// Undo an operation (async).

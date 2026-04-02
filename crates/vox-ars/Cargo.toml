@@ -10,6 +10,7 @@ description = "ARS (agent runtime shell): OpenClaw HTTP client, skill execution 
 vox-db = { path = "../vox-db" }
 vox-skills = { path = "../vox-skills" }
 reqwest = { workspace = true }
+vox-reqwest-defaults = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -1,11 +1,11 @@
 //! Integration tests for `VoxDb` when `local` feature is enabled (`connect(DbConfig::Local/::Memory)` paths).
 
 use super::*;
-use crate::codex_legacy::{
+use crate::codex_schema::missing_codex_reactivity_tables;
+use crate::legacy::codex::{
     LEGACY_EXPORT_SKIP_TABLES, LEGACY_EXPORT_TABLES, export_legacy_jsonl, import_legacy_jsonl,
     list_sqlite_user_tables, verify_legacy_store,
 };
-use crate::codex_schema::missing_codex_reactivity_tables;
 use crate::schema::{BASELINE_VERSION, CODEX_CHAT_TABLES};
 
 #[tokio::test]

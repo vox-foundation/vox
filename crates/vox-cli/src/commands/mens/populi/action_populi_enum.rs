@@ -25,7 +25,7 @@ pub enum PopuliAction {
         /// Passed to `vox mens train --device` when training runs (default `best` in the pipeline runner).
         #[arg(long)]
         device: Option<String>,
-        /// HuggingFace model repo override (e.g. Qwen/Qwen3-4B-Instruct-2507).
+        /// HuggingFace model repo override (e.g. Qwen/Qwen3.5-4B).
         #[arg(long)]
         model: Option<String>,
         /// Number of training epochs (default: 3).
@@ -48,14 +48,15 @@ pub enum PopuliAction {
     /// Fine-tune: Burn LoRA (`--backend lora`) or Candle HF-embed adapter (`--backend qlora` + `--tokenizer hf`).
     #[cfg(feature = "gpu")]
     Train {
-        /// HuggingFace model repo to fine-tune (e.g. Qwen/Qwen3-4B-Instruct-2507).
+        /// HuggingFace model repo to fine-tune (e.g. Qwen/Qwen3.5-4B).
+        /// When omitted on `--backend qlora`, defaults to VoxMens SSOT `DEFAULT_MODEL_ID`.
         /// When set, weights are downloaded natively via hf-hub before training.
         #[arg(long)]
         model: Option<String>,
         /// GPU backend: cpu, best, vulkan, dx12, or metal
         #[arg(long, default_value = "best")]
         device: String,
-        /// Trainer: `qlora` = Candle qlora-rs NF4 (needs `--tokenizer hf`, `--model`, safetensors; default); `lora` = Burn+wGPU + `--tokenizer vox` (deprecated).
+        /// Trainer: `qlora` = Candle qlora-rs NF4 (needs `--tokenizer hf`; `--model` optional—SSOT default when omitted; default backend); `lora` = Burn+wGPU + `--tokenizer vox` (deprecated).
         #[arg(long, value_enum, default_value_t = PopuliTrainBackendCli::Qlora)]
         backend: PopuliTrainBackendCli,
         /// Directory containing train.jsonl (produced by `vox mens corpus pairs`).
@@ -133,8 +134,12 @@ pub enum PopuliAction {
         #[arg(long)]
         qlora_no_double_quant: bool,
         /// Candle QLoRA: strict preflight for full-graph training (requires expected projection/block tensors in safetensors).
+        /// On `--device cuda`, this defaults to **on** unless `--qlora-allow-partial-proxy-stack` is set.
         #[arg(long)]
         qlora_require_full_proxy_stack: bool,
+        /// Candle QLoRA: opt out of the CUDA default full proxy-stack preflight (partial / experimental graphs only).
+        #[arg(long, default_value_t = false)]
+        qlora_allow_partial_proxy_stack: bool,
         /// Candle QLoRA: reserved/deferred flag for LM-head-only mode; currently rejected by trainer (full graph only).
         #[arg(long)]
         qlora_lm_head_only: bool,
@@ -168,6 +173,10 @@ pub enum PopuliAction {
         /// Experimental optimizer lane (guarded by VOX_MENS_EXPERIMENTAL_OPTIMIZER when non-off).
         #[arg(long, value_enum, default_value_t = OptimizerExperimentModeCli::Off)]
         optimizer_experiment_mode: OptimizerExperimentModeCli,
+        /// How to refresh training inputs before the trainer runs (`strict` = no implicit regen; default `auto-refresh` preserves legacy behavior).
+        #[cfg(feature = "gpu")]
+        #[arg(long, value_enum, default_value_t = TrainDataModeCli::AutoRefresh)]
+        data_mode: TrainDataModeCli,
         /// Provenance: coarse family label for upstream lineage (e.g. `kimi-k2.5`, `qwen2.5`).
         #[arg(long)]
         base_model_family: Option<String>,
@@ -230,7 +239,7 @@ pub enum PopuliAction {
     /// Retired: UV/Python quantized training path removed; dispatch prints migration guidance.
     /// Use native **`vox mens train`** (QLoRA) or follow docs for your GPU setup.
     TrainUv {
-        /// HuggingFace model ID (e.g. Qwen/Qwen3-4B-Instruct-2507)
+        /// HuggingFace model ID (e.g. Qwen/Qwen3.5-4B)
         #[arg(long)]
         model: Option<String>,
         /// Directory containing train.jsonl

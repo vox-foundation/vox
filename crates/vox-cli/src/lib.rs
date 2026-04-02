@@ -21,6 +21,7 @@ pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
+pub mod artifact_policy;
 /// External `vox-dei-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
@@ -44,6 +45,8 @@ mod lock_telemetry;
 pub mod pipeline;
 #[cfg(feature = "populi")]
 mod populi_codex_telemetry;
+/// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
+pub(crate) mod render;
 mod process_supervision;
 #[cfg(feature = "island")]
 mod table;
@@ -53,6 +56,9 @@ mod training;
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
 mod wasi_dir_mode;
 mod watcher;
+/// Workspace journey VoxDb connect for repo-scoped CLI subcommands.
+pub mod workspace_db;
+mod telemetry_spool;
 #[cfg(feature = "workflow-runtime")]
 mod workflow_journal_codex;
 
@@ -78,7 +84,7 @@ pub const VOX_VERSION: &str = concat!(
 
 /// Initialize [`tracing`] for `vox` / `vox-compilerd`: respects `RUST_LOG`, defaults to `info`.
 ///
-/// Uses [`tracing_subscriber::fmt`] with [`tracing_subscriber::EnvFilter`]. Safe to call once per
+/// Uses `tracing_subscriber::fmt` with [`tracing_subscriber::EnvFilter`]. Safe to call once per
 /// process; repeated calls are ignored (`try_init`).
 pub fn init_tracing_for_cli() {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
@@ -252,6 +258,11 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::SyncArgs,
     },
+    /// Deploy from `Vox.toml` `[deploy]` (OCI build/push, compose, Kubernetes, or bare-metal SSH).
+    Deploy {
+        #[command(flatten)]
+        args: cli_args::DeployArgs,
+    },
     /// Advanced package manager / registry commands (`search`, `publish`, `vendor`, …).
     Pm {
         #[command(subcommand)]
@@ -261,6 +272,17 @@ pub enum Cli {
     Upgrade {
         #[command(flatten)]
         args: cli_args::UpgradeToolchainArgs,
+    },
+    /// Scaffold a new Vox project (`Vox.toml`, `src/main.vox`, `.vox_modules/`, or `<name>.skill.md`).
+    Init {
+        /// Project / package name (defaults to current directory name).
+        name: Option<String>,
+        /// Package kind: `application`, `skill`, `agent`, `workflow`, `chatbot`, `library`, …
+        #[arg(long)]
+        kind: Option<String>,
+        /// Application template: `chatbot`, `dashboard`, or `api` (with `--kind application` or default).
+        #[arg(long)]
+        template: Option<String>,
     },
     /// Deprecated compatibility command; use `vox clavis set` instead.
     Login {
@@ -306,11 +328,23 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::extras::share_cli::ShareCli,
     },
+    /// Interactive shell or PowerShell AST exec-policy check (`shell check`, `shell repl`).
+    Shell {
+        /// Subcommand (default: `repl`).
+        #[command(subcommand)]
+        cmd: Option<commands::runtime::shell::ShellCmd>,
+    },
     /// Codex / Arca database tools (verify, legacy JSONL export/import)
     Codex {
         /// Subcommand.
         #[command(subcommand)]
         cmd: CodexCmd,
+    },
+    /// Repository discovery status, catalog (`.vox/repositories.yaml`), and cross-repo queries.
+    Repo {
+        /// Subcommand (`Option` so bare `vox repo` defaults to status in dispatch).
+        #[command(subcommand)]
+        cmd: Option<commands::repo::RepoCmd>,
     },
     /// Local VoxDB: schema, samples, research ingest, preferences
     Db {
@@ -409,6 +443,12 @@ pub enum Cli {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::populi_cli::PopuliCli,
+    },
+    /// Optional telemetry upload queue (local spool + explicit upload; ADR 023).
+    Telemetry {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::telemetry::TelemetryCmd,
     },
 }
 

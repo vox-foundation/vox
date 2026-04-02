@@ -134,7 +134,7 @@ pub async fn vox_scientia_publication_preflight(
             .repository
             .root
             .join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
-        let yaml = match crate::bounded_fs::read_utf8_path_capped(&path) {
+        let yaml = match vox_bounded_fs::read_utf8_path_capped(&path) {
             Ok(s) => s,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(
@@ -201,7 +201,7 @@ pub async fn vox_scientia_worthiness_evaluate(
         Some(rel) if !rel.trim().is_empty() => root.join(rel.trim()),
         _ => root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
     };
-    let yaml = match crate::bounded_fs::read_utf8_path_capped(&contract_path) {
+    let yaml = match vox_bounded_fs::read_utf8_path_capped(&contract_path) {
         Ok(s) => s,
         Err(e) => {
             return ToolResult::<String>::err_with_remediation(
@@ -257,7 +257,9 @@ pub async fn vox_scientia_worthiness_evaluate(
         if let serde_json::Value::Object(ref mut m) = v {
             m.insert(
                 "live_trust_note".to_string(),
-                serde_json::Value::String("with_live_trust requested but VoxDb is not connected.".into()),
+                serde_json::Value::String(
+                    "with_live_trust requested but VoxDb is not connected.".into(),
+                ),
             );
         }
         return ToolResult::ok(v).to_json();
@@ -279,7 +281,8 @@ pub async fn vox_scientia_worthiness_evaluate(
             .summarize_trust_rollups(None, None, None, Some(repo), "dimension", 32)
             .await
         {
-            live["by_dimension"] = serde_json::to_value(&rows).unwrap_or_else(|_| serde_json::json!([]));
+            live["by_dimension"] =
+                serde_json::to_value(&rows).unwrap_or_else(|_| serde_json::json!([]));
         }
         if let Ok(rows) = db
             .summarize_trust_rollups(None, None, None, Some(repo), "dimension_domain", 32)

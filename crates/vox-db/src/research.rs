@@ -2,30 +2,12 @@
 //! `codex_capability_map` for competitive / capability tracking.
 //!
 //! Use [`crate::VoxDb::ingest_research_document_async`] or [`crate::VoxDb::ingest_research_document`]
-//! with a [`ResearchIngestRequest`]. Capability-map DDL is applied when those APIs touch the map.
+//! with a [`ResearchIngestRequest`]. `codex_capability_map` is created by Arca baseline.
 
 use crate::VoxDb;
 use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
 use turso::params;
-
-const CAP_TABLE: &str = "
-CREATE TABLE IF NOT EXISTS codex_capability_map (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    topic TEXT NOT NULL,
-    vendor TEXT NOT NULL,
-    area TEXT NOT NULL,
-    openclaw_capability TEXT NOT NULL,
-    vox_evidence TEXT NOT NULL,
-    status TEXT NOT NULL,
-    advantage_direction TEXT NOT NULL,
-    recommended_action TEXT NOT NULL,
-    linked_paths_json TEXT NOT NULL,
-    metadata_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_codex_cap_vendor_topic ON codex_capability_map (vendor, topic);
-";
 
 /// Serializable metadata for a captured research artifact (before DB insert).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,7 +50,7 @@ pub struct ResearchIngestRequest {
     pub body: String,
     /// Optional knowledge-base id for partitioning.
     pub kb_id: Option<String>,
-    /// Reserved for future vector ingest; ignored today.
+    /// Optional chunk embeddings aligned with the chunked body when available.
     pub embeddings: Vec<Vec<f32>>,
 }
 
@@ -77,7 +59,7 @@ pub struct ResearchIngestRequest {
 pub struct ResearchIngestResult {
     /// `knowledge_nodes` row id from the insert.
     pub packet_id: i64,
-    /// Reserved for future normalized document table.
+    /// Optional normalized `search_documents` row id when dual-write succeeds.
     pub document_id: Option<i64>,
     /// `snippets` row ids for each text chunk.
     pub chunk_ids: Vec<i64>,
@@ -140,8 +122,8 @@ fn chunk_text(body: &str, max_chunk: usize) -> Vec<String> {
     out
 }
 
-async fn ensure_cap_table(db: &VoxDb) -> Result<(), StoreError> {
-    db.connection().execute_batch(CAP_TABLE).await?;
+async fn ensure_cap_table(_db: &VoxDb) -> Result<(), StoreError> {
+    // Baseline (`crate::schema::spec::CODEX_CAPABILITY_MAP_DDL`) creates `codex_capability_map`.
     Ok(())
 }
 
@@ -227,9 +209,56 @@ impl VoxDb {
             chunk_ids.push(self.conn.last_insert_rowid());
         }
 
+        let document_id = self
+            .upsert_search_document(
+                &req.packet.source_url,
+                &req.packet.title,
+                &req.packet.source_type,
+                &hash,
+            )
+            .await?;
+        let embedding_refs = vec![None; chunks.len()];
+        self.replace_search_document_chunks_with_refs(document_id, &chunks, &embedding_refs)
+            .await?;
+        if req.embeddings.len() == chunks.len() {
+            for (idx, vector) in req.embeddings.iter().enumerate() {
+                if vector.is_empty() {
+                    continue;
+                }
+                let rows = self
+                    .query_all(
+                        "SELECT id FROM search_document_chunks
+                         WHERE document_id = ?1 AND chunk_index = ?2 LIMIT 1",
+                        params![document_id, idx as i64],
+                    )
+                    .await?;
+                let Some(row) = rows.into_iter().next() else {
+                    continue;
+                };
+                let chunk_id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                let snippet: String = chunks[idx].chars().take(240).collect();
+                let embedding_id = self
+                    .store_embedding(
+                        "search_document_chunk",
+                        &chunk_id.to_string(),
+                        "research_ingest",
+                        vector,
+                        Some(snippet.as_str()),
+                        None,
+                    )
+                    .await?;
+                self.connection()
+                    .execute(
+                        "UPDATE search_document_chunks SET embedding_ref = ?1 WHERE id = ?2",
+                        params![embedding_id.to_string(), chunk_id],
+                    )
+                    .await?;
+            }
+        }
+
         Ok(ResearchIngestResult {
             packet_id: packet_rowid,
-            document_id: None,
+            document_id: Some(document_id),
             chunk_ids,
             kb_id: req.kb_id.clone(),
             content_hash: hash,

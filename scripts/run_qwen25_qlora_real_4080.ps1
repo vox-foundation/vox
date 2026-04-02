@@ -1,4 +1,4 @@
-# Build (optional CUDA) + background Qwen2.5-Coder-3B Candle QLoRA for RTX 4080 Super.
+# Build (optional CUDA) + background VoxMens Candle QLoRA (SSOT Qwen3.5-4B) for RTX 4080 Super.
 # Run from repo root in Developer PowerShell for VS (so nvcc finds cl.exe) if using CUDA.
 param(
     [switch]$SkipBuild,
@@ -39,12 +39,9 @@ New-Item -ItemType Directory -Force -Path "$Root\mens\runs\qwen25_real" | Out-Nu
 Write-Host "Launching background training (log under mens/runs/logs)..."
 & $Vox @(
     "mens", "train",
-    "--backend", "qlora",
-    "--tokenizer", "hf",
     "--preset", "qwen_4080_16g",
-    "--model", "Qwen/Qwen2.5-Coder-3B-Instruct",
     "--data-dir", "target/dogfood",
-    "--output-dir", "mens/runs/qwen25_real",
+    "--output-dir", "mens/runs/qwen35_real",
     "--device", "cuda",
     "--background",
     "--vram-limit-fraction", "0.72",

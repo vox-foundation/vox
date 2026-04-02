@@ -215,6 +215,9 @@ pub fn run_eval_local(
                 }
             };
 
+        let semantic_pass_at_k = samples_json
+            .iter()
+            .any(|v| v.get("semantic_pass").and_then(|x| x.as_bool()).unwrap_or(false));
         let entry = serde_json::json!({
             "manifest_index": manifest_index,
             "id": id,
@@ -224,9 +227,7 @@ pub fn run_eval_local(
             "description": description,
             "pass_at_1": pass_at_1,
             "pass_at_k": pass_at_k,
-            "semantic_pass_at_k": samples_json
-                .iter()
-                .any(|v| v.get("semantic_pass").and_then(|x| x.as_bool()).unwrap_or(false)),
+            "semantic_pass_at_k": semantic_pass_at_k,
             "k": samples.max(1),
             "samples": samples_json,
         });
@@ -242,11 +243,7 @@ pub fn run_eval_local(
             *pk += 1;
             passed_k += 1;
         }
-        if entry
-            .get("semantic_pass_at_k")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-        {
+        if semantic_pass_at_k {
             semantic_passed_k += 1;
         }
         if samples_json.iter().any(|v| {

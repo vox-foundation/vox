@@ -82,14 +82,16 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = 30)]
         days: u32,
     },
-    /// Dry-run JSON for `contracts/db/retention-policy.yaml` (`days` rules only)
+    /// Dry-run JSON for `contracts/db/retention-policy.yaml` (`days`, `ms_days`, `expires_lt_now`).
+    ///
+    /// SSOT: `contracts/db/retention-policy.yaml`; rationale in mdBook `telemetry-retention-sensitivity-ssot`.
     #[command(name = "prune-plan")]
     PrunePlan {
         /// Policy file (default: repo `contracts/db/retention-policy.yaml` next to vox-cli)
         #[arg(long)]
         policy: Option<PathBuf>,
     },
-    /// Apply `days` deletions from the retention policy (destructive)
+    /// Apply policy-driven deletes (`days`, `ms_days`, `expires_lt_now`) — destructive
     #[command(name = "prune-apply")]
     PruneApply {
         #[arg(long)]
@@ -144,6 +146,16 @@ pub enum DbCliCore {
     /// Show retrieval / embedding diagnostics
     #[command(name = "retrieval-status")]
     RetrievalStatus,
+    /// Mirror a markdown tree into Codex `search_documents` / chunks (local RAG corpus).
+    #[command(name = "mirror-search-corpus")]
+    MirrorSearchCorpus {
+        /// Root directory to scan recursively for `*.md` files.
+        #[arg(long)]
+        root: PathBuf,
+        /// Prefix for `search_documents.source_uri` (e.g. `vox-docs:`).
+        #[arg(long, default_value = "vox-docs:")]
+        source_uri_prefix: String,
+    },
     /// Ingest research from a URL
     #[command(name = "research-ingest-url")]
     ResearchIngestUrl {
@@ -270,7 +282,7 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
-    /// List research metrics for a session id
+    /// List research metrics for a session id (`research_metrics` — trust / sensitivity: `docs/src/architecture/telemetry-trust-ssot.md`).
     #[command(name = "research-metrics")]
     ResearchMetrics {
         /// `research_metrics.session_id` prefix (TEXT), e.g. `mcp:<repository_id>`, `bench:<repository_id>`, or a linked session key.

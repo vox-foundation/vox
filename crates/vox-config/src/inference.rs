@@ -51,6 +51,16 @@ pub fn inference_profile_allows_local_ollama_http() -> bool {
 
 /// OpenRouter chat completions endpoint (OpenAI-compatible).
 pub const OPENROUTER_CHAT_COMPLETIONS_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
+/// OpenRouter models list endpoint used for catalog discovery.
+pub const OPENROUTER_MODELS_LIST_URL: &str = "https://openrouter.ai/api/v1/models";
+/// OpenRouter embeddings endpoint (OpenAI-compatible).
+pub const OPENROUTER_EMBEDDINGS_URL: &str = "https://openrouter.ai/api/v1/embeddings";
+/// OpenAI chat completions endpoint.
+pub const OPENAI_CHAT_COMPLETIONS_URL: &str = "https://api.openai.com/v1/chat/completions";
+/// OpenAI embeddings endpoint.
+pub const OPENAI_EMBEDDINGS_URL: &str = "https://api.openai.com/v1/embeddings";
+/// Local Ollama/Populi base URL fallback.
+pub const LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT: &str = "http://localhost:11434";
 
 /// Local Ollama-compatible API base URL.
 ///
@@ -58,7 +68,7 @@ pub const OPENROUTER_CHAT_COMPLETIONS_URL: &str = "https://openrouter.ai/api/v1/
 pub fn local_ollama_populi_base_url() -> String {
     std::env::var("POPULI_URL")
         .or_else(|_| std::env::var("OLLAMA_URL"))
-        .unwrap_or_else(|_| "http://localhost:11434".to_string())
+        .unwrap_or_else(|_| LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT.to_string())
 }
 
 /// Hugging Face Hub / Inference token for router and Hub APIs.
@@ -134,7 +144,10 @@ mod tests {
             std::env::remove_var("POPULI_URL");
             std::env::remove_var("OLLAMA_URL");
         }
-        assert_eq!(local_ollama_populi_base_url(), "http://localhost:11434");
+        assert_eq!(
+            local_ollama_populi_base_url(),
+            LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT
+        );
 
         unsafe {
             std::env::set_var("OLLAMA_URL", "http://localhost:9999");
@@ -142,9 +155,12 @@ mod tests {
         assert_eq!(local_ollama_populi_base_url(), "http://localhost:9999");
 
         unsafe {
-            std::env::set_var("POPULI_URL", "http://localhost:11434");
+            std::env::set_var("POPULI_URL", LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT);
         }
-        assert_eq!(local_ollama_populi_base_url(), "http://localhost:11434");
+        assert_eq!(
+            local_ollama_populi_base_url(),
+            LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT
+        );
 
         unsafe {
             std::env::remove_var("POPULI_URL");

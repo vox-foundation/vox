@@ -12,6 +12,11 @@ const PROVIDER_LIMITS: &[(&str, &str, u32)] = &[
 ];
 
 pub async fn run(json_output: bool) -> Result<()> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let repo = vox_repository::discover_repository_or_fallback(&cwd);
+    let workspace_journey =
+        vox_db::workspace_journey_diagnostics_json(&repo.root, &repo.repository_id);
+
     // Detect configured providers
     let google_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
         .expose()
@@ -131,6 +136,16 @@ pub async fn run(json_output: bool) -> Result<()> {
 
     println!();
     println!("  Total today: {} calls · ${:.4} spent", grand_total, grand_cost);
+    println!();
+    println!("  Workspace journey (CLI/MCP/daemon policy)");
+    println!(
+        "    repo root: {}",
+        repo.root.display()
+    );
+    println!(
+        "    {}",
+        serde_json::to_string(&workspace_journey).unwrap_or_default()
+    );
     println!();
 
     Ok(())

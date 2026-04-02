@@ -63,6 +63,11 @@ export class SnapshotTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         this._onDidChangeTreeData.fire();
     }
 
+    /** Current snapshot list from the last refresh (call `refresh()` for fresh MCP data). */
+    get snapshots(): readonly Snapshot[] {
+        return this._snapshots;
+    }
+
     getTreeItem(element: TreeNode): vscode.TreeItem {
         return element;
     }
@@ -188,9 +193,30 @@ export function registerVcsCommands(
             provider.refresh();
         }),
 
-        vscode.commands.registerCommand('vox.snapshotList', () => {
-            provider.refresh();
-            treeView.reveal(undefined as unknown as vscode.TreeItem, { focus: true });
+        vscode.commands.registerCommand('vox.snapshotList', async () => {
+            await provider.refresh();
+            const showBar = vscode.workspace.getConfiguration('vox').get<boolean>('vcs.showSnapshotBar', true);
+            if (showBar) {
+                await treeView.reveal(undefined as unknown as vscode.TreeItem, { focus: true });
+                return;
+            }
+            const snaps = provider.snapshots;
+            if (snaps.length === 0) {
+                void vscode.window.showInformationMessage('No snapshots yet.');
+                return;
+            }
+            type Picked = vscode.QuickPickItem & { snapshot: Snapshot };
+            const picked = await vscode.window.showQuickPick<Picked>(
+                snaps.map((s) => ({
+                    label: s.message || `Snapshot ${s.id}`,
+                    description: new Date(s.timestamp * 1000).toLocaleString(),
+                    snapshot: s,
+                })),
+                { placeHolder: 'Snapshots (tree hidden — enable vox.vcs.showSnapshotBar to use sidebar)' },
+            );
+            if (picked) {
+                await vscode.commands.executeCommand('vox.snapshotViewDiff', picked.snapshot);
+            }
         }),
     );
 

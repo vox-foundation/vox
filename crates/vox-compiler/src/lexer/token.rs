@@ -86,6 +86,8 @@ pub enum Token {
     AtComponent,
     #[token("@mcp.tool")]
     AtMcpTool,
+    #[token("@mcp.resource")]
+    AtMcpResource,
     #[token("@external")]
     AtExternal,
     #[token("@test")]
@@ -256,6 +258,7 @@ impl std::fmt::Display for Token {
             Token::False => write!(f, "false"),
             Token::AtComponent => write!(f, "@component"),
             Token::AtMcpTool => write!(f, "@mcp.tool"),
+            Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtExternal => write!(f, "@external"),
             Token::AtTest => write!(f, "@test"),
             Token::AtServer => write!(f, "@server"),

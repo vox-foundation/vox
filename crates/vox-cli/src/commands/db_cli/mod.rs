@@ -7,9 +7,17 @@ mod types;
 
 pub use core_subcommands::DbCliCore;
 pub use publication_subcommands::DbCliPublication;
+pub(crate) use publication_subcommands::{
+    PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT, PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT,
+    PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LOCK_TTL_MS,
+    PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS, PUBLICATION_SYNC_BATCH_DEFAULT_LIMIT,
+    PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS, PUBLICATION_WORKER_DEFAULT_ITERATIONS,
+    PUBLICATION_WORKER_DEFAULT_JITTER_SECS,
+};
 pub use subcommands::DbCli;
 pub use types::{
-    ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
+    ArxivHandoffStageCli, DbPreflightProfileCli, DiscoveryIntakeGateCli, PublicationPrepareBodyCli,
+    ScholarlyVenueCli,
 };
 
 /// Dispatch `vox db` subcommands to `commands::db` implementations.
@@ -50,6 +58,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliCore::CapabilityList => db::capability_list().await,
             DbCliCore::SyncInvocables { path } => db::sync_invocables(&path).await,
             DbCliCore::RetrievalStatus => db::retrieval_status().await,
+            DbCliCore::MirrorSearchCorpus {
+                root,
+                source_uri_prefix,
+            } => db::mirror_search_corpus(root.as_path(), &source_uri_prefix).await,
             DbCliCore::ResearchIngestUrl {
                 vendor,
                 topic,
@@ -150,6 +162,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 body,
                 preflight,
                 preflight_profile,
+                discovery_intake_gate,
             } => {
                 db::publication_prepare(
                     &body.publication_id,
@@ -166,6 +179,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                     body.human_ai_disclosure_complete,
                     preflight,
                     preflight_profile.into(),
+                    discovery_intake_gate.into(),
                 )
                 .await
             }
@@ -173,6 +187,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 content_type,
                 body,
                 preflight_profile,
+                discovery_intake_gate,
             } => {
                 db::publication_prepare(
                     &body.publication_id,
@@ -189,6 +204,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                     body.human_ai_disclosure_complete,
                     true,
                     preflight_profile.into(),
+                    discovery_intake_gate.into(),
                 )
                 .await
             }
@@ -231,6 +247,41 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 publication_id,
                 with_worthiness,
             } => db::publication_status(&publication_id, with_worthiness).await,
+            DbCliPublication::PublicationDiscoveryScan {
+                content_type,
+                state,
+                limit,
+            } => {
+                db::publication_discovery_scan(content_type.as_deref(), state.as_deref(), limit)
+                    .await
+            }
+            DbCliPublication::PublicationDiscoveryExplain { publication_id } => {
+                db::publication_discovery_explain(&publication_id).await
+            }
+            DbCliPublication::PublicationTransformPreview { publication_id } => {
+                db::publication_transform_preview(&publication_id).await
+            }
+            DbCliPublication::PublicationDiscoveryRefreshEvidence { publication_id } => {
+                db::publication_discovery_refresh_evidence(&publication_id).await
+            }
+            DbCliPublication::PublicationNoveltyFetch {
+                publication_id,
+                offline,
+                persist_metadata,
+            } => {
+                db::publication_novelty_fetch(&publication_id, offline, persist_metadata).await
+            }
+            DbCliPublication::PublicationDecisionExplain {
+                publication_id,
+                live_prior_art,
+                offline,
+            } => {
+                db::publication_decision_explain(&publication_id, live_prior_art, offline).await
+            }
+            DbCliPublication::PublicationNoveltyHappyPath {
+                publication_id,
+                offline,
+            } => db::publication_novelty_happy_path(&publication_id, offline).await,
             DbCliPublication::PublicationScholarlyRemoteStatus {
                 publication_id,
                 external_submission_id,

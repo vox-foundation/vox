@@ -119,7 +119,7 @@ impl FreeAiClient {
         let api_key = api_key.to_string();
         Box::pin(async_stream::try_stream! {
             let resolved_key = if api_key.is_empty() {
-                std::env::var("OPENROUTER_API_KEY").unwrap_or_default()
+                vox_config::openrouter_api_key().unwrap_or_default()
             } else {
                 api_key
             };

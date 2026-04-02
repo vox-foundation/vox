@@ -33,7 +33,7 @@ impl NewsService {
 
         let publisher_config_base = PublisherConfig {
             twitter_bearer_token: config.news.twitter_token.clone(),
-            github_token: config.news.github_token.clone(),
+            forge_token: config.news.github_token.clone(),
             open_collective_token: config.news.opencollective_token.clone(),
             reddit_client_id: config.news.reddit_client_id.clone(),
             reddit_client_secret: config.news.reddit_client_secret.clone(),
@@ -45,8 +45,8 @@ impl NewsService {
             dry_run: config.news.dry_run,
             site,
             twitter_api_base: config.news.twitter_api_base.clone(),
-            github_rest_base: config.news.github_rest_base.clone(),
-            github_graphql_url: config.news.github_graphql_url.clone(),
+            forge_rest_base: config.news.github_rest_base.clone(),
+            forge_graphql_url: config.news.github_graphql_url.clone(),
             opencollective_graphql_url: config.news.opencollective_graphql_url.clone(),
             twitter_text_chunk_max: config.news.twitter_text_chunk_max,
             twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
@@ -68,7 +68,7 @@ impl NewsService {
                 continue;
             }
 
-            let content = match crate::bounded_fs::read_utf8_path_capped(&path) {
+            let content = match vox_bounded_fs::read_utf8_path_capped(&path) {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!("Failed to read news file {}: {}", path.display(), e);

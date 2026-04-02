@@ -107,7 +107,7 @@ pub fn extract_from_file(
     config: &ExtractRsConfig,
     category: &str,
 ) -> anyhow::Result<Vec<RsTrainingPair>> {
-    let source = crate::bounded_fs::read_utf8_path_capped(path)
+    let source = vox_bounded_fs::read_utf8_path_capped(path)
         .with_context(|| format!("read {}", path.display()))?;
     extract_from_source(&source, path, config, category)
 }

@@ -88,15 +88,16 @@ async fn launch_dap_server(
 async fn run_direct_script(abs: &Path, _mode: &str, _stop_on_entry: bool) -> Result<()> {
     let source = read_utf8_path_capped(abs)
         .with_context(|| format!("cannot read {}", abs.display()))?;
-
-    let tokens = vox_compiler::lexer::lex(&source);
-    let module = vox_compiler::parser::parse(tokens)
-        .map_err(|errs| {
-            let msgs: Vec<_> = errs.iter().map(|e| e.message.clone()).collect();
-            anyhow::anyhow!("parse errors:\n{}", msgs.join("\n"))
-        })?;
-
-    let hir = vox_compiler::hir::lower_module(&module);
+    let frontend = crate::pipeline::run_frontend_str(&source, abs, false)?;
+    crate::pipeline::print_diagnostics(&frontend, abs, false);
+    if frontend.has_errors() {
+        anyhow::bail!(
+            "debug frontend failed with {} error(s) and {} warning(s)",
+            frontend.error_count(),
+            frontend.warning_count()
+        );
+    }
+    let hir = frontend.hir;
 
     let path_str = abs.to_string_lossy().to_string();
     let mut interp = vox_machina::interp::HirInterp::new(

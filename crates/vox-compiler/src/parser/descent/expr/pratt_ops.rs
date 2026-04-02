@@ -29,6 +29,20 @@ impl Parser {
                 continue;
             }
 
+            if matches!(self.peek(), Token::Question) {
+                let l_bp = 100; // tightly bind
+                if l_bp < min_bp {
+                    break;
+                }
+                let span = lhs.span().merge(self.span());
+                self.advance();
+                lhs = Expr::Try {
+                    target: Box::new(lhs),
+                    span,
+                };
+                continue;
+            }
+
             let op = match self.peek() {
                 Token::Plus => BinOp::Add,
                 Token::Minus => BinOp::Sub,

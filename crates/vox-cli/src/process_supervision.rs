@@ -6,10 +6,7 @@
 //! - best-effort process-tree termination by pid
 //! - lightweight `--version` probing for operator diagnostics
 
-#![cfg_attr(
-    not(feature = "ars"),
-    allow(dead_code)
-)] // OpenClaw sidecar API (`ensure_managed_process_running`, state file, …) is `feature = "ars"` only.
+#![cfg_attr(not(feature = "ars"), allow(dead_code))] // OpenClaw sidecar API (`ensure_managed_process_running`, state file, …) is `feature = "ars"` only.
 
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};

@@ -15,4 +15,4 @@ pub use invocables::{capability_list, sync_invocables};
 pub use list_map::{research_list, research_map_add, research_map_list};
 pub use refresh::research_refresh;
 pub use reliability::{reliability_agents, reliability_list, research_metrics};
-pub use retrieval::retrieval_status;
+pub use retrieval::{mirror_search_corpus, retrieval_status};

@@ -141,6 +141,16 @@ impl Printer {
                 self.out.push_str(&m.func.name);
                 self.print_fn_body(&m.func.params, &m.func.return_type, &m.func.body);
             }
+            Decl::McpResource(m) => {
+                self.write_indent();
+                let ue = m.uri.replace('\\', "\\\\").replace('"', "\\\"");
+                let de = m.description.replace('\\', "\\\\").replace('"', "\\\"");
+                self.out
+                    .push_str(&format!("@mcp.resource(\"{ue}\", \"{de}\") "));
+                self.out.push_str("fn ");
+                self.out.push_str(&m.func.name);
+                self.print_fn_body(&m.func.params, &m.func.return_type, &m.func.body);
+            }
             Decl::Routes(r) => {
                 self.write_indent();
                 self.out.push_str(

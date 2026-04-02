@@ -24,15 +24,18 @@ async fn test_mcp_status_tool() {
 
 #[tokio::test]
 async fn test_mcp_a2a_tools() {
-    let config = OrchestratorConfig::default();
-    let state = ServerState::new(config);
+    let state = ServerState::new_test().await;
+    let agent = state
+        .orchestrator
+        .spawn_agent("integration-a2a-inbox")
+        .expect("spawn agent for inbox");
 
-    // Test that vox_a2a_inbox exists but may be empty initially
+    // Inbox requires a registered agent; unread may be zero with no messages.
     let result = tools::handle_tool_call(
         &state,
         "vox_a2a_inbox",
         json!({
-            "agent_id": 1
+            "agent_id": agent.0
         }),
     )
     .await

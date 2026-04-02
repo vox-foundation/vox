@@ -7,11 +7,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::refine::{CorrectionContext, CorrectionTrace};
 
-fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
-    let p = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH").ok()?;
-    let path = Path::new(p.trim());
+fn try_load_lexicon_path(path: &Path) -> Option<crate::speech_lexicon::SpeechLexicon> {
     let bytes = std::fs::read(path).ok()?;
     crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes).ok()
+}
+
+/// Loads and merges speech lexicons: explicit `VOX_ORATIO_SPEECH_LEXICON_PATH`, then optional
+/// `<VOX_REPOSITORY_ROOT or VOX_REPO_ROOT>/.vox/speech_lexicon.json` when those roots are set.
+fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
+    let mut acc = crate::speech_lexicon::SpeechLexicon::default();
+    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
+        let path = Path::new(p.trim());
+        if let Some(lex) = try_load_lexicon_path(path) {
+            acc.merge_from(lex);
+        }
+    }
+    let repo_root = std::env::var("VOX_REPOSITORY_ROOT")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            std::env::var("VOX_REPO_ROOT")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+        });
+    if let Some(root) = repo_root {
+        let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
+        if let Some(lex) = try_load_lexicon_path(&candidate) {
+            acc.merge_from(lex);
+        }
+    }
+    if acc.is_empty() { None } else { Some(acc) }
 }
 
 fn contextual_bias_phrases_with_lex(
@@ -115,7 +140,11 @@ pub fn transcript_status() -> &'static str {
     {
         "Vox Oratio: Candle Whisper (Rust) STT enabled; symphonia decode + 16 kHz resample; \
          `.txt`/`.md` passthrough. Env: VOX_ORATIO_MODEL, VOX_ORATIO_REVISION, VOX_ORATIO_LANGUAGE, \
-         VOX_ORATIO_CUDA (requires `cuda` feature)."
+         VOX_ORATIO_CUDA (requires `cuda` feature); long audio: VOX_ORATIO_CHUNK_SEC, \
+         VOX_ORATIO_CHUNK_OVERLAP_SEC, optional VOX_ORATIO_EMIT_PARTIAL_PATH (JSONL), \
+         VOX_ORATIO_STREAM_TOKENS; constrained decode knobs: VOX_ORATIO_LOGIT_BIAS_STRENGTH, \
+         VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS, VOX_ORATIO_LOGIT_FORBID_TOKENS, \
+         VOX_ORATIO_CONSTRAINED_TRIE, VOX_ORATIO_CONSTRAINED_PHRASES, VOX_ORATIO_TRIE_STUCK_STEPS."
     }
     #[cfg(not(feature = "stt-candle"))]
     {

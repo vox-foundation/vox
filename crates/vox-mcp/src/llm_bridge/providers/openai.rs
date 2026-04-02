@@ -17,6 +17,8 @@ pub(crate) async fn http_openai_compatible(
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
+    tools: Option<serde_json::Value>,
+    tool_choice: Option<serde_json::Value>,
 ) -> Result<(String, u32, u32), HttpInferError> {
     let (text, in_tok, out_tok, _) = http_openai_compatible_with_headers(
         client,
@@ -28,6 +30,8 @@ pub(crate) async fn http_openai_compatible(
         max_tokens,
         temperature,
         json_mode,
+        tools,
+        tool_choice,
         &HashMap::new(),
     )
     .await?;
@@ -44,6 +48,8 @@ pub(crate) async fn http_openai_compatible_with_headers(
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
+    tools: Option<serde_json::Value>,
+    tool_choice: Option<serde_json::Value>,
     extra_headers: &HashMap<String, String>,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let mut messages = Vec::new();
@@ -64,6 +70,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
         None
     };
 
+    let requested_tools = tools.is_some();
     let body = OpenAiChatRequest {
         model,
         messages,
@@ -71,6 +78,8 @@ pub(crate) async fn http_openai_compatible_with_headers(
         max_tokens,
         stream: false,
         response_format,
+        tools,
+        tool_choice,
     };
 
     let mut req = client.post(url).json(&body);
@@ -106,13 +115,48 @@ pub(crate) async fn http_openai_compatible_with_headers(
         message: format!("LLM JSON: {e}"),
     })?;
 
-    let text = parsed
+    let message = parsed
         .choices
         .into_iter()
         .next()
-        .and_then(|c| c.message)
-        .and_then(|m| m.content)
-        .unwrap_or_default();
+        .and_then(|c| c.message);
+
+    fn coerce_json_fallback(mut s: &str) -> String {
+        s = s.trim();
+        if s.starts_with("```json") {
+            s = s[7..].trim_start();
+        } else if s.starts_with("```") {
+            s = s[3..].trim_start();
+        }
+        if s.ends_with("```") {
+            s = s[..s.len() - 3].trim_end();
+        }
+        s.to_string()
+    }
+
+    let text = if let Some(m) = message {
+        if let Some(mut tc) = m.tool_calls {
+            if let Some(first) = tc.pop() {
+                first.function.arguments
+            } else {
+                let s = m.content.unwrap_or_default();
+                if requested_tools || json_mode {
+                    coerce_json_fallback(&s)
+                } else {
+                    s
+                }
+            }
+        } else {
+            let s = m.content.unwrap_or_default();
+            if requested_tools || json_mode {
+                coerce_json_fallback(&s)
+            } else {
+                s
+            }
+        }
+    } else {
+        String::new()
+    };
 
     let u = parsed.usage.unwrap_or_default();
     let provider_reported_cost_usd = u.total_cost.or(u.cost);

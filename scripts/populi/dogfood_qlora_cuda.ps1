@@ -26,6 +26,7 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     --output-dir mens/runs/qwen35_qlora_dogfood `
     --device cuda `
     --qlora-require-full-proxy-stack `
+    --data-mode strict `
     --background `
     --log-dir $logDir
 

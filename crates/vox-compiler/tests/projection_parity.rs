@@ -65,7 +65,7 @@ http get "/api/ping" to int { ret 1 }
         "runtime projection canonical bytes must be stable"
     );
 
-    assert_eq!(app.schema_version, 1);
+    assert_eq!(app.schema_version, 2);
     assert_eq!(runtime.schema_version, 1);
     assert!(!app.http_routes.is_empty(), "expected HTTP route contract");
     assert!(!app.server_fns.is_empty(), "expected @server contract");

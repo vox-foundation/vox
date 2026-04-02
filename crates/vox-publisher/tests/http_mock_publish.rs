@@ -51,7 +51,7 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
                 short_text: Some("hello mock".to_string()),
                 thread: false,
             }),
-            github: None,
+            forge: None,
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
                 collective_slug: "slug".to_string(),
@@ -117,7 +117,7 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
                 short_text: Some("hello mock".to_string()),
                 thread: false,
             }),
-            github: None,
+            forge: None,
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
                 collective_slug: "slug".to_string(),

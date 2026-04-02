@@ -1052,6 +1052,9 @@ mod tests {
             rating: Some(5),
             category: Some("tool_trace".into()),
             difficulty: None,
+            lane: None,
+            response_mode: None,
+            task_family: None,
         };
         let cfg = LoraTrainingConfig::default();
         assert_eq!(trajectory_weight_for_pair(&pair, &cfg), (1.0, false));
@@ -1065,6 +1068,9 @@ mod tests {
             rating: Some(5),
             category: Some("tool_trace_failure".into()),
             difficulty: None,
+            lane: None,
+            response_mode: None,
+            task_family: None,
         };
         let cfg = LoraTrainingConfig {
             trajectory_weighting_enabled: true,
@@ -1091,6 +1097,9 @@ mod tests {
             rating: Some(5),
             category: Some("trajectory_failure".into()),
             difficulty: None,
+            lane: None,
+            response_mode: None,
+            task_family: None,
         };
         let cfg = LoraTrainingConfig {
             trajectory_weighting_enabled: true,

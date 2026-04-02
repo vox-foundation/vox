@@ -94,16 +94,22 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
             continue;
         }
         let lower = token.to_ascii_lowercase();
-        if let Some(mapped) = confusion.get(lower.as_str()) {
-            trace.push(CorrectionTrace {
-                rule: "confusion_map".to_string(),
-                before: token.to_string(),
-                after: (*mapped).to_string(),
-                reason: "Matched common ASR confusion token".to_string(),
-            });
-            rewritten.push((*mapped).to_string());
-            continue;
+        
+        // If the speaker profile is dysarthric, bypass the standard confusion 
+        // map as their speech patterns require their distinct fine-tuned mappings.
+        if !matches!(ctx.speaker_profile, crate::speaker_profile::SpeakerProfile::Dysarthric(_)) {
+            if let Some(mapped) = confusion.get(lower.as_str()) {
+                trace.push(CorrectionTrace {
+                    rule: "confusion_map".to_string(),
+                    before: token.to_string(),
+                    after: (*mapped).to_string(),
+                    reason: "Matched common ASR confusion token".to_string(),
+                });
+                rewritten.push((*mapped).to_string());
+                continue;
+            }
         }
+        
         if domain_lexicon.contains(&lower) {
             if token != lower {
                 trace.push(CorrectionTrace {

@@ -53,6 +53,10 @@ pub enum WorkflowAction {
         /// JSON array of workflow arguments (e.g. `["a",42]`)
         #[arg(long)]
         args: Option<String>,
+        /// Resume a specific interpreted workflow run by durable run id.
+        /// If omitted, a new run id is generated.
+        #[arg(long)]
+        run_id: Option<String>,
     },
 }
 

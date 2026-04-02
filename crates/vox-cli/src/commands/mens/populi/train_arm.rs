@@ -1,8 +1,10 @@
 //! `PopuliAction::Train` implementation (corpus preflight + `schola::train`).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::action::{MensTokenizerCli, PopuliTrainBackendCli, TrainingDeploymentTargetCli};
+use super::action::{
+    MensTokenizerCli, PopuliTrainBackendCli, TrainDataModeCli, TrainingDeploymentTargetCli,
+};
 use crate::commands::schola::train;
 
 #[allow(clippy::too_many_arguments)]
@@ -34,6 +36,7 @@ pub async fn run_train(
     tokenizer: MensTokenizerCli,
     qlora_no_double_quant: bool,
     qlora_require_full_proxy_stack: bool,
+    qlora_allow_partial_proxy_stack: bool,
     qlora_lm_head_only: bool,
     qlora_max_skip_rate: Option<f32>,
     qlora_proxy_max_layers: Option<usize>,
@@ -59,6 +62,7 @@ pub async fn run_train(
     validation_split_ratio: f64,
     curriculum: bool,
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
+    data_mode: TrainDataModeCli,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
@@ -111,7 +115,8 @@ pub async fn run_train(
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
 
-    // Preflight auto-regen check
+    // Preflight: stale corpus fingerprint → same refresh path for both data modes (synthetic + pipeline w/o train + mix).
+    // `strict`: refresh failures abort. `auto-refresh`: log warnings and continue (legacy).
     if let Some(ref root) = workspace_root {
         use owo_colors::OwoColorize;
         let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
@@ -125,87 +130,23 @@ pub async fn run_train(
 
         let skip_regen = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
         if !is_fresh && !skip_regen {
+            let strict = matches!(data_mode, TrainDataModeCli::Strict);
             eprintln!(
-                "  {} Stale corpus detected (fingerprint: {}). Regenerating...",
+                "  {} Stale corpus detected (fingerprint: {}). {}",
                 "🔄".cyan(),
-                current_fp
-            );
-            let _ = vox_corpus::corpus::preflight::clean_corpus_targets(root);
-
-            let cfg = vox_corpus::synthetic_gen::SyntheticGenConfig::default();
-            let out_path = root.join("mens/data/synthetic.jsonl");
-            let mut pairs = 0;
-            if let Ok(count) = vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
-                eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), count);
-                pairs = count;
-            }
-
-            eprintln!("  {} Running corpus extraction pipeline...", "🔄".cyan());
-            if let Err(e) = crate::commands::mens::pipeline::run(
-                data_dir.clone(),
-                output_dir.clone(),
-                true,  // skip_train
-                false, // strict_gate
-                None,  // device
-                None,  // model
-                None,  // epochs
-                None,  // preset
-                None,  // stages
-                false, // dry_run
-                false, // curriculum
-            )
-            .await
-            {
-                eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
-            } else {
-                eprintln!("  {} Corpus extraction pipeline completed.", "✓".green());
-            }
-
-            let mix_yaml = root.join(vox_corpus::training::mix_prepare::MIX_CONFIG_REL);
-            if mix_yaml.is_file() {
-                match vox_corpus::training::mix_prepare::copy_mix_output_to_train_jsonl(
-                    root, &data_dir, &mix_yaml,
-                ) {
-                    Ok(true) => {
-                        eprintln!(
-                            "  {} Mixed data ready at: {}",
-                            "✓".green(),
-                            data_dir.join("train.jsonl").display()
-                        );
-                        #[allow(unsafe_code)]
-                        unsafe {
-                            std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
-                        }
-                    }
-                    Ok(false) => {
-                        eprintln!(
-                            "  {} Mix output not found after pipeline; check {}",
-                            "⚠️".yellow(),
-                            mix_yaml.display()
-                        );
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "  {} Failed to copy mixed corpus to train.jsonl: {}",
-                            "⚠️".yellow(),
-                            e
-                        );
-                    }
+                current_fp,
+                if strict {
+                    "Running blocking refresh before train..."
+                } else {
+                    "Regenerating..."
                 }
-            }
-
-            if let Ok(db) = vox_db::VoxDb::connect_default().await {
-                let _ = db
-                    .record_corpus_snapshot(
-                        &current_fp,
-                        env!("CARGO_PKG_VERSION"),
-                        pairs as i64,
-                        None,
-                    )
-                    .await;
+            );
+            let res = refresh_stale_training_corpus(root, &data_dir, &output_dir, &current_fp, strict)
+                .await;
+            if strict {
+                res?;
             } else {
-                let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
-                let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                let _ = res;
             }
         }
     }
@@ -256,6 +197,7 @@ pub async fn run_train(
         tokenizer.into(),
         qlora_no_double_quant,
         qlora_require_full_proxy_stack,
+        qlora_allow_partial_proxy_stack,
         qlora_max_skip_rate,
         qlora_lm_head_only,
         qlora_proxy_max_layers,
@@ -277,4 +219,142 @@ pub async fn run_train(
         trajectory_quality_boost,
     )
     .await
+}
+
+/// Regenerate synthetic data, run `vox mens pipeline` with `skip_train`, optionally copy mix → `train.jsonl`,
+/// then record fingerprint. See [`TrainDataModeCli`](super::action::TrainDataModeCli).
+async fn refresh_stale_training_corpus(
+    root: &Path,
+    data_dir: &PathBuf,
+    output_dir: &PathBuf,
+    current_fp: &str,
+    strict: bool,
+) -> anyhow::Result<()> {
+    use anyhow::Context;
+    use owo_colors::OwoColorize;
+
+    if strict {
+        vox_corpus::corpus::preflight::clean_corpus_targets(root)
+            .map_err(|e| anyhow::anyhow!("clean_corpus_targets: {e}"))?;
+    } else {
+        let _ = vox_corpus::corpus::preflight::clean_corpus_targets(root);
+    }
+
+    let cfg = vox_corpus::synthetic_gen::SyntheticGenConfig::default();
+    let out_path = root.join("mens/data/synthetic.jsonl");
+    let mut pairs: i64 = 0;
+    match vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
+        Ok(count) => {
+            eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), count);
+            pairs = count as i64;
+        }
+        Err(e) => {
+            if strict {
+                return Err(anyhow::anyhow!("synthetic corpus regen: {e}"));
+            }
+            eprintln!("  {} Synthetic regen failed: {}", "⚠️".yellow(), e);
+        }
+    }
+
+    eprintln!("  {} Running corpus extraction pipeline...", "🔄".cyan());
+    match crate::commands::mens::pipeline::run(
+        data_dir.clone(),
+        output_dir.clone(),
+        true,
+        false,
+        None,
+        None,
+        None,
+        None,
+        None,
+        false,
+        false,
+    )
+    .await
+    {
+        Ok(()) => eprintln!("  {} Corpus extraction pipeline completed.", "✓".green()),
+        Err(e) => {
+            if strict {
+                return Err(e).context("corpus extraction pipeline (stale-fingerprint refresh)");
+            }
+            eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
+        }
+    }
+
+    let mix_yaml = root.join(vox_corpus::training::mix_prepare::MIX_CONFIG_REL);
+    if mix_yaml.is_file() {
+        match vox_corpus::training::mix_prepare::copy_mix_output_to_train_jsonl(
+            root, data_dir, &mix_yaml,
+        ) {
+            Ok(true) => {
+                eprintln!(
+                    "  {} Mixed data ready at: {}",
+                    "✓".green(),
+                    data_dir.join("train.jsonl").display()
+                );
+                #[allow(unsafe_code)]
+                unsafe {
+                    std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
+                }
+            }
+            Ok(false) => {
+                if strict {
+                    anyhow::bail!(
+                        "mix output not found after pipeline; check {}",
+                        mix_yaml.display()
+                    );
+                }
+                eprintln!(
+                    "  {} Mix output not found after pipeline; check {}",
+                    "⚠️".yellow(),
+                    mix_yaml.display()
+                );
+            }
+            Err(e) => {
+                if strict {
+                    return Err(e).context(format!(
+                        "copy mixed corpus to {}",
+                        data_dir.join("train.jsonl").display()
+                    ));
+                }
+                eprintln!(
+                    "  {} Failed to copy mixed corpus to train.jsonl: {}",
+                    "⚠️".yellow(),
+                    e
+                );
+            }
+        }
+    }
+
+    if let Ok(db) = vox_db::VoxDb::connect_default().await {
+        if strict {
+            db.record_corpus_snapshot(
+                current_fp,
+                env!("CARGO_PKG_VERSION"),
+                pairs,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("record_corpus_snapshot: {e}"))?;
+        } else {
+            let _ = db
+                .record_corpus_snapshot(
+                    current_fp,
+                    env!("CARGO_PKG_VERSION"),
+                    pairs,
+                    None,
+                )
+                .await;
+        }
+    } else {
+        let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
+        if strict {
+            vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file)
+                .map_err(|e| anyhow::anyhow!("write fingerprint snapshot: {e}"))?;
+        } else {
+            let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+        }
+    }
+
+    Ok(())
 }

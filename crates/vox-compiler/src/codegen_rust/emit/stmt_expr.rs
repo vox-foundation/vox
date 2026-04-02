@@ -1,4 +1,4 @@
-use crate::builtin_registry::lookup_builtin;
+use crate::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
 use crate::hir::{HirBinOp, HirExpr, HirPattern, HirStmt};
 
 pub(super) fn emit_stmt(
@@ -236,11 +236,13 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
                 if let HirExpr::Ident(module_name, _) = &**namespace_expr
-                    && module_name == "OpenClaw"
+                    && (module_name == "OpenClaw" || module_name == "Browser")
                 {
                     let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
-                    if let Some(call) = emit_registry_runtime_call("OpenClaw", fn_name, &a) {
-                        return format!("(match {call} {{ Ok(v) => Ok(v), Err(m) => Error(m) }})");
+                    if let Some(expr) =
+                        emit_openclaw_or_browser_registry_call(module_name, fn_name, &a)
+                    {
+                        return expr;
                     }
                 }
                 if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
@@ -259,133 +261,8 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                     if let HirExpr::Ident(std_kw, _) = &**std_expr {
                         if std_kw == "std" {
                             let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
-                            let builtin: Option<String> = match (ns_name.as_str(), fn_name.as_str())
-                            {
-                                ("crypto", "hash_fast") if !a.is_empty() => {
-                                    Some(format!("vox_runtime::builtins::vox_hash_fast(&{})", a[0]))
-                                }
-                                ("crypto", "hash_secure") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_hash_secure(&{})",
-                                    a[0]
-                                )),
-                                ("crypto", "uuid") => {
-                                    Some("vox_runtime::builtins::vox_uuid()".to_string())
-                                }
-                                ("time", "now_ms") => {
-                                    Some("vox_runtime::builtins::vox_now_ms()".to_string())
-                                }
-                                ("log", "debug") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_debug(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("log", "info") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_info(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("log", "warn") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_warn(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("log", "error") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_error(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("fs", "read") if !a.is_empty() => Some(format!(
-                                    "std::fs::read_to_string({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("fs", "write") if a.len() >= 2 => Some(format!(
-                                    "std::fs::write({}, {}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0], a[1]
-                                )),
-                                ("fs", "exists") if !a.is_empty() => {
-                                    Some(format!("std::path::Path::new(&{}).exists()", a[0]))
-                                }
-                                ("fs", "remove") if !a.is_empty() => Some(format!(
-                                    "std::fs::remove_file({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("fs", "read_bytes") if !a.is_empty() => Some(format!(
-                                    "std::fs::read({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("fs", "mkdir") if !a.is_empty() => Some(format!(
-                                    "std::fs::create_dir_all({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("path", "join") if a.len() >= 2 => Some(format!(
-                                    "std::path::Path::new(&{}).join(&{}).to_string_lossy().to_string()",
-                                    a[0], a[1]
-                                )),
-                                ("path", "basename") if !a.is_empty() => Some(format!(
-                                    "std::path::Path::new(&{}).file_name().unwrap_or_default().to_string_lossy().to_string()",
-                                    a[0]
-                                )),
-                                ("path", "dirname") if !a.is_empty() => Some(format!(
-                                    "std::path::Path::new(&{}).parent().unwrap_or(std::path::Path::new(\".\")).to_string_lossy().to_string()",
-                                    a[0]
-                                )),
-                                ("path", "extension") if !a.is_empty() => Some(format!(
-                                    "std::path::Path::new(&{}).extension().unwrap_or_default().to_string_lossy().to_string()",
-                                    a[0]
-                                )),
-                                ("env", "get") if !a.is_empty() => Some(format!(
-                                    "(vox_runtime::builtins::vox_env_get(({}).as_str()))",
-                                    a[0]
-                                )),
-                                ("process", "run") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run(({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("process", "run_ex") if a.len() >= 4 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
-                                    a[0], a[1], a[2], a[3]
-                                )),
-                                ("process", "run_capture") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run_capture(({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("process", "run_capture_ex") if a.len() >= 4 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
-                                    a[0], a[1], a[2], a[3]
-                                )),
-                                ("process", "exit") if !a.is_empty() => {
-                                    Some(format!("{{ std::process::exit({} as i32) }}", a[0]))
-                                }
-                                ("fs", "list_dir") if !a.is_empty() => Some(format!(
-                                    "(match vox_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
-                                    a[0]
-                                )),
-                                ("fs", "glob") if !a.is_empty() => Some(format!(
-                                    "(match vox_runtime::builtins::vox_fs_glob(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
-                                    a[0]
-                                )),
-                                ("fs", "remove_dir_all") if !a.is_empty() => Some(format!(
-                                    "(match vox_runtime::builtins::vox_fs_remove_dir_all(({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
-                                    a[0]
-                                )),
-                                ("fs", "copy") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_fs_copy(({}).as_str(), ({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("path", "join_many") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_path_join_many({}.as_slice())",
-                                    a[0]
-                                )),
-                                ("json", "read_str") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_json_read_str(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("json", "read_f64") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_json_read_f64(({}).as_str(), ({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("json", "quote") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_json_quote(({}).as_str())",
-                                    a[0]
-                                )),
-                                _ => None,
-                            };
+                            let builtin =
+                                std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a);
                             if let Some(b) = builtin {
                                 return if *is_await { format!("{}.await", b) } else { b };
                             }
@@ -413,14 +290,47 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
     }
 }
 
+/// Raw `vox_runtime::builtins::…` invoke (`std.*` root calls).
 fn emit_registry_runtime_call(namespace: &str, fn_name: &str, args: &[String]) -> Option<String> {
     let entry = lookup_builtin(namespace, fn_name, args.len())?;
     let symbol = entry.runtime_symbol?;
-    let call = match args.len() {
-        0 => format!("{symbol}()"),
-        1 => format!("{symbol}(({}).as_str())", args[0]),
-        2 => format!("{symbol}(({}).as_str(), ({}).as_str())", args[0], args[1]),
-        _ => return None,
+    let kinds: Vec<BuiltinArgKind> = if entry.arg_kinds.is_empty() {
+        vec![BuiltinArgKind::Str; args.len()]
+    } else {
+        entry.arg_kinds.to_vec()
     };
-    Some(call)
+    if kinds.len() != args.len() {
+        return None;
+    }
+    let mut parts = Vec::with_capacity(args.len());
+    for (k, a) in kinds.iter().zip(args.iter()) {
+        parts.push(match k {
+            BuiltinArgKind::Str => format!("({a}).as_str()"),
+            BuiltinArgKind::Bool => a.clone(),
+            BuiltinArgKind::Int => format!("({a}) as u64"),
+        });
+    }
+    Some(format!("{}({})", symbol, parts.join(", ")))
+}
+
+/// `OpenClaw.*` / `Browser.*` → Vox `Result` ADT (`Browser` is `wasm32`-guarded).
+fn emit_openclaw_or_browser_registry_call(
+    module_name: &str,
+    fn_name: &str,
+    args: &[String],
+) -> Option<String> {
+    let inv = emit_registry_runtime_call(module_name, fn_name, args)?;
+    let entry = lookup_builtin(module_name, fn_name, args.len())?;
+    let inner = if entry.returns_unit {
+        format!("match {inv} {{ Ok(()) => Ok(()), Err(m) => Error(m) }}")
+    } else {
+        format!("match {inv} {{ Ok(v) => Ok(v), Err(m) => Error(m) }}")
+    };
+    if module_name == "Browser" {
+        Some(format!(
+            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"Browser.* is not available in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ {inner} }} }})"
+        ))
+    } else {
+        Some(format!("({inner})"))
+    }
 }

@@ -19,7 +19,9 @@ pub(crate) const SECTION_ORDER: &[&str] = &[
     "Explanations",
     "Architecture Decisions (ADRs)",
     "Architecture SSOTs",
+    "Contributors",
     "CI & Quality",
+    "Operations",
     "Reference",
 ];
 
@@ -52,8 +54,8 @@ pub(crate) fn walk_dir(
                     continue;
                 }
 
-                let content = super::bounded_fs::read_utf8_path_capped(&path)
-                    .unwrap_or_else(|_| String::new());
+                let content =
+                    vox_bounded_fs::read_utf8_path_capped(&path).unwrap_or_else(|_| String::new());
                 let (title, category, sort_order, description, last_updated) =
                     parse_frontmatter(&content, &path)?;
 
@@ -66,13 +68,14 @@ pub(crate) fn walk_dir(
                 };
                 let page2 = Page {
                     title,
-                    path: rel_path,
+                    path: rel_path.clone(),
                     sort_order,
                     description: None,
                     last_updated: None,
                 };
                 all_pages.push(page);
-                if let Some(cat) = category {
+                let inferred_category = category.or_else(|| infer_category_from_path(&rel_path));
+                if let Some(cat) = inferred_category {
                     sections.entry(cat).or_default().push(page2);
                 } else {
                     root_pages.push(page2);
@@ -120,25 +123,7 @@ fn parse_frontmatter(
                     }
                 } else if let Some(c) = line.strip_prefix("category:") {
                     let cat = c.trim().trim_matches(|c| c == '"' || c == '\'');
-                    category = Some(
-                        match cat {
-                            "getting-started" => "Getting Started",
-                            "tutorial" => "Tutorials",
-                            "how-to" => "How-To Guides",
-                            "ref" | "reference" => "Reference",
-                            "lang-ref" | "language-reference" => "Language Reference",
-                            "api-keyword" => "API Reference \u{2014} Keywords",
-                            "api-decorator" => "API Reference \u{2014} Decorators",
-                            "api-crate" => "API Reference \u{2014} Crates",
-                            "example" => "Examples",
-                            "explanation" => "Explanations",
-                            "adr" => "Architecture Decisions (ADRs)",
-                            "architecture" | "ssot" => "Architecture SSOTs",
-                            "ci" | "quality" => "CI & Quality",
-                            _ => cat,
-                        }
-                        .to_string(),
-                    );
+                    category = Some(normalize_category(cat)?);
                 } else if let Some(s) = line.strip_prefix("sort_order:") {
                     sort_order = s.trim().parse().unwrap_or(100);
                 }
@@ -149,6 +134,66 @@ fn parse_frontmatter(
     }
 
     Ok((title, category, sort_order, description, last_updated))
+}
+
+fn normalize_category(cat: &str) -> anyhow::Result<String> {
+    let normalized = match cat {
+        "getting-started" => "Getting Started",
+        "tutorial" | "tutorials" => "Tutorials",
+        "how-to" => "How-To Guides",
+        "ref" | "reference" => "Reference",
+        "lang-ref" | "language-reference" => "Language Reference",
+        "api-keyword" => "API Reference \u{2014} Keywords",
+        "api-decorator" => "API Reference \u{2014} Decorators",
+        "api-crate" => "API Reference \u{2014} Crates",
+        "example" => "Examples",
+        "explanation" => "Explanations",
+        "adr" => "Architecture Decisions (ADRs)",
+        "architecture" | "ssot" => "Architecture SSOTs",
+        "contributor" | "contributors" => "Contributors",
+        "ci" | "quality" => "CI & Quality",
+        "operations" | "ops" => "Operations",
+        other => anyhow::bail!(
+            "unsupported docs category {:?}; use the canonical frontmatter vocabulary",
+            other
+        ),
+    };
+    Ok(normalized.to_string())
+}
+
+fn infer_category_from_path(rel_path: &str) -> Option<String> {
+    let category = if rel_path == "index.md" {
+        "Getting Started"
+    } else if rel_path.starts_with("tutorials/") {
+        "Tutorials"
+    } else if rel_path.starts_with("how-to/") {
+        "How-To Guides"
+    } else if rel_path.starts_with("explanation/") {
+        "Explanations"
+    } else if rel_path.starts_with("reference/") || rel_path.starts_with("ref/") {
+        "Reference"
+    } else if rel_path.starts_with("api/keywords/") {
+        "API Reference \u{2014} Keywords"
+    } else if rel_path.starts_with("api/decorators/") {
+        "API Reference \u{2014} Decorators"
+    } else if rel_path.starts_with("api/") {
+        "API Reference \u{2014} Crates"
+    } else if rel_path.starts_with("examples/") {
+        "Examples"
+    } else if rel_path.starts_with("adr/") {
+        "Architecture Decisions (ADRs)"
+    } else if rel_path.starts_with("architecture/") {
+        "Architecture SSOTs"
+    } else if rel_path.starts_with("contributors/") {
+        "Contributors"
+    } else if rel_path.starts_with("ci/") {
+        "CI & Quality"
+    } else if rel_path.starts_with("operations/") {
+        "Operations"
+    } else {
+        return None;
+    };
+    Some(category.to_string())
 }
 
 /// Fail fast when mdBook would error: each `](path)` may appear at most once in `SUMMARY.md`.

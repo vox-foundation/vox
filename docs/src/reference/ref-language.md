@@ -64,7 +64,11 @@ Server functions are transformed into backend API endpoints (Rust) and typed cli
     ret Ok(())
 ```
 
-### 3. UI (`@component`)
+### 3. UI (`@component` - Deprecated)
+
+> [!WARNING]
+> The `@component` syntax is **deprecated** in Vox v0.2. Please migrate to the new reactive view syntax.
+
 Components are compiled to React/TypeScript. They look like functional components and support inline JSX.
 
 ```vox

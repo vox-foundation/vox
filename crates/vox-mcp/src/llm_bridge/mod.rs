@@ -5,6 +5,7 @@ use vox_orchestrator::types::AgentId;
 
 mod error;
 mod infer;
+pub mod infer_test_stub;
 mod limits;
 mod model_route_policy;
 mod provider_adapter;

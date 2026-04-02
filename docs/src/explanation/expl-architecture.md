@@ -151,7 +151,7 @@ Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decora
 | `@test fn` | `#[test]` function |
 | `@deprecated` | `#[deprecated]` attribute |
 | `actor` | Tokio task + mpsc mailbox |
-| `workflow` | State machine with durable step recording |
+| `workflow` | Plain async function today; interpreted runtime provides partial durable step recording |
 
 #### TypeScript Codegen (`vox-compiler::codegen_ts`)
 
@@ -219,7 +219,7 @@ The full checklist for adding a new language construct:
 ## Next Steps
 
 - [Language Guide](../reference/ref-language.md) — Full syntax and feature reference
-- [Actors & Workflows](expl-actors-workflows.md) — Durable execution system
+- [Actors & Workflows](expl-actors-workflows.md) — Workflow durability and actor persistence
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
 - [Web IR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
 - [Web IR acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) — parser, K-metric, parity, and rollout thresholds

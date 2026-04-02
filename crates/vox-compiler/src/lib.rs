@@ -2,20 +2,27 @@
 //!
 //! This crate consolidates all core compiler stages: lexing, parsing,
 //! AST definition, HIR lowering, type checking, and code generation.
+//!
+//! **Generated Rust/TS outputs** are subject to the same premature-completion policy as hand-written
+//! code: after emitting a tree, run `vox ci completion-audit` (optionally scoped to the output root)
+//! or extend CI to scan `target/` / app output dirs; see `contracts/operations/completion-policy.v1.yaml`.
 
 pub mod app_contract;
 pub mod ast;
 pub mod builtin_registry;
 pub mod codegen_rust;
+pub mod codegen_shared;
 pub mod codegen_ts;
 pub mod eval;
 pub mod fmt;
 pub mod generated_vox;
 pub mod hir;
+pub mod language_surface;
 pub mod lexer;
 pub mod parser;
 pub mod react_bridge;
 pub mod runtime_projection;
+pub mod rust_interop_support;
 pub mod serialization;
 pub mod syntax_k;
 pub mod typeck;

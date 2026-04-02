@@ -39,6 +39,11 @@ pub struct MemoryRecallParams {
 pub struct MemorySearchParams {
     /// Substring or keyword to search for.
     pub query: String,
+    /// Optional trace id for retrieval correlation (`X-Vox-Trace-Id` on vector sidecars).
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    #[serde(default)]
+    pub correlation_id: Option<String>,
 }
 
 /// MCP arguments: append one line to today's rolling log file.

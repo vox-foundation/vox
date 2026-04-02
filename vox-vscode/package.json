@@ -1,10 +1,20 @@
 {
   "name": "vox-lang",
   "displayName": "Vox Language",
-  "description": "Language support for Vox — the AI-native, full-stack programming language",
+  "description": "Vox language support: LSP, MCP workspace (chat, Oratio speech, snapshots), and AI-assisted editing.",
   "version": "0.2.0",
   "publisher": "vox-lang",
   "license": "Apache-2.0",
+  "keywords": [
+    "vox",
+    "mcp",
+    "model-context-protocol",
+    "oratio",
+    "speech",
+    "speech-to-code",
+    "lsp",
+    "ai"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -16,7 +26,38 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "workspaceContains:**/*.vox"
+    "workspaceContains:**/*.vox",
+    "onView:vox-sidebar.chat",
+    "onView:vox-snapshots",
+    "onCommand:vox.agent.spawn",
+    "onCommand:vox.build",
+    "onCommand:vox.commandPalette",
+    "onCommand:vox.debugMode",
+    "onCommand:vox.focusSidebar",
+    "onCommand:vox.inlineEdit",
+    "onCommand:vox.inlineEdit.accept",
+    "onCommand:vox.inlineEdit.escapeReject",
+    "onCommand:vox.inlineEdit.regenerate",
+    "onCommand:vox.inlineEdit.reject",
+    "onCommand:vox.inlineExplain",
+    "onCommand:vox.inlineFix",
+    "onCommand:vox.openVisualEditor",
+    "onCommand:vox.oratio.speechToCodeFile",
+    "onCommand:vox.oratio.transcribeFile",
+    "onCommand:vox.oratio.voiceCaptureSpeechToCode",
+    "onCommand:vox.oratio.voiceCaptureTranscribe",
+    "onCommand:vox.pickModel",
+    "onCommand:vox.plan",
+    "onCommand:vox.rebalance",
+    "onCommand:vox.redo",
+    "onCommand:vox.refreshStatus",
+    "onCommand:vox.restartLsp",
+    "onCommand:vox.run",
+    "onCommand:vox.snapshotList",
+    "onCommand:vox.snapshotRefresh",
+    "onCommand:vox.snapshotRestore",
+    "onCommand:vox.snapshotViewDiff",
+    "onCommand:vox.undo"
   ],
   "contributes": {
     "languages": [
@@ -75,7 +116,7 @@
         "vox.vcs.showSnapshotBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show snapshot history bar."
+          "description": "Show the Snapshots tree under the Vox sidebar. VCS commands (undo/redo, snapshot list, …) stay available when this is off."
         },
         "vox.gamify.showHud": {
           "type": "boolean",
@@ -119,12 +160,17 @@
         "vox.mcp.debugPayloads": {
           "type": "boolean",
           "default": false,
-          "description": "Log MCP tool arguments and truncated results to the Vox output channel."
+          "description": "Log MCP tool arguments and truncated results to the Vox output channel. Trust / client disclosure SSOT: docs/src/architecture/telemetry-client-disclosure-ssot.md"
         },
         "vox.mcp.warnOnMissingTools": {
           "type": "boolean",
           "default": true,
           "description": "After connect, log if runtime list_tools is missing tools expected by the workspace UI (see MCP_EXTENSION_EXPECTED_TOOLS in generated registry)."
+        },
+        "vox.mcp.shadowPlanAdequacyToast": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the server returns shadow plan-adequacy and marks the plan as too thin, show an editor notification (details always go to the Vox output channel)."
         },
         "vox.models.byok.anthropic": {
           "type": "string",
@@ -226,6 +272,26 @@
         "category": "Vox"
       },
       {
+        "command": "vox.oratio.transcribeFile",
+        "title": "Vox: Oratio — Transcribe audio file",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.oratio.speechToCodeFile",
+        "title": "Vox: Oratio — Speech to code (audio file)",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.oratio.voiceCaptureTranscribe",
+        "title": "Vox: Oratio — Voice capture → transcribe",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.oratio.voiceCaptureSpeechToCode",
+        "title": "Vox: Oratio — Voice capture → speech to code",
+        "category": "Vox"
+      },
+      {
         "command": "vox.commandPalette",
         "title": "Vox: Command Entry (Dynamic)"
       }
@@ -271,6 +337,18 @@
           "command": "vox.plan",
           "group": "vox@4"
         }
+      ],
+      "explorer/context": [
+        {
+          "command": "vox.oratio.transcribeFile",
+          "group": "vox_oratio@1",
+          "when": "resourceFilename =~ /\\.(wav|mp3|flac|ogg|m4a|webm)$/i"
+        },
+        {
+          "command": "vox.oratio.speechToCodeFile",
+          "group": "vox_oratio@2",
+          "when": "resourceFilename =~ /\\.(wav|mp3|flac|ogg|m4a|webm)$/i"
+        }
       ]
     },
     "viewsContainers": {
@@ -289,6 +367,12 @@
           "id": "vox-sidebar.chat",
           "name": "Vox Workspace",
           "icon": "$(zap)"
+        },
+        {
+          "id": "vox-snapshots",
+          "name": "Snapshots",
+          "when": "config.vox.vcs.showSnapshotBar",
+          "icon": "$(git-commit)"
         }
       ]
     }
@@ -297,7 +381,8 @@
     "vscode:prepublish": "npm run compile",
     "generate:mcp-registry": "node ./scripts/generate-mcp-tool-registry.mjs",
     "check:mcp-parity": "node ./scripts/check-mcp-tool-parity.mjs",
-    "compile": "npm run generate:mcp-registry && tsc -p ./ && node esbuild.js && node ./scripts/smoke-host-messages.mjs",
+    "check:activation-parity": "node ./scripts/check-activation-parity.mjs",
+    "compile": "npm run generate:mcp-registry && npm run check:mcp-parity && npm run check:activation-parity && tsc -p ./ && node esbuild.js && node ./scripts/smoke-host-messages.mjs && node ./scripts/smoke-webview-render.mjs",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src webview-ui/src --max-warnings 100",
     "package": "vsce package"

@@ -44,6 +44,8 @@
                 "vox_compiler_syntax_k_emit",
                 "vox_compiler_syntax_k_regression_gate",
                 "vox_compiler_syntax_k_webir",
+                "vox_agent_harness_contract",
+                "vox_context_envelope_contract",
                 "vox_doc_inventory_relevance_score",
                 "vox_mcp_introspection_language_surface",
                 "vox_mcp_route_telemetry_parity",

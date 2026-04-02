@@ -85,6 +85,19 @@ impl From<OptimizerExperimentModeCli> for vox_populi::mens::OptimizerExperimentM
     }
 }
 
+/// Training data preparation policy before the native trainer runs.
+#[cfg(feature = "gpu")]
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum, PartialEq, Eq)]
+pub enum TrainDataModeCli {
+    /// When the workspace corpus fingerprint is stale, run the same refresh path as `auto-refresh`
+    /// (synthetic regen + `vox mens pipeline` without train + mix copy). **Refresh failures abort.**
+    /// Prefer this for CI, release gates, and reproducible local runs.
+    Strict,
+    /// When stale, refresh corpus artifacts; non-fatal step failures are logged and training may still proceed.
+    #[default]
+    AutoRefresh,
+}
+
 /// Structured stages for the dogfood pipeline (`vox mens pipeline`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 #[serde(rename_all = "snake_case")]

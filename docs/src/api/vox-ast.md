@@ -1,11 +1,14 @@
 ---
-title: "Crate API: vox-ast"
-description: "Official documentation for Crate API: vox-ast for the Vox language. Detailed technical reference, architecture guides, and implementation"
+title: "Compiler Module: vox-ast"
+description: "Official documentation for Compiler Module: vox-ast for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
 ---
-# Crate API: vox-ast
+# Compiler Module: vox-ast
+
+> [!WARNING]
+> This is not a standalone crate. It is a sub-module located at `crates/vox-compiler/src/ast/`.
 
 ## Overview
 
@@ -192,12 +195,12 @@ Native message declaration
 
 ### `struct WorkflowDecl`
 
-Workflow declaration (durable execution).
+Workflow declaration (orchestration; durable replay is runtime-specific).
 
 
 ### `struct ActivityDecl`
 
-Activity declaration (durable execution side-effect).
+Activity declaration (side effects live here; durability depends on runtime).
 
 
 ### `struct HttpRouteDecl`

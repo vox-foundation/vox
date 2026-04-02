@@ -12,10 +12,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_or_empty};
 use crate::object::ObjectId;
 use crate::refs::RefName;
 use crate::sync::{SyncStatus, SyncStatusRef};
+use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_or_empty};
 
 /// Upper bound on commits visited when computing ahead/behind (guards pathological DAGs / shallow gaps).
 const SYNC_STATUS_GRAPH_CAP: usize = 250_000;

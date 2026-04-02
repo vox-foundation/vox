@@ -4,11 +4,12 @@
 //! Baseline version is [`BASELINE_VERSION`] (see monolithic DDL in `baseline_sql()`).
 
 use super::domains;
+use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
 /// Latest unified schema baseline version for new and existing databases.
-pub const BASELINE_VERSION: i64 = 42;
+pub const BASELINE_VERSION: i64 = 44;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -79,6 +80,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::toestub_build::SCHEMA_TOESTUB_BUILD,
     },
     SchemaFragment {
+        name: "ci_completion",
+        sql: domains::ci_completion::SCHEMA_CI_COMPLETION,
+    },
+    SchemaFragment {
         name: "publish_cloud",
         sql: domains::publish_cloud::SCHEMA_PUBLISH_CLOUD,
     },
@@ -103,6 +108,29 @@ pub fn baseline_sql() -> &'static str {
                 full.push_str("\n\n");
             }
         }
+        let extra = [
+            spec::POPULI_TRAINING_RUN_DDL.trim(),
+            spec::CODEX_CAPABILITY_MAP_DDL.trim(),
+        ];
+        for sql in extra {
+            if !sql.is_empty() {
+                full.push_str(sql);
+                full.push_str("\n\n");
+            }
+        }
         full
     })
+}
+
+#[cfg(test)]
+mod baseline_digest_manual {
+    use super::schema_baseline_digest_hex;
+
+    /// Run: `cargo test -p vox-db baseline_digest_manual -- --ignored --nocapture`
+    /// then update `contracts/db/baseline-version-policy.yaml` when `SCHEMA_FRAGMENTS` change.
+    #[test]
+    #[ignore = "manual: prints Keccak256 baseline digest for policy YAML"]
+    fn print_digest_for_baseline_policy() {
+        eprintln!("{}", schema_baseline_digest_hex());
+    }
 }

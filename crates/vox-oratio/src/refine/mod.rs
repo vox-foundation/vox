@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::runtime_config::RefineTunables;
+use crate::speaker_profile::SpeakerProfile;
 
 /// Correction strictness profile for transcript refinement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -34,6 +35,8 @@ pub struct CorrectionContext {
     pub protected_tokens: HashSet<String>,
     /// Emit debug logs with input payloads and replacement details.
     pub debug_payload: bool,
+    /// Speaker Profile dictates rules logic (e.g., dysarthric exceptions).
+    pub speaker_profile: SpeakerProfile,
 }
 
 impl CorrectionContext {
@@ -48,6 +51,7 @@ impl CorrectionContext {
             profile,
             refine_tunables: rt.refine,
             debug_payload,
+            speaker_profile: SpeakerProfile::Standard,
             ..Default::default()
         }
     }

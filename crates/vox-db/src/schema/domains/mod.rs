@@ -1,4 +1,5 @@
 pub mod agents;
+pub mod ci_completion;
 pub mod cas_codex;
 pub mod conversations;
 pub mod execution;

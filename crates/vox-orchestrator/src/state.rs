@@ -99,7 +99,7 @@ impl OrchestratorState {
         if !path.exists() {
             return Ok(None);
         }
-        let content = crate::bounded_fs::read_utf8_path_capped(path)
+        let content = vox_bounded_fs::read_utf8_path_capped(path)
             .map_err(|e| StateError::Io(std::io::Error::other(e.to_string())))?;
         let state: Self = serde_json::from_str(&content).map_err(StateError::Deserialize)?;
         tracing::info!("Orchestrator state loaded from {}", path.display());

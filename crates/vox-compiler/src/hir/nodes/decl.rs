@@ -71,6 +71,8 @@ pub struct HirModule {
     pub search_indexes: Vec<HirSearchIndex>,
     /// MCP tool handlers.
     pub mcp_tools: Vec<HirMcpTool>,
+    /// MCP read-only resource handlers (`@mcp.resource`).
+    pub mcp_resources: Vec<HirMcpResource>,
 
     // UI & TanStack specific structures (AST-retained for TS codegen migration)
     /// UI Components.
@@ -131,6 +133,7 @@ pub struct SemanticHirModule {
     pub vector_indexes: Vec<HirVectorIndex>,
     pub search_indexes: Vec<HirSearchIndex>,
     pub mcp_tools: Vec<HirMcpTool>,
+    pub mcp_resources: Vec<HirMcpResource>,
     pub reactive_components: Vec<HirReactiveComponent>,
 }
 
@@ -157,6 +160,7 @@ impl HirModule {
             ("vector_indexes", HirFieldOwnership::SemanticCore),
             ("search_indexes", HirFieldOwnership::SemanticCore),
             ("mcp_tools", HirFieldOwnership::SemanticCore),
+            ("mcp_resources", HirFieldOwnership::SemanticCore),
             ("components", HirFieldOwnership::MigrationOnly),
             ("v0_components", HirFieldOwnership::MigrationOnly),
             ("client_routes", HirFieldOwnership::AppContract),
@@ -196,6 +200,7 @@ impl HirModule {
             vector_indexes: self.vector_indexes.clone(),
             search_indexes: self.search_indexes.clone(),
             mcp_tools: self.mcp_tools.clone(),
+            mcp_resources: self.mcp_resources.clone(),
             reactive_components: self.reactive_components.clone(),
         }
     }
@@ -530,6 +535,15 @@ pub struct HirMcpTool {
     /// Tool description for MCP clients.
     pub description: String,
     /// Underlying implementation.
+    pub func: HirFn,
+}
+
+/// MCP resource — read-only URI-backed content for MCP `resources/read`.
+#[derive(Debug, Clone)]
+pub struct HirMcpResource {
+    /// Stable resource URI (e.g. `notes://recent`).
+    pub uri: String,
+    pub description: String,
     pub func: HirFn,
 }
 

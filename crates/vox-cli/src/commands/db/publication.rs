@@ -4,6 +4,7 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::db_cli::{ArxivHandoffStageCli, ScholarlyVenueCli};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 fn repo_relative_string(repo_root: &Path, path: &Path) -> Result<String> {
     let abs = if path.is_absolute() {
@@ -67,6 +68,7 @@ fn build_scientia_evidence_context(
     benchmark_pair_report_json_path: Option<&Path>,
     human_meaningful_advance: bool,
     human_ai_disclosure_complete: bool,
+    body_markdown: &str,
 ) -> Result<Option<vox_publisher::scientia_evidence::ScientiaEvidenceContext>> {
     let mut evidence = vox_publisher::scientia_evidence::ScientiaEvidenceContext {
         eval_gate_report_repo_relative: match eval_gate_report_json_path {
@@ -88,11 +90,13 @@ fn build_scientia_evidence_context(
         scientific,
         &mut evidence,
     );
+    vox_publisher::scientia_evidence::attach_autofill_and_doc_hints(body_markdown, &mut evidence);
     if evidence.discovery_signals.is_empty()
         && evidence.eval_gate_report_repo_relative.is_none()
         && evidence.benchmark_pair_report_repo_relative.is_none()
         && !human_meaningful_advance
         && !human_ai_disclosure_complete
+        && evidence.doc_section_hints.is_empty()
     {
         return Ok(None);
     }
@@ -100,6 +104,7 @@ fn build_scientia_evidence_context(
 }
 
 /// Prepare (upsert) a canonical publication manifest from markdown body content.
+#[allow(clippy::too_many_arguments)]
 pub async fn publication_prepare(
     publication_id: &str,
     content_type: &str,
@@ -115,6 +120,7 @@ pub async fn publication_prepare(
     human_ai_disclosure_complete: bool,
     preflight: bool,
     preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
+    discovery_intake_gate: vox_publisher::scientia_discovery::DiscoveryIntakeGate,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let repo_root = vox_repository::resolve_repo_root_for_ci();
@@ -146,7 +152,32 @@ pub async fn publication_prepare(
         benchmark_pair_report_json_path,
         human_meaningful_advance,
         human_ai_disclosure_complete,
+        body_markdown.as_str(),
     )?;
+    if content_type == "scientia"
+        && discovery_intake_gate != vox_publisher::scientia_discovery::DiscoveryIntakeGate::None
+    {
+        let empty_rank_evidence =
+            vox_publisher::scientia_evidence::ScientiaEvidenceContext::default();
+        let ev_for_rank = scientia_evidence.as_ref().unwrap_or(&empty_rank_evidence);
+        let scientia_h =
+            vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+        let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+            publication_id,
+            Some(source_ref.as_str()),
+            ev_for_rank,
+            &scientia_h,
+        );
+        if !vox_publisher::scientia_discovery::intake_gate_allows(discovery_intake_gate, &rank) {
+            anyhow::bail!(
+                "discovery intake gate blocked prepare: gate={discovery_intake_gate:?} rank_score={} intake_tier={:?} auto_draft_eligible={}; {}",
+                rank.rank_score,
+                rank.intake_tier,
+                rank.auto_draft_eligible,
+                rank.machine_explanation.join("; ")
+            );
+        }
+    }
     let metadata_json = vox_publisher::scientific_metadata::build_scientia_metadata_json(
         "vox db publication-prepare",
         Some(repository_id.as_str()),
@@ -219,6 +250,93 @@ pub async fn publication_prepare(
             .map(|note| format!(" note={note}"))
             .unwrap_or_default()
     );
+    Ok(())
+}
+
+/// Reload live telemetry / sidecars, recompute `scientia_evidence`, and upsert the manifest (scientia only).
+pub async fn publication_discovery_refresh_evidence(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let repository_id = repository_id_for_prepare(&repo_root);
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    if row.content_type != "scientia" {
+        anyhow::bail!(
+            "publication-discovery-refresh-evidence requires content_type `scientia` (got `{}`)",
+            row.content_type
+        );
+    }
+    let mut manifest = publication_manifest_from_row(&row);
+    manifest =
+        crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
+            manifest,
+            &db,
+            &repo_root,
+            Some(repository_id.as_str()),
+        )
+        .await?;
+
+    let scientific = vox_publisher::publication_preflight::parse_scientific_from_metadata_json(
+        manifest.metadata_json.as_deref(),
+    )
+    .ok()
+    .flatten();
+
+    let new_meta = vox_publisher::scientia_evidence::rebuild_scientia_evidence_metadata_json(
+        manifest.metadata_json.as_deref(),
+        manifest.body_markdown.as_str(),
+        manifest.abstract_text.as_deref(),
+        manifest.citations_json.as_deref(),
+        scientific.as_ref(),
+        manifest
+            .source_ref
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+        Some("vox db publication-discovery-refresh-evidence"),
+    )
+    .context("rebuild scientia_evidence metadata_json")?;
+
+    manifest.metadata_json = Some(new_meta);
+    let digest = manifest.content_sha3_256();
+
+    db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+        publication_id: &manifest.publication_id,
+        content_type: &manifest.content_type,
+        source_ref: manifest.source_ref.as_deref(),
+        title: &manifest.title,
+        author: &manifest.author,
+        abstract_text: manifest.abstract_text.as_deref(),
+        body_markdown: &manifest.body_markdown,
+        citations_json: manifest.citations_json.as_deref(),
+        metadata_json: manifest.metadata_json.as_deref(),
+        content_sha3_256: &digest,
+        state: row.state.as_str(),
+    })
+    .await?;
+
+    let evidence = vox_publisher::scientia_evidence::parse_scientia_evidence(
+        manifest.metadata_json.as_deref(),
+    )
+    .unwrap_or_default();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        publication_id,
+        manifest.source_ref.as_deref(),
+        &evidence,
+        &scientia_h,
+    );
+    let detail = serde_json::json!({ "digest": digest, "rank": rank });
+    db.append_publication_status_event(
+        publication_id,
+        "discovery_evidence_refreshed",
+        Some(&serde_json::to_string(&detail)?),
+    )
+    .await?;
+
+    println!("Refreshed discovery evidence for '{publication_id}' digest={digest}");
     Ok(())
 }
 
@@ -572,6 +690,30 @@ pub async fn publication_status(publication_id: &str, with_worthiness: bool) -> 
     let media_assets = db.list_publication_media_assets(publication_id).await?;
     let attempts = db.list_publication_attempts(publication_id).await?;
     let status_events = db.list_publication_status_events(publication_id).await?;
+    let evidence =
+        vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref());
+    let evidence_fallback = vox_publisher::scientia_evidence::ScientiaEvidenceContext::default();
+    let evidence_ref = evidence.as_ref().unwrap_or(&evidence_fallback);
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let discovery_rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        publication_id,
+        row.source_ref.as_deref(),
+        evidence_ref,
+        &scientia_h,
+    );
+    let manifest_completion =
+        vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+    let evidence_complete =
+        Some(vox_publisher::scientia_discovery::evidence_completeness_score(
+            evidence_ref,
+            &scientia_h,
+        ));
+    let transform_preview = vox_publisher::scientia_discovery::destination_transform_previews(
+        &manifest,
+        evidence.as_ref(),
+    );
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
@@ -582,10 +724,446 @@ pub async fn publication_status(publication_id: &str, with_worthiness: bool) -> 
             "version": row.version,
             "approvals_for_digest": approvals,
             "preflight_report": preflight_report,
+            "discovery_rank": discovery_rank,
+            "manifest_completion": manifest_completion,
+            "evidence_completeness_0_100": evidence_complete,
+            "transform_preview": transform_preview,
             "scholarly_submissions": submissions,
             "media_assets": media_assets,
             "publication_attempts": attempts,
             "publication_status_events": status_events,
+        }))?
+    );
+    Ok(())
+}
+
+/// Rank publication manifests for SCIENTIA discovery (deterministic; no LLM).
+pub async fn publication_discovery_scan(
+    content_type: Option<&str>,
+    state: Option<&str>,
+    limit: i64,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let rows = db
+        .list_publication_manifests(content_type, state, limit)
+        .await?;
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let mut candidates: Vec<serde_json::Value> = Vec::new();
+    for row in rows {
+        let evidence =
+            vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
+                .unwrap_or_default();
+        let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+            row.publication_id.as_str(),
+            row.source_ref.as_deref(),
+            &evidence,
+            &scientia_h,
+        );
+        candidates.push(serde_json::json!({
+            "publication_id": row.publication_id,
+            "content_type": row.content_type,
+            "state": row.state,
+            "updated_at_ms": row.updated_at_ms,
+            "rank": rank,
+        }));
+    }
+    candidates.sort_by(|a, b| {
+        let sa = a["rank"]["rank_score"].as_u64().unwrap_or(0);
+        let sb = b["rank"]["rank_score"].as_u64().unwrap_or(0);
+        sb.cmp(&sa)
+    });
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema_kind": "scientia_discovery_scan",
+            "candidates": candidates,
+        }))?
+    );
+    Ok(())
+}
+
+/// Machine explanation + completion + previews for one publication id.
+pub async fn publication_discovery_explain(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let manifest = publication_manifest_from_row(&row);
+    let evidence =
+        vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
+            .unwrap_or_default();
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        publication_id,
+        row.source_ref.as_deref(),
+        &evidence,
+        &scientia_h,
+    );
+    let novelty_bundle =
+        vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+            row.metadata_json.as_deref(),
+        );
+    if let Some(ref b) = novelty_bundle {
+        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, b);
+    }
+    let completion = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+    let preview = vox_publisher::scientia_discovery::destination_transform_previews(
+        &manifest,
+        Some(&evidence),
+    );
+    let impact_readership_projection = novelty_bundle.as_ref().map(|b| {
+        vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(b, &scientia_h)
+    });
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "publication_id": publication_id,
+            "discovery_rank": rank,
+            "novelty_evidence_bundle": novelty_bundle,
+            "manifest_completion": completion,
+            "evidence_completeness_0_100": vox_publisher::scientia_discovery::evidence_completeness_score(&evidence, &scientia_h),
+            "transform_preview": preview,
+            "impact_readership_projection": impact_readership_projection,
+        }))?
+    );
+    Ok(())
+}
+
+/// Destination transform preview JSON only (no DB writes).
+pub async fn publication_transform_preview(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let manifest = publication_manifest_from_row(&row);
+    let evidence =
+        vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref());
+    let preview = vox_publisher::scientia_discovery::destination_transform_previews(
+        &manifest,
+        evidence.as_ref(),
+    );
+    println!("{}", serde_json::to_string_pretty(&preview)?);
+    Ok(())
+}
+
+fn merge_novelty_bundle_into_metadata_json_str(
+    metadata_json: Option<&str>,
+    bundle: &vox_publisher::scientia_finding_ledger::NoveltyEvidenceBundleV1,
+) -> Result<String> {
+    let mut root: serde_json::Value =
+        if let Some(raw) = metadata_json.map(str::trim).filter(|s| !s.is_empty()) {
+            serde_json::from_str(raw).unwrap_or_else(|_| serde_json::json!({}))
+        } else {
+            serde_json::json!({})
+        };
+    root[vox_publisher::scientia_evidence::METADATA_KEY_SCIENTIA_NOVELTY_BUNDLE] =
+        serde_json::to_value(bundle).context("novelty bundle serde")?;
+    Ok(serde_json::to_string(&root)?)
+}
+
+/// Fetch OpenAlex / Crossref / Semantic Scholar prior art for a stored manifest; optional `--persist-metadata` merges `scientia_novelty_bundle` and recomputes digest.
+pub async fn publication_novelty_fetch(
+    publication_id: &str,
+    offline: bool,
+    persist_metadata: bool,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    if row.content_type != "scientia" {
+        anyhow::bail!(
+            "publication-novelty-fetch is intended for content_type `scientia` (got `{}`)",
+            row.content_type
+        );
+    }
+    let candidate_id = vox_publisher::scientia_finding_ledger::default_candidate_id(publication_id);
+    let query = vox_publisher::scientia_prior_art::PriorArtQuery {
+        title: row.title.clone(),
+        abstract_text: row.abstract_text.clone(),
+    };
+    let client = vox_reqwest_defaults::client();
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
+        &client,
+        &candidate_id,
+        &query,
+        vec![],
+        vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
+        offline,
+        &scientia_h,
+    )
+    .await
+    .context("prior-art federated fetch")?;
+
+    if persist_metadata {
+        let mut manifest = publication_manifest_from_row(&row);
+        manifest.metadata_json = Some(merge_novelty_bundle_into_metadata_json_str(
+            manifest.metadata_json.as_deref(),
+            &bundle,
+        )?);
+        let digest = manifest.content_sha3_256();
+        db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+            publication_id: &manifest.publication_id,
+            content_type: &manifest.content_type,
+            source_ref: manifest.source_ref.as_deref(),
+            title: &manifest.title,
+            author: &manifest.author,
+            abstract_text: manifest.abstract_text.as_deref(),
+            body_markdown: &manifest.body_markdown,
+            citations_json: manifest.citations_json.as_deref(),
+            metadata_json: manifest.metadata_json.as_deref(),
+            content_sha3_256: &digest,
+            state: row.state.as_str(),
+        })
+        .await?;
+        db.append_publication_status_event(
+            publication_id,
+            "scientia_novelty_bundle_updated",
+            Some(
+                &serde_json::json!({ "bundle_id": bundle.bundle_id, "digest": digest }).to_string(),
+            ),
+        )
+        .await?;
+    }
+
+    println!("{}", serde_json::to_string_pretty(&bundle)?);
+    Ok(())
+}
+
+/// Preflight + worthiness + discovery rank with optional live prior-art refresh (stdout JSON).
+pub async fn publication_decision_explain(
+    publication_id: &str,
+    live_prior_art: bool,
+    offline: bool,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let mut manifest = publication_manifest_from_row(&row);
+    if live_prior_art {
+        if manifest.content_type != "scientia" {
+            anyhow::bail!("--live-prior-art requires content_type `scientia`");
+        }
+        let candidate_id = vox_publisher::scientia_finding_ledger::default_candidate_id(publication_id);
+        let query = vox_publisher::scientia_prior_art::PriorArtQuery {
+            title: manifest.title.clone(),
+            abstract_text: manifest.abstract_text.clone(),
+        };
+        let client = vox_reqwest_defaults::client();
+        let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
+            &client,
+            &candidate_id,
+            &query,
+            vec![],
+            vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
+            offline,
+            &scientia_h,
+        )
+        .await?;
+        manifest.metadata_json = Some(merge_novelty_bundle_into_metadata_json_str(
+            manifest.metadata_json.as_deref(),
+            &bundle,
+        )?);
+    }
+    manifest =
+        crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
+            manifest,
+            &db,
+            &repo_root,
+            None,
+        )
+        .await?;
+
+    let contract_yaml =
+        read_utf8_path_capped(&repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH))?;
+    let contract = vox_publisher::publication_worthiness::load_contract_from_str(&contract_yaml)
+        .context("worthiness yaml")?;
+    vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+
+    let report = vox_publisher::publication_preflight::run_preflight_with_worthiness_heuristics(
+        &manifest,
+        vox_publisher::publication_preflight::PreflightProfile::Default,
+        &contract,
+        &scientia_h,
+    );
+    let evidence =
+        vox_publisher::scientia_evidence::parse_scientia_evidence(manifest.metadata_json.as_deref())
+            .unwrap_or_default();
+    let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        publication_id,
+        manifest.source_ref.as_deref(),
+        &evidence,
+        &scientia_h,
+    );
+    if let Some(b) = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        manifest.metadata_json.as_deref(),
+    ) {
+        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, &b);
+    }
+    let impact_readership_projection =
+        vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+            manifest.metadata_json.as_deref(),
+        )
+        .map(|b| {
+            vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(&b, &scientia_h)
+        });
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "publication_id": publication_id,
+            "preflight_readiness_score": report.readiness_score,
+            "worthiness": report.worthiness,
+            "discovery_rank": rank,
+            "preflight_findings": report.findings,
+            "impact_readership_projection": impact_readership_projection,
+        }))?
+    );
+    Ok(())
+}
+
+/// Prior-art fetch + finding-candidate ledger row + decision snapshot (stdout JSON; does not persist unless `publication-novelty-fetch --persist-metadata` is used separately).
+pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool) -> Result<()> {
+    let t0 = Instant::now();
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    if row.content_type != "scientia" {
+        anyhow::bail!("publication-novelty-happy-path requires content_type `scientia`");
+    }
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let candidate_id = vox_publisher::scientia_finding_ledger::default_candidate_id(publication_id);
+    let query = vox_publisher::scientia_prior_art::PriorArtQuery {
+        title: row.title.clone(),
+        abstract_text: row.abstract_text.clone(),
+    };
+    let client = vox_reqwest_defaults::client();
+    let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
+        &client,
+        &candidate_id,
+        &query,
+        vec![],
+        vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
+        offline,
+        &scientia_h,
+    )
+    .await?;
+
+    let mut manifest = publication_manifest_from_row(&row);
+    manifest.metadata_json = Some(merge_novelty_bundle_into_metadata_json_str(
+        manifest.metadata_json.as_deref(),
+        &bundle,
+    )?);
+    manifest =
+        crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
+            manifest,
+            &db,
+            &repo_root,
+            None,
+        )
+        .await?;
+
+    let evidence =
+        vox_publisher::scientia_evidence::parse_scientia_evidence(manifest.metadata_json.as_deref())
+            .unwrap_or_default();
+    let signals = if evidence.discovery_signals.is_empty() {
+        vox_publisher::scientia_evidence::infer_discovery_signals(
+            manifest.source_ref.as_deref(),
+            &evidence,
+        )
+    } else {
+        evidence.discovery_signals.clone()
+    };
+    let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        publication_id,
+        manifest.source_ref.as_deref(),
+        &evidence,
+        &scientia_h,
+    );
+    vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, &bundle);
+    let now = vox_publisher::scientia_prior_art::now_unix_ms_strict();
+    let mut candidate = vox_publisher::scientia_finding_ledger::build_finding_candidate(
+        Some(publication_id),
+        Some(row.title.clone()),
+        signals,
+        publication_id,
+        rank.strong_signal_count,
+        rank.supporting_signal_count,
+        rank.informational_signal_count,
+        rank.rank_score,
+        rank.intake_tier == vox_publisher::scientia_discovery::DiscoveryIntakeTier::LowSignal,
+        !rank.conflicts.is_empty(),
+        now,
+        &scientia_h,
+    );
+    candidate.novelty_evidence_bundle_id = Some(bundle.bundle_id.clone());
+
+    let contract_yaml =
+        read_utf8_path_capped(&repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH))?;
+    let contract = vox_publisher::publication_worthiness::load_contract_from_str(&contract_yaml)?;
+    vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+    let report = vox_publisher::publication_preflight::run_preflight_with_worthiness_heuristics(
+        &manifest,
+        vox_publisher::publication_preflight::PreflightProfile::Default,
+        &contract,
+        &scientia_h,
+    );
+
+    let decision_latency_ms = t0.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+    let (worthiness_decision, worthiness_score, hard_metrics_ok) =
+        match report.worthiness.as_ref() {
+            Some(w) => (
+                serde_json::to_value(&w.decision)
+                    .ok()
+                    .and_then(|v| match v {
+                        serde_json::Value::String(s) => Some(s),
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| "unknown".to_string()),
+                w.worthiness_score,
+                w.hard_metrics_ok,
+            ),
+            None => ("unknown".to_string(), 0.0, false),
+        };
+    let calibration = vox_publisher::scientia_finding_ledger::novelty_decision_calibration_v1(
+        publication_id,
+        &candidate_id,
+        &bundle,
+        decision_latency_ms,
+        offline,
+        &worthiness_decision,
+        worthiness_score,
+        hard_metrics_ok,
+        rank.prior_art_max_lexical_overlap,
+    );
+    let impact_readership_projection =
+        vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(&bundle, &scientia_h);
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema_kind": "scientia_novelty_happy_path",
+            "finding_candidate": candidate,
+            "novelty_evidence_bundle": bundle,
+            "discovery_rank": rank,
+            "worthiness": report.worthiness,
+            "preflight_readiness_score": report.readiness_score,
+            "calibration_telemetry": calibration,
+            "impact_readership_projection": impact_readership_projection,
         }))?
     );
     Ok(())
@@ -976,12 +1554,15 @@ async fn publication_preflight_report_for_row(
         })?;
         let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
         vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+        let scientia_h =
+            vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&root);
         Ok(
-            vox_publisher::publication_preflight::run_preflight_with_worthiness_attention(
+            vox_publisher::publication_preflight::run_preflight_with_worthiness_attention_heuristics(
                 &manifest,
                 profile,
                 &contract,
                 Some(attention),
+                &scientia_h,
             ),
         )
     } else {
@@ -1166,8 +1747,7 @@ pub async fn publication_retry_failed(
         })
         .collect();
 
-    let explicit: Option<Vec<String>> =
-        channel.map(|c| vox_publisher::switching::parse_channels_csv(c));
+    let explicit: Option<Vec<String>> = channel.map(vox_publisher::switching::parse_channels_csv);
     let plan = match vox_publisher::switching::plan_publication_retry_channels(
         attempt_refs.as_slice(),
         digest,

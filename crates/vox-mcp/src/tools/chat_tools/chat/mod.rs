@@ -1,3 +1,4 @@
+mod hydrate;
 mod history;
 mod mentions;
 mod message;

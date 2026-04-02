@@ -13,9 +13,9 @@ use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::bounded_fs::read_utf8_path_capped;
 use crate::quest::{Quest, QuestModifier, QuestType};
 use crate::util::now_unix;
+use vox_bounded_fs::read_utf8_path_capped;
 
 // ── Constants ────────────────────────────────────────────
 

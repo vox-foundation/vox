@@ -31,10 +31,10 @@ function canonicalName(name) {
 
 const raw = fs.readFileSync(yamlPath, 'utf8');
 const canonical = new Set();
-const re = /^\s*-\s*name:\s*"([^"]+)"/gm;
+const re = /^\s*-\s*name:\s*(?:"([^"]+)"|([a-zA-Z0-9_:]+))/gm;
 let m;
 while ((m = re.exec(raw)) !== null) {
-    canonical.add(m[1]);
+    canonical.add(m[1] ?? m[2]);
 }
 
 function collectTsFiles(dir, out = []) {

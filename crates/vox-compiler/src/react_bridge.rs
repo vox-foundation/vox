@@ -110,6 +110,7 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
             for_each_vox_hook_call_in_expr(left, f);
             for_each_vox_hook_call_in_expr(right, f);
         }
+        Expr::Try { target, .. } => for_each_vox_hook_call_in_expr(target, f),
         Expr::Spawn { target, .. } => for_each_vox_hook_call_in_expr(target, f),
         Expr::With {
             operand, options, ..

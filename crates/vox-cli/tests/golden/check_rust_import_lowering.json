@@ -1,11 +1,29 @@
 [
   {
+    "category": "Typecheck",
     "code": "E0001",
-    "severity": "Error",
-    "category": "Lowering",
-    "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
+    "col": 8,
+    "file": "tests/fixtures/golden_rust_import_lowering.vox",
+    "line": 1,
+    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+    "severity": "Warning"
+  },
+  {
+    "category": "Typecheck",
+    "code": "E0002",
+    "col": 8,
     "file": "tests/fixtures/golden_rust_import_lowering.vox",
     "line": 2,
-    "col": 8
+    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+    "severity": "Warning"
+  },
+  {
+    "category": "Lowering",
+    "code": "E0003",
+    "col": 8,
+    "file": "tests/fixtures/golden_rust_import_lowering.vox",
+    "line": 2,
+    "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
+    "severity": "Error"
   }
 ]

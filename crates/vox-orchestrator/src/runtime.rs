@@ -12,7 +12,7 @@ use vox_runtime::{
 };
 
 use crate::events::AgentEventKind;
-use crate::models::ProviderType;
+use crate::models::{ModelRouteBackend, route_backend_for_model};
 use crate::orchestrator::Orchestrator;
 use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
@@ -170,38 +170,61 @@ impl TaskProcessor for AiTaskProcessor {
         {
             vox_ludus::StreamRoute::UserModelOverride(mo)
         } else if let Some(m) = routed.as_ref() {
-            match m.provider_type {
-                ProviderType::Ollama => vox_ludus::StreamRoute::Registry {
+            match route_backend_for_model(m) {
+                ModelRouteBackend::Ollama => vox_ludus::StreamRoute::Registry {
                     backend: vox_ludus::LudusStreamBackend::Ollama,
                     model: m.id.as_str(),
                 },
-                ProviderType::GoogleDirect => vox_ludus::StreamRoute::Registry {
+                ModelRouteBackend::GeminiDirect => vox_ludus::StreamRoute::Registry {
                     backend: vox_ludus::LudusStreamBackend::Gemini,
                     model: m.id.as_str(),
                 },
-                ProviderType::OpenRouter => vox_ludus::StreamRoute::Registry {
+                ModelRouteBackend::OpenRouter => vox_ludus::StreamRoute::Registry {
                     backend: vox_ludus::LudusStreamBackend::OpenRouter,
                     model: m.id.as_str(),
                 },
-                ProviderType::Groq
-                | ProviderType::Mistral
-                | ProviderType::DeepSeek
-                | ProviderType::Cerebras
-                | ProviderType::SambaNova
-                | ProviderType::Custom(_) => {
-                    if m.id.contains('/') {
-                        vox_ludus::StreamRoute::Registry {
-                            backend: vox_ludus::LudusStreamBackend::OpenRouter,
-                            model: m.id.as_str(),
-                        }
-                    } else {
-                        vox_ludus::StreamRoute::Cascade
-                    }
-                }
+                ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
             }
         } else {
             vox_ludus::StreamRoute::Cascade
         };
+
+        if let Some(db) = self.orchestrator.db() {
+            let repo = crate::lineage::repository_id();
+            let has_model_override = task
+                .model_override
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|s| !s.is_empty());
+            let ludus_fallback = !has_model_override && routed.is_none();
+            let reason = vox_runtime::routing_telemetry::OrchestratorTaskRoutingReasonV1::new(
+                format!("{:?}", task.task_category),
+                task.estimated_complexity,
+                usage_provider.clone(),
+                usage_model.clone(),
+                routed.is_some(),
+                format!("{:?}", cost_pref),
+                ludus_fallback,
+                vox_runtime::routing_telemetry::unified_routing_rollout_enabled(),
+                task.id.0,
+            );
+            let reason_s =
+                reason.to_json_bounded(vox_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
+            if let Err(e) = db
+                .record_routing_decision(
+                    None::<&str>,
+                    repo.as_str(),
+                    task.session_id.as_deref(),
+                    "orchestrator_ai_task",
+                    Some(usage_model.as_str()),
+                    Some(reason_s.as_str()),
+                )
+                .await
+            {
+                tracing::debug!(error = %e, "record_routing_decision (orchestrator_ai_task) skipped");
+            }
+        }
+
         let mut notes = String::new();
         let phases = [
             ExecutorPhase::Inspect,
@@ -220,7 +243,7 @@ impl TaskProcessor for AiTaskProcessor {
                     phase,
                     usage_model.as_str(),
                     notes.as_str(),
-                    route.clone(),
+                    route,
                 )
                 .await;
             if !notes.is_empty() {
@@ -251,14 +274,16 @@ impl TaskProcessor for AiTaskProcessor {
         let cost_usd = (input_tokens + output_tokens) as f64 * 0.000_001;
 
         // Record usage through the unified pipeline (event bus + budget + oplog)
-        self.orchestrator.record_ai_usage(
-            agent_id,
-            usage_provider.as_str(),
-            usage_model.as_str(),
-            input_tokens,
-            output_tokens,
-            cost_usd,
-        );
+        self.orchestrator
+            .record_ai_usage(
+                agent_id,
+                usage_provider.as_str(),
+                usage_model.as_str(),
+                input_tokens,
+                output_tokens,
+                cost_usd,
+            )
+            .await;
 
         Ok(task.id)
     }
@@ -565,7 +590,12 @@ impl AgentFleet {
                     .map(|t| t.elapsed() >= Duration::from_millis(cooldown_ms))
                     .unwrap_or(true);
                 if spawns < max_per_tick && cooldown_ok {
-                    let _ = self.orchestrator.spawn_dynamic_agent(&name);
+                    let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
+                        &name,
+                        None,
+                        Some("scaling_load"),
+                        None,
+                    );
                     self.spawns_this_tick
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     *crate::sync_lock::rw_write(&self.last_scale_up) = Some(Instant::now());
@@ -613,6 +643,50 @@ impl AgentFleet {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
     }
+}
+
+/// When truthy (default if unset), MCP / `vox-orchestrator-d` spawn [`AgentFleet`] with [`StubTaskProcessor`].
+///
+/// Disable with **`VOX_MCP_AGENT_FLEET`**=`0`, `false`, `no`, or `off`.
+#[must_use]
+pub fn agent_fleet_env_enabled() -> bool {
+    match std::env::var("VOX_MCP_AGENT_FLEET") {
+        Ok(v) => {
+            let v = v.trim();
+            if v.is_empty() {
+                return true;
+            }
+            !(v == "0"
+                || v.eq_ignore_ascii_case("false")
+                || v.eq_ignore_ascii_case("no")
+                || v.eq_ignore_ascii_case("off"))
+        }
+        Err(_) => true,
+    }
+}
+
+/// Background [`AgentFleet`] loop (sync fleet + tick + scaling). No-op when [`agent_fleet_env_enabled`] is false.
+pub fn spawn_stub_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
+    if !agent_fleet_env_enabled() {
+        tracing::info!(
+            target: "vox_orchestrator::runtime",
+            "VOX_MCP_AGENT_FLEET disabled: task queues will not auto-drain via AgentFleet"
+        );
+        return;
+    }
+    let scheduler = Arc::new(Scheduler::new());
+    let fleet = AgentFleet::new(
+        scheduler,
+        orchestrator,
+        Arc::new(StubTaskProcessor),
+    );
+    tokio::spawn(async move {
+        tracing::info!(
+            target: "vox_orchestrator::runtime",
+            "AgentFleet loop running (stub processor; MCP / orchestrator-d)"
+        );
+        fleet.run().await;
+    });
 }
 
 #[cfg(test)]

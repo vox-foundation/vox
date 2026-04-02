@@ -304,6 +304,58 @@ fn aggregate_score(c: &PublicationWorthinessContract, inputs: &WorthinessInputs)
         + c.weights.metadata_policy * inputs.metadata_policy
 }
 
+/// Conservative cap on [`WorthinessInputs::novelty`] from a live prior-art bundle (min of prior and heuristic proxy).
+#[must_use]
+pub fn apply_prior_art_to_worthiness_inputs(
+    inputs: &mut WorthinessInputs,
+    bundle: Option<&crate::scientia_finding_ledger::NoveltyEvidenceBundleV1>,
+    heuristics: Option<&crate::scientia_heuristics::ScientiaHeuristics>,
+) -> Vec<String> {
+    let Some(bundle) = bundle else {
+        return vec![];
+    };
+    if bundle.normalized_hits.is_empty() {
+        return vec![];
+    }
+    let fallback = crate::scientia_heuristics::ScientiaHeuristics::default();
+    let h = heuristics.unwrap_or(&fallback);
+    let (proxy, mut out) = crate::scientia_finding_ledger::novelty_inputs_adjustment(bundle, h);
+    let before = inputs.novelty;
+    inputs.novelty = before.min(proxy);
+    out.push(format!(
+        "novelty_after_prior_art_min: before={before:.4} after={:.4}",
+        inputs.novelty
+    ));
+    out
+}
+
+/// Advisory venue checks: map `venue_profiles.required_checks` to concrete preflight outcomes (partial).
+#[must_use]
+pub fn machine_venue_profile_violations(
+    contract: &PublicationWorthinessContract,
+    profile_id: &str,
+    report: &crate::publication_preflight::PreflightReport,
+) -> Vec<String> {
+    let Some(vp) = contract.venue_profiles.get(profile_id) else {
+        return vec![];
+    };
+    let mut out = Vec::new();
+    for check in &vp.required_checks {
+        match check.as_str() {
+            "double_blind_anonymization" => {
+                let bad = report.findings.iter().any(|f| {
+                    f.code.starts_with("double_blind_") && f.severity == crate::publication_preflight::PreflightSeverity::Error
+                });
+                if bad {
+                    out.push("venue_profile:double_blind_anonymization:not_met".to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 /// Aggregate worthiness score for [`crate::PublisherConfig::worthiness_score`] (per-channel policy floors).
 ///
 /// Matches the orchestrator news service probe: default contract under `repo_root`, [`PreflightProfile::Default`].
@@ -312,7 +364,7 @@ pub fn worthiness_score_for_publication_manifest(
     repo_root: &Path,
 ) -> Result<f64> {
     let path = repo_root.join(DEFAULT_CONTRACT_REL_PATH);
-    let yaml = crate::bounded_fs::read_utf8_path_capped(&path)
+    let yaml = vox_bounded_fs::read_utf8_path_capped(&path)
         .with_context(|| format!("read worthiness contract {}", path.display()))?;
     let contract = load_contract_from_str(&yaml)?;
     validate_contract_invariants(&contract)?;
@@ -320,8 +372,11 @@ pub fn worthiness_score_for_publication_manifest(
         manifest,
         crate::publication_preflight::PreflightProfile::Default,
     );
+    let h = crate::scientia_heuristics::ScientiaHeuristics::default();
     let inputs = crate::publication_preflight::worthiness_inputs_from_manifest_and_preflight(
-        manifest, &preflight,
+        manifest,
+        &preflight,
+        Some(&h),
     );
     Ok(evaluate_worthiness(&contract, &inputs).worthiness_score)
 }

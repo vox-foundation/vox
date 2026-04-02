@@ -25,4 +25,7 @@ pub(crate) enum LintKind {
     ShortCodeFence { backticks: usize, at_line: usize },
     GenericDescription,
     MissingFrontmatter,
+    MissingCategory,
+    UnknownCategory { value: String },
+    UnknownStatus { value: String },
 }

@@ -90,8 +90,7 @@ fn build_prompt(prompt: &str, context_mode: Option<&str>) -> String {
 fn validate_json_schema(source: &str, schema_path: &Path) -> Result<()> {
     let schema_str = read_utf8_path_capped(schema_path)
         .with_context(|| format!("Failed to read schema: {}", schema_path.display()))?;
-    let validator =
-        vox_jsonschema_util::compile_validator_from_utf8(&schema_str, schema_path)?;
+    let validator = vox_jsonschema_util::compile_validator_from_utf8(&schema_str, schema_path)?;
     let instance: serde_json::Value = serde_json::from_str(source)
         .context("Generated output is not valid JSON (required by --output-mode + --schema)")?;
     vox_jsonschema_util::validate(
@@ -185,7 +184,7 @@ pub async fn run(
     // Build the HTTP client once outside the retry loop — creating a Client per
     // attempt is expensive (TLS handshake, connection pool teardown).
     let http_client = server_url.map(|_| {
-        reqwest::Client::builder()
+        vox_reqwest_defaults::client_builder()
             .timeout(std::time::Duration::from_secs(
                 std::env::var("VOX_GEN_TIMEOUT_SECS")
                     .ok()
@@ -371,7 +370,7 @@ pub async fn run(
         println!("\n{}", last_result);
     }
 
-    if let Some(err) = last_err {
+    if let Some(ref err) = last_err {
         eprintln!(
             "{} Note: generated code may have issues — {}",
             "⚠".yellow(),

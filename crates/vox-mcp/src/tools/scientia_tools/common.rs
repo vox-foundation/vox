@@ -135,19 +135,19 @@ pub fn operator_publisher_config(
             }
         }
     }
-    if cfg.github_rest_base.is_none() {
+    if cfg.forge_rest_base.is_none() {
         if let Some(ref b) = news.github_rest_base {
             let t = b.trim();
             if !t.is_empty() {
-                cfg.github_rest_base = Some(t.to_string());
+                cfg.forge_rest_base = Some(t.to_string());
             }
         }
     }
-    if cfg.github_graphql_url.is_none() {
+    if cfg.forge_graphql_url.is_none() {
         if let Some(ref u) = news.github_graphql_url {
             let t = u.trim();
             if !t.is_empty() {
-                cfg.github_graphql_url = Some(t.to_string());
+                cfg.forge_graphql_url = Some(t.to_string());
             }
         }
     }

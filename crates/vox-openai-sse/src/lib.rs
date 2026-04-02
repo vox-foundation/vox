@@ -90,6 +90,9 @@ mod tests {
         assert_eq!(sse_data_line_delta("event: ping"), None);
         assert_eq!(sse_data_line_delta("data: [DONE]"), None);
         let j = r#"{"choices":[{"delta":{"content":"x"}}]}"#;
-        assert_eq!(sse_data_line_delta(&format!("data: {j}")).as_deref(), Some("x"));
+        assert_eq!(
+            sse_data_line_delta(&format!("data: {j}")).as_deref(),
+            Some("x")
+        );
     }
 }

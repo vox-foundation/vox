@@ -12,11 +12,15 @@ function entry<T extends string>(type: T) {
 
 export const hostToWebviewSchema = z.discriminatedUnion('type', [
     entry('chatHistory'),
+    entry('chatMeta'),
     entry('gamifyUpdate'),
     entry('workflowStatus'),
     entry('meshStatus'),
     entry('intentionMatrix'),
     entry('capabilitiesUpdate'),
+    entry('workspaceContext'),
+    entry('composerState'),
+    entry('inspectorState'),
     entry('voxStatus'),
     entry('languageSurface'),
     entry('pipelineStatus'),
@@ -28,6 +32,7 @@ export const hostToWebviewSchema = z.discriminatedUnion('type', [
     entry('activeEditorChanged'),
     entry('agentsUpdate'),
     entry('planUpdate'),
+    entry('planAdequacyQuestions'),
     entry('ludusProgressSnapshot'),
 ]);
 

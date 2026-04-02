@@ -31,6 +31,7 @@
 //! holds `Orchestrator` plus optional Turso `VoxDb` for Codex/Arca. Training and model SSOT for
 //! Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/mens-training-ssot.md)
 //! (three levels up from `src/` to repo root).
+
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unwrap_or_default)]
@@ -39,7 +40,9 @@
 
 pub mod sync_lock;
 
-mod bounded_fs;
+/// JSON-shaped VCS / workspace views for MCP and CLI parity.
+pub mod json_vcs_facade;
+
 mod lineage;
 
 /// Agent-to-agent messaging types and helpers.
@@ -50,8 +53,14 @@ pub mod affinity;
 pub mod attention;
 /// VoxDB persistence layer for attention events and agent trust scores (Phase 15).
 pub mod attention_tracker;
+/// Shared bootstrap helpers for repository-aware orchestrator construction.
+pub mod bootstrap;
+/// TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers.
+pub mod orch_daemon;
 /// Token and cost budgets per agent and orchestrator-wide tracking.
 pub mod budget;
+/// Developer mental fatigue monitoring and cognitive pacing.
+pub mod fatigue_monitor;
 /// Shared bulletin board for cross-agent notices.
 pub mod bulletin;
 /// Host capability probing and merge with `OrchestratorConfig::default_agent_capabilities`.
@@ -60,6 +69,10 @@ pub mod capability_probe;
 pub mod catalog;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
+/// Canonical context envelope contract for cross-surface context payloads.
+pub mod context_envelope;
+/// Context envelope ingest validation, merge policy, and lifecycle hooks.
+pub mod context_lifecycle;
 /// Orchestrator configuration load, merge, and validation.
 pub mod config;
 /// File conflict detection and resolution hooks.
@@ -70,6 +83,8 @@ pub mod context;
 pub mod continuation;
 /// Canonical orchestration contract types (v2 payloads, plan surface alignment).
 pub mod contract;
+/// Completion citation grounding against session context envelopes.
+pub mod grounding;
 /// Agent activity events and pub/sub bus.
 pub mod events;
 /// Pre/post task gates (including TOESTUB quality checks).
@@ -78,6 +93,8 @@ pub mod gate;
 pub mod groups;
 /// Structured handoff payloads between agents.
 pub mod handoff;
+/// Portable contract-first natural-language harness specifications.
+pub mod harness;
 /// Agent liveness heartbeats and staleness policy.
 pub mod heartbeat;
 /// Jujutsu (jj) merge DAG and backend helpers.
@@ -86,8 +103,6 @@ pub mod jj_backend;
 pub mod locks;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
-/// Hybrid search over orchestrator memory (lexical + embeddings).
-pub mod memory_search;
 /// LLM model registry and provider configuration.
 pub mod models;
 /// Lightweight AI usage / behavior monitor hooks.
@@ -100,6 +115,14 @@ pub mod orchestrator;
 pub mod planning;
 /// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
 pub mod populi_federation;
+/// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
+pub mod mesh_federation_poll;
+/// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
+pub mod orchestrator_event_log;
+/// DB-backed clarification inbox drain (Codex `a2a_messages`).
+pub mod clarification_db_inbox_poll;
+/// Populi remote execution gating and lease-class helpers.
+pub mod populi_remote;
 /// Question/answer routing between agents.
 pub mod qa;
 /// Priority task queues and overflow handling.
@@ -112,6 +135,8 @@ pub mod reconstruction;
 pub mod schema;
 /// Task path scopes and enforcement guards.
 pub mod scope;
+/// Orchestrator ↔ `vox-search` adapters (lexical fallback, future native retrieval).
+pub mod search_bridge;
 /// Security policies, audit log, and guard checks.
 pub mod security;
 /// Embeddings, routing, scaling, policy, and gateway services.
@@ -126,6 +151,8 @@ pub mod socrates;
 pub mod state;
 /// Rolling summarization of agent interactions.
 pub mod summary;
+/// Agent topology graph snapshots and delegation metadata.
+pub mod topology;
 /// Core identifiers, tasks, messages, and shared value types.
 pub mod types;
 /// Aggregated LLM usage, quotas, and cost accounting.
@@ -155,14 +182,27 @@ pub use a2a::{
 pub use attention::{
     ActionDescriptor, AgentTrustScore, ApprovalOutcome, ApprovalTier, AttentionBudget,
     AttentionEvent, AttentionEventType, DEFAULT_ATTENTION_BUDGET_MS, DEFAULT_INTERRUPT_COST_MS,
-    FocusDepth, NasaTlxWeights, TierGateConfig, TrustTier, classify_tier,
-    compute_attention_cost_ms, decision_entropy_bits,
+    FocusDepth, InterruptionChannel, InterruptionDecision, InterruptionSignals, NasaTlxWeights,
+    TierGateConfig, TrustTier, classify_tier, compute_attention_cost_ms, decision_entropy_bits,
+    evaluate_interruption, scaled_interrupt_cost_ms,
 };
-pub use budget::{AgentBudgetAllocation, BudgetManager, BudgetSignal, ContextBudget};
+pub use bootstrap::{
+    build_repo_scoped_orchestrator, build_repo_scoped_orchestrator_for_repository,
+    discover_repository_from_cwd, repo_scoped_orchestrator_config, repo_scoped_orchestrator_parts,
+    RepoScopedOrchestratorBuild,
+};
+pub use budget::{AgentBudgetAllocation, BudgetManager, BudgetSignal};
 pub use compaction::{
     CompactionConfig, CompactionEngine, CompactionResult, CompactionStrategy, Turn,
 };
 pub use config::{OrchestratorConfig, ScalingProfile};
+pub use context_envelope::{
+    ContextBudget, ContextCaptureMode, ContextConflictClass, ContextConflictPolicy, ContextContent,
+    ContextDerivedRef, ContextEnvelope, ContextEnvelopeType, ContextFact, ContextFreshnessTier,
+    ContextInjectionMode, ContextLineage, ContextMergeStrategy, ContextPriority, ContextProvenance,
+    ContextRetrievalCostClass, ContextSafety, ContextSourcePlane, ContextSubject, ContextTrust,
+    ContextTrustTier,
+};
 pub use conflicts::{ConflictId, ConflictManager, ConflictResolution, FileConflict};
 pub use context::ContextStore;
 pub use continuation::{ContinuationEngine, ContinuationStrategy};
@@ -174,6 +214,11 @@ pub use contract::{
 pub use events::{AgentActivity, AgentEvent, AgentEventKind, EventBus};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use groups::{AffinityGroup, AffinityGroupRegistry, load_from_config};
+pub use harness::{
+    AgentHarnessSpec, HarnessAdapter, HarnessArtifactSpec, HarnessContracts,
+    HarnessFailureMode, HarnessGate, HarnessIngestExpectations, HarnessRole, HarnessStage,
+    HarnessState, HarnessSubject, apply_harness_subject_defaults, validate_agent_harness_ingest,
+};
 pub use handoff::{
     HandoffInvariantError, HandoffPayload, execute_handoff, validate_handoff_invariants,
 };
@@ -183,7 +228,6 @@ pub use heartbeat::{
 };
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
 pub use memory::{DailyLog, LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
-pub use memory_search::{HybridSearchHit, MemorySearchEngine};
 pub use monitor::AiMonitor;
 pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
 pub use orchestrator::{Orchestrator, TaskTraceStep};
@@ -191,32 +235,42 @@ pub use planning::{
     ExecutionPolicy, PlanNode, PlanSessionRecord, PlanStatus, PlanVersionRecord, PlanningMode,
     PlanningStrategy, PlanningTaskMeta, ReplanTrigger, RouterEvaluation,
 };
-pub use populi_federation::{PopuliNodeBrief, RemotePopuliRoutingHint, RemotePopuliSnapshot};
+pub use populi_federation::{
+    PopuliNodeBrief, PopuliRoutingHintUpdate, RemotePopuliRoutingHint, RemotePopuliSnapshot,
+};
 pub use reconstruction::{
-    AgentExecutionRole, CampaignMemorySnapshot, ReconstructionBenchmarkTier,
-    ReconstructionEvidence, VerificationLayerStatus, campaign_context_prefix,
+    AgentExecutionRole, CampaignMemorySnapshot, ReconstructionArtifactKind,
+    ReconstructionArtifactRecord, ReconstructionBenchmarkKpis, ReconstructionBenchmarkTier,
+    ReconstructionEvidence, ReconstructionShardBoundary, RepoReconstructionSpec,
+    VerificationFailureKind, VerificationLayerStatus, campaign_context_prefix,
 };
 pub use scope::{ScopeCheckResult, ScopeEnforcement, ScopeGuard};
 pub use security::{
     AuditEntry, AuditLog, AuditResult, PolicyRule, SecurityAction, SecurityGuard, SecurityPolicy,
 };
 pub use services::{
-    MessageGateway, PolicyCheckResult, PolicyEngine, RouteResult, RoutingService, ScalingAction,
+    CampaignSchedulePlan, CampaignScheduler, CampaignSchedulingMode, MessageGateway,
+    PolicyCheckResult, PolicyEngine, PolicyTrustRelax, RouteResult, RoutingService, ScalingAction,
     ScalingService,
 };
 pub use session::{Session, SessionConfig, SessionManager, SessionState};
 pub use snapshot::{SnapshotId, SnapshotStore};
 pub use socrates::{
     SessionRetrievalEnvelope, SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_gate,
-    session_retrieval_envelope_key,
+    session_context_envelope_key,
 };
 pub use summary::SummaryManager;
+pub use topology::{
+    AgentDelegationBinding, AgentRole, AgentTopologyNode, AgentTopologySnapshot, DelegationEdge,
+    DynamicSpawnContext, TopologyGap,
+};
 pub use types::{
     A2AMessage, A2AMessageType, AccessKind, AgentId, AgentIdGenerator, AgentMessage, AgentTask,
     BatchId, CompletionAttestation, CorrelationId, CorrelationIdGenerator, FileAffinity,
     MessageEnvelope, MessageId, MessagePriority, TaskCategory, TaskDescriptor, TaskEnqueueHints,
     TaskId, TaskIdGenerator, TaskPriority, TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
+pub use vox_search::{HybridSearchHit, MemorySearchEngine};
 
 pub use usage::LlmUsageKey;
 pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};

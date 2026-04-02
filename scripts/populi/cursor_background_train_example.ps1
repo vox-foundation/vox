@@ -23,12 +23,9 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 $p = Start-Process -FilePath $vox -WorkingDirectory $root -WindowStyle Hidden -PassThru -ArgumentList @(
     "mens", "train",
-    "--backend", "qlora",
-    "--tokenizer", "hf",
     "--preset", "qwen_4080_16g",
-    "--model", "Qwen/Qwen2.5-Coder-3B-Instruct",
     "--data-dir", "target/dogfood",
-    "--output-dir", "mens/runs/qwen25_qlora_bg",
+    "--output-dir", "mens/runs/qwen35_qlora_bg",
     "--device", "cuda",
     "--epochs", "1",
     "--background",

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, Activity, Award, CheckCircle, Zap } from 'lucide-react';
+import { Star, Activity, Award } from 'lucide-react';
 
 export function CompanionHUD({ gamify }: any) {
     const [achievements, setAchievements] = useState<any[]>([]);

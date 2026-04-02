@@ -125,7 +125,7 @@ fn collect_workspace_crate_mod_refs(
 fn merge_prelude_allowlist(roots: &[PathBuf], explicit: Option<&Path>) -> HashSet<String> {
     let mut out = HashSet::new();
     let mut try_load = |p: &Path| {
-        if let Ok(raw) = crate::bounded_fs::read_utf8_path_capped(p)
+        if let Ok(raw) = vox_bounded_fs::read_utf8_path_capped(p)
             && let Ok(doc) = serde_json::from_str::<PreludeAllowFile>(&raw)
             && doc.version == 1
         {
@@ -295,7 +295,7 @@ impl ToestubEngine {
 
     fn get_roots(&self) -> Vec<PathBuf> {
         if let Some(ref path) = self.config.unwired_path
-            && let Ok(content) = crate::bounded_fs::read_utf8_path_capped(path)
+            && let Ok(content) = vox_bounded_fs::read_utf8_path_capped(path)
             && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
             && let Some(roots) = json.get("roots").and_then(|r| r.as_array())
         {

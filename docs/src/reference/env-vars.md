@@ -2,7 +2,7 @@
 title: "Environment variables (SSOT)"
 description: "Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-27
+last_updated: 2026-03-31
 training_eligible: true
 ---
 
@@ -20,6 +20,8 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | **Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). |
 | `TURSO_URL` / `TURSO_AUTH_TOKEN` | **Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. |
 | `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | Integer ≥ 1: multiplier for brute-force embedding search window (`limit * mult`, capped). See [`capabilities`](../../../crates/vox-db/src/capabilities.rs). |
+| `VOX_WORKSPACE_JOURNEY_STORE` | Repo-backed **interactive** surfaces (`vox-mcp`, `vox-orchestrator-d`): `project` (default) uses `.vox/store.db` under the discovered repo root; `canonical` uses user-global / `VOX_DB_URL` Codex. See [`workspace_journey_store`](../../../crates/vox-db/src/workspace_journey_store.rs). |
+| `VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL` | When `project` open fails, allow fallback to [`connect_canonical_optional`](../../../crates/vox-db/src/connect_policy.rs) (default **on**); set `0`/`false` to stay strictly local. Applies to MCP, `vox-orchestrator-d`, and repo-scoped CLI (`vox agent`, `vox snippet`, `vox share`, … via [`workspace_db::connect_cli_workspace_voxdb`](../../../crates/vox-cli/src/workspace_db.rs)). |
 | `vox-db` / **`replication`** feature | Cargo feature enabling Turso embedded-replica connect paths (`vox-pm` exposes `replication = ["vox-db/replication"]`). Pair with [`VoxDb::sync`](../../../crates/vox-db/src/store/open.rs) / [`ReadConsistency::ReplicaLatest`](../../../crates/vox-db/src/lib.rs) before reads that need fresher remote state. |
 
 **Precedence (remote):** `VOX_DB_URL`+`VOX_DB_TOKEN` → `VOX_TURSO_*` → `TURSO_*`. **Project VoxDb** (operational store + snippets/share) uses [`DbConfig::resolve_project_code_store_config`](../../../crates/vox-db/src/config.rs): empty env maps to the project-relative default store path, not the user-data default.
@@ -73,6 +75,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 
 | Variable | Role |
 |----------|------|
+| `VOX_ORCHESTRATOR_DAEMON_SOCKET` | **Dual role (different processes):** (1) **`vox-orchestrator-d`** — TCP **bind** (`127.0.0.1:9745`, optional `tcp://` prefix) or **`stdio`** / **`-`** / **`stdin`** for newline JSON-RPC on stdin/stdout. (2) **`vox-mcp`** — optional **TCP peer** for `orch.ping` at startup (stdio transport skipped); compares `repository_id` from ping with the MCP embed’s repo id (**WARN** on mismatch, **ERROR** if **`VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`** is truthy). MCP still embeds `Orchestrator` until ADR 022 Phase B IPC-first parity. |
 | `VOX_ORCHESTRATOR_ENABLED` | Enable/disable orchestrator. |
 | `VOX_ORCHESTRATOR_MAX_AGENTS` | Cap on concurrent agents. |
 | `VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS` | File lock TTL. |
@@ -82,10 +85,12 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE` | Requeue on risky Socrates outcome. |
 | `VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING` | Blend Arca `agent_reliability` into routing. |
 | `VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT` | Weight for reliability blend (default in config: `1.0`). |
+| `VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED` | When `true`, high **`agent_reliability`** relaxes **Socrates enforce**, **completion grounding enforce**, and **strict scope** (threshold: next row). |
+| `VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY` | Minimum reliability in `[0,1]` for the relax path (default **`0.85`** in config). |
 | `VOX_ORCHESTRATOR_LOG_LEVEL` | Tracing/log level string. |
 | `VOX_ORCHESTRATOR_FALLBACK_SINGLE` | Ambiguous routing → single agent. |
 | `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | Base URL of the mens HTTP control plane for **read-only** node snapshots in MCP/orchestrator (e.g. `http://mens-ctrl:9847`). See [mens SSOT](populi.md), [deployment compose SSOT](deployment-compose.md). |
-| `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
+| `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config/mod.rs)). |
 | `VOX_A2A_CONSUMER_ID` | Override the **claim owner** string for [`VoxDb::poll_a2a_inbox`](../../../crates/vox-db/src/store/ops_ludus/gamify_extended.rs) (default `pid:<process_id>`). |
 | `VOX_ORCH_LINEAGE_OFF` | When `1` / `true` / `yes`, skips append-only `orchestration_lineage_events` writes from the orchestrator (rollback toggle). |
 | `VOX_ORCH_CAMPAIGN_ID` | Optional opaque string (trimmed) stored in select lineage payloads (`plan_session_created`, workflow handoff, replan, etc.) to group runs across `plan_session_id` values. |
@@ -95,16 +100,41 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_DB_EMBEDDED_REPLICA_INTEGRATION` | Set to `1` with URL+token to run the opt-in embedded-replica test (`cargo test -p vox-db --features replication sync_embedded_replica_smoke`). |
 | `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mens control-plane requests. |
 | `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](populi.md)). |
+| `VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP` | When `1` / `true` **and** experimental routing is on, if the embedder refresh reports **fewer** federation-schedulable remote nodes than the previous snapshot, the orchestrator runs **[`Orchestrator::rebalance`](../../../crates/vox-orchestrator/src/orchestrator/scaling.rs)** once (local queue work-steering only; does **not** replay full routing for each queued task). Traces: `decision = populi_remote_schedulable_decreased`, `populi_remote_drop_load_rebalance` / `populi_remote_drop_load_rebalance_noop` (`target: vox.orchestrator.routing`). |
+| `VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP` | When `1` / `true` **and** **`VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL`** is on, if federation-schedulable remote **count drops**, re-runs **[`Orchestrator::resolve_route`](../../../crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/batch.rs)** for each **queued** task (skips in-progress and Populi-delegated tasks) and moves tasks when the chosen agent changes. Runs after optional rebalance when that flag is also set. Traces: `decision = populi_remote_drop_queued_route_replay` (`target: vox.orchestrator.routing`), `queued_route_replay_move` (`target: vox.orchestrator.placement`). |
+| `VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE` | When `1` / `true`, each successful mens node poll ([`VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS`], [`mesh_federation_poll`](../../../crates/vox-orchestrator/src/mesh_federation_poll.rs) in **`vox-mcp`** and **`vox-orchestrator-d`**) also calls **`GET /v1/populi/exec/leases`** and logs **warn**/**debug** (`target: vox.mcp.populi_reconcile`) when a lease holder is missing, heartbeat-stale (vs orchestrator **`stale_threshold_ms`**), in effective maintenance, quarantined, or (GPU-capable node) **`gpu_readiness_ok=false`**. With **`VOX_MESH_CODEX_TELEMETRY`**, emits **`mesh_exec_lease_reconcile`** via Codex (`record_populi_control_event`; details include **`auto_revoke_attempted`** / **`auto_revoke_ok`** when **`VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE`** is set (next row). |
+| `VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE` | When `1` / `true` **and** reconcile is enabled, after each bad-holder diagnosis MCP calls **`POST /v1/populi/admin/exec-lease/revoke`** for that **`lease_id`** (requires mesh/admin bearer on the HTTP client — same token path as lease list). **Dangerous** when holders are only briefly stale or in cooperative maintenance; prefer manual revoke unless you accept freeing **`scope_key`** aggressively. |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS` | Poll interval for consuming `remote_task_envelope` rows in remote worker mode (`0` disables). |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) to reduce expensive training placements under budget pressure. |
-| `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL` | When `1`/`true`, best-effort fan-out of [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) over populi A2A **after** local enqueue (local execution still owns the task). |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL` | When `1`/`true`, enables [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) relay over populi A2A. Without lease gating, relay runs **after** local enqueue (local execution can still run in parallel — legacy path). |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED` | When `1`/`true` with **`VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES`**, matching tasks use **single-owner** semantics: awaited relay, then **remote-hold** (no local dequeue) or **local-only** fallback if relay fails. |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES` | Comma-separated execution roles: `planner`, `builder`, `verifier`, `reproducer`, `researcher`. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_RECEIVER_AGENT` | Destination **numeric** A2A agent id (string form) for experimental remote relay. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT` | Originator agent id for relay (defaults to `1` when unset/invalid). |
-| `VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS` | When experimental remote execute is on, MCP polls populi A2A inbox for **`remote_task_result`** on this interval (default **5**). **`0`** disables the dedicated poller. Independent of **`VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS`**. |
-| `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS` | When experimental remote execute is on, polls populi A2A inbox for **`remote_task_result`** on this interval (default **5**). **`0`** disables. Uses `vox_orchestrator::a2a::spawn_populi_remote_result_poller` (not MCP-only). Independent of **`VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS`**. |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL` | **Per-page** row cap when draining the parent mesh inbox for `remote_task_result` (default **64**, minimum **1**). The drain walks cursor pages (`before_message_id`) so deep inboxes do not hide older results. Maps to `OrchestratorConfig::populi_remote_result_max_messages_per_poll`. |
+| `VOX_PLAN_SESSION_ID` / `VOX_PLAN_NODE_ID` / `VOX_PLAN_VERSION` | Optional planning-context correlation fields for interpreted workflow runners (`vox mens workflow run`); when set, durable `workflow_run_log` rows attach orchestrator plan provenance. |
+| `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config/mod.rs). |
+
+**Populi placement / lease observability (roadmap):** stable **`task_id`**, **`lease_id`**, and **`placement_reason`**-style fields are specified as a documentation contract in [unified orchestration — placement observability](orchestration-unified.md#placement-and-lease-observability-roadmap-contract). Rollout kill switches: [Populi remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md).
+| `VOX_ORCHESTRATOR_ATTENTION_ENABLED` / `VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS` / `VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD` / `VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS` / `VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT` | Attention-budget controls for orchestrator routing, **dynamic clarification deferral** (MCP questioning path when enabled), MCP **LLM infer** pre-check (orchestrator budget snapshot), `vox_submit_task`/`vox_a2a_send` policy gating, and planning-surface deferral when budget pressure is high. Implementation: [`evaluate_interruption`](../../../crates/vox-orchestrator/src/attention/interruption_policy.rs), [`BudgetGate::check_attention_snapshot`](../../../crates/vox-orchestrator/src/gate.rs). |
+| `VOX_ORCHESTRATOR_CHATML_STRICT` | Enables stricter ChatML guardrails in orchestrator request shaping. |
+| `VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS` / `VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS` | Specialized retry/debug iteration caps for TOESTUB and Socrates re-routing flows. |
+| `VOX_ORCHESTRATOR_SCALING_THRESHOLD` / `VOX_ORCHESTRATOR_SCALING_ENABLED` / `VOX_ORCHESTRATOR_SCALING_LOOKBACK` / `VOX_ORCHESTRATOR_SCALING_PROFILE` / `VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS` / `VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK` / `VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD` | Scaling-control set used by adaptive fleet sizing and rebalancing. |
+| `VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS` | Idle retirement timeout for agent lifecycle contraction. |
+| `VOX_ORCHESTRATOR_COST_PREFERENCE` / `VOX_ORCHESTRATOR_RESOURCE_WEIGHT` / `VOX_ORCHESTRATOR_RESOURCE_CPU_MULT` / `VOX_ORCHESTRATOR_RESOURCE_MEM_MULT` / `VOX_ORCHESTRATOR_RESOURCE_EXPONENT` | Cost-vs-performance and resource-bias routing parameters. |
+| `VOX_ORCHESTRATOR_PLANNING_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE` / `VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT` / `VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW` / `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` | Planning-mode rollout and behavior controls; `VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW` (default on) keeps native plan adequacy as lineage/telemetry only; `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` rejects native enqueue and MCP `vox_plan` success when the plan stays thin after refinement. See [plan adequacy](../architecture/plan-adequacy.md). |
+| `VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW` / `VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE` | Context envelope lifecycle policy for cross-surface `ContextEnvelope` JSON ingress (MCP `vox_submit_task` / `context_envelope_json`, gamify handoff, orchestrator session attach). Defaults off. **Shadow** logs validation violations without blocking and, on successful validation, emits structured tracing `event=context.capture` (ingest: source, envelope ids, merge strategy, trace/correlation ids; target `vox_orchestrator::context_lifecycle`). Session merges log `event=context.select` with merge `outcome` when shadow is on. Collector field shapes: [`contracts/orchestration/context-lifecycle-telemetry.schema.json`](../../../contracts/orchestration/context-lifecycle-telemetry.schema.json). **Enforce** rejects invalid envelopes, expired/stale payloads, repository/session mismatches, and merge failures (for example `ManualReview` when a session envelope already exists). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
+| `VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW` / `VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE` | Completion citation grounding: `vox_complete_task` may include `evidence_citations` and/or `[[voxcite:REF]]` markers in `completion_summary`. **Shadow** logs when declared refs are missing from the session context envelope. **Enforce** requeues the task (same retry budget as the Socrates gate) until citations match envelope text. Matching declarations raise the effective Socrates `evidence_count` used by the gate. |
+| `VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED` / `VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK` | Migration controls for orchestrator V2 rollout and fallback behavior. |
+| `VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA` / `VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD` / `VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD` / `VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN` | Trust-score smoothing and threshold controls used by trust-aware routing/autonomy. |
+| `VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT` / `VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY` / `VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY` / `VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS` | Repo-sharding specialization/penalty weights and conflict-cooldown knobs. |
 | `POPULI_MODEL` | Default **Ollama** model id when routing uses local inference ([`usage`](../../../crates/vox-orchestrator/src/usage.rs), [`spec`](../../../crates/vox-orchestrator/src/models/spec.rs)). |
+| `POPULI_API_KEY` | Read via Clavis for authenticated remote mens inference. |
+| `POPULI_TEMPERATURE` / `POPULI_MAX_TOKENS` | Generation configuration overrides for mens inference. |
 | `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Clavis** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
-| `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
+| `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](architecture/news_syndication_security.md). |
 | `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter: `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
 | `VOX_SCHOLARLY_DISABLE` | When truthy (`1`, `true`, `yes`, `y`, `on`), blocks all scholarly submit/status paths. |
 | `VOX_SCHOLARLY_DISABLE_LIVE` | When truthy, blocks **live** adapters (Zenodo/OpenReview); local/echo ledgers still allowed. |
@@ -151,19 +181,55 @@ Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates
 
 Wall-time and attention telemetry for information-theoretic clarification (chat, plan, inline, ghost). Policy defaults (including default max attention when env is unset) also come from [`QuestioningPolicy`](../../../crates/vox-socrates-policy/src/lib.rs).
 
+Calibration note: channel gain offsets / backlog penalty / trust-adjustment scale are configured in `Vox.toml` under `[orchestrator].interruption_calibration` (no env override yet).
+
 | Variable | Role |
 |----------|------|
 | `VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION` | When **`0`** or **`false`**, questioning debits apply only to the **per-`session_id`** tally. When **unset** or any other value, the same milliseconds also increment the orchestrator [`BudgetManager`](../../../crates/vox-orchestrator/src/budget.rs) global **`AttentionBudget::spent_ms`** (see [`add_questioning_attention_debit_ms`](../../../crates/vox-orchestrator/src/budget.rs)); this does **not** emit an interrupt EWMA event. Implemented in [`ServerState::record_questioning_attention_spend`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
 | `VOX_QUESTIONING_MAX_ATTENTION_MS` | Optional **unsigned** cap (milliseconds) for the per-session clarification attention analogue. **Unset** or invalid → `QuestioningPolicy::default().max_clarification_attention_ms`. Used by [`questioning_attention_bounds`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
-| `VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE` | When truthy, allows orchestrator **task submit** via MCP to skip the “pending Socrates clarification” gate (operator / CI escape hatch). See [`task_tools`](../../../crates/vox-mcp/src/tools/task_tools.rs). |
-| `VOX_MCP_AGENT_FLEET` | When **unset** or truthy, **vox-mcp** spawns the embedded `AgentFleet` loop (`sync_fleet` + periodic `tick`) so vox-runtime worker handles are registered and queued tasks receive `ProcessQueue` wakes (**default on**). Set **`0`**, **`false`**, **`no`**, or **`off`** to disable. See [`spawn_embedded_agent_fleet_if_enabled`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
+| `VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE` | When truthy, allows orchestrator **task submit** via MCP to skip the “pending Socrates clarification” gate (operator / CI escape hatch). Gate enforcement applies when `session_id` is provided and DB is attached. See [`task_tools`](../../../crates/vox-mcp/src/tools/task_tools.rs). |
+| `VOX_MCP_AGENT_FLEET` | When **unset** or truthy, **vox-mcp** and **`vox-orchestrator-d`** spawn the same embedded `AgentFleet` + [`StubTaskProcessor`](../../../crates/vox-orchestrator/src/runtime.rs) loop ([`spawn_stub_agent_fleet_if_enabled`](../../../crates/vox-orchestrator/src/runtime.rs)) so queued tasks receive `ProcessQueue` wakes (**default on**). Set **`0`**, **`false`**, **`no`**, or **`off`** to disable. |
+| `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT` | When **`1`** / **`true`** / **`yes`**, **`vox-mcp`** logs **ERROR** (vs default **WARN**) if **`orch.ping`**’s `repository_id` ≠ embedded repo id while **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** points at a TCP daemon ([`ServerState::probe_external_orchestrator_daemon_if_configured`](../../../crates/vox-mcp/src/server/lifecycle.rs)). |
+| `VOX_MCP_ORCHESTRATOR_RPC_READS` | When **`1`** / **`true`** / **`yes`**, enables all repo-aligned **read** RPC pilots below as if each per-tool flag were set ([`mcp_orch_daemon_reads_pilot_enabled`](../../../crates/vox-mcp/src/server/lifecycle.rs)); per-tool flags still work alone for partial enablement. |
+| `VOX_MCP_ORCHESTRATOR_RPC_WRITES` | When **`1`** / **`true`** / **`yes`**, enables aligned daemon **write** pilots for task + agent lifecycle methods (`orch.submit_task`, `orch.complete_task`, `orch.fail_task`, `orch.cancel_task`, `orch.reorder_task`, `orch.drain_agent`, `orch.rebalance`, `orch.spawn_agent_ext`, `orch.retire_agent`, `orch.pause_agent`, `orch.resume_agent`) through MCP backend routing in [`ServerState`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
+| `VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC` | When **`1`** / **`true`** / **`yes`** (or umbrella **`VOX_MCP_ORCHESTRATOR_RPC_READS`**), MCP tool **`task_status`** calls **`orch.task_status`** on the TCP daemon **only if** startup probe confirmed **`repository_id`** matches the embed ([`orch_daemon_client_for_task_status_rpc`](../../../crates/vox-mcp/src/server/lifecycle.rs)). On RPC failure or missing field, falls back to the embedded [`Orchestrator`]. Requires matching tasks on the daemon process (typically: route **`vox_submit_task`** through the same daemon in a later IPC-first phase). |
+| `VOX_MCP_ORCHESTRATOR_TASK_WRITES_RPC` | Per-slice override for task write pilots when the global write umbrella is off. Truthy values route MCP submit/complete/fail/cancel/reorder/drain/rebalance through aligned daemon RPC; fallback remains embedded orchestrator when the daemon is absent/misaligned. |
+| `VOX_MCP_ORCHESTRATOR_AGENT_WRITES_RPC` | Per-slice override for agent write pilots when the global write umbrella is off. Truthy values route MCP spawn/retire/pause/resume through aligned daemon RPC; fallback remains embedded orchestrator when the daemon is absent/misaligned. |
+| `VOX_MCP_ORCHESTRATOR_START_RPC` | When **`1`** / **`true`** / **`yes`** (or umbrella **`VOX_MCP_ORCHESTRATOR_RPC_READS`**), **`vox_orchestrator_start`** calls **`orch.status`** and **`orch.agent_ids`** on the aligned TCP daemon and returns **`daemon_reported_agent_count`**, **`daemon_reported_agent_ids`**, and optional RPC error fields ([`orchestrator_start`](../../../crates/vox-mcp/src/dei_tools/control.rs)). Read-only telemetry; does not replace embedded runtime state. |
+| `VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC` | When **`1`** / **`true`** / **`yes`** (or umbrella **`VOX_MCP_ORCHESTRATOR_RPC_READS`**), **`vox_orchestrator_status`** attaches **`daemon_orch_status`** (full **`orch.status`** JSON) and optional **`daemon_orch_status_rpc_error`** from the aligned TCP daemon ([`orchestrator_status`](../../../crates/vox-mcp/src/dei_tools/orchestrator_snapshot.rs)). Embedded MCP-built fields unchanged; use to compare daemon vs embed until IPC-first. |
 | `VOX_EMBEDDING_MODEL` | Optional embedding model id override for MCP memory retrieval (`vox-mcp` [`retrieval`](../../../crates/vox-mcp/src/memory/retrieval.rs)). |
+| `VOX_SEARCH_POLICY_VERSION` | Optional override for [`vox_search::SearchPolicy::version`](../../../crates/vox-search/src/policy.rs) (telemetry / diagnostics). |
+| `VOX_SEARCH_MEMORY_VECTOR_WEIGHT` | Optional `f32` in `[0, 1]` for memory hybrid fusion (BM25 vs vector leg; default `0.55`). |
+| `VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD` | Optional evidence-quality threshold in `[0, 1]` that triggers the automatic verification pass (default `0.55`). |
+| `VOX_SEARCH_REPO_MAX_FILES` | Cap for per-query repository path inventory walks (default `20000`). |
+| `VOX_SEARCH_REPO_SKIP_DIRS` | CSV extra skip-dir list for repo inventory (replaces defaults when non-empty). |
+| `VOX_SEARCH_QDRANT_URL` | Optional Qdrant HTTP base (e.g. `http://127.0.0.1:6333`) for the `qdrant-vector` backend. |
+| `VOX_SEARCH_QDRANT_COLLECTION` | Qdrant collection name used by [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) (default `vox_docs`). |
+| `VOX_SEARCH_QDRANT_VECTOR_NAME` | When the collection uses **named** vectors, set the vector config name (request body `{ "name", "vector" }`). |
+| `VOX_SEARCH_QDRANT_API_KEY` | Qdrant `api-key` header for secured / cloud instances. Canonical secret: [`SecretId::VoxSearchQdrantApiKey`](../../../crates/vox-clavis/src/spec.rs) via Clavis ([`clavis-ssot`](./clavis-ssot.md)). |
+| `VOX_SEARCH_TANTIVY_ROOT` | Optional directory root for on-disk Tantivy indices (subpath `docs/` holds the docs mirror index). |
+| `VOX_SEARCH_PREFER_RRF` | When truthy, runs **reciprocal rank fusion** across non-empty corpus hit lists and exposes **`rrf_fused_lines`** / **`rrf_fused_hit_count`** in MCP retrieval ([`SearchPolicy::prefer_rrf_merge`](../../../crates/vox-search/src/policy.rs)). |
 | `VOX_OPENROUTER_HTTP_REFERER` | Optional `HTTP-Referer` header for OpenRouter-compatible calls ([`provider_auth`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
 | `VOX_OPENROUTER_APP_TITLE` | Optional `X-Title` header for OpenRouter-compatible calls ([`provider_auth`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
 | `VOX_MCP_GRAMMAR_MASK` | Grammar-mask knob for speech constraints ([`speech_constraints`](../../../crates/vox-mcp/src/speech_constraints.rs)). |
-| `VOX_MCP_LLM_COST_EVENTS` | When truthy, enables LLM cost telemetry emission ([`infer`](../../../crates/vox-mcp/src/llm_bridge/infer.rs)). |
+| `VOX_MCP_LLM_COST_EVENTS` | When truthy, enables LLM cost telemetry emission ([`infer`](../../../crates/vox-mcp/src/llm_bridge/infer.rs)). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
+| `VOX_MCP_TEST_INFER_STUB_BODY` / `VOX_MCP_INFER_STUB_ACK` | **Diagnostics only:** when `VOX_MCP_TEST_INFER_STUB_BODY` holds JSON for a plan payload and `VOX_MCP_INFER_STUB_ACK` is `1` or `true`, `vox_plan` skips real LLM HTTP (see [`infer_test_stub`](../../../crates/vox-mcp/src/llm_bridge/infer_test_stub.rs)). Do not enable on production MCP hosts. |
+| `VOX_MCP_HTTP_ENABLED` | When truthy, enables the optional MCP HTTP/WebSocket gateway (`/v1/tools`, `/v1/ws`, `/v1/mobile`) for bounded remote/mobile control of a host machine. |
+| `VOX_MCP_HTTP_HOST` / `VOX_MCP_HTTP_PORT` | Bind address for the optional MCP HTTP gateway (defaults: `127.0.0.1:3921`). |
+| `VOX_MCP_HTTP_BEARER_TOKEN` | Required bearer token for MCP HTTP gateway requests unless explicitly bypassed with `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1`. |
+| `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED` | Explicit insecure override for local-only testing of the MCP HTTP gateway; default is authenticated mode when enabled. |
+| `VOX_MCP_HTTP_ALLOWED_TOOLS` | CSV allowlist for MCP HTTP tool calls. Names are canonicalized through tool aliases. |
+| `VOX_MCP_HTTP_READ_BEARER_TOKEN` | Optional read-only bearer token for MCP HTTP gateway access; grants `Read` role (tool list view and read-scoped calls) while `VOX_MCP_HTTP_BEARER_TOKEN` remains full write access. |
+| `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS` | Optional CSV allowlist for read-role tool visibility/invocation. Read-role defaults come from MCP registry metadata (`http_read_role_eligible`) and are always intersected with `VOX_MCP_HTTP_ALLOWED_TOOLS`; this env provides an additional narrowing filter. |
+| `VOX_MCP_HTTP_RATE_LIMIT_PER_MINUTE` | Per-client-IP request budget for the MCP HTTP gateway (default `120`). |
+| `VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS` | When truthy, HTTP gateway requests must carry `X-Forwarded-Proto: https` (reverse-proxy hardening). |
+| `VOX_MCP_HTTP_HEALTH_AUTH` | When truthy, `/health` also requires gateway bearer auth; when unset/false, `/health` is rate-limited but unauthenticated. |
+| `VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR` | When truthy, rate-limit identity may use the first `X-Forwarded-For` value (for trusted reverse-proxy deployments). |
+| `VOX_REPOSITORY_ID` | Optional repository identity label used by MCP A2A queue metadata; defaults to `default` when unset (see [`a2a`](../../../crates/vox-mcp/src/a2a.rs)). |
 | `OLLAMA_HOST` | Upstream Ollama base URL override read by MCP provider metadata ([`metadata`](../../../crates/vox-mcp/src/llm_bridge/providers/metadata.rs)). |
-| `VOX_ORCHESTRATOR_EVENT_LOG` | Path to a **JSONL** file: **`vox-mcp`** appends one JSON object per orchestrator [`AgentEvent`](../../../crates/vox-orchestrator/src/events.rs) when set ([`spawn_orchestrator_event_log_sink`](../../../crates/vox-mcp/src/server/lifecycle.rs)). **`vox live`** can tail the same file when built with the `live` feature. |
+| `VOX_ORCHESTRATOR_EVENT_LOG` | Path to a **JSONL** file: **`vox-mcp`** and **`vox-orchestrator-d`** append one JSON object per orchestrator [`AgentEvent`](../../../crates/vox-orchestrator/src/events.rs) when set ([`orchestrator_event_log::spawn_orchestrator_event_log_sink`](../../../crates/vox-orchestrator/src/orchestrator_event_log.rs); MCP wires a join slot for re-root). **`vox live`** can tail the same file when built with the `live` feature. |
+| `VOX_DASH_HOST` / `VOX_DASH_PORT` | Bind host and port for the local dashboard / **vox-audio-ingress** HTTP surface (**default** `127.0.0.1` / **`3847`**). MCP Oratio helpers use the same vars when calling the ingress ([`oratio_tools`](../../../crates/vox-mcp/src/tools/oratio_tools.rs)). |
+| `VOX_BROWSER_LLM_CONTEXT_CHARS` | Optional positive integer: max characters of browser snapshot / summary text included in MCP browser+LLM tool context (**default** `24000` when unset or invalid). See [`browser_tools`](../../../crates/vox-mcp/src/tools/browser_tools.rs). |
 
 ## OpenClaw gateway interop (`vox-ars`, `vox openclaw`, script builtins)
 
@@ -214,13 +280,14 @@ Full table: [mens SSOT](populi.md). Common entries:
 | `VOX_MESH_SCOPE_ID` | Tenancy for join/heartbeat when enforced server-side. |
 | `VOX_MESH_A2A_LEASE_MS` | Inbox claim lease duration (default 120s, clamped). |
 | `VOX_MESH_MAX_STALE_MS` | Client-side staleness filter for mens snapshots (MCP). |
-| `VOX_MESH_CODEX_TELEMETRY` | Emit Codex `populi_control_event` rows when set. |
+| `VOX_MESH_CODEX_TELEMETRY` | Emit Codex `populi_control_event` rows when set. Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
 | `VOX_MESH_HTTP_JOIN` | `0`/`false` disables MCP HTTP join to the control plane; see [mens SSOT](populi.md). |
 | `VOX_MESH_HTTP_HEARTBEAT_SECS` | MCP heartbeat interval after join (`0` = no background heartbeat). |
 | `VOX_MESH_HTTP_RATE_LIMIT` | When `1`/`true`/`on`/`yes`, enables per–client-IP HTTP rate limiting on **`vox populi serve`** (see `tower_governor` in `vox-populi` transport). |
 | `VOX_MESH_HTTP_RATE_LIMIT_PER_SEC` | Steady-state requests per second per key when rate limiting is on (default **50**). |
 | `VOX_MESH_HTTP_RATE_LIMIT_BURST` | Burst capacity (default scales with per-sec). |
 | `VOX_MESH_ADVERTISE_GPU` | Legacy: sets `gpu_cuda` on the host capability snapshot. |
+| `VOX_MESH_GPU_READINESS_PROBE_OFF` | When `1` / `true`, workers skip populating **`NodeRecord.gpu_readiness_ok`** / **`gpu_readiness_reason`** / **`gpu_readiness_checked_unix_ms`** from the NVML probe path in **`vox_populi::node_record_for_current_process`** (inventory fields may still be filled). |
 | `VOX_MESH_ADVERTISE_VULKAN` | Sets `gpu_vulkan`. |
 | `VOX_MESH_ADVERTISE_WEBGPU` | Sets `gpu_webgpu`. |
 | `VOX_MESH_ADVERTISE_NPU` | Sets `npu`. |
@@ -240,6 +307,16 @@ Full table: [mens SSOT](populi.md). Common entries:
 | `VOX_SECRET_GUARD_GIT_REF` | Git revision range for **`vox ci secret-env-guard`** on clean checkouts (e.g. `origin/main...HEAD` on PRs, `${{ github.event.before }}...${{ github.sha }}` on push). Avoids an empty diff scope when `git diff` would otherwise scan nothing. See [`guards.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs). |
 | `VOX_BUILD_TIMINGS_BUDGET_WARN` | Soft budget warnings for **`vox ci build-timings`**. |
 | `SKIP_CUDA_FEATURE_CHECK` | Skip optional `nvcc` gates (documented escape hatch in [runner contract](../ci/runner-contract.md)). |
+| `VOX_BENCHMARK_TELEMETRY` | When `1` or `true`, CLI paths may append **`benchmark_event`** rows to Codex **`research_metrics`** (`bench:<repository_id>`). See [`benchmark_telemetry.rs`](../../../crates/vox-cli/src/benchmark_telemetry.rs) and [Telemetry and research_metrics contract](telemetry-metric-contract.md). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
+| `VOX_SYNTAX_K_TELEMETRY` | When `1` or `true`, enables **`syntax_k_event`** writes; if unset, falls back to **`VOX_BENCHMARK_TELEMETRY`**. Same implementation module as above. |
+
+## Optional telemetry upload (`vox telemetry`)
+
+| Variable | Role |
+|----------|------|
+| `VOX_TELEMETRY_UPLOAD_URL` | HTTPS ingest URL for **`vox telemetry upload`** (resolved via Clavis; optional until upload is used). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [remote sink spec](../architecture/telemetry-remote-sink-spec.md). |
+| `VOX_TELEMETRY_UPLOAD_TOKEN` | Bearer token for ingest when required (Clavis `SecretId::VoxTelemetryUploadToken`). |
+| `VOX_TELEMETRY_SPOOL_DIR` | Override directory for the upload queue (default: `<cwd>/.vox/telemetry-upload-queue`). Non-secret path override. |
 
 ## TOESTUB / scaling-audit (`vox-toestub`, `emit-reports`)
 
@@ -253,7 +330,7 @@ Full table: [mens SSOT](populi.md). Common entries:
 
 | Variable | Role |
 |----------|------|
-| `VOX_WEB_TANSTACK_START` | When `1` / `true`, enables TanStack **Start** scaffold + TS codegen path (`VoxTanStackRouter` / `voxRouteTree` when `routes:` is present). Must stay aligned with **`Vox.toml`** `[web] tanstack_start` for **`vox build`**. See [`VoxConfig::merge_env_overrides`](../../../crates/vox-config/src/config.rs), [TanStack how-to](../how-to/tanstack-ssr-with-axum.md). |
+| `VOX_WEB_TANSTACK_START` | When `1` / `true`, enables TanStack **Start** scaffold + TS codegen path (`VoxTanStackRouter` / `voxRouteTree` when `routes:` is present). Must stay aligned with **`Vox.toml`** `[web] tanstack_start` for **`vox build`**. See [`VoxConfig::merge_env_overrides`](../../../crates/vox-config/src/), [TanStack how-to](../how-to/tanstack-ssr-with-axum.md). |
 | `VOX_EMIT_EXPRESS_SERVER` | Opt-in: emit legacy **`server.ts`** (Express-style) from `vox-codegen-ts`; default product is **Axum** + **`api.ts`**. See [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md). |
 | `VOX_ORCHESTRATE_VITE` | If `1`, **`vox run`** spawns **`pnpm run dev:ssr-upstream`** in `dist/.../app` (Vite on **3001**). See [`OrchestratedViteGuard`](../../../crates/vox-cli/src/frontend.rs). |
 | `VOX_SSR_DEV_URL` | Origin (e.g. `http://127.0.0.1:3001`) for generated Axum to proxy non-`/api` **GET** document requests before `rust_embed`. Often injected when **`VOX_ORCHESTRATE_VITE=1`**. |

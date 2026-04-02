@@ -151,7 +151,7 @@ pub async fn run_historical_submit(
     let remote_url = bridge.remote_url().context("get remote URL")?;
     let (owner, repo_name) = super::github::parse_github_owner_repo(&remote_url)
         .context("parse owner/repo from remote URL")?;
-    let token = super::github::github_token()?;
+    let token = super::github::forge_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let repo_info = provider

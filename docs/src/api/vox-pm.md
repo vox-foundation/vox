@@ -92,7 +92,7 @@ Configuration for response scoring.
 
 ### `fn content_hash`
 
-Compute a SHA3-512 hash of the given data, returning Base32Hex-encoded string.
+Compute a SHA3-256 hash of the given data, returning Base32Hex-encoded string.
 
 
 ## Module: `vox-pm\src\lib.rs`

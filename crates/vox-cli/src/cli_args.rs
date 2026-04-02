@@ -217,6 +217,29 @@ pub struct SyncArgs {
     pub frozen: bool,
 }
 
+/// `vox deploy` — apply `Vox.toml` `[deploy]` via container / compose / Kubernetes / bare-metal.
+#[derive(Args, Clone, Debug)]
+pub struct DeployArgs {
+    /// Deployment environment label (image tag suffix, e.g. `production`).
+    #[arg(default_value = "production")]
+    pub environment: String,
+    /// Override `[deploy].target` (`container`, `compose`, `kubernetes`, `bare-metal`, …).
+    #[arg(long)]
+    pub target: Option<String>,
+    /// Override `[deploy].runtime` for OCI builds (`auto`, `docker`, `podman`).
+    #[arg(long)]
+    pub runtime: Option<String>,
+    /// Print actions without mutating remote systems or registries (best-effort).
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+    /// For compose targets: run `up` detached (`-d`).
+    #[arg(long, default_value_t = false)]
+    pub detach: bool,
+    /// Require `vox.lock` to exist (CI / reproducibility gate).
+    #[arg(long, default_value_t = false)]
+    pub locked: bool,
+}
+
 /// Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`).
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
 pub enum UpgradeReleaseProvider {

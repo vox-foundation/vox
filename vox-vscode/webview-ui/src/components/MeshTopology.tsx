@@ -1,17 +1,15 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
-import { 
-  ReactFlow, 
-  Background, 
-  Controls, 
+import React, { useEffect } from 'react';
+import {
+  ReactFlow,
+  Background,
+  Controls,
   Panel,
   useNodesState,
   useEdgesState,
-  MarkerType,
   Handle,
   Position,
-  Edge
 } from '@xyflow/react';
-import { Server, Zap, Globe2, Cpu, Activity, Send } from 'lucide-react';
+import { Server, Globe2, Cpu, Activity, Send } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
 const MeshNode = ({ data }: any) => {

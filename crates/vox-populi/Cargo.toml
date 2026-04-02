@@ -7,11 +7,14 @@ license.workspace = true
 
 [features]
 default = []
+# NVIDIA NVML probe → Populi `NodeRecord` gpu_* fields (optional; requires NVML at runtime).
+nvml-gpu-probe = ["vox-repository/nvml-probe"]
 # HTTP control plane (join / heartbeat / list) for multi-node loopback or LAN (TLS in ops layer).
 transport = [
     "dep:axum",
     "dep:tokio",
     "dep:reqwest",
+    "dep:vox-reqwest-defaults",
     "dep:tower-http",
     "dep:subtle",
     "dep:vox-bounded-fs",
@@ -20,7 +23,6 @@ transport = [
     "dep:blake3",
     "dep:data-encoding",
     "dep:base64",
-    "dep:tower_governor",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -59,6 +61,7 @@ mens-cloud = [
     "dep:async-trait",
     "dep:futures",
     "dep:reqwest",
+    "dep:vox-reqwest-defaults",
 ]
 
 [dependencies]
@@ -74,6 +77,7 @@ vox-clavis = { workspace = true }
 axum = { version = "0.8", optional = true }
 tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
+vox-reqwest-defaults = { workspace = true, optional = true }
 tower-http = { version = "0.6.2", optional = true, features = ["trace", "request-id"] }
 subtle = { version = "2.6", optional = true }
 jsonwebtoken = { workspace = true, optional = true }
@@ -104,10 +108,10 @@ qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
 async-trait = { version = "0.1", optional = true }
 futures = { version = "0.3", optional = true }
-tower_governor = { version = "0.7", optional = true, features = ["axum"] }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }
+openapiv3 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
 serde_yaml = { workspace = true }
@@ -118,6 +122,11 @@ blake3 = { workspace = true }
 data-encoding = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
+serial_test = { workspace = true }
+
+[[test]]
+name = "http_control_plane"
+required-features = ["transport"]
 
 [lints]
 workspace = true

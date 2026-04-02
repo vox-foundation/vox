@@ -17,6 +17,8 @@ pub enum PreflightProfile {
     DoubleBlind,
     /// Errors when structured scholarly metadata is missing or insufficient for repository metadata exports.
     MetadataComplete,
+    /// arXiv-oriented packaging checks (submission bundle layout).
+    ArxivAssist,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -63,6 +65,106 @@ pub enum PreflightConfidence {
     ManualRequired,
 }
 
+/// Credential / venue readiness (presence-only; never exposes secret values).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DestinationReadinessEntry {
+    pub destination: &'static str,
+    pub ready: bool,
+    pub remediation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential_present: Option<bool>,
+}
+
+fn collect_destination_readiness(manifest: &PublicationManifest) -> Vec<DestinationReadinessEntry> {
+    let mut out = Vec::new();
+    let zenodo_tok = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken)
+        .expose()
+        .is_some_and(|s| !s.trim().is_empty());
+    out.push(DestinationReadinessEntry {
+        destination: "zenodo",
+        ready: zenodo_tok,
+        remediation: if zenodo_tok {
+            String::new()
+        } else {
+            "Set Zenodo API token (Clavis `VoxZenodoAccessToken` / env alias per doctor)."
+                .to_string()
+        },
+        credential_present: Some(zenodo_tok),
+    });
+
+    let or_token = std::env::var("OPENREVIEW_ACCESS_TOKEN")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty())
+        || std::env::var("VOX_OPENREVIEW_ACCESS_TOKEN")
+            .ok()
+            .is_some_and(|s| !s.trim().is_empty());
+    let or_email = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
+        .expose()
+        .is_some_and(|s| !s.trim().is_empty());
+    let or_pass = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword)
+        .expose()
+        .is_some_and(|s| !s.trim().is_empty());
+    let openreview_ready = or_token || (or_email && or_pass);
+    out.push(DestinationReadinessEntry {
+        destination: "openreview",
+        ready: openreview_ready,
+        remediation: if openreview_ready {
+            String::new()
+        } else {
+            "Provide OpenReview credentials (access token or email+password via Clavis)."
+                .to_string()
+        },
+        credential_present: Some(openreview_ready),
+    });
+
+    let scholarly_adapter_configured = std::env::var("VOX_SCHOLARLY_ADAPTER")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty());
+    out.push(DestinationReadinessEntry {
+        destination: "scholarly_adapter",
+        ready: scholarly_adapter_configured,
+        remediation: if scholarly_adapter_configured {
+            String::new()
+        } else {
+            "Set `VOX_SCHOLARLY_ADAPTER` when exercising scholarly submission adapters.".to_string()
+        },
+        credential_present: None,
+    });
+
+    let cred = operator_credential_presence();
+    let social_ready =
+        cred.twitter || cred.github || cred.open_collective || cred.reddit || cred.youtube;
+    let social_detail = if social_ready {
+        String::new()
+    } else {
+        "No social syndication credentials resolved — channels will stay dry-run or manual-assist."
+            .to_string()
+    };
+    out.push(DestinationReadinessEntry {
+        destination: "social_syndication",
+        ready: social_ready,
+        remediation: social_detail,
+        credential_present: Some(social_ready),
+    });
+
+    // arXiv assist is always “package-ready” but never auto-submit.
+    let arxiv_stub_ok =
+        !manifest.title.trim().is_empty() && !manifest.body_markdown.trim().is_empty();
+    out.push(DestinationReadinessEntry {
+        destination: "arxiv_operator_assist",
+        ready: arxiv_stub_ok,
+        remediation: if arxiv_stub_ok {
+            "Human operator must compile, verify, and upload to arXiv — tooling only stages handoff files."
+                .to_string()
+        } else {
+            "Fill title/body before generating arXiv assist staging.".to_string()
+        },
+        credential_present: None,
+    });
+
+    out
+}
+
 /// Optional gate / environment context so preflight can list live-publish blockers.
 #[derive(Debug, Clone)]
 pub struct PreflightAttentionInputs {
@@ -80,6 +182,9 @@ pub struct PreflightReport {
     #[serde(default)]
     pub next_actions: Vec<NextActionEntry>,
     pub confidence: PreflightConfidence,
+    /// Destination / credential presence checks (no secret values).
+    #[serde(default)]
+    pub destination_readiness: Vec<DestinationReadinessEntry>,
     /// Conservative worthiness rubric output when requested (heuristic metrics; `meaningful_advance` is always false).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worthiness: Option<crate::publication_worthiness::WorthinessEvaluation>,
@@ -101,7 +206,7 @@ fn operator_credential_presence() -> OperatorCredentialPresence {
     );
     OperatorCredentialPresence {
         twitter: cfg.twitter_bearer_token.is_some(),
-        github: cfg.github_token.is_some(),
+        github: cfg.forge_token.is_some(),
         open_collective: cfg.open_collective_token.is_some(),
         reddit: cfg.reddit_client_id.is_some()
             && cfg.reddit_client_secret.is_some()
@@ -197,7 +302,7 @@ fn collect_manual_required(
                 command_hint: Some("vox clavis doctor".to_string()),
             });
         }
-        if item.syndication.github.is_some() && !cred.github {
+        if item.syndication.forge.is_some() && !cred.github {
             out.push(ManualRequiredEntry {
                 code: "credential_github",
                 reason: "GitHub syndication is enabled but no operator token resolved.".to_string(),
@@ -384,7 +489,7 @@ fn derive_next_actions(
         manifest.metadata_json.as_deref(),
     ) {
         let has_non_rss_social_targets = item.syndication.twitter.is_some()
-            || item.syndication.github.is_some()
+            || item.syndication.forge.is_some()
             || item.syndication.open_collective.is_some()
             || item.syndication.reddit.is_some()
             || item.syndication.hacker_news.is_some()
@@ -625,11 +730,23 @@ pub fn run_preflight_with_attention(
         .as_deref()
         .is_none_or(|s| s.trim().is_empty())
     {
-        if profile == PreflightProfile::MetadataComplete {
+        if matches!(
+            profile,
+            PreflightProfile::MetadataComplete | PreflightProfile::ArxivAssist
+        ) {
             findings.push(PreflightFinding {
                 code: "abstract_required",
                 severity: PreflightSeverity::Error,
-                message: "abstract_text is required for metadata_complete preflight".to_string(),
+                message: match profile {
+                    PreflightProfile::MetadataComplete => {
+                        "abstract_text is required for metadata_complete preflight".to_string()
+                    }
+                    PreflightProfile::ArxivAssist => {
+                        "abstract_text is required for arxiv_assist preflight (arXiv submission expects an abstract)"
+                            .to_string()
+                    }
+                    _ => "abstract_text is required".to_string(),
+                },
             });
         } else {
             findings.push(PreflightFinding {
@@ -696,6 +813,7 @@ pub fn run_preflight_with_attention(
     let manual_required = collect_manual_required(manifest, attention.as_ref());
     let next_actions = derive_next_actions(manifest, &findings, &manual_required);
     let confidence = derive_confidence(&findings, &manual_required);
+    let destination_readiness = collect_destination_readiness(manifest);
 
     PreflightReport {
         ok: err_n == 0,
@@ -704,6 +822,7 @@ pub fn run_preflight_with_attention(
         manual_required,
         next_actions,
         confidence,
+        destination_readiness,
         worthiness: None,
     }
 }
@@ -720,7 +839,10 @@ fn clamp01(x: f64) -> f64 {
 pub fn worthiness_inputs_from_manifest_and_preflight(
     manifest: &PublicationManifest,
     report: &PreflightReport,
+    heuristics: Option<&crate::scientia_heuristics::ScientiaHeuristics>,
 ) -> crate::publication_worthiness::WorthinessInputs {
+    let h_fallback = crate::scientia_heuristics::ScientiaHeuristics::default();
+    let h = heuristics.unwrap_or(&h_fallback);
     let r = (report.readiness_score as f64 / 100.0).clamp(0.0, 1.0);
 
     let mut red_line_violation_ids: Vec<String> = Vec::new();
@@ -842,10 +964,18 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
     let abstract_boost = manifest
         .abstract_text
         .as_deref()
-        .map_or(0.0, |s| if s.trim().is_empty() { 0.0 } else { 0.06 });
+        .map_or(0.0, |s| {
+            if s.trim().is_empty() {
+                0.0
+            } else {
+                h.worthiness_epistemic_abstract_boost
+            }
+        });
 
-    let epistemic = clamp01(0.42 + 0.5 * r + abstract_boost);
-    let novelty = clamp01(0.35 + 0.38 * r);
+    let epistemic = clamp01(
+        h.worthiness_epistemic_base + h.worthiness_epistemic_r_coef * r + abstract_boost,
+    );
+    let novelty = clamp01(h.worthiness_novelty_base + h.worthiness_novelty_r_coef * r);
     let reliability = clamp01(0.48 + 0.47 * r);
 
     let mut inputs = crate::publication_worthiness::WorthinessInputs {
@@ -868,6 +998,16 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
     {
         inputs = crate::scientia_evidence::apply_scientia_evidence(inputs, &evidence);
     }
+    if let Some(bundle) =
+        crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(manifest.metadata_json.as_deref())
+    {
+        let _prior_notes =
+            crate::publication_worthiness::apply_prior_art_to_worthiness_inputs(
+                &mut inputs,
+                Some(&bundle),
+                Some(h),
+            );
+    }
     inputs
 }
 
@@ -881,6 +1021,17 @@ pub fn run_preflight_with_worthiness(
     run_preflight_with_worthiness_attention(manifest, profile, contract, None)
 }
 
+/// Same as [`run_preflight_with_worthiness`] with contract-driven heuristics from the dynamics seed.
+#[must_use]
+pub fn run_preflight_with_worthiness_heuristics(
+    manifest: &PublicationManifest,
+    profile: PreflightProfile,
+    contract: &crate::publication_worthiness::PublicationWorthinessContract,
+    heuristics: &crate::scientia_heuristics::ScientiaHeuristics,
+) -> PreflightReport {
+    run_preflight_with_worthiness_attention_heuristics(manifest, profile, contract, None, heuristics)
+}
+
 /// Like [`run_preflight_with_worthiness`], with optional attention inputs.
 #[must_use]
 pub fn run_preflight_with_worthiness_attention(
@@ -889,8 +1040,59 @@ pub fn run_preflight_with_worthiness_attention(
     contract: &crate::publication_worthiness::PublicationWorthinessContract,
     attention: Option<PreflightAttentionInputs>,
 ) -> PreflightReport {
+    let default = crate::scientia_heuristics::ScientiaHeuristics::default();
+    run_preflight_with_worthiness_attention_heuristics(
+        manifest,
+        profile,
+        contract,
+        attention,
+        &default,
+    )
+}
+
+/// Attention + explicit heuristics (SSOT dynamics seed).
+#[must_use]
+pub fn run_preflight_with_worthiness_attention_heuristics(
+    manifest: &PublicationManifest,
+    profile: PreflightProfile,
+    contract: &crate::publication_worthiness::PublicationWorthinessContract,
+    attention: Option<PreflightAttentionInputs>,
+    heuristics: &crate::scientia_heuristics::ScientiaHeuristics,
+) -> PreflightReport {
     let mut report = run_preflight_with_attention(manifest, profile, attention);
-    let inputs = worthiness_inputs_from_manifest_and_preflight(manifest, &report);
+    if let Some(bundle) =
+        crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(manifest.metadata_json.as_deref())
+    {
+        let max_lex = bundle
+            .overlap_summary
+            .as_ref()
+            .and_then(|s| s.max_lexical_score)
+            .unwrap_or(0.0);
+        if max_lex >= heuristics.preflight_novelty_high_lex_warn {
+            report.findings.push(PreflightFinding {
+                code: "novelty_prior_art_high_lexical_overlap",
+                severity: PreflightSeverity::Warning,
+                message: format!(
+                    "Prior-art lexical overlap {max_lex:.2} — review top hits in scientia_novelty_bundle; novelty score may be capped in worthiness."
+                ),
+            });
+        }
+    }
+    if matches!(profile, PreflightProfile::DoubleBlind) {
+        let venue_notes = crate::publication_worthiness::machine_venue_profile_violations(
+            contract,
+            "tmlr_double_blind",
+            &report,
+        );
+        for note in venue_notes {
+            report.findings.push(PreflightFinding {
+                code: "venue_required_check_failed",
+                severity: PreflightSeverity::Error,
+                message: note,
+            });
+        }
+    }
+    let inputs = worthiness_inputs_from_manifest_and_preflight(manifest, &report, Some(heuristics));
     let eval = crate::publication_worthiness::evaluate_worthiness(contract, &inputs);
     report.worthiness = Some(eval);
     report
@@ -1014,6 +1216,21 @@ mod tests {
         assert!(!r.ok);
         assert!(
             r.findings
+                .iter()
+                .any(|f| f.code == "scientific_metadata_required")
+        );
+    }
+
+    #[test]
+    fn arxiv_assist_errors_without_abstract_but_not_missing_scientific_block() {
+        let m = sample_manifest(|x| {
+            x.abstract_text = None;
+        });
+        let r = run_preflight(&m, PreflightProfile::ArxivAssist);
+        assert!(!r.ok);
+        assert!(r.findings.iter().any(|f| f.code == "abstract_required"));
+        assert!(
+            !r.findings
                 .iter()
                 .any(|f| f.code == "scientific_metadata_required")
         );

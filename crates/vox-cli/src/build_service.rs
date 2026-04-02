@@ -180,6 +180,10 @@ pub fn run_cargo(req: &CargoRequest) -> Result<Output> {
     let mut cmd = Command::new(cargo_binary());
     cmd.arg(&req.command).args(&req.args).current_dir(&req.cwd);
     if let Some(ref td) = req.target_dir {
+        if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
+            tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
+            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+        }
         cmd.env("CARGO_TARGET_DIR", td);
     }
     if let Some(ref bd) = req.build_dir {
@@ -241,6 +245,10 @@ pub fn run_cargo_inherit(req: &CargoRequest) -> Result<std::process::ExitStatus>
     let mut cmd = Command::new(cargo_binary());
     cmd.arg(&req.command).args(&req.args).current_dir(&req.cwd);
     if let Some(ref td) = req.target_dir {
+        if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
+            tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
+            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+        }
         cmd.env("CARGO_TARGET_DIR", td);
     }
     if let Some(ref bd) = req.build_dir {
@@ -357,6 +365,10 @@ pub fn run_cargo_spawn(req: &CargoRequest) -> Result<MonitoredCargoChildSync> {
     let mut cmd = Command::new(cargo_binary());
     cmd.arg(&req.command).args(&req.args).current_dir(&req.cwd);
     if let Some(ref td) = req.target_dir {
+        if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
+            tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
+            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+        }
         cmd.env("CARGO_TARGET_DIR", td);
     }
     if let Some(ref bd) = req.build_dir {
@@ -497,6 +509,10 @@ pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoC
     let mut cmd = tokio::process::Command::new(cargo_binary());
     cmd.arg(&req.command).args(&req.args).current_dir(&req.cwd);
     if let Some(ref td) = req.target_dir {
+        if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
+            tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
+            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+        }
         cmd.env("CARGO_TARGET_DIR", td);
     }
     if let Some(ref bd) = req.build_dir {

@@ -1,4 +1,11 @@
 //! Arca SQL: Agent orchestration, reliability, and behavioral learning.
+//!
+//! ## Plane vs `research_metrics`
+//!
+//! - **`memories`**, **`behavior_events`**, **`llm_interactions`**, **`conversation_messages`** (see related domains):
+//!   mix **S2–S3** (content, prompts, behavioral context). They are **not** interchangeable with coarse usage counters.
+//! - **Usage-style counters** for product analytics belong under explicit `research_metrics` producers with their own
+//!   sensitivity class — see `docs/src/architecture/telemetry-retention-sensitivity-ssot.md`.
 pub const SCHEMA_AGENTS: &str = "
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -403,8 +410,10 @@ CREATE TABLE IF NOT EXISTS trusted_evidence_bundles (
 CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent_id);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at);
+CREATE INDEX IF NOT EXISTS idx_memories_agent_created ON memories(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_behavior_user ON behavior_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_behavior_type ON behavior_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_behavior_user_created ON behavior_events(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_learned_patterns_user ON learned_patterns(user_id);
 CREATE INDEX IF NOT EXISTS idx_learned_patterns_category ON learned_patterns(user_id, category);
 CREATE INDEX IF NOT EXISTS idx_llm_interactions_session ON llm_interactions(session_id);

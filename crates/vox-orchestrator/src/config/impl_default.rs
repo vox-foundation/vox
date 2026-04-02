@@ -58,11 +58,15 @@ impl Default for OrchestratorConfig {
             session: SessionConfig::default(),
             socrates_policy: None,
             socrates_reputation_weight: default_socrates_reputation_weight(),
+            trust_gate_relax_enabled: default_false(),
+            trust_gate_relax_min_reliability: default_trust_gate_relax_min_reliability(),
             populi_control_url: None,
             populi_scope_id: None,
             populi_poll_interval_secs: default_populi_poll_interval_secs(),
             populi_http_timeout_ms: default_populi_http_timeout_ms(),
             populi_routing_experimental: default_false(),
+            populi_rebalance_on_remote_schedulable_drop: default_false(),
+            populi_replay_queued_routes_on_remote_schedulable_drop: default_false(),
             populi_training_routing_experimental: default_false(),
             populi_training_budget_pressure: default_populi_training_budget_pressure(),
             populi_remote_execute_experimental: default_false(),
@@ -70,6 +74,12 @@ impl Default for OrchestratorConfig {
             populi_remote_execute_sender_agent: None,
             populi_remote_result_poll_interval_secs:
                 default_populi_remote_result_poll_interval_secs(),
+            populi_remote_result_max_messages_per_poll:
+                default_populi_remote_result_max_messages_per_poll(),
+            populi_remote_worker_poll_interval_secs:
+                default_populi_remote_worker_poll_interval_secs(),
+            populi_remote_lease_gating_enabled: default_false(),
+            populi_remote_lease_gated_roles: Vec::new(),
             chatml_strict: default_false(),
             planning_enabled: default_false(),
             planning_router_enabled: default_false(),
@@ -78,6 +88,12 @@ impl Default for OrchestratorConfig {
             planning_shadow_mode: default_false(),
             planning_auto_mode_enabled: default_false(),
             planning_rollout_percent: 0,
+            plan_adequacy_shadow: default_true(),
+            plan_adequacy_enforce: default_false(),
+            context_lifecycle_shadow: default_false(),
+            context_lifecycle_enforce: default_false(),
+            completion_grounding_shadow: default_false(),
+            completion_grounding_enforce: default_false(),
             // Phase 15: Attention budget
             attention_enabled: false,
             attention_budget_ms: default_attention_budget_ms(),
@@ -96,6 +112,7 @@ impl Default for OrchestratorConfig {
             repo_reduce_conflict_cooldown_ms: default_repo_reduce_conflict_cooldown_ms(),
             attention_tlx_weights: crate::attention::NasaTlxWeights::default(),
             tier_gate: crate::attention::TierGateConfig::default(),
+            interruption_calibration: crate::attention::InterruptionCalibrationConfig::default(),
             news: NewsConfig::default(),
         }
     }

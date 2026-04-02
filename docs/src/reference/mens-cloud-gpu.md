@@ -2,7 +2,7 @@
 title: "Mens Cloud GPU Training Strategy"
 description: "Official documentation for Mens Cloud GPU Training Strategy for the Vox language. Detailed technical reference, architecture guides, an"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 
@@ -27,17 +27,36 @@ This page documents what is implemented now in cloud-profile selection and what 
 ## Profile compatibility matrix (practical)
 
 | Surface | Supported now | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Local workstation (4080 class) | Yes | Primary baseline; recommended default path. |
 | Local higher VRAM (24G/48G/80G) | Yes | Use explicit preset or `--preset auto`. |
 | `vox mens train --cloud ...` dispatch | Feature-gated | Requires `vox-cli` built with `cloud`; provider dispatch path exists but should be treated as additive. |
 | Remote execution via Populi routing hints | Read-only scheduling signal | Hints enrich placement choices; execution remains local-safe unless explicitly extended. |
+
+## Boundary vs Populi mesh
+
+These surfaces should not be conflated:
+
+- **Local MENS training:** the primary and best-supported path today.
+- **Cloud provider dispatch:** a separate, feature-gated path for provisioning or sending work to external providers.
+- **Future Populi-managed GPU mesh:** a research target for user-owned local or overlay-connected clusters, **not** current shipped behavior.
+
+Important current boundary:
+
+- Populi node visibility and routing hints do **not** yet form an authoritative GPU scheduler.
+- `vox mens train --cloud` and Populi mesh are **different execution surfaces** with different trust, networking, and lifecycle assumptions.
+- Remote execution through Populi remains experimental and local-safe unless a future design adds explicit ownership, checkpointing, and recovery semantics.
+
+See [Populi GPU network research 2026](../architecture/populi-gpu-network-research-2026.md) for the gap analysis and external guidance that should inform the later implementation plan.
+
+**Placement boundaries:** [work-type placement policy matrix](populi-work-type-placement-matrix.md); **execution ownership (design intent):** [ADR 017](../adr/017-populi-lease-remote-execution.md); **GPU inventory layering:** [ADR 018](../adr/018-populi-gpu-truth-layering.md).
 
 ## Non-goals (current wave)
 
 - No promise of full provider-native lifecycle automation parity across all clouds.
 - No replacement of local-first runbook with cloud-only assumptions.
 - No second preset stack: cloud path reuses the same preset machinery as local.
+- No claim that cloud dispatch and Populi mesh already form one unified GPU fabric.
 
 ## Operational guidance
 

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// Configuration for the session manager.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
-    /// Directory where JSONL session files are stored. Default: `.sessions/`.
+    /// Directory where JSONL session files are stored. Default: `.vox/sessions/` (basename only; use repo root).
     pub sessions_dir: PathBuf,
     /// Optional stable repo id (e.g. MCP embeds this in session paths / payloads).
     #[serde(default)]

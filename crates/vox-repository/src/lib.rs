@@ -2,15 +2,21 @@
 //! [`RepositoryContext::repository_id`], and probe stack capabilities for MCP/orchestrator wiring.
 
 mod agent_scope;
-mod bounded_fs;
 mod capabilities;
 mod discover;
 mod error;
 mod git_root;
+pub mod gpu_inventory;
 mod id;
+mod path_safety;
 pub mod populi_toml;
+mod repo_catalog;
+mod repo_query_trace;
+mod repo_workspace_status;
+mod skill_scaffold;
 mod resolve;
 mod workspace_layout;
+mod workspace_path_migration;
 
 pub use agent_scope::{
     agents_dir, agents_glob_repo_relative, load_agent_scopes, normalize_task_path,
@@ -21,9 +27,27 @@ pub use capabilities::{
 pub use discover::{discover_repository, discover_repository_or_fallback};
 pub use error::RepositoryError;
 pub use git_root::find_git_work_tree;
+pub use gpu_inventory::{GpuInventorySnapshot, probe_nvidia_gpu_inventory_best_effort};
 pub use id::compute_repository_id;
+pub use path_safety::{
+    path_relative_to_repo_root, resolve_local_path_under_repo_root, resolve_strict_repo_relative_path,
+};
+pub use repo_query_trace::{
+    repo_query_file_with_plane, repo_query_history_with_plane, repo_query_text_with_plane,
+};
+pub use repo_workspace_status::{RepoWorkspaceStatus, repo_workspace_status_for_cwd};
+pub use skill_scaffold::{skill_markdown_filename, skill_markdown_for_project};
 pub use populi_toml::{
     MeshToml, MeshTomlError, VoxMeshToml, VoxMeshTomlError, read_vox_populi_toml,
+};
+pub use repo_catalog::{
+    CrossRepoQueryTrace, QueryFileParams, QueryHistoryParams, QueryTextParams, RemoteAdapterHints,
+    RepoAccessMode, RepoCapability, RepoCatalog, RepoCatalogError, RepoCatalogRefreshResult,
+    RepoFileRead, RepoFileReadResponse, RepoHistoryEntry, RepoHistoryResponse,
+    RepoQuerySkippedRepository, RepoTextMatch, RepoTextSearchResponse, RepositoryDescriptor,
+    ResolvedRepoCatalog, ResolvedRepositoryDescriptor, load_repo_catalog_from_repo,
+    refresh_repo_catalog, repo_catalog_manifest_path, repo_query_file, repo_query_history,
+    repo_query_text, resolve_repo_catalog,
 };
 pub use resolve::{
     VOX_REPO_ROOT_ENV, find_cargo_workspace_root, find_cargo_workspace_root_from,
@@ -31,6 +55,9 @@ pub use resolve::{
 };
 pub use workspace_layout::{
     cargo_workspace_member_dirs, go_roots, node_workspace_packages, python_roots,
+};
+pub use workspace_path_migration::{
+    migrate_legacy_memory_shard_into_vox_memory, migrate_legacy_sessions_into_vox,
 };
 
 use std::path::PathBuf;

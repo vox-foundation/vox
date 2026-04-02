@@ -1,5 +1,7 @@
 //! Optional importers for sources described in [`crate::codex_legacy::LegacyImportSource`].
 //!
+//! New call sites should prefer the explicit legacy namespace: `crate::legacy::import_extras`.
+//!
 //! These are separate from JSONL legacy round-trip; callers run them against an already-open
 //! baseline [`crate::VoxDb`].
 

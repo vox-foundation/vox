@@ -4,10 +4,12 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 use super::docs_sync::{ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::mcp_wiring::{check_mcp_tool_wiring, extract_mcp_handler_tools};
-use super::registry::{extract_mcp_registry_tool_names, parse_mcp_registry_yaml};
+use super::registry::{
+    extract_mcp_registry_tool_names, parse_mcp_registry_read_role_eligible, parse_mcp_registry_yaml,
+};
 use super::validators::{
     check_dockerfiles_cargo_locked_policy, check_install_policy_surfaces,
-    check_operator_docs_no_legacy_vox_install_pm_nudge,
+    check_mcp_http_read_role_governance, check_operator_docs_no_legacy_vox_install_pm_nudge,
     check_packaging_pm_docs_no_resurrected_uv_copies, check_project_pm_commands_no_toolchain_lane,
     check_upgrade_toolchain_only, kebab_to_pascal,
 };
@@ -86,9 +88,27 @@ version: 1
 tools:
   - name: "vox_bracket_test"
     description: "Description with ] bracket inside string"
+    product_lane: data
 "#;
     let tools = parse_mcp_registry_yaml(yaml).expect("parse");
     assert_eq!(tools, vec!["vox_bracket_test".to_string()]);
+}
+
+#[test]
+fn mcp_registry_read_role_eligible_parser_filters_true_flags() {
+    let yaml = r#"
+version: 1
+tools:
+  - name: "vox_read_ok"
+    description: "safe read tool"
+    product_lane: ai
+    http_read_role_eligible: true
+  - name: "vox_write_only"
+    description: "write tool"
+    product_lane: ai
+"#;
+    let tools = parse_mcp_registry_read_role_eligible(yaml).expect("parse read-role");
+    assert_eq!(tools, vec!["vox_read_ok".to_string()]);
 }
 
 #[test]
@@ -157,4 +177,13 @@ fn mcp_extract_matches_workspace_vox_mcp_mod_rs() {
         missing
     );
     check_mcp_tool_wiring(repo_root, &mcp_mod, &dispatch, &aliases).expect("mcp wiring + aliases");
+}
+
+#[test]
+fn mcp_read_role_governance_profile_matches_registry() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("vox-cli lives at crates/vox-cli");
+    check_mcp_http_read_role_governance(repo_root).expect("read-role governance profile");
 }

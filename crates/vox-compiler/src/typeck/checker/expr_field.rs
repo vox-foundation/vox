@@ -1,5 +1,7 @@
 use crate::ast::span::Span;
+use crate::builtin_registry::{std_namespace_method_ty, std_root_field_ty};
 use crate::hir::HirExpr;
+use crate::rust_interop_support::classify_rust_crate;
 use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::BindingKind;
 use crate::typeck::ty::Ty;
@@ -38,187 +40,102 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             },
-            Ty::Named(n) if n == "StdNamespace" => match field {
-                "fs" => Ty::Named("StdFsNs".into()),
-                "path" => Ty::Named("StdPathNs".into()),
-                "env" => Ty::Named("StdEnvNs".into()),
-                "process" => Ty::Named("StdProcessNs".into()),
-                "json" => Ty::Named("StdJsonNs".into()),
-                "crypto" => Ty::Named("StdCryptoNs".into()),
-                "time" => Ty::Named("StdTimeNs".into()),
-                "log" => Ty::Named("StdLogNs".into()),
-                "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
-                "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
-                "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
-                "args" => Ty::List(Box::new(Ty::Str)),
-                _ => {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std submodule or field '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdFsNs" => match field {
-                "read" | "remove" | "mkdir" => {
-                    Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str))))
-                }
-                "read_bytes" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
-                "write" => Ty::Fn(
-                    vec![Ty::Str, Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::Unit))),
-                ),
-                "exists" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
-                "list_dir" => Ty::Fn(
-                    vec![Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
-                ),
-                "glob" => Ty::Fn(
-                    vec![Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
-                ),
-                "remove_dir_all" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
-                "copy" => Ty::Fn(
-                    vec![Ty::Str, Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::Unit))),
-                ),
-                _ => {
+            Ty::Named(n) if n == "StdNamespace" => std_root_field_ty(field).unwrap_or_else(|| {
+                self.diags.push(Diagnostic::error(
+                    format!("Unknown std submodule or field '{field}'"),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }),
+            Ty::Named(n) if n == "StdFsNs" => {
+                std_namespace_method_ty("fs", field).unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.fs method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdPathNs" => match field {
-                "join" => Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
-                "join_many" => Ty::Fn(vec![Ty::List(Box::new(Ty::Str))], Box::new(Ty::Str)),
-                "basename" | "dirname" | "extension" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
-                _ => {
+                })
+            }
+            Ty::Named(n) if n == "StdPathNs" => std_namespace_method_ty("path", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.path method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdEnvNs" => match field {
-                "get" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
-                _ => {
+                }),
+            Ty::Named(n) if n == "StdEnvNs" => std_namespace_method_ty("env", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.env method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdProcessNs" => match field {
-                "run" => Ty::Fn(
-                    vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                    Box::new(Ty::Result(Box::new(Ty::Int))),
-                ),
-                "run_ex" => Ty::Fn(
-                    vec![
-                        Ty::Str,
-                        Ty::List(Box::new(Ty::Str)),
-                        Ty::Str,
-                        Ty::List(Box::new(Ty::Str)),
-                    ],
-                    Box::new(Ty::Result(Box::new(Ty::Int))),
-                ),
-                "run_capture" => Ty::Fn(
-                    vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                    Box::new(Ty::Result(Box::new(Ty::Record(vec![
-                        ("exit".into(), Ty::Int),
-                        ("stdout".into(), Ty::Str),
-                        ("stderr".into(), Ty::Str),
-                    ])))),
-                ),
-                "run_capture_ex" => Ty::Fn(
-                    vec![
-                        Ty::Str,
-                        Ty::List(Box::new(Ty::Str)),
-                        Ty::Str,
-                        Ty::List(Box::new(Ty::Str)),
-                    ],
-                    Box::new(Ty::Result(Box::new(Ty::Record(vec![
-                        ("exit".into(), Ty::Int),
-                        ("stdout".into(), Ty::Str),
-                        ("stderr".into(), Ty::Str),
-                    ])))),
-                ),
-                "exit" => Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
-                _ => {
+                }),
+            Ty::Named(n) if n == "StdProcessNs" => std_namespace_method_ty("process", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.process method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdJsonNs" => match field {
-                "read_str" => Ty::Fn(
-                    vec![Ty::Str, Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::Str))),
-                ),
-                "read_f64" => Ty::Fn(
-                    vec![Ty::Str, Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::Float))),
-                ),
-                "quote" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
-                _ => {
+                }),
+            Ty::Named(n) if n == "StdJsonNs" => std_namespace_method_ty("json", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.json method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdCryptoNs" => match field {
-                "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
-                "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
-                _ => {
+                }),
+            Ty::Named(n) if n == "StdHttpNs" => std_namespace_method_ty("http", field)
+                .unwrap_or_else(|| {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.http method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }),
+            Ty::Named(n) if n == "StdCryptoNs" => std_namespace_method_ty("crypto", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.crypto method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdTimeNs" => match field {
-                "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
-                _ => {
+                }),
+            Ty::Named(n) if n == "StdTimeNs" => std_namespace_method_ty("time", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.time method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "StdLogNs" => match field {
-                "debug" | "info" | "warn" | "error" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
-                _ => {
+                }),
+            Ty::Named(n) if n == "StdLogNs" => std_namespace_method_ty("log", field)
+                .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.log method '{field}'"),
                         span,
                         self.source,
                     ));
                     Ty::Error
-                }
-            },
+                }),
             Ty::Named(n) if n.starts_with("RustCrate::") => {
                 let crate_name = n.trim_start_matches("RustCrate::");
+                let support = classify_rust_crate(crate_name).as_label();
                 self.diags.push(Diagnostic::error(
                     format!(
-                        "Unknown item '{field}' in rust crate '{crate_name}'. Add a wrapper/binding or use supported Vox surfaces."
+                        "Unknown item '{field}' in rust crate '{crate_name}' (support_class: '{support}'). Add a wrapper/binding or use supported Vox surfaces."
                     ),
                     span,
                     self.source,

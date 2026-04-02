@@ -7,6 +7,43 @@
 use crate::types::AgentId;
 
 impl crate::orchestrator::Orchestrator {
+    /// Move one queued task from `from` to `to`, updating locks, affinity, scope, and task assignment.
+    /// Returns `true` if the task was enqueued on `to`. If `to` is missing, re-queues on `from` and returns `false`.
+    pub(crate) fn transfer_queued_task_between_agents(
+        &self,
+        task: crate::types::AgentTask,
+        from: AgentId,
+        to: AgentId,
+    ) -> bool {
+        if from == to {
+            return false;
+        }
+        let task_id = task.id;
+        for path in task.write_files() {
+            self.lock_manager.release(path, from);
+            self.affinity_map.assign(path, to);
+            let mut scope = crate::sync_lock::rw_write(&*self.scope_guard);
+            scope.revoke_file(from, path);
+            scope.assign_file(to, path.clone());
+            let _ = self.lock_manager.try_acquire(
+                path,
+                to,
+                crate::locks::LockKind::Exclusive,
+            );
+        }
+        let agents = crate::sync_lock::rw_read(&*self.agents);
+        if let Some(target_lock) = agents.get(&to) {
+            crate::sync_lock::rw_write(&**target_lock).enqueue(task);
+            crate::sync_lock::rw_write(&*self.task_assignments).insert(task_id, to);
+            true
+        } else if let Some(source_lock) = agents.get(&from) {
+            crate::sync_lock::rw_write(&**source_lock).enqueue(task);
+            false
+        } else {
+            false
+        }
+    }
+
     /// Rebalance tasks across agents using work-stealing.
     ///
     /// Moves tasks from overloaded agents to underloaded ones, respecting file
@@ -89,10 +126,26 @@ impl crate::orchestrator::Orchestrator {
                     if let Some(task) = stolen {
                         if let Some(target_lock) = agents.get(under_id) {
                             let task_id = task.id;
+                            for path in task.write_files() {
+                                // Transfer ownership invariants for moved work.
+                                self.lock_manager.release(path, *over_id);
+                                self.affinity_map.assign(path, *under_id);
+                                let mut scope = crate::sync_lock::rw_write(&*self.scope_guard);
+                                scope.revoke_file(*over_id, path);
+                                scope.assign_file(*under_id, path.clone());
+                                let _ = self.lock_manager.try_acquire(
+                                    path,
+                                    *under_id,
+                                    crate::locks::LockKind::Exclusive,
+                                );
+                            }
                             crate::sync_lock::rw_write(&**target_lock).enqueue(task);
                             crate::sync_lock::rw_write(&*self.task_assignments)
                                 .insert(task_id, *under_id);
                             moved += 1;
+                        } else if let Some(source_lock) = agents.get(over_id) {
+                            // Fail-closed: if target queue vanished, put task back on source.
+                            crate::sync_lock::rw_write(&**source_lock).enqueue(task);
                         }
                     }
                 }
@@ -125,6 +178,7 @@ impl crate::orchestrator::Orchestrator {
     /// - Checks heartbeats and retires zombie dynamic agents.
     /// - Issues auto-continuation tasks for idle agents.
     /// - Triggers urgent-queue rebalance when a single agent exceeds the threshold.
+    /// - Runs persistence degradation outbox prune/retry accounting.
     pub async fn tick(&self) {
         #[cfg(feature = "system-metrics")]
         {
@@ -193,8 +247,27 @@ impl crate::orchestrator::Orchestrator {
             for (&agent_id, queue_lock) in agents.iter() {
                 let mut queue = crate::sync_lock::rw_write(&**queue_lock);
                 let expired = queue.drain_timed_out(task_timeout);
+                let has_remaining_writer =
+                    |path: &std::path::Path, queue: &crate::queue::AgentQueue| -> bool {
+                        queue
+                            .current_task()
+                            .is_some_and(|t| t.write_files().iter().any(|p| p.as_path() == path))
+                            || queue
+                                .tasks()
+                                .iter()
+                                .any(|t| t.write_files().iter().any(|p| p.as_path() == path))
+                    };
                 for task in expired {
                     let age = now_ms.saturating_sub(task.created_at_ms);
+                    crate::sync_lock::rw_write(&*self.task_assignments).remove(&task.id);
+                    for path in task.write_files() {
+                        if !has_remaining_writer(path, &queue) {
+                            self.lock_manager.release(path, agent_id);
+                            self.affinity_map.release(path);
+                            crate::sync_lock::rw_write(&*self.scope_guard)
+                                .revoke_file(agent_id, path);
+                        }
+                    }
                     self.event_bus
                         .emit(crate::events::AgentEventKind::TaskExpired {
                             task_id: task.id,
@@ -322,7 +395,10 @@ impl crate::orchestrator::Orchestrator {
             }
         }
 
-        // 7. News Syndication check
+        // 7. Persistence degradation outbox: prune / retry accounting
+        self.tick_persistence_outbox_lifecycle().await;
+
+        // 8. News Syndication check
         if let Err(e) = crate::services::news::NewsService::tick(self).await {
             tracing::error!("NewsService tick failed: {}", e);
         }

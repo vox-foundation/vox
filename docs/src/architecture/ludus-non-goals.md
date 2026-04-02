@@ -1,3 +1,9 @@
+---
+title: "Ludus: scope and non-goals"
+description: "Defines optional gamification boundaries—never blocking core flows, not a correctness layer, notification/HUD expectations, kill-switch pointers, and legacy gamify_* naming vs Ludus UX."
+category: "architecture"
+---
+
 # Ludus: scope and non-goals
 
 Ludus is **optional** gamification: companions, streaks, light rewards, and teaching hints. It must never block core workflows.

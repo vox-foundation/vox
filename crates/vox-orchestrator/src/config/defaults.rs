@@ -72,6 +72,14 @@ pub(super) fn default_populi_remote_result_poll_interval_secs() -> u64 {
     5
 }
 
+pub(super) fn default_populi_remote_worker_poll_interval_secs() -> u64 {
+    5
+}
+
+pub(super) fn default_populi_remote_result_max_messages_per_poll() -> usize {
+    64
+}
+
 pub(super) fn default_populi_http_timeout_ms() -> u64 {
     10_000
 }
@@ -113,6 +121,9 @@ pub(super) fn default_trust_trusted_threshold() -> u32 {
 }
 pub(super) fn default_trust_auto_approve_min() -> f64 {
     0.85
+}
+pub(super) fn default_trust_gate_relax_min_reliability() -> f64 {
+    default_trust_auto_approve_min()
 }
 pub(super) fn default_attention_trust_routing_weight() -> f64 {
     2.0

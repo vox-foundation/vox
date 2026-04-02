@@ -164,6 +164,7 @@ where
             s.push('}');
             s
         }
+        HirExpr::Try(h) => format!("({})?", emit(h.target.as_ref())),
 
         _ => return None,
     })

@@ -1,6 +1,10 @@
 use crate::hir::{
     HirActivity, HirActor, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
 };
+use crate::rust_interop_support::{
+    RustInteropSemanticsState, RustInteropSupportClass, classify_rust_crate,
+    is_template_managed_app_dependency, semantics_state_for_rust_crate,
+};
 use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::{
     ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
@@ -71,6 +75,76 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnos
             continue;
         }
 
+        let support_class = classify_rust_crate(&r.crate_name);
+        if matches!(support_class, RustInteropSupportClass::InternalRuntimeOnly) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' is classified as '{}' and is primarily a runtime implementation crate; prefer Vox contracts/wrappers instead of direct crate access.",
+                    r.crate_name,
+                    support_class.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        } else if matches!(support_class, RustInteropSupportClass::Deferred) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' is classified as '{}' (high-debt/deferred for first-class support); expect escape-hatch semantics.",
+                    r.crate_name,
+                    support_class.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        } else if matches!(support_class, RustInteropSupportClass::EscapeHatchOnly) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' is classified as '{}' and remains an explicit escape-hatch lane.",
+                    r.crate_name,
+                    support_class.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        }
+
+        let semantics_state = semantics_state_for_rust_crate(&r.crate_name);
+        if matches!(semantics_state, RustInteropSemanticsState::Planned) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' currently has '{}' semantics in the support registry; prefer stable wrappers/contracts where available.",
+                    r.crate_name,
+                    semantics_state.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        }
+
+        if r.version.is_none() && r.path.is_none() && r.git.is_none() {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' has no version/path/git pin and falls back to Cargo '*'; pin dependency metadata for reproducible builds.",
+                    r.crate_name
+                ),
+                r.span,
+                "",
+            ));
+        }
+
+        if is_template_managed_app_dependency(&r.crate_name)
+            && (r.version.is_some() || r.path.is_some() || r.git.is_some() || r.rev.is_some())
+        {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+                    r.crate_name
+                ),
+                r.span,
+                "",
+            ));
+        }
+
         let spec = (
             r.version.clone(),
             r.path.clone(),
@@ -119,6 +193,9 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnos
     }
     for t in &module.mcp_tools {
         register_hir_function(env, &t.func);
+    }
+    for r in &module.mcp_resources {
+        register_hir_function(env, &r.func);
     }
     for a in &module.actors {
         register_hir_actor(env, a);

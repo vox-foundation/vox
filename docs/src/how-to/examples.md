@@ -30,7 +30,7 @@ The most current bell-curve examples live under `examples/golden/` and are inten
 | [Actors (legacy syntax)](#actors) | `examples/archive/legacy_syntax/actor.vox` | **Does not parse** — aspirational `message` / `fn main` |
 | [Durable counter](#durable-counter) | `examples/durable_counter.vox` | `state_load`/`state_save`, `@component`, `routes` |
 | [Workflows](#workflows) | `examples/workflow.vox` | `workflow`, `activity`, `with` |
-| [Durable execution](#durable-execution) | `examples/archive/durable_execution.vox` | Retry/timeout/backoff |
+| [Workflow durability (syntax/archive)](#durable-execution) | `examples/archive/durable_execution.vox` | Retry/timeout/backoff syntax |
 | [MCP tools (legacy syntax)](#mcp-tools) | `examples/archive/legacy_syntax/mcp_tool.vox` | **Does not parse** — `@mcp.tool("…")` form |
 | [AI agents](#ai-agents) | `examples/archive/agent.vox` | `@agent_def`, tools, memory |
 | [Dashboard](#dashboard) | `examples/archive/dashboard.vox` | `@v0`, `@component`, `http`, `routes` |

@@ -2,7 +2,8 @@
 //! Smoke tests for `vox-capability-registry` public API.
 
 use vox_capability_registry::{
-    PopuliExposure, capability_to_openai_function, default_registry, mens_chat_parameters,
+    PopuliExposure, active_vox_cli_paths_from_command_registry_yaml,
+    capability_to_openai_function, default_registry, mens_chat_parameters,
 };
 
 #[test]
@@ -15,13 +16,13 @@ fn default_registry_has_oratio_capabilities() {
     );
     let ids: Vec<&str> = caps.iter().map(|c| c.capability_id.as_str()).collect();
     assert!(
-        ids.contains(&"oratio.transcribe"),
-        "default_registry should expose oratio.transcribe, got: {:?}",
+        ids.contains(&"mcp.vox_oratio_transcribe"),
+        "default_registry should expose mcp.vox_oratio_transcribe, got: {:?}",
         ids
     );
     assert!(
-        ids.contains(&"oratio.status"),
-        "default_registry should expose oratio.status, got: {:?}",
+        ids.contains(&"mcp.vox_oratio_status"),
+        "default_registry should expose mcp.vox_oratio_status, got: {:?}",
         ids
     );
 }
@@ -44,7 +45,7 @@ fn all_auto_exposed_capabilities_have_mcp_tool_name() {
 
 #[test]
 fn mens_chat_parameters_oratio_transcribe_has_path_property() {
-    let params = mens_chat_parameters("oratio.transcribe");
+    let params = mens_chat_parameters("mcp.vox_oratio_transcribe");
     assert_eq!(
         params["type"].as_str().unwrap(),
         "object",
@@ -52,7 +53,7 @@ fn mens_chat_parameters_oratio_transcribe_has_path_property() {
     );
     assert!(
         params["properties"]["path"].is_object(),
-        "oratio.transcribe params must have 'path' property"
+        "mcp.vox_oratio_transcribe params must have 'path' property"
     );
     let required = params["required"].as_array().unwrap();
     assert!(
@@ -63,7 +64,7 @@ fn mens_chat_parameters_oratio_transcribe_has_path_property() {
 
 #[test]
 fn mens_chat_parameters_oratio_status_is_empty_object_schema() {
-    let params = mens_chat_parameters("oratio.status");
+    let params = mens_chat_parameters("mcp.vox_oratio_status");
     assert_eq!(
         params["type"].as_str().unwrap(),
         "object",
@@ -78,6 +79,21 @@ fn mens_chat_parameters_unknown_returns_object_schema() {
         params["type"].as_str().unwrap(),
         "object",
         "unknown capability should return a minimal object schema"
+    );
+}
+
+#[test]
+fn active_cli_paths_filters_vox_cli_active_only() {
+    let yaml = r"
+operations:
+  - { surface: vox-cli, path: [a, b], status: active }
+  - { surface: vox-cli, path: [x], status: retired }
+  - { surface: other, path: [y], status: active }
+";
+    let paths = active_vox_cli_paths_from_command_registry_yaml(yaml).unwrap();
+    assert_eq!(
+        paths,
+        vec![vec!["a".to_string(), "b".to_string()]]
     );
 }
 

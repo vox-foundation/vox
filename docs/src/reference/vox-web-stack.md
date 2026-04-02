@@ -40,6 +40,15 @@ The **VS Code extension** (`vox-vscode/`) is the **Single Source of Truth** for 
 
 Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as first-class product paths. Use **React + Vite + Tailwind/ShadCN + TanStack Router** (→ TanStack Start per [ADR 010](../adr/010-tanstack-web-spine.md)) for all interactive web UI.
 
+## Mobile browser baseline
+
+For mobile support, this web stack is the primary delivery surface for Vox applications.
+
+- Generated app shells must emit a viewport meta tag and mobile-safe root layout defaults.
+- Templates should keep touch ergonomics sane by default (tap-target sizing and responsive spacing in base CSS).
+- Mobile support here means browser compatibility for generated Vox apps, not running the full Vox CLI/runtime on-device.
+- Keep framework/runtime internals behind WebIR/AppContract/RuntimeProjection boundaries when extending mobile behavior.
+
 ## External references (ecosystem)
 
 - [TanStack Router + Vite](https://tanstack.com/router/latest/docs/installation/with-vite)

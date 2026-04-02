@@ -1,3 +1,14 @@
+//! HTTP handlers for Populi join / heartbeat / A2A / exec leases.
+//!
+//! ## `privacy_class` on mesh A2A (`A2ADeliverRequest`, stored on [`A2AStoredMessage`](super::A2AStoredMessage))
+//! Optional string carried with the message; default **`public`** when unset. [`claim_policy_allows_worker`]
+//! gates which workers may **claim** a message for delivery:
+//! - **`public`** (or empty): any eligible worker.
+//! - **`private`** / **`trusted`**: worker must not be `visibility=public`.
+//! - **`trusted_only`**: worker must not be `visibility=public` and must not be `trust_tier=new`.
+//! - **Other values**: treated as permissive (`true`) today — define new classes in mesh docs before relying on them.
+//! This is a **routing / data-plane policy hint**, not Codex `research_metrics`; see trust/taxonomy SSOT for sensitivity classes.
+
 use std::sync::atomic::Ordering;
 
 use axum::Json;
@@ -6,23 +17,36 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use tracing::{info, warn};
 
-use crate::NodeRecord;
+use crate::{
+    MAX_MAINTENANCE_FOR_MS, NodeRecord, node_maintenance_blocks_new_work,
+    sweep_expired_maintenance_on_nodes,
+};
 
 use super::auth::{
     PopuliAuthContext, auth_allows_admin_route, auth_allows_deliver, auth_allows_worker_plane,
     populi_control_token_from_env,
 };
 use super::result_attestation;
-use super::store::{persist_a2a_store, scope_ok};
+use super::store::{persist_a2a_store, persist_exec_lease_store, scope_ok};
 use super::{
     A2AAckRequest, A2ADeliverRequest, A2ADeliverResponse, A2AInboxRequest, A2AInboxResponse,
-    A2ALeaseRenewRequest, A2AStoredMessage, AdminQuarantineRequest, BootstrapExchangeRequest,
-    BootstrapExchangeResponse, LeaveRequest, PopuliRegistryFile, PopuliTransportState,
-    a2a_in_memory_cap, a2a_lease_duration_ms, a2a_sweep_expired_leases, server_stale_prune_ms,
+    A2ALeaseRenewRequest, A2AStoredMessage, AdminExecLeaseRevokeRequest, AdminMaintenanceRequest,
+    AdminQuarantineRequest, BootstrapExchangeRequest, BootstrapExchangeResponse, LeaveRequest,
+    PopuliRegistryFile, PopuliTransportState, RemoteExecLeaseGrantRequest,
+    RemoteExecLeaseGrantResponse, RemoteExecLeaseListItem, RemoteExecLeaseListResponse,
+    RemoteExecLeaseReleaseRequest, RemoteExecLeaseRenewRequest, RemoteExecLeaseRow,
+    a2a_in_memory_cap, a2a_lease_duration_ms, a2a_sweep_expired_leases, exec_lease_sweep,
+    server_stale_prune_ms,
 };
 
 pub(super) async fn health() -> impl IntoResponse {
     (StatusCode::OK, "ok\n")
+}
+
+async fn registry_sweep_maintenance(st: &PopuliTransportState) {
+    let now = crate::now_ms();
+    let mut inner = st.inner.write().await;
+    sweep_expired_maintenance_on_nodes(&mut inner.nodes, now);
 }
 
 pub(super) async fn list_nodes(
@@ -35,6 +59,7 @@ pub(super) async fn list_nodes(
             "populi: worker/mesh/admin token required for node list".into(),
         ));
     }
+    registry_sweep_maintenance(&st).await;
     let mut g = st.inner.read().await.clone();
     if let Some(window) = server_stale_prune_ms() {
         let now = crate::now_ms();
@@ -65,10 +90,16 @@ pub(super) async fn join_node(
     node.quarantined = None;
     node.last_seen_unix_ms = crate::now_ms();
     let mut g = st.inner.write().await;
+    let now = crate::now_ms();
+    sweep_expired_maintenance_on_nodes(&mut g.nodes, now);
     if let Some(i) = g.nodes.iter().position(|n| n.id == node.id) {
         let preserve_q = g.nodes[i].quarantined;
+        let preserve_m = g.nodes[i].maintenance;
+        let preserve_mu = g.nodes[i].maintenance_until_unix_ms;
         g.nodes[i] = node.clone();
         g.nodes[i].quarantined = preserve_q;
+        g.nodes[i].maintenance = preserve_m;
+        g.nodes[i].maintenance_until_unix_ms = preserve_mu;
     } else {
         g.nodes.push(node.clone());
     }
@@ -103,8 +134,14 @@ fn merge_optional_node_fields(target: &mut NodeRecord, src: &NodeRecord) {
     if src.privacy_class.is_some() {
         target.privacy_class = src.privacy_class.clone();
     }
+    if src.maintenance_until_unix_ms.is_some() {
+        target.maintenance_until_unix_ms = src.maintenance_until_unix_ms;
+    }
     if src.maintenance.is_some() {
         target.maintenance = src.maintenance;
+        if target.maintenance != Some(true) {
+            target.maintenance_until_unix_ms = None;
+        }
     }
     if src.provider.is_some() {
         target.provider = src.provider.clone();
@@ -132,11 +169,17 @@ pub(super) async fn heartbeat(
     node.quarantined = None;
     node.last_seen_unix_ms = crate::now_ms();
     let mut g = st.inner.write().await;
+    let now = crate::now_ms();
+    sweep_expired_maintenance_on_nodes(&mut g.nodes, now);
     if let Some(i) = g.nodes.iter().position(|n| n.id == node.id) {
         let preserve_q = g.nodes[i].quarantined;
+        let preserve_m = g.nodes[i].maintenance;
+        let preserve_mu = g.nodes[i].maintenance_until_unix_ms;
         g.nodes[i].last_seen_unix_ms = node.last_seen_unix_ms;
         merge_optional_node_fields(&mut g.nodes[i], &node);
         g.nodes[i].quarantined = preserve_q;
+        g.nodes[i].maintenance = preserve_m;
+        g.nodes[i].maintenance_until_unix_ms = preserve_mu;
         Ok(Json(g.nodes[i].clone()))
     } else {
         g.nodes.push(node.clone());
@@ -220,6 +263,300 @@ pub(super) async fn bootstrap_exchange(
     }))
 }
 
+/// Mesh A2A wire ids: trim, non-empty, ASCII decimal digits only (orchestrator agent id JSON form).
+fn parse_a2a_mesh_agent_id(label: &str, raw: &str) -> Result<String, ResponseErr> {
+    let s = raw.trim();
+    if s.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            format!("populi: {label} required (non-empty decimal digit string)"),
+        ));
+    }
+    if !s.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            format!(
+                "populi: {label} must be a non-empty decimal digit string (orchestrator agent id)"
+            ),
+        ));
+    }
+    Ok(s.to_string())
+}
+
+fn a2a_inbox_limit(requested: Option<usize>) -> usize {
+    requested.unwrap_or(64).clamp(1, 256)
+}
+
+async fn require_claimer_worker_gate(
+    st: &PopuliTransportState,
+    claimer: &str,
+) -> Result<(), ResponseErr> {
+    if claimer.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: claimer_node_id required".into(),
+        ));
+    }
+    registry_sweep_maintenance(st).await;
+    let now = crate::now_ms();
+    let worker = {
+        let reg = st.inner.read().await;
+        reg.nodes.iter().find(|n| n.id == claimer).cloned()
+    };
+    let Some(worker) = worker else {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: unknown claimer_node_id (join node first)".into(),
+        ));
+    };
+    if worker.quarantined == Some(true) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: claimer node is quarantined".into(),
+        ));
+    }
+    if node_maintenance_blocks_new_work(now, &worker) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: claimer node is in maintenance mode".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Like [`require_claimer_worker_gate`] but only verifies the node is registered (join).
+/// Used for **exec lease release** so holders can clear `scope_key` while in maintenance/quarantine.
+async fn require_claimer_node_registered(
+    st: &PopuliTransportState,
+    claimer: &str,
+) -> Result<(), ResponseErr> {
+    if claimer.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: claimer_node_id required".into(),
+        ));
+    }
+    let known = {
+        let reg = st.inner.read().await;
+        reg.nodes.iter().any(|n| n.id == claimer)
+    };
+    if !known {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: unknown claimer_node_id (join node first)".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub(super) async fn exec_lease_grant(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+    Json(req): Json<RemoteExecLeaseGrantRequest>,
+) -> Result<Json<RemoteExecLeaseGrantResponse>, ResponseErr> {
+    if !auth_allows_worker_plane(ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: worker/mesh/admin token required for exec lease grant".into(),
+        ));
+    }
+    let claimer = req.claimer_node_id.trim();
+    let scope_key = req.scope_key.trim().to_string();
+    if scope_key.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: scope_key required (non-empty)".into(),
+        ));
+    }
+    if scope_key.len() > 2048 {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: scope_key exceeds max length (2048)".into(),
+        ));
+    }
+    require_claimer_worker_gate(&st, claimer).await?;
+    let now = crate::now_ms();
+    let lease_ms = a2a_lease_duration_ms();
+    let mut rows = st.exec_leases.write().await;
+    exec_lease_sweep(&mut rows, now);
+    if let Some(idx) = rows.iter().position(|r| r.scope_key == scope_key) {
+        let existing = &rows[idx];
+        if existing.holder_node_id == claimer {
+            rows[idx].expires_unix_ms = now.saturating_add(lease_ms);
+            if let Some(path) = st.exec_lease_store_path.as_ref() {
+                let _ = persist_exec_lease_store(path, &rows);
+            }
+            let out = RemoteExecLeaseGrantResponse {
+                lease_id: rows[idx].lease_id.clone(),
+                scope_key: scope_key.clone(),
+                holder_node_id: claimer.to_string(),
+                expires_unix_ms: rows[idx].expires_unix_ms,
+            };
+            return Ok(Json(out));
+        }
+        return Err(ResponseErr(
+            StatusCode::CONFLICT,
+            "populi: scope_key already leased to another node".into(),
+        ));
+    }
+    let id = st.exec_lease_id_gen.fetch_add(1, Ordering::Relaxed);
+    let lease_id = id.to_string();
+    let expires_unix_ms = now.saturating_add(lease_ms);
+    rows.push(RemoteExecLeaseRow {
+        lease_id: lease_id.clone(),
+        scope_key: scope_key.clone(),
+        holder_node_id: claimer.to_string(),
+        expires_unix_ms,
+    });
+    if let Some(path) = st.exec_lease_store_path.as_ref() {
+        let _ = persist_exec_lease_store(path, &rows);
+    }
+    Ok(Json(RemoteExecLeaseGrantResponse {
+        lease_id,
+        scope_key,
+        holder_node_id: claimer.to_string(),
+        expires_unix_ms,
+    }))
+}
+
+pub(super) async fn exec_lease_renew(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+    Json(req): Json<RemoteExecLeaseRenewRequest>,
+) -> Result<StatusCode, ResponseErr> {
+    if !auth_allows_worker_plane(ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: worker/mesh/admin token required for exec lease renew".into(),
+        ));
+    }
+    let claimer = req.claimer_node_id.trim();
+    let lease_id = req.lease_id.trim();
+    if lease_id.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: lease_id required".into(),
+        ));
+    }
+    require_claimer_worker_gate(&st, claimer).await?;
+    let now = crate::now_ms();
+    let lease_ms = a2a_lease_duration_ms();
+    let mut rows = st.exec_leases.write().await;
+    exec_lease_sweep(&mut rows, now);
+    let Some(pos) = rows.iter().position(|r| r.lease_id == lease_id) else {
+        return Ok(StatusCode::NOT_FOUND);
+    };
+    if rows[pos].holder_node_id != claimer {
+        return Err(ResponseErr(
+            StatusCode::CONFLICT,
+            "populi: exec lease renew only for active lease holder".into(),
+        ));
+    }
+    rows[pos].expires_unix_ms = now.saturating_add(lease_ms);
+    if let Some(path) = st.exec_lease_store_path.as_ref() {
+        let _ = persist_exec_lease_store(path, &rows);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(super) async fn exec_lease_release(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+    Json(req): Json<RemoteExecLeaseReleaseRequest>,
+) -> Result<StatusCode, ResponseErr> {
+    if !auth_allows_worker_plane(ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: worker/mesh/admin token required for exec lease release".into(),
+        ));
+    }
+    let claimer = req.claimer_node_id.trim();
+    let lease_id = req.lease_id.trim();
+    if lease_id.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: lease_id required".into(),
+        ));
+    }
+    require_claimer_node_registered(&st, claimer).await?;
+    let now = crate::now_ms();
+    let mut rows = st.exec_leases.write().await;
+    exec_lease_sweep(&mut rows, now);
+    let Some(pos) = rows.iter().position(|r| r.lease_id == lease_id) else {
+        return Ok(StatusCode::NOT_FOUND);
+    };
+    if rows[pos].holder_node_id != claimer {
+        return Err(ResponseErr(
+            StatusCode::CONFLICT,
+            "populi: exec lease release only for active lease holder".into(),
+        ));
+    }
+    rows.remove(pos);
+    if let Some(path) = st.exec_lease_store_path.as_ref() {
+        let _ = persist_exec_lease_store(path, &rows);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(super) async fn exec_lease_list(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+) -> Result<Json<RemoteExecLeaseListResponse>, ResponseErr> {
+    if !auth_allows_admin_route(ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: mesh/admin bearer required for exec lease list".into(),
+        ));
+    }
+    let now = crate::now_ms();
+    let mut rows = st.exec_leases.write().await;
+    exec_lease_sweep(&mut rows, now);
+    let leases: Vec<RemoteExecLeaseListItem> = rows
+        .iter()
+        .map(|r| RemoteExecLeaseListItem {
+            lease_id: r.lease_id.clone(),
+            scope_key: r.scope_key.clone(),
+            holder_node_id: r.holder_node_id.clone(),
+            expires_unix_ms: r.expires_unix_ms,
+        })
+        .collect();
+    if let Some(path) = st.exec_lease_store_path.as_ref() {
+        let _ = persist_exec_lease_store(path, &rows);
+    }
+    Ok(Json(RemoteExecLeaseListResponse { leases }))
+}
+
+pub(super) async fn admin_exec_lease_revoke(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+    Json(req): Json<AdminExecLeaseRevokeRequest>,
+) -> Result<StatusCode, ResponseErr> {
+    if !auth_allows_admin_route(ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: mesh/admin bearer required for exec lease revoke".into(),
+        ));
+    }
+    let lease_id = req.lease_id.trim();
+    if lease_id.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: lease_id required".into(),
+        ));
+    }
+    let now = crate::now_ms();
+    let mut rows = st.exec_leases.write().await;
+    exec_lease_sweep(&mut rows, now);
+    let Some(pos) = rows.iter().position(|r| r.lease_id == lease_id) else {
+        return Ok(StatusCode::NOT_FOUND);
+    };
+    rows.remove(pos);
+    if let Some(path) = st.exec_lease_store_path.as_ref() {
+        let _ = persist_exec_lease_store(path, &rows);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
 fn claim_policy_allows_worker(worker: &NodeRecord, msg: &A2AStoredMessage) -> bool {
     let privacy = msg
         .privacy_class
@@ -260,6 +597,8 @@ pub(super) async fn deliver_a2a(
             "populi: submitter/mesh/admin token required for a2a/deliver".into(),
         ));
     }
+    let sender_agent_id = parse_a2a_mesh_agent_id("sender_agent_id", &req.sender_agent_id)?;
+    let receiver_agent_id = parse_a2a_mesh_agent_id("receiver_agent_id", &req.receiver_agent_id)?;
     let dh = req
         .payload_blake3_hex
         .as_ref()
@@ -290,10 +629,7 @@ pub(super) async fn deliver_a2a(
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
     {
-        let dedupe = format!(
-            "{}\x1f{}\x1f{}",
-            req.sender_agent_id, req.receiver_agent_id, key
-        );
+        let dedupe = format!("{}\x1f{}\x1f{}", sender_agent_id, receiver_agent_id, key);
         let mut maps = st.mesh_replay.maps().write().await;
         if let Some(&existing) = maps.idempotency.get(&dedupe) {
             return Ok(Json(A2ADeliverResponse {
@@ -307,8 +643,8 @@ pub(super) async fn deliver_a2a(
         st.mesh_replay.persist_if_configured().await;
         let msg = A2AStoredMessage {
             id,
-            sender_agent_id: req.sender_agent_id,
-            receiver_agent_id: req.receiver_agent_id,
+            sender_agent_id,
+            receiver_agent_id,
             message_type: req.message_type,
             payload: req.payload,
             created_unix_ms: crate::now_ms(),
@@ -340,8 +676,8 @@ pub(super) async fn deliver_a2a(
     let id = st.a2a_id_gen.fetch_add(1, Ordering::Relaxed);
     let msg = A2AStoredMessage {
         id,
-        sender_agent_id: req.sender_agent_id,
-        receiver_agent_id: req.receiver_agent_id,
+        sender_agent_id,
+        receiver_agent_id,
         message_type: req.message_type,
         payload: req.payload,
         created_unix_ms: crate::now_ms(),
@@ -397,6 +733,51 @@ pub(super) async fn admin_quarantine(
     }
 }
 
+pub(super) async fn admin_maintenance(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+    Json(req): Json<AdminMaintenanceRequest>,
+) -> Result<StatusCode, ResponseErr> {
+    if !auth_allows_admin_route(ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: mesh/admin bearer required for maintenance".into(),
+        ));
+    }
+    let id = req.node_id.trim();
+    if id.is_empty() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: node_id required".into(),
+        ));
+    }
+    let now = crate::now_ms();
+    let mut g = st.inner.write().await;
+    sweep_expired_maintenance_on_nodes(&mut g.nodes, now);
+    if let Some(i) = g.nodes.iter().position(|n| n.id == id) {
+        if !req.maintenance {
+            g.nodes[i].maintenance = Some(false);
+            g.nodes[i].maintenance_until_unix_ms = None;
+            Ok(StatusCode::NO_CONTENT)
+        } else {
+            let abs = req.maintenance_until_unix_ms.filter(|&u| u > now);
+            let until = if abs.is_some() {
+                abs
+            } else if let Some(rel) = req.maintenance_for_ms.filter(|&m| m > 0) {
+                let capped = rel.min(MAX_MAINTENANCE_FOR_MS);
+                Some(now.saturating_add(capped))
+            } else {
+                None
+            };
+            g.nodes[i].maintenance = Some(true);
+            g.nodes[i].maintenance_until_unix_ms = until;
+            Ok(StatusCode::NO_CONTENT)
+        }
+    } else {
+        Ok(StatusCode::NOT_FOUND)
+    }
+}
+
 pub(super) async fn a2a_lease_renew(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -417,6 +798,7 @@ pub(super) async fn a2a_lease_renew(
             "populi: claimer_node_id required".into(),
         ));
     }
+    registry_sweep_maintenance(&st).await;
     let worker = {
         let reg = st.inner.read().await;
         reg.nodes.iter().find(|n| n.id == claimer).cloned()
@@ -431,6 +813,12 @@ pub(super) async fn a2a_lease_renew(
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: claimer node is quarantined".into(),
+        ));
+    }
+    if node_maintenance_blocks_new_work(now, &worker) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: claimer node is in maintenance mode".into(),
         ));
     }
     let mut g = st.a2a_messages.write().await;
@@ -476,9 +864,17 @@ pub(super) async fn a2a_inbox(
     if claimer.is_none() {
         let mut g = st.a2a_messages.write().await;
         a2a_sweep_expired_leases(&mut g, now);
+        let max_messages = a2a_inbox_limit(req.max_messages);
+        let before = req.before_message_id;
         let messages = g
             .iter()
-            .filter(|m| m.receiver_agent_id == req.receiver_agent_id && !m.acknowledged)
+            .rev()
+            .filter(|m| {
+                m.receiver_agent_id == req.receiver_agent_id
+                    && !m.acknowledged
+                    && before.is_none_or(|cursor| m.id < cursor)
+            })
+            .take(max_messages)
             .cloned()
             .collect();
         if let Some(path) = st.a2a_store_path.as_ref() {
@@ -488,6 +884,7 @@ pub(super) async fn a2a_inbox(
     }
     let claimer = claimer.expect("claimer");
 
+    registry_sweep_maintenance(&st).await;
     let worker = {
         let reg = st.inner.read().await;
         reg.nodes.iter().find(|n| n.id == claimer).cloned()
@@ -504,6 +901,10 @@ pub(super) async fn a2a_inbox(
     };
     if worker.quarantined == Some(true) {
         tracing::debug!(claimer, "populi policy: quarantined worker cannot claim");
+        return Ok(Json(A2AInboxResponse { messages: vec![] }));
+    }
+    if node_maintenance_blocks_new_work(now, &worker) {
+        tracing::debug!(claimer, "populi policy: maintenance worker cannot claim");
         return Ok(Json(A2AInboxResponse { messages: vec![] }));
     }
 

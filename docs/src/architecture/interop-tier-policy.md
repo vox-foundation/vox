@@ -25,6 +25,8 @@ Vox should keep interop predictable by treating foreign capability as a tiered s
 - Tier 3 does not become a substitute for Tier 1 wrapper design.
 - `import rust:...` is Cargo manifest sugar, not a typed interop system.
 - New common integrations should usually land as Tier 1 wrappers, not raw crate access.
+- Runtime-internal crates (for example `tokio`, `axum`, `tower`) remain implementation details behind `WebIR` / `AppContract` / `RuntimeProjection`.
+- High-debt ecosystems (for example broad SQL/ORM families) remain deferred until wrapper abstractions and representative demand justify first-class support.
 
 ## Curated package categories (bell curve)
 
@@ -48,3 +50,14 @@ An approved wrapper should document:
 4. docs page
 5. tests
 6. compatibility and migration policy
+
+## Data-lane graduation criteria
+
+For data crates to graduate from escape hatch/deferred to approved wrappers, all must be true:
+
+1. The `turso+vox-db` lane cannot satisfy representative app/workflow needs.
+2. A narrow Vox wrapper abstraction is specified (not raw ORM/query-builder mirroring).
+3. Cross-target behavior and migration policy are explicit.
+4. Debt-to-value score remains favorable in the Rust ecosystem support registry.
+
+See also: [Rust ecosystem support contract](../reference/rust-ecosystem-support-contract.md).

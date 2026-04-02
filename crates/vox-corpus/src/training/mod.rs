@@ -21,7 +21,7 @@ pub fn timestamp_string() -> String {
 pub fn generate_system_prompt() -> String {
     if let Some(root) = contract::find_workspace_root() {
         let p = root.join("scripts/vox_system_prompt.txt");
-        if let Ok(s) = crate::bounded_fs::read_utf8_path_capped(&p) {
+        if let Ok(s) = vox_bounded_fs::read_utf8_path_capped(&p) {
             let t = s.trim();
             if !t.is_empty() {
                 return t.to_string();

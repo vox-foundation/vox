@@ -72,7 +72,7 @@ impl ZenodoHttpClient {
         Ok(Self {
             base,
             token: t.to_string(),
-            http: reqwest::Client::builder()
+            http: vox_reqwest_defaults::client_builder()
                 .user_agent("vox-publisher/scholarly-zenodo")
                 .build()
                 .map_err(|e| ScholarlyError::Config {

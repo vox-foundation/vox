@@ -1,3 +1,5 @@
+use vox_orchestrator::types::TaskCategory;
+
 /// Heuristics for MCP chat model resolution from the orchestrator registry.
 #[derive(Debug, Clone)]
 pub struct McpChatModelResolution {
@@ -5,6 +7,8 @@ pub struct McpChatModelResolution {
     pub allow_cheapest_fallback: bool,
     /// Task complexity hint (1–10) for registry routing.
     pub complexity: u8,
+    /// Task category hint so MCP and orchestrator selection share the same intent.
+    pub task_category: TaskCategory,
     /// Prefer a free model with large context (ghost text / latency-sensitive paths).
     pub free_tier_latency_critical: bool,
     /// Hint that the workload is fill-in-the-middle (affects free-tier preference).
@@ -20,6 +24,7 @@ impl Default for McpChatModelResolution {
         Self {
             allow_cheapest_fallback: false,
             complexity: 5,
+            task_category: TaskCategory::CodeGen,
             free_tier_latency_critical: false,
             free_tier_fill_in_middle: false,
             enforce_free_tier_only: false,

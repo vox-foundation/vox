@@ -73,7 +73,7 @@ pub enum SecretId {
     OpenAiApiKey,
     AnthropicApiKey,
     HuggingFaceToken,
-    GitHubToken,
+    ForgeToken,
     GroqApiKey,
     CerebrasApiKey,
     MistralApiKey,
@@ -119,6 +119,14 @@ pub enum SecretId {
     VoxCrossrefPlusApiKey,
     /// Shared operator secret acknowledging an arXiv assist / handoff step (optional guardrail).
     VoxArxivAssistHandoffSecret,
+    /// Qdrant `api-key` header for [`vox_search::vector_qdrant`] when using secured / cloud instances.
+    VoxSearchQdrantApiKey,
+    /// Populi API key for remote mens inference.
+    PopuliApiKey,
+    /// HTTPS ingest URL for optional telemetry upload (ADR 023); never default-on.
+    VoxTelemetryUploadUrl,
+    /// Bearer token for telemetry upload (paired with [`SecretId::VoxTelemetryUploadUrl`] when ingest requires auth).
+    VoxTelemetryUploadToken,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -219,14 +227,14 @@ const SPECS: &[SecretSpec] = &[
         remediation: "Set HF_TOKEN if Hugging Face routes are needed.",
     },
     SecretSpec {
-        id: SecretId::GitHubToken,
-        canonical_env: "GITHUB_TOKEN",
-        aliases: &["VOX_GITHUB_TOKEN"],
-        deprecated_aliases: &["GH_TOKEN"],
+        id: SecretId::ForgeToken,
+        canonical_env: "FORGE_TOKEN",
+        aliases: &["VOX_FORGE_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN"],
+        deprecated_aliases: &["GH_TOKEN", "GL_TOKEN"],
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::required_fail(),
-        remediation: "Set GITHUB_TOKEN (or GH_TOKEN) for GitHub API flows.",
+        remediation: "Set FORGE_TOKEN (or GITHUB_TOKEN/GITLAB_TOKEN) for forge API flows.",
     },
     SecretSpec {
         id: SecretId::GroqApiKey,
@@ -377,6 +385,16 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_DB_TOKEN for remote DB use.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSearchQdrantApiKey,
+        canonical_env: "VOX_SEARCH_QDRANT_API_KEY",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SEARCH_QDRANT_API_KEY (or resolve via Clavis) for Qdrant Cloud / authenticated clusters.",
     },
     SecretSpec {
         id: SecretId::VoxMeshToken,
@@ -559,6 +577,36 @@ const SPECS: &[SecretSpec] = &[
         remediation: "Set OPENREVIEW_PASSWORD when OpenReview submission flows are enabled.",
     },
     SecretSpec {
+        id: SecretId::PopuliApiKey,
+        canonical_env: "POPULI_API_KEY",
+        aliases: &["VOX_POPULI_API_KEY"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set POPULI_API_KEY if needed by remote mens endpoint.",
+    },
+    SecretSpec {
+        id: SecretId::VoxTelemetryUploadUrl,
+        canonical_env: "VOX_TELEMETRY_UPLOAD_URL",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_TELEMETRY_UPLOAD_URL only when intentionally using `vox telemetry upload` (see ADR 023).",
+    },
+    SecretSpec {
+        id: SecretId::VoxTelemetryUploadToken,
+        canonical_env: "VOX_TELEMETRY_UPLOAD_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_TELEMETRY_UPLOAD_TOKEN when your telemetry ingest requires bearer auth.",
+    },
+    SecretSpec {
         id: SecretId::VoxCrossrefPlusApiKey,
         canonical_env: "CROSSREF_PLUS_API_KEY",
         aliases: &["VOX_CROSSREF_PLUS_API_KEY"],
@@ -649,7 +697,7 @@ pub fn requirements_for_profile_mode(
             RequirementMode::Cloud => vec![RequirementSet::AllOf(CHAT_CLOUD_PRIMARY)],
         },
         Workflow::Publish | Workflow::Review => {
-            vec![RequirementSet::AllOf(&[SecretId::GitHubToken])]
+            vec![RequirementSet::AllOf(&[SecretId::ForgeToken])]
         }
         Workflow::DbRemote => vec![RequirementSet::AllOf(&[
             SecretId::VoxDbUrl,
@@ -664,7 +712,7 @@ pub fn requirements_for_profile_mode(
     };
 
     if matches!(profile, Profile::Ci) && matches!(workflow, Workflow::Chat | Workflow::Mcp) {
-        blocking.push(RequirementSet::AllOf(&[SecretId::GitHubToken]));
+        blocking.push(RequirementSet::AllOf(&[SecretId::ForgeToken]));
     }
 
     let optional = match workflow {
@@ -701,7 +749,7 @@ pub fn requirements_for_bundle(bundle: SecretBundle) -> WorkflowRequirements {
             optional: vec![SecretId::TogetherApiKey],
         },
         SecretBundle::PublishReview => WorkflowRequirements {
-            blocking: vec![RequirementSet::AllOf(&[SecretId::GitHubToken])],
+            blocking: vec![RequirementSet::AllOf(&[SecretId::ForgeToken])],
             optional: vec![],
         },
         SecretBundle::MeshRoles => WorkflowRequirements {
@@ -736,7 +784,7 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         SecretId::VoxRunpodApiKey | SecretId::VoxVastApiKey | SecretId::TogetherApiKey => {
             &[Capability::GpuCloud]
         }
-        SecretId::GitHubToken => &[Capability::PublishReview],
+        SecretId::ForgeToken => &[Capability::PublishReview],
         SecretId::VoxDbUrl | SecretId::VoxDbToken => &[Capability::DbRemote],
         SecretId::VoxMeshToken
         | SecretId::VoxMeshWorkerToken
@@ -758,8 +806,12 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         SecretId::VoxZenodoAccessToken
         | SecretId::VoxOpenReviewEmail
         | SecretId::VoxOpenReviewPassword
-        | SecretId::VoxCrossrefPlusApiKey
+        |         SecretId::VoxCrossrefPlusApiKey
         | SecretId::VoxArxivAssistHandoffSecret => &[Capability::ScholarlyPublication],
+        SecretId::VoxSearchQdrantApiKey
+        | SecretId::PopuliApiKey
+        | SecretId::VoxTelemetryUploadUrl
+        | SecretId::VoxTelemetryUploadToken => &[Capability::AuxTools],
     }
 }
 

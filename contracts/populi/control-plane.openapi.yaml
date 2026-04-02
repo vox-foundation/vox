@@ -1,0 +1,762 @@
+openapi: 3.0.3
+info:
+  title: Vox populi control plane
+  description: |
+    HTTP API for populi node registry and A2A relay endpoints (extension-first `/v1` only).
+    Bearer auth is optional; `GET /health` and `POST /v1/populi/bootstrap/exchange` are never authenticated.
+    When any mesh secret is set on the server (`VOX_MESH_TOKEN` and/or role tokens via Clavis), clients must
+    present a matching `Authorization: Bearer`. Responses may include `x-populi-feature` (additive rollout hints).
+    See `docs/src/reference/populi.md`.
+  version: 1.0.0
+
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok\n"
+
+  /v1/populi/nodes:
+    get:
+      summary: List registered nodes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Registry snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopuliRegistryFile"
+        "401":
+          description: Missing or invalid bearer when server requires token
+
+  /v1/populi/join:
+    post:
+      summary: Upsert a node (requires matching scope_id when server enforces VOX_MESH_SCOPE_ID)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeRecord"
+      responses:
+        "200":
+          description: Accepted node record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeRecord"
+        "401":
+          description: Unauthorized
+        "403":
+          description: scope_id mismatch
+
+  /v1/populi/heartbeat:
+    post:
+      summary: Refresh last_seen (and optional listen_addr)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeRecord"
+      responses:
+        "200":
+          description: Updated node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeRecord"
+        "401":
+          description: Unauthorized
+        "403":
+          description: scope_id mismatch
+
+  /v1/populi/leave:
+    post:
+      summary: Remove a node by id
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveRequest"
+      responses:
+        "204":
+          description: Removed
+        "404":
+          description: Unknown node id
+        "401":
+          description: Unauthorized
+
+  /v1/populi/a2a/deliver:
+    post:
+      summary: Persist an A2A message for the receiver inbox
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/A2ADeliverRequest"
+      responses:
+        "200":
+          description: Accepted delivery envelope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/A2ADeliverResponse"
+        "401":
+          description: Unauthorized
+
+  /v1/populi/a2a/inbox:
+    post:
+      summary: Fetch unacknowledged A2A messages for a receiver
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/A2AInboxRequest"
+      responses:
+        "200":
+          description: Current pending inbox entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/A2AInboxResponse"
+        "401":
+          description: Unauthorized
+
+  /v1/populi/a2a/ack:
+    post:
+      summary: Acknowledge one A2A message
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/A2AAckRequest"
+      responses:
+        "204":
+          description: Message acknowledged
+        "404":
+          description: Unknown message id for receiver
+        "401":
+          description: Unauthorized
+
+  /v1/populi/a2a/lease-renew:
+    post:
+      summary: Extend an active inbox lease held by claimer_node_id
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/A2ALeaseRenewRequest"
+      responses:
+        "204":
+          description: Lease extended
+        "400":
+          description: Bad request (missing ids)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Unknown claimer or quarantined/maintenance node
+        "404":
+          description: Message not found
+        "409":
+          description: Not the lease holder
+
+  /v1/populi/admin/quarantine:
+    post:
+      summary: Set NodeRecord quarantine (mesh/admin bearer only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminQuarantineRequest"
+      responses:
+        "204":
+          description: Updated
+        "401":
+          description: Unauthorized
+        "403":
+          description: Insufficient role
+        "404":
+          description: Unknown node id
+
+  /v1/populi/admin/maintenance:
+    post:
+      summary: Set NodeRecord maintenance mode (mesh/admin bearer only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMaintenanceRequest"
+      responses:
+        "204":
+          description: Updated
+        "401":
+          description: Unauthorized
+        "403":
+          description: Insufficient role
+        "404":
+          description: Unknown node id
+
+  /v1/populi/admin/exec-lease/revoke:
+    post:
+      summary: Remove a remote execution lease by lease_id (operator; mesh/admin bearer only)
+      description: >-
+        Deletes the lease row without requiring the holder to call release. Use when a worker is
+        stuck or partitioned. Returns 404 if the id is unknown or the row was already expired/swept.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminExecLeaseRevokeRequest"
+      responses:
+        "204":
+          description: Lease row removed
+        "400":
+          description: Missing lease_id
+        "401":
+          description: Unauthorized
+        "403":
+          description: Insufficient role (worker/submitter tokens cannot revoke)
+        "404":
+          description: Unknown lease id (or expired)
+
+  /v1/populi/bootstrap/exchange:
+    post:
+      summary: Exchange one-time bootstrap token for mesh credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BootstrapExchangeRequest"
+      responses:
+        "200":
+          description: Bootstrap exchange granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapExchangeResponse"
+        "404":
+          description: Bootstrap exchange not enabled
+        "410":
+          description: Bootstrap token expired or already consumed
+        "401":
+          description: Invalid bootstrap token
+
+  /v1/populi/exec/lease/grant:
+    post:
+      summary: Grant or refresh a remote execution lease (correlation id for a scope_key)
+      description: >-
+        In-memory control-plane lease distinct from A2A inbox row leases. One active lease per
+        scope_key; same holder may call grant again to extend. TTL matches VOX_MESH_A2A_LEASE_MS
+        (same default/clamp as inbox claimer leases). Not persisted across process restart.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoteExecLeaseGrantRequest"
+      responses:
+        "200":
+          description: Lease granted or extended for this holder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteExecLeaseGrantResponse"
+        "400":
+          description: Missing scope_key or claimer_node_id
+        "401":
+          description: Unauthorized
+        "403":
+          description: Unknown claimer_node_id, quarantined, or maintenance node
+        "409":
+          description: scope_key already leased to another node
+
+  /v1/populi/exec/leases:
+    get:
+      summary: List active remote execution leases (mesh/admin bearer; expiry sweep applied server-side)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Non-expired leases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteExecLeaseListResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Mesh or admin bearer required
+
+  /v1/populi/exec/lease/renew:
+    post:
+      summary: Extend an active remote execution lease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoteExecLeaseRenewRequest"
+      responses:
+        "204":
+          description: Lease extended
+        "400":
+          description: Bad request (missing lease_id or claimer_node_id)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Unknown claimer or quarantined/maintenance node
+        "404":
+          description: Unknown lease_id or expired (swept)
+        "409":
+          description: Not the lease holder
+
+  /v1/populi/exec/lease/release:
+    post:
+      summary: Release a remote execution lease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoteExecLeaseReleaseRequest"
+      responses:
+        "204":
+          description: Released
+        "400":
+          description: Bad request (missing lease_id or claimer_node_id)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Unknown claimer or quarantined/maintenance node
+        "404":
+          description: Unknown lease_id or expired (swept)
+        "409":
+          description: Not the lease holder
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+
+  schemas:
+    A2ADeliverRequest:
+      type: object
+      required: [sender_agent_id, receiver_agent_id, message_type, payload]
+      properties:
+        sender_agent_id:
+          type: string
+          pattern: "^[0-9]+$"
+          description: >-
+            Orchestrator agent id as decimal digits. The server trims ASCII whitespace before
+            validating; clients should send the canonical digit string (pattern applies after trim).
+        receiver_agent_id:
+          type: string
+          pattern: "^[0-9]+$"
+          description: Same as sender_agent_id.
+        message_type:
+          type: string
+        payload:
+          type: string
+        idempotency_key:
+          type: string
+          nullable: true
+          description: >-
+            When set to a non-empty value (after trim), duplicate delivers for the same sender,
+            receiver, and key return the same message_id while the row is pending. When omitted,
+            each request allocates a new message_id; the server does not infer a default key.
+        privacy_class:
+          type: string
+          nullable: true
+          description: Optional claim policy hint (`public`, `private`, `trusted`, `trusted_only`, ...).
+        payload_blake3_hex:
+          type: string
+          nullable: true
+          description: Optional 64-hex BLAKE3 digest of UTF-8 payload (`job_result` / `job_fail` attestations).
+        worker_ed25519_sig_b64:
+          type: string
+          nullable: true
+          description: Optional Standard base64 Ed25519 signature over the raw 32-byte BLAKE3 digest.
+
+    A2ADeliverResponse:
+      type: object
+      required: [accepted, message_id]
+      properties:
+        accepted:
+          type: boolean
+        message_id:
+          type: integer
+          format: int64
+
+    A2AStoredMessage:
+      type: object
+      required:
+        [
+          id,
+          sender_agent_id,
+          receiver_agent_id,
+          message_type,
+          payload,
+          created_unix_ms,
+          acknowledged,
+        ]
+      properties:
+        id:
+          type: integer
+          format: int64
+        sender_agent_id:
+          type: string
+          pattern: "^[0-9]+$"
+          description: Decimal digit string (matches deliver request normalization).
+        receiver_agent_id:
+          type: string
+          pattern: "^[0-9]+$"
+          description: Decimal digit string (matches deliver request normalization).
+        message_type:
+          type: string
+        payload:
+          type: string
+        created_unix_ms:
+          type: integer
+          format: int64
+        acknowledged:
+          type: boolean
+        lease_holder_node_id:
+          type: string
+          nullable: true
+        lease_expires_unix_ms:
+          type: integer
+          format: int64
+          nullable: true
+        privacy_class:
+          type: string
+          nullable: true
+        idempotency_dedupe_key:
+          type: string
+          nullable: true
+        payload_blake3_hex:
+          type: string
+          nullable: true
+        worker_ed25519_sig_b64:
+          type: string
+          nullable: true
+
+    A2AInboxRequest:
+      type: object
+      required: [receiver_agent_id]
+      properties:
+        receiver_agent_id:
+          type: string
+        claimer_node_id:
+          type: string
+          nullable: true
+          description: When set, return at most one claimable row and refresh its inbox lease for this node id.
+        max_messages:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Optional cap for non-claimer inbox fetches (server clamps to safe bounds; rows returned newest-first).
+        before_message_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional pagination cursor for non-claimer inbox fetches (`id < before_message_id`, newest-first pages).
+
+    A2AInboxResponse:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/A2AStoredMessage"
+
+    A2AAckRequest:
+      type: object
+      required: [receiver_agent_id, message_id]
+      properties:
+        receiver_agent_id:
+          type: string
+        message_id:
+          type: integer
+          format: int64
+
+    A2ALeaseRenewRequest:
+      type: object
+      required: [receiver_agent_id, message_id, claimer_node_id]
+      properties:
+        receiver_agent_id:
+          type: string
+        message_id:
+          type: integer
+          format: int64
+        claimer_node_id:
+          type: string
+
+    RemoteExecLeaseGrantRequest:
+      type: object
+      required: [claimer_node_id, scope_key]
+      properties:
+        claimer_node_id:
+          type: string
+          description: Node id (must be joined); trimmed by server.
+        scope_key:
+          type: string
+          maxLength: 2048
+          description: >-
+            Opaque key for the leased resource (e.g. workflow run + step). Trimmed; must be non-empty.
+
+    RemoteExecLeaseGrantResponse:
+      type: object
+      required: [lease_id, scope_key, holder_node_id, expires_unix_ms]
+      properties:
+        lease_id:
+          type: string
+          pattern: "^[1-9][0-9]*$"
+          description: Server-issued decimal lease id (correlation handle for renew/release).
+        scope_key:
+          type: string
+        holder_node_id:
+          type: string
+        expires_unix_ms:
+          type: integer
+          format: int64
+
+    RemoteExecLeaseRenewRequest:
+      type: object
+      required: [lease_id, claimer_node_id]
+      properties:
+        lease_id:
+          type: string
+        claimer_node_id:
+          type: string
+
+    RemoteExecLeaseReleaseRequest:
+      type: object
+      required: [lease_id, claimer_node_id]
+      properties:
+        lease_id:
+          type: string
+        claimer_node_id:
+          type: string
+
+    RemoteExecLeaseListItem:
+      type: object
+      required: [lease_id, scope_key, holder_node_id, expires_unix_ms]
+      properties:
+        lease_id:
+          type: string
+        scope_key:
+          type: string
+        holder_node_id:
+          type: string
+        expires_unix_ms:
+          type: integer
+          format: int64
+
+    RemoteExecLeaseListResponse:
+      type: object
+      required: [leases]
+      properties:
+        leases:
+          type: array
+          items:
+            $ref: "#/components/schemas/RemoteExecLeaseListItem"
+
+    AdminQuarantineRequest:
+      type: object
+      required: [node_id, quarantined]
+      properties:
+        node_id:
+          type: string
+        quarantined:
+          type: boolean
+
+    AdminMaintenanceRequest:
+      type: object
+      required: [node_id, maintenance]
+      properties:
+        node_id:
+          type: string
+        maintenance:
+          type: boolean
+        maintenance_until_unix_ms:
+          type: integer
+          format: int64
+          description: When maintenance is true, auto-clear drain at this Unix ms (optional)
+        maintenance_for_ms:
+          type: integer
+          format: int64
+          description: When maintenance is true and until is unset, server sets deadline to now + min(this, max policy) ms
+
+    AdminExecLeaseRevokeRequest:
+      type: object
+      required: [lease_id]
+      properties:
+        lease_id:
+          type: string
+          description: Value returned by exec lease grant
+
+    BootstrapExchangeRequest:
+      type: object
+      required: [bootstrap_token]
+      properties:
+        bootstrap_token:
+          type: string
+
+    BootstrapExchangeResponse:
+      type: object
+      required: [mesh_token]
+      properties:
+        mesh_token:
+          type: string
+        scope_id:
+          type: string
+          nullable: true
+
+    LeaveRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: Node id to remove
+
+    TaskCapabilityHints:
+      type: object
+      description: Orchestrator capability hints (see vox-orchestrator contract)
+      additionalProperties: true
+
+    NodeRecord:
+      type: object
+      required: [id, capabilities, version, last_seen_unix_ms]
+      properties:
+        id:
+          type: string
+        capabilities:
+          $ref: "#/components/schemas/TaskCapabilityHints"
+        listen_addr:
+          type: string
+          nullable: true
+        version:
+          type: string
+        last_seen_unix_ms:
+          type: integer
+          format: int64
+        scope_id:
+          type: string
+          nullable: true
+          description: Must match server VOX_MESH_SCOPE_ID when server enforces scope
+        visibility:
+          type: string
+          nullable: true
+        pool_id:
+          type: string
+          nullable: true
+        trust_tier:
+          type: string
+          nullable: true
+        workload_classes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        privacy_class:
+          type: string
+          nullable: true
+        maintenance:
+          type: boolean
+          nullable: true
+        maintenance_until_unix_ms:
+          type: integer
+          format: int64
+          nullable: true
+          description: When maintenance is true, drain clears at this Unix ms (server-enforced)
+        provider:
+          type: string
+          nullable: true
+          description: Optional hybrid tag (e.g. runpod/vast synthetic worker)
+        gpu_total_count:
+          type: integer
+          format: int32
+          nullable: true
+          description: Optional total GPU device count when inventory is probe-backed.
+        gpu_healthy_count:
+          type: integer
+          format: int32
+          nullable: true
+          description: Optional healthy GPU device count when inventory is probe-backed.
+        gpu_allocatable_count:
+          type: integer
+          format: int32
+          nullable: true
+          description: Optional allocatable GPU count after local reservations (ADR 018 Layer B).
+        gpu_inventory_source:
+          type: string
+          nullable: true
+          description: Optional provenance for GPU inventory (`probed`, `advertised`, etc.).
+        gpu_truth_layer:
+          type: string
+          nullable: true
+          description: Truth layer marker (`layer_a_verified`, `layer_b_allocatable`, `layer_c_advertised`).
+        quarantined:
+          type: boolean
+          nullable: true
+          description: When true, server rejects new A2A claims for this node
+
+    PopuliRegistryFile:
+      type: object
+      required: [schema_version, nodes]
+      properties:
+        schema_version:
+          type: integer
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/NodeRecord"

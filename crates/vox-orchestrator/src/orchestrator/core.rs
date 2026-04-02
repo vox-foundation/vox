@@ -25,9 +25,11 @@ impl crate::orchestrator::Orchestrator {
             context_store: std::sync::Arc::new(std::sync::RwLock::new(
                 crate::context::ContextStore::new(),
             )),
-            budget_manager: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::budget::BudgetManager::new(),
-            )),
+            budget_manager: std::sync::Arc::new(std::sync::RwLock::new({
+                let bm = crate::budget::BudgetManager::new();
+                bm.init_attention(config.attention_budget_ms);
+                bm
+            })),
             summary_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 crate::summary::SummaryManager::new(),
             )),
@@ -51,6 +53,8 @@ impl crate::orchestrator::Orchestrator {
             dynamic_agents: std::sync::Arc::new(std::sync::RwLock::new(
                 std::collections::HashSet::new(),
             )),
+            agent_delegations: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
+            dynamic_spawn_context: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
             agent_handles: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
             heartbeat_monitor: std::sync::Arc::new(std::sync::RwLock::new(
                 crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms),
@@ -90,9 +94,11 @@ impl crate::orchestrator::Orchestrator {
             context_store: std::sync::Arc::new(std::sync::RwLock::new(
                 crate::context::ContextStore::new(),
             )),
-            budget_manager: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::budget::BudgetManager::new(),
-            )),
+            budget_manager: std::sync::Arc::new(std::sync::RwLock::new({
+                let bm = crate::budget::BudgetManager::new();
+                bm.init_attention(config.attention_budget_ms);
+                bm
+            })),
             summary_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 crate::summary::SummaryManager::new(),
             )),
@@ -116,6 +122,8 @@ impl crate::orchestrator::Orchestrator {
             dynamic_agents: std::sync::Arc::new(std::sync::RwLock::new(
                 std::collections::HashSet::new(),
             )),
+            agent_delegations: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
+            dynamic_spawn_context: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
             agent_handles: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
             heartbeat_monitor: std::sync::Arc::new(std::sync::RwLock::new(
                 crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms),
@@ -183,6 +191,15 @@ impl crate::orchestrator::Orchestrator {
         crate::sync_lock::rw_read(&*self.db).clone()
     }
 
+    /// Laplace-smoothed task reliability from Codex `agent_reliability`, when DB is attached.
+    pub fn lookup_agent_reliability_sync(&self, agent_id: crate::types::AgentId) -> Option<f64> {
+        let db = self.db()?;
+        let sid = agent_id.0.to_string();
+        db.block_on(async { db.get_agent_reliability(&sid).await })
+            .ok()
+            .flatten()
+    }
+
     /// Update the global activity timestamp.
     pub fn record_activity(&self) {
         self.last_activity_ms.store(
@@ -225,7 +242,7 @@ impl crate::orchestrator::Orchestrator {
     ///
     /// This is the **single integration point** for cost/token tracking. Call it after every
     /// LLM API response; do not scatter individual updates across subsystems.
-    pub fn record_ai_usage(
+    pub async fn record_ai_usage(
         &self,
         agent_id: AgentId,
         provider: impl Into<String> + Clone,
@@ -260,14 +277,29 @@ impl crate::orchestrator::Orchestrator {
             budget.record_cost(agent_id, cost_usd);
         }
 
-        crate::sync_lock::rw_write(&*self.oplog).record_ai_call(
-            agent_id,
-            &provider_str,
-            &model_str,
-            input_tokens,
-            output_tokens,
-            cost_usd,
-        );
+        let (op_id, entry_meta) = {
+            let mut oplog = crate::sync_lock::rw_write(&*self.oplog);
+            let op_id = oplog.record_ai_call(
+                agent_id,
+                &provider_str,
+                &model_str,
+                input_tokens,
+                output_tokens,
+                cost_usd,
+            );
+            let entry_meta = oplog.get(op_id).map(|entry| {
+                (
+                    entry.kind.clone(),
+                    entry.description.clone(),
+                    entry.predecessor_hash.clone(),
+                    entry.model_id.clone(),
+                    entry.change_id,
+                    entry.timestamp_ms,
+                )
+            });
+            (op_id, entry_meta)
+        };
+        self.persist_oplog_entry(agent_id, op_id, entry_meta).await;
 
         tracing::debug!(
             "AI usage recorded: agent={} {}/{} in={} out={} cost=${:.6}",

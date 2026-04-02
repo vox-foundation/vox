@@ -1,4 +1,6 @@
-use crate::builtin_registry::builtin_registry_entries;
+use crate::builtin_registry::{
+    builtin_entry_param_tys, builtin_entry_result_ty, builtin_registry_entries,
+};
 use crate::typeck::env::{AdtDef, Binding, BindingKind, TypeEnv, VariantDef};
 use crate::typeck::ty::Ty;
 
@@ -139,7 +141,8 @@ impl BuiltinTypes {
         );
 
         // std — namespace for `std.fs.*`, `std.path.*`, `std.env.*`, `std.process.*`,
-        // `std.json.*`, `std.crypto.*`, `std.time.*`, `std.log.*`, and direct hash/time helpers.
+        // `std.json.*`, `std.http.*`, `std.crypto.*`, `std.time.*`, `std.log.*`,
+        // and direct hash/time helpers.
         env.define(
             "std".into(),
             Binding {
@@ -310,6 +313,17 @@ impl BuiltinTypes {
             },
         );
 
+        // Chromium/CDP browser module (native runtime only).
+        env.define(
+            "Browser".into(),
+            Binding {
+                ty: Ty::Named("BrowserModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // ── Method registrations ──────────────────────────────
 
         // List methods
@@ -398,20 +412,34 @@ impl BuiltinTypes {
         let mut openclaw_methods = std::collections::HashMap::new();
         for entry in builtin_registry_entries()
             .iter()
+            .copied()
             .filter(|e| e.namespace == "OpenClaw")
         {
-            let params = match entry.arg_count {
-                0 => vec![],
-                1 => vec![Ty::Str],
-                2 => vec![Ty::Str, Ty::Str],
-                _ => continue,
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
             };
             openclaw_methods.insert(
                 entry.name.to_string(),
-                Ty::Fn(params, Box::new(Ty::Result(Box::new(Ty::Str)))),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
             );
         }
         methods.insert("OpenClawModule".into(), openclaw_methods);
+
+        let mut browser_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "Browser")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            browser_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("BrowserModule".into(), browser_methods);
 
         // Request methods
         let mut req_methods = std::collections::HashMap::new();

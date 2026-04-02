@@ -1,7 +1,7 @@
 //! Unified trust observation + rollup persistence for multi-dimensional reliability.
 
-use turso::params;
 use serde::{Deserialize, Serialize};
+use turso::params;
 
 use crate::store::{StoreError, TrustRollupEntry};
 
@@ -40,6 +40,27 @@ pub struct TrustObservationInput<'a> {
     pub artifact_ref: Option<&'a str>,
     pub metadata_json: Option<&'a str>,
     pub ewma_alpha: f64,
+}
+
+/// One raw trust observation row from `trust_observations`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustObservationEntry {
+    pub id: i64,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub dimension: String,
+    pub domain: String,
+    pub task_class: String,
+    pub provider: String,
+    pub model_id: String,
+    pub repository_id: String,
+    pub source_kind: String,
+    pub observation_value: f64,
+    pub confidence_weight: f64,
+    pub sample_size: i64,
+    pub artifact_ref: Option<String>,
+    pub metadata_json: Option<String>,
+    pub created_at_ms: i64,
 }
 
 impl<'a> TrustObservationInput<'a> {
@@ -436,6 +457,68 @@ impl crate::VoxDb {
         }
         Ok(out)
     }
+
+    /// List raw trust observations for forensic workflows.
+    pub async fn list_trust_observations(
+        &self,
+        entity_type: Option<&str>,
+        dimension: Option<&str>,
+        domain: Option<&str>,
+        repository_id: Option<&str>,
+        artifact_ref: Option<&str>,
+        since_ms: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<TrustObservationEntry>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, entity_type, entity_id, dimension, domain, task_class, provider, model_id,
+                        repository_id, source_kind, observation_value, confidence_weight, sample_size,
+                        artifact_ref, metadata_json, created_at_ms
+                 FROM trust_observations
+                 WHERE (?1 IS NULL OR entity_type = ?1)
+                   AND (?2 IS NULL OR dimension = ?2)
+                   AND (?3 IS NULL OR domain = ?3)
+                   AND (?4 IS NULL OR repository_id = ?4)
+                   AND (?5 IS NULL OR artifact_ref = ?5)
+                   AND (?6 IS NULL OR created_at_ms >= ?6)
+                 ORDER BY created_at_ms DESC, id DESC
+                 LIMIT ?7",
+                params![
+                    entity_type,
+                    dimension,
+                    domain,
+                    repository_id,
+                    artifact_ref,
+                    since_ms,
+                    lim
+                ],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(TrustObservationEntry {
+                id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                entity_type: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                entity_id: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                dimension: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                domain: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                task_class: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                provider: row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                model_id: row.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+                repository_id: row.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
+                source_kind: row.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
+                observation_value: row.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
+                confidence_weight: row.get(11).map_err(|e| StoreError::Db(e.to_string()))?,
+                sample_size: row.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
+                artifact_ref: row.get(13).map_err(|e| StoreError::Db(e.to_string()))?,
+                metadata_json: row.get(14).map_err(|e| StoreError::Db(e.to_string()))?,
+                created_at_ms: row.get(15).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
+    }
 }
 
 #[cfg(all(test, feature = "local"))]
@@ -444,9 +527,7 @@ mod tests {
 
     #[tokio::test]
     async fn trust_observation_upserts_rollup() {
-        let db = VoxDb::connect(DbConfig::Memory)
-            .await
-            .expect("memory db");
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
         db.record_trust_observation(crate::TrustObservationInput {
             entity_type: "agent",
             entity_id: "7",
@@ -487,7 +568,13 @@ mod tests {
         .expect("update trust");
 
         let rows = db
-            .list_trust_rollups(Some("agent"), Some("task_completion"), Some("single_shot"), None, 20)
+            .list_trust_rollups(
+                Some("agent"),
+                Some("task_completion"),
+                Some("single_shot"),
+                None,
+                20,
+            )
             .await
             .expect("list trust");
         assert_eq!(rows.len(), 1);

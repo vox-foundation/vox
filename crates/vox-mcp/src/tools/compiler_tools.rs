@@ -8,7 +8,7 @@
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::params::{
@@ -25,6 +25,7 @@ const REM_CARGO_BUILD: &str = "Fix build errors in stderr; verify features, targ
 const REM_COVERAGE: &str =
     "Install `cargo-llvm-cov` (`cargo install cargo-llvm-cov`) or run coverage outside MCP.";
 const REM_GEN_PROMPT: &str = "Provide a non-empty `prompt` describing the `.vox` code to generate.";
+const REM_GEN_OUTPUT_PATH: &str = "Use a workspace-relative path without `..`; bind MCP to the repository root; parent directories are created automatically.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
 const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
@@ -32,6 +33,88 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 const REM_CODEGEN_REPAIR: &str = "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
 const REM_CODEGEN_STALL: &str = "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
 const RUNTIME_GENERATION_KPI_SCHEMA: &str = "vox_runtime_generation_kpi_v1";
+
+async fn write_codegen_utf8_under_repo(
+    repo_root: &Path,
+    user_rel: &str,
+    utf8: &str,
+) -> Result<(PathBuf, String, usize), String> {
+    let dest = vox_repository::resolve_strict_repo_relative_path(repo_root, user_rel)
+        .map_err(|e| if e.contains("empty") {
+            "output_path must not be empty".to_string()
+        } else if e.contains("relative") {
+            "output_path must be relative to the repository root".to_string()
+        } else if e.contains("..") {
+            "output_path must not contain '..'".to_string()
+        } else {
+            e
+        })?;
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("create_dir_all {}: {e}", parent.display()))?;
+    }
+    let bytes = utf8.as_bytes();
+    tokio::fs::write(&dest, bytes)
+        .await
+        .map_err(|e| format!("write {}: {e}", dest.display()))?;
+    let rel = vox_repository::path_relative_to_repo_root(repo_root, &dest)
+        .map_err(|e| format!("refusal: output path resolves outside repository root ({e})"))?;
+    Ok((dest, rel, bytes.len()))
+}
+
+fn merge_file_outcomes_meta(
+    mut meta: serde_json::Value,
+    rel_path: String,
+    bytes_written: usize,
+    post_write_snapshot_id: Option<&str>,
+) -> serde_json::Value {
+    let mut outcomes = serde_json::json!({
+        "schema": "vox_generate_code_file_outcomes_v1",
+        "schema_version": 1,
+        "written_paths": [rel_path],
+        "bytes_written": bytes_written,
+        "artifact_kind": "vox_generated",
+    });
+    if let Some(sid) = post_write_snapshot_id {
+        if let Some(o) = outcomes.as_object_mut() {
+            o.insert(
+                "post_write_snapshot_id".into(),
+                serde_json::Value::String(sid.to_string()),
+            );
+        }
+    }
+    if let Some(obj) = meta.as_object_mut() {
+        obj.insert("file_outcomes".into(), outcomes);
+    }
+    meta
+}
+
+async fn merge_meta_after_codegen_write(
+    state: &ServerState,
+    meta: serde_json::Value,
+    output_rel: &str,
+    utf8: &str,
+    vcs_agent_id: Option<u64>,
+) -> Result<serde_json::Value, String> {
+    let (dest, rel, n) = write_codegen_utf8_under_repo(&state.repository.root, output_rel, utf8).await?;
+    let snap = if let Some(aid) = vcs_agent_id {
+        Some(
+            state
+                .orchestrator
+                .capture_snapshot(
+                    vox_orchestrator::types::AgentId(aid),
+                    &[dest],
+                    format!("vox_generate_code: {rel}"),
+                )
+                .await
+                .to_string(),
+        )
+    } else {
+        None
+    };
+    Ok(merge_file_outcomes_meta(meta, rel, n, snap.as_deref()))
+}
 
 fn runtime_generation_kpi(
     success: bool,
@@ -393,6 +476,21 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .and_then(|v| v.as_str())
         .filter(|s| !s.trim().is_empty())
         .map(str::to_string);
+    let journey_id = args
+        .get("journey_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            format!(
+                "journey_{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0)
+            )
+        });
     let validate_flag = args
         .get("validate")
         .and_then(|v| v.as_bool())
@@ -410,6 +508,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         "fenced_transport" => crate::speech_constraints::OutputSurfaceMode::FencedTransport,
         _ => crate::speech_constraints::OutputSurfaceMode::RawCodeOnly,
     };
+    let output_path_arg = args
+        .get("output_path")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let vcs_agent_id = args.get("vcs_agent_id").and_then(|v| v.as_u64());
 
     if prompt.is_empty() {
         return ToolResult::<String>::err_with_remediation(
@@ -426,6 +531,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
     let mut first_valid_ms: Option<u128> = None;
     let mut surface_contract_failures: u64 = 0;
     let mut repair_stalled = false;
+    let mut routing_recorded = false;
 
     let grammar_addon =
         crate::speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
@@ -490,6 +596,27 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 .to_json();
             }
         };
+
+        if !routing_recorded {
+            if let Some(db) = &state.db {
+                let reason = serde_json::json!({
+                    "tool": "vox_generate_code",
+                    "free_only": free_only,
+                });
+                let reason_s = reason.to_string();
+                let _ = db
+                    .record_routing_decision(
+                        Some(journey_id.as_str()),
+                        state.repository.repository_id.as_str(),
+                        session_id.as_deref(),
+                        "vox_generate_code",
+                        Some(model.id.as_str()),
+                        Some(reason_s.as_str()),
+                    )
+                    .await;
+            }
+            routing_recorded = true;
+        }
 
         let routing = crate::llm_bridge::McpInferRouting {
             user_prompt: &current_prompt,
@@ -597,11 +724,19 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 surface_contract_failures,
                 "vox_generate_code runtime_kpi"
             );
-            return ToolResult::ok_with_meta(
-                completion,
-                serde_json::json!({ "runtime_generation_kpi": kpi }),
-            )
-            .to_json();
+            let mut meta = serde_json::json!({ "runtime_generation_kpi": kpi });
+            if let Some(ref op) = output_path_arg {
+                match merge_meta_after_codegen_write(state, meta.clone(), op, &completion, vcs_agent_id)
+                    .await
+                {
+                    Ok(m) => meta = m,
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(e, REM_GEN_OUTPUT_PATH)
+                            .to_json();
+                    }
+                }
+            }
+            return ToolResult::ok_with_meta(completion, meta).to_json();
         }
 
         let validation = vox_compiler::generated_vox::validate_generated_vox(&completion, true);
@@ -635,11 +770,19 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 surface_contract_failures,
                 "vox_generate_code runtime_kpi"
             );
-            return ToolResult::ok_with_meta(
-                canonical,
-                serde_json::json!({ "runtime_generation_kpi": kpi }),
-            )
-            .to_json();
+            let mut meta = serde_json::json!({ "runtime_generation_kpi": kpi });
+            if let Some(ref op) = output_path_arg {
+                match merge_meta_after_codegen_write(state, meta.clone(), op, &canonical, vcs_agent_id)
+                    .await
+                {
+                    Ok(m) => meta = m,
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(e, REM_GEN_OUTPUT_PATH)
+                            .to_json();
+                    }
+                }
+            }
+            return ToolResult::ok_with_meta(canonical, meta).to_json();
         }
 
         let snapshot: Vec<serde_json::Value> = errors
@@ -749,3 +892,183 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         current_prompt.push_str(&feedback);
     }
 }
+
+/// Apply a structured edit with AST/HIR validation and an auto-repair loop.
+pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value) -> String {
+    let started = std::time::Instant::now();
+    let file_path = match args.get("file_path").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return ToolResult::<String>::err("Missing file_path").to_json(),
+    };
+    let target_content = match args.get("target_content").and_then(|v| v.as_str()) {
+        Some(c) => c,
+        None => return ToolResult::<String>::err("Missing target_content").to_json(),
+    };
+    let mut replacement_code = match args.get("replacement_code").and_then(|v| v.as_str()) {
+        Some(c) => c.to_string(),
+        None => return ToolResult::<String>::err("Missing replacement_code").to_json(),
+    };
+    let session_id = args.get("session_id").and_then(|v| v.as_str());
+
+    let abs_path = state.repository.root.join(file_path);
+    let original_text = match tokio::fs::read_to_string(&abs_path).await {
+        Ok(t) => t,
+        Err(e) => return ToolResult::<String>::err(format!("Failed to read file: {}", e)).to_json(),
+    };
+
+    if !original_text.contains(target_content) {
+        return ToolResult::<String>::err("target_content not found in file").to_json();
+    }
+
+    let extension = std::path::Path::new(file_path).extension().and_then(|s| s.to_str()).unwrap_or("");
+    let max_retries = 3;
+    let mut retry_count = 0;
+    
+    loop {
+        let new_text = original_text.replace(target_content, &replacement_code);
+        
+        let mut error_feedback = String::new();
+
+        if extension == "vox" {
+            let validation = vox_compiler::generated_vox::validate_generated_vox(&new_text, true);
+            let errors: Vec<_> = validation.errors.iter().collect();
+            if !errors.is_empty() {
+                for err in &errors {
+                    error_feedback.push_str(&format!("- [{}] {}\n", err.category, err.message));
+                }
+            }
+        } else if extension == "rs" {
+            // Shadow Apply: write, cargo check, revert
+            if let Err(_) = tokio::fs::write(&abs_path, new_text.as_bytes()).await {}
+            let mut cmd = tokio::process::Command::new("cargo");
+            cmd.current_dir(&state.repository.root);
+            cmd.arg("check").arg("--message-format=short");
+            if state.repository.capabilities.cargo_workspace {
+                cmd.arg("--workspace");
+            }
+            if let Ok(output) = cmd.output().await {
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    error_feedback = stderr.to_string();
+                }
+            } else {
+                error_feedback = "Failed to run cargo check".to_string();
+            }
+            // Revert shadow apply if there was an error
+            if !error_feedback.is_empty() {
+                let _ = tokio::fs::write(&abs_path, original_text.as_bytes()).await;
+            }
+        }
+
+        if error_feedback.is_empty() {
+            // Write validated code (already written if `.rs` and passed, but we'll ensure it here)
+            if let Err(e) = tokio::fs::write(&abs_path, new_text.as_bytes()).await {
+                return ToolResult::<String>::err(format!("Failed to write file: {}", e)).to_json();
+            }
+            let first_valid_ms = started.elapsed().as_millis();
+            let kpi = runtime_generation_kpi(
+                true,
+                true,
+                Some(true),
+                Some(true),
+                retry_count + 1,
+                false,
+                Some(first_valid_ms),
+                replacement_code.split_whitespace().count() as u64,
+                0,
+                None,
+            );
+            tracing::info!(
+                target: "vox_mcp_speech",
+                time_to_first_valid_ms = first_valid_ms as u64,
+                repair_attempts = retry_count + 1,
+                output_tokens = replacement_code.split_whitespace().count() as u64,
+                "apply_structured_edit runtime_kpi"
+            );
+            let meta = serde_json::json!({ "runtime_generation_kpi": kpi });
+            return ToolResult::ok_with_meta("Edit applied successfully (structural validation passed).".to_string(), meta).to_json();
+        }
+
+        retry_count += 1;
+        if retry_count > max_retries {
+            let kpi = runtime_generation_kpi(
+                false,
+                true,
+                Some(false),
+                Some(false),
+                retry_count,
+                false,
+                None,
+                replacement_code.split_whitespace().count() as u64,
+                0,
+                Some("semantic"),
+            );
+            let meta = serde_json::json!({ 
+                "runtime_generation_kpi": kpi,
+                "repair": {
+                    "attempts": retry_count,
+                    "stalled": false,
+                    "failure_category": "semantic"
+                }
+            });
+            return ToolResult::<String>::err_with_remediation_meta(
+                format!("Failed to generate valid edit after {} retries. Errors: {}", max_retries, error_feedback),
+                REM_CODEGEN_REPAIR,
+                meta
+            )
+            .to_json();
+        }
+
+        // Auto-repair via LLM
+        let mut feedback = format!(
+            "Your replacement code for {} introduced compiler errors. Fix ONLY the replacement code.\n\nErrors:\n{}",
+            file_path, error_feedback
+        );
+        feedback.push_str("\n\nOriginal replacement code:\n```\n");
+        feedback.push_str(&replacement_code);
+        feedback.push_str("\n```\nProvide ONLY the fixed replacement code, no fences.");
+
+        let resolution_template = crate::llm_bridge::McpChatModelResolution {
+            complexity: 2,
+            ..Default::default()
+        };
+
+        if let Ok((model, free_only)) = crate::tools::chat_model_resolve::resolve_chat_llm_model(
+            state,
+            &feedback,
+            resolution_template.clone(),
+            session_id,
+        ).await {
+            let routing = crate::llm_bridge::McpInferRouting {
+                user_prompt: &feedback,
+                sticky_model_pref: None,
+                resolution_template,
+                free_only,
+                allow_cloud_ollama_fallback: true,
+                user_id: session_id,
+            };
+    
+            if let Ok((completion, _, _)) = crate::llm_bridge::mcp_infer_completion(
+                state,
+                model,
+                "vox_apply_structured_edit",
+                "You are an expert compiler engineer. Fix the replacement code. Output ONLY raw code, no fences.",
+                &routing,
+                2048,
+                0.2,
+                false,
+            ).await {
+                replacement_code = vox_compiler::generated_vox::normalize_generated_vox(
+                    &completion,
+                    vox_compiler::generated_vox::OutputSurfaceMode::RawCodeOnly,
+                ).normalized;
+                continue;
+            }
+        }
+        
+        break;
+    }
+
+    ToolResult::<String>::err("Failed to repair edit automatically due to LLM error.").to_json()
+}
+

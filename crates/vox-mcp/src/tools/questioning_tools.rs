@@ -1,4 +1,8 @@
-//! Record user answers to pending Socrates clarification rows in `question_events`.
+//! Record user answers to pending Socrates clarification rows in `question_events` / related questioning tables.
+//!
+//! After a successful answer, this module also posts an [`AttentionEvent`](vox_orchestrator::AttentionEvent) via
+//! [`ServerState::record_attention_event`](crate::server::ServerState::record_attention_event) so **pilot attention budgeting**
+//! stays consistent. That ledger path is distinct from questioning row storage (see `docs/src/architecture/telemetry-trust-ssot.md`).
 
 use std::path::Path;
 
@@ -57,7 +61,7 @@ pub async fn questioning_sync_ssot(
         .as_deref()
         .unwrap_or("docs/src/reference/information-theoretic-questioning.md");
     let path = root.join(rel);
-    let body = match crate::bounded_fs::read_utf8_path_capped(&path) {
+    let body = match vox_bounded_fs::read_utf8_path_capped(&path) {
         Ok(s) => s,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err(format!(
@@ -167,6 +171,38 @@ pub async fn questioning_submit_answer(
             params.selected_option_id.as_deref(),
         )
         .await;
+
+    {
+        use vox_orchestrator::{
+            AgentId, ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType,
+        };
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        let bm = state.orchestrator.budget_manager_handle();
+        let trust = vox_orchestrator::sync_lock::rw_read(&*bm)
+            .trust_snapshot()
+            .get(&AgentId(0))
+            .map(|t| t.trust_score)
+            .unwrap_or(0.3);
+        let evt = AttentionEvent {
+            agent_id: AgentId(0),
+            task_id: None,
+            event_type: AttentionEventType::ClarificationAnswered,
+            tier: ApprovalTier::Confirm,
+            cost_ms: 0,
+            outcome: ApprovalOutcome::Approved,
+            trust_score_at_time: trust,
+            effective_complexity: 0.0,
+            decision_entropy_bits: bits,
+            timestamp_ms: ts,
+            channel: Some("vox_questioning_submit_answer".to_string()),
+            policy_reason: Some(format!("answered_question {resolved_qid}")),
+        };
+        state.record_attention_event(evt);
+    }
+
     let pending = db
         .has_pending_clarification_for_mcp_session(&params.session_id, repo)
         .await

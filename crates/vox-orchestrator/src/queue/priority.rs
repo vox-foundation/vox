@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
 
 use super::AgentQueue;
@@ -237,5 +239,15 @@ impl AgentQueue {
         }
         self.enqueue(task);
         true
+    }
+
+    /// Take all pending tasks for route replay; does not touch [`Self::in_progress`].
+    pub(crate) fn take_pending_tasks(&mut self) -> VecDeque<AgentTask> {
+        std::mem::take(&mut self.tasks)
+    }
+
+    /// Restore pending tasks after route replay (replaces the pending deque).
+    pub(crate) fn restore_pending_tasks(&mut self, tasks: VecDeque<AgentTask>) {
+        self.tasks = tasks;
     }
 }

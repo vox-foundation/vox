@@ -87,10 +87,10 @@ impl FreeAiClient {
 
     /// Check if Ollama is reachable at the given URL.
     pub(crate) async fn probe_ollama(url: &str) -> bool {
-        let probe_client = reqwest::Client::builder()
+        let probe_client = vox_reqwest_defaults::client_builder()
             .timeout(std::time::Duration::from_secs(OLLAMA_PROBE_TIMEOUT_SECS))
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|_| vox_reqwest_defaults::client());
         probe_client
             .get(format!("{}/api/version", url))
             .send()

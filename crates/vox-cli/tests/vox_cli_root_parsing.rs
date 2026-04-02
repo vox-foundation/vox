@@ -2,6 +2,7 @@
 
 use clap::CommandFactory;
 use clap::Parser;
+use vox_cli::commands::ci::CiCmd;
 use vox_cli::commands::clavis::ClavisCmd;
 use vox_cli::{Cli, VoxCliRoot};
 
@@ -207,4 +208,21 @@ fn parse_ci_pm_provenance() {
         "packages/foo",
     ])
     .expect("pm-provenance strict + root");
+}
+
+#[test]
+fn parse_ci_rust_ecosystem_policy() {
+    VoxCliRoot::try_parse_from(["vox", "ci", "rust-ecosystem-policy"])
+        .expect("rust-ecosystem-policy");
+}
+
+#[test]
+fn parse_ci_policy_smoke() {
+    let r = VoxCliRoot::try_parse_from(["vox", "ci", "policy-smoke"]).expect("policy-smoke");
+    assert!(matches!(
+        r.cmd,
+        Cli::Ci {
+            cmd: CiCmd::PolicySmoke
+        }
+    ));
 }

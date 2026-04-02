@@ -7,7 +7,11 @@
 //!   - Total run duration
 //!
 //! All records land in the V34 `build_run / build_crate_sample / build_warning` tables.
-//! Falls back to the old `research_metrics` row if the DB is unavailable.
+//!
+//! **`--deep` persistence:** Arca tables are written when VoxDB connects (same as before). The legacy
+//! `research_metrics` fallback (`benchmark_event` / `cargo_build_metrics`) runs **only** when
+//! **`VOX_BENCHMARK_TELEMETRY=1`** (see [`crate::benchmark_telemetry::record_opt_with_unit`]) so benchmark
+//! rows stay opt-in. Trust SSOT: `docs/src/architecture/telemetry-trust-ssot.md`.
 
 use std::path::Path;
 use std::process::Command;
@@ -285,22 +289,23 @@ pub async fn bench_build_run(
         if persisted {
             println!("Recorded metrics to VoxDB (V34 build tables).");
         } else {
-            // Fix 6: Use correct record_benchmark_event API
-            use vox_db::{DbConfig, VoxDb};
-            if let Ok(config) = DbConfig::from_env() {
-                if let Ok(db) = VoxDb::connect(config).await {
-                    let details = serde_json::to_value(&summary).unwrap_or_default();
-                    let _ = db
-                        .record_benchmark_event(
-                            &repo_id,
-                            "cargo_build_metrics",
-                            Some(total_ms as f64 / 1000.0),
-                            Some("seconds"),
-                            Some(details),
-                        )
-                        .await;
-                    println!("Recorded fallback metrics to research_metrics.");
-                }
+            let details = serde_json::to_value(&summary).unwrap_or_default();
+            crate::benchmark_telemetry::record_opt_with_unit(
+                "cargo_build_metrics",
+                Some(total_ms as f64 / 1000.0),
+                Some("seconds"),
+                Some(details),
+            )
+            .await;
+            if std::env::var("VOX_BENCHMARK_TELEMETRY")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false)
+            {
+                println!("Recorded fallback metrics to research_metrics (VOX_BENCHMARK_TELEMETRY).");
+            } else {
+                println!(
+                    "Skipping research_metrics fallback (set VOX_BENCHMARK_TELEMETRY=1 to record benchmark_event)."
+                );
             }
         }
     }

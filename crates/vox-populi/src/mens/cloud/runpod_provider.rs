@@ -95,7 +95,7 @@ impl RunPodClient {
 
     /// Construct with explicit API key.
     pub fn new(api_key: String, config: Arc<CloudProviderConfig>) -> Self {
-        let http = reqwest::Client::builder()
+        let http = vox_reqwest_defaults::client_builder()
             .timeout(Duration::from_secs(30))
             .build()
             .expect("reqwest build");

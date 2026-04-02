@@ -12,7 +12,7 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::bounded_fs::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 static VOX_DOC_LINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)").expect("vox doc link regex"));
@@ -22,6 +22,8 @@ static VOX_DOC_LINK_RE: LazyLock<Regex> =
 struct Frontmatter {
     training_eligible: bool,
     last_updated: Option<String>,
+    title: Option<String>,
+    status: Option<String>,
 }
 
 impl Default for Frontmatter {
@@ -29,6 +31,8 @@ impl Default for Frontmatter {
         Self {
             training_eligible: true,
             last_updated: None,
+            title: None,
+            status: None,
         }
     }
 }
@@ -79,6 +83,8 @@ pub struct DocTrainingPair {
     pub response_mode: String,
     /// Task family for downstream segmentation.
     pub task_family: String,
+    /// Additional traceability metadata for later retrieval or review.
+    pub metadata: serde_json::Value,
 }
 
 impl DocTrainingPair {
@@ -95,34 +101,42 @@ impl DocTrainingPair {
             "lane": self.lane,
             "response_mode": self.response_mode,
             "task_family": self.task_family,
+            "metadata": self.metadata,
         });
         v.to_string()
     }
 }
 
 /// Parse YAML frontmatter to determine eligibility and staleness penalty.
-/// Returns `(is_eligible, penalty)` where penalty increases with age (0-3 scale).
-fn parse_frontmatter(content: &str) -> (bool, u8) {
+/// Returns parsed metadata and staleness penalty where penalty increases with age (0-3 scale).
+fn parse_frontmatter(content: &str, path: &Path) -> (Frontmatter, bool, u8) {
     // Explicit deprecation check acts as a hard short-circuit
     if content.contains("status: deprecated")
         || content.contains("status: \"deprecated\"")
         || content.contains("status: 'deprecated'")
     {
-        return (false, 0);
+        return (Frontmatter::default(), false, 0);
     }
 
     if !content.starts_with("---") {
         // Fallback for files without frontmatter
         let eligible = !(content.contains("training_eligible: false")
             || content.contains("training_eligible:false"));
-        return (eligible, 0);
+        let fallback = Frontmatter {
+            title: path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(|s| s.replace(['-', '_'], " ")),
+            ..Frontmatter::default()
+        };
+        return (fallback, eligible, 0);
     }
 
     let parts: Vec<&str> = content.splitn(3, "---").collect();
     if parts.len() < 3 {
         let eligible = !(content.contains("training_eligible: false")
             || content.contains("training_eligible:false"));
-        return (eligible, 0);
+        return (Frontmatter::default(), eligible, 0);
     }
 
     let yaml_str = parts[1];
@@ -131,12 +145,12 @@ fn parse_frontmatter(content: &str) -> (bool, u8) {
     let fm: Frontmatter = serde_yaml::from_str(yaml_str).unwrap_or_default();
 
     if !fm.training_eligible {
-        return (false, 0);
+        return (fm, false, 0);
     }
 
     let mut penalty = 0;
-    if let Some(date_str) = fm.last_updated
-        && let Ok(last_updated) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+    if let Some(ref date_str) = fm.last_updated
+        && let Ok(last_updated) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
     {
         let now = Utc::now().date_naive();
         let days_old = now.signed_duration_since(last_updated).num_days();
@@ -147,7 +161,7 @@ fn parse_frontmatter(content: &str) -> (bool, u8) {
         }
     }
 
-    (true, penalty)
+    (fm, true, penalty)
 }
 
 /// Extract training pairs from a single markdown file.
@@ -157,7 +171,7 @@ pub fn extract_from_md_file(
 ) -> anyhow::Result<Vec<DocTrainingPair>> {
     let source = read_utf8_path_capped(path)?;
 
-    let (eligible, staleness_penalty) = parse_frontmatter(&source);
+    let (frontmatter, eligible, staleness_penalty) = parse_frontmatter(&source, path);
     if !eligible {
         return Ok(Vec::new());
     }
@@ -165,11 +179,18 @@ pub fn extract_from_md_file(
     let mut pairs = Vec::new();
 
     if config.extract_code_blocks {
-        extract_code_blocks(&source, path, staleness_penalty, &mut pairs);
+        extract_code_blocks(&source, path, &frontmatter, staleness_penalty, &mut pairs);
     }
 
     if config.extract_qa_pairs {
-        extract_qa_sections(&source, path, staleness_penalty, config, &mut pairs);
+        extract_qa_sections(
+            &source,
+            path,
+            &frontmatter,
+            staleness_penalty,
+            config,
+            &mut pairs,
+        );
     }
 
     if config.limit > 0 {
@@ -183,6 +204,7 @@ pub fn extract_from_md_file(
 fn extract_code_blocks(
     source: &str,
     path: &Path,
+    frontmatter: &Frontmatter,
     staleness_penalty: u8,
     out: &mut Vec<DocTrainingPair>,
 ) {
@@ -242,6 +264,12 @@ fn extract_code_blocks(
                     lane: "vox_codegen".to_string(),
                     response_mode: "code_only".to_string(),
                     task_family: "docs_code".to_string(),
+                    metadata: build_metadata(
+                        path,
+                        frontmatter,
+                        Some(&preceding_context),
+                        "code_block",
+                    ),
                 });
             }
             preceding_context.clear();
@@ -255,6 +283,7 @@ fn extract_code_blocks(
 fn extract_qa_sections(
     source: &str,
     path: &Path,
+    frontmatter: &Frontmatter,
     staleness_penalty: u8,
     config: &ExtractDocsConfig,
     out: &mut Vec<DocTrainingPair>,
@@ -304,6 +333,12 @@ fn extract_qa_sections(
                     lane: "vox_docs_qa".to_string(),
                     response_mode: "prose_only".to_string(),
                     task_family: "docs_qa".to_string(),
+                    metadata: build_metadata(
+                        path,
+                        frontmatter,
+                        Some(&current_heading),
+                        "qa_section",
+                    ),
                 });
             }
 
@@ -350,8 +385,51 @@ fn extract_qa_sections(
             lane: "vox_docs_qa".to_string(),
             response_mode: "prose_only".to_string(),
             task_family: "docs_qa".to_string(),
+            metadata: build_metadata(path, frontmatter, Some(&current_heading), "qa_section"),
         });
     }
+}
+
+fn build_metadata(
+    path: &Path,
+    frontmatter: &Frontmatter,
+    heading: Option<&str>,
+    chunk_kind: &str,
+) -> serde_json::Value {
+    let heading = heading
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+    json!({
+        "doc_path": normalize_path(path),
+        "canonical_path": normalize_path(path),
+        "doc_title": frontmatter.title.clone(),
+        "doc_status": frontmatter.status.clone(),
+        "last_updated": frontmatter.last_updated.clone(),
+        "heading": heading,
+        "heading_slug": heading.as_deref().map(slugify_heading),
+        "chunk_kind": chunk_kind,
+        "source_kind": "documentation",
+    })
+}
+
+fn normalize_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn slugify_heading(s: &str) -> String {
+    let mut slug = String::with_capacity(s.len());
+    let mut prev_dash = false;
+    for ch in s.chars().flat_map(|c| c.to_lowercase()) {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch);
+            prev_dash = false;
+        } else if !prev_dash {
+            slug.push('-');
+            prev_dash = true;
+        }
+    }
+    slug.trim_matches('-').to_string()
 }
 
 /// Walk a directory tree and extract pairs from all `.md` files.
@@ -447,9 +525,16 @@ Durable execution is a first-class feature.
         let _pairs = extract_from_md_file(Path::new("test.md"), &config);
         // Can't test with real file, test the extraction logic directly
         let mut out = Vec::new();
-        extract_code_blocks(SAMPLE_MD, Path::new("test.md"), 0, &mut out);
+        extract_code_blocks(
+            SAMPLE_MD,
+            Path::new("test.md"),
+            &Frontmatter::default(),
+            0,
+            &mut out,
+        );
         assert!(!out.is_empty(), "should extract vox code block");
         assert!(out[0].response.contains("actor Counter"));
+        assert_eq!(out[0].metadata["chunk_kind"], "code_block");
     }
 
     #[test]
@@ -459,8 +544,16 @@ Durable execution is a first-class feature.
             ..Default::default()
         };
         let mut out = Vec::new();
-        extract_qa_sections(SAMPLE_MD, Path::new("test.md"), 0, &config, &mut out);
+        extract_qa_sections(
+            SAMPLE_MD,
+            Path::new("test.md"),
+            &Frontmatter::default(),
+            0,
+            &config,
+            &mut out,
+        );
         assert!(!out.is_empty(), "should extract at least one Q&A pair");
         assert!(out[0].prompt.contains("Actor Model"));
+        assert_eq!(out[0].metadata["chunk_kind"], "qa_section");
     }
 }

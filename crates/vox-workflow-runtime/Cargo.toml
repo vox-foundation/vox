@@ -21,6 +21,7 @@ vox-populi = { workspace = true, optional = true }
 
 [dev-dependencies]
 vox-compiler = { workspace = true }
+jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
 
 [lints]
 workspace = true

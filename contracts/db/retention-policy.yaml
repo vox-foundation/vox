@@ -37,6 +37,17 @@ tables:
     kind: days
     days: 365
     time_column: created_at
+  # CI completion audit (ingest: vox ci completion-ingest). S2 workspace-adjacent; see
+  # docs/src/architecture/telemetry-retention-sensitivity-ssot.md and completion-policy-ssot.md.
+  # Child rows (finding, detector_snapshot) use ON DELETE CASCADE — no separate prune rows.
+  ci_completion_run:
+    kind: days
+    days: 365
+    time_column: finished_at
+  # Rows with NULL expires_at are long-lived suppressions; TTL rows delete when expires_at < now.
+  ci_completion_suppression:
+    kind: expires_lt_now
+    time_column: expires_at
   trusted_evidence_bundles:
     kind: expires_lt_now
     time_column: expires_at

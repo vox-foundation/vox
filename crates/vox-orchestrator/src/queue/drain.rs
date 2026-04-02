@@ -1,6 +1,6 @@
 use crate::types::{AgentTask, TaskId, TaskStatus};
 
-use super::AgentQueue;
+use super::{AgentQueue, PopuliRemoteHoldError};
 
 impl AgentQueue {
     /// Dequeue the highest-priority ready task.
@@ -108,6 +108,32 @@ impl AgentQueue {
     /// Get the currently in-progress task.
     pub fn current_task(&self) -> Option<&AgentTask> {
         self.in_progress.as_ref()
+    }
+
+    /// Hold a task as in-progress for Populi remote execution without dequeuing from [`Self::tasks`].
+    ///
+    /// Fails when another task is already in progress for this agent.
+    pub fn hold_for_populi_remote(
+        &mut self,
+        mut task: AgentTask,
+    ) -> Result<(), PopuliRemoteHoldError> {
+        if self.in_progress.is_some() {
+            return Err(PopuliRemoteHoldError::AgentBusy);
+        }
+        task.status = TaskStatus::InProgress;
+        task.start();
+        self.in_progress = Some(task);
+        self.last_active = std::time::SystemTime::now();
+        Ok(())
+    }
+
+    /// Remove the in-progress task when it matches `task_id` (cancel / external transition).
+    pub fn take_in_progress_if(&mut self, task_id: TaskId) -> Option<AgentTask> {
+        if self.in_progress.as_ref().is_some_and(|t| t.id == task_id) {
+            self.in_progress.take()
+        } else {
+            None
+        }
     }
 
     /// List of completed task IDs.

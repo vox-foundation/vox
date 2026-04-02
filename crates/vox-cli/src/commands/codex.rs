@@ -2,10 +2,12 @@
 
 use anyhow::Context;
 use std::path::PathBuf;
-use vox_db::codex_legacy::{
+use vox_db::legacy::codex::{
     LegacyVerification, export_legacy_jsonl, import_legacy_jsonl, verify_legacy_store,
 };
-use vox_db::legacy_import_extras::{import_orchestrator_memory_dir, import_skill_bundle_json_file};
+use vox_db::legacy::import_extras::{
+    import_orchestrator_memory_dir, import_skill_bundle_json_file,
+};
 use vox_db::{Codex, DbConfig, StoreError};
 
 fn resolve_config() -> anyhow::Result<DbConfig> {
@@ -37,7 +39,7 @@ pub async fn verify() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Write [`vox_db::codex_legacy::LEGACY_EXPORT_TABLES`] rows as JSONL.
+/// Write [`vox_db::legacy::codex::LEGACY_EXPORT_TABLES`] rows as JSONL.
 ///
 /// Uses a connection that **skips** baseline migration so pre-baseline databases can still be dumped.
 pub async fn export_legacy(out: &PathBuf) -> anyhow::Result<()> {

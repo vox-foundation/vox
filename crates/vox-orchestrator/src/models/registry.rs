@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
 use crate::types::TaskCategory;
 
 use super::spec::{
-    ModelConfig, ModelSpec, built_in_premium_alias, task_category_premium_key,
+    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_premium_key,
     task_category_strength,
 };
 
@@ -18,8 +19,76 @@ pub struct ModelRegistry {
 }
 
 impl ModelRegistry {
+    fn matches_strength(m: &ModelSpec, strength: &str) -> bool {
+        m.strengths
+            .iter()
+            .any(|s| s == strength || s == "generalist")
+    }
+
+    fn refresh_marker_path() -> Option<std::path::PathBuf> {
+        let mut path = vox_db::paths::config_dir()?;
+        path.push("openrouter_catalog_refresh.marker");
+        Some(path)
+    }
+
+    fn min_refresh_interval() -> Duration {
+        let secs = std::env::var("VOX_OPENROUTER_CATALOG_MIN_REFRESH_INTERVAL_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(3600);
+        Duration::from_secs(secs.max(30))
+    }
+
+    fn jitter_ms() -> u64 {
+        std::env::var("VOX_OPENROUTER_CATALOG_REFRESH_JITTER_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(0)
+            .min(60_000)
+    }
+
+    fn should_refresh_openrouter_catalog(now_secs: u64) -> bool {
+        let Some(path) = Self::refresh_marker_path() else {
+            return true;
+        };
+        let Ok(raw) = std::fs::read_to_string(path) else {
+            return true;
+        };
+        let Ok(last_secs) = raw.trim().parse::<u64>() else {
+            return true;
+        };
+        now_secs.saturating_sub(last_secs) >= Self::min_refresh_interval().as_secs()
+    }
+
+    fn write_refresh_marker(now_secs: u64) {
+        let Some(path) = Self::refresh_marker_path() else {
+            return;
+        };
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(path, now_secs.to_string());
+    }
+
     #[cfg_attr(test, allow(dead_code))] // Called from `new` only outside `cfg(test)` (avoids network in unit tests).
     fn maybe_refresh_openrouter_models(&mut self) {
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if !Self::should_refresh_openrouter_catalog(now_secs) {
+            tracing::debug!(
+                target: "vox.orchestrator.models",
+                "openrouter catalog refresh skipped (within min refresh interval)"
+            );
+            return;
+        }
+        let jitter = Self::jitter_ms();
+        if jitter > 0 {
+            let offset = now_secs % (jitter + 1);
+            std::thread::sleep(Duration::from_millis(offset));
+        }
+
         // Avoid `block_on` on a thread that already drives a Tokio runtime (e.g. `#[tokio::test]`,
         // `cargo nextest`): that panics with "Cannot start a runtime from within a runtime". Run the
         // ephemeral runtime on a fresh OS thread instead.
@@ -68,6 +137,7 @@ impl ModelRegistry {
         for m in models {
             self.register(m);
         }
+        Self::write_refresh_marker(now_secs);
         tracing::info!(target: "vox.orchestrator.models", count, "openrouter catalog refresh merged into model registry");
     }
 
@@ -83,7 +153,7 @@ impl ModelRegistry {
         let model_config = if let Some(mut config_path) = vox_db::paths::config_dir() {
             config_path.push("models.toml");
             if config_path.exists() {
-                if let Ok(contents) = crate::bounded_fs::read_utf8_path_capped(&config_path) {
+                if let Ok(contents) = vox_bounded_fs::read_utf8_path_capped(&config_path) {
                     toml::from_str(&contents).unwrap_or_else(|_| ModelConfig::default())
                 } else {
                     ModelConfig::default()
@@ -156,7 +226,7 @@ impl ModelRegistry {
             return self
                 .models
                 .values()
-                .filter(|m| m.strengths.iter().any(|s| s == strength))
+                .filter(|m| Self::matches_strength(m, strength))
                 .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
                 .cloned()
                 .or_else(|| self.cheapest());
@@ -172,7 +242,7 @@ impl ModelRegistry {
         let strength = task_category_strength(task_type);
         self.models
             .values()
-            .filter(|m| !m.is_free && m.strengths.iter().any(|s| s == strength))
+            .filter(|m| !m.is_free && Self::matches_strength(m, strength))
             .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
             .cloned()
             .or_else(|| {
@@ -214,7 +284,7 @@ impl ModelRegistry {
             return self
                 .models
                 .values()
-                .filter(|m| m.strengths.iter().any(|s| s == strength) && pred(m))
+                .filter(|m| Self::matches_strength(m, strength) && pred(m))
                 .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
                 .cloned()
                 .or_else(|| self.cheapest_with_filter(&mut pred));
@@ -231,7 +301,7 @@ impl ModelRegistry {
         let strength = task_category_strength(task_type);
         self.models
             .values()
-            .filter(|m| !m.is_free && m.strengths.iter().any(|s| s == strength) && pred(m))
+            .filter(|m| !m.is_free && Self::matches_strength(m, strength) && pred(m))
             .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
             .cloned()
             .or_else(|| {
@@ -258,7 +328,7 @@ impl ModelRegistry {
 
         self.models
             .values()
-            .filter(|m| m.is_free && m.strengths.iter().any(|s| s == strength))
+            .filter(|m| m.is_free && Self::matches_strength(m, strength))
             .max_by_key(|m| m.max_tokens)
             .cloned()
             .or_else(|| self.cheapest_free())
@@ -283,7 +353,7 @@ impl ModelRegistry {
 
         self.models
             .values()
-            .filter(|m| m.is_free && m.strengths.iter().any(|s| s == strength) && pred(m))
+            .filter(|m| m.is_free && Self::matches_strength(m, strength) && pred(m))
             .max_by_key(|m| m.max_tokens)
             .cloned()
             .or_else(|| self.cheapest_free_with_filter(&mut pred))
@@ -300,7 +370,15 @@ impl ModelRegistry {
 
     /// Return the cheapest free model.
     pub fn cheapest_free(&self) -> Option<ModelSpec> {
-        self.models.values().find(|m| m.is_free).cloned()
+        self.models
+            .values()
+            .filter(|m| m.is_free)
+            .min_by(|a, b| {
+                a.cost_per_1k
+                    .total_cmp(&b.cost_per_1k)
+                    .then_with(|| a.id.cmp(&b.id))
+            })
+            .cloned()
     }
 
     /// Like [`Self::cheapest_free`] but only considers models for which `pred` returns true.
@@ -381,15 +459,45 @@ impl ModelRegistry {
         preference: CostPreference,
     ) -> Option<vox_runtime::llm::LlmConfig> {
         self.best_for(task_type, complexity, preference)
-            .map(|spec| vox_runtime::llm::LlmConfig {
-                provider: spec.provider.clone(),
-                model: spec.id.clone(),
-                base_url: None,
-                api_key: None,
-                temperature: None,
-                max_tokens: Some(spec.max_tokens),
-                response_format: None,
-                timeout_ms: None,
+            .map(|spec| {
+                let mut cfg = match spec.provider_type {
+                    ProviderType::OpenRouter => {
+                        vox_runtime::llm::LlmConfig::openrouter(spec.id.clone())
+                    }
+                    ProviderType::Ollama => vox_runtime::llm::LlmConfig {
+                        provider: "ollama".to_string(),
+                        model: spec.id.clone(),
+                        base_url: std::env::var("OLLAMA_URL")
+                            .ok()
+                            .filter(|s| !s.trim().is_empty())
+                            .map(|u| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
+                        api_key: None,
+                        temperature: None,
+                        max_tokens: None,
+                        response_format: None,
+                        timeout_ms: None,
+                    },
+                    ProviderType::GoogleDirect => vox_runtime::llm::LlmConfig {
+                        provider: "openrouter".to_string(),
+                        model: spec.id.clone(),
+                        base_url: Some(vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string()),
+                        api_key: None,
+                        temperature: None,
+                        max_tokens: None,
+                        response_format: None,
+                        timeout_ms: None,
+                    },
+                    ProviderType::Groq
+                    | ProviderType::Cerebras
+                    | ProviderType::Mistral
+                    | ProviderType::DeepSeek
+                    | ProviderType::SambaNova
+                    | ProviderType::Custom(_) => {
+                        vox_runtime::llm::LlmConfig::openrouter(spec.id.clone())
+                    }
+                };
+                cfg.max_tokens = Some(spec.max_tokens);
+                cfg
             })
     }
 }

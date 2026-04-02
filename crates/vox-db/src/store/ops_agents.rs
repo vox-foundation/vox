@@ -208,6 +208,33 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Read `reliability` for one `agent_id`, or `None` if no row exists.
+    pub async fn get_agent_reliability(
+        &self,
+        agent_id: &str,
+    ) -> Result<Option<f64>, StoreError> {
+        let agent_id = agent_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT reliability FROM agent_reliability WHERE agent_id = ?1 LIMIT 1",
+                        params![agent_id.as_str()],
+                    )
+                    .await?;
+                match rows.next().await? {
+                    Some(row) => {
+                        let r: f64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                        Ok(Some(r))
+                    }
+                    None => Ok(None),
+                }
+            })
+            .await
+    }
+
     /// Upsert a Laplace-smoothed reliability score for `agent_id` in `agent_reliability`.
     ///
     /// On first insert the row starts at `(success=1, failure=0)` or `(success=0, failure=1)`.

@@ -16,11 +16,12 @@ pub use bootstrap_inference::{
 };
 pub use config::{GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
-    InferenceProfile, OPENROUTER_CHAT_COMPLETIONS_URL, hf_chat_model_preference,
-    hf_dedicated_chat_completions_url, hf_dedicated_chat_model, huggingface_hub_token,
-    inference_profile_allows_local_ollama_http, inference_profile_from_env,
-    local_ollama_populi_base_url, openrouter_api_key, openrouter_chat_model_preference,
-    sanitize_chatml,
+    InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
+    OPENAI_EMBEDDINGS_URL, OPENROUTER_CHAT_COMPLETIONS_URL, OPENROUTER_EMBEDDINGS_URL,
+    OPENROUTER_MODELS_LIST_URL, hf_chat_model_preference, hf_dedicated_chat_completions_url,
+    hf_dedicated_chat_model, huggingface_hub_token, inference_profile_allows_local_ollama_http,
+    inference_profile_from_env, local_ollama_populi_base_url, openrouter_api_key,
+    openrouter_chat_model_preference, sanitize_chatml,
 };
 pub use paths::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, MCP_SESSIONS_DIR_BASENAME, config_dir, data_dir,
@@ -78,5 +79,4 @@ mod tests {
         assert!(!InferenceProfile::MobileLitert.allows_local_ollama_http());
         assert!(!InferenceProfile::MobileCoreml.allows_local_ollama_http());
     }
-
 }

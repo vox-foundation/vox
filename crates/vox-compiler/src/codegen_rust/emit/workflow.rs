@@ -77,9 +77,13 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     // Workflows currently lower to plain async functions. Durable replay/journaling lives in the
-    // interpreted workflow runtime, not in generated Rust state-machine code yet.
+    // interpreted workflow runtime, not in generated Rust state-machine code yet. Keep generated
+    // workflow durability out of scope until Vox has a formal replay model and ADR for parity.
     for workflow in &module.workflows {
         out.push_str(&emit_workflow(workflow));
+    }
+    if !module.workflows.is_empty() {
+        out.push_str(&emit_workflow_dispatch(module));
     }
 
     // Activities currently lower to plain async functions. Retry/timeout semantics come from
@@ -91,6 +95,18 @@ pub fn emit_lib(module: &HirModule) -> String {
     // Actors
     for actor in &module.actors {
         out.push_str(&emit_actor(actor));
+    }
+
+    // MCP tools and resources — must be `pub` so `mcp_server` binary can `use crate::*`.
+    for t in &module.mcp_tools {
+        let mut f = t.func.clone();
+        f.is_pub = true;
+        out.push_str(&emit_fn(&f));
+    }
+    for r in &module.mcp_resources {
+        let mut f = r.func.clone();
+        f.is_pub = true;
+        out.push_str(&emit_fn(&f));
     }
 
     // Tests
@@ -188,6 +204,54 @@ fn emit_workflow(wf: &HirWorkflow) -> String {
     for stmt in &wf.body {
         out.push_str(&emit_stmt(stmt, 1, false, false, false));
     }
+    out.push_str("}\n\n");
+    out
+}
+
+fn emit_workflow_dispatch(module: &HirModule) -> String {
+    let mut out = String::new();
+    out.push_str(
+        "pub async fn __vox_run_workflow(name: &str, args: &[serde_json::Value]) -> Result<(), String> {\n",
+    );
+    out.push_str("    match name {\n");
+    for wf in &module.workflows {
+        out.push_str(&format!("        \"{}\" => {{\n", wf.name));
+        let param_count = wf.params.len();
+        out.push_str(&format!(
+            "            if args.len() != {} {{ return Err(format!(\"workflow `{}` expects {} argument(s), got {{}}\", args.len())); }}\n",
+            param_count,
+            wf.name,
+            param_count
+        ));
+        for (idx, param) in wf.params.iter().enumerate() {
+            let ty = emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into())),
+            );
+            out.push_str(&format!(
+                "            let {}: {} = serde_json::from_value(args[{}].clone()).map_err(|e| format!(\"workflow `{}` argument `{}` decode failed: {{}}\", e))?;\n",
+                param.name, ty, idx, wf.name, param.name
+            ));
+        }
+        if wf.return_type.is_some() {
+            out.push_str("            let _ = ");
+        } else {
+            out.push_str("            ");
+        }
+        out.push_str(&format!("{}(", wf.name));
+        for param in &wf.params {
+            out.push_str(&format!("{}, ", param.name));
+        }
+        out.push_str(").await;\n");
+        out.push_str("            Ok(())\n");
+        out.push_str("        }\n");
+    }
+    out.push_str(
+        "        _ => Err(format!(\"workflow `{}` not found in generated binary\", name)),\n",
+    );
+    out.push_str("    }\n");
     out.push_str("}\n\n");
     out
 }
@@ -369,7 +433,10 @@ fn capitalize(s: &str) -> String {
 mod tests {
     use super::emit_lib;
     use crate::ast::span::Span;
+    use crate::hir::lower_module;
     use crate::hir::{DefId, HirActor, HirActorHandler, HirModule};
+    use crate::lexer::cursor::lex;
+    use crate::parser::parse;
 
     #[test]
     fn actor_handle_methods_return_call_error_result() {
@@ -395,6 +462,31 @@ mod tests {
         assert!(
             !out.contains("unwrap_or_else(|e| format!(\"Actor error: {}\", e))"),
             "actor method should not collapse runtime errors into payload strings:\n{out}"
+        );
+    }
+
+    #[test]
+    fn workflow_dispatch_helper_is_emitted_with_argument_decode() {
+        let src = r#"
+workflow greet(name: str) {
+    ret
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse");
+        let hir = lower_module(&module);
+        let out = emit_lib(&hir);
+        assert!(
+            out.contains("pub async fn __vox_run_workflow("),
+            "expected generated workflow dispatcher helper: {out}"
+        );
+        assert!(
+            out.contains("serde_json::from_value(args[0].clone())"),
+            "expected argument decode in workflow dispatcher: {out}"
+        );
+        assert!(
+            out.contains("workflow `greet` expects 1 argument(s)"),
+            "expected argument count guard in workflow dispatcher: {out}"
         );
     }
 }

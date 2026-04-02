@@ -1,10 +1,17 @@
 //! Opt-in unified benchmark telemetry to Codex (`research_metrics` type `benchmark_event`).
 //!
-//! Set **`VOX_BENCHMARK_TELEMETRY=1`** (or `true`) to append rows. Uses [`DbConfig::resolve_canonical`]
-//! and [`vox_repository::discover_repository_or_fallback`] for connection + `repository_id`.
+//! ## Env precedence
 //!
-//! When **`VOX_REPOSITORY_ROOT`** is set to a non-empty path, discovery starts there instead of
-//! [`std::env::current_dir`] so CLI subprocesses can match MCP [`vox_repository::RepositoryContext`].
+//! - **`VOX_BENCHMARK_TELEMETRY`**: when `1` or `true`, benchmark rows are written.
+//! - **`VOX_SYNTAX_K_TELEMETRY`**: when set, gates syntax-k rows; **if unset**, falls back to
+//!   `VOX_BENCHMARK_TELEMETRY` (see [`record_syntax_k_opt`]).
+//!
+//! SSOT: `docs/src/reference/env-vars.md`, trust boundaries `docs/src/architecture/telemetry-trust-ssot.md`.
+//!
+//! Uses [`DbConfig::resolve_canonical`] and [`vox_repository::discover_repository_or_fallback`] for
+//! connection + `repository_id`. When **`VOX_REPOSITORY_ROOT`** is set to a non-empty path, discovery
+//! starts there instead of [`std::env::current_dir`] so CLI subprocesses can match MCP
+//! [`vox_repository::RepositoryContext`].
 
 use std::sync::OnceLock;
 
@@ -59,6 +66,16 @@ fn telemetry_runtime() -> &'static tokio::runtime::Runtime {
 
 /// Async: connect and write one benchmark row (no-op unless `VOX_BENCHMARK_TELEMETRY` is set).
 pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<serde_json::Value>) {
+    record_opt_with_unit(name, metric_value, None, details).await;
+}
+
+/// Like [`record_opt`] but forwards `metric_value_unit` (e.g. `"seconds"`) to Codex.
+pub async fn record_opt_with_unit(
+    name: &str,
+    metric_value: Option<f64>,
+    metric_value_unit: Option<&str>,
+    details: Option<serde_json::Value>,
+) {
     if !telemetry_enabled() {
         return;
     }
@@ -70,7 +87,7 @@ pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<s
     match VoxDb::connect(cfg).await {
         Ok(db) => {
             if let Err(e) = db
-                .record_benchmark_event(&rid, name, metric_value, None, details)
+                .record_benchmark_event(&rid, name, metric_value, metric_value_unit, details)
                 .await
             {
                 tracing::debug!(

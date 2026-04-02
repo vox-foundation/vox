@@ -35,7 +35,7 @@ use crate::codegen_ts::hir_emit::{
 use crate::codegen_ts::island_emit::island_data_prop_attr;
 use crate::hir::{
     HirComponent, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing, HirModule, HirParam,
-    HirReactiveMember, HirRoutes, HirServerFn,
+    HirReactiveMember, HirRoutes, HirServerFn, HirStmt,
 };
 use crate::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, MutationContract, RouteContract, RouteNode,
@@ -117,7 +117,7 @@ impl DomArena {
         }
         let mut attrs = Vec::new();
         for attr in &el.attributes {
-            attrs.push(lower_jsx_attr_pair(attr, state_names, island_names));
+            attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
         let child_ids: Vec<DomNodeId> = el
             .children
@@ -144,7 +144,7 @@ impl DomArena {
         }
         let mut attrs = Vec::new();
         for attr in &el.attributes {
-            attrs.push(lower_jsx_attr_pair(attr, state_names, island_names));
+            attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
         self.push(DomNode::Element {
             id: DomNodeId(0),
@@ -189,14 +189,64 @@ impl DomArena {
 /// Event spellings (`on_click`, `on:click`) become React-style `onClick` names on [`DomNode::Element`];
 /// handler bodies stay as stringified TS expressions. Dedicated [`BehaviorNode::EventHandler`] rows are
 /// reserved for future binding tables — Phase 1 keeps behavior on the DOM edge for parity with `hir_emit`.
+///
+/// `bind={…}` expands to `value` + `onChange` like [`crate::codegen_ts::jsx::expand_bind_attribute`].
 fn lower_jsx_attr_pair(
     attr: &HirJsxAttr,
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
-) -> (String, String) {
+) -> Vec<(String, String)> {
+    if attr.name == "bind" {
+        let (value_str, onchange_str) =
+            expand_bind_hir_attribute(&attr.value, state_names, island_names);
+        return vec![
+            ("value".to_string(), value_str),
+            ("onChange".to_string(), onchange_str),
+        ];
+    }
     let name = map_jsx_attr_name(&attr.name).to_string();
     let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &name);
-    (name, val)
+    vec![(name, val)]
+}
+
+fn unwrap_hir_block(expr: &HirExpr) -> &HirExpr {
+    if let HirExpr::Block(stmts, _) = expr {
+        if stmts.len() == 1 {
+            if let HirStmt::Expr { expr: inner, .. } = &stmts[0] {
+                return inner;
+            }
+        }
+    }
+    expr
+}
+
+fn expand_bind_hir_attribute(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+) -> (String, String) {
+    let e = unwrap_hir_block(expr);
+    match e {
+        HirExpr::Ident(name, _) => {
+            let setter = format!("set_{name}");
+            let value = emit_hir_expr(e, state_names, island_names);
+            (value, format!("(e) => {setter}(e.target.value)"))
+        }
+        HirExpr::FieldAccess(obj, field, _) => {
+            let value_str = emit_hir_expr(e, state_names, island_names);
+            let obj_str = emit_hir_expr(obj, state_names, island_names);
+            let setter = match obj.as_ref() {
+                HirExpr::Ident(obj_name, _) => format!("set_{obj_name}"),
+                _ => format!("set_{}", emit_hir_expr(obj, state_names, island_names)),
+            };
+            let onchange = format!("(e) => {setter}({{...{obj_str}, {field}: e.target.value}})");
+            (value_str, onchange)
+        }
+        _ => {
+            let val = emit_hir_expr(e, state_names, island_names);
+            (val.clone(), "(e) => {}".to_string())
+        }
+    }
 }
 
 fn lower_routes(routes: &HirRoutes) -> RouteNode {

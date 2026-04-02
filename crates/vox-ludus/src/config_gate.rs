@@ -10,6 +10,8 @@
 //! - **`VOX_LUDUS_EMERGENCY_OFF=1`**: hard-off all Ludus side effects (rollout kill-switch).
 //! - **`VOX_LUDUS_SESSION_ENABLED`**: `true` / `false` — session-only enable toggle.
 //! - **`VOX_LUDUS_SESSION_MODE`**: `balanced` | `serious` | `learning` | `off` (off disables for session).
+//! - **`VOX_LUDUS_MCP_TOOL_ARGS`**: `full` (default) \| `hash` \| `omit` — canonical table in **`docs/src/reference/env-vars.md`**
+//!   (behavior: [`mcp_tool_args_storage`], consumer: [`crate::mcp_privacy::prepare_mcp_tool_args_for_storage`]).
 
 use vox_config::{GamifyMode, VoxConfig};
 

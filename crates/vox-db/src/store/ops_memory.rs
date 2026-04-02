@@ -9,6 +9,9 @@
 use turso::params;
 
 use crate::store::types::{EmbeddingEntry, MemoryEntry, SaveMemoryParams, StoreError};
+use crate::{
+    RetrievalEvidenceSource, RetrievalResult, SearchBackend, SearchDiagnostics, fuse_hybrid_results,
+};
 
 impl crate::VoxDb {
     // ── Memories (memories) ───────────────────────────────────────────────────
@@ -400,7 +403,20 @@ impl crate::VoxDb {
         document_id: i64,
         chunk_bodies: &[String],
     ) -> Result<(), StoreError> {
+        let refs: Vec<Option<String>> = vec![None; chunk_bodies.len()];
+        self.replace_search_document_chunks_with_refs(document_id, chunk_bodies, &refs)
+            .await
+    }
+
+    /// Replace all chunks for `document_id`, preserving optional embedding references per chunk.
+    pub async fn replace_search_document_chunks_with_refs(
+        &self,
+        document_id: i64,
+        chunk_bodies: &[String],
+        embedding_refs: &[Option<String>],
+    ) -> Result<(), StoreError> {
         let chunk_bodies = chunk_bodies.to_vec();
+        let embedding_refs = embedding_refs.to_vec();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
@@ -411,16 +427,117 @@ impl crate::VoxDb {
                 )
                 .await?;
                 for (idx, body) in chunk_bodies.iter().enumerate() {
+                    let embedding_ref = embedding_refs
+                        .get(idx)
+                        .and_then(|r| r.as_deref())
+                        .map(str::to_string);
                     conn.execute(
-                        "INSERT INTO search_document_chunks (document_id, chunk_index, body_text)
-                         VALUES (?1, ?2, ?3)",
-                        params![document_id, idx as i64, body.as_str()],
+                        "INSERT INTO search_document_chunks (document_id, chunk_index, body_text, embedding_ref)
+                         VALUES (?1, ?2, ?3, ?4)",
+                        params![
+                            document_id,
+                            idx as i64,
+                            body.as_str(),
+                            embedding_ref.as_deref()
+                        ],
                     )
                     .await?;
                 }
                 Ok::<(), StoreError>(())
             })
             .await
+    }
+
+    /// Hybrid retrieval over normalized `search_document_chunks` using lexical matches and optional
+    /// embedding similarity. Returns fused typed results plus execution diagnostics.
+    pub async fn query_search_document_chunks_hybrid(
+        &self,
+        query: &str,
+        query_vector: Option<&[f32]>,
+        limit: i64,
+    ) -> Result<(Vec<RetrievalResult>, SearchDiagnostics), StoreError> {
+        let lim = limit.clamp(1, 1_000);
+        let lexical_rows = self.query_search_document_chunks(query, lim).await?;
+        let mut diagnostics = SearchDiagnostics {
+            selected_mode: Some(if query_vector.is_some() {
+                crate::RetrievalMode::Hybrid
+            } else {
+                crate::RetrievalMode::FullText
+            }),
+            initial_top_score: None,
+            ..SearchDiagnostics::default()
+        };
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        let mut text_hits = Vec::new();
+        for (rank, (chunk_id, _doc_id, snippet, title)) in lexical_rows.iter().enumerate() {
+            let score = 1.0_f32 / (1.0_f32 + rank as f32);
+            text_hits.push(RetrievalResult {
+                chunk_id: chunk_id.to_string(),
+                source: title.clone(),
+                score,
+                snippet: snippet.clone(),
+                evidence_source: RetrievalEvidenceSource::FullText,
+                retrieved_at_ms: Some(now_ms),
+                query_id: Some(format!("chunk-text:{query}")),
+                supporting_claim_ids: Vec::new(),
+                contradiction_hints: Vec::new(),
+            });
+        }
+        if !text_hits.is_empty() {
+            diagnostics.backends_used.push(SearchBackend::ChunkFts);
+            diagnostics.initial_top_score = text_hits.first().map(|h| f64::from(h.score));
+        }
+
+        let mut vector_hits = Vec::new();
+        if let Some(vector) = query_vector {
+            let embed_rows = self
+                .search_similar_embeddings(vector, Some("search_document_chunk"), lim)
+                .await?;
+            for (entry, sim) in embed_rows {
+                let snippet = entry.metadata.unwrap_or_default();
+                vector_hits.push(RetrievalResult {
+                    chunk_id: entry.source_id.clone(),
+                    source: entry.source_id,
+                    score: sim.clamp(0.0, 1.0) * 2.0_f32,
+                    snippet,
+                    evidence_source: RetrievalEvidenceSource::Vector,
+                    retrieved_at_ms: Some(now_ms),
+                    query_id: Some(format!("chunk-vector:{query}")),
+                    supporting_claim_ids: Vec::new(),
+                    contradiction_hints: Vec::new(),
+                });
+            }
+            if !vector_hits.is_empty() {
+                diagnostics.backends_used.push(SearchBackend::ChunkVector);
+            }
+        }
+
+        let mut fused = if vector_hits.is_empty() {
+            text_hits
+        } else if text_hits.is_empty() {
+            vector_hits
+        } else {
+            fuse_hybrid_results(&vector_hits, &text_hits, 0.60)
+        };
+        diagnostics.source_diversity = usize::from(!fused.is_empty());
+        diagnostics.evidence_quality = fused
+            .first()
+            .map(|h| f64::from(h.score).clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        diagnostics.citation_coverage = if fused.is_empty() { 0.0 } else { 1.0 };
+        diagnostics.verified_top_score = fused.first().map(|h| f64::from(h.score));
+        diagnostics.verification_top_score_delta = match (
+            diagnostics.verified_top_score,
+            diagnostics.initial_top_score,
+        ) {
+            (Some(after), Some(before)) => Some(after - before),
+            _ => None,
+        };
+        fused.truncate(lim as usize);
+        Ok((fused, diagnostics))
     }
 
     async fn search_document_chunks_fts_ready(&self) -> Result<bool, StoreError> {

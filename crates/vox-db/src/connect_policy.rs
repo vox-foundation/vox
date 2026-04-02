@@ -25,6 +25,8 @@ pub enum DbConnectSurface {
     CliStrict,
     /// Mens training DB thread (may use training sidecar).
     MensTraining,
+    /// Repo-scoped CLI commands (`vox agent`, `vox snippet`, …) using workspace journey resolution.
+    CliWorkspace,
 }
 
 impl DbConnectSurface {
@@ -35,6 +37,7 @@ impl DbConnectSurface {
             Self::Runtime => "runtime",
             Self::CliStrict => "cli_strict",
             Self::MensTraining => "mens_training",
+            Self::CliWorkspace => "cli_workspace",
         }
     }
 }

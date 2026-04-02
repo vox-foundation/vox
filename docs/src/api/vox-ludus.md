@@ -21,7 +21,7 @@ Gamification layer for the Vox programming language. Code companions, daily ques
 | `ai.rs` | Free multi-provider AI client (Pollinations / Ollama / Gemini) |
 | `profile.rs` | Player profile with XP, level, and statistics |
 | `db.rs` | Turso persistence for game state |
-| `schema.rs` | Database schema (V5) for all gamification data |
+| `schema.rs` | Database schema (V18) for all gamification data |
 
 ## Wiring (router vs CLI-only vs unwired)
 

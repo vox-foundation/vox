@@ -3,6 +3,7 @@
 use clap::{Subcommand, ValueEnum};
 use std::path::PathBuf;
 
+use super::completion_quality::CompletionGateMode;
 use super::release_build;
 
 /// Command variations for Continuous Integration guards and internal codebase hygiene.
@@ -19,12 +20,31 @@ pub enum CiCmd {
     /// Validate `contracts/index.yaml` against JSON Schema and listed file paths.
     #[command(name = "contracts-index")]
     ContractsIndex,
+    /// Validate `contracts/terminal/exec-policy.v1.yaml` against schema (+ pwsh smoke when available).
+    #[command(name = "exec-policy-contract")]
+    ExecPolicyContract,
     /// Validate OpenClaw gateway protocol fixture contracts.
     #[command(name = "openclaw-contract")]
     OpenClawContract,
+    /// Validate unified operations catalog parity across MCP + CLI registries.
+    #[command(name = "operations-verify")]
+    OperationsVerify,
+    /// Sync or verify derived registry artifacts from unified operations catalog.
+    #[command(name = "operations-sync")]
+    OperationsSync {
+        /// Target projection.
+        #[arg(long, value_enum)]
+        target: OperationsSyncTarget,
+        /// Write generated output. Without this flag, verify current file matches.
+        #[arg(long)]
+        write: bool,
+    },
     /// Validate `publication-worthiness.default.yaml` against its JSON Schema + numeric invariants.
     #[command(name = "scientia-worthiness-contract")]
     ScientiaWorthinessContract,
+    /// Validate SCIENTIA finding-candidate + novelty-evidence example JSON against v1 schemas.
+    #[command(name = "scientia-novelty-ledger-contracts")]
+    ScientiaNoveltyLedgerContracts,
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
@@ -34,7 +54,7 @@ pub enum CiCmd {
     /// `cargo check -p vox-cli` for each supported feature set.
     #[command(name = "feature-matrix")]
     FeatureMatrix,
-    /// Fail if `vox-cli` sources import `vox_dei::`.
+    /// Ensures `vox-cli` sources do not reference the staging `vox-dei` crate via a Rust path import.
     #[command(name = "no-dei-import", visible_alias = "no-vox-dei-import")]
     NoDeiImport,
     /// Run `vox-doc-pipeline --check` to verify SUMMARY.md matches docs/src
@@ -90,7 +110,7 @@ pub enum CiCmd {
         /// Back-compat for `--isolated-runner` (older docs / scripts).
         #[arg(long, hide = true)]
         windows_isolated_runner: bool,
-        /// Cargo `--target-dir` for the isolated runner build. Default: `target/mens-gate-safe`.
+        /// Cargo `--target-dir` for the isolated runner build. Default: OS temp `…/vox-targets/<repo-hash>/mens-gate-safe`.
         #[arg(long)]
         gate_build_target_dir: Option<PathBuf>,
         /// With `--isolated-runner`: tee child stdout/stderr to this file while printing to the console.
@@ -179,6 +199,36 @@ pub enum CiCmd {
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,
+    /// Scan for LLM premature-completion patterns; write `contracts/reports/completion-audit.v1.json`.
+    #[command(name = "completion-audit")]
+    CompletionAudit {
+        /// Additional repo-relative or absolute directories to scan (must resolve under repo root). Default scan always includes `crates/`.
+        #[arg(long = "scan-extra", value_name = "DIR")]
+        scan_extra: Vec<PathBuf>,
+    },
+    /// Gate on the last completion audit (Tier A hard block; Tier B vs `completion-baseline.v1.json`).
+    #[command(name = "completion-gates")]
+    CompletionGates {
+        #[arg(long, value_enum, default_value_t = CompletionGateMode::Enforce)]
+        mode: CompletionGateMode,
+    },
+    /// Ingest a completion audit report into VoxDB `ci_completion_*` telemetry tables.
+    #[command(name = "completion-ingest")]
+    CompletionIngest {
+        /// Audit JSON path (default: `contracts/reports/completion-audit.v1.json`).
+        #[arg(long)]
+        report: Option<PathBuf>,
+        #[arg(long, default_value = "local")]
+        workflow: String,
+        #[arg(long, default_value = "completion-audit")]
+        run_kind: String,
+    },
+    /// Run rust ecosystem support parity checks (`vox-compiler` contract + classifier test).
+    #[command(name = "rust-ecosystem-policy")]
+    RustEcosystemPolicy,
+    /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
+    #[command(name = "policy-smoke")]
+    PolicySmoke,
     /// Compare `cargo llvm-cov report --json --summary-only` to `.config/coverage-gates.toml`.
     #[command(name = "coverage-gates")]
     CoverageGates {
@@ -198,6 +248,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Regenerate or verify `contracts/capability/model-manifest.generated.json` (Mens / external models).
+    #[command(name = "capability-sync")]
+    CapabilitySync {
+        /// Write the generated JSON manifest.
+        #[arg(long)]
+        write: bool,
+    },
     /// Validate `vox.pm.provenance/1` JSON files under `.vox_modules/provenance/` (from `vox pm publish`).
     #[command(name = "pm-provenance")]
     PmProvenance {
@@ -210,7 +267,11 @@ pub enum CiCmd {
     },
     /// Fail if internal Markdown links are broken in `docs/src` or root-level guides.
     #[command(name = "check-links")]
-    CheckLinks,
+    CheckLinks {
+        /// Optional target file or directory to check.
+        #[arg(long)]
+        target: Option<PathBuf>,
+    },
     /// Build and package release artifacts for a target triple (binary + checksum manifest).
     #[command(name = "release-build")]
     ReleaseBuild {
@@ -226,6 +287,22 @@ pub enum CiCmd {
         /// Which binary packages to produce.
         #[arg(long, value_enum, default_value = "vox")]
         package: release_build::ReleasePackage,
+    },
+    /// Audit workspace artifacts for cleanup.
+    #[command(name = "artifact-audit")]
+    ArtifactAudit {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Prune workspace artifacts cleanly.
+    #[command(name = "artifact-prune")]
+    ArtifactPrune {
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        policy: Option<PathBuf>,
     },
 }
 
@@ -293,6 +370,22 @@ pub enum CoverageGateMode {
     Warn,
     /// Exit non-zero when a configured threshold is not met.
     Enforce,
+}
+
+/// Projection target for `vox ci operations-sync`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum OperationsSyncTarget {
+    /// Build or verify `contracts/operations/catalog.v1.yaml` from live registries.
+    Catalog,
+    /// Build or verify `contracts/mcp/tool-registry.canonical.yaml` from operations catalog.
+    Mcp,
+    /// Build or verify `contracts/cli/command-registry.yaml` from operations catalog.
+    Cli,
+    /// Build or verify `contracts/capability/capability-registry.yaml` from the catalog `capability` block.
+    Capability,
+    /// Verify or write MCP + CLI + capability registry projections (`mcp`, then `cli`, then `capability`).
+    All,
 }
 
 /// Subcommands for [`CiCmd::EvalMatrix`].

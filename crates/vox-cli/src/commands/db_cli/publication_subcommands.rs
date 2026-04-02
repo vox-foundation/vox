@@ -4,8 +4,18 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use super::types::{
-    ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
+    ArxivHandoffStageCli, DbPreflightProfileCli, DiscoveryIntakeGateCli, PublicationPrepareBodyCli,
+    ScholarlyVenueCli,
 };
+
+pub(crate) const PUBLICATION_SYNC_BATCH_DEFAULT_LIMIT: i64 = 25;
+pub(crate) const PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT: i64 = 50;
+pub(crate) const PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT: i64 = 10;
+pub(crate) const PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LOCK_TTL_MS: i64 = 120_000;
+pub(crate) const PUBLICATION_WORKER_DEFAULT_ITERATIONS: u32 = 1;
+pub(crate) const PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS: u64 = 0;
+pub(crate) const PUBLICATION_WORKER_DEFAULT_JITTER_SECS: u64 = 0;
+pub(crate) const PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS: i64 = 168;
 
 /// Publication / scholarly subcommands for `vox db`.
 #[derive(Subcommand)]
@@ -23,6 +33,9 @@ pub enum DbCliPublication {
         preflight: bool,
         #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
         preflight_profile: DbPreflightProfileCli,
+        /// Optional scientia-only discovery intake gate (blocks low-signal or non-auto-eligible drafts).
+        #[arg(long, value_enum, default_value_t = DiscoveryIntakeGateCli::None)]
+        discovery_intake_gate: DiscoveryIntakeGateCli,
     },
     /// Like `publication-prepare` but always runs preflight (same as `--preflight`).
     #[command(name = "publication-prepare-validated")]
@@ -34,6 +47,8 @@ pub enum DbCliPublication {
         body: PublicationPrepareBodyCli,
         #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
         preflight_profile: DbPreflightProfileCli,
+        #[arg(long, value_enum, default_value_t = DiscoveryIntakeGateCli::None)]
+        discovery_intake_gate: DiscoveryIntakeGateCli,
     },
     /// Print publication preflight report JSON for an existing manifest (no writes).
     #[command(name = "publication-preflight")]
@@ -108,6 +123,62 @@ pub enum DbCliPublication {
         #[arg(long, default_value_t = false)]
         with_worthiness: bool,
     },
+    /// Rank SCIENTIA publication candidates from DB manifests (deterministic signal score).
+    #[command(name = "publication-discovery-scan")]
+    PublicationDiscoveryScan {
+        #[arg(long)]
+        content_type: Option<String>,
+        #[arg(long)]
+        state: Option<String>,
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    /// Explain discovery rank, manifest completion, and transform preview for one id.
+    #[command(name = "publication-discovery-explain")]
+    PublicationDiscoveryExplain {
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Emit destination transform preview JSON (scholarly/social stubs; `machine_suggested`).
+    #[command(name = "publication-transform-preview")]
+    PublicationTransformPreview {
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Merge live Socrates / sidecars into `metadata_json`, recompute discovery evidence, upsert digest (scientia only).
+    #[command(name = "publication-discovery-refresh-evidence")]
+    PublicationDiscoveryRefreshEvidence {
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Federated prior-art fetch (OpenAlex, Crossref, Semantic Scholar) → stdout JSON; optional persist into `metadata_json.scientia_novelty_bundle`.
+    #[command(name = "publication-novelty-fetch")]
+    PublicationNoveltyFetch {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+        #[arg(long, default_value_t = false)]
+        persist_metadata: bool,
+    },
+    /// Decision snapshot: preflight + worthiness + discovery rank, with optional live prior-art merge (no DB write unless already embedded).
+    #[command(name = "publication-decision-explain")]
+    PublicationDecisionExplain {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, default_value_t = false)]
+        live_prior_art: bool,
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+    },
+    /// One-shot operator JSON: prior-art bundle + finding-candidate row + worthiness (scientia only; stdout only).
+    #[command(name = "publication-novelty-happy-path")]
+    PublicationNoveltyHappyPath {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+    },
     /// Poll remote repository status for a scholarly submission (latest row, or match `--external-submission-id`).
     #[command(name = "publication-scholarly-remote-status")]
     PublicationScholarlyRemoteStatus {
@@ -127,19 +198,19 @@ pub enum DbCliPublication {
     /// Batch remote status poll: sync-all for each distinct publication (by recent scholarly submission activity).
     #[command(name = "publication-scholarly-remote-status-sync-batch")]
     PublicationScholarlyRemoteStatusSyncBatch {
-        #[arg(long, default_value_t = 25)]
+        #[arg(long, default_value_t = PUBLICATION_SYNC_BATCH_DEFAULT_LIMIT)]
         limit: i64,
         /// Run the batch this many times (supervised worker; default 1).
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_ITERATIONS)]
         iterations: u32,
         /// Seconds to sleep between iterations (0 = no pause; max 3600).
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS)]
         interval_secs: u64,
         /// Stop early after this many wall-clock seconds (loop mode only; max 86400).
         #[arg(long)]
         max_runtime_secs: Option<u64>,
         /// Extra seconds 0..=interval added via subsecond hash jitter (loop mode only; capped at interval).
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_JITTER_SECS)]
         jitter_secs: u64,
     },
     /// Append-only operator milestone for arXiv-assist handoff (does not change manifest `state`).
@@ -162,13 +233,13 @@ pub enum DbCliPublication {
     /// List `external_submission_jobs` rows due for retry (queued or retryable_failed with elapsed `next_retry_at_ms`).
     #[command(name = "publication-external-jobs-due")]
     PublicationExternalJobsDue {
-        #[arg(long, default_value_t = 50)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT)]
         limit: i64,
     },
     /// List `external_submission_jobs` in terminal `failed` state (dead-letter).
     #[command(name = "publication-external-jobs-dead-letter")]
     PublicationExternalJobsDeadLetter {
-        #[arg(long, default_value_t = 50)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT)]
         limit: i64,
     },
     /// Requeue one dead-letter job (`failed` → `queued`) by primary key for the next worker tick.
@@ -180,25 +251,25 @@ pub enum DbCliPublication {
     /// Run one batch of due scholarly submit jobs (preflight, lease, submit with job.adapter).
     #[command(name = "publication-external-jobs-tick")]
     PublicationExternalJobsTick {
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT)]
         limit: i64,
         /// Worker lease duration in milliseconds (5s–1h).
-        #[arg(long, default_value_t = 120_000)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LOCK_TTL_MS)]
         lock_ttl_ms: i64,
         /// Override lock owner id (default: `vox:<pid>` or `VOX_SCHOLARLY_JOB_LOCK_OWNER`).
         #[arg(long)]
         lock_owner: Option<String>,
         /// Process this many back-to-back ticks (default 1; max 10000).
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_ITERATIONS)]
         iterations: u32,
         /// Seconds between ticks when `iterations` > 1 (max 3600).
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS)]
         interval_secs: u64,
         /// Stop early after this wall-clock budget (loop mode only; max 86400).
         #[arg(long)]
         max_runtime_secs: Option<u64>,
         /// Jitter bound added to each interval sleep in loop mode (0 = off).
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = PUBLICATION_WORKER_DEFAULT_JITTER_SECS)]
         jitter_secs: u64,
     },
     /// One-shot scholarly pipeline: manifest preflight, dual-approval gate, optional staging export, then submit.
@@ -227,7 +298,7 @@ pub enum DbCliPublication {
     #[command(name = "publication-external-pipeline-metrics")]
     PublicationExternalPipelineMetrics {
         /// Lower bound for time-windowed series: now minus this many hours (0 = since Unix epoch). Clamped to 8760 (one year). Default 168 (7 days).
-        #[arg(long, default_value_t = 168)]
+        #[arg(long, default_value_t = PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS)]
         since_hours: i64,
     },
     /// Upsert one publication media asset row.

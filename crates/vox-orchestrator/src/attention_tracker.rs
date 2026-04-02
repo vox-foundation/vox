@@ -50,6 +50,8 @@ impl<'a> AttentionTracker<'a> {
             "effective_complexity": event.effective_complexity,
             "decision_entropy_bits": event.decision_entropy_bits,
             "timestamp_ms": event.timestamp_ms,
+            "channel": event.channel,
+            "policy_reason": event.policy_reason,
         }))
         .await?;
         Ok(())

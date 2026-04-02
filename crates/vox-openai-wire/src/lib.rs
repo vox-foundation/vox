@@ -23,6 +23,18 @@ pub struct ChatCompletionChoice {
 #[derive(Debug, Deserialize)]
 pub struct ChatCompletionAssistantMessage {
     pub content: Option<String>,
+    pub tool_calls: Option<Vec<ChatCompletionToolCall>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChatCompletionToolCall {
+    pub function: ChatCompletionFunctionCall,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChatCompletionFunctionCall {
+    pub name: String,
+    pub arguments: String,
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -47,6 +59,10 @@ pub struct ChatCompletionRequest<'a> {
     pub stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]

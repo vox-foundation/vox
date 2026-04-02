@@ -2,7 +2,7 @@
 title: "Information-theoretic questioning protocol"
 description: "SSOT for when and how Vox asks clarifying questions with maximum diagnostic value per user effort."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: 2026-03-28
 training_eligible: true
 ---
 
@@ -100,6 +100,27 @@ Questioning must be cost-aware with attention budget coupling:
 
 MCP records estimated wall-time per `session_id` and can mirror those debits into the orchestrator global attention budget. Cap override and mirror toggle: **`VOX_QUESTIONING_MAX_ATTENTION_MS`**, **`VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION`** — see [Environment variables (SSOT)](env-vars.md#mcp-socrates-questioning).
 
+### Dynamic interruption control (runtime)
+
+When **`VOX_ORCHESTRATOR_ATTENTION_ENABLED=true`**, MCP **does not** emit every model-proposed question immediately. The orchestrator evaluates [`evaluate_interruption`](../../../crates/vox-orchestrator/src/attention/interruption_policy.rs) using:
+
+- information gain vs. normalized user cost (same SSOT ratio),
+- live [`AttentionBudget`](../../../crates/vox-orchestrator/src/attention/budget.rs) (spent ratio, focus depth / interrupt EWMA),
+- trust, contradiction, risk band, open session hints, and turn caps.
+
+Outcomes: **interrupt now** (persist question + [`AttentionEvent`](../../../crates/vox-orchestrator/src/attention/budget.rs)), **defer**, **batch with existing prompt**, or **proceed autonomously** (metric-only). High-risk / abstain-band cases can still **require human** before continue. Answered clarifications append **`ClarificationAnswered`** attention rows via `vox_questioning_submit_answer`. **`VOX_ORCHESTRATOR_ATTENTION_ENABLED=false`** keeps prior behavior (no dynamic deferral on this path).
+
+Runtime now records policy-only outcomes (`PolicyDeferred`, `PolicyProceedAuto`) as first-class attention events, so calibration can learn from **suppressed** interruptions too (not only displayed prompts).
+
+`Vox.toml` `[orchestrator]` can tune channel calibration via `interruption_calibration` (gain offsets, backlog penalty, trust-adjustment scale) without changing policy code.
+
+Surface behavior differs:
+
+- `vox_submit_task`: defer/proceed-auto record telemetry and continue submit; require-human blocks unless description carries explicit marker (`[approval:confirm]`, `[approval:reviewed]`, `[human-approved]`).
+- `vox_a2a_send` (pilot-visible escalation types): defer/proceed-auto suppress send and return `deferred=true`; require-human blocks.
+- `vox_a2a_send` (pilot-visible escalation types): defer suppresses send and returns `decision=DeferUntilCheckpoint` with `deferred=true`; proceed-auto suppresses send and returns `decision=ProceedAutonomously` with `deferred=false`; require-human blocks.
+- `vox_plan`/`vox_replan`/`vox_plan_status`: defer/proceed-auto suppress only the questioning trace; plan output still returns.
+
 ## A2A clarification contract
 
 For agent-to-agent clarification, persist these payload fields in `a2a_messages.payload`:
@@ -118,6 +139,11 @@ Recommended `msg_type` values:
 - `clarification_request`
 - `clarification_response`
 - `clarification_stop`
+
+Contract schemas:
+
+- [`contracts/communication/a2a-clarification-payload.schema.json`](../../../contracts/communication/a2a-clarification-payload.schema.json)
+- [`contracts/communication/interruption-decision.schema.json`](../../../contracts/communication/interruption-decision.schema.json)
 
 ## Metrics (minimum set)
 

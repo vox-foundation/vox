@@ -343,6 +343,10 @@ pub fn route_transcript_with_options(
                         }),
                     };
                 }
+                let escalation = crate::tiering::speech_escalation_recommended(
+                    route_conf,
+                    transcript_confidence,
+                );
                 if matches!(intent, IntentKind::OratioStatus) {
                     return RouteResponse {
                         mode,
@@ -353,6 +357,7 @@ pub fn route_transcript_with_options(
                             "candle": crate::candle_backend_status_json(),
                             "intent_confidence": route_conf,
                             "blended_confidence": blended,
+                            "speech_escalation_recommended": escalation,
                         }),
                     };
                 }
@@ -365,10 +370,14 @@ pub fn route_transcript_with_options(
                         "transcript": transcript,
                         "intent_confidence": route_conf,
                         "blended_confidence": blended,
+                        "transcript_confidence": transcript_confidence,
+                        "speech_escalation_recommended": escalation,
                         "note": "Downstream MCP/planner should validate slots and invoke codegen tools",
                     }),
                 };
             }
+            let escalation =
+                crate::tiering::speech_escalation_recommended(route_conf, transcript_confidence);
             RouteResponse {
                 mode,
                 action: "none".to_string(),
@@ -376,6 +385,8 @@ pub fn route_transcript_with_options(
                 payload: serde_json::json!({
                     "note": "No safe tool action matched transcript",
                     "intent_confidence": route_conf,
+                    "transcript_confidence": transcript_confidence,
+                    "speech_escalation_recommended": escalation,
                 }),
             }
         }
@@ -491,6 +502,11 @@ mod tests {
         );
         assert_eq!(out.action, "speech.intent.code_create");
         assert_eq!(out.status, "intent_matched");
+        assert!(
+            out.payload.get("speech_escalation_recommended").is_some(),
+            "payload should surface tiering hint for MCP/hosts: {:?}",
+            out.payload
+        );
     }
 
     #[test]

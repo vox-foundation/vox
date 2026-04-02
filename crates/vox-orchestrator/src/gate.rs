@@ -3,6 +3,7 @@
 //! Inspired by Greater Fool's "Gates" system, this module provides
 //! middleware to intercept AI requests and enforce budgets/limits.
 
+use crate::attention::AttentionBudget;
 use crate::budget::BudgetManager;
 use crate::types::AgentId;
 use crate::usage::{DEFAULT_RATE_LIMIT_RETRY_SECS, LlmUsageKey, UsageTracker};
@@ -60,14 +61,20 @@ pub enum GateResult {
 pub struct BudgetGate<'a> {
     budget_manager: &'a BudgetManager,
     usage_tracker: &'a UsageTracker<'a>,
+    orchestrator_config: &'a crate::config::OrchestratorConfig,
 }
 
 impl<'a> BudgetGate<'a> {
     /// Wires budget caps together with persisted usage counters from Codex.
-    pub fn new(budget_manager: &'a BudgetManager, usage_tracker: &'a UsageTracker<'a>) -> Self {
+    pub fn new(
+        budget_manager: &'a BudgetManager,
+        usage_tracker: &'a UsageTracker<'a>,
+        orchestrator_config: &'a crate::config::OrchestratorConfig,
+    ) -> Self {
         Self {
             budget_manager,
             usage_tracker,
+            orchestrator_config,
         }
     }
 
@@ -104,16 +111,15 @@ impl<'a> BudgetGate<'a> {
         GateResult::Allowed
     }
 
-    /// Check whether the pilot's attention budget allows a new interrupt.
-    /// Returns `GateResult::Allowed` when `attention_enabled = false` (shadow mode).
-    pub fn check_attention(
-        manager: &BudgetManager,
+    /// Check pilot attention from a cloned [`AttentionBudget`] snapshot (safe before `.await`).
+    #[must_use]
+    pub fn check_attention_snapshot(
+        snap: &AttentionBudget,
         config: &crate::config::OrchestratorConfig,
     ) -> GateResult {
         if !config.attention_enabled {
             return GateResult::Allowed;
         }
-        let snap = manager.attention_snapshot();
         if snap.exhausted() {
             GateResult::AttentionExhausted {
                 message: format!(
@@ -127,6 +133,17 @@ impl<'a> BudgetGate<'a> {
         } else {
             GateResult::Allowed
         }
+    }
+
+    /// Check whether the pilot's attention budget allows a new interrupt.
+    /// Returns `GateResult::Allowed` when `attention_enabled = false` (shadow mode).
+    #[must_use]
+    pub fn check_attention(
+        manager: &BudgetManager,
+        config: &crate::config::OrchestratorConfig,
+    ) -> GateResult {
+        let snap = manager.attention_snapshot();
+        Self::check_attention_snapshot(&snap, config)
     }
 
     /// Record usage with provider reconciliation metadata.
@@ -163,30 +180,31 @@ impl<'a> BudgetGate<'a> {
             )
             .await;
     }
-}
 
-#[async_trait]
-impl<'a> Gate for BudgetGate<'a> {
-    async fn allow(
+    /// Like [`Gate::allow`], but pilot attention is read from `pilot_attention` when provided
+    /// (e.g. embedded orchestrator ledger in MCP). When `None`, falls back to [`BudgetManager::attention_snapshot`]
+    /// on this gate's token/cost manager.
+    pub async fn allow_with_pilot_attention(
         &self,
         agent_id: AgentId,
         usage: &LlmUsageKey,
+        pilot_attention: Option<AttentionBudget>,
         _estimated_tokens: u64,
     ) -> GateResult {
-        // 1. In-memory token/cost budget check
-        let result = BudgetGate::check(
-            self.budget_manager,
-            agent_id,
-            &crate::config::OrchestratorConfig::default(),
-        );
+        let result = BudgetGate::check(self.budget_manager, agent_id, self.orchestrator_config);
         if result != GateResult::Allowed {
             return result;
         }
 
-        // 2. Persisted usage tracker for rate limits
+        let snap = pilot_attention.unwrap_or_else(|| self.budget_manager.attention_snapshot());
+        let att = BudgetGate::check_attention_snapshot(&snap, self.orchestrator_config);
+        if att != GateResult::Allowed {
+            return att;
+        }
+
         let budgets = match self.usage_tracker.remaining_all().await {
             Ok(b) => b,
-            Err(_) => return GateResult::Allowed, // Fail open if DB is down
+            Err(_) => return GateResult::Allowed,
         };
 
         if let Some(b) = budgets.iter().find(|b| {
@@ -208,6 +226,19 @@ impl<'a> Gate for BudgetGate<'a> {
         }
 
         GateResult::Allowed
+    }
+}
+
+#[async_trait]
+impl<'a> Gate for BudgetGate<'a> {
+    async fn allow(
+        &self,
+        agent_id: AgentId,
+        usage: &LlmUsageKey,
+        _estimated_tokens: u64,
+    ) -> GateResult {
+        self.allow_with_pilot_attention(agent_id, usage, None, _estimated_tokens)
+            .await
     }
 
     async fn record_usage(
@@ -239,5 +270,40 @@ impl<'a> Gate for BudgetGate<'a> {
                 Some("estimated"),
             )
             .await;
+    }
+}
+
+#[cfg(test)]
+mod budget_gate_tests {
+    use super::*;
+    use crate::budget::BudgetManager;
+    use crate::config::OrchestratorConfig;
+
+    #[test]
+    fn check_attention_snapshot_blocks_when_enabled_and_exhausted() {
+        let mut cfg = OrchestratorConfig::default();
+        cfg.attention_enabled = true;
+        let mgr = BudgetManager::new();
+        mgr.init_attention(500);
+        mgr.add_questioning_attention_debit_ms(500);
+        let snap = mgr.attention_snapshot();
+        assert!(matches!(
+            BudgetGate::check_attention_snapshot(&snap, &cfg),
+            GateResult::AttentionExhausted { .. }
+        ));
+    }
+
+    #[test]
+    fn check_attention_snapshot_allows_when_disabled_even_if_spent_high() {
+        let cfg = OrchestratorConfig::default();
+        assert!(!cfg.attention_enabled);
+        let mgr = BudgetManager::new();
+        mgr.init_attention(100);
+        mgr.add_questioning_attention_debit_ms(500);
+        let snap = mgr.attention_snapshot();
+        assert_eq!(
+            BudgetGate::check_attention_snapshot(&snap, &cfg),
+            GateResult::Allowed
+        );
     }
 }

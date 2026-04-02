@@ -1,0 +1,70 @@
+name: Docs Quality
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
+      - 'contracts/**'
+      - 'crates/vox-doc-pipeline/**'
+      - 'crates/vox-cli/src/commands/ci/**'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
+      - 'contracts/**'
+      - 'crates/vox-doc-pipeline/**'
+      - 'crates/vox-cli/src/commands/ci/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  docs-quality:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.40'
+
+      - name: Install mdBook tools
+        run: |
+          cargo install mdbook-metadata --locked
+          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build docs tooling
+        run: cargo build -p vox-cli -p vox-doc-pipeline
+
+      - name: Run docs pipeline
+        run: cargo run -p vox-doc-pipeline
+
+      - name: Check SUMMARY drift
+        run: cargo run -p vox-cli --quiet -- ci check-summary-drift
+
+      - name: Check internal docs links
+        run: cargo run -p vox-cli --quiet -- ci check-links
+
+      - name: Build mdBook
+        run: mdbook build docs
+
+      - name: Markdown lint
+        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/architecture-index.md" "docs/src/architecture/research-index.md"

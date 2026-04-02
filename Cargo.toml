@@ -2,7 +2,6 @@
 resolver = "2"
 members = ["crates/*"]
 exclude = [
-    "crates/vox-dei",
     "crates/vox-py",
 ]
 default-members = ["crates/vox-cli"]
@@ -30,6 +29,7 @@ vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
+vox-browser               = { path = "crates/vox-browser" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
@@ -51,6 +51,7 @@ vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-pm                    = { path = "crates/vox-pm" }
+vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
 vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
@@ -64,6 +65,7 @@ vox-tensor                = { path = "crates/vox-tensor" }
 vox-toestub               = { path = "crates/vox-toestub" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-publisher             = { path = "crates/vox-publisher" }
+vox-search                = { path = "crates/vox-search" }
 
 # External dependencies (centralized versions)
 logos              = "0.16"
@@ -99,9 +101,11 @@ insta              = { version = "1", features = ["json"] }
 async-trait        = "0.1"
 futures-util       = "0.3"
 glob               = "0.3"
+hound              = "3.5.1"
 dirs               = "6"
 uuid               = { version = "1", features = ["v4", "serde"] }
 async-stream       = "0.3"
+tower-lsp          = "0.20"
 tower-lsp-server   = "0.23"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
 sysinfo            = "0.38"
@@ -120,8 +124,13 @@ peft-rs            = "1.0"
 bytes              = "1"
 schemars           = { version = "1", features = ["derive"] }
 jsonschema         = { version = "0.26", default-features = false }
+openapiv3          = "2"
+governor           = "0.10"
 strum              = { version = "0.26", features = ["derive"] }
 serial_test        = "3"
+tantivy            = "0.22"
+# Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
+nvml-wrapper       = { version = "0.11", default-features = false }
 
 # Turso / libsql pulls `aegis`; patch uses **pure-rust** defaults so MSVC builds skip the C backend (no clang-cl).
 [patch.crates-io]

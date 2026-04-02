@@ -39,6 +39,10 @@ When the Vox syntax changes:
 
 See [PARSE_STATUS.md](PARSE_STATUS.md) for the CI-generated parse result matrix.
 
+## Interop and wrapper examples
+
+- [std_http_wrappers.vox](std_http_wrappers.vox) — narrow `std.http` wrapper usage (`get_text` / `post_json`) with explicit rust-import pinning.
+
 ## Style Guide
 
 See [STYLE.md](STYLE.md) for coding conventions and frontmatter requirements.

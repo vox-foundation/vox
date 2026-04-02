@@ -405,6 +405,12 @@ pub fn emit_expr(expr: &Expr) -> String {
             lines.join("")
         }
         Expr::With { operand, .. } => emit_expr(operand),
+        Expr::Try { target, .. } => {
+            let inner = emit_expr(target);
+            format!(
+                "(() => {{ const _v = {inner}; if (_v._tag === \"Ok\") return _v.value; throw _v; }})()"
+            )
+        }
     }
 }
 

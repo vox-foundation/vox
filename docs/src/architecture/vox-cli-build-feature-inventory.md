@@ -17,6 +17,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 | *(none)* | when using `--no-default-features` | Compiler pipeline + `vox-db` + **`vox-corpus`** + **`vox-runtime`** (always linked for training JSONL / grammar paths); **no** `vox mens …` surface (`mens-base` off) and **no** Oratio / native train |
 | `mens-base` | **yes** | Marker: enables `vox mens …` CLI (corpus commands, etc.) without linking **`vox-populi`** ML / Oratio — **`vox-corpus` / `vox-runtime` are not feature-gated** |
 | `oratio` | **no** (opt-in) | `mens-base` + `vox-oratio` (Candle Whisper STT) — heavy; enables **`vox oratio`** / **`vox speech`** |
+| `oratio-mic` | **no** (opt-in) | **`oratio`** + `cpal` + `hound` — adds **`vox oratio record-transcribe`** (default microphone → WAV → STT) |
 | `gpu` | **no** (opt-in) | Adds **`vox-populi`** (`mens`, `mens-train`, …) + **`vox-tensor`** — **largest** incremental cost |
 
 ## Optional features (alphabetical by concern)

@@ -17,7 +17,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tokio::time::{Duration, sleep};
 use vox_orchestrator::events::AgentEventKind;
-use vox_orchestrator::{AgentEvent, Orchestrator, OrchestratorConfig};
+use vox_orchestrator::{AgentEvent, OrchestratorConfig, build_repo_scoped_orchestrator};
 
 const BOLD: &str = "\x1b[1m";
 const RESET: &str = "\x1b[0m";
@@ -280,7 +280,7 @@ pub async fn run() -> Result<()> {
     }
 
     let config = OrchestratorConfig::default();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator(config, None).orchestrator;
     let mut rx = orch.event_bus().subscribe();
 
     let mut stats = LiveStats::default();

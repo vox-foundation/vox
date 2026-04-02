@@ -7,7 +7,7 @@
 use crate::locks::LockKind;
 use crate::orchestrator::OrchestratorError;
 use crate::services::MessageGateway;
-use crate::types::{AgentId, AgentTask};
+use crate::types::{AgentId, AgentTask, TaskId, TaskStatus};
 
 impl crate::orchestrator::Orchestrator {
     /// Spawn a new named agent, probe host capabilities, and register it with the
@@ -42,8 +42,48 @@ impl crate::orchestrator::Orchestrator {
 
     /// Spawn a transient (dynamic) agent, marking it for automatic retirement when idle.
     pub fn spawn_dynamic_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
+        self.spawn_dynamic_agent_with_parent(name, None, None, None)
+    }
+
+    /// Spawn a transient agent with an optional explicit parent binding.
+    ///
+    /// This is groundwork for delegation-aware orchestration: current runtime behavior
+    /// remains queue-centric, but topology snapshots can now surface parent/child links.
+    pub fn spawn_dynamic_agent_with_parent(
+        &self,
+        name: &str,
+        parent_agent_id: Option<AgentId>,
+        reason: Option<&str>,
+        source_task_id: Option<TaskId>,
+    ) -> Result<AgentId, OrchestratorError> {
+        if let Some(parent) = parent_agent_id {
+            let parent_exists = crate::sync_lock::rw_read(&*self.agents).contains_key(&parent);
+            if !parent_exists {
+                return Err(OrchestratorError::DelegationParentNotFound(parent));
+            }
+        }
         let agent_id = self.spawn_agent(name)?;
         crate::sync_lock::rw_write(&*self.dynamic_agents).insert(agent_id);
+        let spawn_reason = reason
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("dynamic_spawn")
+            .to_string();
+        crate::sync_lock::rw_write(&*self.dynamic_spawn_context).insert(
+            agent_id,
+            crate::topology::DynamicSpawnContext {
+                source_task_id,
+                reason: spawn_reason.clone(),
+            },
+        );
+        if let Some(parent) = parent_agent_id {
+            let binding = crate::topology::AgentDelegationBinding {
+                parent_agent_id: parent,
+                source_task_id,
+                reason: spawn_reason,
+            };
+            crate::sync_lock::rw_write(&*self.agent_delegations).insert(agent_id, binding);
+        }
         tracing::info!("Agent {} marked as dynamic", agent_id,);
         Ok(agent_id)
     }
@@ -52,11 +92,66 @@ impl crate::orchestrator::Orchestrator {
     ///
     /// Does **not** enable remote task execution; see
     /// `OrchestratorConfig::populi_routing_experimental`.
+    ///
+    /// When experimental routing is on and the count of **federation-schedulable** remote nodes
+    /// drops vs the previous snapshot, emits `tracing` (`target: vox.orchestrator.routing`,
+    /// `decision = populi_remote_schedulable_decreased`). If
+    /// [`OrchestratorConfig::populi_rebalance_on_remote_schedulable_drop`] or queued route replay
+    /// should consult [`crate::populi_federation::PopuliRoutingHintUpdate`] from the return value
+    /// (see `vox-mcp` federation poller).
     pub fn set_remote_populi_routing_hints(
         &self,
         hints: Vec<crate::populi_federation::RemotePopuliRoutingHint>,
-    ) {
-        *crate::sync_lock::rw_write(&*self.remote_populi_routing_hints) = hints;
+    ) -> crate::populi_federation::PopuliRoutingHintUpdate {
+        let new_nodes = hints.len();
+        let new_schedulable = hints
+            .iter()
+            .filter(|h| h.is_federation_schedulable())
+            .count();
+        let new_gpu_eligible = hints
+            .iter()
+            .filter(|h| h.is_federation_gpu_eligible())
+            .count();
+
+        let mut slot = crate::sync_lock::rw_write(&*self.remote_populi_routing_hints);
+        let prev = slot.clone();
+        let prev_schedulable = prev
+            .iter()
+            .filter(|h| h.is_federation_schedulable())
+            .count();
+        let prev_gpu_eligible = prev
+            .iter()
+            .filter(|h| h.is_federation_gpu_eligible())
+            .count();
+        let prev_nodes = prev.len();
+        *slot = hints;
+        drop(slot);
+
+        let populi_exp = crate::sync_lock::rw_read(&*self.config).populi_routing_experimental;
+        if populi_exp && prev_schedulable > new_schedulable {
+            tracing::info!(
+                target: "vox.orchestrator.routing",
+                decision = "populi_remote_schedulable_decreased",
+                prev_schedulable,
+                new_schedulable,
+                prev_nodes,
+                new_nodes,
+                "populi federation: schedulable remote node count dropped"
+            );
+        }
+        tracing::debug!(
+            target: "vox.orchestrator.routing",
+            remote_nodes = new_nodes,
+            remote_schedulable = new_schedulable,
+            remote_gpu_eligible = new_gpu_eligible,
+            "populi federation hint snapshot applied"
+        );
+        crate::populi_federation::PopuliRoutingHintUpdate {
+            prev_schedulable,
+            new_schedulable,
+            prev_gpu_eligible,
+            new_gpu_eligible,
+        }
     }
 
     /// Map an AI agent session ID to an existing orchestrator agent queue.
@@ -95,6 +190,12 @@ impl crate::orchestrator::Orchestrator {
         self.affinity_map.release_all(agent_id);
         crate::sync_lock::rw_write(&*self.scope_guard).clear_scope(agent_id);
         crate::sync_lock::rw_write(&*self.dynamic_agents).remove(&agent_id);
+        {
+            let mut delegations = crate::sync_lock::rw_write(&*self.agent_delegations);
+            delegations.remove(&agent_id);
+            delegations.retain(|_, binding| binding.parent_agent_id != agent_id);
+        }
+        crate::sync_lock::rw_write(&*self.dynamic_spawn_context).remove(&agent_id);
         crate::sync_lock::rw_write(&*self.agent_handles).remove(&agent_id);
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).unregister(agent_id);
 
@@ -108,7 +209,10 @@ impl crate::orchestrator::Orchestrator {
         Ok(remaining)
     }
 
-    /// Cancel a queued task. Returns an error if the task is in-progress or not found.
+    /// Cancel a queued task, or a Populi remote-delegated in-progress task.
+    ///
+    /// Remote-delegated tasks emit a best-effort [`crate::a2a::relay_remote_task_cancel`] when a
+    /// Tokio runtime handle is available.
     pub fn cancel_task(&self, task_id: crate::types::TaskId) -> Result<(), OrchestratorError> {
         let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
             .get(&task_id)
@@ -121,13 +225,169 @@ impl crate::orchestrator::Orchestrator {
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
         let mut queue = crate::sync_lock::rw_write(queue_lock);
 
-        if let Some(_task) = queue.cancel(task_id) {
+        if let Some(task) = queue.current_task()
+            && task.id == task_id
+            && task.populi_remote_delegate.is_some()
+        {
+            let delegate = task.populi_remote_delegate.clone();
+            let idempotency_key = delegate.as_ref().map(|d| d.idempotency_key.clone());
+            let taken = queue.take_in_progress_if(task_id);
+            if taken.is_none() {
+                return Err(OrchestratorError::TaskNotFound(task_id));
+            }
+            let still_claimed_by_queue = |path: &std::path::Path, q: &crate::queue::AgentQueue| {
+                q.current_task()
+                    .is_some_and(|t| t.write_files().iter().any(|p| p.as_path() == path))
+                    || q.tasks()
+                        .iter()
+                        .any(|t| t.write_files().iter().any(|p| p.as_path() == path))
+            };
+            if let Some(ref t) = taken {
+                for path in t.write_files() {
+                    if !still_claimed_by_queue(path, &queue) {
+                        self.lock_manager.release(path, agent_id);
+                        self.affinity_map.release(path);
+                        crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
+                    }
+                }
+            }
+            crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
+            tracing::info!(
+                "Cancelled Populi remote-delegated task {} from agent {}",
+                task_id,
+                agent_id
+            );
+            if let (Some(key), Ok(handle)) =
+                (idempotency_key, tokio::runtime::Handle::try_current())
+            {
+                let cfg = crate::sync_lock::rw_read(&*self.config).clone();
+                if cfg.populi_remote_execute_experimental {
+                    if let (Some(base), Some(recv_s)) = (
+                        cfg.populi_control_url
+                            .as_deref()
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                            .map(|s| s.to_string()),
+                        cfg.populi_remote_execute_receiver_agent
+                            .as_deref()
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty()),
+                    ) {
+                        if let Ok(recv_id) = recv_s.parse::<u64>() {
+                            let send_id = cfg
+                                .populi_remote_execute_sender_agent
+                                .as_deref()
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty())
+                                .and_then(|s| s.parse::<u64>().ok())
+                                .unwrap_or(1);
+                            let cancel = crate::a2a::RemoteTaskCancel {
+                                idempotency_key: key,
+                                task_id: task_id.0,
+                                reason: Some("orchestrator_cancel".to_string()),
+                            };
+                            let timeout_ms = cfg.populi_http_timeout_ms.max(500);
+                            let tid = task_id.0;
+                            let lease_id = delegate.as_ref().and_then(|d| d.lease_id.clone());
+                            let claimer_node_id =
+                                delegate.as_ref().and_then(|d| d.claimer_node_id.clone());
+                            handle.spawn(async move {
+                                let client =
+                                    vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                                        &base,
+                                        std::time::Duration::from_millis(timeout_ms),
+                                    )
+                                    .with_env_deliver_token();
+                                if let Err(e) = crate::a2a::relay_remote_task_cancel(
+                                    &client,
+                                    crate::types::AgentId(send_id),
+                                    crate::types::AgentId(recv_id),
+                                    &cancel,
+                                )
+                                .await
+                                {
+                                    tracing::debug!(
+                                        error = %e,
+                                        task_id = tid,
+                                        "populi remote_task_cancel relay failed (best-effort)"
+                                    );
+                                }
+                                if let (Some(lease_id), Some(claimer_node_id)) =
+                                    (lease_id, claimer_node_id)
+                                {
+                                    let _ = client
+                                        .exec_lease_release(
+                                            &vox_populi::transport::RemoteExecLeaseReleaseRequest {
+                                                lease_id,
+                                                claimer_node_id,
+                                            },
+                                        )
+                                        .await;
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            return Ok(());
+        }
+
+        if let Some(task) = queue.cancel(task_id) {
+            let still_claimed_by_queue = |path: &std::path::Path, q: &crate::queue::AgentQueue| {
+                q.current_task()
+                    .is_some_and(|t| t.write_files().iter().any(|p| p.as_path() == path))
+                    || q.tasks()
+                        .iter()
+                        .any(|t| t.write_files().iter().any(|p| p.as_path() == path))
+            };
+            for path in task.write_files() {
+                if !still_claimed_by_queue(path, &queue) {
+                    self.lock_manager.release(path, agent_id);
+                    self.affinity_map.release(path);
+                    crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
+                }
+            }
             crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
             tracing::info!("Cancelled task {} from agent {}", task_id, agent_id);
             Ok(())
         } else {
             Err(OrchestratorError::TaskNotFound(task_id))
         }
+    }
+
+    /// Deterministically move a remote-held task back to the local queue after lease failure/loss.
+    pub fn fallback_populi_remote_task_locally(
+        &self,
+        task_id: TaskId,
+        reason: &str,
+    ) -> Result<(), OrchestratorError> {
+        let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
+            .get(&task_id)
+            .copied()
+            .ok_or(OrchestratorError::TaskNotFound(task_id))?;
+
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
+            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(queue_lock);
+
+        let Some(mut task) = queue.take_in_progress_if(task_id) else {
+            return Err(OrchestratorError::TaskNotFound(task_id));
+        };
+        task.populi_remote_delegate = None;
+        task.status = TaskStatus::Queued;
+        queue.enqueue(task);
+        tracing::info!(
+            task_id = task_id.0,
+            agent_id = agent_id.0,
+            reason,
+            placement_reason =
+                crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError
+                    .as_str(),
+            "moved remote-held task back to local queue after lease transition failure"
+        );
+        Ok(())
     }
 
     /// Register a `vox-runtime` process handle for an agent.
@@ -141,6 +401,79 @@ impl crate::orchestrator::Orchestrator {
         payload: crate::handoff::HandoffPayload,
     ) -> Result<AgentId, OrchestratorError> {
         let from_agent = payload.from_agent;
+        if let Err(err) = crate::handoff::validate_handoff_invariants(&payload) {
+            let reason = err.to_string();
+            self.event_bus
+                .emit(crate::events::AgentEventKind::AgentHandoffRejected {
+                    from: from_agent,
+                    reason: reason.clone(),
+                });
+            return Err(OrchestratorError::HandoffInvariant(reason));
+        }
+        let (has_context_envelope, has_harness_spec, handoff_session_id, handoff_thread_id) =
+            crate::handoff::handoff_context_event_metadata(&payload);
+        if let Some((_, context_json)) = payload
+            .metadata
+            .iter()
+            .rev()
+            .find(|(k, _)| k == crate::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
+        {
+            if let Ok(env) = serde_json::from_str::<crate::ContextEnvelope>(context_json) {
+                let cfg = crate::sync_lock::rw_read(&*self.config).clone();
+                let repo = crate::lineage::repository_id();
+                if let Some(session_id) = env
+                    .subject
+                    .session_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                {
+                    let expectations = crate::context_lifecycle::ContextIngestExpectations {
+                        repository_id: repo.as_str(),
+                        session_id: Some(session_id),
+                    };
+                    if let Err(e) = crate::context_lifecycle::apply_context_lifecycle_policy(
+                        &cfg,
+                        &env,
+                        expectations,
+                        crate::context_lifecycle::ContextIngestSource::InternalHandoffAccept,
+                    ) {
+                        return Err(OrchestratorError::HandoffInvariant(e));
+                    }
+                    let key = crate::socrates::session_context_envelope_key(session_id);
+                    let existing = crate::sync_lock::rw_read(&*self.context_store).get(&key);
+                    let merged =
+                        match crate::context_lifecycle::merge_context_envelope_for_session_store(
+                            existing.as_deref(),
+                            &env,
+                            cfg.context_lifecycle_shadow,
+                        ) {
+                            Ok(m) => m,
+                            Err(e) => return Err(OrchestratorError::HandoffInvariant(e)),
+                        };
+                    if let Err(e) = crate::context_lifecycle::apply_context_lifecycle_policy(
+                        &cfg,
+                        &merged,
+                        expectations,
+                        crate::context_lifecycle::ContextIngestSource::SessionStoreWrite,
+                    ) {
+                        return Err(OrchestratorError::HandoffInvariant(e));
+                    }
+                    let merged_json = match serde_json::to_string(&merged) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            return Err(OrchestratorError::HandoffInvariant(e.to_string()));
+                        }
+                    };
+                    crate::sync_lock::rw_write(&*self.context_store).set(
+                        crate::types::AgentId(0),
+                        key,
+                        merged_json,
+                        3600,
+                    );
+                }
+            }
+        }
 
         // Check for staleness/expiration
         let now = crate::types::now_unix_ms();
@@ -208,12 +541,26 @@ impl crate::orchestrator::Orchestrator {
         }
 
         let resumed_ids: Vec<crate::types::TaskId> = payload.pending_tasks.clone();
+        if target_id != from_agent {
+            crate::sync_lock::rw_write(&*self.agent_delegations).insert(
+                target_id,
+                crate::topology::AgentDelegationBinding {
+                    parent_agent_id: from_agent,
+                    source_task_id: None,
+                    reason: "handoff_accept".to_string(),
+                },
+            );
+        }
 
         self.event_bus
             .emit(crate::events::AgentEventKind::AgentHandoffAccepted {
                 agent_id: target_id,
                 from: from_agent,
                 plan_summary: payload.plan_summary.clone(),
+                has_context_envelope,
+                has_harness_spec,
+                session_id: handoff_session_id,
+                thread_id: handoff_thread_id,
             });
 
         tracing::info!(

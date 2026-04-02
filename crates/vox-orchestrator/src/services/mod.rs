@@ -30,9 +30,11 @@ pub mod policy;
 pub mod routing;
 pub mod scaling;
 
+pub mod campaign_scheduler;
 pub mod embeddings;
 
+pub use campaign_scheduler::{CampaignSchedulePlan, CampaignScheduler, CampaignSchedulingMode};
 pub use gateway::MessageGateway;
-pub use policy::{PolicyCheckResult, PolicyEngine};
+pub use policy::{PolicyCheckResult, PolicyEngine, PolicyTrustRelax};
 pub use routing::{RouteResult, RoutingService};
 pub use scaling::{ScalingAction, ScalingService};

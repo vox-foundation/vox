@@ -1,0 +1,27 @@
+[package]
+name = "vox-audio-ingress"
+description = "Minimal HTTP ingress for Oratio: /api/audio/status and /api/audio/transcribe (path-based + optional upload)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "vox-audio-ingress"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "multipart", "ws"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "fs", "io-util"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true }
+hound = { workspace = true }
+
+vox-oratio = { path = "../vox-oratio", features = ["stt-candle", "compiler-rerank"] }
+
+[lints]
+workspace = true

@@ -108,7 +108,7 @@ Initialize the global database instance using environment variables.
 
 Looks for:
 - `VOX_DB_PATH`: Local SQLite file path (default: `vox_state/vox.db`)
-- `TURSO_URL`: Remote Turso URL
+- `VOX_DB_URL`: Remote Codex / Turso URL
 - `TURSO_AUTH_TOKEN`: Remote Turso auth token
 
 
@@ -147,7 +147,7 @@ Collects LLM interactions and feedback for RLHF training.
 
 # vox-runtime
 
-Execution runtime for compiled Vox applications, built on Tokio and warp.
+Execution runtime for compiled Vox applications, built on Tokio and Axum.
 
 Provides the actor system, scheduler, subscription manager, and local
 content-addressable storage that compiled Vox programs rely on.

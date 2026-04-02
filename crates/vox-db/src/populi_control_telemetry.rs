@@ -1,4 +1,7 @@
 //! Mens control-plane audit rows in `research_metrics` (session `mens:<repository_id>`).
+//!
+//! **S1** operational metadata. `details` MUST NOT contain mesh bearer tokens (`VOX_MESH_TOKEN`, worker/submitter
+//! secrets, or raw JWT material) — emit event names and coarse status only.
 
 use serde::Serialize;
 use serde_json::Value;

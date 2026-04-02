@@ -87,6 +87,9 @@ fn island_try_prop_attr_rejects_empty_name() {
 
 #[test]
 fn island_compat_metrics_track_ast_and_hir_helpers() {
+    let _serial = REACTIVE_SMOKE_SERIAL
+        .lock()
+        .expect("REACTIVE_SMOKE_SERIAL poisoned");
     use vox_compiler::codegen_ts::island_emit::{
         format_island_mount_ast, island_compat_metrics, island_mount_hir_fragment,
         island_mount_opening_part,

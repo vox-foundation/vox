@@ -15,7 +15,7 @@ training_eligible: true
 As of March 2026, the golden set covers 15 files:
 - Core app patterns: `chatbot.vox`, `full_stack_minimal.vox`, `hello-vox/src/main.vox`, `multi_route_app.vox`
 - Data layer: `data_layer.vox`, `durable_counter.vox`, `server_fn.vox`
-- Durable execution: `workflow.vox`
+- Workflow durability: `workflow.vox`
 - ADTs & testing: `generics_option.vox`, `pattern_matching.vox`, `testing.vox`
 - React hooks: `hooks_demo.vox`
 - Islands & v0: `island_demo.vox`, `v0_component.vox`

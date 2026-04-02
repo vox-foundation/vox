@@ -1,7 +1,13 @@
+---
+title: "Script surface audit and Vox migration"
+description: "SSOT inventory of tracked Python, PowerShell, and shell scripts with owners, essential vs replaceable classification, mapping to vox ci / vox mens equivalents, and noted capability gaps versus container/runtime boundaries."
+category: "architecture"
+---
+
 # Script surface audit and Vox migration
 
 This document is the **SSOT** for tracked `.py`, `.ps1`, and `.sh` scripts: purpose, essentiality, replacement `vox` commands, capability gaps, and migration phases.  
-Policy for thin CI wrappers: [`scripts/README.md`](../../scripts/README.md), runner contract [`docs/src/ci/runner-contract.md`](../ci/runner-contract.md), machine inventory [`docs/agents/script-registry.json`](../../agents/script-registry.json).
+Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), runner contract [`docs/src/ci/runner-contract.md`](../ci/runner-contract.md), machine inventory [`docs/agents/script-registry.json`](../../agents/script-registry.json).
 
 ## Canonical inventory (git-tracked)
 
@@ -9,7 +15,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../scripts/README.md), run
 |------|----------------|
 | `crates/vox-compiler/src/typeck/checker.py` | **Removed** (empty; real checker is Rust `typeck/checker/`). |
 | `patches/aegis-0.9.8/src/test-vectors/gen.py` | Vendor patch maintenance |
-| `scripts/extract_mcp_tool_registry.py` | Bootstrap / contract backfill |
+| `scripts/extract_mcp_tool_registry.py` | Legacy migration recovery (gated) |
 | `docker/populi-entrypoint.sh` | Runtime boundary (container) |
 | `docker/vox-entrypoint.sh` | Runtime boundary (container) |
 | `scripts/check_codex_ssot.ps1` | CI guard wrapper |
@@ -52,12 +58,12 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../scripts/README.md), run
 
 | Script | Role |
 |--------|------|
-| [`scripts/install.sh`](../../scripts/install.sh) / [`install.ps1`](../../scripts/install.ps1) | Chicken-and-egg bootstrap: download/verify `vox-bootstrap`, no `vox` on PATH yet. |
-| [`scripts/windows/ensure_cuda_path.ps1`](../../scripts/windows/ensure_cuda_path.ps1) | Persists User `PATH` / `CUDA_PATH`; invasive OS mutation — belongs outside normal `vox` runs. |
-| [`scripts/windows/stop_stuck_cargo_tests.ps1`](../../scripts/windows/stop_stuck_cargo_tests.ps1) | Win32 process cleanup (LNK1104 / hung tests). |
-| [`scripts/populi/mens_gate_safe.ps1`](../../scripts/populi/mens_gate_safe.ps1) | Until lifted into Rust: isolated `CARGO_TARGET_DIR`, temp `vox.exe`, `-Detach`, log tee — **Windows file-lock / agent timeouts**. |
-| [`docker/vox-entrypoint.sh`](../../docker/vox-entrypoint.sh) | PID1 sidecar: background `populi serve` + `exec` main (container semantics). |
-| [`docker/populi-entrypoint.sh`](../../docker/populi-entrypoint.sh) | Cloud train/serve/agent dispatch: `curl`, HF CLI, traps — **runtime boundary** (see gaps below). |
+| [`scripts/install.sh`](../../../scripts/install.sh) / [`install.ps1`](../../../scripts/install.ps1) | Chicken-and-egg bootstrap: download/verify `vox-bootstrap`, no `vox` on PATH yet. |
+| [`scripts/windows/ensure_cuda_path.ps1`](../../../scripts/windows/ensure_cuda_path.ps1) | Persists User `PATH` / `CUDA_PATH`; invasive OS mutation — belongs outside normal `vox` runs. |
+| [`scripts/windows/stop_stuck_cargo_tests.ps1`](../../../scripts/windows/stop_stuck_cargo_tests.ps1) | Win32 process cleanup (LNK1104 / hung tests). |
+| [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1) | Until lifted into Rust: isolated `CARGO_TARGET_DIR`, temp `vox.exe`, `-Detach`, log tee — **Windows file-lock / agent timeouts**. |
+| [`docker/vox-entrypoint.sh`](../../../docker/vox-entrypoint.sh) | PID1 sidecar: background `populi serve` + `exec` main (container semantics). |
+| [`docker/populi-entrypoint.sh`](../../../docker/populi-entrypoint.sh) | Cloud train/serve/agent dispatch: `curl`, HF CLI, traps — **runtime boundary** (see gaps below). |
 
 ### Useful but replaceable
 
@@ -69,7 +75,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../scripts/README.md), run
 
 - **`vox_continuous_trainer.ps1`**: hard-coded `build_vox.bat`, loop — superseded by **`vox mens corpus …`** + **`vox mens pipeline`**; retain only if actively used, else archive.
 - **`toestub_self_apply.*`**: prefer **`vox ci toestub-scoped`** with explicit root and CI-aligned flags.
-- **`extract_mcp_tool_registry.py`**: rare migration tool; SSOT is YAML + `vox-mcp-registry/build.rs` (see [`docs/src/reference/mcp-tool-registry-contract.md`](../reference/mcp-tool-registry-contract.md)).
+- **`extract_mcp_tool_registry.py`**: legacy migration tool, disabled by default (`VOX_ALLOW_LEGACY_MCP_EXTRACT=1` + `--allow-legacy`); SSOT is YAML + `vox-mcp-registry/build.rs` (see [`docs/src/reference/mcp-tool-registry-contract.md`](../reference/mcp-tool-registry-contract.md)).
 - **`patches/.../gen.py`**: Aegis vector regen only when updating the vendored patch.
 
 ## Map to Vox (duplicate vs gap)
@@ -119,19 +125,19 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../scripts/README.md), run
 ## Phase 1 cleanups (done)
 
 - Removed empty `crates/vox-compiler/src/typeck/checker.py` (doc inventory regenerated).
-- Fix [`scripts/populi/dogfood_qlora_cuda.ps1`](../../scripts/populi/dogfood_qlora_cuda.ps1) to use **`vox mens train`** (not `vox populi train`).
-- Align [`docker/populi-entrypoint.sh`](../../docker/populi-entrypoint.sh) **train** branch to **`vox mens train`**; document **serve/agent** limitations in this doc.
+- Fix [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1) to use **`vox mens train`** (not `vox populi train`).
+- Align [`docker/populi-entrypoint.sh`](../../../docker/populi-entrypoint.sh) **train** branch to **`vox mens train`**; document **serve/agent** limitations in this doc.
 - Mark **`vox_continuous_trainer.ps1`** as deprecated in-script; prefer **`vox mens corpus`** + **`vox mens pipeline`**.
-- Correct **[`scripts/README.md`](../../scripts/README.md)** canonical train line to match **`vox mens train`** (matches `run_qwen25_qlora_real_4080.ps1`).
+- Correct **[`scripts/README.md`](../../../scripts/README.md)** canonical train line to match **`vox mens train`** (matches `run_qwen25_qlora_real_4080.ps1`).
 - Extend [`docs/agents/script-registry.json`](../../agents/script-registry.json) with missing tracked scripts.
 
 ## Phase 2 (implemented in `vox-cli`)
 
 ### `vox ci mens-gate` (Windows)
 
-- `--windows-isolated-runner` — `cargo build -p vox-cli` to `target/mens-gate-safe` (or `--gate-build-target-dir`), copy `vox.exe` to `%TEMP%`, set `VOX_MENS_GATE_INNER=1`, re-run gate steps (see [`matrix.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs)).
+- `--windows-isolated-runner` — `cargo build -p vox-cli` to OS temp `…/vox-targets/<repo-hash>/mens-gate-safe` by default (or `--gate-build-target-dir`), copy `vox.exe` to `%TEMP%`, set `VOX_MENS_GATE_INNER=1`, re-run gate steps (see [`matrix.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs)).
 - `--gate-log-file <path>` — tee child stdout/stderr (isolated runner only).
-- **Detach** for IDE timeouts remains in [`scripts/populi/mens_gate_safe.ps1`](../../scripts/populi/mens_gate_safe.ps1) (`Start-Process`); non-detach path calls `vox` with the flags above.
+- **Detach** for IDE timeouts remains in [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1) (`Start-Process`); non-detach path calls `vox` with the flags above.
 
 ### `vox mens watch-telemetry` (alias `watch`)
 

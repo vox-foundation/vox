@@ -224,8 +224,8 @@ Use **`vox mens corpus mix`** with `mens/config/mix.yaml`, or merge JSONL with y
 | Mode | Command | When to use |
 |------|---------|-------------|
 | Native Mens (Burn) | `vox mens train …` (`--backend lora`; `--tokenizer vox` default or `--tokenizer hf` for GPT-2-shaped HF) | Burn LoRA + wgpu; Vox ChatML or HF tokenizer + optional embed warm-start |
-| Native Mens (Candle QLoRA) | `vox mens train --backend qlora --tokenizer hf --model <hf_repo> …` | Candle + **qlora-rs NF4** proxy stack + mmap `f32` embeds; CUDA/Metal optional |
-| Qwen2.5-Coder (4080 16GB) | `cargo build -p vox-cli --release --features gpu,mens-candle-cuda` then `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --device cuda …` | Production-oriented QLoRA preset; strict proxy stack optional via `--qlora-require-full-proxy-stack` |
+| Native Mens (Candle QLoRA) | `vox mens train --device cuda` (optional `--model <hf_repo>`; SSOT default when omitted) | Candle + **qlora-rs NF4** proxy stack + mmap `f32` embeds; CUDA/Metal optional |
+| Qwen3.5-4B (4080 16GB) | `cargo build -p vox-cli --release --features gpu,mens-candle-cuda` then `vox mens train --preset qwen_4080_16g --device cuda …` | Production-oriented QLoRA preset; on CUDA, full proxy stack defaults **on**; `--qlora-allow-partial-proxy-stack` to opt out |
 | Legacy `vox train` | `vox train …` (build `--features mens-dei`) | **`--provider local`** → bail + **`vox mens train --backend qlora`** copy-paste; Together remote; **`--native`** Burn scratch |
 | CI strict | `VOX_EVAL_STRICT=1` | Fail promotion on eval gate failure |
 | CI benchmark | `VOX_BENCHMARK=1` | Run held-out benchmark before promotion |

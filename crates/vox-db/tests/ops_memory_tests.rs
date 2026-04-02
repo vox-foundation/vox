@@ -1,7 +1,7 @@
 use tempfile::tempdir;
 use turso::params;
 use vox_db::MemoryParams as SaveMemoryParams;
-use vox_db::VoxDb;
+use vox_db::{SearchBackend, VoxDb};
 
 #[tokio::test]
 async fn test_memory_save_and_recall() {
@@ -175,4 +175,62 @@ async fn test_search_document_chunks_falls_back_or_uses_fts() {
             "fts5 reported but search_document_chunks_fts table missing"
         );
     }
+}
+
+#[tokio::test]
+async fn test_search_document_chunks_hybrid_uses_vector_hits() {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("chunks_hybrid.db");
+    let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
+
+    store
+        .connection()
+        .execute(
+            "INSERT INTO search_documents (source_uri, title) VALUES (?1, ?2)",
+            params!["test://chunk-hybrid", "Hybrid doc"],
+        )
+        .await
+        .unwrap();
+    let doc_id = store.connection().last_insert_rowid();
+
+    store
+        .replace_search_document_chunks_with_refs(
+            doc_id,
+            &[String::from("vector grounded chunk")],
+            &[None],
+        )
+        .await
+        .unwrap();
+    let rows = store
+        .query_all(
+            "SELECT id FROM search_document_chunks WHERE document_id = ?1 AND chunk_index = 0",
+            params![doc_id],
+        )
+        .await
+        .unwrap();
+    let chunk_id: i64 = rows[0].get(0).unwrap();
+    store
+        .store_embedding(
+            "search_document_chunk",
+            &chunk_id.to_string(),
+            "test-model",
+            &[1.0, 0.0, 0.0],
+            Some("vector grounded chunk"),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let (hits, diagnostics) = store
+        .query_search_document_chunks_hybrid("grounded", Some(&[1.0, 0.0, 0.0]), 5)
+        .await
+        .unwrap();
+    assert!(!hits.is_empty());
+    assert_eq!(hits[0].chunk_id, chunk_id.to_string());
+    assert!(diagnostics.backends_used.contains(&SearchBackend::ChunkFts));
+    assert!(
+        diagnostics
+            .backends_used
+            .contains(&SearchBackend::ChunkVector)
+    );
 }

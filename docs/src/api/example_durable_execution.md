@@ -2,7 +2,7 @@
 title: "Example: Durable Execution Example"
 description: "Official documentation for Example: Durable Execution Example for the Vox language. Detailed technical reference, architecture guides, an"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 # Example: Durable Execution Example
@@ -33,8 +33,11 @@ activity send_confirmation(recipient: str, order_id: str) to Result[str]:
     let msg = "Order " + order_id + " confirmed for " + recipient
     ret Ok(msg)
 
-# Workflows orchestrate activities with durable execution guarantees.
-# The `with` expression applies retry/timeout policies to activity calls.
+# Workflows orchestrate activities. Durable step replay today is scoped to the
+# interpreted workflow runtime for linear workflows.
+# Retry/backoff on that interpreted path currently matters for `mesh_*`
+# activity execution; ordinary activities in examples like this still mostly
+# show language shape and stable `activity_id` usage rather than full runtime parity.
 workflow process_order(customer: str, order_data: str, amount: int) to Result[str]:
     # Validate with a short timeout and no retries
     let validated = validate_order(order_data) with { timeout: "5s" }

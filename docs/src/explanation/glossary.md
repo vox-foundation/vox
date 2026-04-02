@@ -65,7 +65,15 @@ The core architecture powering Vox's multi-agent orchestrator and interactive co
 ### Diátaxis
 A framework for structuring technical documentation into four distinct pillars (Tutorials, How-To, Explanation, Reference).
 ### Durable Execution
-A system guarantee that a program will eventually complete despite hardware or software failures. Workflows in Vox are durable by design.
+In distributed systems, the idea that long-running work can survive crashes and keep going. In Vox today, **workflow-shaped** durability mainly means the **interpreted** workflow runtime can skip steps already recorded for a given **run id** and **activity id**; it is not a guarantee that every Vox program or every generated workflow is a durable state machine. See [Actors & Workflows](expl-actors-workflows.md).
+### Durable Delivery
+Persistence for messages, inbox/outbox rows, claims, leases, and acknowledgements. Durable delivery means the handoff survives restarts; it does **not** mean user code is replayed like a workflow.
+### Durable History / Audit
+Append-only records such as lineage, oplogs, and analytics journals. These preserve evidence and recovery context, but they are not the same as resuming a workflow body.
+### Durable Jobs
+Queued or scheduled background work that survives restarts and can be claimed again later. This is closer to job-queue semantics than workflow replay.
+### Durable State
+Persisted application state such as actor key-value snapshots via `state_load` / `state_save`. Durable state remembers values; it does not automatically resume a function from the middle.
 ### Decorator
 A compile-time annotation (e.g., `@server`, `@table`) that modifies the behavior of a function or type during code generation.
 ### Discriminated Union
@@ -107,7 +115,7 @@ A highly interactive frontend component (`@island`) hydrated on the client-side 
 ### jj / Jujutsu
 A version control interface capable of acting as an outer history layer for Vox's internal agent modifications.
 ### Journal
-An append-only log of all operations and state changes performed within a durable workflow.
+In workflow tooling, an append-only record of step progress (for example `workflow_activity_log` and interpreted journal events). Not every Vox execution path writes the same journal shape.
 ### JSONL
 JSON Lines format, previously used for agent transcripts before the transition to Codex.
 
@@ -205,4 +213,4 @@ The compile target for Vox frontend code and isolated plugin logic.
 ### wgpu
 The underlying cross-platform API used for hardware-accelerated Burn / Candle tensor math.
 ### Workflow
-A long-running, durable state machine that coordinates activities and actors.
+A long-running orchestration construct over activities. Full durable state-machine semantics for **generated** Rust are still evolving; the **interpreted** `vox mens workflow …` path is the current durable-step story.

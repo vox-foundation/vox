@@ -16,7 +16,7 @@ use anyhow::Result;
                   With no subcommand, **`train`** runs with the same defaults as `vox-schola train`.\n\
                   Pass flags on `train` (e.g. `vox-schola train --device cuda --preset 4080`).\n\n\
                   Quick start:\n\
-                  \n  vox-schola   # default `--model`: Qwen/Qwen2.5-Coder-3B-Instruct\
+                  \n  vox-schola   # default `--model`: Qwen/Qwen3.5-4B (VoxMens SSOT; forwards to `vox` when found)\
                   \n  vox-schola train --device cuda --preset 4080 --model Qwen/Qwen2.5-Coder-1.5B-Instruct\
                   \n  vox-schola serve --model mens/runs/latest\
                   \n  vox-schola probe",
@@ -139,8 +139,12 @@ pub enum Cmd {
         #[arg(long)]
         qlora_no_double_quant: bool,
         /// Require full proxy stack (abort if o_proj layers are missing).
+        /// On `--device cuda`, `vox mens train` defaults this on unless `--qlora-allow-partial-proxy-stack` is set.
         #[arg(long)]
         qlora_require_full_proxy_stack: bool,
+        /// Opt out of CUDA full proxy-stack preflight (forwarded to `vox mens train`).
+        #[arg(long, default_value_t = false)]
+        qlora_allow_partial_proxy_stack: bool,
         /// Train LM-head adapter only (no o_proj layers).
         #[arg(long)]
         qlora_lm_head_only: bool,
@@ -259,6 +263,7 @@ impl Cmd {
             skip_corpus_mix: false,
             qlora_no_double_quant: false,
             qlora_require_full_proxy_stack: false,
+            qlora_allow_partial_proxy_stack: false,
             qlora_lm_head_only: false,
             qlora_max_skip_rate: None,
             qlora_proxy_max_layers: None,

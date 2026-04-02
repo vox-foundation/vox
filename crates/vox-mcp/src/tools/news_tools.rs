@@ -20,9 +20,9 @@ const REM_NEWS_DB: &str = "Check Turso connectivity and vox-db migrations for pu
 const REM_NEWS_SYNDICATE: &str = "Validate syndication fields in frontmatter and dry-run prerequisites; live tokens are not required for dry-run.";
 
 fn read_news_markdown_first(paths: &[PathBuf; 2]) -> Result<String, String> {
-    crate::bounded_fs::read_utf8_path_capped(&paths[0])
+    vox_bounded_fs::read_utf8_path_capped(&paths[0])
         .or_else(|e1| {
-            crate::bounded_fs::read_utf8_path_capped(&paths[1]).map_err(|e2| {
+            vox_bounded_fs::read_utf8_path_capped(&paths[1]).map_err(|e2| {
                 format!(
                     "Could not read {} ({}); alternate {} ({})",
                     paths[0].display(),
@@ -72,7 +72,7 @@ pub async fn vox_news_test_syndicate(
 
     let publisher = Publisher::new(PublisherConfig {
         twitter_bearer_token: None,
-        github_token: None,
+        forge_token: None,
         open_collective_token: None,
         dry_run: true,
         ..Default::default()

@@ -104,7 +104,7 @@ Non-parser forms and speculative grammar are out of scope for this ADR revision.
 
 ## Interop policy (OP-S103, OP-S104, OP-S150, OP-S183, OP-S213)
 
-Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
 
 ### Gate naming alignment (OP-S051)
 

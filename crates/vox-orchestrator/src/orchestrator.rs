@@ -15,6 +15,8 @@
 mod agent_lifecycle;
 mod campaigns;
 mod core;
+mod persistence_outbox;
+mod route_replay;
 mod scaling;
 mod vcs_ops;
 
@@ -27,6 +29,7 @@ use crate::groups::AffinityGroupRegistry;
 use crate::locks::FileLockManager;
 use crate::queue::AgentQueue;
 use crate::scope::ScopeGuard;
+use crate::topology::AgentDelegationBinding;
 use crate::types::{AgentId, AgentIdGenerator, TaskId, TaskIdGenerator};
 
 pub mod accessors;
@@ -66,6 +69,12 @@ pub struct Orchestrator {
     pub message_bus: crate::a2a::MessageBus,
     /// IDs of agents that were dynamically spawned (transient).
     pub dynamic_agents: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<AgentId>>>,
+    /// Child -> parent delegation bindings for topology snapshots and future delegation policies.
+    pub agent_delegations:
+        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, AgentDelegationBinding>>>,
+    /// Dynamic spawn metadata (source task + reason) even when no parent edge exists.
+    pub dynamic_spawn_context:
+        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, crate::topology::DynamicSpawnContext>>>,
     /// Handles to the running agent processes.
     pub agent_handles:
         std::sync::Arc<std::sync::RwLock<HashMap<AgentId, vox_runtime::ProcessHandle>>>,

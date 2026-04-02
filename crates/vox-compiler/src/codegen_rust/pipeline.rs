@@ -4,6 +4,10 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::hir::HirModule;
+use crate::rust_interop_support::{
+    classify_rust_crate, is_template_managed_script_native_dependency,
+    is_template_managed_script_wasi_dependency, is_wasi_unsupported_rust_import,
+};
 
 use super::GENERATED_CARGO_EDITION;
 use super::emit;
@@ -53,12 +57,15 @@ pub fn generate_script_with_target(
     let mut rust_import_dep_lines = std::collections::BTreeMap::<String, String>::new();
     for dep in &module.rust_imports {
         let crate_name = dep.crate_name.trim();
-        if crate_name.is_empty()
-            || matches!(crate_name, "tokio" | "serde" | "serde_json" | "vox-runtime")
-        {
+        let is_template_dep = match target {
+            ScriptTarget::Native => is_template_managed_script_native_dependency(crate_name),
+            ScriptTarget::Wasi => is_template_managed_script_wasi_dependency(crate_name),
+        };
+        if crate_name.is_empty() || is_template_dep {
             continue;
         }
-        let line = if let Some(path) = &dep.path {
+        let support = classify_rust_crate(crate_name).as_label();
+        let dep_spec = if let Some(path) = &dep.path {
             format!("{crate_name} = {{ path = \"{path}\" }}")
         } else if let Some(git) = &dep.git {
             if let Some(rev) = &dep.rev {
@@ -71,6 +78,7 @@ pub fn generate_script_with_target(
         } else {
             format!("{crate_name} = \"*\"")
         };
+        let line = format!("# vox_rust_import support_class={support}\n{dep_spec}");
         rust_import_dep_lines
             .entry(crate_name.to_string())
             .or_insert(line);
@@ -170,23 +178,21 @@ pub fn generate_script_with_target(
                     .join(", ")
             ));
         }
-        if !module.mcp_tools.is_empty() {
+        if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
+            let mut names: Vec<&str> = module
+                .mcp_tools
+                .iter()
+                .map(|t| t.func.name.as_str())
+                .collect();
+            names.extend(module.mcp_resources.iter().map(|r| r.func.name.as_str()));
             unsupported.push(format!(
-                "MCP tools are not supported in WASI mode: {}",
-                module
-                    .mcp_tools
-                    .iter()
-                    .map(|t| t.func.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                "MCP tools/resources are not supported in WASI mode: {}",
+                names.join(", ")
             ));
         }
         let mut wasi_blocked = Vec::new();
         for dep in &module.rust_imports {
-            if matches!(
-                dep.crate_name.as_str(),
-                "tokio" | "axum" | "tower" | "reqwest" | "turso" | "vox-db" | "vox-runtime"
-            ) {
+            if is_wasi_unsupported_rust_import(dep.crate_name.as_str()) {
                 wasi_blocked.push(dep.crate_name.clone());
             }
         }

@@ -21,7 +21,6 @@
 #![allow(clippy::explicit_auto_deref)]
 #![allow(clippy::type_complexity)]
 
-mod bounded_fs;
 mod sync_poison;
 
 /// Agent-to-agent messaging over the orchestrator bus (send, inbox, ack, broadcast, history).
@@ -38,6 +37,10 @@ pub mod dei_ipc;
 pub mod dei_tools;
 /// Gamify companions and orchestrator queue status surfaced as MCP tool JSON.
 pub mod gamify;
+/// Optional HTTP/WebSocket gateway for remote/mobile clients.
+pub mod http_gateway;
+/// Journey envelope v1 JSON for Codex transcript joins (see contracts/orchestration).
+pub mod journey_envelope;
 /// Resolves sticky chat/inline model overrides and performs HTTP LLM calls (OpenRouter, etc.).
 pub mod llm_bridge;
 /// Long-term MEMORY.md, Codex knowledge graph, sessions, and user preference tools.

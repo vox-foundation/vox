@@ -456,7 +456,7 @@ async fn display_config(as_json: bool) -> Result<()> {
 #[cfg(feature = "codex")]
 async fn display_quotas(_as_json: bool) -> Result<()> {
     anyhow::bail!(
-        "BYOK quota rollups previously depended on the excluded `vox-dei` crate (usage tracker). \
+        "BYOK quota rollups previously depended on the `vox-dei` usage tracker (not linked in this CLI build). \
          That integration is not shipped in this CLI build. \
          Use `vox mens status` without `--quotas`, or check limits in your provider console."
     );

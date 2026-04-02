@@ -17,7 +17,7 @@ fn resolve_audio_path(state: &ServerState, path: &str) -> PathBuf {
     workspace_path::resolve_under_repository_root(state, path)
 }
 
-fn parse_profile(args: &Value) -> vox_oratio::refine::OratioCorrectionProfile {
+pub(crate) fn parse_profile(args: &Value) -> vox_oratio::refine::OratioCorrectionProfile {
     match args
         .get("profile")
         .and_then(|v| v.as_str())
@@ -29,7 +29,7 @@ fn parse_profile(args: &Value) -> vox_oratio::refine::OratioCorrectionProfile {
     }
 }
 
-fn parse_route_mode(args: &Value) -> vox_oratio::RouteMode {
+pub(crate) fn parse_route_mode(args: &Value) -> vox_oratio::RouteMode {
     match args
         .get("route_mode")
         .and_then(|v| v.as_str())
@@ -443,12 +443,24 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
     Ok(serde_json::to_string(&response)?)
 }
 
+fn stream_ws_url() -> String {
+    let host = std::env::var("VOX_DASH_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("VOX_DASH_PORT").unwrap_or_else(|_| "3847".to_string());
+    format!("ws://{host}:{port}/api/audio/transcribe/stream")
+}
+
 /// `vox_oratio_status`: static line + Candle backend JSON (model env defaults).
 pub fn status() -> String {
     serde_json::to_string(&json!({
         "summary": vox_oratio::transcript_status(),
         "candle": vox_oratio::candle_backend_status_json(),
         "runtime": vox_oratio::runtime_config_diagnostic_json(&vox_oratio::OratioRuntimeConfig::resolve()),
+        "streaming": {
+            "transport": "websocket",
+            "stream_ws_url": stream_ws_url(),
+            "input_format": "pcm_s16le_mono_16khz",
+            "control_ops": ["set_language", "commit", "cancel"],
+        }
     }))
     .unwrap_or_else(|_| "{\"error\":\"serialize\"}".to_string())
 }

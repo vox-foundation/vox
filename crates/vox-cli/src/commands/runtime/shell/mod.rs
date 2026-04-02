@@ -1,18 +1,69 @@
-//! Minimal `vox shell` REPL — native `pwd` / `ls` / `cat` plus passthrough to the OS shell.
+//! `vox shell` — developer **micro-REPL** or **policy check** for PowerShell source strings.
+//!
+//! ## Non-goals (product boundaries)
+//!
+//! - **`repl` is not a shell emulator**: no pipelines, session `cd`, robust quoting, or
+//!   policy-enforced passthrough of arbitrary shell lines.
+//! - **Host / agent shell work**: use real **`pwsh`** when available and validate with
+//!   [`check_terminal::run_check`] against `contracts/terminal/exec-policy.v1.yaml` (repo root).
+//! - **Inside `.vox`**: use typed `std.process` / `std.fs` / `std.path` (argv-first), not a
+//!   shell-string interpreter.
+//!
+//! Human-readable boundary doc: `docs/src/architecture/vox-shell-operations-boundaries.md`.
+
+pub(crate) mod check_terminal;
 
 use std::io::{self, Write};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
+use anyhow::Result;
+use clap::Subcommand;
 use tokio::process::Command;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
 
+pub use check_terminal::{validate_policy_file, DEFAULT_POLICY_REL};
+
+/// `vox shell` subcommands (`repl` when omitted).
+#[derive(Subcommand, Clone, Debug)]
+pub enum ShellCmd {
+    /// Validate a PowerShell command string against `contracts/terminal/exec-policy.v1.yaml` using pwsh AST.
+    Check {
+        /// PowerShell source line or script fragment to analyze.
+        #[arg(long)]
+        payload: String,
+        /// Policy YAML (default: repo `contracts/terminal/exec-policy.v1.yaml`).
+        #[arg(long, value_name = "PATH")]
+        policy: Option<PathBuf>,
+    },
+    /// Dev-only micro-REPL (`pwd`/`ls`/`cat` + whitespace-split OS passthrough). Not `pwsh` and not policy-checked.
+    Repl,
+}
+
+/// Dispatch `vox shell [repl|check …]`.
+pub async fn run(cmd: Option<ShellCmd>) -> Result<()> {
+    match cmd.unwrap_or(ShellCmd::Repl) {
+        ShellCmd::Repl => run_shell().await,
+        ShellCmd::Check { payload, policy } => {
+            check_terminal::run_check(&payload, policy.as_deref())?;
+            println!("shell check: OK (exec policy)");
+            Ok(())
+        }
+    }
+}
+
 /// Run the `vox shell` REPL.
 pub async fn run_shell() -> anyhow::Result<()> {
-    println!("╔══════════════════════════════════════════════════╗");
-    println!("║          Vox Shell                               ║");
-    println!("╠══════════════════════════════════════════════════╣");
-    println!("║  Interactive shell — `pwd`, `ls`, `cat`, or OS cmd ║");
-    println!("╚══════════════════════════════════════════════════╝");
+    static PASSTHROUGH_WARNED: AtomicBool = AtomicBool::new(false);
+
+    println!("╔══════════════════════════════════════════════════════════╗");
+    println!("║          Vox Shell (micro-REPL, dev-only)                ║");
+    println!("╠══════════════════════════════════════════════════════════╣");
+    println!("║  Built-ins: pwd | ls | cat                               ║");
+    println!("║  Optional: whitespace-split OS passthrough (see note)   ║");
+    println!("║  Real shells: use `pwsh`; validate via `vox shell check`  ║");
+    println!("╚══════════════════════════════════════════════════════════╝");
     println!("Type 'exit' or 'quit' to leave.\n");
 
     let stdin = io::stdin();
@@ -63,7 +114,13 @@ pub async fn run_shell() -> anyhow::Result<()> {
                     }
                 }
             }
-            _ => match Command::new(cmd).args(args).status().await {
+            _ => {
+                if !PASSTHROUGH_WARNED.swap(true, Ordering::Relaxed) {
+                    eprintln!(
+                        "note: vox shell repl passthrough splits on whitespace only — no quotes, pipes, or redirection. Prefer `pwsh` for real shell semantics."
+                    );
+                }
+                match Command::new(cmd).args(args).status().await {
                 Ok(status) if !status.success() => {
                     eprintln!("Command exited with status: {status}");
                 }
@@ -72,7 +129,8 @@ pub async fn run_shell() -> anyhow::Result<()> {
                 }
                 Err(e) => eprintln!("{e}"),
                 Ok(_) => {}
-            },
+            }
+            }
         }
     }
 

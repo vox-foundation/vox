@@ -1,3 +1,9 @@
+---
+title: "VoxDB data cutover and telemetry sidecar runbook"
+description: "Operator runbook for legacy schema_version migration via export/import, deprecating the training telemetry sidecar, aligning telemetry consumers with Populi envelopes, publication/news tables, and rollback guidance."
+category: "operations"
+---
+
 # VoxDB data cutover & telemetry sidecar runbook
 
 Operator-facing sequence for converging on **canonical `vox.db`**, telemetry contracts, and deprecating the **training telemetry sidecar**.

@@ -6,6 +6,11 @@
 //! - **ms_days** (via [`VoxDb::retention_count_older_than_ms_cutoff`] /
 //!   [`VoxDb::retention_delete_all_ms_older_than_days`]): `time_column` is Unix millis (`INTEGER`);
 //!   deletes use a Turso-safe row-by-row pattern (no `IN (SELECT …)`).
+//! - **expires_lt_now**: non-NULL `time_column` values before `datetime('now')` (TTL columns).
+//!
+//! Which tables/columns are pruned is **not** hard-coded here; see `contracts/db/retention-policy.yaml`
+//! and `docs/src/architecture/telemetry-retention-sensitivity-ssot.md` (e.g. `ci_completion_run` /
+//! `finished_at`, `ci_completion_suppression` / `expires_at`).
 
 use turso::params;
 

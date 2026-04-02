@@ -25,7 +25,9 @@
 //! ## Canonical store (SSOT)
 //!
 //! User-global relational data uses [`DbConfig::resolve_canonical`] / [`canonical_store::resolve_canonical_config`].
-//! Repo-local `.vox/store.db` is for optional artifacts only ([`open_project_db`]). See [`canonical_store`].
+//! Repo-backed interactive surfaces default to the workspace journey store (`.vox/store.db`) via
+//! [`workspace_journey_store::connect_workspace_journey_optional`]; set `VOX_WORKSPACE_JOURNEY_STORE=canonical`
+//! for legacy user-global / Turso. See [`canonical_store`] and [`workspace_journey_store`].
 //!
 //! ## Turso batch SQL caveat
 //!
@@ -66,11 +68,13 @@ pub mod capabilities;
 /// Circuit breaker for write operations.
 pub mod circuit_breaker;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
-mod codex_chat;
+pub mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 /// Canonical connect policy helpers (strict vs optional degraded surfaces).
 pub mod connect_policy;
+/// Explicit namespace for migration-era and cutover-only pathways.
+pub mod legacy;
 /// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
 mod ludus_schema_cutover;
 pub mod research_metrics_contract;
@@ -97,6 +101,7 @@ pub mod learning;
 pub mod legacy_import_extras;
 /// Parameters for [`VoxDb::store_memory`].
 pub mod memory;
+mod mens_scorecard_trust;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
@@ -108,6 +113,8 @@ pub mod populi_registry_telemetry;
 /// Registry-scoped user preferences (stored as JSON in the local config directory).
 pub mod preferences;
 pub mod project_store;
+/// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
+pub mod workspace_journey_store;
 mod questioning_telemetry;
 mod research;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
@@ -120,12 +127,11 @@ mod socrates_telemetry;
 mod sync_invocables;
 pub mod syntax_k_telemetry;
 pub mod toestub_store;
-mod mens_scorecard_trust;
+/// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
+pub mod training_run;
 mod trust_drift;
 mod trust_propagation;
 mod trust_telemetry;
-/// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
-pub mod training_run;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
 
@@ -135,6 +141,7 @@ pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
+pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use collection::Collection;
 pub use config::DbConfig;
 pub use connect_policy::{
@@ -147,22 +154,26 @@ pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
-pub use project_store::open_project_db;
+pub use project_store::{open_project_db, open_project_db_at_root};
+pub use workspace_journey_store::{
+    WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
+    connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
+    workspace_journey_store_mode_from_env,
+};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,
     RetrievalDiagnostics, retrieval_diagnostics,
 };
 pub use retrieval::{
-    RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, fuse_hybrid_results,
+    RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, SearchBackend,
+    SearchCorpus, SearchDiagnostics, SearchIntent, SearchPlan, SearchRefinementAction,
+    fuse_hybrid_results, heuristic_search_plan,
 };
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
-pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
-pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
-pub use trust_telemetry::{TrustObservationInput, TrustRollupGroupSummary};
 pub use store::{
     A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
     BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
@@ -191,6 +202,9 @@ pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
 };
+pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
+pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
+pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRollupGroupSummary};
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
 ///

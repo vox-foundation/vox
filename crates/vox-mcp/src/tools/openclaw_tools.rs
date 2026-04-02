@@ -148,7 +148,7 @@ pub async fn openclaw_health(_state: &ServerState) -> String {
         "{}/v1/skills",
         resolved.http_gateway_url.trim_end_matches('/')
     );
-    let http_client = reqwest::Client::builder()
+    let http_client = vox_reqwest_defaults::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
         .ok();

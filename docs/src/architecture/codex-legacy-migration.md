@@ -28,7 +28,7 @@ See [cli.md](../reference/cli.md).
 
 ## Training telemetry SQLite sidecar (not JSONL cutover)
 
-When the **canonical** `vox.db` is still on a legacy chain, [`VoxDb::connect_default_with_training_fallback`](../../crates/vox-db/src/facade/connect.rs) may open or reset **`vox_training_telemetry.db`** next to `vox.db` so Mens training can persist runs. This is **transitional** only; after you migrate the main DB, telemetry converges on the canonical file.
+When the **canonical** `vox.db` is still on a legacy chain, [`VoxDb::connect_default_with_training_fallback`](../../../crates/vox-db/src/facade/connect.rs) may open or reset **`vox_training_telemetry.db`** next to `vox.db` so Mens training can persist runs. This is **transitional** only; after you migrate the main DB, telemetry converges on the canonical file.
 
 Operator guide: [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
 

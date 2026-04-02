@@ -2,7 +2,7 @@
 title: "Explanation: Security Model"
 description: "Official documentation for Explanation: Security Model for the Vox language. Detailed technical reference, architecture guides, and imple"
 category: "explanation"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 # Explanation: Security Model
@@ -32,7 +32,7 @@ Vox's type system prevents many common security vulnerabilities:
 ## 4. Secure Communication
 
 - **Encrypted RPC**: All communication between the frontend and backend is encrypted (HTTPS/WSS) by default in production.
-- **Signed Journaling**: In high-security environments, the durable execution journal can be signed to prevent tampering.
+- **Signed journaling (workflow / persistence lanes)**: Where Vox persists workflow step progress (for example interpreted workflow tracking in Codex / `VoxDb`) or other append-only orchestration logs, high-security deployments may want cryptographic signing or WORM storage to detect tampering. This is not a single global “all programs are journaled” property; scope depends on which runtime and tables you use. See [Actors & Workflows](expl-actors-workflows.md).
 
 ## 5. Summary
 

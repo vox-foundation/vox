@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/communication/orchestrator-persistence-outbox.schema.json",
+  "title": "Orchestrator Persistence Outbox Payloads",
+  "description": "Contract for context-store payloads used by orchestrator persistence degradation recovery: queue entries at orchestrator/persistence_outbox and lifecycle health at orchestrator/persistence_outbox_lifecycle.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/outboxQueueSnapshot"
+    },
+    {
+      "$ref": "#/$defs/outboxLifecycleSnapshot"
+    }
+  ],
+  "$defs": {
+    "outboxQueueSnapshot": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/outboxEntry"
+      }
+    },
+    "outboxEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "error",
+        "first_seen_unix_ms",
+        "retry_count"
+      ],
+      "properties": {
+        "lane": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Persistence lane identifier (e.g. lineage/task_completed, trust/observation)."
+        },
+        "error": {
+          "type": "string",
+          "description": "Truncated error text from the failed persistence write."
+        },
+        "first_seen_unix_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unix epoch milliseconds when this degraded lane entry was first enqueued."
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Lifecycle-maintained retry-age counter for this queued entry."
+        },
+        "replay": {
+          "$ref": "#/$defs/replayPayload"
+        }
+      }
+    },
+    "replayPayload": {
+      "type": "object",
+      "description": "Operation payload used by outbox replay. Explicit op-based payloads are preferred; legacy lineage payloads may omit op.",
+      "additionalProperties": true,
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "append_orchestration_lineage_event",
+            "record_task_reliability_observation",
+            "record_trust_observation",
+            "record_plan_node_attempt",
+            "set_plan_node_status",
+            "append_plan_version"
+          ]
+        }
+      }
+    },
+    "outboxLifecycleSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queued",
+        "pruned_last_run",
+        "retried_last_run",
+        "replayed_last_run",
+        "replay_failed_last_run",
+        "replay_failed_by_op",
+        "last_run_unix_ms"
+      ],
+      "properties": {
+        "queued": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pruned_last_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retried_last_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replayed_last_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replay_failed_last_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replay_failed_by_op": {
+          "type": "object",
+          "description": "Per-operation replay failure counts observed in the most recent lifecycle tick.",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "last_run_unix_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

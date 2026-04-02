@@ -7,4 +7,6 @@ mod candle_engine;
 #[cfg(feature = "stt-candle")]
 pub mod candle_whisper;
 #[cfg(feature = "stt-candle")]
+pub mod logit_processors;
+#[cfg(feature = "stt-candle")]
 mod multilingual;

@@ -24,7 +24,7 @@ pub struct UnifiedNewsItem {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyndicationConfig {
     pub twitter: Option<TwitterConfig>,
-    pub github: Option<GitHubConfig>,
+    pub forge: Option<ForgeConfig>,
     pub open_collective: Option<OpenCollectiveConfig>,
     pub reddit: Option<RedditConfig>,
     pub hacker_news: Option<HackerNewsConfig>,
@@ -100,15 +100,15 @@ pub struct TwitterConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub enum GitHubPostType {
+pub enum ForgePostType {
     Release,
     Discussion,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GitHubConfig {
+pub struct ForgeConfig {
     pub repo: String,
-    pub post_type: GitHubPostType,
+    pub post_type: ForgePostType,
     #[serde(default)]
     pub release_tag: Option<String>,
     #[serde(default)]
@@ -296,7 +296,7 @@ impl UnifiedNewsItem {
             Utc::now()
         };
 
-        if let Some(ref gh) = front.syndication.github {
+        if let Some(ref gh) = front.syndication.forge {
             validate_github_repo(&gh.repo)?;
         }
 
@@ -339,10 +339,10 @@ impl UnifiedNewsItem {
 
     pub fn validate(&self) -> anyhow::Result<()> {
         crate::contract::validate_news_id(&self.id)?;
-        if let Some(ref gh) = self.syndication.github {
+        if let Some(ref gh) = self.syndication.forge {
             validate_github_repo(&gh.repo)?;
             match gh.post_type {
-                GitHubPostType::Release => {
+                ForgePostType::Release => {
                     let tag = gh
                         .release_tag
                         .as_deref()
@@ -353,7 +353,7 @@ impl UnifiedNewsItem {
                         anyhow::bail!("release_tag must not contain slashes: {:?}", tag);
                     }
                 }
-                GitHubPostType::Discussion => {
+                ForgePostType::Discussion => {
                     let cat = gh
                         .discussion_category
                         .as_deref()

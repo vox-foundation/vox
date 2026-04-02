@@ -1,7 +1,11 @@
 //! Best-effort Populi / mens HTTP steps (feature `mens`).
 
+#[cfg(feature = "mens")]
+use anyhow::anyhow;
+#[cfg(feature = "mens")]
 use serde_json::{Value, json};
 
+#[cfg(feature = "mens")]
 use super::types::{PopuliActivity, PopuliHttpOp};
 
 /// Best-effort mens registration + optional control-plane HTTP (env-derived base URL only).
@@ -40,14 +44,11 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                     "control": "join_ok",
                     "node_id": n.id,
                 })),
-                Err(e) => Ok(json!({
-                    "event": "MeshActivity",
-                    "activity": activity.name,
-                    "activity_id": activity.activity_id,
-                    "mesh_op": mesh_op,
-                    "control": "join_err",
-                    "error": e.to_string(),
-                })),
+                Err(e) => Err(anyhow!(
+                    "mesh join failed for activity `{}`: {}",
+                    activity.name,
+                    e
+                )),
             },
             PopuliHttpOp::Snapshot => match client.list_nodes().await {
                 Ok(f) => Ok(json!({
@@ -59,14 +60,11 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                     "node_count": f.nodes.len(),
                     "schema_version": f.schema_version,
                 })),
-                Err(e) => Ok(json!({
-                    "event": "MeshActivity",
-                    "activity": activity.name,
-                    "activity_id": activity.activity_id,
-                    "mesh_op": mesh_op,
-                    "control": "snapshot_err",
-                    "error": e.to_string(),
-                })),
+                Err(e) => Err(anyhow!(
+                    "mesh snapshot failed for activity `{}`: {}",
+                    activity.name,
+                    e
+                )),
             },
             PopuliHttpOp::Heartbeat => match client.heartbeat(&node).await {
                 Ok(n) => Ok(json!({
@@ -77,14 +75,11 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                     "control": "heartbeat_ok",
                     "node_id": n.id,
                 })),
-                Err(e) => Ok(json!({
-                    "event": "MeshActivity",
-                    "activity": activity.name,
-                    "activity_id": activity.activity_id,
-                    "mesh_op": mesh_op,
-                    "control": "heartbeat_err",
-                    "error": e.to_string(),
-                })),
+                Err(e) => Err(anyhow!(
+                    "mesh heartbeat failed for activity `{}`: {}",
+                    activity.name,
+                    e
+                )),
             },
         }
     } else {

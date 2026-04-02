@@ -1,14 +1,12 @@
 //! `vox snippet` — save, search, and manage code snippets.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use vox_pm::{VoxDb, SnippetEntry};
 
 async fn connect() -> Result<VoxDb> {
-    vox_db::open_project_db()
-        .await
-        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+    crate::workspace_db::connect_cli_workspace_voxdb().await
 }
 
 fn print_snippet(s: &SnippetEntry) {

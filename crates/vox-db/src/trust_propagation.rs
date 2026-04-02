@@ -25,7 +25,7 @@ pub fn propagate_trust_rollups_domain_cliques(
     iterations: usize,
 ) -> Vec<TrustPropagatedScore> {
     let d = damping.clamp(0.01, 0.99);
-    let iters = iterations.max(1).min(256);
+    let iters = iterations.clamp(1, 256);
     #[derive(Clone)]
     struct Node {
         entity_id: String,
@@ -36,9 +36,7 @@ pub fn propagate_trust_rollups_domain_cliques(
     for r in rollups {
         let k = (r.entity_id.clone(), r.domain.clone());
         let sc = r.score.clamp(0.0, 1.0);
-        best.entry(k)
-            .and_modify(|v| *v = v.max(sc))
-            .or_insert(sc);
+        best.entry(k).and_modify(|v| *v = v.max(sc)).or_insert(sc);
     }
     let nodes: Vec<Node> = best
         .into_iter()
@@ -66,7 +64,10 @@ pub fn propagate_trust_rollups_domain_cliques(
                 }
                 let sim = (n.raw * o.raw).max(1e-9);
                 let op = prop
-                    .get(&(o.entity_id.as_str().to_string(), o.domain.as_str().to_string()))
+                    .get(&(
+                        o.entity_id.as_str().to_string(),
+                        o.domain.as_str().to_string(),
+                    ))
                     .copied()
                     .unwrap_or(o.raw);
                 num += sim * op;
@@ -131,8 +132,8 @@ impl VoxDb {
                     "iterations": iterations,
                     "propagation": "domain_clique_affinity",
                 });
-                let meta_s =
-                    serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
+                let meta_s = serde_json::to_string(&meta)
+                    .map_err(|e| StoreError::Serialization(e.to_string()))?;
                 self.record_trust_observation(TrustObservationInput {
                     entity_type: "model",
                     entity_id: t.entity_id.as_str(),

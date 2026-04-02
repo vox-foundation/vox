@@ -71,6 +71,33 @@ impl Orchestrator {
         if crate::lineage::orchestration_lineage_persist_enabled() {
             if let Some(db) = self.db() {
                 let repo = crate::lineage::repository_id();
+                let objective = snapshot.milestone_summary.clone().unwrap_or_default();
+                let spec = crate::reconstruction::RepoReconstructionSpec {
+                    campaign_id: campaign_id.clone(),
+                    objective: objective.clone(),
+                    constraints: Vec::new(),
+                    acceptance_tests: Vec::new(),
+                    architecture_assumptions: Vec::new(),
+                    shard_boundaries: Vec::new(),
+                };
+                let _ = db
+                    .upsert_reconstruction_campaign_spec(
+                        &campaign_id,
+                        tier.as_str(),
+                        objective.as_str(),
+                        &serde_json::json!(spec),
+                    )
+                    .await;
+                let _ = db
+                    .upsert_reconstruction_artifact(
+                        &campaign_id,
+                        "campaign_snapshot",
+                        crate::reconstruction::ReconstructionArtifactKind::PlannerBrief.as_str(),
+                        &serde_json::json!(snapshot),
+                        &["campaign".to_string(), "snapshot".to_string()],
+                        Some("begin_reconstruction_campaign"),
+                    )
+                    .await;
                 let payload = serde_json::json!({
                     "campaign_id": campaign_id,
                     "benchmark_tier": tier.as_str(),
@@ -113,6 +140,10 @@ impl Orchestrator {
             return;
         }
         if let Some(db) = self.db() {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
             let payload = build_campaign_scored_payload(
                 campaign_id.as_str(),
                 tier,
@@ -122,6 +153,34 @@ impl Orchestrator {
             );
             let payload_str = payload.to_string();
             let repo = crate::lineage::repository_id();
+            let _ = db
+                .upsert_reconstruction_artifact(
+                    campaign_id.as_str(),
+                    &format!("verification:{now_ms}"),
+                    crate::reconstruction::ReconstructionArtifactKind::VerificationEvidence
+                        .as_str(),
+                    &serde_json::json!({
+                        "tier": tier.as_str(),
+                        "source": evidence_source,
+                        "evidence": evidence,
+                    }),
+                    &[
+                        format!("tier:{}", tier.as_str()),
+                        "verification".to_string(),
+                    ],
+                    Some("record_reconstruction_campaign_result"),
+                )
+                .await;
+            let _ = db
+                .upsert_reconstruction_benchmark_kpis(
+                    campaign_id.as_str(),
+                    tier.as_str(),
+                    0,
+                    if evidence.passes_gate() { 1.0 } else { 0.0 },
+                    evidence.score(),
+                    0.0,
+                )
+                .await;
             let _ = db
                 .append_orchestration_lineage_event(
                     &repo,
@@ -154,6 +213,7 @@ mod tests {
                 contract_checks_ok: true,
                 docs_ssot_ok: true,
                 regression_checks_ok: true,
+                failures: Vec::new(),
             },
             "verified",
             true,
@@ -172,6 +232,7 @@ mod tests {
                 contract_checks_ok: true,
                 docs_ssot_ok: true,
                 regression_checks_ok: true,
+                failures: Vec::new(),
             },
             "heuristic",
             false,

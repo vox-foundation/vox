@@ -2,10 +2,12 @@
 title: "Example: Vox MCP Tool Example"
 description: "Official documentation for Example: Vox MCP Tool Example for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 # Example: Vox MCP Tool Example
+
+Both **`@mcp.tool`** and **`@mcp.resource`** are implemented in the compiler (see [`MCP exposure from the Vox language (SSOT)`](../architecture/mcp-vox-language-exposure.md)).
 
 ```vox
 # Vox MCP Tool Example
@@ -13,7 +15,7 @@ training_eligible: true
 #
 # @mcp.tool decorators expose Vox functions as MCP-compatible tools
 # that AI assistants (Claude, GPT, etc.) can discover and invoke.
-# @mcp.resource decorators expose read-only data sources.
+# @mcp.resource exposes read-only data sources (nullary handlers).
 #
 # MCP is a standardized protocol for AI tool use:
 # https://modelcontextprotocol.io

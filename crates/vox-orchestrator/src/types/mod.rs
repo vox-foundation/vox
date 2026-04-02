@@ -5,6 +5,7 @@
 
 mod ids;
 mod messages;
+mod switch;
 mod tasks;
 
 pub use ids::{
@@ -15,7 +16,8 @@ pub use messages::{
     A2AMessage, A2AMessageType, AgentMessage, MessageEnvelope, MessageId, MessagePriority,
     ThreadId, VcsContext,
 };
+pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
 pub use tasks::{
-    AccessKind, AgentTask, CompletionAttestation, FileAffinity, TaskCategory, TaskDescriptor,
-    TaskEnqueueHints, TaskPriority, TaskStatus,
+    AccessKind, AgentTask, CompletionAttestation, FileAffinity, PopuliRemoteDelegate, TaskCategory,
+    TaskDescriptor, TaskEnqueueHints, TaskPriority, TaskStatus,
 };

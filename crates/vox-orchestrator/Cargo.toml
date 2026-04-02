@@ -22,8 +22,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true, optional = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 reqwest = { workspace = true }
+vox-reqwest-defaults = { workspace = true }
 globset = "0.4"
 toml = { workspace = true }
 vox-pm.workspace = true
@@ -37,9 +39,10 @@ xxhash-rust = { workspace = true }
 vox-runtime = { workspace = true, optional = true }
 vox-toestub = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
-tower-lsp = { version = "0.20", optional = true }
-tower-lsp-server = { version = "0.23", optional = true }
+tower-lsp = { workspace = true, optional = true }
+tower-lsp-server = { workspace = true, optional = true }
 vox-db = { version = "0.1.0", path = "../vox-db" }
+vox-search = { path = "../vox-search" }
 vox-config = { path = "../vox-config" }
 vox-socrates-policy = { workspace = true }
 vox-repository = { workspace = true }
@@ -55,6 +58,11 @@ turso.workspace = true
 chrono = { workspace = true }
 walkdir = { workspace = true }
 vox-bounded-fs = { workspace = true }
+vox-protocol = { workspace = true }
+
+[[bin]]
+name = "vox-orchestrator-d"
+path = "src/bin/vox_orchestrator_d.rs"
 
 [dev-dependencies]
 proptest = "1.10.0"
@@ -62,6 +70,7 @@ serial_test = { workspace = true }
 tempfile = { workspace = true }
 vox-runtime = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
+jsonschema = { workspace = true, default-features = false }
 
 [lints]
 workspace = true

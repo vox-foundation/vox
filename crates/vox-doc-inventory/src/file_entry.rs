@@ -76,7 +76,7 @@ fn hotspot_tier(
 pub(crate) fn build_file_entry(root: &Path, rel: &str) -> Result<FileEntry> {
     let path = root.join(rel);
     let kind = file_kind(rel);
-    let text = crate::bounded_fs::read_utf8_path_capped(&path)
+    let text = vox_bounded_fs::read_utf8_path_capped(&path)
         .with_context(|| format!("read {}", path.display()))?;
     let mut entry = FileEntry {
         path: rel.to_string(),

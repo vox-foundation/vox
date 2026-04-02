@@ -62,6 +62,9 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
     for tool in &module.mcp_tools {
         walk_stmts(&tool.func.body, f);
     }
+    for res in &module.mcp_resources {
+        walk_stmts(&res.func.body, f);
+    }
     for rc in &module.reactive_components {
         for m in &rc.members {
             match m {
@@ -113,6 +116,9 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
     }
     for tool in &mut module.mcp_tools {
         walk_stmts_mut(&mut tool.func.body, f);
+    }
+    for res in &mut module.mcp_resources {
+        walk_stmts_mut(&mut res.func.body, f);
     }
     for rc in &mut module.reactive_components {
         for m in &mut rc.members {
@@ -232,6 +238,7 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
             }
         }
         HirExpr::Block(stmts, _) => walk_stmts(stmts, f),
+        HirExpr::Try(t) => walk_expr(t.target.as_ref(), f),
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::StringLit(_, _)
@@ -346,6 +353,7 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
             }
         }
         HirExpr::Block(stmts, _) => walk_stmts_mut(stmts, f),
+        HirExpr::Try(t) => walk_expr_mut(t.target.as_mut(), f),
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::StringLit(_, _)

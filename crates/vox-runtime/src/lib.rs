@@ -24,6 +24,8 @@ pub mod mailbox;
 pub mod mens;
 /// SSOT chat routing: manual URL, Mens, HF dedicated/router, OpenRouter.
 pub mod model_resolution;
+/// Shared routing decision telemetry for DB joins (bounded `reason_json`).
+pub mod routing_telemetry;
 /// Opaque process identifiers for actors and messaging.
 pub mod pid;
 /// Actor `ProcessContext`, `ProcessHandle`, and `spawn_process`.

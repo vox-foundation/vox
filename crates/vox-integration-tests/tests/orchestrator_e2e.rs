@@ -28,9 +28,16 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use vox_orchestrator::{
-    FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
+    CompletionAttestation, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
     types::{TaskDescriptor, TaskId},
 };
+
+fn e2e_completion_attestation() -> CompletionAttestation {
+    CompletionAttestation {
+        checks_passed: vec!["peer_review_approved".to_string()],
+        ..Default::default()
+    }
+}
 
 /// Whole-test wall timeout.
 const E2E_TEST_TIMEOUT: Duration = Duration::from_secs(60);
@@ -328,7 +335,7 @@ async fn complete_task_traced(
         forensic,
         orch,
         &format!("{phase}.complete_task({})", task_id.0),
-        orch.complete_task(task_id),
+        orch.complete_task_with_attestation(task_id, Some(e2e_completion_attestation())),
     )
     .await;
     if let Err(e) = res {
@@ -641,6 +648,7 @@ async fn e2e_batch_submission() {
                     temp_deps: vec![],
                     capability_requirements: None,
                     session_id: None,
+                    thread_id: None,
                 },
                 TaskDescriptor {
                     description: "Batch 2".to_string(),
@@ -650,6 +658,7 @@ async fn e2e_batch_submission() {
                     temp_deps: vec![],
                     capability_requirements: None,
                     session_id: None,
+                    thread_id: None,
                 },
             ],
         )

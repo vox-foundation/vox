@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
 
-use super::api::{github_token, owner_repo_from_path};
+use super::api::{forge_token, owner_repo_from_path};
 
 /// Post a comment to trigger CodeRabbit review.
 pub async fn trigger_coderabbit(
@@ -45,7 +45,7 @@ pub async fn trigger_coderabbit(
 /// Wait for CodeRabbit bot review on a PR (polls GitHub reviews).
 pub async fn wait_for_review(pr_number: u64, timeout_secs: u64, path: &Path) -> Result<()> {
     let (owner, repo) = owner_repo_from_path(path)?;
-    let token = github_token()?;
+    let token = forge_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let start = std::time::Instant::now();

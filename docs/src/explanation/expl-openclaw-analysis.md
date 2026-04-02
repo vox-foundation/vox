@@ -2,7 +2,7 @@
 title: "OpenClaw Competitive Analysis"
 description: "Official documentation for OpenClaw Competitive Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "explanation"
-last_updated: 2026-03-24
+last_updated: 2026-03-29
 training_eligible: true
 ---
 # OpenClaw Competitive Analysis
@@ -48,7 +48,7 @@ Achievements, companions with moods, daily quests, bug battles, leaderboards, co
 `@mcp.tool` decorator compiles directly to MCP tool definitions from syntax. No glue code.
 
 ### 6. Actor-Based Runtime
-Process spawning, supervisors, schedulers, subscription system, feedback loops for durable execution.
+Process spawning, supervisors, schedulers, subscription system, and feedback loops. **Durable execution** in Vox is primarily a **workflow** story today (interpreted `vox mens workflow …` step replay with a run id), not a guarantee that every spawned process is automatically crash-resumable; orchestration and Codex surfaces add their own persistence semantics separately.
 
 ## What OpenClaw Does Better (Improvement Opportunities)
 

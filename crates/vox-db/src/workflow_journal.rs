@@ -1,4 +1,9 @@
 //! Interpreted workflow journal rows in `research_metrics` (session `workflow:<repository_id>`).
+//! The embedded journal entries come from the interpreted workflow contract and currently carry
+//! `journal_version = 1`.
+//!
+//! This is **durable-run telemetry**, not generic product “usage” analytics: classify **S1–S2** depending on
+//! whether `entry` includes mesh or workspace-identifying payloads (see telemetry retention SSOT in-repo).
 
 use serde::Serialize;
 use serde_json::Value;
@@ -10,7 +15,7 @@ use crate::{StoreError, VoxDb};
 struct WorkflowJournalMeta {
     /// Workflow name executed.
     pub workflow: String,
-    /// One journal object (e.g. `WorkflowStarted`, `LocalActivity`, `MeshActivity`).
+    /// One versioned journal object (e.g. `WorkflowStarted`, `ActivityReplayed`, `MeshActivity`).
     pub entry: Value,
 }
 

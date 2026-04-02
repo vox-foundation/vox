@@ -26,7 +26,7 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 ## Phase 2 — TanStack Router
 
 - [x] Emit `createRootRoute` / `createRoute` / `createRouter` / `RouterProvider` from `routes:` ([`vox-codegen-ts/src/emitter.rs`](../../../crates/vox-compiler/src/codegen_ts/emitter.rs))
-- [x] Add `@tanstack/react-router` to [`templates.rs`](../../../crates/vox-cli/src/templates.rs) `package_json`; drop unused router dep from **`islands`** `package.json` template
+- [x] Add `@tanstack/react-router` to [`templates.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) `package_json`; drop unused router dep from **`islands`** `package.json` template
 - [x] Prefer **`App`** entry in [`fs_utils::find_component_name`](../../../crates/vox-cli/src/fs_utils.rs) when `App.tsx` exists
 - [x] Integration tests: `routes:` codegen assertions ([`pipeline.rs`](../../../crates/vox-integration-tests/tests/pipeline.rs))
 
@@ -38,7 +38,7 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 
 ## Phase 4 — TanStack Start + SSR
 
-- [x] Scaffold Start-compatible **`vite.config`** / entry ([`templates.rs`](../../../crates/vox-cli/src/templates.rs) `vite_config(..., tanstack_start: true)` + [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs))
+- [x] Scaffold Start-compatible **`vite.config`** / entry ([`templates.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) `vite_config(..., tanstack_start: true)` + [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs))
 - [x] **`routes:` + Start**: single router ownership — codegen **`VoxTanStackRouter.tsx`** + `voxRouteTree`, **`routeTree.gen.ts`** re-export ([`emitter.rs`](../../../crates/vox-compiler/src/codegen_ts/emitter.rs) + `CodegenOptions.tanstack_start`)
 - [x] Regenerate **file-route** `routeTree.gen.ts` via **TanStack Router CLI** (`pnpm run routes:gen` / `tsr generate`) for the no-`routes:` path — **`npm_install_and_build`** + **`dev`/`build`** scripts run it when not using programmatic `voxRouteTree`
 - [x] **`vox run`**: optional Vite upstream via **`VOX_ORCHESTRATE_VITE=1`** + **`VOX_SSR_DEV_URL`** (see how-to)

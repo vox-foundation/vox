@@ -19,6 +19,7 @@ pub use ghost_text::ghost_text;
 pub use inline_edit::inline_edit;
 pub use params::*;
 pub use plan::{plan_goal, plan_replan, plan_status};
+pub use plan_gap::analyze_plan_gaps;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -62,14 +63,27 @@ pub(crate) async fn build_system_prompt(state: &ServerState) -> String {
          Prefer `Option[T]` and explicit errors over null.\n\n",
     );
 
-    for rel in ["VOX.md", ".vox/MEMORY.md"] {
-        let p = ws_root.join(rel);
-        if let Ok(content) = crate::bounded_fs::read_utf8_path_capped(&p) {
-            prompt.push_str("## ");
-            prompt.push_str(rel);
-            prompt.push_str("\n\n");
-            prompt.push_str(&content);
-            prompt.push_str("\n\n");
+    let vox_md = ws_root.join("VOX.md");
+    if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&vox_md) {
+        prompt.push_str("## VOX.md\n\n");
+        prompt.push_str(&content);
+        prompt.push_str("\n\n");
+    }
+
+    let memory_path = state.orchestrator_config.memory.memory_md_path.clone();
+    if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&memory_path) {
+        prompt.push_str("## Repository memory (MEMORY.md)\n\n");
+        prompt.push_str(&content);
+        prompt.push_str("\n\n");
+    } else {
+        // Legacy layout (pre–`.vox/memory/`): single file at repo `.vox/MEMORY.md`
+        let legacy = ws_root.join(".vox/MEMORY.md");
+        if legacy != memory_path {
+            if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&legacy) {
+                prompt.push_str("## Repository memory (.vox/MEMORY.md legacy)\n\n");
+                prompt.push_str(&content);
+                prompt.push_str("\n\n");
+            }
         }
     }
 
@@ -79,6 +93,13 @@ pub(crate) async fn build_system_prompt(state: &ServerState) -> String {
     ));
 
     prompt.push_str(params::ANTI_LAZINESS_RIDER);
+
+    prompt.push_str(
+        "\n\n## Premature completion / anti-skeleton (Vox SSOT)\n\
+         Do not treat plans or code as finished without **verifiable** evidence (tests passing, CI gates, or an explicit per-file audit). \
+         Plans must name concrete paths, impacted callers, and verification steps — avoid thin task lists. \
+         Repository policy: `contracts/operations/completion-policy.v1.yaml`; CI guard: `vox ci completion-audit` (TOESTUB victory-claim merge when built with `completion-toestub`).\n",
+    );
 
     let ts = now_ts();
     let date_str = ts_to_date_str(ts);
@@ -116,7 +137,7 @@ mod routing_tests {
     #[test]
     fn socrates_meta_contains_required_fields() {
         let p = ConfidencePolicy::workspace_default();
-        let v = socrates_tool_meta(&p, 0.61, false, 0, 0, 0);
+        let v = socrates_tool_meta(&p, 0.61, false, 0, 0, 0, None);
         assert!(v.get("risk_decision").is_some());
         assert!(v.get("confidence_estimate").is_some());
         assert!(v.get("contradiction_ratio").is_some());
@@ -125,10 +146,48 @@ mod routing_tests {
     #[test]
     fn socrates_tool_meta_matches_telemetry_deserializer() {
         let p = ConfidencePolicy::workspace_default();
-        let v = socrates_tool_meta(&p, 0.71, true, 0, 0, 0);
+        let v = socrates_tool_meta(&p, 0.71, true, 0, 0, 0, None);
         let m: SocratesJsonMeta = serde_json::from_value(v).expect("telemetry JSON must parse");
         assert!((m.confidence_estimate - 0.71).abs() < 1e-9);
         assert!((m.contradiction_ratio - 0.35).abs() < 1e-9);
+    }
+
+    #[test]
+    fn socrates_tool_meta_includes_retrieval_refinement_hints() {
+        let p = ConfidencePolicy::workspace_default();
+        let retrieval = crate::memory::RetrievalEvidenceEnvelope {
+            trigger: crate::memory::RetrievalTriggerMode::ExplicitToolQuery,
+            retrieval_tier: "lexical_fallback".to_string(),
+            memory_hit_count: 1,
+            knowledge_hit_count: 0,
+            chunk_hit_count: 0,
+            repo_hit_count: 1,
+            used_vector: false,
+            used_bm25: false,
+            used_lexical_fallback: true,
+            contradiction_count: 0,
+            top_score: Some(0.2),
+            search_intent: "code_navigation".to_string(),
+            selected_mode: "fulltext".to_string(),
+            backend_mix: vec!["repo_path".to_string()],
+            source_diversity: 1,
+            evidence_quality: 0.2,
+            citation_coverage: 0.25,
+            verification_performed: true,
+            verification_reason: Some("lexical_fallback_only".to_string()),
+            verification_query: Some("memorysearchengine".to_string()),
+            recommended_next_action: Some("focus_repo".to_string()),
+            search_plan: serde_json::json!({ "intent": "code_navigation" }),
+            search_diagnostics: serde_json::json!({ "verification_performed": true }),
+            sqlite_journal_mode: None,
+            sqlite_fts5_reported: None,
+            sqlite_foreign_keys_on: None,
+            rrf_fused_hit_count: 0,
+        };
+        let v = socrates_tool_meta(&p, 0.48, false, 0, 0, 0, Some(&retrieval));
+        let refinement = v.get("search_refinement").expect("search_refinement field");
+        assert_eq!(refinement["recommended_action"], "focus_repo");
+        assert_eq!(refinement["verification_performed"], true);
     }
 
     #[test]
@@ -163,8 +222,12 @@ mod routing_tests {
             selected_text: None,
             diagnostics: vec![],
             session_id: None,
+            thread_id: None,
+            journey_id: None,
             cognitive_profile: None,
             json_mode: false,
+            trace_id: None,
+            correlation_id: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -175,8 +238,12 @@ mod routing_tests {
             selected_text: Some("let x = 1;".into()),
             diagnostics: vec![],
             session_id: None,
+            thread_id: None,
+            journey_id: None,
             cognitive_profile: None,
             json_mode: false,
+            trace_id: None,
+            correlation_id: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

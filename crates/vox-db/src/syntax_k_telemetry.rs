@@ -1,6 +1,8 @@
 //! Syntax K telemetry via `research_metrics` (no extra DDL).
 //!
 //! Session key pattern: `syntaxk:<repository_id>`; metric type: `syntax_k_event`.
+//! Shape `details` JSON to stay compatible with `contracts/eval/syntax-k-event.schema.json` (and within
+//! [`crate::research_metrics_contract::RESEARCH_METRICS_METADATA_JSON_MAX_BYTES`] once wrapped in metadata).
 
 use serde::Serialize;
 

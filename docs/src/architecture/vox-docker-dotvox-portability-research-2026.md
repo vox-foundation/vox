@@ -38,6 +38,14 @@ The practical portability claim should be:
 
 This keeps scope disciplined, preserves cross-platform usefulness, and avoids pushing Vox toward a large OS-abstraction god object.
 
+## Follow-on documents
+
+This research now has three follow-on artifacts:
+
+- [Vox Docker-backed portability implementation plan 2026](vox-docker-dotvox-portability-implementation-plan-2026.md)
+- [ADR 015: Vox Docker/OCI portability SSOT](../adr/015-vox-docker-oci-portability-ssot.md)
+- [Vox portability SSOT](../reference/vox-portability-ssot.md)
+
 ## Design intent
 
 The design intent behind this direction is not merely “support Docker.”

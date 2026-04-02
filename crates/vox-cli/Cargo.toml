@@ -29,6 +29,8 @@ mens-base = []
 database = ["vox-corpus/database"]
 # Speech-to-text (`vox oratio`, `vox speech`); pulls heavy `vox-oratio` / Candle deps.
 oratio = ["mens-base", "dep:vox-oratio"]
+# Microphone capture for `vox oratio record-transcribe` (`cpal` + `hound`).
+oratio-mic = ["oratio", "dep:cpal", "dep:hound"]
 # Native Burn LoRA training + HF metadata (`vox mens train`, probe, merge-weights, eval-local).
 gpu = [
     "mens-base",
@@ -47,6 +49,8 @@ mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
 
 # Cloud GPU training/serving dispatch (Vast.ai, RunPod).
 cloud = ["gpu", "vox-populi/mens-cloud"]
+# Populi join/heartbeat: fill `NodeRecord` GPU inventory from NVML when the driver is present.
+mesh-nvml-probe = ["dep:vox-populi", "vox-populi/nvml-gpu-probe"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
@@ -64,7 +68,9 @@ stub-check = [
     "dep:dirs",
     "dep:vox-ludus",
 ]
-# No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to excluded `vox-dei`.
+# Merge `vox-toestub` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
+completion-toestub = ["dep:vox-toestub"]
+# No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
 dashboard = []
 # Pulls `vox-ars` + `vox-skills` for OpenClaw / skill registry (`openclaw`, ARS extras).
@@ -111,19 +117,22 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
+vox-reqwest-defaults = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
 base64 = { workspace = true }
 vox-pm = { workspace = true }
+vox-container = { workspace = true }
 vox-ars = { workspace = true, optional = true }
 vox-skills = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-clavis = { workspace = true }
 vox-db = { path = "../vox-db" }
+vox-search = { workspace = true }
 vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
 vox-doc-inventory = { path = "../vox-doc-inventory" }
 vox-toestub = { workspace = true, optional = true }
@@ -132,6 +141,7 @@ vox-orchestrator = { workspace = true, optional = true }
 vox-populi = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-repository = { workspace = true }
+vox-project-scaffold = { workspace = true }
 vox-checksum-manifest = { workspace = true }
 vox-install-policy = { workspace = true }
 turso = { workspace = true }
@@ -146,9 +156,12 @@ vox-runtime = { workspace = true }
 vox-primitives = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
+vox-capability-registry = { workspace = true }
 vox-jsonschema-util = { workspace = true }
 vox-protocol = { workspace = true }
 vox-oratio = { workspace = true, optional = true }
+cpal = { version = "0.15", optional = true }
+hound = { version = "3.5", optional = true }
 uuid = { version = "1", features = ["v4"] }
 notify = "7"
 axum = { version = "0.8", optional = true }
@@ -157,7 +170,7 @@ dirs = { version = "6", optional = true }
 walkdir = "2"
 sysinfo = { workspace = true }
 vox-eval = { workspace = true, optional = true }
-vox-forge = { workspace = true, optional = true, features = ["github"] }
+vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
@@ -193,7 +206,7 @@ windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
 safetensors = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
 vox-db = { path = "../vox-db" }
 vox-orchestrator = { workspace = true }
 
@@ -211,6 +224,11 @@ required-features = ["script-execution"]
 name = "workflow_populi_golden"
 path = "tests/workflow_populi_golden.rs"
 required-features = ["workflow-runtime"]
+
+[[test]]
+name = "workflow_cli_durability_ux"
+path = "tests/workflow_cli_durability_ux.rs"
+required-features = ["mens-dei"]
 
 [lints]
 workspace = true

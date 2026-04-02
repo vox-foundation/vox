@@ -2,19 +2,48 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { VoxMcpClient } from './core/VoxMcpClient';
 import { WorkspaceContextEngine } from './context/WorkspaceContextEngine';
-import { ChatController } from './chat/ChatController';
+import { ChatController, SIDEBAR_CHAT_SESSION_ID } from './chat/ChatController';
 import { VoxPreferenceKey, byokPreferenceKey } from './core/preferenceKeys';
 import { ConfigManager } from './core/ConfigManager';
 import { parseWebviewMessage } from './protocol/webviewMessages';
 import { parseHostToWebviewMessage } from './protocol/hostToWebviewMessages';
+import type {
+    ComposerDraft,
+    ComposerState,
+    WorkspaceInspectorState,
+} from './types';
 
 const POLL_MS = 5000;
+const LUDUS_SNAPSHOT_MIN_MS = 3000;
+const INSPECTOR_REFRESH_MS = 15000;
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _chatController: ChatController;
     private _contextEngine = new WorkspaceContextEngine();
     private _pollHandle?: NodeJS.Timeout;
+    private _lastLudusSnapshotPoll = 0;
+    private _lastInspectorRefresh = 0;
+    private _composerState: ComposerState = {
+        availableFiles: [],
+        drafts: [],
+        isGenerating: false,
+        lastError: null,
+    };
+    private _inspectorState: WorkspaceInspectorState = {
+        activeEditor: {
+            filePath: '',
+            line: 0,
+            selectedText: '',
+            languageId: '',
+            diagnostics: [],
+        },
+        openFiles: [],
+        contextKeys: [],
+        lastPlan: null,
+        lastChatMeta: null,
+        browserState: null,
+    };
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -22,8 +51,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     ) {
         this._chatController = new ChatController(
             this._mcp,
-            (messages) => {
+            SIDEBAR_CHAT_SESSION_ID,
+            (messages, meta) => {
                 this.postMessage({ type: 'chatHistory', value: messages });
+                if (meta) {
+                    this._inspectorState.lastChatMeta = meta;
+                    this.postMessage({ type: 'chatMeta', value: meta });
+                    this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+                }
             },
         );
     }
@@ -41,13 +76,110 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             if (!parsed) return;
             switch (parsed.type) {
                 case 'getInitialData':
-                    this._sendFullState();
+                    await this._sendFullState();
                     break;
                 case 'submitTask':
-                    await this._chatController.submitMessage(
-                        parsed.value,
-                        this._contextEngine.getOpenFilePaths(),
-                    );
+                    {
+                        const activeEditor = this._contextEngine.getActiveEditorContext();
+                    await this._chatController.submitMessage({
+                        prompt: parsed.value.prompt,
+                        contextFiles: parsed.value.contextFiles ?? [],
+                        openFiles: this._contextEngine.getOpenFilePaths(),
+                        activeFile: activeEditor.filePath,
+                        activeLine: activeEditor.line,
+                        selectedText: activeEditor.selectedText,
+                        diagnostics: activeEditor.diagnostics,
+                        sessionId: parsed.value.sessionId ?? SIDEBAR_CHAT_SESSION_ID,
+                        cognitiveProfile: parsed.value.cognitiveProfile,
+                    });
+                    break;
+                    }
+                case 'composerGenerate':
+                    await this._generateComposerDrafts(parsed.prompt, parsed.files);
+                    break;
+                case 'composerApply':
+                    await this._applyComposerDrafts(parsed.paths);
+                    break;
+                case 'composerDiscard':
+                    this._composerState = {
+                        ...this._composerState,
+                        drafts: this._composerState.drafts.filter((draft) => draft.path !== parsed.path),
+                    };
+                    this.postMessage({ type: 'composerState', value: this._composerState });
+                    break;
+                case 'composerDiscardAll':
+                    this._composerState = { ...this._composerState, drafts: [], lastError: null };
+                    this.postMessage({ type: 'composerState', value: this._composerState });
+                    break;
+                case 'refreshInspector':
+                    await this._refreshInspectorData(true);
+                    break;
+                case 'inspectContextKey':
+                    this._inspectorState.contextValue = await this._mcp.getContext(parsed.key);
+                    this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+                    break;
+                case 'contextSetValue':
+                    await this._mcp.setContext({
+                        agent_id: parsed.agentId,
+                        key: parsed.key,
+                        value: parsed.value,
+                        ttl_seconds: parsed.ttlSeconds,
+                    });
+                    await this._refreshInspectorData(true);
+                    break;
+                case 'repoQueryText':
+                    this._inspectorState.repoQueryResult = await this._mcp.repoQueryText({
+                        query: parsed.query,
+                        limit: parsed.limit ?? 8,
+                    });
+                    this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+                    break;
+                case 'planGoalPreview': {
+                    const planResult = await this._mcp.planGoal({
+                        goal: parsed.goal,
+                        write_to_disk: false,
+                        max_tasks: 16,
+                        plan_depth: parsed.depth ?? 'standard',
+                        questioning_hints_enabled: true,
+                        session_id: 'vscode-sidebar-plan-preview',
+                    });
+                    this._inspectorState.lastPlan = planResult;
+                    if (
+                        planResult?.plan_too_thin &&
+                        Array.isArray(planResult.clarifying_questions) &&
+                        planResult.clarifying_questions.length > 0
+                    ) {
+                        this.postMessage({
+                            type: 'planAdequacyQuestions',
+                            value: {
+                                questions: planResult.clarifying_questions,
+                                score: planResult.plan_adequacy_score,
+                            },
+                        });
+                    }
+                    this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+                    break;
+                }
+                case 'browserOpen':
+                    await this._handleBrowserOpen(parsed.url);
+                    break;
+                case 'browserNavigate':
+                    await this._handleBrowserNavigate(parsed.url);
+                    break;
+                case 'browserExtract':
+                    await this._handleBrowserExtract(parsed.instruction);
+                    break;
+                case 'browserScreenshot':
+                    await this._handleBrowserScreenshot(parsed.path);
+                    break;
+                case 'projectInit':
+                    await this._mcp.projectInit({
+                        project_name: parsed.projectName,
+                        package_kind: parsed.packageKind,
+                        template: parsed.template,
+                        target_subdir: parsed.targetSubdir,
+                    });
+                    await this._refreshInspectorData(true);
                     break;
                 case 'applyChanges':
                     await this._applyChanges(parsed.value);
@@ -86,11 +218,37 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         parsed.enforce,
                     );
                     break;
-                case 'rejectExecution':
-                    void vscode.window.showInformationMessage(
-                        'Reject execution is not yet exposed as an MCP tool; skipped.',
-                    );
+                case 'rejectExecution': {
+                    const id = parsed.intentId?.trim() ?? '';
+                    const agentMatch = /^agent-(\d+)$/i.exec(id);
+                    if (agentMatch) {
+                        const agentId = Number(agentMatch[1]);
+                        if (this._mcp.isToolAvailable('vox_drain_agent')) {
+                            await this._mcp.drainAgent(agentId);
+                            void vscode.window.showInformationMessage(
+                                `Drained queued work for agent ${agentId} (Socrates reject).`,
+                            );
+                        } else {
+                            void vscode.window.showInformationMessage(
+                                'Reject execution requires `vox_drain_agent` on the connected MCP server.',
+                            );
+                        }
+                    } else if (/^\d+$/.test(id)) {
+                        if (this._mcp.isToolAvailable('vox_cancel_task')) {
+                            await this._mcp.cancelTask(id);
+                            void vscode.window.showInformationMessage(`Cancelled task ${id}.`);
+                        } else {
+                            void vscode.window.showInformationMessage(
+                                'Reject execution requires `vox_cancel_task` on the connected MCP server.',
+                            );
+                        }
+                    } else {
+                        void vscode.window.showErrorMessage(
+                            `Cannot reject execution: unrecognized intent id "${id || '(empty)'}" (expected agent-N or numeric task id).`,
+                        );
+                    }
                     break;
+                }
                 case 'rebalance':
                     if (this._mcp.isToolAvailable('vox_rebalance')) {
                         await this._mcp.rebalance();
@@ -118,11 +276,51 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'ludusRefreshSnapshot':
                     await this.refreshLudusSnapshot(true);
                     break;
+                case 'agentPause':
+                    if (this._mcp.isToolAvailable('vox_pause_agent')) {
+                        await this._mcp.pauseAgent(parsed.agentId);
+                    } else {
+                        void vscode.window.showInformationMessage(
+                            'Pause requires `vox_pause_agent` on the connected MCP server.',
+                        );
+                    }
+                    break;
+                case 'agentResume':
+                    if (this._mcp.isToolAvailable('vox_resume_agent')) {
+                        await this._mcp.resumeAgent(parsed.agentId);
+                    } else {
+                        void vscode.window.showInformationMessage(
+                            'Resume requires `vox_resume_agent` on the connected MCP server.',
+                        );
+                    }
+                    break;
+                case 'agentDrain':
+                    if (this._mcp.isToolAvailable('vox_drain_agent')) {
+                        await this._mcp.drainAgent(parsed.agentId);
+                    } else {
+                        void vscode.window.showInformationMessage(
+                            'Drain requires `vox_drain_agent` on the connected MCP server.',
+                        );
+                    }
+                    break;
+                case 'agentRetire':
+                    if (this._mcp.isToolAvailable('vox_retire_agent')) {
+                        await this._mcp.retireAgent(parsed.agentId);
+                    } else {
+                        void vscode.window.showInformationMessage(
+                            'Retire requires `vox_retire_agent` on the connected MCP server.',
+                        );
+                    }
+                    break;
             }
         });
 
         vscode.window.onDidChangeActiveTextEditor(() => {
             this._sendAst();
+            void this._sendWorkspaceContext();
+        });
+        vscode.window.onDidChangeVisibleTextEditors(() => {
+            void this._sendWorkspaceContext();
         });
     }
 
@@ -150,6 +348,114 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         edit.replace(uri, fullRange, value.content);
         await vscode.workspace.applyEdit(edit);
         await vscode.window.showTextDocument(uri);
+    }
+
+    private async _generateComposerDrafts(prompt: string, files: string[]): Promise<void> {
+        const cleanPrompt = prompt.trim();
+        const targets = [...new Set(files.map((file) => file.trim()).filter(Boolean))];
+        if (!cleanPrompt || targets.length === 0) {
+            this._composerState = {
+                ...this._composerState,
+                lastError: 'Choose at least one file and provide an instruction.',
+            };
+            this.postMessage({ type: 'composerState', value: this._composerState });
+            return;
+        }
+        this._composerState = {
+            ...this._composerState,
+            isGenerating: true,
+            lastPrompt: cleanPrompt,
+            lastError: null,
+        };
+        this.postMessage({ type: 'composerState', value: this._composerState });
+
+        const drafts: ComposerDraft[] = [];
+        for (const file of targets) {
+            const uri = await this._resolveWorkspaceUri(file);
+            if (!uri) {
+                continue;
+            }
+            const doc = await vscode.workspace.openTextDocument(uri);
+            const fullText = doc.getText();
+            const lastLine = Math.max(0, doc.lineCount - 1);
+            const result = (await this._mcp.inlineEdit({
+                prompt: cleanPrompt,
+                file,
+                start_line: 1,
+                end_line: Math.max(1, doc.lineCount),
+                current_text: fullText,
+                language: doc.languageId,
+                context_before: '',
+                context_after: '',
+                session_id: 'vscode-sidebar-composer',
+            })) as
+                | {
+                      replacement?: string;
+                      explanation?: string;
+                      tokens?: number;
+                      model_used?: string;
+                  }
+                | null;
+            if (!result?.replacement || result.replacement === fullText) {
+                continue;
+            }
+            drafts.push({
+                path: file,
+                language: doc.languageId || this._languageFromPath(file),
+                original: fullText,
+                proposed: result.replacement,
+                explanation: result.explanation,
+                tokens: result.tokens,
+                model_used: result.model_used,
+            });
+            if (lastLine >= 0) {
+                await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+            }
+        }
+
+        this._composerState = {
+            ...this._composerState,
+            drafts,
+            isGenerating: false,
+            snapshotRequested: drafts.length > 0,
+            lastError: drafts.length === 0 ? 'No staged edits were produced for the selected files.' : null,
+        };
+        this.postMessage({ type: 'composerState', value: this._composerState });
+    }
+
+    private async _applyComposerDrafts(paths: string[]): Promise<void> {
+        const selected = new Set(paths);
+        const drafts = this._composerState.drafts.filter((draft) =>
+            selected.size === 0 ? true : selected.has(draft.path),
+        );
+        if (drafts.length === 0) {
+            return;
+        }
+
+        // Reuse the extension's existing VCS affordance to request a rollback point before apply.
+        await this._mcp.submitTask(
+            `[vcs] snapshot: composer apply (${drafts.length} files)`,
+            drafts.map((draft) => draft.path),
+            'plan',
+        );
+
+        for (const draft of drafts) {
+            await this._applyChanges({ path: draft.path, content: draft.proposed });
+        }
+
+        this._composerState = {
+            ...this._composerState,
+            drafts: this._composerState.drafts.filter((draft) => !drafts.some((picked) => picked.path === draft.path)),
+            lastAppliedPaths: drafts.map((draft) => draft.path),
+            snapshotRequested: false,
+            lastError: null,
+        };
+        this.postMessage({ type: 'composerState', value: this._composerState });
+    }
+
+    private _languageFromPath(file: string): string {
+        const ext = path.extname(file).replace(/^\./, '');
+        return ext || 'text';
     }
 
     private async _resolveWorkspaceUri(relativeOrAbsolute: string): Promise<vscode.Uri | undefined> {
@@ -180,8 +486,121 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return rel.split(path.sep).join('/');
     }
 
+    private async _sendWorkspaceContext(): Promise<void> {
+        const activeEditor = this._contextEngine.getActiveEditorContext();
+        const openFiles = this._contextEngine.getOpenFilePaths();
+        const availableFiles = [...new Set([activeEditor.filePath, ...openFiles].filter(Boolean))];
+        this._composerState = { ...this._composerState, availableFiles };
+        this._inspectorState = {
+            ...this._inspectorState,
+            activeEditor,
+            openFiles,
+        };
+        this.postMessage({ type: 'workspaceContext', value: { activeEditor, openFiles } });
+        this.postMessage({ type: 'composerState', value: this._composerState });
+        this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+    }
+
+    private async _refreshInspectorData(force: boolean): Promise<void> {
+        if (!this._view) return;
+        const now = Date.now();
+        if (!force && now - this._lastInspectorRefresh < INSPECTOR_REFRESH_MS) {
+            this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+            return;
+        }
+        this._lastInspectorRefresh = now;
+        this._inspectorState = {
+            ...this._inspectorState,
+            repoIndexStatus: await this._mcp.repoIndexStatus(),
+            repoCatalog: await this._mcp.repoCatalogList(),
+            capabilityManifest: await this._mcp.capabilityModelManifest(),
+            contextKeys: await this._mcp.listContext(''),
+            lastUpdatedAt: now,
+        };
+        this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+    }
+
+    private async _handleBrowserOpen(url: string): Promise<void> {
+        const result = (await this._mcp.browserOpen(url)) as Record<string, unknown> | null;
+        const pageId =
+            typeof result?.page_id === 'string' || typeof result?.page_id === 'number'
+                ? result.page_id
+                : typeof result?.pageId === 'string' || typeof result?.pageId === 'number'
+                  ? result.pageId
+                  : null;
+        this._inspectorState.browserState = {
+            ...(this._inspectorState.browserState ?? {}),
+            pageId,
+            url,
+            lastAction: 'open',
+            lastError: result ? null : 'Browser open failed.',
+        };
+        this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+    }
+
+    private async _handleBrowserNavigate(url: string): Promise<void> {
+        const pageId = this._inspectorState.browserState?.pageId;
+        if (pageId == null) {
+            this._inspectorState.browserState = {
+                ...(this._inspectorState.browserState ?? {}),
+                lastError: 'Open a browser page first.',
+            };
+            this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+            return;
+        }
+        const result = await this._mcp.browserGoto(pageId, url);
+        this._inspectorState.browserState = {
+            ...(this._inspectorState.browserState ?? {}),
+            url,
+            lastAction: 'goto',
+            lastError: result ? null : 'Browser navigation failed.',
+        };
+        this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+    }
+
+    private async _handleBrowserExtract(instruction: string): Promise<void> {
+        const pageId = this._inspectorState.browserState?.pageId;
+        if (pageId == null) {
+            this._inspectorState.browserState = {
+                ...(this._inspectorState.browserState ?? {}),
+                lastError: 'Open a browser page first.',
+            };
+            this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+            return;
+        }
+        const result = await this._mcp.browserExtract({ page_id: pageId, instruction });
+        this._inspectorState.browserState = {
+            ...(this._inspectorState.browserState ?? {}),
+            lastExtract: result,
+            lastAction: 'extract',
+            lastError: result ? null : 'Browser extract failed.',
+        };
+        this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+    }
+
+    private async _handleBrowserScreenshot(filePath: string): Promise<void> {
+        const pageId = this._inspectorState.browserState?.pageId;
+        if (pageId == null) {
+            this._inspectorState.browserState = {
+                ...(this._inspectorState.browserState ?? {}),
+                lastError: 'Open a browser page first.',
+            };
+            this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+            return;
+        }
+        const result = await this._mcp.browserScreenshot({ page_id: pageId, path: filePath });
+        this._inspectorState.browserState = {
+            ...(this._inspectorState.browserState ?? {}),
+            lastScreenshotPath: filePath,
+            lastAction: 'screenshot',
+            lastError: result ? null : 'Browser screenshot failed.',
+        };
+        this.postMessage({ type: 'inspectorState', value: this._inspectorState });
+    }
+
     private async _sendFullState(): Promise<void> {
         if (!this._view) return;
+        await this._sendWorkspaceContext();
 
         const caps: Record<string, unknown> = {
             mcpConnected: this._mcp.connected,
@@ -252,6 +671,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.postMessage({ type: 'modelList', value: modelList });
 
         this._sendAst();
+        await this._refreshInspectorData(false);
         await this.maybePushLudusSnapshot();
     }
 

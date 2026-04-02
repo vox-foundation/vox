@@ -5,7 +5,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-tower-lsp = "0.20"
+tower-lsp = { workspace = true }
 tower-lsp-server = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

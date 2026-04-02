@@ -8,14 +8,19 @@
 //! Persistence lives in [`crate::attention_tracker`].
 
 mod budget;
+mod interruption_policy;
 mod routing;
 
 pub use budget::{
     ActionDescriptor, ApprovalOutcome, ApprovalTier, AttentionBudget, AttentionEvent,
     AttentionEventType, ClarificationLoopStop, DEFAULT_ATTENTION_BUDGET_MS,
-    DEFAULT_INTERRUPT_COST_MS, FocusDepth, NasaTlxWeights, TierGateConfig, TrustTier,
-    clarification_stop_rule, compute_attention_cost_ms, decision_entropy_bits,
-    info_gain_per_attention_cost_bits_ms,
+    DEFAULT_INTERRUPT_COST_MS, FocusDepth, InterruptionCalibrationConfig, NasaTlxWeights,
+    TierGateConfig, TrustTier, clarification_stop_rule, compute_attention_cost_ms,
+    decision_entropy_bits, info_gain_per_attention_cost_bits_ms,
+};
+pub use interruption_policy::{
+    InterruptionChannel, InterruptionDecision, InterruptionSignals, evaluate_interruption,
+    scaled_interrupt_cost_ms,
 };
 pub use routing::{AgentTrustScore, classify_tier};
 

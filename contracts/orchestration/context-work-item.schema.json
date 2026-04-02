@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/orchestration/context-work-item.schema.json",
+  "title": "ContextProgramWorkItem",
+  "description": "Work-item schema for context-management epics, capabilities, and tasks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "program_id",
+    "work_item_type",
+    "id",
+    "title",
+    "owner_type",
+    "risk_tier",
+    "status",
+    "acceptance_criteria",
+    "verification_methods"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "program_id": {
+      "type": "string",
+      "const": "context_management_sota_2026"
+    },
+    "work_item_type": {
+      "type": "string",
+      "enum": [
+        "epic",
+        "capability",
+        "task"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "parent_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "owner_type": {
+      "type": "string",
+      "enum": [
+        "compiler",
+        "orchestrator",
+        "mcp",
+        "populi",
+        "search",
+        "docs",
+        "tests",
+        "ops",
+        "cross_cutting"
+      ]
+    },
+    "deliverable_type": {
+      "type": "string",
+      "enum": [
+        "code",
+        "contract",
+        "docs",
+        "telemetry",
+        "test",
+        "rollout",
+        "research"
+      ]
+    },
+    "risk_tier": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "effort_band": {
+      "type": "string",
+      "enum": [
+        "xs",
+        "s",
+        "m",
+        "l",
+        "xl"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "backlog",
+        "planned",
+        "in_progress",
+        "blocked",
+        "completed",
+        "deferred"
+      ]
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files_hint": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "verification_methods": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "unit_test",
+          "integration_test",
+          "eval_benchmark",
+          "telemetry_review",
+          "manual_trace",
+          "docs_review",
+          "canary_rollout",
+          "contract_validation"
+        ]
+      }
+    },
+    "kpi_targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

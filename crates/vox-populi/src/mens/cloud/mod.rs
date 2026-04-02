@@ -275,7 +275,7 @@ impl GpuOffer {
 /// Previously named `TrainCommand`; renamed to reflect that it covers all job kinds.
 #[derive(Debug, Clone)]
 pub struct CloudJobSpec {
-    /// HuggingFace model repo. Example: `"Qwen/Qwen2.5-Coder-3B-Instruct"`.
+    /// HuggingFace model repo. Example: `"Qwen/Qwen3.5-4B"` (see `DEFAULT_MODEL_ID`).
     pub model_id: String,
     /// Training preset name (`"auto"` lets the cloud instance auto-detect via VRAM).
     pub preset: String,

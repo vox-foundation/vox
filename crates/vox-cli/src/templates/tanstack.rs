@@ -17,7 +17,8 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "color-scheme", content: "dark light" },
       { title: "Vox App" },
     ],
   }),
@@ -50,9 +51,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 "#
 }
 
-/// Index file route when **`App.tsx`** exists but there is **no** [`VoxTanStackRouter.tsx`].
+/// Index file route when **`App.tsx`** exists but there is **no** `VoxTanStackRouter.tsx`.
 ///
-/// Do not use this when `App.tsx` is the SPA [`RouterProvider`] bundle from `routes:` codegen — that
+/// Do not use this when `App.tsx` is the SPA `RouterProvider` bundle from `routes:` codegen — that
 /// layout uses [`tanstack_start_route_tree_gen_reexport`] + programmatic `voxRouteTree` instead.
 pub fn tanstack_start_index_for_app() -> &'static str {
     r#"import { createFileRoute } from "@tanstack/react-router";
@@ -166,7 +167,7 @@ declare module "@tanstack/react-start" {
 "#
 }
 
-/// `src/routeTree.gen.ts` when `routes:` codegen produced [`VoxTanStackRouter.tsx`] (programmatic tree).
+/// `src/routeTree.gen.ts` when `routes:` codegen produced `VoxTanStackRouter.tsx` (programmatic tree).
 pub fn tanstack_start_route_tree_gen_reexport() -> &'static str {
     r#"/* eslint-disable */
 // @ts-nocheck
@@ -208,4 +209,17 @@ pub fn tsconfig_json() -> &'static str {
   "include": ["src"]
 }
 "#
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tanstack_start_root_includes_mobile_viewport_contract() {
+        let root = tanstack_start_root_tsx();
+        assert!(root.contains("{ name: \"viewport\""));
+        assert!(root.contains("width=device-width, initial-scale=1, viewport-fit=cover"));
+        assert!(root.contains("{ name: \"color-scheme\", content: \"dark light\" }"));
+    }
 }

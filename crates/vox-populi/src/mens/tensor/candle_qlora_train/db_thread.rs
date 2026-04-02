@@ -1,4 +1,7 @@
-//! Background thread that persists training telemetry to VoxDB.
+//! Background thread that persists **Mens training / run telemetry** to VoxDB (`training_run_*`, training events).
+//!
+//! This is **local operator + research diagnostics** (checkpoint progress, run lifecycle), not end-user product
+//! usage analytics or remote opt-out “usage telemetry.” SSOT: `docs/src/architecture/telemetry-trust-ssot.md`.
 
 use super::TrainingDbEvent;
 

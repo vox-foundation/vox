@@ -24,8 +24,26 @@ pub struct PlannedActivity {
     pub activity_id: Option<String>,
     /// Wall-clock timeout for mens HTTP sub-steps from `with { timeout: … }` (milliseconds).
     pub timeout_ms: Option<u64>,
+    /// Additional attempts after the first one for interpreted mesh activity execution.
+    pub retries: u32,
+    /// Delay before the first retry after a failed interpreted mesh activity attempt.
+    pub initial_backoff_ms: Option<u64>,
     /// Populi control-plane operation when [`Self::mens`] is true.
     pub populi_op: PopuliHttpOp,
+}
+
+/// Replay-oriented node for interpreted durable workflow execution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReplayNode {
+    /// Execute one activity step and persist/replay by `activity_id`.
+    Activity(PlannedActivity),
+}
+
+/// Linear replay IR produced from workflow HIR for the interpreted runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkflowReplayIr {
+    /// Ordered replay nodes for deterministic interpreted execution.
+    pub nodes: Vec<ReplayNode>,
 }
 
 /// Mens-tagged activity (name convention: `mesh_*`, plus [`PopuliHttpOp`]).

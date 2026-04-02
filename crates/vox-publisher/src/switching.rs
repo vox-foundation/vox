@@ -285,7 +285,7 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
         item.syndication.twitter = None;
     }
     if !has("github") {
-        item.syndication.github = None;
+        item.syndication.forge = None;
     }
     if !has("open_collective") {
         item.syndication.open_collective = None;

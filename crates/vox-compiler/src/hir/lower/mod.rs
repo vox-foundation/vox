@@ -72,6 +72,7 @@ impl LowerCtx {
             vector_indexes: Vec::new(),
             search_indexes: Vec::new(),
             mcp_tools: Vec::new(),
+            mcp_resources: Vec::new(),
             components: Vec::new(),
             v0_components: Vec::new(),
             client_routes: Vec::new(),
@@ -152,6 +153,14 @@ impl LowerCtx {
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func, false);
                     hir.mcp_tools.push(HirMcpTool {
+                        description: m.description.clone(),
+                        func,
+                    });
+                }
+                Decl::McpResource(m) => {
+                    let func = self.lower_fn(&m.func, false);
+                    hir.mcp_resources.push(HirMcpResource {
+                        uri: m.uri.clone(),
                         description: m.description.clone(),
                         func,
                     });

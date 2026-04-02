@@ -55,8 +55,7 @@ pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> Str
 /// Retrieve a fact from long-term memory by key.
 ///
 /// Uses the same [`MemoryConfig`] as [`memory_store`] (`state.orchestrator_config.memory`).
-/// When `state.db` is set, it is attached for parity with store; [`MemoryManager::recall`] is still
-/// file/cache-first and does **not** query Codex on miss yet.
+/// When `state.db` is set, recall includes Codex `memories` after file miss ([`MemoryManager::recall_async`]).
 pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> String {
     let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
@@ -64,7 +63,7 @@ pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> S
             if let Some(ref db) = state.db {
                 mgr.set_db(db.clone());
             }
-            match mgr.recall(&params.key) {
+            match mgr.recall_async(&params.key).await {
                 Ok(Some(val)) => ToolResult::ok(val).to_json(),
                 Ok(None) => ToolResult::<String>::err_with_remediation(
                     format!("Key '{}' not found", params.key),
@@ -87,11 +86,24 @@ pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> S
 
 /// Search memory (daily logs + MEMORY.md) by keyword.
 pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> String {
+    let trace = params
+        .trace_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            params
+                .correlation_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+        });
     match run_retrieval_bundle(
         state,
         &params.query,
         RetrievalTriggerMode::ExplicitToolQuery,
         10,
+        trace,
     )
     .await
     {
@@ -99,12 +111,14 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
             if bundle.memory_lines.is_empty()
                 && bundle.knowledge_lines.is_empty()
                 && bundle.chunk_lines.is_empty()
+                && bundle.repo_lines.is_empty()
+                && bundle.rrf_fused_lines.is_empty()
             {
                 ToolResult::ok("No results found.".to_string()).to_json()
             } else {
                 let mut out = Vec::new();
                 out.push(format!(
-                    "retrieval_tier={} trigger={:?} used_vector={} used_bm25={} lexical_fallback={} contradictions={} knowledge_hits={} chunk_hits={}",
+                    "retrieval_tier={} trigger={:?} used_vector={} used_bm25={} lexical_fallback={} contradictions={} knowledge_hits={} chunk_hits={} repo_hits={} rrf_fused_hits={} mode={} intent={} verification_performed={} recommended_next_action={}",
                     bundle.evidence.retrieval_tier,
                     bundle.evidence.trigger,
                     bundle.evidence.used_vector,
@@ -113,7 +127,21 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
                     bundle.evidence.contradiction_count,
                     bundle.evidence.knowledge_hit_count,
                     bundle.evidence.chunk_hit_count,
+                    bundle.evidence.repo_hit_count,
+                    bundle.evidence.rrf_fused_hit_count,
+                    bundle.evidence.selected_mode,
+                    bundle.evidence.search_intent,
+                    bundle.evidence.verification_performed,
+                    bundle
+                        .evidence
+                        .recommended_next_action
+                        .as_deref()
+                        .unwrap_or("none"),
                 ));
+                if !bundle.rrf_fused_lines.is_empty() {
+                    out.push("[FUSED_RRF]".to_string());
+                    out.extend(bundle.rrf_fused_lines.clone());
+                }
                 if !bundle.memory_lines.is_empty() {
                     out.push("[MEMORY]".to_string());
                     out.extend(bundle.memory_lines);
@@ -125,6 +153,10 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
                 if !bundle.chunk_lines.is_empty() {
                     out.push("[DOCUMENT_CHUNKS]".to_string());
                     out.extend(bundle.chunk_lines);
+                }
+                if !bundle.repo_lines.is_empty() {
+                    out.push("[REPO]".to_string());
+                    out.extend(bundle.repo_lines);
                 }
                 ToolResult::ok(out.join("\n")).to_json()
             }

@@ -1,13 +1,19 @@
 //! `handle_tool_call` routing for all static MCP tools.
+//!
+//! ## Persisted tool args (Ludus / raw `tool_call` rows)
+//! After each dispatch, when Codex is attached, stored payloads use
+//! [`vox_ludus::mcp_privacy::prepare_mcp_tool_args_for_storage`] for **both** Ludus-routed `mcp_tool_called` events and the
+//! fallback `insert_event` path. New DB persistence for MCP args must go through the same helper + env (`VOX_LUDUS_MCP_TOOL_ARGS`).
 
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
 use super::{
-    benchmark_tools, chat_tools, codex_tools, compiler_tools, db_tools, git_tools,
-    introspection_tools, news_tools, openclaw_tools, oratio_tools, populi_tools, questioning_tools,
-    repo_index, scientia_tools, task_tools, toestub_tools, tool_aliases, training_tools,
-    trust_tools, vcs_tools,
+    benchmark_tools, browser_tools, chat_tools, codex_tools, compiler_tools, db_tools, git_tools,
+    introspection_tools, news_tools, openclaw_tools, oratio_tools, persistence_tools, populi_tools,
+    project_init_tools, questioning_tools, repo_catalog_tools, repo_index, scientia_tools,
+    speech_pipeline_tools, task_tools, toestub_tools, tool_aliases, training_tools, trust_tools,
+    vcs_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
@@ -22,9 +28,33 @@ pub async fn handle_tool_call(
     // Check if the agent ID or session ID is included in meta arguments
     let agent_id = args.get("agent_id").and_then(|v| v.as_str());
     let session_id = args.get("session_id").and_then(|v| v.as_str());
+    let trace_for_telemetry = args
+        .get("trace_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string)
+        .or_else(|| {
+            args.get("correlation_id")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+        });
 
     let result = handle_tool_call_inner(state, name_canonical, args.clone()).await;
     let duration_ms = start_time.elapsed().as_millis() as i64;
+
+    if let Some(ref tid) = trace_for_telemetry {
+        tracing::info!(
+            target: "vox_mcp::trace",
+            trace_id = %tid,
+            tool = name_canonical,
+            duration_ms,
+            success = result.is_ok(),
+            "mcp_tool_call"
+        );
+    }
 
     // Ludus: canonical reward path when enabled; raw telemetry when gamification is off.
     if let Some(db) = &state.db {
@@ -42,6 +72,9 @@ pub async fn handle_tool_call(
         if let Some(sid) = session_id {
             route_ev["session_id"] = serde_json::Value::String(sid.to_string());
         }
+        if let Some(ref tid) = trace_for_telemetry {
+            route_ev["trace_id"] = serde_json::Value::String(tid.clone());
+        }
         if vox_ludus::config_gate::is_enabled() {
             let _ = vox_ludus::event_router::route_event_auto_user(db, &route_ev).await;
         } else {
@@ -55,6 +88,9 @@ pub async fn handle_tool_call(
             });
             if let Some(sid) = session_id {
                 payload["session_id"] = serde_json::Value::String(sid.to_string());
+            }
+            if let Some(ref tid) = trace_for_telemetry {
+                payload["trace_id"] = serde_json::Value::String(tid.clone());
             }
             let agent_str = agent_id.unwrap_or("0");
             let _ =
@@ -79,6 +115,12 @@ async fn handle_tool_call_inner(
             Ok(task_tools::task_status(state, serde_json::from_value(args)?).await)
         }
         "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
+        "vox_orchestrator_persistence_outbox_lifecycle" => {
+            Ok(persistence_tools::persistence_outbox_lifecycle(state, args).await)
+        }
+        "vox_orchestrator_persistence_outbox_queue" => {
+            Ok(persistence_tools::persistence_outbox_queue(state, args).await)
+        }
         "vox_orchestrator_start" => Ok(crate::dei_tools::orchestrator_start(state).await),
         "vox_spawn_agent" => {
             Ok(crate::dei_tools::spawn_agent(state, serde_json::from_value(args)?).await)
@@ -154,8 +196,24 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
+        "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
+        "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
+        "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),
+        "vox_repo_catalog_refresh" => Ok(repo_catalog_tools::repo_catalog_refresh(state).await),
+        "vox_repo_query_text" => {
+            Ok(repo_catalog_tools::repo_query_text(state, serde_json::from_value(args)?).await)
+        }
+        "vox_repo_query_file" => {
+            Ok(repo_catalog_tools::repo_query_file(state, serde_json::from_value(args)?).await)
+        }
+        "vox_repo_query_history" => {
+            Ok(repo_catalog_tools::repo_query_history(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_language_surface" => Ok(introspection_tools::language_surface().to_string()),
+        "vox_capability_model_manifest" => {
+            Ok(introspection_tools::capability_model_manifest(state)?.to_string())
+        }
         "vox_compiler::ast_inspect" => Ok(introspection_tools::ast_inspect(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
@@ -214,6 +272,7 @@ async fn handle_tool_call_inner(
         "vox_db_trust_propagate" => Ok(trust_tools::trust_propagate(state, args).await),
 
         "vox_generate_code" => Ok(compiler_tools::generate_vox_code(state, args).await),
+        "vox_speech_to_code" => Ok(speech_pipeline_tools::speech_to_code(state, args).await?),
         "vox_list_models" => {
             Ok(crate::models::list_models(state, serde_json::from_value(args)?).await)
         }
@@ -265,6 +324,9 @@ async fn handle_tool_call_inner(
         .await),
         "vox_inline_edit" => {
             Ok(chat_tools::inline_edit(state, serde_json::from_value(args)?).await)
+        }
+        "vox_apply_structured_edit" => {
+            Ok(compiler_tools::apply_structured_edit(state, args).await)
         }
         "vox_plan" => Ok(chat_tools::plan_goal(state, serde_json::from_value(args)?).await),
         "vox_replan" => Ok(chat_tools::plan_replan(state, serde_json::from_value(args)?).await),
@@ -441,6 +503,53 @@ async fn handle_tool_call_inner(
             .await)
         }
         "vox_scientia_worthiness_evaluate" => Ok(scientia_tools::vox_scientia_worthiness_evaluate(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_scientia_publication_discovery_scan" => {
+            Ok(scientia_tools::vox_scientia_publication_discovery_scan(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_publication_discovery_explain" => {
+            Ok(scientia_tools::vox_scientia_publication_discovery_explain(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_publication_discovery_refresh_evidence" => Ok(
+            scientia_tools::vox_scientia_publication_discovery_refresh_evidence(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_novelty_fetch" => Ok(
+            scientia_tools::vox_scientia_publication_novelty_fetch(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_decision_explain" => Ok(
+            scientia_tools::vox_scientia_publication_decision_explain(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_novelty_happy_path" => Ok(
+            scientia_tools::vox_scientia_publication_novelty_happy_path(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_assist_suggestions" => Ok(scientia_tools::vox_scientia_assist_suggestions(
             state,
             serde_json::from_value(args)?,
         )
@@ -656,6 +765,43 @@ async fn handle_tool_call_inner(
 
         "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),
 
+        "vox_browser_open" => {
+            Ok(browser_tools::browser_open(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_close" => {
+            Ok(browser_tools::browser_close(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_goto" => {
+            Ok(browser_tools::browser_goto(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_click" => {
+            Ok(browser_tools::browser_click(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_fill" => {
+            Ok(browser_tools::browser_fill(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_wait_for" => {
+            Ok(browser_tools::browser_wait_for(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_text" => {
+            Ok(browser_tools::browser_text(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_html" => {
+            Ok(browser_tools::browser_html(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_screenshot" => {
+            Ok(browser_tools::browser_screenshot(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_extract" => {
+            Ok(browser_tools::browser_extract(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_extract_json" => {
+            Ok(browser_tools::browser_extract_json(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_act" => {
+            Ok(browser_tools::browser_act(state, serde_json::from_value(args)?).await)
+        }
+
         "vox_benchmark_list" => {
             Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)
         }
@@ -702,7 +848,9 @@ mod registry_dispatch_tests {
         "vox_coverage_report",
         "vox_validate_file",
         "vox_generate_code",
+        "vox_project_init",
         "vox_oratio_transcribe",
+        "vox_speech_to_code",
         "vox_openclaw_list_remote",
         "vox_openclaw_search_remote",
         "vox_openclaw_import_skill",
@@ -713,21 +861,48 @@ mod registry_dispatch_tests {
         "vox_openclaw_subscribe",
         "vox_openclaw_unsubscribe",
         "vox_openclaw_notify",
+        "vox_browser_open",
+        "vox_browser_close",
+        "vox_browser_goto",
+        "vox_browser_click",
+        "vox_browser_fill",
+        "vox_browser_wait_for",
+        "vox_browser_text",
+        "vox_browser_html",
+        "vox_browser_screenshot",
+        "vox_browser_extract",
+        "vox_browser_extract_json",
+        "vox_browser_act",
     ];
 
     #[tokio::test]
     async fn tool_registry_names_are_unique() {
         let mut seen = HashSet::new();
-        for (name, _) in TOOL_REGISTRY {
-            assert!(seen.insert(*name), "duplicate TOOL_REGISTRY name: {name}");
+        for e in TOOL_REGISTRY {
+            let name = e.name;
+            assert!(seen.insert(name), "duplicate TOOL_REGISTRY name: {name}");
+        }
+    }
+
+    #[test]
+    fn yaml_registry_tools_have_dispatch_match_arms() {
+        let src = include_str!("dispatch.rs");
+        for e in TOOL_REGISTRY {
+            let needle = format!("\"{}\" =>", e.name);
+            assert!(
+                src.contains(&needle),
+                "TOOL_REGISTRY entry `{}` must have a `match` arm in dispatch.rs (SSOT: contracts/mcp/tool-registry.canonical.yaml)",
+                e.name
+            );
         }
     }
 
     #[tokio::test]
     async fn every_registry_tool_has_static_dispatch() {
         let state = ServerState::new_test().await;
-        for (name, _) in TOOL_REGISTRY {
-            if SKIP_DISPATCH_PROBE.contains(name) {
+        for e in TOOL_REGISTRY {
+            let name = e.name;
+            if SKIP_DISPATCH_PROBE.contains(&name) {
                 continue;
             }
             let res = handle_tool_call(&state, name, json!({})).await;

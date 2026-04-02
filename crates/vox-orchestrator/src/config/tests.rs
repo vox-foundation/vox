@@ -208,3 +208,25 @@ fn repo_shard_env_overrides_apply_consistently() {
         }
     }
 }
+
+#[test]
+#[allow(unsafe_code)]
+fn populi_remote_result_max_messages_env_override_applies() {
+    let _guard = ENV_MUTEX.lock().expect("env test lock");
+    const KEY: &str = "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL";
+    let prev = std::env::var(KEY).ok();
+
+    unsafe {
+        std::env::set_var(KEY, "17");
+    }
+    let mut cfg = OrchestratorConfig::default();
+    cfg.merge_env_overrides();
+    assert_eq!(cfg.populi_remote_result_max_messages_per_poll, 17);
+
+    unsafe {
+        match prev {
+            None => std::env::remove_var(KEY),
+            Some(v) => std::env::set_var(KEY, v),
+        }
+    }
+}

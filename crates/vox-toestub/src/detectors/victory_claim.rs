@@ -22,17 +22,18 @@ impl VictoryClaimDetector {
     /// “Done/complete” comment patterns plus TODO/FIXME/HACK proximity heuristics.
     pub fn new() -> Self {
         Self {
-            // Avoid matching doc prose like "Complete schema" / "Finished task" (`///` filtered below).
+            // Match "Done", "Complete", etc in comments or macro literals.
             victory_re: Regex::new(
-                r"(?i)(?://|#|/\*)\s*(?:\bdone\b|all\s*set|fully\s*implemented|implementation\s+\bcomplete\b)",
+                r"(?i)(?://|#|/\*|todo!|panic!|unimplemented!).*?(?:\bdone\b|all\s*set|fully\s*implemented|implementation\s+\bcomplete\b)",
             )
             .expect("valid regex"),
+            // Match TODO, TODO(ai), etc in comments or macro literals.
             todo_comment_re: Regex::new(
-                r"(?i)(?://|#)\s*TODO\s*:?\s*(?:implement|add|finish|complete|wire|fix|later)",
+                r"(?i)(?://|#|todo!).*?(?:TODO(?:\(ai\))?)\s*:?\s*(?:implement|add|finish|complete|wire|fix|later)",
             )
             .expect("valid regex"),
-            fixme_re: Regex::new(r"(?i)(?://|#)\s*FIXME\b").expect("valid regex"),
-            hack_re: Regex::new(r"(?i)(?://|#)\s*HACK\b").expect("valid regex"),
+            fixme_re: Regex::new(r"(?i)(?://|#).*?FIXME(?:\(ai\))?\b").expect("valid regex"),
+            hack_re: Regex::new(r"(?i)(?://|#).*?HACK\b").expect("valid regex"),
         }
     }
 }

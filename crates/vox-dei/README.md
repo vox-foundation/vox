@@ -1,13 +1,10 @@
-# vox-dei (workspace-excluded)
+# vox-dei (staging crate)
 
-Fragment sources under `src/` are **not** wired into a full library graph yet. A minimal **`Cargo.toml`** + **`src/lib.rs`** exists so:
+Minimal **workspace member**: `src/lib.rs` exposes Socrates-aligned floors; other directories under `src/` are **not** in the compiled module tree yet.
 
-- Socrates-aligned research floors stay type-checked:  
-  `cargo check --manifest-path crates/vox-dei/Cargo.toml`
-- `research/orchestrator.rs` can reference [`vox_socrates_policy::ConfidencePolicy`] when that tree is reattached to the crate root.
+- Type-check: `cargo check -p vox-dei`
+- When reattaching `research/` or `selection/`, wire them from `lib.rs` deliberately.
 
-Do not add `vox-dei` as a dependency of workspace members (`vox-cli`, etc.); see **AGENTS.md**.
+Do not add `vox-dei` as a dependency of `vox-cli` (CI: `vox ci no-vox-dei-import`); see **AGENTS.md**.
 
-Current runtime authority for retrieval triggers and Socrates surface telemetry is
-`vox-mcp` + `vox-orchestrator`. Treat this crate as staged/deferred until the
-historical research module graph is reattached to the workspace build.
+Runtime authority for retrieval triggers and Socrates telemetry is **`vox-mcp`** + **`vox-orchestrator`**.

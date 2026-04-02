@@ -57,7 +57,7 @@ pub fn merge_topic_pack_into_syndication(
             syn.twitter = None;
         }
         if !allow.contains("github") {
-            syn.github = None;
+            syn.forge = None;
         }
         if !allow.contains("open_collective") {
             syn.open_collective = None;

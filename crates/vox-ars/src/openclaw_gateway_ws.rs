@@ -83,13 +83,12 @@ impl OpenClawGatewayWsClient {
 
         // Best-effort consume initial challenge event if present.
         let maybe_first = ws.next().await;
-        if let Some(Ok(Message::Text(text))) = maybe_first {
-            if let Ok(InboundFrame::Event { event, .. }) =
+        if let Some(Ok(Message::Text(text))) = maybe_first
+            && let Ok(InboundFrame::Event { event, .. }) =
                 serde_json::from_str::<InboundFrame>(&text)
-                && event != "connect.challenge"
-            {
-                // Not a challenge event; keep processing path simple by ignoring it.
-            }
+            && event != "connect.challenge"
+        {
+            // Not a challenge event; keep processing path simple by ignoring it.
         }
 
         let connect_id = Uuid::new_v4().to_string();
@@ -122,8 +121,7 @@ impl OpenClawGatewayWsClient {
         );
         ws.send(Message::Text(
             serde_json::to_string(&frame)
-                .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?
-                .into(),
+                .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?,
         ))
         .await
         .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?;
@@ -178,12 +176,7 @@ impl OpenClawGatewayWsClient {
     ) -> Result<Value, OpenClawGatewayWsError> {
         match self.call_method_inner(method, params.clone()).await {
             Ok(v) => Ok(v),
-            Err(err)
-                if matches!(
-                    err,
-                    OpenClawGatewayWsError::Receive(_) | OpenClawGatewayWsError::Send(_)
-                ) =>
-            {
+            Err(OpenClawGatewayWsError::Receive(_) | OpenClawGatewayWsError::Send(_)) => {
                 self.reconnect().await?;
                 self.call_method_inner(method, params).await
             }
@@ -201,8 +194,7 @@ impl OpenClawGatewayWsClient {
         self.ws
             .send(Message::Text(
                 serde_json::to_string(&frame)
-                    .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?
-                    .into(),
+                    .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?,
             ))
             .await
             .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?;

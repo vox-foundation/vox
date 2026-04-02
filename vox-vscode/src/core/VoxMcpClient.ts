@@ -4,12 +4,15 @@ import * as vscode from 'vscode';
 import type {
     AgentEvent,
     ChatMessage,
+    ChatSessionMeta,
     Snapshot,
     OplogEntry,
     BudgetStatus,
     GamifyState,
     SkillInfo,
     VoxConfigResponse,
+    SubmitTaskResponse,
+    PlanGoalResult,
 } from '../types';
 import { CapabilityRegistry, type ListedMcpTool } from './CapabilityRegistry';
 import { MCP_EXTENSION_EXPECTED_TOOLS } from './mcpToolRegistry.generated';
@@ -129,14 +132,49 @@ export class VoxMcpClient {
     }
 
     // ── Task & Orchestration ──────────────────────────────────────────────────
-    async submitTask(description: string, files: string[] = [], mode?: string): Promise<unknown> {
+    async submitTask(
+        description: string,
+        files: string[] = [],
+        mode?: string,
+        traceId?: string,
+    ): Promise<SubmitTaskResponse | null> {
         const fileSpecs =
             files.length > 0
                 ? files.map((path) => ({ path, access: 'read' as const }))
                 : [{ path: '.', access: 'read' as const }];
         const payload: Record<string, unknown> = { description, files: fileSpecs };
         if (mode) payload.planning_mode = mode;
-        return this.call('vox_submit_task', payload);
+        const tid =
+            traceId ??
+            (globalThis.crypto && 'randomUUID' in globalThis.crypto
+                ? globalThis.crypto.randomUUID()
+                : undefined);
+        if (tid) payload.trace_id = tid;
+        const result = await this.call<SubmitTaskResponse>('vox_submit_task', payload);
+        if (result?.shadow_plan_adequacy) {
+            const sh = result.shadow_plan_adequacy;
+            this.outputChannel.appendLine(
+                `[Vox MCP] shadow_plan_adequacy score=${sh.score.toFixed(3)} too_thin=${sh.is_too_thin} ` +
+                    `critical=${sh.critical_count} risk=${sh.aggregate_unresolved_risk.toFixed(3)} ` +
+                    `codes=[${sh.reason_codes.join(', ')}]`,
+            );
+            if (
+                sh.is_too_thin &&
+                vscode.workspace.getConfiguration('vox').get<boolean>('mcp.shadowPlanAdequacyToast', true)
+            ) {
+                const preview =
+                    sh.reason_codes.slice(0, 3).join('; ') || 'plan may be too thin (shadow heuristic)';
+                void vscode.window
+                    .showWarningMessage(
+                            `Vox: task submitted, but plan-adequacy shadow flagged a thin plan: ${preview}`,
+                            'Open Vox Log',
+                    )
+                    .then((choice) => {
+                        if (choice === 'Open Vox Log') this.outputChannel.show(true);
+                    });
+            }
+        }
+        return result;
     }
     async taskStatus(taskId: string): Promise<unknown> {
         return this.call('vox_task_status', { task_id: Number(taskId) });
@@ -331,15 +369,54 @@ export class VoxMcpClient {
         return this.call('vox_session_reset', {});
     }
 
-    async chatHistory(): Promise<ChatMessage[] | null> {
-        return this.call<ChatMessage[]>('vox_chat_history', {});
+    async chatHistory(sessionId?: string): Promise<ChatMessage[] | null> {
+        const payload =
+            sessionId != null && sessionId !== ''
+                ? { session_id: sessionId }
+                : {};
+        return this.call<ChatMessage[]>('vox_chat_history', payload);
     }
 
     async chatMessage(
-        prompt: string,
-        contextFiles: string[],
-    ): Promise<{ message: ChatMessage; history: ChatMessage[] } | null> {
-        return this.call('vox_chat_message', { prompt, context_files: contextFiles });
+        payload: {
+            prompt: string;
+            contextFiles?: string[];
+            openFiles?: string[];
+            activeFile?: string;
+            activeLine?: number;
+            selectedText?: string;
+            diagnostics?: unknown[];
+            sessionId?: string;
+            cognitiveProfile?: 'fast' | 'reasoning' | 'creative';
+        },
+    ): Promise<{
+        message: ChatMessage;
+        history: ChatMessage[];
+        model_used?: string;
+        tokens?: number;
+        session_id?: string;
+        socrates?: ChatSessionMeta['socrates'];
+        retrieval?: ChatSessionMeta['retrieval'];
+    } | null> {
+        const trace_id =
+            globalThis.crypto && 'randomUUID' in globalThis.crypto
+                ? globalThis.crypto.randomUUID()
+                : `vscode-chat-${Date.now()}`;
+        return this.call('vox_chat_message', {
+            prompt: payload.prompt,
+            context_files: payload.contextFiles ?? [],
+            open_files: payload.openFiles ?? [],
+            active_file: payload.activeFile,
+            active_line: payload.activeLine,
+            selected_text: payload.selectedText,
+            diagnostics: payload.diagnostics ?? [],
+            session_id: payload.sessionId,
+            cognitive_profile: payload.cognitiveProfile,
+            trace_id,
+            correlation_id: trace_id,
+            ...(payload.sessionId ? { thread_id: payload.sessionId } : {}),
+            journey_id: trace_id,
+        });
     }
 
     async configGet(): Promise<VoxConfigResponse | null> {
@@ -370,8 +447,92 @@ export class VoxMcpClient {
         goal: string;
         write_to_disk: boolean;
         max_tasks: number;
-    }): Promise<{ plan_md: string; tasks: unknown[]; written_to_disk: boolean } | null> {
+        plan_depth?: 'minimal' | 'standard' | 'deep';
+        questioning_hints_enabled?: boolean;
+        session_id?: string;
+    }): Promise<PlanGoalResult | null> {
         return this.call('vox_plan', payload);
+    }
+
+    async repoIndexStatus(): Promise<unknown> {
+        return this.call('vox_repo_index_status', {});
+    }
+
+    async repoIndexRefresh(): Promise<unknown> {
+        return this.call('vox_repo_index_refresh', {});
+    }
+
+    async repoCatalogList(): Promise<unknown> {
+        return this.call('vox_repo_catalog_list', {});
+    }
+
+    async repoCatalogRefresh(): Promise<unknown> {
+        return this.call('vox_repo_catalog_refresh', {});
+    }
+
+    async repoQueryText(payload: { query: string; limit?: number; repository_ids?: string[] }): Promise<unknown> {
+        return this.call('vox_repo_query_text', payload);
+    }
+
+    async repoQueryFile(payload: { path: string; repository_ids?: string[] }): Promise<unknown> {
+        return this.call('vox_repo_query_file', payload);
+    }
+
+    async capabilityModelManifest(): Promise<unknown> {
+        return this.call('vox_capability_model_manifest', {});
+    }
+
+    async listContext(prefix: string): Promise<string[]> {
+        const result = await this.call<string[]>('vox_list_context', { prefix });
+        return Array.isArray(result) ? result : [];
+    }
+
+    async getContext(key: string): Promise<unknown> {
+        return this.call('vox_get_context', { key });
+    }
+
+    async setContext(payload: {
+        agent_id: number;
+        key: string;
+        value: string;
+        ttl_seconds?: number;
+    }): Promise<unknown> {
+        return this.call('vox_set_context', payload);
+    }
+
+    async browserOpen(url: string): Promise<unknown> {
+        return this.call('vox_browser_open', { url });
+    }
+
+    async browserGoto(page_id: string | number, url: string): Promise<unknown> {
+        return this.call('vox_browser_goto', { page_id, url });
+    }
+
+    async browserText(payload: { page_id: string | number; target: string }): Promise<unknown> {
+        return this.call('vox_browser_text', payload);
+    }
+
+    async browserExtract(payload: {
+        page_id: string | number;
+        instruction: string;
+    }): Promise<unknown> {
+        return this.call('vox_browser_extract', payload);
+    }
+
+    async browserScreenshot(payload: {
+        page_id: string | number;
+        path: string;
+    }): Promise<unknown> {
+        return this.call('vox_browser_screenshot', payload);
+    }
+
+    async projectInit(payload: {
+        project_name: string;
+        package_kind?: string;
+        template?: string;
+        target_subdir?: string;
+    }): Promise<unknown> {
+        return this.call('vox_project_init', payload);
     }
 
     // ── Behavior ──────────────────────────────────────────────────────────────
@@ -405,6 +566,52 @@ export class VoxMcpClient {
     async builtinRegistry(): Promise<unknown[]> {
         const result = await this.call<unknown[]>('vox_builtin_registry', {});
         return Array.isArray(result) ? result : [];
+    }
+
+    // ── Oratio / speech pipeline ────────────────────────────────────────────
+    async oratioTranscribe(
+        path: string,
+        opts?: {
+            language_hint?: string;
+            profile?: 'conservative' | 'balanced' | 'aggressive';
+            debug_parser_payload?: boolean;
+        },
+    ): Promise<unknown> {
+        const args: Record<string, unknown> = { path };
+        if (opts?.language_hint !== undefined) args.language_hint = opts.language_hint;
+        if (opts?.profile !== undefined) args.profile = opts.profile;
+        if (opts?.debug_parser_payload !== undefined) {
+            args.debug_parser_payload = opts.debug_parser_payload;
+        }
+        return this.call('vox_oratio_transcribe', args);
+    }
+
+    async oratioStatus(): Promise<{
+        summary?: string;
+        streaming?: { stream_ws_url?: string };
+    } | null> {
+        return this.call('vox_oratio_status', {});
+    }
+
+    async speechToCode(payload: {
+        path?: string;
+        prompt?: string;
+        language_hint?: string;
+        profile?: 'conservative' | 'balanced' | 'aggressive';
+        debug_parser_payload?: boolean;
+        route_mode?: 'none' | 'tool' | 'chat' | 'orchestrator';
+        include_route?: boolean;
+        validate?: boolean;
+        max_retries?: number;
+        session_id?: string;
+        output_surface_mode?: string;
+        emit_trace_path?: string;
+    }): Promise<unknown> {
+        const args: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(payload)) {
+            if (v !== undefined) args[k] = v;
+        }
+        return this.call('vox_speech_to_code', args);
     }
 
     dispose(): void {

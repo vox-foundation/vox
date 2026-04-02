@@ -52,6 +52,17 @@ jobs:
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance
 
+      - name: SSOT drift bundle (operations-verify, sql-surface --all, capability-sync, nested guards)
+        run: cargo run -p vox-cli --quiet -- ci ssot-drift
+
+      - name: Data / telemetry SSOT guards
+        run: cargo run -p vox-cli --quiet -- ci data-ssot-guards
+
+      - name: Completion quality audit + gates (LLM premature-completion SSOT)
+        run: |
+          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
+          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-gates --mode enforce
+
       - name: Clavis SSOT parity + secret direct-read guard
         shell: bash
         run: |
@@ -74,8 +85,10 @@ jobs:
       - name: Contracts index + scaling policy SSOT
         run: |
           cargo run -p vox-cli --quiet -- ci contracts-index
+          cargo run -p vox-cli --quiet -- ci exec-policy-contract
           cargo run -p vox-cli --quiet -- ci openclaw-contract
           cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
+          cargo run -p vox-cli --quiet -- ci scientia-novelty-ledger-contracts
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
 
       - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
@@ -113,7 +126,7 @@ jobs:
 
       - name: Mesh transport + workflow-runtime + CLI feature matrix slice
         run: |
-          cargo test -p vox-mesh --features transport
+          cargo test -p vox-populi --features transport
           cargo test -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
@@ -137,6 +150,7 @@ jobs:
           tool: cargo-llvm-cov
 
       - name: Run Tests (llvm-cov + nextest, bounded timeouts)
+        # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
         run: cargo llvm-cov nextest --workspace --profile ci
 
       - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
@@ -213,18 +227,17 @@ jobs:
         run: cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored --nocapture
 
   vox-vscode-extension:
-    name: VS Code extension (MCP parity + compile)
+    name: VS Code extension (compile + lint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: npm ci + parity + compile
+      - name: npm ci + compile (includes MCP + activation parity) + lint
         run: |
           cd vox-vscode
           npm ci
-          npm run check:mcp-parity
           npm run compile
           npm run lint
 
@@ -246,3 +259,30 @@ jobs:
       # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
       - name: docker build mesh worker image (mesh + script-execution)
         run: docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
+
+  # Chromium/CDP (chromiumoxide): requires Chrome or Chromium on the runner (browser pool).
+  vox-browser-cdp-smoke:
+    name: vox-browser CDP smoke (Chromium)
+    runs-on: [self-hosted, linux, x64, browser]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-browser-smoke-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-browser-smoke-
+            ${{ runner.os }}-cargo-
+
+      - name: CDP smoke (ignored tests)
+        env:
+          VOX_BROWSER_NO_SANDBOX: "1"
+        run: cargo test -p vox-browser -- --ignored --nocapture

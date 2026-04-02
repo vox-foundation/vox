@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Database, Code, Brackets, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Layers, Database, Code, Brackets, CheckCircle } from 'lucide-react';
 
 const STAGES = [
   { id: 'lexer', name: 'Lexer', icon: <Layers size={18} />, desc: 'Logos-based tokenization' },

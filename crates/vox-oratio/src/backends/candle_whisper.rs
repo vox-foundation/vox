@@ -7,12 +7,13 @@ use anyhow::{Context, Result};
 use byteorder::{ByteOrder, LittleEndian};
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::whisper::{self as m, Config, audio};
+use candle_transformers::models::whisper::{self as m, Config, SAMPLE_RATE, audio};
 use hf_hub::{Repo, RepoType, api::sync::Api};
 use tokenizers::Tokenizer;
 
 use super::audio_io::pcm_decode_to_16k_mono;
-use super::candle_engine::{DecodeTask, Decoder, WhisperModel, token_id};
+use super::candle_engine::{DecodeTask, Decoder, StreamEvent, WhisperModel, token_id};
+use super::logit_processors;
 use super::multilingual;
 
 use crate::runtime_config::resolved_runtime_config;
@@ -273,6 +274,148 @@ impl Drop for LanguageEnvOverride {
     }
 }
 
+/// Env: seconds per STT window for long audio (`20`–`28` typical (`5`–`28` accepted)). `0` or unset =
+/// single encoder pass (very long audio may be truncated; see Whisper `max_source_positions`).
+pub const ENV_CHUNK_SEC: &str = "VOX_ORATIO_CHUNK_SEC";
+/// Env: overlap in seconds between adjacent windows when [`ENV_CHUNK_SEC`] is set (default `0.5`).
+pub const ENV_CHUNK_OVERLAP_SEC: &str = "VOX_ORATIO_CHUNK_OVERLAP_SEC";
+/// Env: append one JSON object per chunk (batch “streaming” UX) — path to a JSONL file.
+pub const ENV_EMIT_PARTIAL_PATH: &str = "VOX_ORATIO_EMIT_PARTIAL_PATH";
+/// Env: `1` to emit per-token events from decoder loop (high volume).
+pub const ENV_STREAM_TOKENS: &str = "VOX_ORATIO_STREAM_TOKENS";
+
+fn chunk_window_ranges(
+    len: usize,
+    chunk_samples: usize,
+    overlap_samples: usize,
+) -> Vec<(usize, usize)> {
+    if len <= chunk_samples {
+        return vec![(0, len)];
+    }
+    let overlap = overlap_samples.min(chunk_samples.saturating_sub(1));
+    let step = chunk_samples.saturating_sub(overlap).max(1);
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    loop {
+        let end = (start + chunk_samples).min(len);
+        out.push((start, end));
+        if end >= len {
+            break;
+        }
+        let next_start = start.saturating_add(step);
+        if next_start >= len {
+            break;
+        }
+        let remaining = len.saturating_sub(next_start);
+        if remaining > 0 && remaining < chunk_samples / 4 {
+            let last = out.len() - 1;
+            out[last] = (start, len);
+            break;
+        }
+        start = next_start;
+    }
+    out
+}
+
+fn merge_adjacent_transcripts(prev: &str, next: &str) -> String {
+    let prev = prev.trim_end();
+    let next = next.trim();
+    if next.is_empty() {
+        return prev.to_string();
+    }
+    if prev.is_empty() {
+        return next.to_string();
+    }
+    let prev_words: Vec<&str> = prev.split_whitespace().collect();
+    let next_words: Vec<&str> = next.split_whitespace().collect();
+    if prev_words.is_empty() {
+        return next.to_string();
+    }
+    let max_k = prev_words.len().min(next_words.len()).min(16);
+    for k in (1..=max_k).rev() {
+        let a: Vec<String> = prev_words[prev_words.len() - k..]
+            .iter()
+            .map(|s| s.to_ascii_lowercase())
+            .collect();
+        let b: Vec<String> = next_words[..k]
+            .iter()
+            .map(|s| s.to_ascii_lowercase())
+            .collect();
+        if a == b {
+            let rest = next_words[k..].join(" ");
+            if rest.is_empty() {
+                return prev.to_string();
+            }
+            return format!("{prev} {rest}");
+        }
+    }
+    format!("{prev} {next}")
+}
+
+fn merge_transcript_chunk_strings(parts: Vec<String>) -> String {
+    let mut it = parts.into_iter().filter(|s| !s.trim().is_empty());
+    let Some(mut acc) = it.next() else {
+        return String::new();
+    };
+    for next in it {
+        acc = merge_adjacent_transcripts(&acc, &next);
+    }
+    acc
+}
+
+fn append_partial_transcript_jsonl(
+    path: &Path,
+    chunk_idx: usize,
+    total_chunks: usize,
+    text: &str,
+) -> Result<()> {
+    use std::io::Write;
+    let ts_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let line = serde_json::json!({
+        "chunk_index": chunk_idx,
+        "total_chunks": total_chunks,
+        "partial_text": text,
+        "ts_ms": ts_ms,
+    });
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| path.display().to_string())?;
+    writeln!(f, "{line}")?;
+    Ok(())
+}
+
+fn build_decoder(
+    whisper: WhisperModel,
+    tokenizer: Tokenizer,
+    seed: u64,
+    device: &Device,
+    language_token: Option<u32>,
+    task: Option<DecodeTask>,
+    verbose: bool,
+) -> Result<Decoder> {
+    let processor = logit_processors::build_logit_processor(
+        &tokenizer,
+        Some(&resolved_runtime_config().logit),
+    )?;
+    Decoder::new(
+        whisper,
+        tokenizer,
+        seed,
+        device,
+        language_token,
+        task,
+        false,
+        None,
+        verbose,
+        Some(processor),
+    )
+}
+
 /// Transcribe an audio file using Candle Whisper (downloads weights on first use).
 pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     let model_id =
@@ -298,6 +441,22 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         anyhow::bail!("no audio samples decoded from {}", path.display());
     }
 
+    let chunk_sec_requested = std::env::var(ENV_CHUNK_SEC)
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .filter(|&x| x > 0.0);
+
+    let overlap_sec: f64 = std::env::var(ENV_CHUNK_OVERLAP_SEC)
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .filter(|&x| x >= 0.0)
+        .unwrap_or(0.5);
+
+    let emit_partial = std::env::var(ENV_EMIT_PARTIAL_PATH)
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| std::path::PathBuf::from(s.trim().to_string()));
+
     ensure_session(&model_id, &revision)?;
 
     let mut g = cache()
@@ -305,21 +464,62 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         .map_err(|_| anyhow::anyhow!("oratio session mutex poisoned"))?;
     let sess = g.as_mut().expect("session");
 
-    let mel = audio::pcm_to_mel(&sess.config, &pcm, &sess.mel_filters);
-    let mel_len = mel.len();
-    let mel_tensor = Tensor::from_vec(
-        mel,
-        (
-            1usize,
-            sess.config.num_mel_bins,
-            mel_len / sess.config.num_mel_bins,
-        ),
-        &sess.device,
-    )
-    .context("mel tensor")?;
+    let chunk_samples = chunk_sec_requested.map(|cs| {
+        let cs = cs.clamp(5.0, 28.0);
+        (cs * SAMPLE_RATE as f64) as usize
+    });
+    let overlap_samples = match chunk_samples {
+        Some(cs) => {
+            let max_ov = (overlap_sec * SAMPLE_RATE as f64) as usize;
+            let cap = cs.saturating_mul(2).saturating_div(5);
+            max_ov.min(cap).min(cs.saturating_sub(1))
+        }
+        None => 0usize,
+    };
+
+    let windows: Vec<(usize, usize)> = match chunk_samples {
+        Some(cs) => chunk_window_ranges(pcm.len(), cs, overlap_samples),
+        None => vec![(0, pcm.len())],
+    };
 
     let multilingual = model_is_multilingual(&model_id);
     let lang = std::env::var("VOX_ORATIO_LANGUAGE").ok();
+
+    let lang_pcm_slice: &[f32] = if windows.len() > 1 {
+        let prefix = 30usize.saturating_mul(SAMPLE_RATE);
+        &pcm[..pcm.len().min(prefix)]
+    } else {
+        &pcm
+    };
+
+    let lang_mel = audio::pcm_to_mel(&sess.config, lang_pcm_slice, &sess.mel_filters);
+    let lang_mel_len = lang_mel.len();
+    let lang_mel_tensor = Tensor::from_vec(
+        lang_mel,
+        (
+            1usize,
+            sess.config.num_mel_bins,
+            lang_mel_len / sess.config.num_mel_bins,
+        ),
+        &sess.device,
+    )
+    .context("language / single-pass mel tensor")?;
+
+    if windows.len() == 1 {
+        let mel_frames = lang_mel_len / sess.config.num_mel_bins;
+        let thr = sess.config.max_source_positions.saturating_mul(9) / 10;
+        if mel_frames > thr {
+            tracing::warn!(
+                target: "vox_oratio_whisper",
+                path = %path.display(),
+                mel_frames,
+                max_source_positions = sess.config.max_source_positions,
+                "Long audio may be truncated by Whisper encoder; set {}=20..28 for chunked transcription",
+                ENV_CHUNK_SEC,
+            );
+        }
+    }
+
     let mut whisper = sess
         .whisper
         .take()
@@ -327,8 +527,11 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
 
     let language_token = match (multilingual, lang.as_deref()) {
         (true, None) => {
-            let t = match multilingual::detect_language(&mut whisper, &sess.tokenizer, &mel_tensor)
-            {
+            let t = match multilingual::detect_language(
+                &mut whisper,
+                &sess.tokenizer,
+                &lang_mel_tensor,
+            ) {
                 Ok(t) => t,
                 Err(e) => {
                     sess.whisper = Some(whisper);
@@ -367,34 +570,134 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     };
 
     let tokenizer_clone = sess.tokenizer.clone();
+    let emit_tokens = matches!(
+        std::env::var(ENV_STREAM_TOKENS),
+        Ok(v) if v == "1" || v.eq_ignore_ascii_case("true")
+    );
 
-    let mut decoder = match Decoder::new(
-        whisper,
-        tokenizer_clone,
-        seed,
-        &sess.device,
-        language_token,
-        task,
-        false,
-        None,
-        verbose,
-    ) {
-        Ok(d) => d,
-        Err(e) => {
-            *g = None;
-            return Err(e.context("Whisper decoder init failed; session cleared — retry"));
-        }
-    };
+    if windows.len() == 1 {
+        let mut decoder = match build_decoder(
+            whisper,
+            tokenizer_clone,
+            seed,
+            &sess.device,
+            language_token,
+            task,
+            verbose,
+        ) {
+            Ok(d) => d,
+            Err(e) => {
+                *g = None;
+                return Err(e.context("Whisper decoder init failed; session cleared — retry"));
+            }
+        };
+        tracing::debug!(
+            target: "vox_oratio_whisper",
+            processor = decoder.processor_name(),
+            "decoder processor selected"
+        );
+        let text = match decoder.run_streaming(&lang_mel_tensor, emit_tokens, |ev| {
+            if let (
+                Some(ep),
+                StreamEvent::SegmentText {
+                    segment_index,
+                    text,
+                    ..
+                },
+            ) = (emit_partial.as_ref(), ev)
+            {
+                let _ = append_partial_transcript_jsonl(ep, segment_index, 1, &text);
+            }
+        }) {
+            Ok(t) => t,
+            Err(e) => {
+                sess.whisper = Some(decoder.into_whisper_model());
+                return Err(e.context("Whisper inference"));
+            }
+        };
+        sess.whisper = Some(decoder.into_whisper_model());
+        return Ok(text);
+    }
 
-    let text = match decoder.run_collected(&mel_tensor) {
-        Ok(t) => t,
-        Err(e) => {
-            sess.whisper = Some(decoder.into_whisper_model());
-            return Err(e.context("Whisper inference"));
+    sess.whisper = Some(whisper);
+
+    let t0 = std::time::Instant::now();
+    let mut parts: Vec<String> = Vec::with_capacity(windows.len());
+
+    for (i, (w0, w1)) in windows.iter().enumerate() {
+        let piece = &pcm[*w0..*w1];
+        let mel = audio::pcm_to_mel(&sess.config, piece, &sess.mel_filters);
+        let mel_len = mel.len();
+        let frames = mel_len / sess.config.num_mel_bins;
+        if frames == 0 {
+            continue;
         }
-    };
-    sess.whisper = Some(decoder.into_whisper_model());
-    Ok(text)
+        let mel_tensor = Tensor::from_vec(
+            mel,
+            (1usize, sess.config.num_mel_bins, frames),
+            &sess.device,
+        )
+        .with_context(|| format!("chunk {i} mel tensor"))?;
+
+        let wh = sess
+            .whisper
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("Whisper model is busy; retry"))?;
+        let mut decoder = match build_decoder(
+            wh,
+            tokenizer_clone.clone(),
+            seed,
+            &sess.device,
+            language_token,
+            task,
+            verbose,
+        ) {
+            Ok(d) => d,
+            Err(e) => {
+                *g = None;
+                return Err(e.context("Whisper decoder init failed; session cleared — retry"));
+            }
+        };
+        let chunk_text = match decoder.run_streaming(&mel_tensor, emit_tokens, |ev| {
+            if let (
+                Some(ep),
+                StreamEvent::SegmentText {
+                    segment_index,
+                    text,
+                    ..
+                },
+            ) = (emit_partial.as_ref(), ev)
+            {
+                // Re-map local segment index inside this chunk to a global-ish ordinal.
+                let ordinal = i.saturating_mul(1000).saturating_add(segment_index);
+                let _ = append_partial_transcript_jsonl(ep, ordinal, windows.len(), &text);
+            }
+        }) {
+            Ok(t) => t,
+            Err(e) => {
+                sess.whisper = Some(decoder.into_whisper_model());
+                return Err(e.context("Whisper inference"));
+            }
+        };
+        sess.whisper = Some(decoder.into_whisper_model());
+
+        let chunk_text = chunk_text.trim();
+        if !chunk_text.is_empty() {
+            parts.push(chunk_text.to_string());
+        }
+        if i == 0 || i + 1 == windows.len() || (i + 1) % 3 == 0 {
+            tracing::info!(
+                target: "vox_oratio_whisper",
+                path = %path.display(),
+                chunk = i + 1,
+                total_chunks = windows.len(),
+                elapsed_ms = t0.elapsed().as_millis() as u64,
+                "chunked STT progress"
+            );
+        }
+    }
+
+    Ok(merge_transcript_chunk_strings(parts))
 }
 
 /// Like [`transcribe_audio_file`], but honors an per-call language hint (Whisper token id / ISO code).
@@ -406,4 +709,35 @@ pub fn transcribe_audio_file_with_language(
 ) -> Result<String> {
     let _lang = LanguageEnvOverride::set(language_override);
     transcribe_audio_file(path)
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::chunk_window_ranges;
+    use super::merge_adjacent_transcripts;
+    use super::merge_transcript_chunk_strings;
+
+    #[test]
+    fn chunk_windows_overlap_steps() {
+        let w = chunk_window_ranges(100, 40, 10);
+        assert_eq!(w, vec![(0, 40), (30, 70), (60, 100)]);
+    }
+
+    #[test]
+    fn merge_strips_duplicate_word_boundary() {
+        assert_eq!(
+            merge_adjacent_transcripts("one two three", "three four"),
+            "one two three four"
+        );
+    }
+
+    #[test]
+    fn merge_chunks_full_pipeline() {
+        let s = merge_transcript_chunk_strings(vec![
+            "alpha beta".into(),
+            "beta gamma".into(),
+            "gamma delta".into(),
+        ]);
+        assert_eq!(s, "alpha beta gamma delta");
+    }
 }

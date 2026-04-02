@@ -5,6 +5,39 @@ use std::path::Path;
 
 use super::types::{LintError, LintKind};
 
+const VALID_CATEGORIES: &[&str] = &[
+    "getting-started",
+    "tutorial",
+    "tutorials",
+    "how-to",
+    "ref",
+    "reference",
+    "lang-ref",
+    "language-reference",
+    "api-keyword",
+    "api-decorator",
+    "api-crate",
+    "example",
+    "explanation",
+    "adr",
+    "architecture",
+    "ssot",
+    "ci",
+    "quality",
+    "contributor",
+    "contributors",
+    "operations",
+];
+
+const VALID_STATUS: &[&str] = &[
+    "current",
+    "experimental",
+    "legacy",
+    "research",
+    "roadmap",
+    "deprecated",
+];
+
 /// Recursively walk `dir` and collect lint errors for every `.md` file.
 pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
     if let Ok(entries) = fs::read_dir(dir) {
@@ -17,8 +50,8 @@ pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
                 if rel.contains("SUMMARY.md") {
                     continue;
                 }
-                let content = super::bounded_fs::read_utf8_path_capped(&path)
-                    .unwrap_or_else(|_| String::new());
+                let content =
+                    vox_bounded_fs::read_utf8_path_capped(&path).unwrap_or_else(|_| String::new());
                 lint_file(&path, &content, errors);
             }
         }
@@ -36,6 +69,8 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             line: 1,
             kind: LintKind::MissingFrontmatter,
         });
+    } else {
+        lint_frontmatter(path, content, errors);
     }
 
     if content.contains("Official documentation for ")
@@ -94,6 +129,54 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             file: path.to_owned(),
             line: fence_start_line,
             kind: LintKind::UnclosedCodeFence,
+        });
+    }
+}
+
+fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
+    let Some(after_dash) = content.strip_prefix("---") else {
+        return;
+    };
+    let Some(end) = after_dash.find("---") else {
+        return;
+    };
+    let yaml = &after_dash[..end];
+    let mut saw_category = false;
+
+    for (idx, raw_line) in yaml.lines().enumerate() {
+        let line_no = idx + 2;
+        let line = raw_line.trim();
+        if let Some(value) = line.strip_prefix("category:") {
+            saw_category = true;
+            let value = value.trim().trim_matches(|c| c == '"' || c == '\'');
+            if !VALID_CATEGORIES.contains(&value) {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: line_no,
+                    kind: LintKind::UnknownCategory {
+                        value: value.to_string(),
+                    },
+                });
+            }
+        } else if let Some(value) = line.strip_prefix("status:") {
+            let value = value.trim().trim_matches(|c| c == '"' || c == '\'');
+            if !VALID_STATUS.contains(&value) {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: line_no,
+                    kind: LintKind::UnknownStatus {
+                        value: value.to_string(),
+                    },
+                });
+            }
+        }
+    }
+
+    if !saw_category {
+        errors.push(LintError {
+            file: path.to_owned(),
+            line: 1,
+            kind: LintKind::MissingCategory,
         });
     }
 }

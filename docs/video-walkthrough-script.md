@@ -142,7 +142,7 @@ vox agent doctor
 
 "In summary, we've initialized the native AI integration, scaffolded a multi-agent config, launched the real-time dashboard, and watched two agents collaborate on a feature — automatically, in parallel, without conflicts."
 
-"Check out the docs at `docs/how-to-ai-agents.md` and `docs/mcp-tool-reference.md` for a full reference."
+"Check out `docs/src/how-to/how-to-ai-agents.md` for the guide and `docs/src/reference/mcp-tool-registry-contract.md` for the canonical MCP registry reference."
 
 "Thanks for watching!"
 

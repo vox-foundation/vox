@@ -1,7 +1,10 @@
 //! Unified tool registry and dispatcher for the Vox MCP server.
 
+pub(crate) mod attention_policy;
 /// Benchmark telemetry query tools (`research_metrics`).
 pub mod benchmark_tools;
+/// Chromium CDP browser automation (`vox_browser_*`).
+pub mod browser_tools;
 /// Shared LLM model resolution for chat tools.
 pub mod chat_model_resolve;
 /// Socrates grounding + telemetry helpers for chat tools.
@@ -26,23 +29,32 @@ pub mod news_tools;
 pub mod openclaw_tools;
 /// Oratio speech-to-text (Candle Whisper).
 pub mod oratio_tools;
+/// Orchestrator persistence outbox inspection helpers.
+pub mod persistence_tools;
 /// Local mens registry status (`vox_populi_local_status`).
 pub mod populi_tools;
 /// Socrates questioning / clarification answer persistence (`VoxDb`).
 pub mod questioning_tools;
 mod registry;
+/// `vox init` parity scaffold (`vox_project_init`).
+pub mod project_init_tools;
+/// Explicit repo catalog + read-only polyrepo query tools.
+pub mod repo_catalog_tools;
 /// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
 pub mod repo_index;
 /// Scientia publication lifecycle tools (manifest, approval, submission).
 pub mod scientia_tools;
+pub(crate) mod session_identity;
+/// Speech → codegen orchestration (`vox_speech_to_code`).
+pub mod speech_pipeline_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
-/// Trust rollup inspection tools (`trust_rollups` over VoxDb).
-pub mod trust_tools;
 pub(crate) mod text_normalization;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
 pub mod toestub_tools;
 mod tool_aliases;
+/// Trust rollup inspection tools (`trust_rollups` over VoxDb).
+pub mod trust_tools;
 /// Workspace-relative path resolution (repo root joining, in-repo canonical checks).
 pub(crate) mod workspace_path;
 // Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
@@ -57,3 +69,4 @@ pub use vox_mcp_registry::TOOL_REGISTRY;
 
 pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
+pub use tool_aliases::canonical_tool_name;

@@ -57,6 +57,9 @@ populi/data/*.jsonl
 # Jujutsu VCS
 .jj/
 
+# Local agent/tooling scratch under repo root (prefer OS temp for secrets)
+/tmp/
+
 # Scratch files
 cargo-out.txt
 test_all.txt
@@ -82,7 +85,6 @@ crates/*/target_*/
 
 # Generated test fixture snapshots (re-created by build)
 crates/vox-populi/tests/fixtures/
-crates/vox-mesh/tests/*.sample.json
 docs/book/
 
 # Large model and data artifacts

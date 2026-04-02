@@ -1,11 +1,68 @@
 //! Single **policy-shaped** resolver: manual → Mens (GPU-prefer) → HF dedicated → HF router → OpenRouter → local Mens → bootstrap.
 //!
 //! Maps to [`crate::llm::LlmConfig`] for OpenAI-compatible HTTP chat only (including Ollama `/v1/chat/completions`).
+//!
+//! ## Backend lane alignment (orchestrator / MCP)
+//!
+//! [`ChatRouteBackend`] mirrors [`vox_orchestrator::models::ModelRouteBackend`] semantics for telemetry and
+//! cross-surface dashboards. `vox-runtime` does **not** depend on `vox-orchestrator` (avoids cycles); keep the
+//! two enums logically in sync with [`vox_orchestrator::models::route_backend_for_model`] for registry-backed models.
+//! Chat-only routes add extra shapes (HF router/dedicated, manual OpenAI-compatible); those map to
+//! [`ChatRouteBackend::CascadeFallback`] unless the manual URL is Google Generative Language API (→ [`ChatRouteBackend::GeminiDirect`]).
 
 use crate::inference_env::{
     self, HuggingFaceDedicatedEndpoint, HuggingFaceRouterEndpoint, PopuliCapabilitySnapshot,
 };
 use crate::llm::LlmConfig;
+
+/// Normalized HTTP/backend lane for chat route telemetry, aligned with `vox_orchestrator::models::ModelRouteBackend`.
+///
+/// Duplicated at the crate boundary so `vox-runtime` stays independent of `vox-orchestrator`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChatRouteBackend {
+    /// Google AI Studio / Generative Language API (direct).
+    GeminiDirect,
+    OpenRouter,
+    /// Local Ollama / Mens (`PopuliLocal`).
+    Ollama,
+    /// Aggregators, dedicated endpoints, BYOK OpenAI-compatible, and other non-native lanes.
+    CascadeFallback,
+}
+
+/// Map a concrete chat route to the shared four-lane backend model.
+#[must_use]
+pub fn route_backend_for_chat_route(route: &ChatProviderRouteKind) -> ChatRouteBackend {
+    match route {
+        ChatProviderRouteKind::PopuliLocal { .. } => ChatRouteBackend::Ollama,
+        ChatProviderRouteKind::OpenRouter { .. } => ChatRouteBackend::OpenRouter,
+        ChatProviderRouteKind::ManualOpenAiCompatible { base_url, .. } => {
+            if base_url_looks_like_gemini_direct(base_url) {
+                ChatRouteBackend::GeminiDirect
+            } else {
+                ChatRouteBackend::CascadeFallback
+            }
+        }
+        ChatProviderRouteKind::HuggingFaceRouter(_)
+        | ChatProviderRouteKind::HuggingFaceDedicated(_) => ChatRouteBackend::CascadeFallback,
+    }
+}
+
+fn base_url_looks_like_gemini_direct(base_url: &str) -> bool {
+    base_url
+        .to_ascii_lowercase()
+        .contains("generativelanguage.googleapis.com")
+}
+
+/// `(provider_family, route_choice)` for logs/metrics; **must** stay aligned with MCP `mcp_provider_telemetry_labels`.
+#[must_use]
+pub fn backend_telemetry_labels(backend: ChatRouteBackend) -> (&'static str, &'static str) {
+    match backend {
+        ChatRouteBackend::GeminiDirect => ("google", "direct"),
+        ChatRouteBackend::OpenRouter => ("openrouter", "openrouter"),
+        ChatRouteBackend::Ollama => ("mens", "populi_local"),
+        ChatRouteBackend::CascadeFallback => ("custom", "cascade"),
+    }
+}
 
 /// Resolved high-level route before HTTP client configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,16 +146,10 @@ fn populi_model_plausible(snapshot: &PopuliCapabilitySnapshot, model: &str) -> b
     snapshot.model_names.iter().any(|n| n == model)
 }
 
-/// Stable `(provider_family, route_choice)` labels for tests and cross-surface telemetry parity.
+/// Stable `(provider_family, route_choice)` labels — derived from [`route_backend_for_chat_route`] + [`backend_telemetry_labels`].
 #[must_use]
 pub fn route_telemetry_labels(route: &ChatProviderRouteKind) -> (&'static str, &'static str) {
-    match route {
-        ChatProviderRouteKind::ManualOpenAiCompatible { .. } => ("manual", "openai_compatible"),
-        ChatProviderRouteKind::PopuliLocal { .. } => ("mens", "populi_local"),
-        ChatProviderRouteKind::HuggingFaceRouter(_) => ("huggingface", "router"),
-        ChatProviderRouteKind::HuggingFaceDedicated(_) => ("huggingface", "dedicated_endpoint"),
-        ChatProviderRouteKind::OpenRouter { .. } => ("openrouter", "openrouter"),
-    }
+    backend_telemetry_labels(route_backend_for_chat_route(route))
 }
 
 fn resolve_chat_provider_route_impl(
@@ -370,9 +421,10 @@ mod tests {
             },
             true,
         );
+        assert_eq!(route_telemetry_labels(&r), ("custom", "cascade"));
         assert_eq!(
-            route_telemetry_labels(&r),
-            ("huggingface", "dedicated_endpoint")
+            route_backend_for_chat_route(&r),
+            ChatRouteBackend::CascadeFallback
         );
         match r {
             ChatProviderRouteKind::HuggingFaceDedicated(ep) => {
@@ -415,5 +467,47 @@ mod tests {
             model: vox_config::OPENROUTER_AUTO.to_string(),
         };
         assert_eq!(route_telemetry_labels(&r), ("openrouter", "openrouter"));
+        assert_eq!(
+            route_backend_for_chat_route(&r),
+            ChatRouteBackend::OpenRouter
+        );
+    }
+
+    #[test]
+    fn route_backend_manual_gemini_url_is_gemini_direct() {
+        let r = ChatProviderRouteKind::ManualOpenAiCompatible {
+            base_url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+                .into(),
+            model: "gemini-2.0-flash".into(),
+            bearer: None,
+        };
+        assert_eq!(
+            route_backend_for_chat_route(&r),
+            ChatRouteBackend::GeminiDirect
+        );
+        assert_eq!(route_telemetry_labels(&r), ("google", "direct"));
+    }
+
+    #[test]
+    fn route_backend_manual_openai_compatible_is_cascade() {
+        let r = ChatProviderRouteKind::ManualOpenAiCompatible {
+            base_url: "https://api.example/v1/chat/completions".into(),
+            model: "x".into(),
+            bearer: None,
+        };
+        assert_eq!(
+            route_backend_for_chat_route(&r),
+            ChatRouteBackend::CascadeFallback
+        );
+        assert_eq!(route_telemetry_labels(&r), ("custom", "cascade"));
+    }
+
+    #[test]
+    fn route_backend_populi_is_ollama() {
+        let r = ChatProviderRouteKind::PopuliLocal {
+            base_url: "http://127.0.0.1:11434".into(),
+            model: "llama3.2".into(),
+        };
+        assert_eq!(route_backend_for_chat_route(&r), ChatRouteBackend::Ollama);
     }
 }

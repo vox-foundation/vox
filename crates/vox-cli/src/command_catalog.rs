@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::path::Path;
+
 use clap::{Command, CommandFactory, ValueEnum};
 use serde::Serialize;
 
@@ -28,6 +31,9 @@ pub struct CommandCatalogEntry {
     pub source_group: String,
     pub feature_gate: Option<String>,
     pub tier: CatalogTier,
+    /// Transport-independent capability id (`cli.*`) when `contracts/capability` loads.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capability_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,9 +49,29 @@ pub fn build_catalog() -> CommandCatalog {
         walk_command(sub, &[], &mut entries);
     }
     entries.sort_by(|a, b| a.path.cmp(&b.path));
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    apply_capability_ids(&mut entries, &repo_root);
     CommandCatalog {
         generated_from: "clap::CommandFactory(VoxCliRoot)".to_string(),
         entries,
+    }
+}
+
+fn apply_capability_ids(entries: &mut [CommandCatalogEntry], repo_root: &Path) {
+    let Ok(doc) = vox_capability_registry::load_document(repo_root) else {
+        return;
+    };
+    let exempt: HashSet<Vec<String>> = doc
+        .exemptions
+        .as_ref()
+        .map(|e| e.cli_paths.iter().cloned().collect())
+        .unwrap_or_default();
+    for e in entries.iter_mut() {
+        if exempt.contains(&e.path) {
+            e.capability_id = None;
+            continue;
+        }
+        e.capability_id = Some(vox_capability_registry::implicit_cli_capability_id(&e.path));
     }
 }
 
@@ -100,6 +126,7 @@ fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEn
         feature_gate,
         path: path.clone(),
         tier,
+        capability_id: None,
     });
     for sub in cmd.get_subcommands() {
         walk_command(sub, &path, out);

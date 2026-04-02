@@ -614,6 +614,7 @@ fn scholarly_job_preflight_profile_label(adapter: &str) -> &'static str {
         crate::publication_preflight::PreflightProfile::Default => "default",
         crate::publication_preflight::PreflightProfile::DoubleBlind => "double_blind",
         crate::publication_preflight::PreflightProfile::MetadataComplete => "metadata_complete",
+        crate::publication_preflight::PreflightProfile::ArxivAssist => "arxiv_assist",
     }
 }
 
