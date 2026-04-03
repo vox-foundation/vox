@@ -62,7 +62,7 @@ Values come from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/
 
 | Old | New | Notes |
 |-----|-----|-------|
-| `vox ci no-vox-dei-import` | `vox ci no-dei-import` | Alias: `no-vox-dei-import` |
+| `vox ci no-vox-orchestrator-import` | `vox ci no-dei-import` | Alias: `no-vox-orchestrator-import` |
 | `vox ci mens-gate` | `vox ci mesh-gate` | Alias: `mens-gate` |
 | `vox share review` | `vox share feedback` | Alias: `review` |
 | `vox populi local-status` | `vox populi registry-snapshot` | Alias: `local-status` |

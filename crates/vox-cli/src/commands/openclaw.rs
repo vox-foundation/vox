@@ -8,7 +8,7 @@
 //! - List and resolve pending approval requests from the approval broker
 
 use clap::Subcommand;
-use vox_ars::{
+use vox_skills::ars_shim::{
     DefaultOpenClawRuntimeAdapter, OpenClawClient, OpenClawConnectionOverrides,
     OpenClawDiscoveryOverrides, OpenClawRemoteConfig, OpenClawRuntimeAdapter,
     connect_runtime_adapter_with_overrides, resolve_openclaw_endpoints,
@@ -386,7 +386,7 @@ async fn cmd_import(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway.clone(), None, token.clone()).await?;
-    let skill: vox_ars::ArsSkill = adapter
+    let skill: vox_skills::ars_shim::ArsSkill = adapter
         .import_skill(&slug)
         .await
         .map_err(|e| anyhow::anyhow!("Import failed: {e}"))?;
@@ -460,7 +460,7 @@ async fn cmd_list_remote(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway, None, token).await?;
-    let skills: Vec<vox_ars::OpenClawSkillSpec> = adapter
+    let skills: Vec<vox_skills::ars_shim::OpenClawSkillSpec> = adapter
         .list_remote_skills()
         .await
         .map_err(|e| anyhow::anyhow!("List failed: {e}"))?;
@@ -728,12 +728,12 @@ async fn cmd_search_remote(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway, None, token).await?;
-    let skills: Vec<vox_ars::OpenClawSkillSpec> = adapter
+    let skills: Vec<vox_skills::ars_shim::OpenClawSkillSpec> = adapter
         .list_remote_skills()
         .await
         .map_err(|e| anyhow::anyhow!("Search failed: {e}"))?;
     let q = query.to_lowercase();
-    let matches: Vec<vox_ars::OpenClawSkillSpec> = skills
+    let matches: Vec<vox_skills::ars_shim::OpenClawSkillSpec> = skills
         .into_iter()
         .filter(|s| {
             s.name.to_lowercase().contains(&q)

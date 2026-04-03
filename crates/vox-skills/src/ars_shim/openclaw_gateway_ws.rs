@@ -13,7 +13,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use uuid::Uuid;
 
-use crate::openclaw_protocol::{
+use crate::ars_shim::openclaw_protocol::{
     GatewayClientIdentity, GatewayConnectParams, GatewayRequest, InboundFrame,
 };
 

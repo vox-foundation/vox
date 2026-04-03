@@ -535,6 +535,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - nomenclature-guard
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: nomenclature_guard::run
+- surface: vox-cli
+  path:
+  - ci
   - openclaw-contract
   status: active
   latin_ns: null

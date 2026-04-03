@@ -42,6 +42,10 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-clavis",    // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",    // canonical English — permitted
+    "vox-ludus",     // grandfathered — being migrated to vox-gamification
+    "vox-oratio",    // grandfathered — being migrated to vox-speech
+    "vox-populi",    // grandfathered — being migrated to vox-ml
+    "vox-schola",    // grandfathered — being migrated to vox-tutorial
 ];
 
 #[derive(Serialize)]

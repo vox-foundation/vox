@@ -3,9 +3,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::manifest::{ResourceLimits, SkillKind};
+use crate::ars_shim::manifest::{ResourceLimits, SkillKind};
 
-/// Skill payload used by [`crate::runtime::ArsRuntime`] (distinct from OpenClaw list/import DTOs).
+/// Skill payload used by [`crate::ars_shim::runtime::ArsRuntime`] (distinct from OpenClaw list/import DTOs).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArsSkill {
     /// Stable skill id.

@@ -30,7 +30,7 @@ Get-ChildItem -Path (Join-Path $root 'crates\*\src') -Recurse -Filter '*.rs' | F
 | `vox-cli` | `cargo check -p vox-cli` ; `cargo test -p vox-cli` ; `cargo run -p vox-cli -- ci command-compliance` |
 | `vox-ludus` | `cargo check -p vox-ludus --lib` ; `cargo test -p vox-ludus` |
 | `vox-corpus` | `cargo check -p vox-corpus --lib` ; `cargo test -p vox-corpus` |
-| `vox-dei` | `cargo check -p vox-dei --lib` ; `cargo test -p vox-dei` |
+| `vox-orchestrator` | `cargo check -p vox-orchestrator --lib` ; `cargo test -p vox-orchestrator` |
 | `vox-populi` | `cargo check -p vox-populi --lib` ; `cargo test -p vox-populi` |
 | Other crates touched | `cargo check -p <crate>` ; `cargo test -p <crate>` |
 | Wave boundary | `cargo check --workspace` |
@@ -77,7 +77,7 @@ Implemented in tree:
   - **`vox-orchestrator` `config`:** `src/config/` (`enums`, `news`, `orchestrator_fields`, `defaults`, `merge_populi`, `impl_default`, `impl_load`, `impl_env`, `impl_validate`, `errors`, `tests`) + `config/mod.rs`; public `crate::config::{OrchestratorConfig, …}` unchanged via `lib.rs`.
 - **Wave 8 (2026-03-25, partial):**
   - **`vox-compiler`:** `parser/descent/expr/` — replaced monolithic `pratt.rs` with `pratt_ops.rs` (binding power + infix loop), `pratt_match.rs` (primary / postfix / brace / match / if / for / lambda), `pratt_jsx.rs` (`parse_jsx`); `expr/mod.rs` wires the three modules.
-  - **`vox-dei` (minimal lib; legacy dirs on disk):** `research/orchestrator/` — `mod.rs`, `config.rs`, `helpers.rs`, `pipeline.rs`, `pipeline_cache.rs`, `stages.rs`, `web_gather.rs`; removed flat `research/orchestrator.rs`. `selection/` — `task_routing`, `weights`, `scorer`, `virtual_models`, `free_tier`, `resolve`, `tests`, `mod.rs`; removed flat `selection.rs`. Doc-inventory constant updated to `crates/vox-dei/src/selection/mod.rs`.
+  - **`vox-orchestrator` (minimal lib; legacy dirs on disk):** `research/orchestrator/` — `mod.rs`, `config.rs`, `helpers.rs`, `pipeline.rs`, `pipeline_cache.rs`, `stages.rs`, `web_gather.rs`; removed flat `research/orchestrator.rs`. `selection/` — `task_routing`, `weights`, `scorer`, `virtual_models`, `free_tier`, `resolve`, `tests`, `mod.rs`; removed flat `selection.rs`. Doc-inventory constant updated to `crates/vox-dei/src/selection/mod.rs`.
   - **`vox-orchestrator` `memory/`:** `config`, `time`, `error`, `search_hit`, `daily_log`, `long_term`, `manager`, `tests`, `mod.rs`; public `crate::memory::*` unchanged; removed flat `memory.rs`.
 
 **Orchestrator (2026-03-25 closure):** `a2a/{envelope,dispatch,bus/}`, `oplog/`, `locks/`, `attention/`, `queue/`, `session/manager/`, `task_dispatch/submit/` — all ≤500 non-blank per file.
@@ -103,7 +103,7 @@ Post-fix strict scan: **zero** files **>500** non-blank under `crates/*/src/**/*
 
 **Near-threshold watchlist (≥450 non-blank, `<500`):** refresh with the same script; representative snapshot **2026-03-25**: `crates/vox-oratio/src/backends/candle_engine.rs` (499), `crates/vox-orchestrator/src/services/routing.rs` (497), `crates/vox-orchestrator/src/usage.rs` (496), `crates/vox-orchestrator/src/snapshot.rs` (488), `crates/vox-orchestrator/src/events.rs` (486), `crates/vox-cli/src/build_service.rs` (484), `crates/vox-cli/src/commands/populi_lifecycle.rs` (479), `crates/vox-compiler/src/ast/decl/callable.rs` (478), `crates/vox-cli/src/commands/mens/populi/action_populi_enum.rs` (476), `crates/vox-cli/src/commands/openclaw.rs` (469), `crates/vox-mcp/src/tools/input_schemas.rs` (469), `crates/vox-db/src/store/ops_ludus/gamify_world.rs` (468), `crates/vox-cli/src/commands/extras/ludus/profile.rs` (467), `crates/vox-mcp/src/tools/dispatch.rs` (465), `crates/vox-forge/src/github.rs` (464), `crates/vox-mcp/src/server/lifecycle.rs` (463), `crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop.rs` (462), `crates/vox-dei/src/research/orchestrator/pipeline.rs` (458), `crates/vox-ludus/src/companion.rs` (457), `crates/vox-cli/src/commands/db_cli.rs` (457), `crates/vox-corpus/src/codegen_vox/part_02.rs` (454), `crates/vox-ludus/src/achievement/defaults/part_c.rs` (452), `crates/vox-db/src/store/ops_ludus/gamify_extended.rs` (450).
 
-**Verified:** `cargo run -p vox-cli --features extras-ludus,stub-check -- ci command-compliance` OK (2026-03-25). `cargo test -p vox-corpus synthetic_gen` OK. **`vox-dei`** is a workspace member (minimal `lib.rs`); use **`cargo check -p vox-dei`**; do not link it from **`vox-cli`** (`vox ci no-vox-dei-import`).
+**Verified:** `cargo run -p vox-cli --features extras-ludus,stub-check -- ci command-compliance` OK (2026-03-25). `cargo test -p vox-corpus synthetic_gen` OK. **`vox-orchestrator`** is a workspace member (minimal `lib.rs`); use **`cargo check -p vox-orchestrator`**; do not link it from **`vox-cli`** (`vox ci no-vox-orchestrator-import`).
 
 - **CLI:** root `lib.rs` facade + `cli_dispatch.rs`; `corpus/`, `semantic_planner/`, `stack_planner/`, `github/`, `eval_gate/`, `db_research/`, `command_compliance/`, `ludus/`, `training/`, `checks_standard/`, `schola/train/`, `island/`, `runtime/run/backend/`, `templates/`, `gamify` shards, `extras/ars/` — counts per subagent logs in git history if needed.
 

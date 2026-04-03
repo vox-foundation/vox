@@ -301,6 +301,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     check_codex_ssot(root)?;
     // Full-workspace scan; transitional allowlist in docs/agents/sql-connection-api-allowlist.txt
     run_sql_surface_guard(root, true)?;
+    crate::commands::ci::nomenclature_guard::run(root, false)?;
     crate::commands::ci::operations_catalog::verify(root)?;
     command_compliance::run(root)?;
     crate::commands::ci::capability_sync::run(root, false)?;

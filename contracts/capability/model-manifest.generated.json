@@ -1451,7 +1451,7 @@
       "description_model": "CLI `vox scientia publication-decision-explain`; MCP `vox_scientia_publication_decision_explain`.",
       "implicit": false,
       "mcp_tool": "vox_scientia_publication_decision_explain",
-      "title": "Scientia Publication-decision-explain"
+      "title": "Scientia Publication Decision Explain"
     },
     {
       "capability_id": "mcp.vox_scientia_publication_discovery_explain",
@@ -1547,7 +1547,7 @@
       "description_model": "CLI `vox scientia publication-novelty-fetch`; MCP `vox_scientia_publication_novelty_fetch`.",
       "implicit": false,
       "mcp_tool": "vox_scientia_publication_novelty_fetch",
-      "title": "Scientia Publication-novelty-fetch"
+      "title": "Scientia Publication Novelty Fetch"
     },
     {
       "capability_id": "mcp.vox_scientia_publication_novelty_happy_path",
@@ -1555,7 +1555,7 @@
       "description_model": "CLI `vox scientia publication-novelty-happy-path`; MCP `vox_scientia_publication_novelty_happy_path`.",
       "implicit": false,
       "mcp_tool": "vox_scientia_publication_novelty_happy_path",
-      "title": "Scientia Publication-novelty-happy-path"
+      "title": "Scientia Publication Novelty Happy Path"
     },
     {
       "capability_id": "mcp.vox_scientia_publication_preflight",
@@ -2028,7 +2028,7 @@
         "artifact-audit"
       ],
       "curated": true,
-      "description_model": "Classified workspace artifact inventory (targets, mens runs, scratch logs); optional JSON.",
+      "description_model": "CLI operation `vox ci artifact-audit`",
       "implicit": false,
       "title": "Ci Artifact-audit"
     },
@@ -2039,7 +2039,7 @@
         "artifact-prune"
       ],
       "curated": true,
-      "description_model": "Policy-driven prune (dry-run or apply) for allowed artifact roots; never deletes git-tracked paths.",
+      "description_model": "CLI operation `vox ci artifact-prune`",
       "implicit": false,
       "title": "Ci Artifact-prune"
     },
@@ -2294,7 +2294,7 @@
         "exec-policy-contract"
       ],
       "curated": true,
-      "description_model": "Validate contracts/terminal/exec-policy.v1.yaml against JSON Schema and optional pwsh AST smoke.",
+      "description_model": "CLI operation `vox ci exec-policy-contract`",
       "implicit": false,
       "title": "Ci Exec-policy-contract"
     },
@@ -2436,6 +2436,23 @@
       "title": "Ci No-dei-import"
     },
     {
+      "capability_id": "cli.ci.nomenclature-guard",
+      "cli_path": [
+        "ci",
+        "nomenclature-guard"
+      ],
+      "curated": true,
+      "description_model": "Enforces the English-first crate naming policy. Scans `crates/` and fails if any `vox-<latin>` directory exists outside the historical allowlist.",
+      "implicit": false,
+      "intent_tags": [
+        "ci",
+        "naming",
+        "governance"
+      ],
+      "requires_repo": true,
+      "title": "Ci Nomenclature-guard"
+    },
+    {
       "capability_id": "cli.ci.openclaw-contract",
       "cli_path": [
         "ci",
@@ -2565,7 +2582,7 @@
         "scientia-novelty-ledger-contracts"
       ],
       "curated": true,
-      "description_model": "Validate SCIENTIA finding-candidate and novelty-evidence example JSON against v1 schemas.",
+      "description_model": "CLI operation `vox ci scientia-novelty-ledger-contracts`",
       "implicit": false,
       "title": "Ci Scientia-novelty-ledger-contracts"
     },
@@ -2890,7 +2907,7 @@
         "publication-decision-explain"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox db publication-decision-explain` — preflight + worthiness + discovery rank; optional live prior-art merge.",
+      "description_model": "CLI operation `vox db publication-decision-explain`",
       "implicit": false,
       "title": "Db Publication-decision-explain"
     },
@@ -2934,7 +2951,7 @@
         "publication-novelty-fetch"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox db publication-novelty-fetch` — OpenAlex/Crossref/Semantic Scholar prior-art JSON; optional metadata persist.",
+      "description_model": "CLI operation `vox db publication-novelty-fetch`",
       "implicit": false,
       "title": "Db Publication-novelty-fetch"
     },
@@ -2945,7 +2962,7 @@
         "publication-novelty-happy-path"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox db publication-novelty-happy-path` — bundle + finding-candidate + worthiness JSON (stdout).",
+      "description_model": "CLI operation `vox db publication-novelty-happy-path`",
       "implicit": false,
       "title": "Db Publication-novelty-happy-path"
     },
@@ -3947,7 +3964,7 @@
         "finding-candidate-validate"
       ],
       "curated": true,
-      "description_model": "Validate a finding-candidate JSON file against finding-candidate.v1.schema.json.",
+      "description_model": "CLI operation `vox scientia finding-candidate-validate`",
       "implicit": false,
       "title": "Scientia Finding-candidate-validate"
     },
@@ -3969,7 +3986,7 @@
         "novelty-evidence-bundle-validate"
       ],
       "curated": true,
-      "description_model": "Validate a novelty-evidence-bundle JSON file against novelty-evidence-bundle.v1.schema.json.",
+      "description_model": "CLI operation `vox scientia novelty-evidence-bundle-validate`",
       "implicit": false,
       "title": "Scientia Novelty-evidence-bundle-validate"
     },
@@ -4002,7 +4019,7 @@
         "publication-decision-explain"
       ],
       "curated": true,
-      "description_model": "CLI `vox scientia publication-decision-explain`; MCP `vox_scientia_publication_decision_explain`.",
+      "description_model": "CLI operation `vox scientia publication-decision-explain`",
       "implicit": false,
       "title": "Scientia Publication-decision-explain"
     },
@@ -4090,7 +4107,7 @@
         "publication-novelty-fetch"
       ],
       "curated": true,
-      "description_model": "CLI `vox scientia publication-novelty-fetch`; MCP `vox_scientia_publication_novelty_fetch`.",
+      "description_model": "CLI operation `vox scientia publication-novelty-fetch`",
       "implicit": false,
       "title": "Scientia Publication-novelty-fetch"
     },
@@ -4101,7 +4118,7 @@
         "publication-novelty-happy-path"
       ],
       "curated": true,
-      "description_model": "CLI `vox scientia publication-novelty-happy-path`; MCP `vox_scientia_publication_novelty_happy_path`.",
+      "description_model": "CLI operation `vox scientia publication-novelty-happy-path`",
       "implicit": false,
       "title": "Scientia Publication-novelty-happy-path"
     },
@@ -4286,7 +4303,7 @@
         "check"
       ],
       "curated": true,
-      "description_model": "Validate a PowerShell payload against contracts/terminal/exec-policy.v1.yaml using pwsh Parser AST.",
+      "description_model": "CLI operation `vox shell check`",
       "implicit": false,
       "title": "Shell Check"
     },
@@ -4297,7 +4314,7 @@
         "repl"
       ],
       "curated": true,
-      "description_model": "Interactive vox shell (pwd, ls, cat, OS passthrough).",
+      "description_model": "CLI operation `vox shell repl`",
       "implicit": false,
       "title": "Shell Repl"
     },
@@ -4358,7 +4375,7 @@
         "enqueue"
       ],
       "curated": true,
-      "description_model": "Append a JSON file to the local telemetry upload queue.",
+      "description_model": "CLI operation `vox telemetry enqueue`",
       "implicit": false,
       "title": "Telemetry Enqueue"
     },
@@ -4369,7 +4386,7 @@
         "export"
       ],
       "curated": true,
-      "description_model": "Export pending telemetry queue entries as JSON Lines.",
+      "description_model": "CLI operation `vox telemetry export`",
       "implicit": false,
       "title": "Telemetry Export"
     },
@@ -4380,7 +4397,7 @@
         "status"
       ],
       "curated": true,
-      "description_model": "Show telemetry upload spool status and resolved Clavis secrets (redacted).",
+      "description_model": "CLI operation `vox telemetry status`",
       "implicit": false,
       "title": "Telemetry Status"
     },
@@ -4391,7 +4408,7 @@
         "upload"
       ],
       "curated": true,
-      "description_model": "POST pending queue JSON files to the configured ingest URL (delete on success).",
+      "description_model": "CLI operation `vox telemetry upload`",
       "implicit": false,
       "title": "Telemetry Upload"
     },

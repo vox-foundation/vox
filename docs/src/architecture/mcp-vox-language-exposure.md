@@ -56,7 +56,7 @@ Use the right **framing** for the **latency and session model**:
 | --- | --- | --- |
 | **MCP stdio** (generated `mcp_server.rs` or `vox-mcp`) | Host process spawns server; request/response tool calls | **Canonical** for “model calls a tool” across editors. |
 | **MCP-over-HTTP/WS** (`vox-mcp` gateway) | Remote/mobile clients, same tool catalog as RMCP | Same **tool names/schemas** as stdio; different **transport**. See [MCP HTTP gateway contract](../reference/mcp-http-gateway-contract.md). |
-| **OpenClaw WebSocket** (`vox-ars`) | Gateway events, subscriptions, upstream skill catalog | **Interop**, not a replacement for MCP tool naming; bridged via [`openclaw_tools.rs`](../../../crates/vox-mcp/src/tools/openclaw_tools.rs). |
+| **OpenClaw WebSocket** (`vox-skills`) | Gateway events, subscriptions, upstream skill catalog | **Interop**, not a replacement for MCP tool naming; bridged via [`openclaw_tools.rs`](../../../crates/vox-mcp/src/tools/openclaw_tools.rs). |
 | **SSE / long-lived app streams** | Incremental UX, executor output | Prefer **stream-native** protocols; do not force MCP tool calls per chunk. |
 
 **Creative SSOT pattern:** Treat **tool name + JSON Schema** as the stable contract. HTTP and WebSocket gateways should **reuse** that contract (they already converge on `tools/list` shapes) instead of inventing parallel per-endpoint JSON.

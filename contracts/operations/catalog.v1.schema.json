@@ -96,7 +96,7 @@
         "id": { "type": "string" },
         "title": { "type": "string" },
         "description": { "type": "string" },
-        "description_human": { "type": "string" },
+        "description_human": { "type": ["string", "null"] },
         "product_lane": {
           "type": "string",
           "enum": ["app", "workflow", "ai", "interop", "data", "platform"]

@@ -24,7 +24,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | `scripts/check_docs_ssot.ps1` | CI guard wrapper |
 | `scripts/check_docs_ssot.sh` | CI guard wrapper |
 | `scripts/check_vox_cli_feature_matrix.sh` | CI guard wrapper |
-| `scripts/check_vox_cli_no_vox_dei.sh` | CI guard wrapper |
+| `scripts/check_vox_cli_no_vox_orchestrator.sh` | CI guard wrapper |
 | `scripts/install.ps1` | Bootstrap |
 | `scripts/install.sh` | Bootstrap |
 | `scripts/mens_release_gate.ps1` | Mens gate wrapper |
@@ -88,7 +88,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | `check_codex_ssot.*` | `vox ci check-codex-ssot` |
 | `verify_workspace_manifest.sh` | `vox ci manifest` |
 | `check_vox_cli_feature_matrix.sh` | `vox ci feature-matrix` |
-| `check_vox_cli_no_vox_dei.sh` | `vox ci no-vox-dei-import` |
+| `check_vox_cli_no_vox_orchestrator.sh` | `vox ci no-vox-orchestrator-import` |
 | `check_cuda_feature_builds.sh` | `vox ci cuda-features` |
 | `quality/toestub_scoped.sh` | `vox ci toestub-scoped [ROOT]` |
 | `mens_release_gate.*`, `populi/release_*_gate.*`, `mens/release_*` | `vox ci mens-gate --profile training|ci_full|m1m4` |

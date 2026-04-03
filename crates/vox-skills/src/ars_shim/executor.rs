@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 
-use crate::manifest::ResourceLimits;
+use crate::ars_shim::manifest::ResourceLimits;
 
 /// Errors from the lightweight task executor.
 #[derive(Debug, thiserror::Error)]

@@ -12,7 +12,7 @@ Some behaviors exist in more than one place by design:
 
 | Surface | Notes |
 |---------|--------|
-| **`vox ci no-dei-import`** vs `scripts/check_vox_cli_no_vox_dei.sh` | Rust command is canonical (**`no-vox-dei-import`** remains an argv alias). |
+| **`vox ci no-dei-import`** vs `scripts/check_vox_cli_no_vox_orchestrator.sh` | Rust command is canonical (**`no-vox-orchestrator-import`** remains an argv alias). |
 | **`vox ci mesh-gate`** vs `scripts/populi/mens_gate_safe.*` / legacy gate shells | Rust command is canonical (**`mens-gate`** remains an argv alias). |
 | **`vox ci cuda-features`** vs `scripts/check_cuda_feature_builds.sh` | Rust command is canonical; shell script is an optional thin delegate. |
 | **`vox ci build-timings`** | Wall-clock **`cargo check`** for default `vox-cli`, GPU+stub, optional CUDA (when `nvcc` on `PATH` or via `CUDA_PATH`/`CUDA_HOME`), and with **`--crates`** extra per-crate lanes (`--json` supported). Soft budgets: `docs/ci/build-timings/budgets.json`; **`VOX_BUILD_TIMINGS_BUDGET_WARN`** / **`VOX_BUILD_TIMINGS_BUDGET_FAIL`**; pair **`latest.jsonl`** with **`snapshot-metadata.json`**. GitHub **`ci.yml`** runs **`build-timings --crates`**; no shell dual required. |

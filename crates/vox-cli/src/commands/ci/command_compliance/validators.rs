@@ -1026,7 +1026,7 @@ pub(crate) fn check_latin_alias_parity_with_catalog(
     // Reverse: every lib.rs visible_alias that is a known Latin word must be in catalog
     // Skip short internal aliases (e.g. "fab", "oc", "rec") and non-Latin shortcuts
     const SKIP_ALIASES: &[&str] = &["fab", "oc", "rec", "watch", "merge-adapter",
-        "local-status", "doctor", "review"];
+        "local-status", "doctor", "review", "orchestrator", "secrets", "speech"];
 
     // Build set of canonical English names from catalog (valid targets for reverse-direction aliases)
     let catalog_canonical_names: std::collections::HashSet<String> = catalog

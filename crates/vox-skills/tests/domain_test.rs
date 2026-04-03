@@ -5,9 +5,9 @@
 //! and in-process runtime surfaces are covered here.
 
 use serde_json::json;
-use vox_ars::ArsSkill;
-use vox_ars::manifest::{ResourceLimits, SkillKind};
-use vox_ars::openclaw::OpenClawSkillSpec;
+use vox_skills::ars_shim::ArsSkill;
+use vox_skills::ars_shim::manifest::{ResourceLimits, SkillKind};
+use vox_skills::ars_shim::openclaw::OpenClawSkillSpec;
 
 // ─── Domain model round-trip ─────────────────────────────────────────────────
 

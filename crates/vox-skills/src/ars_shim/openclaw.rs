@@ -4,9 +4,9 @@ use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::domain::ArsSkill;
-use crate::parser::parse_skill_md;
-use vox_skills::{InstallResult, SkillRegistry};
+use crate::ars_shim::domain::ArsSkill;
+use crate::ars_shim::parser::parse_skill_md;
+use crate::{InstallResult, SkillRegistry};
 
 /// Remote gateway configuration.
 #[derive(Debug, Clone)]
@@ -292,12 +292,12 @@ fn ars_skill_from_gateway_value(v: &Value, slug_fallback: &str) -> Result<ArsSki
             .get("metadata")
             .cloned()
             .unwrap_or_else(|| Value::Object(Default::default())),
-        kind: crate::manifest::SkillKind::Document,
+        kind: crate::ars_shim::manifest::SkillKind::Document,
         body: o
             .get("skill_md")
             .or_else(|| o.get("body"))
             .and_then(|x| x.as_str())
             .map(|s| s.to_string()),
-        resource_limits: crate::manifest::ResourceLimits::default(),
+        resource_limits: crate::ars_shim::manifest::ResourceLimits::default(),
     })
 }

@@ -358,7 +358,7 @@
 - [Repo reconstruction benchmark ladder](reference/repo-reconstruction-benchmark-ladder.md)
 - [VS Code extension and vox-mcp compatibility](reference/vscode-mcp-compat.md)
 - [Crate API: vox-orchestrator](api/vox-orchestrator.md)
-- [Crate API: vox-dei](api/vox-dei.md)
+- [Crate API: vox-orchestrator](api/vox-orchestrator.md)
 - [Vox Documentation Style Guide](reference/style-guide.md)
 - [Vox Language Guide](reference/ref-language.md)
 - [Vox Skills Crate API](api/vox-skills.md)

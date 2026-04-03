@@ -38,6 +38,7 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::let_underscore_future)]
 
+pub mod dei_shim;
 pub mod sync_lock;
 
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
@@ -116,6 +117,10 @@ pub mod planning;
 /// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
 pub mod populi_federation;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
+#[cfg(feature = "populi-transport")]
+pub mod mesh_federation_poll;
+#[cfg(not(feature = "populi-transport"))]
+#[path = "mesh_federation_poll_noop.rs"]
 pub mod mesh_federation_poll;
 /// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
 pub mod orchestrator_event_log;

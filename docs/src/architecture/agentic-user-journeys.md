@@ -25,7 +25,7 @@ Modern tools divide into three dominant usage patterns:
 
 ## Core Vox User Journeys
 
-Vox aims to be an ultimate, integrated AI tool. This requires unifying the best aspects of the Editor-Centric and Agent-Centric models. Unlike Python or Rust, Vox has an onboard model suite (`vox populi`) and orchestrator (`vox-dei`), allowing us to enforce invariants natively.
+Vox aims to be an ultimate, integrated AI tool. This requires unifying the best aspects of the Editor-Centric and Agent-Centric models. Unlike Python or Rust, Vox has an onboard model suite (`vox populi`) and orchestrator (`vox-orchestrator`), allowing us to enforce invariants natively.
 
 Here are the primary user journeys the Vox architecture must support:
 
@@ -47,7 +47,7 @@ Here are the primary user journeys the Vox architecture must support:
 ### Journey D: Multi-Agent Orchestration (Architect vs. Implementer)
 *   **Goal:** Utilizing different model classes (e.g., a "reasoning" model for planning, a "fast" model for typing) to optimize speed and cost.
 *   **The Flow:** The user defines a complex feature. Vox's orchestrator first delegates to the Architect agent, which produces a `plan.md`. The Orchestrator then spins up multiple Implementer agents in parallel to handle distinct files, merging the results.
-*   **Vox Advantage:** The native `vox-dei` orchestrator natively understands parallel sub-agents and file affinity, unlike traditional single-threaded IDE plugins.
+*   **Vox Advantage:** The native `vox-orchestrator` orchestrator natively understands parallel sub-agents and file affinity, unlike traditional single-threaded IDE plugins.
 
 ## Identified Gaps & Seeds for Correction
 
@@ -59,7 +59,7 @@ Transitioning from Intent to Actualization reveals several architectural gaps in
 
 ### 2. State & Context Persistence
 *   **Gap:** "Lost in the middle" syndrome. If a developer pauses a complex Journey C task, the orchestrator loses the working memory tree upon restart. 
-*   **Correction Seed:** Migrate from in-memory agent state to the Durable Workflow Journal contract (ADR 019). Ensure `vox-dei` persists long-running tasks as durable resources in SQLite/Arca.
+*   **Correction Seed:** Migrate from in-memory agent state to the Durable Workflow Journal contract (ADR 019). Ensure `vox-orchestrator` persists long-running tasks as durable resources in SQLite/Arca.
 
 ### 3. Shell Discipline vs. Autonomous Sandbox Isolation
 *   **Gap:** Agents need to run compile loops (e.g., `cargo check`, `vox test`), but unbounded shell access leads to destructive side effects (e.g., wiping directories accidentally).

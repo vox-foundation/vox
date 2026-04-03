@@ -199,7 +199,7 @@ fn validate_operations_catalog_against_json_schema(
         &validator,
         "catalog.v1.yaml vs catalog.v1.schema.json",
     )
-    .map_err(|e| anyhow!("{e:#}"))?;
+    .map_err(|e| anyhow!("{e:#}\nInstance dump: {:?}", e))?;
     Ok(())
 }
 

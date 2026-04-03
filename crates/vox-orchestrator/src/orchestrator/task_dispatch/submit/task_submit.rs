@@ -110,7 +110,9 @@ impl Orchestrator {
                 }
             }
         }
+        #[cfg(feature = "populi-transport")]
         let relay_thread_id_seed = task.thread_id.clone();
+        #[cfg(feature = "populi-transport")]
         let relay_harness_spec_json_seed = task.harness_spec_json.clone();
         task.start(); // ensure started_at_ms is populated for orchestrator-submitted tasks
         if let (Some(campaign_id), Some(tier)) = (task.campaign_id.clone(), task.benchmark_tier) {
@@ -245,11 +247,12 @@ impl Orchestrator {
             }
         };
 
+        #[cfg_attr(not(feature = "populi-transport"), allow(unused_variables))]
         let (lease_gated, remote_params, agent_busy) = {
             let c = crate::sync_lock::rw_read(&*self.config);
             let lease_gated =
                 crate::populi_remote::task_matches_populi_remote_lease_gate(&task, &c);
-            let rp = if !c.populi_remote_execute_experimental {
+            let rp = if !cfg!(feature = "populi-transport") || !c.populi_remote_execute_experimental {
                 None
             } else {
                 match (
@@ -281,10 +284,14 @@ impl Orchestrator {
         };
 
         let mut task_for_enqueue = Some(task);
+        #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut held_remote = false;
+        #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueDefault;
+        #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut retrieval_context_attached = false;
 
+        #[cfg(feature = "populi-transport")]
         if lease_gated && remote_params.is_some() && !agent_busy {
             let (base, recv_s, timeout_ms, scope, send_opt, claimer_node_id) =
                 remote_params.clone().expect("checked is_some");
@@ -579,6 +586,7 @@ impl Orchestrator {
             }
         }
 
+        #[cfg(feature = "populi-transport")]
         if let Some((base, recv_s, timeout_ms, scope, send_opt, _claimer_node_id)) =
             remote_params.filter(|_| !lease_gated)
         {

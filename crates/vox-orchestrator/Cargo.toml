@@ -5,7 +5,21 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-default = ["toestub-gate", "runtime"]
+default = [
+    "toestub-gate",
+    "runtime",
+    "populi-transport",
+    "news-publish",
+]
+# Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
+populi-transport = ["dep:vox-populi", "vox-populi/transport"]
+# `vox-publisher` syndication / scientia surfaces (`services::news`). Disable with `--no-default-features` slices.
+news-publish = [
+    "dep:vox-publisher",
+    "vox-publisher/scientia-reddit",
+    "vox-publisher/scientia-youtube",
+    "vox-publisher/scholarly-external-jobs",
+]
 # `TaskCapabilityHints` JSON Schema for MCP tool registration (`vox-mcp` enables this).
 json-schema = ["dep:schemars"]
 runtime = ["vox-runtime"]
@@ -41,13 +55,13 @@ vox-toestub = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
 tower-lsp = { workspace = true, optional = true }
 tower-lsp-server = { workspace = true, optional = true }
-vox-db = { version = "0.1.0", path = "../vox-db" }
-vox-search = { path = "../vox-search" }
-vox-config = { path = "../vox-config" }
+vox-db = { workspace = true }
+vox-search = { workspace = true }
+vox-config = { workspace = true }
 vox-socrates-policy = { workspace = true }
 vox-repository = { workspace = true }
-vox-populi = { path = "../vox-populi", features = ["transport"] }
-vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube"] }
+vox-populi = { path = "../vox-populi", optional = true, default-features = false }
+vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
 anyhow.workspace = true
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.

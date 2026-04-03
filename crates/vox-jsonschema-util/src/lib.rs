@@ -32,9 +32,10 @@ pub fn validate(
     validator: &jsonschema::Validator,
     context: impl std::fmt::Display,
 ) -> anyhow::Result<()> {
-    validator
-        .validate(instance)
-        .map_err(|e| anyhow!("JSON Schema validation ({context}): {e:#}"))
+    if let Err(e) = validator.validate(instance) {
+        return Err(anyhow!("JSON Schema validation ({context}): path {}: {e:#}", e.instance_path));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

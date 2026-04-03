@@ -29,13 +29,13 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 | Surface | Location | Owner | Severity | Decision | Milestone | Validated | Evidence | Rationale |
 |---------|----------|-------|----------|----------|-----------|-----------|----------|-----------|
 | Minimal `vox` CLI | `crates/vox-cli/src/main.rs`, `commands/mod.rs` | Maintainers | low | keep | ongoing | 2026-03-20 | `ref-cli.md` | SSOT for shipped commands |
-| Extended CLI subtree | `crates/vox-cli/src/commands/**` (beyond `commands/mod.rs`) | Maintainers | high | port | TBD | 2026-03-21 | `cli-scope-policy.md` | Unwired until explicitly added to minimal binary; `vox-ars` is a workspace member; `vox-cli` optional feature **`ars`** pulls the dep when OpenClaw/skill modules are reattached |
-| Canonical `vox db` helpers | `crates/vox-cli/src/commands/db.rs`, `db_research_impl.rs` | Maintainers | medium | keep | ongoing | 2026-03-21 | `commands/db.rs` | `commands::ops` tree removed (unwired; duplicated `vox_dei`); DB helpers live under `commands::db` |
+| Extended CLI subtree | `crates/vox-cli/src/commands/**` (beyond `commands/mod.rs`) | Maintainers | high | port | TBD | 2026-03-21 | `cli-scope-policy.md` | Unwired until explicitly added to minimal binary; `vox-skills` is a workspace member; `vox-cli` optional feature **`ars`** pulls the dep when OpenClaw/skill modules are reattached |
+| Canonical `vox db` helpers | `crates/vox-cli/src/commands/db.rs`, `db_research_impl.rs` | Maintainers | medium | keep | ongoing | 2026-03-21 | `commands/db.rs` | `commands::ops` tree removed (unwired; duplicated `vox_orchestrator`); DB helpers live under `commands::db` |
 | `vox scientia` CLI facade | `crates/vox-cli/src/commands/scientia.rs` | Maintainers | low | keep | ongoing | 2026-03-21 | `ref-cli.md`, `orchestration-unified.md` | Research / capability-map aliases over `commands::db_cli` (same DB + `repository_id` resolution as `vox db`) |
-| Unwired `vox_dei` CLI sources (removed) | _(deleted)_ `commands/chat/`, `commands/ops/`, `commands/quaero/`, `ai/{agent,dei,hud,learn}.rs` | Maintainers | low | delete | 2026-03-21 | `check_vox_cli_no_vox_dei.sh` | Daemon-only DeI: use `crate::dei_daemon` + external `vox-dei-d` |
+| Unwired `vox_orchestrator` CLI sources (removed) | _(deleted)_ `commands/chat/`, `commands/ops/`, `commands/quaero/`, `ai/{agent,dei,hud,learn}.rs` | Maintainers | low | delete | 2026-03-21 | `check_vox_cli_no_vox_orchestrator.sh` | Daemon-only DeI: use `crate::dei_daemon` + external `vox-dei-d` |
 | `vox-runtime` DB helper | `crates/vox-runtime/src/db.rs` | Maintainers | low | keep | ongoing | 2026-03-25 | feature `database` | Uses `DbConfig::resolve_standalone` / `VOX_DB_*` (see crate rustdoc); parity with `vox-db` facade |
 | `vox-mcp`, `vox-git` | workspace members | Maintainers | low | keep | ongoing | 2026-03-20 | `ci.yml` smoke | Core agent/tooling |
-| Workspace excludes | root `Cargo.toml` `exclude` | Maintainers | medium | keep | ongoing | 2026-04-01 | `Cargo.toml` | **`vox-py`** remains excluded; **`vox-dei`** is a normal workspace member (minimal `lib.rs` only). Do not add **`vox-dei`** as a **`vox-cli`** dependency; orchestration SSOT is **`vox-orchestrator`** + **`build_repo_scoped_orchestrator`** (ADR 022). **`vox-dei-d`** stays the external DeI RPC process |
+| Workspace excludes | root `Cargo.toml` `exclude` | Maintainers | medium | keep | ongoing | 2026-04-01 | `Cargo.toml` | **`vox-py`** remains excluded; **`vox-orchestrator`** is a normal workspace member (minimal `lib.rs` only). Do not add **`vox-orchestrator`** as a **`vox-cli`** dependency; orchestration SSOT is **`vox-orchestrator`** + **`build_repo_scoped_orchestrator`** (ADR 022). **`vox-dei-d`** stays the external DeI RPC process |
 | Plans under `.cursor/plans/` | various | Maintainers | low | archive | ongoing | 2026-03-20 | — | May reference removed crates; not SSOT |
 | Docs: full ecosystem | `how-to-cli-ecosystem.md` | Maintainers | medium | keep | ongoing | 2026-03-20 | `ref-cli.md` | Narrative may exceed minimal CLI |
 
@@ -58,7 +58,7 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 `scripts/check_docs_ssot.sh` (or `scripts/check_docs_ssot.ps1` on Windows) requires every `crates/*/Cargo.toml` package name to appear **exactly once** between the markers below (one crate per line).
 
 <!-- workspace-crates-start -->
-vox-ars
+vox-skills
 vox-audio-ingress
 vox-bootstrap
 vox-bounded-fs
@@ -72,7 +72,7 @@ vox-config
 vox-container
 vox-corpus
 vox-db
-vox-dei
+vox-orchestrator
 vox-doc-inventory
 vox-doc-pipeline
 vox-eval

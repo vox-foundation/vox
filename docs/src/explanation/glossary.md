@@ -149,13 +149,13 @@ The specific 4-bit quantization format used by Vox Mens to compress base model w
 
 ## O
 ### OpenClaw
-**SSOT (long form):** [OpenClaw competitive analysis](expl-openclaw-analysis.md). **Summary:** Open-source **TypeScript** agent platform (hub-and-spoke gateway: chat channels, LLM routing, local tools). **ClawHub** is its public skills marketplace; that name refers to the ecosystem, not a Vox crate. Vox integrates read-only/import flows via **`vox openclaw`** (feature **`ars`**) and HTTP clients in **`vox-ars`**; OpenClaw is **not** a Vox specification or first-party product.
+**SSOT (long form):** [OpenClaw competitive analysis](expl-openclaw-analysis.md). **Summary:** Open-source **TypeScript** agent platform (hub-and-spoke gateway: chat channels, LLM routing, local tools). **ClawHub** is its public skills marketplace; that name refers to the ecosystem, not a Vox crate. Vox integrates read-only/import flows via **`vox openclaw`** (feature **`ars`**) and HTTP clients in **`vox-skills`**; OpenClaw is **not** a Vox specification or first-party product.
 ### Option[T]
 The safe alternative to null in Vox. A container that either holds a value (`Some(T)`) or nothing (`None`).
 ### Oratio
 The **speech** subsystem: speech-to-text (e.g. Candle Whisper) and related CLI/session flows (`vox oratio`). Not general LLM chat; see **Mens** for the language-model stack.
 ### Orchestrator
-The `vox-dei` sub-engine that routes tasks between human inputs, automated agents, and durable workflows.
+The `vox-orchestrator` sub-engine that routes tasks between human inputs, automated agents, and durable workflows.
 
 ## P
 ### Pattern Matching

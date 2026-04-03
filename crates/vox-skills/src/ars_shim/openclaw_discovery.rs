@@ -151,25 +151,25 @@ fn fallback_endpoints(source: String) -> OpenClawResolvedEndpoints {
 
 async fn fetch_well_known(
     well_known_url: &str,
-) -> Result<(OpenClawResolvedEndpoints, u64), crate::openclaw_adapter::OpenClawAdapterError> {
+) -> Result<(OpenClawResolvedEndpoints, u64), crate::ars_shim::openclaw_adapter::OpenClawAdapterError> {
     let client = vox_reqwest_defaults::client_builder()
         .timeout(Duration::from_secs(8))
         .build()
-        .map_err(|e| crate::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;
+        .map_err(|e| crate::ars_shim::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;
     let resp = client
         .get(well_known_url)
         .send()
         .await
-        .map_err(|e| crate::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;
+        .map_err(|e| crate::ars_shim::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(crate::openclaw_adapter::OpenClawAdapterError::Other(
+        return Err(crate::ars_shim::openclaw_adapter::OpenClawAdapterError::Other(
             format!("OpenClaw discovery HTTP {}", resp.status()),
         ));
     }
     let doc: OpenClawWellKnownDocument = resp
         .json()
         .await
-        .map_err(|e| crate::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;
+        .map_err(|e| crate::ars_shim::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;
 
     let _schema_version = doc.schema_version.unwrap_or(1);
     let mut out = fallback_endpoints(format!("well-known:{well_known_url}"));

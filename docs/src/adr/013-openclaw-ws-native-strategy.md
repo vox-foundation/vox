@@ -25,7 +25,7 @@ Adopt a WS-first integration strategy with a stable Rust adapter boundary:
 
 - **Primary transport**: OpenClaw Gateway WS handshake and method frames.
 - **Secondary fallback**: HTTP compatibility and skills endpoints remain supported.
-- **Adapter boundary**: `OpenClawRuntimeAdapter` in `vox-ars` isolates protocol transport from callsites.
+- **Adapter boundary**: `OpenClawRuntimeAdapter` in `vox-skills` isolates protocol transport from callsites.
 - **Script bridge**: `.vox` uses a minimal `OpenClaw` builtin module (`list_skills`, `call`, `subscribe`, `unsubscribe`, `notify`) lowered through existing type/HIR/codegen paths.
 
 ## Security posture

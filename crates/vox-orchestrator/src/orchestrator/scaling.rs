@@ -399,6 +399,7 @@ impl crate::orchestrator::Orchestrator {
         self.tick_persistence_outbox_lifecycle().await;
 
         // 8. News Syndication check
+        #[cfg(feature = "news-publish")]
         if let Err(e) = crate::services::news::NewsService::tick(self).await {
             tracing::error!("NewsService tick failed: {}", e);
         }

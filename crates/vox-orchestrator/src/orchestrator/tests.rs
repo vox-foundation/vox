@@ -906,8 +906,10 @@ mod populi_single_owner {
     use super::*;
     use crate::a2a::{
         REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE,
-        RemoteTaskEnvelope, RemoteTaskResult, populi_remote_worker_tick_once,
+        RemoteTaskEnvelope, RemoteTaskResult,
     };
+    #[cfg(feature = "populi-transport")]
+    use crate::a2a::populi_remote_worker_tick_once;
     use crate::config::OrchestratorConfig;
     use crate::reconstruction::AgentExecutionRole;
     use crate::types::{
@@ -1028,6 +1030,7 @@ mod populi_single_owner {
         );
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1149,6 +1152,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn lease_gated_submit_relays_context_envelope_in_payload() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1258,6 +1262,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_assigned() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1387,6 +1392,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1490,6 +1496,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1557,6 +1564,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1656,6 +1664,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn remote_result_poll_respects_max_messages_per_poll() {
         let state = vox_populi::transport::PopuliTransportState::new();
@@ -1763,6 +1772,7 @@ mod populi_single_owner {
         server.abort();
     }
 
+    #[cfg(feature = "populi-transport")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn non_lease_remote_relay_includes_session_and_context_payload() {
         let state = vox_populi::transport::PopuliTransportState::new();

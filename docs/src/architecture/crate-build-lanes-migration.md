@@ -33,6 +33,7 @@ Single map for **where code lives**, **which Cargo feature turns it on**, and **
 | `check_vox_oratio` | `cargo check -p vox-oratio` | STT crate isolation |
 | `check_vox_mens_train` | `cargo check -p vox-populi --features mens-train` | Native training stack without linking full CLI |
 | `check_vox_cli_populi_oratio` | `cargo check -p vox-cli --features oratio` | STT / Oratio stack on top of default `mens-base` |
+| `check_vox_mcp` | `cargo check -p vox-mcp` | MCP host binary (orchestrator + publisher + skills + Oratio rerank) |
 
 Run: `vox ci build-timings` and `vox ci build-timings --crates` (`--json` for CI artifacts). Soft budgets: **`docs/ci/build-timings/budgets.json`** only (loaded by the CLI — no second copy in Rust). Env: `VOX_BUILD_TIMINGS_BUDGET_WARN=1` (missing lane keys + over cap), `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` (fail on over cap; warn not required).
 

@@ -51,4 +51,4 @@ When product requirements justify fixing **cold-start** and **gravity** (one RAM
 - [`crates/vox-orchestrator/src/clarification_db_inbox_poll.rs`](../../../crates/vox-orchestrator/src/clarification_db_inbox_poll.rs) — Codex clarification inbox drain
 - [`crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
 - [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs)
-- [Orphan surface inventory](../architecture/orphan-surface-inventory.md) — `vox-dei` staging crate vs `vox-orchestrator` SSOT
+- [Orphan surface inventory](../architecture/orphan-surface-inventory.md) — `vox-orchestrator` staging crate vs `vox-orchestrator` SSOT

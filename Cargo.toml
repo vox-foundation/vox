@@ -24,7 +24,7 @@ all = "warn"
 
 [workspace.dependencies]
 # Internal crates
-vox-ars                   = { path = "crates/vox-ars" }
+
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
@@ -51,6 +51,8 @@ vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-pm                    = { path = "crates/vox-pm" }
+vox-publisher             = { path = "crates/vox-publisher", default-features = false }
+
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
@@ -64,7 +66,6 @@ vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-toestub               = { path = "crates/vox-toestub" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
-vox-publisher             = { path = "crates/vox-publisher" }
 vox-search                = { path = "crates/vox-search" }
 
 # External dependencies (centralized versions)

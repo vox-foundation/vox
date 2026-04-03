@@ -7,7 +7,7 @@ training_eligible: true
 ---
 # OpenClaw Competitive Analysis
 
-> **Canonical definition (Vox docs):** OpenClaw is an **open-source TypeScript agent platform**—a self-hosted gateway connecting chat platforms to LLMs with local tool access. **ClawHub** denotes its public **skills marketplace** (community skill bundles and discovery). Vox does not ship OpenClaw; integration is via **`vox openclaw`** (CLI, feature **`ars`**) and **`vox_ars::OpenClawClient`**. The short glossary entry cross-links here as SSOT.
+> **Canonical definition (Vox docs):** OpenClaw is an **open-source TypeScript agent platform**—a self-hosted gateway connecting chat platforms to LLMs with local tool access. **ClawHub** denotes its public **skills marketplace** (community skill bundles and discovery). Vox does not ship OpenClaw; integration is via **`vox openclaw`** (CLI, feature **`ars`**) and **`vox_skills::OpenClawClient`**. The short glossary entry cross-links here as SSOT.
 >
 > **Status**: Research document — Feb 2026
 >
@@ -133,7 +133,7 @@ Vox now treats OpenClaw interoperability as a WS-first runtime contract, not onl
 
 - **Primary transport:** OpenClaw Gateway WebSocket protocol (`connect.challenge` event, `connect` request, request/response/event frames).
 - **Secondary fallback:** OpenClaw HTTP compatibility surfaces where needed (`/v1/chat/completions`, `/v1/responses`) and existing skills endpoints.
-- **Internal boundary:** `OpenClawRuntimeAdapter` in Rust (`vox-ars`) isolates wire protocol details from CLI/runtime consumers.
+- **Internal boundary:** `OpenClawRuntimeAdapter` in Rust (`vox-skills`) isolates wire protocol details from CLI/runtime consumers.
 - **Script surface:** `.vox` gets a low-complexity builtin module (`OpenClaw.*`) that lowers into runtime helper calls and still passes normal parse/type/HIR gates.
 - **Endpoint SSOT:** adapter resolution prefers explicit overrides, then env/Clavis, then upstream discovery (`/.well-known/openclaw.json`) with cached last-known-good fallback, then deterministic local defaults.
 - **Packaging posture:** Vox bootstrap/upgrade can install a managed `openclaw-gateway` sidecar from release assets when present in `checksums.txt`, avoiding hardcoded URL catalogs.

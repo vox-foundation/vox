@@ -15,7 +15,7 @@ training_eligible: true
 3. **Explicit retire / port / keep** — Every orphan or duplicate surface is classified in [orphan surface inventory](orphan-surface-inventory.md) with owner, severity, and target milestone.
 4. **Single implementation** — One canonical module per domain operation (e.g. database CLI helpers live in `crates/vox-cli/src/commands/db.rs`; `commands/ops/db` re-exports that module).
 5. **Arca/Codex DDL** — One manifest in `vox-db` (`crates/vox-db/src/schema/manifest.rs`, `SCHEMA_FRAGMENTS` → `baseline_sql`). The live `schema_version` row matches `BASELINE_VERSION` in that manifest (see `contracts/db/baseline-version-policy.yaml`). Legacy multi-row chains use export/import, not ad-hoc undocumented version integers in docs.
-6. **Workspace excludes** — Crates listed under `[workspace].exclude` (e.g. `vox-dei`, `vox-py`, `vox-wasm`) are intentionally outside the default workspace until they are CI-stable. **`vox-codegen-html` is retired** (no in-tree crate); use **`vox-ssg`** per [ADR 010](../adr/010-tanstack-web-spine.md). Workspace members must not add `path = "../…"` dependencies to excluded crates without first removing them from `exclude` and fixing the build graph.
+6. **Workspace excludes** — Crates listed under `[workspace].exclude` (e.g. `vox-orchestrator`, `vox-py`, `vox-wasm`) are intentionally outside the default workspace until they are CI-stable. **`vox-codegen-html` is retired** (no in-tree crate); use **`vox-ssg`** per [ADR 010](../adr/010-tanstack-web-spine.md). Workspace members must not add `path = "../…"` dependencies to excluded crates without first removing them from `exclude` and fixing the build graph.
 
 ## Enforcement
 

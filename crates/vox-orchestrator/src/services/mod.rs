@@ -25,6 +25,7 @@
 //!   Call before enqueueing to fail fast and emit scope violation events.
 
 pub mod gateway;
+#[cfg(feature = "news-publish")]
 pub mod news;
 pub mod policy;
 pub mod routing;

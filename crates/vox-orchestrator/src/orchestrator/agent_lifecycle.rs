@@ -229,7 +229,9 @@ impl crate::orchestrator::Orchestrator {
             && task.id == task_id
             && task.populi_remote_delegate.is_some()
         {
+            #[cfg(feature = "populi-transport")]
             let delegate = task.populi_remote_delegate.clone();
+            #[cfg(feature = "populi-transport")]
             let idempotency_key = delegate.as_ref().map(|d| d.idempotency_key.clone());
             let taken = queue.take_in_progress_if(task_id);
             if taken.is_none() {
@@ -257,6 +259,7 @@ impl crate::orchestrator::Orchestrator {
                 task_id,
                 agent_id
             );
+            #[cfg(feature = "populi-transport")]
             if let (Some(key), Ok(handle)) =
                 (idempotency_key, tokio::runtime::Handle::try_current())
             {

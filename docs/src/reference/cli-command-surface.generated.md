@@ -10,7 +10,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 227
+**schema_version:** `1` · **vox-cli operations:** 228
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -58,6 +58,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox ci mens-scorecard verify` | active | — | — | platform | — |
 | `vox ci mesh-gate` | active | — | — | platform | — |
 | `vox ci no-dei-import` | active | — | — | platform | — |
+| `vox ci nomenclature-guard` | active | — | ci | platform | — |
 | `vox ci openclaw-contract` | active | — | — | platform | — |
 | `vox ci operations-sync` | active | — | — | platform | — |
 | `vox ci operations-verify` | active | — | — | platform | — |

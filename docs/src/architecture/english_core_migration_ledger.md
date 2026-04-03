@@ -80,3 +80,48 @@ This phase systematically verified and extended the `catalog.v1.schema.json` and
 ### T055-T066: Status
 - All compliance checks are actively gated inside `ci command-compliance` and `ci operations-verify` respectively.
 - Phase locked and green.
+
+## Phase 3 & 4: Hard-Merges and Shims (Completed)
+
+This phase executed the hard-merges of orphaned Latin crates into their canonical English counterparts to reduce structural fragmentation.
+
+### T067-T080: DEI and ARS Hard-Merges
+- Moved all source modules from ox-dei (oute_telemetry, gent_frontmatter, esearch, selection) into ox-orchestrator::dei_shim.
+- Moved all source modules from ox-ars (openclaw_adapter, manifest, xecutor, etc.) into ox-skills::ars_shim.
+- Converted ox-dei and ox-ars into short-lived forwarding shims (exporting pub use vox_orchestrator::dei_shim::*; and pub use vox_skills::ars_shim::*;).
+- Resolved all type inference and import conflicts caused by the boundary shifts.
+
+### T081-T090: CI & Structural Verification
+- Updated Cargo.toml dependencies natively to ensure ox-orchestrator and ox-skills inherited required external traits (e.g., ox-socrates-policy, 	okio-tungstenite).
+- Executed cargo check -p vox-dei -p vox-ars -p vox-orchestrator -p vox-skills to guarantee parity.
+- Executed cargo check -p vox-cli to prove downstream workflow surfaces successfully consumed the shims.
+- Executed TOESTUB checks to verify skeleton code structures or structural limits were not violated.
+- Phase locked and green.
+
+## Phase 6: Context Binding and Docs Scrubbing (Completed)
+
+This phase neutralized lingering references to archaic ox-dei and ox-ars strings across the repository surface before physical deletion.
+
+### T091-T100: Context Preservation Bindings
+- Injected keyswords = ["dei", "vox-dei"] into ox-orchestrator/Cargo.toml and keywords = ["ars", "vox-ars"] into ox-skills/Cargo.toml to actively tether internal AI agent semantic memory to the new crates without requiring full retraining.
+- Implemented "Tombstone warning" header descriptions in ox-dei and ox-ars lib.rs shims.
+
+### T101-T110: Documentation and CI Surface Scrubbing
+- Scrubbed docs/src markdown paths globally to transition ox-dei to ox-orchestrator and ox-ars to ox-skills while strictly preserving ox-dei-d daemon invocation rules.
+- Transitioned reference surfaces inside .github/workflows/ci.yml strictly ensuring workflow script guards accurately match the English-canonical structural footprint.
+- Phase locked and green.
+
+## Phase 7: Physical Deprecation and Deletion (Completed)
+
+This final phase concluded the architectural migration by cleanly erasing the deprecated ox-dei and ox-ars structures from the codebase, confirming the workspace is entirely reliant on the English Core equivalents.
+
+### T111-T120: Dependency Graph Re-wiring
+- Eradicated all ox-ars and ox-dei crate-level references across ox-cli, ox-mcp, ox-skills, ox-runtime traversing .toml files directly towards ox-skills and ox-orchestrator.
+- Realigned integration test imports inside active members (	ests/ directory imports remapped strictly to ox_skills::ars_shim).
+
+### T121-T130: Physical Structure Deletion
+- Purged /crates/vox-dei surface physically from the disk.
+- Purged /crates/vox-ars surface physically from the disk.
+- Excluded the crates globally from the root Cargo.toml workspace.members.
+- Verified absolute compilation success via cargo check --workspace yielding structurally zero errors and complete boundary resilience.
+- **Migration Complete and Repository Locked.**

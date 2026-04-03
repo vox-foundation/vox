@@ -7,8 +7,8 @@ use thiserror::Error;
 use uuid::Uuid;
 use vox_db::VoxDb;
 
-use crate::domain::ArsSkill;
-use crate::hooks::HookRegistry;
+use crate::ars_shim::domain::ArsSkill;
+use crate::ars_shim::hooks::HookRegistry;
 
 /// Runtime errors (synchronous book-keeping only; async errors use [`std::result::Result`]).
 #[derive(Debug, Error)]

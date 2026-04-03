@@ -20,8 +20,9 @@ tracing = { workspace = true }
 vox-config = { path = "../vox-config" }
 vox-primitives = { path = "../vox-primitives" }
 vox-clavis = { workspace = true }
-vox-ars = { workspace = true }
+vox-socrates-policy = { workspace = true }
 vox-browser = { path = "../vox-browser" }
+vox-skills = { path = "../vox-skills" }
 vox-db = { path = "../vox-db", optional = true }
 reqwest = { workspace = true, features = ["stream"] }
 vox-reqwest-defaults = { workspace = true }

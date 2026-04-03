@@ -30,7 +30,7 @@ vox_reqwest_defaults::client_builder()
 
 Direct `reqwest::Client::builder()` in Rust sources should appear only inside `vox-reqwest-defaults` (the policy implementation).
 
-Workspace crates that build outbound clients through `vox_reqwest_defaults::client_builder()` or `vox_reqwest_defaults::client()` include: `vox-runtime`, `vox-pm`, `vox-skills`, `vox-ludus`, `vox-populi` (transport + mens cloud), `vox-toestub`, `vox-mcp` (lifecycle + OpenClaw tools), `vox-orchestrator` (OpenRouter catalog), `vox-ars`, `vox-forge`, `vox-publisher` (Zenodo/OpenReview), `vox-webhook`, `vox-cli` (`generate`, `openclaw`, `ai/generate`, `ai/train`), and **generated app** `Cargo.toml` + dev-proxy in `vox-compiler` Rust emit.
+Workspace crates that build outbound clients through `vox_reqwest_defaults::client_builder()` or `vox_reqwest_defaults::client()` include: `vox-runtime`, `vox-pm`, `vox-skills`, `vox-ludus`, `vox-populi` (transport + mens cloud), `vox-toestub`, `vox-mcp` (lifecycle + OpenClaw tools), `vox-orchestrator` (OpenRouter catalog), `vox-skills`, `vox-forge`, `vox-publisher` (Zenodo/OpenReview), `vox-webhook`, `vox-cli` (`generate`, `openclaw`, `ai/generate`, `ai/train`), and **generated app** `Cargo.toml` + dev-proxy in `vox-compiler` Rust emit.
 
 ## Migration priority (remaining ad-hoc `reqwest::Client::builder()`)
 

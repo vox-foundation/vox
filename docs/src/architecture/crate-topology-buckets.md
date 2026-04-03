@@ -8,7 +8,7 @@ training_eligible: true
 
 # Crate topology buckets
 
-**Like-with-like** map for workspace members under `crates/*`. Root `[workspace.exclude]` is only **`vox-dei`** and the stub **`vox-py`** tree (no `Cargo.toml`). Use this when choosing dependencies and file placement.
+**Like-with-like** map for workspace members under `crates/*`. Root `[workspace.exclude]` is only the stub **`vox-py`** tree (no `Cargo.toml`). An optional minimal **`vox-dei`** staging crate may exist under `crates/vox-dei` when checked in; it is not part of the default product graph. Use this when choosing dependencies and file placement.
 
 | Bucket | Crates / location | Notes |
 |--------|-------------------|--------|
@@ -18,7 +18,7 @@ training_eligible: true
 | **Repository / config** | `vox-repository`, `vox-config` | `Vox.toml`, `repository_id` — do not reimplement layout detection ad hoc. |
 | **Runtime** | `vox-runtime` | Actor / workflow helpers; optional `database` feature. |
 | **HTTP dashboards / Codex APIs** | **`vox-db`** + **`vox-cli`** | Historical name `vox-codex-api` is **not** a package; HTTP helpers live in **`vox-db`** and CLI feature gates. |
-| **Agent / MCP / orchestration** | `vox-mcp`, `vox-orchestrator`, `vox-ars`, `vox-tools`, `vox-capability-registry`, `vox-workflow-runtime` | Tooling and routing; often feature-gated in CLI. |
+| **Agent / MCP / orchestration** | `vox-mcp`, `vox-orchestrator`, `vox-skills`, `vox-tools`, `vox-capability-registry`, `vox-workflow-runtime` | Tooling and routing; often feature-gated in CLI. |
 | **Quality / policy** | `vox-toestub`, `vox-socrates-policy`, `vox-eval`, `vox-doc-inventory`, `vox-scaling-policy` | CI and doc SSOT. |
 | **Integration** | `vox-integration-tests`, `vox-test-harness` | Not in default `vox-cli` dependency graph. |
 | **Product / CLI / tooling** | `vox-cli`, `vox-lsp`, `vox-bootstrap`, `vox-container`, `vox-doc-pipeline`, `vox-forge`, `vox-git`, `vox-ludus`, `vox-skills`, `vox-ssg`, `vox-webhook`, `vox-schola`, `vox-protocol`, `vox-publisher`, `vox-scientia-*` | **`vox-cli`** fans out by feature; keep default builds lean. |

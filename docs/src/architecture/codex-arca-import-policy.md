@@ -22,6 +22,6 @@ training_eligible: true
 
 1. Prefer **`vox_db::VoxDb`** (or `vox_db::Codex` alias) in signatures and new modules.
 2. Do not introduce new dependencies on the `vox-codex` crate path unless bridging legacy tooling; migrate call sites to `vox-db` when touched.
-3. Unwired CLI modules should import **`vox_pm::` / `vox_db::` / `vox_codex`** (shim) only — the historical `vox_arca*` crate names are not used in-tree. Staging crates (e.g. minimal **`vox-dei`**) follow the same rule: do not link them from **`vox-cli`** until explicitly decided.
+3. Unwired CLI modules should import **`vox_pm::` / `vox_db::` / `vox_codex`** (shim) only — the historical `vox_arca*` crate names are not used in-tree. Staging crates (e.g. minimal **`vox-orchestrator`**) follow the same rule: do not link them from **`vox-cli`** until explicitly decided.
 
 See [ADR 004](../adr/004-codex-arca-turso-ssot.md).

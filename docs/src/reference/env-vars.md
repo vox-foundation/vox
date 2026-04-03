@@ -231,7 +231,7 @@ Calibration note: channel gain offsets / backlog penalty / trust-adjustment scal
 | `VOX_DASH_HOST` / `VOX_DASH_PORT` | Bind host and port for the local dashboard / **vox-audio-ingress** HTTP surface (**default** `127.0.0.1` / **`3847`**). MCP Oratio helpers use the same vars when calling the ingress ([`oratio_tools`](../../../crates/vox-mcp/src/tools/oratio_tools.rs)). |
 | `VOX_BROWSER_LLM_CONTEXT_CHARS` | Optional positive integer: max characters of browser snapshot / summary text included in MCP browser+LLM tool context (**default** `24000` when unset or invalid). See [`browser_tools`](../../../crates/vox-mcp/src/tools/browser_tools.rs). |
 
-## OpenClaw gateway interop (`vox-ars`, `vox openclaw`, script builtins)
+## OpenClaw gateway interop (`vox-skills`, `vox openclaw`, script builtins)
 
 | Variable | Role |
 |----------|------|

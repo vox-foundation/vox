@@ -133,8 +133,8 @@ jobs:
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
         run: cargo run -p vox-cli --quiet -- ci build-timings --crates
 
-      - name: vox-cli feature matrix + no vox_dei imports
-        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-dei-import
+      - name: vox-cli feature matrix + no vox_orchestrator imports
+        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
         run: cargo run -p vox-cli --quiet -- ci cuda-features

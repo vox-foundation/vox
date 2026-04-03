@@ -753,6 +753,26 @@ curated:
   cli_path:
   - ci
   - no-dei-import
+- id: cli.ci.nomenclature-guard
+  title: Ci Nomenclature-guard
+  description_human: Enforces the English-first crate naming policy. Scans `crates/` and fails if any `vox-<latin>` directory exists outside the historical allowlist.
+  description_model: null
+  intent_tags:
+  - ci
+  - naming
+  - governance
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - nomenclature-guard
 - id: cli.ci.openclaw-contract
   title: Ci Openclaw-contract
   description_human: null

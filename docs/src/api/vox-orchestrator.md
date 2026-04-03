@@ -19,7 +19,7 @@ Multi-agent file-affinity queue system. Routes tasks to AI agents based on file 
 
 **Trust gates (optional):** when Codex is wired, **`trust_gate_relax_enabled`** + **`trust_gate_relax_min_reliability`** can soften **Socrates enforce**, **completion grounding enforce**, and **strict file scope** for agents with high `agent_reliability` (see `VOX_ORCHESTRATOR_TRUST_GATE_RELAX_*` in [env vars](../reference/env-vars.md)).
 
-**Runtime authority note:** active retrieval trigger policy (hybrid/BM25/lexical fallback) and Socrates surface telemetry integration are implemented in `vox-mcp` + `vox-orchestrator`. The **`vox-dei`** crate is a **minimal workspace member** (policy floors in `lib.rs`); legacy sources under `crates/vox-dei/src/` are not wired into that library yet—do not treat them as routing SSOT.
+**Runtime authority note:** active retrieval trigger policy (hybrid/BM25/lexical fallback) and Socrates surface telemetry integration are implemented in `vox-mcp` + `vox-orchestrator`. The **`vox-orchestrator`** crate is a **minimal workspace member** (policy floors in `lib.rs`); legacy sources under `crates/vox-dei/src/` are not wired into that library yet—do not treat them as routing SSOT.
 
 **Daemons:** **`vox-dei-d`** is the RPC boundary for Mens-shaped AI flows (`ai.generate`, `ai.plan.*`, etc.); it is not the host of the full `Orchestrator` today unless a future ADR consolidates daemon responsibilities (ADR 022).
 

@@ -24,7 +24,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 
 | Feature | Extra deps / notes |
 |---------|-------------------|
-| `ars` | `vox-ars` |
+| `ars` | `vox-skills` |
 | `coderabbit` | `vox-forge`, `vox-git`, `vox-toestub`, … |
 | `codex` | `vox-eval`, `walkdir`, `dirs` — DB via **`vox-db`** (Codex types) |
 | `dashboard` | No-op flag (reserved) |

@@ -170,7 +170,7 @@ Use this as the **single execution checklist** for telemetry unification. Check 
 
 ---
 
-## Phase 3 — Producer audit (`vox-dei` / other)
+## Phase 3 — Producer audit (`vox-orchestrator` / other)
 
 - [x] `crates/vox-dei/src/route_telemetry.rs` — classify metrics; link taxonomy SSOT.
 - [x] `crates/vox-dei/src/lib.rs` — any exports documented.

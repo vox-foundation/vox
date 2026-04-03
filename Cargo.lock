@@ -10510,25 +10510,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
-name = "vox-ars"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-util",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tokio-tungstenite 0.24.0",
- "tracing",
- "uuid",
- "vox-db",
- "vox-reqwest-defaults",
- "vox-skills",
-]
-
-[[package]]
 name = "vox-audio-ingress"
 version = "0.1.0"
 dependencies = [
@@ -10653,7 +10634,6 @@ dependencies = [
  "tracing-subscriber",
  "turso",
  "uuid",
- "vox-ars",
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-checksum-manifest",
@@ -10786,14 +10766,6 @@ dependencies = [
  "vox-repository",
  "vox-socrates-policy",
  "vox-test-harness",
-]
-
-[[package]]
-name = "vox-dei"
-version = "0.1.0"
-dependencies = [
- "tracing",
- "vox-socrates-policy",
 ]
 
 [[package]]
@@ -10981,7 +10953,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
- "vox-ars",
  "vox-bounded-fs",
  "vox-browser",
  "vox-capability-registry",
@@ -11278,7 +11249,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
- "vox-ars",
  "vox-browser",
  "vox-clavis",
  "vox-config",
@@ -11287,6 +11257,8 @@ dependencies = [
  "vox-openai-wire",
  "vox-primitives",
  "vox-reqwest-defaults",
+ "vox-skills",
+ "vox-socrates-policy",
  "which 8.0.2",
  "xxhash-rust",
 ]
@@ -11376,7 +11348,9 @@ name = "vox-skills"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "data-encoding",
+ "futures-util",
  "reqwest 0.12.28",
  "semver",
  "serde",
@@ -11384,9 +11358,10 @@ dependencies = [
  "sha3",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-tungstenite 0.24.0",
  "toml 0.8.23",
  "tracing",
- "vox-ars",
+ "uuid",
  "vox-db",
  "vox-pm",
  "vox-reqwest-defaults",
