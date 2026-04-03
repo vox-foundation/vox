@@ -49,11 +49,34 @@ export const EngineeringDiagnostics = ({
             </div>
             
             <div className="min-h-[300px] border border-[var(--vscode-panel-border)] rounded-xl overflow-hidden bg-[var(--vscode-editor-background)]">
-                <div className="bg-[var(--vscode-sideBar-background)] px-4 py-2 border-b border-[var(--vscode-panel-border)] text-xs font-bold uppercase tracking-widest">
-                    Context Explorer
+                <div className="bg-[var(--vscode-sideBar-background)] px-4 py-2 border-b border-[var(--vscode-panel-border)] text-xs font-bold uppercase tracking-widest flex items-center justify-between">
+                    <span>Context Explorer</span>
                 </div>
                 <div className="h-[260px] relative p-4 overflow-y-auto">
                      <ContextExplorer inspector={inspectorState} />
+                </div>
+            </div>
+
+            <div className="min-h-[300px] border border-[var(--vscode-panel-border)] rounded-xl overflow-hidden bg-[var(--vscode-editor-background)]">
+                <div className="bg-[var(--vscode-sideBar-background)] px-4 py-2 border-b border-[var(--vscode-panel-border)] text-xs font-bold uppercase tracking-widest flex items-center justify-between">
+                    <span>Tool Registry & Capabilities</span>
+                    <span className="opacity-60 font-mono lowercase">tools: {capabilities?.toolCount ?? 0}</span>
+                </div>
+                <div className="h-[260px] relative p-4 overflow-y-auto">
+                    {Array.isArray(capabilities?.loadedSchemas) && capabilities.loadedSchemas.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {capabilities.loadedSchemas.map((tool: any, idx: number) => (
+                                <div key={idx} className="p-3 border border-[var(--vscode-editorGroup-border)] rounded bg-[var(--vscode-textBlockQuote-background)]">
+                                    <div className="font-bold text-[11px] font-mono text-[var(--vscode-symbolIcon-functionForeground)]">{tool.name}</div>
+                                    {tool.description && <div className="text-[10px] mt-2 opacity-70 leading-relaxed">{tool.description}</div>}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex h-full items-center justify-center text-xs opacity-50 uppercase tracking-widest">
+                            No tools discovered explicitly by client schema
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
