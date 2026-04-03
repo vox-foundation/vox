@@ -17,7 +17,13 @@ async fn full_stack_minimal_vite_production_build() {
     );
 
     let mut repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let vox_file = repo.join("tests/fixtures/full_stack_minimal.vox");
+    // If we're inside the crate (local test or normal cargo test), go to workspace root.
+    if repo.ends_with("vox-integration-tests") || repo.ends_with("crates/vox-integration-tests") {
+        repo.pop();
+        repo.pop();
+    }
+    let vox_file = repo.join("crates/vox-integration-tests/tests/fixtures/full_stack_minimal.vox");
+    assert!(vox_file.is_file(), "missing fixture: {}", vox_file.display());
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let ts_out = tmp.path().join("ts");

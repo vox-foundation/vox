@@ -132,7 +132,7 @@ pub fn push_route_tree_files(
             app.push_str(&child_ids.join(", "));
             app.push_str("]);\n\n");
             app.push_str("const router = createRouter({ routeTree });\n\n");
-            app.push_str("export default function App(): React.ReactElement {\n");
+            app.push_str("export function App(): React.ReactElement {\n");
             app.push_str("  return <RouterProvider router={router} />;\n");
             app.push_str("}\n");
             files.push(("App.tsx".to_string(), app));

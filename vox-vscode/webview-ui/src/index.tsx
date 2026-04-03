@@ -36,7 +36,6 @@ function App() {
   const [intentionMatrix, setIntentionMatrix] = useState<any>(null);
   const [oplog, setOplog] = useState<any[]>([]);
   const [budgetHistory, setBudgetHistory] = useState<any[]>([]);
-  const [modelList, setModelList] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [capabilities, setCapabilities] = useState<any>(null);
   const [ludusSnapshot, setLudusSnapshot] = useState<Record<string, unknown> | null>(null);
@@ -66,7 +65,6 @@ function App() {
         case 'activeEditorChanged': setActiveFile(String(parsed.value ?? '')); break;
         case 'a2aTasks': setTasks(Array.isArray(parsed.value) ? parsed.value : []); break;
         case 'budgetHistory': if (parsed.value) setBudgetHistory(parsed.value as any[]); break;
-        case 'modelList': if (parsed.value) setModelList(parsed.value as any[]); break;
         case 'workflowStatus': setWorkflowStatus(parsed.value); break;
         case 'meshStatus': setMeshStatus(parsed.value); break;
         case 'intentionMatrix': setIntentionMatrix(parsed.value); break;
