@@ -74,7 +74,7 @@ export function registerLinkDiagnostics(context: vscode.ExtensionContext) {
                             }
                         }
                     }
-                } catch(e) {
+                } catch {
                     // fall back
                 }
                 

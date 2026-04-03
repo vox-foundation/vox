@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Terminal, Activity, Trophy, Server, Bell, Cpu, Layers, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { getVsCodeApi } from '../utils/vscode';
 import { Panel } from './ui/Panel';
 import { StateChip } from './ui/StateChip';
@@ -21,7 +20,6 @@ export const UnifiedDashboard = ({
     stats = {},
     pipeline = null,
     budgetHistory = [],
-    modelList = [],
     ludusSnapshot = null,
     meshTopology = null,
 }: {
@@ -29,7 +27,6 @@ export const UnifiedDashboard = ({
     stats: any;
     pipeline: any;
     budgetHistory: any[];
-    modelList: any[];
     ludusSnapshot: Record<string, unknown> | null;
     meshTopology: any;
 }) => {

@@ -141,7 +141,6 @@ function App() {
                 stats={dashboardStats} 
                 pipeline={pipeline} 
                 budgetHistory={budgetHistory} 
-                modelList={modelList} 
                 ludusSnapshot={ludusSnapshot} 
                 meshTopology={meshStatus} 
             />
@@ -212,7 +211,7 @@ function App() {
                     }`}
                     onClick={() => togglePinnedFile(file)}
                   >
-                    {file.split(/[\/\\]/).pop()}
+                    {file.split(/[/\\]/).pop()}
                   </button>
                 ))}
               </div>

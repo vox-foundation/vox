@@ -1,5 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import type {
     AgentEvent,
@@ -54,9 +56,6 @@ export class VoxMcpClient {
     async connect(): Promise<void> {
         try {
             this.outputChannel.appendLine(`[Vox MCP] Connecting via StdioClientTransport...`);
-            
-            const fs = require('fs');
-            const path = require('path');
             
             let effectivePath = this._serverPath;
             if (effectivePath === 'vox' || !effectivePath) {

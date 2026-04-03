@@ -17,8 +17,6 @@ async fn full_stack_minimal_vite_production_build() {
     );
 
     let mut repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    repo.pop();
-    repo.pop();
     let vox_file = repo.join("tests/fixtures/full_stack_minimal.vox");
 
     let tmp = tempfile::tempdir().expect("tempdir");
