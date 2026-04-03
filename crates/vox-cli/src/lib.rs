@@ -303,6 +303,8 @@ pub enum Cli {
     },
     /// Start the Vox Language Server
     Lsp,
+    /// Start the Vox MCP (Model Context Protocol) server
+    Mcp,
     /// Check toolchain and local environment readiness (`--build-perf` / `--json` need `--features codex`)
     Doctor {
         /// Arguments.

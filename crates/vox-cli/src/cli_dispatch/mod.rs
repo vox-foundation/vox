@@ -139,6 +139,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Lsp => {
             crate::commands::lsp::run()?;
         }
+        Cli::Mcp => {
+            crate::commands::mcp::run()?;
+        }
         Cli::Doctor { args } => {
             run_diag_cmd(latin_cmd::DiagCmd::Doctor(args)).await?;
         }

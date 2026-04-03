@@ -72,7 +72,7 @@ jobs:
 
       - name: Generate sitemap.xml
         working-directory: docs
-        run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/html/sitemap.xml
+        run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/sitemap.xml
 
       # ── Archive docs artifact ───────────────────────────────────────────
       # This step is platform-agnostic: it produces docs.tar.gz as a
@@ -84,7 +84,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/book/html
+          path: docs/book
 
   deploy-pages:
     name: Deploy to GitHub Pages

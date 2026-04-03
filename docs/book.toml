@@ -13,7 +13,7 @@ renderer = ["html"]
 
 # Sitemap: generated **after** `mdbook build` via `mdbook-sitemap-generator` (standalone CLI; not an mdBook preprocessor).
 # CI: `.github/workflows/docs-deploy.yml` and `.gitlab-ci.yml` `build-docs`. Local: `cargo install mdbook-sitemap-generator --locked`
-# then from `docs/`: `mdbook-sitemap-generator --domain <origin> --output book/html/sitemap.xml`
+# then from `docs/`: `mdbook-sitemap-generator --domain <origin> --output book/sitemap.xml`
 
 [output.html]
 additional-css = ["theme/custom.css"]

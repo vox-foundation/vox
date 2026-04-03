@@ -70,6 +70,8 @@ pub mod login;
 pub mod logout;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
+/// Start the Vox MCP server wrapper (`vox mcp`).
+pub mod mcp;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;

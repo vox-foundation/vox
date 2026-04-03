@@ -53,10 +53,38 @@ export class VoxMcpClient {
 
     async connect(): Promise<void> {
         try {
-            this.outputChannel.appendLine('[Vox MCP] Connecting...');
+            this.outputChannel.appendLine(`[Vox MCP] Connecting via StdioClientTransport...`);
+            
+            const fs = require('fs');
+            const path = require('path');
+            
+            let effectivePath = this._serverPath;
+            if (effectivePath === 'vox' || !effectivePath) {
+                // If it's pure 'vox' and not in PATH natively, or testing locally in VS Code
+                // We'll peek to see if the adjacent target/debug exists.
+                if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                    const wsRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                    const possibleParent = path.dirname(wsRoot); 
+                    // Usually vox-vscode is inside vox dir
+                    const localDebug = path.join(possibleParent, 'target', 'debug', process.platform === 'win32' ? 'vox.exe' : 'vox');
+                    if (fs.existsSync(localDebug)) {
+                        effectivePath = localDebug;
+                        this.outputChannel.appendLine(`[Vox MCP] Overriding 'vox' default with local workspace binary: ${effectivePath}`);
+                    }
+                }
+            }
+
+            this.outputChannel.appendLine(`[Vox MCP] Binary Path finalized as: ${effectivePath}`);
+            if (effectivePath !== 'vox' && !fs.existsSync(effectivePath)) {
+                throw new Error(`Configured MCP server path does not exist on disk: ${effectivePath}`);
+            }
+            
+            this.transport = new StdioClientTransport({ command: effectivePath, args: ['mcp'] });
+            
             await this.client.connect(this.transport);
             this._connected = true;
             this._reconnectDelay = 1000;
+            this.outputChannel.appendLine(`[Vox MCP] Transport connected! Fetching listTools...`);
             const tools = await this.client.listTools();
             const listed: ListedMcpTool[] = tools.tools.map((t) => ({
                 name: t.name,

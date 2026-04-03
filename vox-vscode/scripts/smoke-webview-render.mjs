@@ -14,7 +14,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ComposerPanel } from './webview-ui/src/components/ComposerPanel.tsx';
 import { ContextExplorer } from './webview-ui/src/components/ContextExplorer.tsx';
-import { Dashboard } from './webview-ui/src/components/Dashboard.tsx';
+import { UnifiedDashboard } from './webview-ui/src/components/UnifiedDashboard.tsx';
 
 function assertContains(markup, needle, label) {
   if (!markup.includes(needle)) {
@@ -100,13 +100,17 @@ assertContains(contextMarkup, 'Evidence And Planning', 'context');
 assertContains(contextMarkup, 'Browser lab', 'context');
 
 const dashboardMarkup = renderToStaticMarkup(
-  React.createElement(Dashboard, {
+  React.createElement(UnifiedDashboard, {
     stats: { activeAgents: '3', queueDepth: '4', latency: '120ms', budget: '$0.14' },
     ops: [{ id: '1', description: 'build', agent_id: 0, status: 'Running' }],
-    pipeline: { ok: true }
+    pipeline: { ok: true },
+    budgetHistory: [],
+    modelList: [],
+    ludusSnapshot: null,
+    meshTopology: null
   })
 );
-assertContains(dashboardMarkup, 'Fleet', 'dashboard');
+assertContains(dashboardMarkup, 'Unified Command Center', 'dashboard');
 assertContains(dashboardMarkup, 'Operation Stream', 'dashboard');
 
 console.log('smoke-webview-render: OK');
