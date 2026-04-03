@@ -187,3 +187,74 @@ fn mcp_read_role_governance_profile_matches_registry() {
         .expect("vox-cli lives at crates/vox-cli");
     check_mcp_http_read_role_governance(repo_root).expect("read-role governance profile");
 }
+
+/// T068/T069: `visible_alias` values in lib.rs must be registered in the operations catalog.
+#[test]
+fn latin_alias_parity_with_catalog() {
+    use super::validators::check_latin_alias_parity_with_catalog;
+    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    let lib_rs = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs"))
+        .expect("read lib.rs");
+    check_latin_alias_parity_with_catalog(repo_root, &lib_rs)
+        .expect("T068/T069: visible_alias ↔ catalog latin_aliases parity");
+}
+
+/// T075-T082: Verify Latin command names are declared as visible_alias in lib.rs.
+/// This ensures clap correctly routes `vox <latin>` to the same handler as `vox <english>`.
+#[test]
+fn latin_english_alias_declared_in_lib() {
+    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    let lib_rs = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs"))
+        .expect("read lib.rs");
+
+    // T075: vox dei → orchestrator alias
+    assert!(
+        lib_rs.contains("visible_alias = \"orchestrator\""),
+        "T075: `vox dei` must declare `visible_alias = \"orchestrator\"` in lib.rs"
+    );
+    // T077: vox clavis → secrets alias
+    assert!(
+        lib_rs.contains("visible_alias = \"secrets\""),
+        "T077: `vox clavis` must declare `visible_alias = \"secrets\"` in lib.rs"
+    );
+    // T078: vox oratio → speech alias
+    assert!(
+        lib_rs.contains("visible_alias = \"speech\""),
+        "T078: `vox oratio` must declare `visible_alias = \"speech\"` in lib.rs"
+    );
+}
+
+/// T084: Help output equivalence - verify that `dei` and `orchestrator` are both reachable
+/// from the clap tree (via visible_alias the command appears in `--help` output).
+#[test]
+fn latin_aliases_appear_in_help_text() {
+    use clap::CommandFactory;
+    use crate::VoxCliRoot;
+
+    let help = VoxCliRoot::command().render_long_help().to_string();
+
+    // The Latin names and their aliases should both appear in help
+    assert!(
+        help.contains("fabrica") || help.contains("fab"),
+        "T084: `fabrica` or its alias should appear in vox --help"
+    );
+    assert!(
+        help.contains("clavis"),
+        "T084: `clavis` should appear in vox --help"
+    );
+    // `secrets` is a visible_alias so it appears alongside clavis
+    assert!(
+        help.contains("secrets"),
+        "T084: `secrets` (alias of clavis) should appear in vox --help"
+    );
+}

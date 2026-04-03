@@ -114,6 +114,10 @@ pub struct OperationRow {
     #[serde(default)]
     pub mens_planner_visible: Option<bool>,
     #[serde(default)]
+    pub canonical_name: Option<String>,
+    #[serde(default)]
+    pub latin_aliases: Option<Vec<String>>,
+    #[serde(default)]
     pub mcp: Option<McpProjection>,
     #[serde(default)]
     pub cli: Option<CliProjection>,
@@ -173,7 +177,7 @@ fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
-fn read_catalog(repo_root: &Path) -> Result<OperationsCatalog> {
+pub(crate) fn read_catalog(repo_root: &Path) -> Result<OperationsCatalog> {
     let raw = read_utf8_path_capped(&repo_root.join(OPERATIONS_CATALOG_REL))
         .with_context(|| format!("read {}", OPERATIONS_CATALOG_REL))?;
     serde_yaml::from_str(&raw).context("parse operations catalog")
@@ -279,6 +283,8 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             preferred_for_models: None,
             human_takeover_friendly: None,
             mens_planner_visible: None,
+            canonical_name: None,
+            latin_aliases: None,
             mcp: None,
             cli: None,
         });
@@ -315,6 +321,8 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             preferred_for_models: None,
             human_takeover_friendly: None,
             mens_planner_visible: None,
+            canonical_name: None,
+            latin_aliases: None,
             mcp: None,
             cli: None,
         });
@@ -521,6 +529,7 @@ pub fn verify(repo_root: &Path) -> Result<()> {
             ));
         }
     }
+    verify_catalog_nomenclature(&catalog)?;
     verify_mcp_dispatch_coverage(repo_root, &seen_mcp)?;
     verify_mcp_input_schema_coverage(repo_root, &seen_mcp)?;
     verify_catalog_read_role_vs_governance(repo_root, &catalog)?;
@@ -938,5 +947,171 @@ pub fn sync(repo_root: &Path, target: &str, write: bool) -> Result<()> {
         other => Err(anyhow!(
             "unknown operations-sync target `{other}` (expected: catalog|mcp|cli|capability|all)"
         )),
+    }
+}
+fn verify_catalog_nomenclature(catalog: &OperationsCatalog) -> Result<()> {
+    let mut alias_to_id = BTreeMap::new();
+    for row in &catalog.operations {
+        let is_core_canonical = ["orchestrator", "skills", "forge", "database", "secrets", "speech", "ml", "gamification", "tutorial", "pm", "package_manager"]
+            .contains(&row.canonical_name.as_deref().unwrap_or(""));
+            
+        let has_alias = row.latin_aliases.as_ref().map(|v| !v.is_empty()).unwrap_or(false);
+        if is_core_canonical && !has_alias {
+            return Err(anyhow!("command-compliance T045: English canonical command '{}' must declare at least one Latin alias in `latin_aliases`", row.id));
+        }
+
+        if let Some(aliases) = &row.latin_aliases {
+            for alias in aliases {
+                // Check grammar T053: invalid alias grammar tags
+                if !alias.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
+                    return Err(anyhow!("command-compliance T053: Latin alias '{}' has invalid grammar tag (must be lower-kebab-case)", alias));
+                }
+
+                if Some(alias.as_str()) == row.canonical_name.as_deref() {
+                    return Err(anyhow!("command-compliance T046: Latin alias '{}' cannot be the canonical structural identifier for '{}'", alias, row.id));
+                }
+                
+                if let Some(existing_id) = alias_to_id.insert(alias.clone(), row.id.clone()) {
+                    if existing_id != row.id {
+                         return Err(anyhow!("command-compliance T047: Latin alias collision for '{}' between '{}' and '{}'", alias, existing_id, row.id));
+                    }
+                }
+            }
+        }
+        
+        if let Some(c) = &row.cli {
+            if c.status == "retired" && has_alias {
+                return Err(anyhow!("command-compliance T050: retired command '{}' cannot have Latin aliases", row.id));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_row(id: &str, canon: Option<&str>, aliases: Option<Vec<&str>>, status: &str) -> OperationRow {
+        OperationRow {
+            id: id.to_string(),
+            title: "".to_string(),
+            description: "".to_string(),
+            description_human: None,
+            product_lane: "platform".to_string(),
+            intent_tags: vec![],
+            side_effect_class: None,
+            scope_kind: None,
+            reversible: None,
+            requires_repo: None,
+            preferred_for_models: None,
+            human_takeover_friendly: None,
+            mens_planner_visible: None,
+            canonical_name: canon.map(|s| s.to_string()),
+            latin_aliases: aliases.map(|a| a.into_iter().map(|s| s.to_string()).collect()),
+            mcp: None,
+            cli: Some(CliProjection {
+                path: vec![id.to_string()],
+                status: status.to_string(),
+                latin_ns: None,
+                handler_rust: None,
+                feature_gate: None,
+                catalog_group: None,
+                ref_cli_required: None,
+                reachability_required: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn test_t045_missing_alias() {
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![
+                create_row("orchestrator", Some("orchestrator"), None, "active"),
+            ],
+        };
+        let res = verify_catalog_nomenclature(&cat);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("T045"));
+    }
+
+    #[test]
+    fn test_t046_alias_cannot_be_canonical() {
+        // alias "dei" == canonical_name "dei" → must fire T046
+        // (use a valid kebab-case alias so T053 grammar check passes first)
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![
+                create_row("test-op", Some("dei"), Some(vec!["dei"]), "active"),
+            ],
+        };
+        let res = verify_catalog_nomenclature(&cat);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("T046"));
+    }
+
+    #[test]
+    fn test_t047_alias_collision() {
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![
+                create_row("op1", Some("op1"), Some(vec!["shared-alias"]), "active"),
+                create_row("op2", Some("op2"), Some(vec!["shared-alias"]), "active"),
+            ],
+        };
+        let res = verify_catalog_nomenclature(&cat);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("T047"));
+    }
+
+    #[test]
+    fn test_t050_retired_command_aliases() {
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![
+                create_row("op1", Some("op1"), Some(vec!["alias"]), "retired"),
+            ],
+        };
+        let res = verify_catalog_nomenclature(&cat);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("T050"));
+    }
+
+    #[test]
+    fn test_t053_invalid_grammar() {
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![
+                create_row("op1", Some("op1"), Some(vec!["UPPERCASE"]), "active"),
+            ],
+        };
+        let res = verify_catalog_nomenclature(&cat);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("T053"));
+    }
+
+    #[test]
+    fn test_t054_positive_parity_metadata() {
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![
+                create_row("dei", Some("orchestrator"), Some(vec!["dei"]), "active"),
+            ],
+        };
+        let res = verify_catalog_nomenclature(&cat);
+        assert!(res.is_ok());
     }
 }

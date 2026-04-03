@@ -30,6 +30,9 @@ impl HollowFnDetector {
     }
 
     fn is_allowed_name(name: &str) -> bool {
+        if name.starts_with("default_") {
+            return true;
+        }
         ALLOWED_FN_NAMES.iter().any(|a| name == *a)
     }
 

@@ -57,10 +57,14 @@ pub async fn vox_scientia_assist_suggestions(
     let evidence =
         vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
             .unwrap_or_default();
-    let heuristic_rank = vox_publisher::scientia_discovery::rank_candidate(
+    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+        &state.repository.root,
+    );
+    let heuristic_rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         params.publication_id.as_str(),
         row.source_ref.as_deref(),
         &evidence,
+        &scientia_h,
     );
     let completion = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
     let evidence_json = serde_json::to_string(&evidence).unwrap_or_default();

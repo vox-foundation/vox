@@ -163,11 +163,15 @@ pub async fn vox_scientia_publication_preflight(
             )
             .to_json();
         }
-        vox_publisher::publication_preflight::run_preflight_with_worthiness_attention(
+        let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+            &state.repository.root,
+        );
+        vox_publisher::publication_preflight::run_preflight_with_worthiness_attention_heuristics(
             &manifest,
             profile,
             &contract,
             Some(attention),
+            &scientia_h,
         )
     } else {
         vox_publisher::publication_preflight::run_preflight_with_attention(

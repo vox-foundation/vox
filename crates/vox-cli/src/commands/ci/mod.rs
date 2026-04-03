@@ -12,6 +12,7 @@ mod eval_matrix;
 mod exec_policy_contract;
 mod line_endings;
 mod mens_scorecard;
+mod nomenclature_guard;
 mod openclaw_contract;
 mod operations_catalog;
 mod pm_provenance;

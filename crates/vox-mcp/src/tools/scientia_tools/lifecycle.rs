@@ -227,10 +227,14 @@ pub async fn vox_scientia_publication_prepare(
     if intake_gate != DiscoveryIntakeGate::None {
         let empty_rank_evidence = ScientiaEvidenceContext::default();
         let ev_ref = scientia_evidence.as_ref().unwrap_or(&empty_rank_evidence);
-        let rank = vox_publisher::scientia_discovery::rank_candidate(
+        let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+            &state.repository.root,
+        );
+        let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
             params.publication_id.as_str(),
             Some("mcp://vox_scientia_publication_prepare"),
             ev_ref,
+            &scientia_h,
         );
         if !vox_publisher::scientia_discovery::intake_gate_allows(intake_gate, &rank) {
             return ToolResult::<()>::err_with_remediation(
@@ -451,6 +455,9 @@ struct ScientiaPublicationStatusBody {
     manifest_completion: vox_publisher::scientia_discovery::ManifestCompletionReport,
     evidence_completeness_0_100: u8,
     transform_preview: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    impact_readership_projection:
+        Option<vox_publisher::scientia_finding_ledger::ImpactReadershipProjectionV1>,
     scholarly_submissions: Vec<vox_db::ScholarlySubmissionRow>,
     media_assets: Vec<vox_db::PublicationMediaAssetRow>,
     publication_attempts: Vec<vox_db::PublicationAttemptRow>,
@@ -563,20 +570,30 @@ pub async fn vox_scientia_publication_status(
         vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref());
     let evidence_fallback = vox_publisher::scientia_evidence::ScientiaEvidenceContext::default();
     let evidence_ref = evidence.as_ref().unwrap_or(&evidence_fallback);
-    let discovery_rank = vox_publisher::scientia_discovery::rank_candidate(
+    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+        &state.repository.root,
+    );
+    let discovery_rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         params.publication_id.as_str(),
         row.source_ref.as_deref(),
         evidence_ref,
+        &scientia_h,
     );
     let manifest_completion =
         vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
-    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::default();
     let evidence_completeness_0_100 =
         vox_publisher::scientia_discovery::evidence_completeness_score(evidence_ref, &scientia_h);
     let transform_preview = vox_publisher::scientia_discovery::destination_transform_previews(
         &manifest,
         evidence.as_ref(),
     );
+    let impact_readership_projection =
+        vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+            row.metadata_json.as_deref(),
+        )
+        .map(|b| {
+            vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(&b, &scientia_h)
+        });
     ToolResult::ok(ScientiaPublicationStatusBody {
         publication_id: row.publication_id,
         content_type: row.content_type,
@@ -589,6 +606,7 @@ pub async fn vox_scientia_publication_status(
         manifest_completion,
         evidence_completeness_0_100,
         transform_preview,
+        impact_readership_projection,
         scholarly_submissions: submissions,
         media_assets,
         publication_attempts,

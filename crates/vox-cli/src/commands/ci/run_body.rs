@@ -282,5 +282,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         } => release_build::run(&root, &target, version.as_deref(), &out_dir, package),
         CiCmd::ArtifactAudit { json } => super::workspace_artifacts::run_audit(&root, json),
         CiCmd::ArtifactPrune { dry_run, apply, policy } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
+        CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
     }
 }

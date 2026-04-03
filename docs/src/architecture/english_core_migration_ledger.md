@@ -59,3 +59,24 @@ The following explicit mapping table forms the 1:1 binding between canonical Eng
    *Mitigation*: Phase 5 enforces renaming rules, and we will update all CI scripts iteratively alongside crate logic updates.
 4. **Collision of Latin/English CLI arguments**: Passing English args to a Latin alias and causing parse errors, or vice versa.
    *Mitigation*: CLI Interchangeability (Phase 2) builds 1:1 mapping directly in the parsing layer, tested for deterministic output.
+
+---
+
+## Phase 1: Canonical English Naming in Contract Layer (Completed)
+
+This phase systematically verified and extended the `catalog.v1.schema.json` and its projections.
+
+### T025-T040: Contract Schema and Base Mapping
+- Safely extended `catalog.v1.schema.json` inserting `canonical_name` and `latin_aliases` safely without breaking downstream JSON tooling.
+- Populated `catalog.v1.yaml` with explicit bounds mapping `dei -> orchestrator`, `ars -> skills`, `fabrica -> forge`, `codex -> database`, etc.
+
+### T041-T044: Projections 
+- Automatically generated capabilities and CLI representations mapping via synchronous pipeline updates.
+
+### T045-T054: Built-in Tests & CI Verifiers
+- Authored rigid CI safeguards covering T045..T050 directly deeply within `commands::ci::operations_catalog`. Extracted verification checks into `verify_catalog_nomenclature()`.
+- Wrote unit tests confirming the system actively rejects structural/alias collisions, retired boundaries, missing core aliases, and enforces `^[a-z]+(-[a-z]+)*$` nomenclature string grammar checks.
+
+### T055-T066: Status
+- All compliance checks are actively gated inside `ci command-compliance` and `ci operations-verify` respectively.
+- Phase locked and green.

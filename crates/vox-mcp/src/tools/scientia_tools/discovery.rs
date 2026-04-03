@@ -49,15 +49,19 @@ pub async fn vox_scientia_publication_discovery_scan(
             .to_json();
         }
     };
+    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+        &state.repository.root,
+    );
     let mut candidates: Vec<serde_json::Value> = Vec::new();
     for row in rows {
         let evidence =
             vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
                 .unwrap_or_default();
-        let rank = vox_publisher::scientia_discovery::rank_candidate(
+        let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
             row.publication_id.as_str(),
             row.source_ref.as_deref(),
             &evidence,
+            &scientia_h,
         );
         candidates.push(serde_json::json!({
             "publication_id": row.publication_id,
@@ -112,10 +116,14 @@ pub async fn vox_scientia_publication_discovery_explain(
     let evidence =
         vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
             .unwrap_or_default();
-    let mut rank = vox_publisher::scientia_discovery::rank_candidate(
+    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+        &state.repository.root,
+    );
+    let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         params.publication_id.as_str(),
         row.source_ref.as_deref(),
         &evidence,
+        &scientia_h,
     );
     let novelty_bundle =
         vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
@@ -129,7 +137,9 @@ pub async fn vox_scientia_publication_discovery_explain(
         &manifest,
         Some(&evidence),
     );
-    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::default();
+    let impact_readership_projection = novelty_bundle.as_ref().map(|b| {
+        vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(b, &scientia_h)
+    });
     ToolResult::ok(serde_json::json!({
         "publication_id": params.publication_id,
         "discovery_rank": rank,
@@ -137,6 +147,7 @@ pub async fn vox_scientia_publication_discovery_explain(
         "manifest_completion": completion,
         "evidence_completeness_0_100": vox_publisher::scientia_discovery::evidence_completeness_score(&evidence, &scientia_h),
         "transform_preview": preview,
+        "impact_readership_projection": impact_readership_projection,
     }))
     .to_json()
 }
@@ -270,10 +281,14 @@ pub async fn vox_scientia_publication_discovery_refresh_evidence(
         manifest.metadata_json.as_deref(),
     )
     .unwrap_or_default();
-    let rank = vox_publisher::scientia_discovery::rank_candidate(
+    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+        &repo_root,
+    );
+    let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         params.publication_id.as_str(),
         manifest.source_ref.as_deref(),
         &evidence,
+        &scientia_h,
     );
     let detail = serde_json::json!({ "digest": digest, "rank": rank });
     if let Err(e) = db

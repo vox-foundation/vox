@@ -304,6 +304,13 @@ pub enum CiCmd {
         #[arg(long)]
         policy: Option<PathBuf>,
     },
+    /// Nomenclature guard: fail when new Latin-only structural crate directories appear outside the allowlist (T189-T196).
+    #[command(name = "nomenclature-guard")]
+    NomenclatureGuard {
+        /// Print a JSON array of violations instead of prose (for tooling).
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].

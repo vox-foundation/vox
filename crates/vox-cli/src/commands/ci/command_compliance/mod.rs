@@ -30,7 +30,8 @@ use validators::{
     check_command_registry_embed_matches_disk, check_compilerd, check_dei,
     check_dockerfiles_cargo_locked_policy, check_env_var_ssot_index,
     check_feature_growth_boundaries_projection_gate, check_install_policy_surfaces,
-    check_mcp_http_read_role_governance, check_operator_docs_no_legacy_vox_install_pm_nudge,
+    check_latin_alias_parity_with_catalog, check_mcp_http_read_role_governance,
+    check_operator_docs_no_legacy_vox_install_pm_nudge,
     check_packaging_pm_docs_no_resurrected_uv_copies, check_product_lane_schema_parity,
     check_project_pm_commands_no_toolchain_lane, check_reachability, check_ref_cli,
     check_registry_latin_and_handlers, check_root_readme_cli_drift,
@@ -122,6 +123,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     check_command_registry_embed_matches_disk(repo_root)?;
     check_catalog_feature_gates_match_registry(&reg)?;
     command_sync::verify(repo_root)?;
+    check_latin_alias_parity_with_catalog(repo_root, &lib_rs)?;
     check_root_readme_cli_drift(&root_readme)?;
 
     println!(

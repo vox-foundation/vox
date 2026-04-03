@@ -973,3 +973,86 @@ pub(crate) fn check_script_duals(
     }
     Ok(())
 }
+
+/// T068/T069: Every `#[command(visible_alias = "...")]` in `lib.rs` must have a
+/// corresponding entry in the operations catalog `latin_aliases` for that top-level command.
+/// Conversely, every governed canonical English command must expose its Latin alias via `visible_alias`.
+///
+/// This cross-layer parity gate prevents clap surface from silently diverging from the contract.
+pub(crate) fn check_latin_alias_parity_with_catalog(
+    repo_root: &Path,
+    lib_rs: &str,
+) -> Result<()> {
+    use crate::commands::ci::operations_catalog::read_catalog;
+
+    // Parse all `visible_alias = "..."` from lib.rs
+    let va_re = regex::Regex::new(r#"visible_alias\s*=\s*"([^"]+)""#)
+        .expect("hardcoded visible_alias regex");
+    let lib_aliases: std::collections::HashSet<String> = va_re
+        .captures_iter(lib_rs)
+        .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+        .collect();
+
+    // Read the catalog
+    let catalog = read_catalog(repo_root).context("read operations catalog for alias parity")?;
+
+    // Collect all latin_aliases from catalog that are non-empty
+    let mut catalog_aliases: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    for op in &catalog.operations {
+        if let Some(aliases) = &op.latin_aliases {
+            for alias in aliases {
+                catalog_aliases.insert(alias.clone());
+            }
+        }
+    }
+
+    // The governed mapping: English canonical → expected Latin alias in lib.rs
+    // These are the aliases that MUST appear as `visible_alias` in lib.rs
+    const REQUIRED_VISIBLE_ALIASES: &[(&str, &str)] = &[
+        ("clavis", "secrets"),  // clavis command exposes `secrets` alias
+        ("oratio", "speech"),   // oratio command exposes `speech` alias
+        ("dei", "orchestrator"), // dei command exposes `orchestrator` alias
+    ];
+
+    for (clap_name, expected_alias) in REQUIRED_VISIBLE_ALIASES {
+        if !lib_aliases.contains(*expected_alias) {
+            return Err(anyhow!(
+                "T068: `vox {clap_name}` must expose `#[command(visible_alias = \"{expected_alias}\")]` in lib.rs to maintain English↔Latin parity (missing from visible_alias set)"
+            ));
+        }
+    }
+
+    // Reverse: every lib.rs visible_alias that is a known Latin word must be in catalog
+    // Skip short internal aliases (e.g. "fab", "oc", "rec") and non-Latin shortcuts
+    const SKIP_ALIASES: &[&str] = &["fab", "oc", "rec", "watch", "merge-adapter",
+        "local-status", "doctor", "review"];
+
+    // Build set of canonical English names from catalog (valid targets for reverse-direction aliases)
+    let catalog_canonical_names: std::collections::HashSet<String> = catalog
+        .operations
+        .iter()
+        .filter_map(|op| op.canonical_name.clone())
+        .collect();
+
+    for alias in &lib_aliases {
+        if SKIP_ALIASES.contains(&alias.as_str()) {
+            continue;
+        }
+        // Only check aliases that look like proper nouns (single word ≥ 3 chars)
+        if alias.contains('-') || alias.len() < 3 {
+            continue;
+        }
+        // Allow if it's either in catalog latin_aliases OR is a canonical English name
+        // (lib.rs may use `visible_alias` to point clap to the English name as a redirect)
+        if catalog_aliases.contains(alias) || catalog_canonical_names.contains(alias) {
+            continue;
+        }
+        return Err(anyhow!(
+            "T069: lib.rs `visible_alias = \"{alias}\"` is not found in any operation's `latin_aliases` or `canonical_name` in the operations catalog — add it to the catalog or remove the alias"
+        ));
+    }
+
+    Ok(())
+}
+

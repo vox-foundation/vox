@@ -32,6 +32,8 @@ pub mod hollow_fn;
 pub mod unresolved_ref;
 /// Modules declared but never imported or wired into the build graph.
 pub mod unwired_module;
+/// Functions that are declared but not called anywhere in the crate.
+pub mod reachability;
 /// Heuristic `.unwrap()` in Rust (informational nudge).
 pub mod unwrap_call;
 /// Premature “done” comments or victory language without matching tests or implementation.
@@ -62,12 +64,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(line_endings::LineEndingDetector::new()),
         Box::new(scaling::ScalingSurfacesDetector::new()),
         Box::new(hollow_fn::HollowFnDetector::new()),
+        Box::new(reachability::ReachabilityDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    18
+    19
 }
 
 #[cfg(test)]
