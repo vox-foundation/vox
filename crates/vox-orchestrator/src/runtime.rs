@@ -184,6 +184,10 @@ impl TaskProcessor for AiTaskProcessor {
                     model: m.id.as_str(),
                 },
                 ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
+                ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Registry {
+                    backend: vox_ludus::LudusStreamBackend::OpenRouter,
+                    model: m.id.as_str(),
+                },
             }
         } else {
             vox_ludus::StreamRoute::Cascade

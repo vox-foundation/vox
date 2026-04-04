@@ -127,6 +127,10 @@ pub enum SecretId {
     VoxTelemetryUploadUrl,
     /// Bearer token for telemetry upload (paired with [`SecretId::VoxTelemetryUploadUrl`] when ingest requires auth).
     VoxTelemetryUploadToken,
+    /// Bearer token required on inbound `Authorization` header for the webhook ingress server.
+    WebhookIngressToken,
+    /// Shared HMAC secret for signing/verifying generic (non-GitHub/Discord/Slack) inbound webhook payloads.
+    WebhookSigningSecret,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -626,6 +630,26 @@ const SPECS: &[SecretSpec] = &[
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_ARXIV_ASSIST_HANDOFF_SECRET to gate operator arXiv handoff acks.",
     },
+    SecretSpec {
+        id: SecretId::WebhookIngressToken,
+        canonical_env: "VOX_WEBHOOK_INGRESS_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_WEBHOOK_INGRESS_TOKEN to require bearer auth on the webhook ingress server.",
+    },
+    SecretSpec {
+        id: SecretId::WebhookSigningSecret,
+        canonical_env: "VOX_WEBHOOK_SIGNING_SECRET",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_WEBHOOK_SIGNING_SECRET to enable HMAC verification for generic inbound webhook sources.",
+    },
 ];
 
 impl SecretId {
@@ -812,6 +836,9 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::PopuliApiKey
         | SecretId::VoxTelemetryUploadUrl
         | SecretId::VoxTelemetryUploadToken => &[Capability::AuxTools],
+        SecretId::WebhookIngressToken | SecretId::WebhookSigningSecret => {
+            &[Capability::RuntimeIngress]
+        }
     }
 }
 

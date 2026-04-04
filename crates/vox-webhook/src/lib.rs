@@ -16,6 +16,10 @@ pub mod handler;
 pub mod router;
 /// HMAC / digest signing helpers.
 pub mod signing;
+/// Bridge: routes broadcast webhook events into the orchestrator inbox.
+pub mod bridge;
+
+pub use bridge::{InboxItemKind, OrchestratorInboxItem, WebhookOrchestratorBridge};
 
 pub use channel::{Channel, ChannelEvent, ChannelKind, ChannelManager};
 pub use delivery::{OutboundWebhook, WebhookDelivery, WebhookDeliveryResult};

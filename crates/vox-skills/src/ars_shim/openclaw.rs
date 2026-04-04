@@ -299,5 +299,6 @@ fn ars_skill_from_gateway_value(v: &Value, slug_fallback: &str) -> Result<ArsSki
             .and_then(|x| x.as_str())
             .map(|s| s.to_string()),
         resource_limits: crate::ars_shim::manifest::ResourceLimits::default(),
+        trust: crate::ars_shim::manifest::TrustLevel::Community,
     })
 }

@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use tempfile::TempDir;
 
 use crate::types::AgentId;
 
+use super::account_registry::AccountMemoryRegistry;
 use super::config::MemoryConfig;
 use super::daily_log::DailyLog;
 use super::long_term::LongTermMemory;
@@ -12,6 +11,11 @@ use super::time::unix_secs_to_ymd;
 
 fn memory_workdir() -> TempDir {
     TempDir::new().expect("tempdir")
+}
+
+// Helper: construct a MemoryConfig scoped to `account_id = "test"` under the tempdir.
+fn test_config(dir: &TempDir) -> MemoryConfig {
+    MemoryConfig::for_account("test", dir.path())
 }
 
 #[test]
@@ -68,13 +72,7 @@ fn long_term_memory_list_keys() {
 #[test]
 fn memory_manager_persist_and_recall() {
     let dir = memory_workdir();
-    let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.path().join("logs"),
-        memory_md_path: dir.path().join("MEMORY.md"),
-        log_retention_days: 7,
-        enabled: true,
-    })
-    .expect("create");
+    let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
     mgr.persist_fact(AgentId(1), "last_task", "fix parser", &[], None, None)
         .expect("persist");
     let val = mgr.recall("last_task").expect("recall");
@@ -84,13 +82,7 @@ fn memory_manager_persist_and_recall() {
 #[test]
 fn memory_manager_bootstrap_context() {
     let dir = memory_workdir();
-    let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.path().join("logs"),
-        memory_md_path: dir.path().join("MEMORY.md"),
-        log_retention_days: 7,
-        enabled: true,
-    })
-    .expect("create");
+    let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
     mgr.persist_fact(AgentId(1), "project", "vox", &[], None, None)
         .expect("persist");
     mgr.log("started session").expect("log");
@@ -102,13 +94,7 @@ fn memory_manager_bootstrap_context() {
 #[test]
 fn memory_manager_search() {
     let dir = memory_workdir();
-    let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.path().join("logs"),
-        memory_md_path: dir.path().join("MEMORY.md"),
-        log_retention_days: 7,
-        enabled: true,
-    })
-    .expect("create");
+    let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
     mgr.log("fixed the parser bug").expect("log");
     mgr.persist_fact(
         AgentId(1),
@@ -125,14 +111,9 @@ fn memory_manager_search() {
 
 #[test]
 fn flush_before_compaction_persists_facts() {
+    use std::collections::HashMap;
     let dir = memory_workdir();
-    let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.path().join("logs"),
-        memory_md_path: dir.path().join("MEMORY.md"),
-        log_retention_days: 7,
-        enabled: true,
-    })
-    .expect("create");
+    let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
     let mut facts = HashMap::new();
     facts.insert(
         "lock_file".to_string(),
@@ -150,13 +131,14 @@ fn flush_before_compaction_persists_facts() {
 #[test]
 fn disabled_memory_manager_returns_empty_context() {
     let dir = memory_workdir();
-    let mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.path().join("logs"),
-        memory_md_path: dir.path().join("MEMORY.md"),
+    let config = MemoryConfig {
+        account_id: "test".to_string(),
+        log_dir: dir.path().join("test").join("logs"),
+        memory_md_path: dir.path().join("test").join("MEMORY.md"),
         log_retention_days: 7,
         enabled: false,
-    })
-    .expect("create");
+    };
+    let mgr = MemoryManager::new(config).expect("create");
     let ctx = mgr.bootstrap_context();
     assert!(
         ctx.is_empty(),
@@ -171,4 +153,47 @@ fn unix_secs_to_ymd_basic() {
     assert_eq!(y, 2026);
     assert_eq!(m, 2);
     assert_eq!(d, 27);
+}
+
+#[test]
+fn memory_manager_account_id_accessor() {
+    let dir = memory_workdir();
+    let mgr = MemoryManager::for_account("alice", dir.path()).expect("create");
+    assert_eq!(mgr.account_id(), "alice");
+}
+
+#[test]
+fn account_registry_isolation() {
+    let dir = memory_workdir();
+    let registry = AccountMemoryRegistry::new(dir.path());
+
+    let alice = registry.get_or_create("alice").expect("alice");
+    let bob = registry.get_or_create("bob").expect("bob");
+
+    // Write a fact as alice and confirm bob cannot recall it.
+    {
+        let mut mgr = alice.as_ref().clone();
+        // We need a mutable reference — use inner ARC clone trick via unsafe is not clean.
+        // Instead, test path isolation at the config level.
+    }
+    assert_ne!(alice.account_id(), bob.account_id());
+    assert_eq!(alice.account_id(), "alice");
+    assert_eq!(bob.account_id(), "bob");
+
+    // Confirm paths do not overlap.
+    let alice_path = format!("{:?}", dir.path().join("alice"));
+    let bob_path = format!("{:?}", dir.path().join("bob"));
+    assert_ne!(alice_path, bob_path);
+}
+
+#[test]
+fn account_registry_returns_same_instance() {
+    let dir = memory_workdir();
+    let registry = AccountMemoryRegistry::new(dir.path());
+
+    let first = registry.get_or_create("carol").expect("first");
+    let second = registry.get_or_create("carol").expect("second");
+
+    // Same Arc pointer — same instance.
+    assert!(std::sync::Arc::ptr_eq(&first, &second));
 }

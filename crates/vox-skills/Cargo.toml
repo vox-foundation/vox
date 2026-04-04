@@ -25,6 +25,7 @@ async-trait  = { workspace = true }
 futures-util = { workspace = true }
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 semver       = "1"
+vox-container = { path = "../vox-container" }
 
 [features]
 default = []

@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn parses_connect_request_fixture() {
         let raw =
-            include_str!("../../../contracts/openclaw/protocol/connect.request.operator.json");
+            include_str!("../../../../contracts/openclaw/protocol/connect.request.operator.json");
         let frame: GatewayRequest = serde_json::from_str(raw).expect("parse connect request");
         assert_eq!(frame.frame_type, "req");
         assert_eq!(frame.method, "connect");

@@ -22,6 +22,7 @@ fn sample_skill(id: &str) -> ArsSkill {
         author: Some("Test".to_string()),
         metadata: json!({}),
         kind: SkillKind::Document,
+        trust: vox_skills::ars_shim::manifest::TrustLevel::Community,
         body: Some("# SKILL.md\n---\n".to_string()),
         resource_limits: ResourceLimits::default(),
     }

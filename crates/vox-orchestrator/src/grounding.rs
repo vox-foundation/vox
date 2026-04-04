@@ -717,6 +717,7 @@ mod tests {
             verification_reason: None,
             recommended_next_action: None,
             retrieval_diagnosis: None,
+            fatigue_active: false,
         };
         let att = CompletionAttestation {
             completion_summary: Some(

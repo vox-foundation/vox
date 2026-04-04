@@ -70,9 +70,24 @@ impl MemoryManager {
         })
     }
 
-    /// Create with defaults (uses `./memory/` directory).
+    /// Create with defaults (uses `./memory/` directory, account `"global"`).
     pub fn with_defaults() -> Result<Self, MemoryError> {
         Self::new(MemoryConfig::default())
+    }
+
+    /// Convenience factory for a specific account under `base_dir`.
+    ///
+    /// Equivalent to `MemoryManager::new(MemoryConfig::for_account(account_id, base_dir))`.
+    pub fn for_account(
+        account_id: impl Into<String>,
+        base_dir: impl Into<std::path::PathBuf>,
+    ) -> Result<Self, MemoryError> {
+        Self::new(MemoryConfig::for_account(account_id, base_dir))
+    }
+
+    /// Return the `account_id` this manager is scoped to.
+    pub fn account_id(&self) -> &str {
+        &self.config.account_id
     }
 
     /// Attach a VoxDb for dual-write persistence (SSOT mode).
@@ -126,11 +141,15 @@ impl MemoryManager {
             let embed_svc = self.embedding_service.clone();
             let m_url = media_url.map(|s| s.to_string());
             let m_type = media_type.map(|s| s.to_string());
+            let account_id_str = self.config.account_id.clone();
 
             tokio::spawn(async move {
-                // 1. Save standard agent_memory fact
+                // 1. Save standard agent_memory fact (tagged with account_id for tenant filtering)
                 let fact_line = format!("{k}: {v}");
-                let fact_meta = format!("{{\"key\":\"{k}\"}}");
+                let fact_meta = format!(
+                    "{{\"key\":\"{k}\",\"account_id\":\"{acc}\"}}",
+                    acc = account_id_str
+                );
                 let _ = db
                     .save_memory(vox_db::SaveMemoryParams {
                         agent_id: &agent_str,

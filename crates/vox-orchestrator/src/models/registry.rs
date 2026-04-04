@@ -492,6 +492,7 @@ impl ModelRegistry {
                     | ProviderType::Mistral
                     | ProviderType::DeepSeek
                     | ProviderType::SambaNova
+                    | ProviderType::PopuliMesh
                     | ProviderType::Custom(_) => {
                         vox_runtime::llm::LlmConfig::openrouter(spec.id.clone())
                     }

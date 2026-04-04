@@ -17,7 +17,9 @@ mod search_hit;
 #[cfg(test)]
 mod tests;
 mod time;
+pub mod account_registry;
 
+pub use account_registry::AccountMemoryRegistry;
 pub use config::MemoryConfig;
 pub use daily_log::DailyLog;
 pub use error::MemoryError;

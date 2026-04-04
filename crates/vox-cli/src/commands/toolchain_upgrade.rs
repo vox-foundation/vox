@@ -668,6 +668,15 @@ fn install_candidate(
         &dest_dir,
         json_output,
     )?;
+
+    run_bootstrap_environment_check(
+        candidate,
+        auth,
+        target_triple,
+        &checksum_txt,
+        json_output,
+    )?;
+
     Ok(())
 }
 
@@ -690,23 +699,19 @@ fn maybe_install_openclaw_sidecar(
     } else {
         ".tar.gz"
     };
-    let sidecar_asset = find_sidecar_asset(checksum_txt, target_triple, ext);
-    let Some(sidecar_asset) = sidecar_asset else {
-        return Ok(());
-    };
+    let sidecar_asset = find_sidecar_asset(checksum_txt, target_triple, ext)
+        .ok_or_else(|| anyhow!("OpenClaw sidecar asset not found in release checksums. Set VOX_OPENCLAW_SIDECAR_DISABLE_ENV=1 to skip."))?;
 
     let mut base = candidate.asset.download_url.clone();
     if let Some(idx) = base.rfind('/') {
         base.truncate(idx + 1);
     }
     let sidecar_url = format!("{base}{sidecar_asset}");
-    let sidecar_bytes = match download_bytes(&sidecar_url, auth) {
-        Ok(b) => b,
-        Err(_) => return Ok(()),
-    };
-    if verify_checksum(&sidecar_bytes, checksum_txt, &sidecar_asset).is_err() {
-        return Ok(());
-    }
+    let sidecar_bytes = download_bytes(&sidecar_url, auth)
+        .map_err(|e| anyhow!("Failed to download OpenClaw sidecar: {e}"))?;
+
+    verify_checksum(&sidecar_bytes, checksum_txt, &sidecar_asset)
+        .map_err(|e| anyhow!("OpenClaw sidecar checksum verification failed: {e}"))?;
 
     let tmp = TempDir::new().map_err(|e| anyhow!("temp dir: {e}"))?;
     let archive_path = tmp.path().join(&sidecar_asset);
@@ -718,17 +723,14 @@ fn maybe_install_openclaw_sidecar(
     };
     let mut ex = Extract::from_source(&archive_path);
     ex.archive(archive_kind_for_asset_name(&sidecar_asset));
-    if ex.extract_file(tmp.path(), &sidecar_bin).is_err() {
-        return Ok(());
-    }
+    ex.extract_file(tmp.path(), &sidecar_bin).map_err(|e| anyhow!("Failed to extract OpenClaw sidecar: {e}"))?;
+
     let extracted = tmp.path().join(&sidecar_bin);
     let dest = dest_dir.join(&sidecar_bin);
-    if Move::from_source(extracted.as_path())
+    Move::from_source(extracted.as_path())
         .to_dest(dest.as_path())
-        .is_err()
-    {
-        return Ok(());
-    }
+        .map_err(|e| anyhow!("Failed to move OpenClaw sidecar to destination: {e}"))?;
+
     if !json_output {
         eprintln!("Installed OpenClaw sidecar: {}", dest.display());
     }
@@ -752,6 +754,113 @@ fn find_sidecar_asset(checksum_txt: &str, target_triple: &str, ext: &str) -> Opt
             .iter()
             .any(|prefix| file.starts_with(prefix))
         {
+            return Some(file);
+        }
+    }
+    None
+}
+
+fn run_bootstrap_environment_check(
+    candidate: &Candidate,
+    auth: &AuthTokens,
+    target_triple: &str,
+    checksum_txt: &str,
+    json_output: bool,
+) -> Result<()> {
+    let ext = if cfg!(target_os = "windows") {
+        ".zip"
+    } else {
+        ".tar.gz"
+    };
+
+    let bootstrap_asset = find_bootstrap_asset(checksum_txt, target_triple, ext);
+    let Some(bootstrap_asset) = bootstrap_asset else {
+        return Ok(());
+    };
+
+    let mut base = candidate.asset.download_url.clone();
+    if let Some(idx) = base.rfind('/') {
+        base.truncate(idx + 1);
+    }
+    let bg_url = format!("{base}{bootstrap_asset}");
+    let bg_bytes = match download_bytes(&bg_url, auth) {
+        Ok(b) => b,
+        Err(e) => {
+            if !json_output {
+                eprintln!("note: could not download vox-bootstrap to perform env check: {e}");
+            }
+            return Ok(());
+        }
+    };
+
+    if verify_checksum(&bg_bytes, checksum_txt, &bootstrap_asset).is_err() {
+        if !json_output {
+            eprintln!("note: vox-bootstrap checksum verification failed, skipping env check");
+        }
+        return Ok(());
+    }
+
+    let tmp = TempDir::new().map_err(|e| anyhow!("temp dir: {e}"))?;
+    let archive_path = tmp.path().join(&bootstrap_asset);
+    std::fs::write(&archive_path, &bg_bytes).map_err(|e| anyhow!(e))?;
+    let bg_bin = if cfg!(target_os = "windows") {
+        "vox-bootstrap.exe"
+    } else {
+        "vox-bootstrap"
+    };
+
+    let mut ex = Extract::from_source(&archive_path);
+    ex.archive(archive_kind_for_asset_name(&bootstrap_asset));
+    if ex.extract_file(tmp.path(), bg_bin).is_err() {
+        return Ok(());
+    }
+
+    let extracted = tmp.path().join(bg_bin);
+
+    let output = std::process::Command::new(&extracted)
+        .args(["plan"])
+        .output();
+
+    match output {
+        Ok(out) => {
+            if !out.status.success() {
+                if !json_output {
+                    let heal_script = if cfg!(target_os = "windows") {
+                        ".\\scripts\\install.ps1 -Apply"
+                    } else {
+                        "./scripts/install.sh --apply"
+                    };
+                    eprintln!("\n{}", "=".repeat(60));
+                    eprintln!("WARNING: ENVIRONMENTAL DRIFT DETECTED");
+                    eprintln!("{}", "=".repeat(60));
+                    eprintln!("The newly installed version of Vox requires system dependencies");
+                    eprintln!("that are either missing or outdated on your machine.");
+                    eprintln!("\nPlease run the following command to self-heal your environment:");
+                    eprintln!("    {}", heal_script);
+                    eprintln!("{}\n", "=".repeat(60));
+                }
+            }
+        }
+        Err(_) => {}
+    }
+
+    Ok(())
+}
+
+fn find_bootstrap_asset(checksum_txt: &str, target_triple: &str, ext: &str) -> Option<String> {
+    for line in checksum_txt.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(_hash) = parts.next() else {
+            continue;
+        };
+        let Some(path) = parts.next() else {
+            continue;
+        };
+        let file = path.rsplit('/').next().unwrap_or(path).to_string();
+        if !file.contains(target_triple) || !file.ends_with(ext) {
+            continue;
+        }
+        if file.starts_with("vox-bootstrap-") {
             return Some(file);
         }
     }
