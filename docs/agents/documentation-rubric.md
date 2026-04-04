@@ -7,10 +7,10 @@ Use this rubric when improving comments, rustdoc, or prose docs so edits stay al
 | Source | Use for |
 |--------|---------|
 | [AGENTS.md](../../AGENTS.md) | Architecture, terminology, `missing_docs` policy, Codex naming, and **doc `last_updated`** (use the session’s real calendar date — e.g. Cursor `<user_info>` “Today’s date” — never a future day relative to it) |
-| [docs/src/style-guide.md](../src/style-guide.md) | Voice, snippets, headings, cross-links |
+| [docs/src/reference/style-guide.md](../src/reference/style-guide.md) | Voice, snippets, headings, cross-links |
 | [docs/src/adr/002-diataxis-doc-architecture.md](../src/adr/002-diataxis-doc-architecture.md) | Doc taxonomy, **required frontmatter**, `training_eligible` |
 | [docs/src/adr/004-codex-arca-turso-ssot.md](../src/adr/004-codex-arca-turso-ssot.md) | Codex / Arca / Turso / env vars |
-| [docs/src/architecture/external-repositories-ssot.md](../src/architecture/external-repositories-ssot.md) | Repository id, layout, multi-repo wording |
+| [docs/src/reference/external-repositories.md](../src/reference/external-repositories.md) | Repository id, layout, multi-repo wording |
 | [docs/agents/governance.md](governance.md) | Review expectations, TOESTUB-sensitive patterns |
 
 ## What to keep

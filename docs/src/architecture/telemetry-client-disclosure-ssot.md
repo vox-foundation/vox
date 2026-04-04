@@ -15,7 +15,7 @@ Users and enterprises evaluate Vox on **what leaves the machine** and **what is 
 
 ## Naming collision: webview `telemetry` tab
 
-The VS Code webview registers a sidebar tab with id **`telemetry`** ([`vox-vscode/webview-ui/src/index.tsx`](../../../vox-vscode/webview-ui/src/index.tsx)) that shows **local** dashboard-style content (for example [`Dashboard.tsx`](../../../vox-vscode/webview-ui/src/components/Dashboard.tsx)), not a remote analytics pipeline.
+The VS Code webview sidebar ([`vox-vscode/webview-ui/src/index.tsx`](../../../vox-vscode/webview-ui/src/index.tsx)) shows **local** dashboard-style content (for example [`UnifiedDashboard.tsx`](../../../vox-vscode/webview-ui/src/components/UnifiedDashboard.tsx)), not a remote analytics pipeline.
 
 **Implementation rule:** user-facing copy MUST distinguish:
 

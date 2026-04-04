@@ -18,7 +18,7 @@ This page is the **contributor SSOT** for what “put `@mcp.tool` on Vox code an
 | --- | --- | --- |
 | `@mcp.tool` on `.vox` source causes the compiler to emit an MCP-capable **stdio JSON-RPC** server for **that generated crate** | **Yes** | See [Generated app path](#generated-app-path-vox--compiler). |
 | The same decorator **automatically** registers tools into the shipped **`vox-mcp`** binary every editor uses | **No** | `vox-mcp` uses a **separate** YAML registry and hand-wired Rust; see [First-party vox-mcp path](#first-party-vox-mcp-path). |
-| `@mcp.resource` is implemented in the core lexer/parser/codegen | **Yes** | [`@mcp.resource`](../../api/decorators/mcp_resource.md): nullary fn, exact URI match; `resources/list` + `resources/read` in generated `mcp_server.rs`. |
+| `@mcp.resource` is implemented in the core lexer/parser/codegen | **Yes** | [`@mcp.resource`](../api/decorators/mcp_resource.md): nullary fn, exact URI match; `resources/list` + `resources/read` in generated `mcp_server.rs`. |
 
 If marketing or tutorials imply a single global “drop a decorator and Cursor sees it,” that is **not** accurate until the [Roadmap: delivering the zero-wiring promise](#roadmap-delivering-the-zero-wiring-promise) items land.
 

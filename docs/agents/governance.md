@@ -11,7 +11,7 @@ bash scripts/quality/toestub_scoped.sh                    # default root: crates
 cargo run -p vox-toestub --bin toestub -- <PATH>         # explicit scan root
 ```
 
-**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`cli.md`](../reference/cli.md#vox-stub-check-feature-stub-check)):
+**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`cli.md`](../src/reference/cli.md#vox-stub-check-feature-stub-check)):
 
 ```bash
 cargo build -p vox-cli --features stub-check
@@ -20,7 +20,7 @@ vox stub-check --severity error            # only errors and critical
 # Fix suggestions: `--suggest-fixes` (default true); there is no `--fix` flag
 ```
 
-GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in `ref-cli.md`).
+GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`ref-cli.md`](../src/ref-cli.md)).
 
 ## Enforced Rules
 

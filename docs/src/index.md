@@ -15,8 +15,8 @@ difficulty: "beginner"
   <h1>Vox Programming Language</h1>
   <p class="subtitle">One language for application structure, with Rust and TypeScript outputs and explicit repository contracts.</p>
   <div class="vox-cta-container">
-    <a href="tutorials/tut-getting-started.html" class="vox-cta primary">Get Started</a>
-    <a href="explanation/faq.html" class="vox-cta secondary">Read the FAQ</a>
+    <a href="tutorials/tut-getting-started.md" class="vox-cta primary">Get Started</a>
+    <a href="explanation/faq.md" class="vox-cta secondary">Read the FAQ</a>
     <a href="https://github.com/vox-foundation/vox" class="vox-cta secondary">GitHub</a>
   </div>
 </div>
