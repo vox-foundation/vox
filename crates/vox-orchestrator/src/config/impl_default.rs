@@ -80,6 +80,7 @@ impl Default for OrchestratorConfig {
                 default_populi_remote_worker_poll_interval_secs(),
             populi_remote_lease_gating_enabled: default_false(),
             populi_remote_lease_gated_roles: Vec::new(),
+            populi_remote_lease_timeout_ms: default_populi_remote_lease_timeout_ms(),
             chatml_strict: default_false(),
             planning_enabled: default_false(),
             planning_router_enabled: default_false(),

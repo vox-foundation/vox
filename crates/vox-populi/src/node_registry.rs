@@ -39,6 +39,9 @@ pub struct NodeRecord {
     /// Privacy class advertised by this node (`public_ok`, `trusted_only`, …).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub privacy_class: Option<String>,
+    /// Advertised models loaded into VRAM on this node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loaded_llm_models: Option<Vec<String>>,
     /// When true, scheduler should not place new work here (drain-only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub maintenance: Option<bool>,

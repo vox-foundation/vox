@@ -69,6 +69,8 @@ pub enum ProviderType {
     OpenRouter,
     /// Local Ollama instance (localhost:11434)
     Ollama,
+    /// Populi Remote mesh endpoint
+    PopuliMesh,
     /// Groq LPU endpoint
     Groq,
     /// Cerebras endpoint
@@ -94,6 +96,7 @@ pub enum ModelRouteBackend {
     GeminiDirect,
     OpenRouter,
     Ollama,
+    PopuliMesh,
     CascadeFallback,
 }
 
@@ -102,6 +105,7 @@ pub enum ModelRouteBackend {
 pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
     match spec.provider_type {
         ProviderType::Ollama => ModelRouteBackend::Ollama,
+        ProviderType::PopuliMesh => ModelRouteBackend::PopuliMesh,
         ProviderType::GoogleDirect => ModelRouteBackend::GeminiDirect,
         ProviderType::OpenRouter => ModelRouteBackend::OpenRouter,
         ProviderType::Groq
@@ -141,6 +145,10 @@ impl ModelSpec {
             }
             ProviderType::Ollama => LlmUsageKey {
                 provider: "ollama".to_string(),
+                model: "*".to_string(),
+            },
+            ProviderType::PopuliMesh => LlmUsageKey {
+                provider: "mens".to_string(),
                 model: "*".to_string(),
             },
             ProviderType::Groq => LlmUsageKey {

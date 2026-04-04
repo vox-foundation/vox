@@ -398,6 +398,9 @@ impl crate::orchestrator::Orchestrator {
         // 7. Persistence degradation outbox: prune / retry accounting
         self.tick_persistence_outbox_lifecycle().await;
 
+        // 7b. Populi remote lease watchdog: authoritative recovery
+        self.tick_populi_remote_lease_watchdog();
+
         // 8. News Syndication check
         #[cfg(feature = "news-publish")]
         if let Err(e) = crate::services::news::NewsService::tick(self).await {

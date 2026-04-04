@@ -25,6 +25,8 @@ pub enum ChatRouteBackend {
     OpenRouter,
     /// Local Ollama / Mens (`PopuliLocal`).
     Ollama,
+    /// Remote Populi mesh node over LAN.
+    PopuliMesh,
     /// Aggregators, dedicated endpoints, BYOK OpenAI-compatible, and other non-native lanes.
     CascadeFallback,
 }
@@ -34,6 +36,7 @@ pub enum ChatRouteBackend {
 pub fn route_backend_for_chat_route(route: &ChatProviderRouteKind) -> ChatRouteBackend {
     match route {
         ChatProviderRouteKind::PopuliLocal { .. } => ChatRouteBackend::Ollama,
+        ChatProviderRouteKind::PopuliMesh { .. } => ChatRouteBackend::PopuliMesh,
         ChatProviderRouteKind::OpenRouter { .. } => ChatRouteBackend::OpenRouter,
         ChatProviderRouteKind::ManualOpenAiCompatible { base_url, .. } => {
             if base_url_looks_like_gemini_direct(base_url) {
@@ -60,6 +63,7 @@ pub fn backend_telemetry_labels(backend: ChatRouteBackend) -> (&'static str, &'s
         ChatRouteBackend::GeminiDirect => ("google", "direct"),
         ChatRouteBackend::OpenRouter => ("openrouter", "openrouter"),
         ChatRouteBackend::Ollama => ("mens", "populi_local"),
+        ChatRouteBackend::PopuliMesh => ("mens", "populi_mesh"),
         ChatRouteBackend::CascadeFallback => ("custom", "cascade"),
     }
 }
@@ -81,6 +85,11 @@ pub enum ChatProviderRouteKind {
         /// Mens/Ollama server base URL (no `/v1/...` suffix).
         base_url: String,
         /// Model name as reported by `/api/tags`.
+        model: String,
+    },
+    /// Remote mesh node API.
+    PopuliMesh {
+        base_url: String,
         model: String,
     },
     /// Hugging Face Inference Providers router (OpenAI-compatible).
@@ -285,7 +294,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             response_format: None,
             timeout_ms: None,
         },
-        ChatProviderRouteKind::PopuliLocal { base_url, model } => {
+        ChatProviderRouteKind::PopuliLocal { base_url, model } | ChatProviderRouteKind::PopuliMesh { base_url, model } => {
             let base = base_url.trim_end_matches('/');
             LlmConfig {
                 provider: "ollama".to_string(),

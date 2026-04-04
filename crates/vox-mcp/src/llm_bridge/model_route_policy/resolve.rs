@@ -140,6 +140,7 @@ pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, 
         ProviderType::GoogleDirect => ChatRouteBackend::GeminiDirect,
         ProviderType::OpenRouter => ChatRouteBackend::OpenRouter,
         ProviderType::Ollama => ChatRouteBackend::Ollama,
+        ProviderType::PopuliMesh => ChatRouteBackend::PopuliMesh,
         ProviderType::Groq
         | ProviderType::Cerebras
         | ProviderType::Mistral

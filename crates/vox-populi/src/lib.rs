@@ -248,6 +248,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         trust_tier: None,
         workload_classes: None,
         privacy_class: None,
+        loaded_llm_models: None,
         maintenance: None,
         maintenance_until_unix_ms: None,
         provider: None,

@@ -166,3 +166,7 @@ pub(super) fn default_repo_reduce_conflict_cooldown_penalty() -> f64 {
 pub(super) fn default_repo_reduce_conflict_cooldown_ms() -> u64 {
     default_idle_retirement()
 }
+
+pub(super) fn default_populi_remote_lease_timeout_ms() -> u64 {
+    300_000
+}
