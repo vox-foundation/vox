@@ -102,6 +102,8 @@ const incomingSchema = z.union([
     }),
     z.object({ type: z.literal('ludusAckAllNotifications') }),
     z.object({ type: z.literal('ludusRefreshSnapshot') }),
+    z.object({ type: z.literal('runTerminalCommand'), value: z.string() }),
+    z.object({ type: z.literal('restartMcpServer') }),
 ]);
 
 export type WebviewToHostMessage =
@@ -151,7 +153,9 @@ export type WebviewToHostMessage =
     | { type: 'agentDrain'; agentId: number }
     | { type: 'ludusAckNotification'; notificationId: string }
     | { type: 'ludusAckAllNotifications' }
-    | { type: 'ludusRefreshSnapshot' };
+    | { type: 'ludusRefreshSnapshot' }
+    | { type: 'runTerminalCommand'; value: string }
+    | { type: 'restartMcpServer' };
 
 export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
     const r = incomingSchema.safeParse(raw);
@@ -286,6 +290,10 @@ export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
             return { type: 'ludusAckAllNotifications' };
         case 'ludusRefreshSnapshot':
             return { type: 'ludusRefreshSnapshot' };
+        case 'runTerminalCommand':
+            return { type: 'runTerminalCommand', value: typeof o.value === 'string' ? o.value : '' };
+        case 'restartMcpServer':
+            return { type: 'restartMcpServer' };
         default:
             return null;
     }

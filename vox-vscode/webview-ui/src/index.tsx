@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MessageSquare, LayoutDashboard, Activity as ActivityIcon, Settings2, Sparkles, Terminal } from 'lucide-react';
+import { MessageSquare, Crown, Network, Hammer, Settings2, Sparkles, Terminal, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import './index.css';
+
 import { getVsCodeApi } from './utils/vscode';
 import { parseHostToWebviewMessage } from '../../src/protocol/hostToWebviewMessages';
 import type { ChatSessionMeta, ComposerState, WorkspaceInspectorState } from '../../src/types';
@@ -13,16 +13,17 @@ import type { ChatSessionMeta, ComposerState, WorkspaceInspectorState } from '..
 import { UnifiedDashboard } from './components/UnifiedDashboard';
 import { EngineeringDiagnostics } from './components/EngineeringDiagnostics';
 import { ComposerPanel } from './components/ComposerPanel';
+import { MeshTopology } from './components/MeshTopology';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeBlock } from './components/CodeBlock';
 
 const vscode = getVsCodeApi();
 
-type TabId = 'dashboard' | 'chat' | 'diagnostics';
+type TabId = 'speak' | 'command' | 'network' | 'forge';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('chat');
+  const [activeTab, setActiveTab] = useState<TabId>('speak');
   
   // Data states
   const [voxStatus, setVoxStatus] = useState<any>(null);
@@ -132,7 +133,7 @@ function App() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
+      case 'command':
         return (
             <UnifiedDashboard 
                 ops={oplog} 
@@ -140,10 +141,16 @@ function App() {
                 pipeline={pipeline} 
                 budgetHistory={budgetHistory} 
                 ludusSnapshot={ludusSnapshot} 
-                meshTopology={meshStatus} 
+                meshTopology={undefined} 
             />
         );
-      case 'diagnostics':
+      case 'network':
+        return (
+            <div className="w-full h-full p-4 relative text-foreground">
+                <MeshTopology meshTopology={meshStatus} />
+            </div>
+        );
+      case 'forge':
         return (
             <EngineeringDiagnostics 
                 tasks={tasks} 
@@ -156,44 +163,58 @@ function App() {
                 inspectorState={inspectorState} 
             />
         );
-      case 'chat':
+      case 'speak':
         return (
-          <div className="flex flex-col h-full min-h-0 p-4 gap-3 text-[var(--vscode-editor-foreground)]">
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold tracking-tight">Vox Assistant</h2>
-                <button 
-                   onClick={() => setComposerVisible(!composerVisible)}
-                   className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-widest border border-[var(--vscode-button-border)] flex items-center gap-1 transition-all ${composerVisible ? 'bg-[var(--vscode-charts-blue)] text-white' : 'bg-[var(--vscode-button-secondaryBackground)]'}`}
-                >
-                    <Sparkles size={12} /> Composer
-                </button>
+          <div className="flex flex-col h-full min-h-0 p-4 gap-4 text-foreground relative z-10 w-full">
+            <div className="flex items-center justify-between pb-2 border-b border-border border-opacity-50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-rajdhani text-brass tracking-wider">LOQUELA</h2>
+                  <div className="px-2 py-0.5 rounded bg-machine border border-border text-[9px] font-mono text-steel uppercase tracking-widest hidden sm:block">
+                    Vocal Synthesis Active
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                     title="Oratio Microphone"
+                     className="w-8 h-8 rounded-full border border-copper bg-machine flex items-center justify-center text-primary shadow-[0_0_8px_var(--vox-amber-glow)] hover:bg-primary hover:bg-opacity-20 transition-all cursor-pointer"
+                  >
+                      <Mic size={14} />
+                  </button>
+                  <button 
+                     onClick={() => setComposerVisible(!composerVisible)}
+                     className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest border flex items-center gap-1.5 transition-all ${composerVisible ? 'bg-primary text-black border-primary shadow-[0_0_10px_var(--vox-amber-glow)]' : 'bg-machine text-brass border-border hover:border-copper'}`}
+                  >
+                      <Sparkles size={12} className={composerVisible ? 'text-black' : 'text-primary'} /> {composerVisible ? 'COMPOSER ACTIVE' : 'COMPOSER'}
+                  </button>
+                </div>
             </div>
 
             {composerVisible && composerState && (
-                <div className="shrink-0 h-[300px] border border-[var(--vscode-panel-border)] rounded-xl overflow-hidden relative shadow-lg z-10 bg-[var(--vscode-editor-background)]">
+                <div className="shrink-0 h-[300px] border border-cyan rounded-xl overflow-hidden relative shadow-[0_0_15px_var(--vox-cyan-glow)] z-20 bg-surface">
                    <ComposerPanel composerState={composerState} />
                 </div>
             )}
 
-            <div className="rounded-xl border border-[var(--vscode-panel-border)] p-3 bg-[var(--vscode-editorWrapper-background)]">
+            <div className="rounded-xl border border-border p-3 bg-machine shadow-[inset_0_4px_10px_rgba(0,0,0,0.5)] shrink-0">
               <div className="flex flex-wrap items-center gap-2">
                 <input
-                  className="rounded border border-[var(--vscode-input-border)] bg-[var(--vscode-input-background)] p-1 px-2 text-xs text-[var(--vscode-input-foreground)] outline-none w-32"
+                  className="rounded border border-border bg-void p-1 px-2 text-xs text-foreground outline-none w-32 focus:border-cyan focus:shadow-[0_0_5px_var(--vox-cyan-glow)] transition-all font-mono"
                   value={chatSessionId}
                   onChange={(event) => setChatSessionId(event.target.value)}
                   placeholder="session id"
                 />
                 <select
-                  className="rounded border border-[var(--vscode-dropdown-border)] bg-[var(--vscode-dropdown-background)] p-1 px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none"
+                  className="rounded border border-border bg-void p-1 px-2 text-xs text-brass outline-none focus:border-cyan uppercase tracking-wider font-bold"
                   value={chatProfile}
                   onChange={(event) => setChatProfile(event.target.value as 'fast' | 'reasoning' | 'creative')}
                 >
-                  <option value="fast">Fast</option>
-                  <option value="reasoning">Reasoning</option>
-                  <option value="creative">Creative</option>
+                  <option value="fast">FAST</option>
+                  <option value="reasoning">REASONING</option>
+                  <option value="creative">CREATIVE</option>
                 </select>
-                <span className="text-[11px] opacity-60 font-mono">
-                  {chatMeta?.model_used ? chatMeta.model_used : 'model auto'}
+                <span className="text-[10px] text-cyan font-mono px-2 py-0.5 rounded border border-cyan border-opacity-30 bg-cyan border-opacity-10 ml-auto flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse"></span>
+                  {chatMeta?.model_used ? chatMeta.model_used : 'MENS: AUTO'}
                   {typeof chatMeta?.tokens === 'number' ? ` · ${chatMeta.tokens} tok` : ''}
                 </span>
               </div>
@@ -202,10 +223,10 @@ function App() {
                   <button
                     key={file}
                     type="button"
-                    className={`px-2 py-1 rounded-full border text-[10px] uppercase font-bold tracking-widest transition-colors ${
+                    className={`px-2 py-1 rounded border text-[10px] font-mono tracking-wide transition-colors ${
                       pinnedFiles.includes(file)
-                        ? 'bg-[var(--vscode-charts-blue)] bg-opacity-20 border-[var(--vscode-charts-blue)] text-[var(--vscode-textLink-foreground)]'
-                        : 'bg-[var(--vscode-editor-background)] border-[var(--vscode-panel-border)] opacity-60'
+                        ? 'bg-cyan bg-opacity-10 border-cyan text-cyan hover:bg-opacity-20 shadow-[0_0_5px_var(--vox-cyan-glow)]'
+                        : 'bg-void border-border text-steel hover:text-foreground hover:bg-surface'
                     }`}
                     onClick={() => togglePinnedFile(file)}
                   >
@@ -215,13 +236,13 @@ function App() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1">
+            <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pr-2 pb-2 custom-scrollbar">
               {planAdequacyQuestions.length > 0 && (
-                <div className="p-4 rounded-lg border border-[var(--vscode-editorWarning-foreground)] bg-yellow-500/10">
-                  <h3 className="text-[var(--vscode-editorWarning-foreground)] font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-                    Clarification Required
+                <div className="p-4 rounded-lg border border-copper bg-copper bg-opacity-10">
+                  <h3 className="text-primary font-rajdhani text-sm uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-primary animate-pulse" /> CLARIFICATION REQUIRED
                   </h3>
-                  <ul className="list-disc pl-5 text-[11px] opacity-90 space-y-1">
+                  <ul className="list-disc pl-5 text-[11px] text-zinc-300 space-y-1 font-mono">
                     {planAdequacyQuestions.map((q, i) => (
                       <li key={i}>{q}</li>
                     ))}
@@ -229,23 +250,23 @@ function App() {
                 </div>
               )}
               {chatMessages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full opacity-40 gap-4">
-                     <MessageSquare size={48} />
-                     <p className="text-xs uppercase font-bold tracking-widest">Awaiting Prompt</p>
+                <div className="flex flex-col items-center justify-center h-full opacity-30 gap-4 group">
+                     <MessageSquare size={48} className="text-steel group-hover:text-primary transition-colors" />
+                     <p className="text-xs uppercase font-rajdhani tracking-widest text-steel group-hover:text-brass transition-colors">Awaiting Directives</p>
                 </div>
               ) : (
                 chatMessages.map((message: any) => {
                   const streaming = Boolean(message.is_streaming || message.isStreaming);
                   const body = typeof message.content === 'string' && message.content.length > 0 ? message.content : streaming ? '...' : '';
                   return (
-                    <div key={String(message.id)} className="rounded-xl border border-[var(--vscode-panel-border)] p-4 bg-[var(--vscode-editor-background)] text-sm shadow-sm">
-                      <div className="text-[10px] uppercase font-bold tracking-widest opacity-60 mb-3 flex items-center justify-between border-b border-[var(--vscode-panel-border)] pb-2">
-                        <span className="flex items-center gap-2"><Terminal size={12}/> {message.role}</span>
+                    <div key={String(message.id)} className="rounded-xl border border-border p-4 bg-surface text-sm shadow-md">
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-brass mb-3 flex items-center justify-between border-b border-border border-opacity-50 pb-2">
+                        <span className="flex items-center gap-2"><Terminal size={12} className="text-steel"/> {message.role}</span>
                         {Array.isArray(message.context_files) && message.context_files.length > 0 ? (
-                          <span>{message.context_files.length} context attached</span>
+                          <span className="text-steel font-mono">{message.context_files.length} ctx</span>
                         ) : null}
                       </div>
-                      <div className="chat-markdown prose prose-invert prose-sm max-w-none text-[var(--vscode-editor-foreground)]">
+                      <div className="chat-markdown prose prose-invert prose-sm max-w-none text-zinc-300">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
@@ -253,9 +274,9 @@ function App() {
                               const lang = /language-(\w+)/.exec(className ?? '')?.[1] ?? 'text';
                               const text = String(children);
                               if (text.includes('\n') || className?.startsWith('language-')) {
-                                return <CodeBlock code={text.trimEnd()} lang={lang} />;
+                                return <div className="border border-border/50 rounded-md overflow-hidden my-2"><CodeBlock code={text.trimEnd()} lang={lang} /></div>;
                               }
-                              return <code className={`px-1 py-0.5 rounded bg-[var(--vscode-textCodeBlock-background)] text-[var(--vscode-textPreformat-foreground)] ${className}`} {...props}>{children}</code>;
+                              return <code className={`px-1.5 py-0.5 rounded bg-machine border border-border/50 text-cyan font-mono text-[11px] ${className}`} {...props}>{children}</code>;
                             },
                           }}
                         >
@@ -268,9 +289,9 @@ function App() {
               )}
             </div>
 
-            <div className="shrink-0 p-1">
+            <div className="shrink-0 pt-2 shrink-0">
               <form
-                className="flex flex-col gap-2 rounded-xl border border-[var(--vscode-input-border)] bg-[var(--vscode-input-background)] p-1 shadow focus-within:border-[var(--vscode-focusBorder)] transition-colors"
+                className="flex flex-col gap-2 rounded-xl border border-border bg-machine p-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus-within:border-primary focus-within:shadow-[0_0_8px_var(--vox-amber-glow)] transition-all"
                 onSubmit={(event) => {
                   event.preventDefault();
                   const value = chatInput.trim();
@@ -288,8 +309,8 @@ function App() {
                 }}
               >
                 <textarea
-                  className="w-full min-h-[64px] border-none bg-transparent p-2 text-sm resize-y outline-none text-[var(--vscode-input-foreground)] placeholder-[var(--vscode-input-placeholderForeground)]"
-                  placeholder="Message Vox..."
+                  className="w-full min-h-[64px] border-none bg-transparent p-2 text-sm resize-y outline-none text-foreground placeholder-steel opacity-80 focus:opacity-100"
+                  placeholder="Initiate vox interaction sequence..."
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
                   onKeyDown={(event) => {
@@ -301,9 +322,9 @@ function App() {
                 />
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] text-[11px] font-bold uppercase tracking-widest shrink-0 self-end hover:bg-[var(--vscode-button-hoverBackground)]"
+                  className="px-6 py-2 rounded bg-primary text-black font-rajdhani text-sm font-bold uppercase tracking-widest shrink-0 self-end hover:bg-amber-400 border border-transparent hover:border-black shadow-md shadow-[0_0_5px_var(--vox-amber-glow)] transition-all"
                 >
-                  Confirm
+                  EXECUTE
                 </button>
               </form>
             </div>
@@ -316,30 +337,49 @@ function App() {
 
   const tabs = useMemo(
     () => [
-      { id: 'chat' as const, icon: <MessageSquare size={18} /> },
-      { id: 'dashboard' as const, icon: <LayoutDashboard size={18} /> },
-      { id: 'diagnostics' as const, icon: <ActivityIcon size={18} /> },
+      { id: 'speak' as const, label: 'SPEAK', subtitle: 'Loquela', icon: <MessageSquare size={18} /> },
+      { id: 'command' as const, label: 'COMMAND', subtitle: 'Imperium', icon: <Crown size={18} /> },
+      { id: 'network' as const, label: 'NETWORK', subtitle: 'Rete', icon: <Network size={18} /> },
+      { id: 'forge' as const, label: 'FORGE', subtitle: 'Fabrica', icon: <Hammer size={18} /> },
     ],
     [],
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden vox-root bg-[var(--vscode-editor-background)] text-[var(--vscode-editor-foreground)]">
-      <aside className="vox-nav-rail w-12 shrink-0 border-r border-[var(--vscode-sideBarSectionHeader-border)] flex flex-col items-center py-4 gap-3 z-50 bg-[var(--vscode-sideBar-background)]">
-        {tabs.map((tab) => (
-          <NavIcon key={tab.id} icon={tab.icon} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} />
-        ))}
-        <div className="mt-auto flex flex-col gap-3 mb-2">
-          <NavIcon icon={<Settings2 size={16} />} onClick={() => vscode.postMessage({ type: 'pickModel' })} />
-          <div className="w-6 h-6 rounded-md bg-[var(--vscode-textLink-foreground)] bg-opacity-10 border border-[var(--vscode-textLink-foreground)] flex items-center justify-center text-[var(--vscode-textLink-foreground)] text-[10px] font-bold">V</div>
+    <div className="flex h-screen w-screen overflow-hidden vox-root bg-background text-foreground">
+      <aside className="vox-nav-rail w-[72px] shrink-0 border-r border-border border-opacity-30 flex flex-col items-center py-4 gap-4 z-50 bg-secondary">
+        <div className="flex flex-col gap-6 w-full px-2">
+          {tabs.map((tab) => (
+            <NavIcon key={tab.id} icon={tab.icon} label={tab.label} subtitle={tab.subtitle} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} />
+          ))}
+        </div>
+        <div className="mt-auto flex flex-col items-center gap-6 mb-4">
+          <button 
+            onClick={() => vscode.postMessage({ type: 'pickModel' })}
+            className="text-steel opacity-60 hover:opacity-100 transition-opacity flex flex-col items-center gap-1"
+            title="Settings / Praecepta"
+          >
+            <Settings2 size={20} />
+          </button>
+          
+          <div className="flex flex-col items-center gap-1 cursor-pointer group" title={ludusSnapshot?.kpi ? `Level ${ludusSnapshot.kpi.level_number || 1} — ${ludusSnapshot.kpi.total_xp || 0} XP` : "Genius Tracker"}>
+            <div className="relative w-10 h-10 rounded-full flex items-center justify-center bg-machine border border-copper shadow-[0_0_15px_var(--vox-amber-glow)] group-hover:scale-110 transition-transform">
+              <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin-slow opacity-70" style={{ animationDuration: '3s' }} />
+              {ludusSnapshot?.kpi ? (
+                 <span className="text-primary font-rajdhani font-bold text-lg tracking-wider drop-shadow-[0_0_5px_var(--vox-amber-glow)]">{ludusSnapshot.kpi.level_number || 'I'}</span>
+              ) : (
+                 <span className="text-primary font-rajdhani font-bold text-sm tracking-wider">V</span>
+              )}
+            </div>
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 relative overflow-hidden flex flex-col min-w-0">
+      <main className="flex-1 relative overflow-hidden flex flex-col min-w-0 bg-background bg-opacity-50">
         <div
           role="status"
           aria-live="polite"
-          className="vox-exec-hint text-[10px] px-3 py-1 font-mono border-b border-[var(--vscode-panel-border)] shrink-0 opacity-80"
+          className="vox-exec-hint text-[10px] px-3 py-1 font-mono border-b border-border border-opacity-30 shrink-0 text-steel opacity-80 bg-background"
         >
           {execHint}
           {capabilities?.db_configured === false ? ' · events: transient' : ''}
@@ -352,9 +392,9 @@ function App() {
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.15 }}
             className="flex-1 min-h-0 w-full"
           >
@@ -366,16 +406,22 @@ function App() {
   );
 }
 
-const NavIcon = ({ icon, active, onClick }: any) => (
+const NavIcon = ({ icon, label, subtitle, active, onClick }: any) => (
   <button
     onClick={onClick}
-    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors relative ${
+    className={`w-full flex flex-col items-center justify-center p-2 rounded transition-all relative group ${
       active 
-        ? 'bg-[var(--vscode-textLink-activeForeground)] bg-opacity-20 text-[var(--vscode-textLink-foreground)] border border-[var(--vscode-textLink-foreground)]' 
-        : 'text-[var(--vscode-icon-foreground)] opacity-60 hover:opacity-100 hover:bg-[var(--vscode-list-hoverBackground)]'
+        ? 'text-primary bg-primary bg-opacity-10 border border-copper shadow-[inset_0_0_8px_var(--vox-amber-glow)]' 
+        : 'text-steel border border-transparent hover:text-foreground hover:bg-white hover:bg-opacity-5'
     }`}
   >
     {icon}
+    <span className={`text-[9px] font-bold mt-1 tracking-widest ${active ? 'text-primary' : 'text-steel'}`}>
+      {label}
+    </span>
+    <span className={`text-[8px] italic font-rajdhani leading-tight ${active ? 'text-brass' : 'text-steel opacity-60'}`}>
+      {subtitle}
+    </span>
   </button>
 );
 

@@ -53,17 +53,17 @@ export function ComposerPanel({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4 flex flex-col gap-4">
-      <section className="glass rounded-2xl border border-white/10 p-4">
+    <div className="h-full overflow-y-auto p-4 flex flex-col gap-4 bg-void/50 custom-scrollbar">
+      <section className="glass-panel rounded-lg border border-border p-4 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles size={16} className="text-blue-500" />
-          <h3 className="text-sm font-bold">Composer Review</h3>
+          <Sparkles size={16} className="text-secondary-foreground" />
+          <h3 className="text-sm font-rajdhani font-bold uppercase tracking-widest text-secondary-foreground">Composer Review</h3>
         </div>
-        <p className="text-xs text-zinc-400 leading-relaxed mb-4">
+        <p className="text-[11px] text-steel leading-relaxed mb-4 font-mono">
           Generate full-file edit proposals for several files, inspect them before apply, and keep a rollback point via the existing snapshot workflow.
         </p>
         <textarea
-          className="w-full min-h-[92px] rounded-xl border border-white/10 bg-black/20 p-3 text-sm resize-y outline-none"
+          className="w-full min-h-[92px] rounded border border-border bg-machine p-3 text-sm resize-y outline-none focus:border-cyan focus:shadow-[0_0_8px_var(--vox-cyan-glow)] text-foreground placeholder-steel opacity-80 focus:opacity-100 transition-all font-mono"
           placeholder="Describe the multi-file change you want..."
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
@@ -84,8 +84,8 @@ export function ComposerPanel({
                     key={file}
                     type="button"
                     onClick={() => toggleFile(file)}
-                    className={`px-2 py-1 rounded-full border text-[11px] ${
-                      selected ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-black/20 border-white/10 text-zinc-400'
+                    className={`px-2 py-1 rounded border text-[10px] uppercase font-bold tracking-widest transition-colors ${
+                      selected ? 'bg-cyan bg-opacity-10 border-cyan text-cyan shadow-[0_0_5px_var(--vox-cyan-glow)]' : 'bg-machine border-border text-steel hover:text-foreground hover:bg-surface'
                     }`}
                   >
                     {file}
@@ -98,23 +98,23 @@ export function ComposerPanel({
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold disabled:opacity-50"
+            className="px-4 py-1.5 rounded bg-primary text-black text-[11px] font-bold uppercase tracking-widest disabled:opacity-30 disabled:bg-machine disabled:text-steel hover:bg-amber-400 transition-colors shadow-[0_0_5px_var(--vox-amber-glow)]"
             disabled={composerState?.isGenerating || !prompt.trim() || selectedFiles.length === 0}
             onClick={() => vscode.postMessage({ type: 'composerGenerate', prompt, files: selectedFiles })}
           >
-            {composerState?.isGenerating ? 'Generating...' : 'Stage Review'}
+            {composerState?.isGenerating ? 'GENERATING...' : 'STAGE REVIEW'}
           </button>
           <button
             type="button"
-            className="px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-zinc-300 disabled:opacity-50"
+            className="px-3 py-1.5 rounded border border-border bg-machine text-[10px] font-bold uppercase tracking-widest text-brass disabled:opacity-30 hover:border-copper hover:text-primary transition-colors"
             disabled={(composerState?.drafts?.length ?? 0) === 0}
             onClick={() => vscode.postMessage({ type: 'composerApply', paths: [] })}
           >
-            Apply All Drafts
+            APPLY ALL
           </button>
           <button
             type="button"
-            className="px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-zinc-300 disabled:opacity-50"
+            className="px-3 py-1.5 rounded border border-border bg-void text-[10px] font-bold uppercase tracking-widest text-steel disabled:opacity-30 hover:border-destructive hover:text-destructive transition-colors"
             disabled={(composerState?.drafts?.length ?? 0) === 0}
             onClick={() => vscode.postMessage({ type: 'composerDiscardAll' })}
           >
@@ -131,21 +131,21 @@ export function ComposerPanel({
         ) : null}
       </section>
 
-      <section className="glass rounded-2xl border border-white/10 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold">Draft Queue</h3>
-          <span className="text-xs text-zinc-500">{composerState?.drafts?.length ?? 0} staged</span>
+      <section className="glass-panel rounded-lg border border-border p-4 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] mt-4">
+        <div className="flex items-center justify-between mb-3 border-b border-border border-opacity-30 pb-2">
+          <h3 className="text-sm font-rajdhani font-bold uppercase tracking-widest text-brass">Draft Queue</h3>
+          <span className="text-[10px] font-mono text-cyan">{composerState?.drafts?.length ?? 0} STAGED</span>
         </div>
         {(composerState?.drafts?.length ?? 0) === 0 ? (
-          <p className="text-xs text-zinc-500">No staged composer drafts yet.</p>
+          <p className="text-[11px] text-steel font-mono">No staged composer drafts yet.</p>
         ) : (
           <div className="flex flex-col gap-3">
             {composerState?.drafts.map((draft) => (
-              <article key={draft.path} className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <article key={draft.path} className="rounded border border-border bg-machine p-3 hover:border-cyan transition-colors group">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold">{draft.path}</div>
-                    <div className="text-[11px] text-zinc-500 mt-1">
+                    <div className="text-xs font-mono text-primary truncate max-w-[200px]" title={draft.path}>{draft.path.split(/[/\\]/).pop()}</div>
+                    <div className="text-[9px] text-steel mt-1 font-mono uppercase tracking-widest">
                       {diffStat(draft.original, draft.proposed)}
                       {draft.model_used ? ` · ${draft.model_used}` : ''}
                       {typeof draft.tokens === 'number' ? ` · ${draft.tokens} tok` : ''}
@@ -154,15 +154,17 @@ export function ComposerPanel({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="p-2 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                      className="p-1.5 rounded bg-machine text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400 hover:text-black transition-colors"
                       onClick={() => vscode.postMessage({ type: 'composerApply', paths: [draft.path] })}
+                      title="Apply Draft"
                     >
                       <Check size={14} />
                     </button>
                     <button
                       type="button"
-                      className="p-2 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                      className="p-1.5 rounded bg-machine text-destructive border border-destructive/30 hover:bg-destructive hover:text-white transition-colors"
                       onClick={() => vscode.postMessage({ type: 'composerDiscard', path: draft.path })}
+                      title="Discard Draft"
                     >
                       <X size={14} />
                     </button>
@@ -172,15 +174,15 @@ export function ComposerPanel({
                   <p className="mt-3 text-xs text-zinc-400 leading-relaxed">{draft.explanation}</p>
                 ) : null}
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-xs text-blue-300 flex items-center gap-2">
+                  <summary className="cursor-pointer text-[10px] uppercase font-bold tracking-widest text-cyan flex items-center gap-2 select-none hover:text-white transition-colors">
                     <RefreshCcw size={12} />
-                    Review exact replacement
+                    DIFF PREVIEW
                   </summary>
                   <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div className="rounded-xl bg-black/30 border border-white/10 overflow-auto">
+                    <div className="rounded bg-void border border-border/50 overflow-auto">
                       <CodeBlock code={draft.original} lang={langFromPath(draft.path)} />
                     </div>
-                    <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 overflow-auto">
+                    <div className="rounded bg-cyan/5 border border-cyan/30 overflow-auto shadow-[0_0_8px_var(--vox-cyan-glow)]">
                       <CodeBlock code={draft.proposed} lang={langFromPath(draft.path)} />
                     </div>
                   </div>

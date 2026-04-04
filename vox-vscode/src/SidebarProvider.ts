@@ -249,6 +249,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 }
+                case 'runTerminalCommand': {
+                    let terminal = vscode.window.terminals.find(t => t.name === 'Vox Backend');
+                    if (!terminal) {
+                        terminal = vscode.window.createTerminal('Vox Backend');
+                    }
+                    terminal.show();
+                    terminal.sendText(parsed.value);
+                    break;
+                }
+                case 'restartMcpServer': {
+                    void vscode.window.showInformationMessage('Restarting Vox Extension (and MCP Connection)...');
+                    vscode.commands.executeCommand('workbench.action.reloadWindow');
+                    break;
+                }
                 case 'rebalance':
                     if (this._mcp.isToolAvailable('vox_rebalance')) {
                         await this._mcp.rebalance();

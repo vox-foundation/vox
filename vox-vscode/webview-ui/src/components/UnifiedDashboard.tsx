@@ -30,41 +30,49 @@ export const UnifiedDashboard = ({
     ludusSnapshot: Record<string, unknown> | null;
     meshTopology: any;
 }) => {
+    const isIdle = (stats.activeAgents === '0' || !stats.activeAgents) && (stats.queueDepth === '0' || !stats.queueDepth) && ops.length === 0;
+
     return (
-        <div className="p-4 grid grid-cols-12 gap-4 overflow-y-auto flex-1 min-h-0 text-[var(--vscode-sideBar-foreground)]">
+        <div className="p-4 grid grid-cols-12 gap-4 overflow-y-auto flex-1 min-h-0 text-foreground custom-scrollbar relative z-10 w-full h-full bg-background border-t border-border">
             {/* Header Area */}
-            <div className="col-span-12 flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold tracking-tight">Unified Command Center</h2>
-                <div className="flex gap-2 text-xs font-mono opacity-80">
-                    <span className="flex items-center gap-1"><Cpu size={14} /> Active Agents: {stats.activeAgents ?? "0"}</span>
-                    <span className="flex items-center gap-1"><Layers size={14} /> Queue: {stats.queueDepth ?? "0"}</span>
-                    {stats.budget && <span className="flex items-center gap-1"><Activity size={14} /> Budget: {stats.budget}</span>}
+            <div className="col-span-12 flex justify-between items-center mb-2 pb-2 border-b border-border border-opacity-50">
+                <h2 className="text-2xl font-rajdhani text-brass tracking-wider">IMPERIUM</h2>
+                <div className="flex gap-4 text-[10px] font-mono text-cyan uppercase tracking-widest px-3 py-1 bg-cyan bg-opacity-10 rounded border border-cyan border-opacity-30">
+                    <span className="flex items-center gap-1"><Cpu size={12} className="text-primary"/> Agents: {stats.activeAgents ?? "0"}</span>
+                    <span className="flex items-center gap-1 text-steel">|</span>
+                    <span className="flex items-center gap-1"><Layers size={12} className="text-primary"/> Queue: {stats.queueDepth ?? "0"}</span>
+                    {stats.budget && (
+                        <>
+                            <span className="flex items-center gap-1 text-steel">|</span>
+                            <span className="flex items-center gap-1"><Activity size={12} className="text-secondary-foreground" /> Budget: {stats.budget}</span>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {/* Ludus KPI & Budget Header Widget (Only if data exists) */}
+            {/* Ludus KPI & Budget Header Widget */}
             {(ludusSnapshot?.kpi || budgetHistory.length > 0) && (
                 <div className="col-span-12 grid grid-cols-12 gap-4">
                     {ludusSnapshot?.kpi && (
-                        <Panel className="col-span-6 !p-4 flex gap-4 items-center">
-                            <Trophy size={20} className="text-[var(--vscode-charts-orange)]" />
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1 text-xs">
-                                <div><div className="opacity-60 text-[10px] uppercase">Events</div>{String((ludusSnapshot.kpi as any)?.events_recorded ?? '0')}</div>
-                                <div><div className="opacity-60 text-[10px] uppercase">XP</div>{String((ludusSnapshot.kpi as any)?.total_xp_from_policy ?? (ludusSnapshot.kpi as any)?.total_xp ?? '0')}</div>
-                                <div><div className="opacity-60 text-[10px] uppercase">Crystals</div>{String((ludusSnapshot.kpi as any)?.total_crystals_from_policy ?? (ludusSnapshot.kpi as any)?.total_crystals ?? '0')}</div>
-                                <div><div className="opacity-60 text-[10px] uppercase">Streak</div>{String((ludusSnapshot.kpi as any)?.streak_days ?? '0')}</div>
+                        <div className="col-span-6 p-4 flex gap-4 items-center bg-machine border border-border rounded-lg shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+                            <Trophy size={20} className="text-primary drop-shadow-[0_0_8px_var(--vox-amber-glow)]" />
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1 text-xs font-mono text-cyan">
+                                <div><div className="text-steel text-[9px] tracking-widest uppercase mb-1">Events</div>{String((ludusSnapshot.kpi as any)?.events_recorded ?? '0')}</div>
+                                <div><div className="text-steel text-[9px] tracking-widest uppercase mb-1">XP</div>{String((ludusSnapshot.kpi as any)?.total_xp_from_policy ?? (ludusSnapshot.kpi as any)?.total_xp ?? '0')}</div>
+                                <div><div className="text-steel text-[9px] tracking-widest uppercase mb-1">Crystals</div>{String((ludusSnapshot.kpi as any)?.total_crystals_from_policy ?? (ludusSnapshot.kpi as any)?.total_crystals ?? '0')}</div>
+                                <div><div className="text-steel text-[9px] tracking-widest uppercase mb-1">Streak</div>{String((ludusSnapshot.kpi as any)?.streak_days ?? '0')}</div>
                             </div>
-                        </Panel>
+                        </div>
                     )}
                     
                     {budgetHistory.length > 0 && (
-                        <Panel className="col-span-6 !p-4 flex gap-4 items-center">
-                            <Activity size={20} className="text-[var(--vscode-charts-green)]" />
-                            <div className="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap">
-                                <div className="opacity-60 text-[10px] uppercase mb-1">Recent Budget Spend</div>
+                        <div className="col-span-6 p-4 flex gap-4 items-center bg-machine border border-border rounded-lg shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+                            <Activity size={20} className="text-cyan drop-shadow-[0_0_8px_var(--vox-cyan-glow)]" />
+                            <div className="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap font-mono text-cyan">
+                                <div className="text-steel text-[9px] tracking-widest uppercase mb-1">Recent Budget Spend</div>
                                 ${parseFloat(budgetHistory[budgetHistory.length - 1]?.total_cost_usd || 0).toFixed(4)}
                             </div>
-                        </Panel>
+                        </div>
                     )}
                 </div>
             )}
@@ -72,125 +80,127 @@ export const UnifiedDashboard = ({
             {/* Notifications (Ludus) */}
             {(ludusSnapshot?.notifications as any[])?.length > 0 && (
                 <div className="col-span-12">
-                    <Panel className="!p-4 border-[var(--vscode-testing-iconFailed)] bg-[var(--vscode-editorError-background)]">
-                        <div className="flex justify-between items-center mb-2">
-                            <div className="flex items-center gap-2 font-bold text-[11px] uppercase tracking-wider">
-                                <Bell size={14} /> Unread Notifications
+                    <div className="p-4 rounded-lg border border-destructive bg-destructive bg-opacity-10 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest text-destructive">
+                                <Bell size={14} className="animate-pulse" /> Unread Notifications
                             </div>
                             <button
                                 type="button"
-                                className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border-[1px] border-[var(--vscode-button-border)] bg-[var(--vscode-button-secondaryBackground)]"
+                                className="text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded border border-destructive bg-void text-destructive hover:bg-destructive hover:text-white transition-colors"
                                 onClick={() => vscode.postMessage({ type: 'ludusAckAllNotifications' })}
                             >
-                                Ack All
+                                ACK ALL
                             </button>
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                             {((ludusSnapshot?.notifications as any) || []).map((n: any, i: number) => (
-                                <div key={n.id ?? i} className="flex gap-2 items-center text-xs opacity-90 p-2 rounded bg-[var(--vscode-editor-background)]">
-                                    <div className="flex-1 truncate"><strong>{n.title ?? n.heading}</strong> - {n.body ?? n.message}</div>
+                                <div key={n.id ?? i} className="flex gap-2 items-center text-xs p-2 rounded bg-void border border-border font-mono text-steel">
+                                    <div className="flex-1 truncate"><strong className="text-brass uppercase">{n.title ?? n.heading}</strong> <span className="mx-2 opacity-50">|</span> {n.body ?? n.message}</div>
                                     <button
                                         type="button"
-                                        className="text-[10px] px-2 py-1 bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] rounded hover:opacity-80"
+                                        className="text-[10px] px-3 py-1 bg-machine border border-border text-steel rounded hover:border-cyan hover:text-cyan transition-colors uppercase tracking-widest font-bold"
                                         onClick={() => vscode.postMessage({ type: 'ludusAckNotification', notificationId: String(n.id ?? '') })}
                                     >
-                                        Ack
+                                        ACK
                                     </button>
                                 </div>
                             ))}
                         </div>
-                    </Panel>
+                    </div>
                 </div>
             )}
 
-            {/* Main Operations Stream */}
-            <div className="col-span-8">
-                <Panel className="flex-1 !p-4 flex flex-col min-h-[400px]">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <Terminal size={16} className="text-[var(--vscode-charts-blue)]" />
-                            <h3 className="text-sm font-bold uppercase tracking-widest opacity-90">Operation Stream</h3>
+            {/* Main Operations Stream - Conditional on Idle State */}
+            {isIdle ? (
+                <div className="col-span-12 flex flex-col items-center justify-center p-12 border border-border bg-machine bg-opacity-50 rounded-xl shadow-[inset_0_5px_15px_rgba(0,0,0,0.5)] h-[400px]">
+                    <div className="w-16 h-16 rounded-full border border-copper text-primary flex items-center justify-center mb-6 shadow-[0_0_15px_var(--vox-amber-glow)] relative">
+                        <div className="absolute inset-0 rounded-full border border-primary animate-ping opacity-20" />
+                        <Sparkles size={24} />
+                    </div>
+                    <h3 className="font-rajdhani text-2xl text-brass uppercase tracking-widest mb-3">Orchestrator Idle</h3>
+                    <p className="text-steel font-mono text-xs mb-8 text-center max-w-md">
+                        Network resources are currently standing by. No active agents or queued tasks. Select files and execute a prompt in <span className="text-primary">Loquela</span> to begin, or create a new task below.
+                    </p>
+                    <button 
+                        onClick={() => vscode.postMessage({ type: 'runCommand', value: 'vox.commandPalette' })}
+                        className="px-8 py-3 bg-primary text-black font-rajdhani font-bold text-lg tracking-widest rounded uppercase hover:bg-amber-400 border border-transparent shadow-[0_0_10px_var(--vox-amber-glow)] transition-all"
+                    >
+                        NEW TASK
+                    </button>
+                </div>
+            ) : (
+                <div className="col-span-8">
+                    <div className="flex-1 p-4 flex flex-col min-h-[400px] border border-border bg-surface rounded-xl shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                            <Terminal size={120} />
                         </div>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                className="px-3 py-1 rounded text-[10px] font-bold transition-all uppercase tracking-widest border border-[var(--vscode-button-border)] bg-[var(--vscode-button-secondaryBackground)] hover:bg-[var(--vscode-button-secondaryHoverBackground)]"
-                                onClick={() => vscode.postMessage({ type: 'rebalance' })}
-                            >
-                                Rebalance
-                            </button>
+                        <div className="flex items-center justify-between mb-4 relative z-10 border-b border-border pb-3">
+                            <div className="flex items-center gap-2">
+                                <Terminal size={16} className="text-secondary-foreground" />
+                                <h3 className="text-sm font-rajdhani font-bold uppercase tracking-widest text-brass">Operation Stream</h3>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    className="px-3 py-1.5 rounded border border-border bg-machine text-[10px] font-bold uppercase tracking-widest text-steel hover:border-cyan hover:text-cyan transition-colors"
+                                    onClick={() => vscode.postMessage({ type: 'rebalance' })}
+                                >
+                                    REBALANCE
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar relative z-10">
+                            {ops && ops.length > 0 ? ops.slice(0, 15).map((entry: any, idx: number) => (
+                                <div 
+                                    key={entry.id ?? entry.description ?? idx} 
+                                    className="flex items-center justify-between p-3 rounded bg-machine border border-border hover:border-cyan hover:shadow-[inset_0_0_8px_var(--vox-cyan-glow)] transition-all"
+                                >
+                                    <div className="flex-1 min-w-0 pr-4">
+                                        <div className="text-xs font-mono text-cyan truncate mb-1 uppercase tracking-wide">{entry.description || entry.op_type}</div>
+                                        {entry.agent_id && (
+                                            <div className="text-[9px] font-mono text-steel uppercase tracking-widest">AGENT {entry.agent_id}</div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-4 shrink-0">
+                                        {entry.duration_ms && <span className="text-[10px] font-mono text-steel">{entry.duration_ms}ms</span>}
+                                        <StateChip label={entry.status || "Completed"} tone={opRowTone(entry.status || "Completed")} />
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="flex items-center justify-center h-full text-[10px] font-mono uppercase tracking-widest text-steel">
+                                    AWAITING TELEMETRY...
+                                </div>
+                            )}
                         </div>
                     </div>
-                    
-                    <div className="space-y-2 flex-1 overflow-y-auto pr-2">
-                        {ops && ops.length > 0 ? ops.slice(0, 15).map((entry: any, idx: number) => (
-                            <div 
-                                key={entry.id ?? entry.description ?? idx} 
-                                className="flex items-center justify-between p-3 rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)]"
-                            >
-                                <div className="flex-1 min-w-0 pr-4">
-                                    <div className="text-sm font-bold truncate">{entry.description || entry.op_type}</div>
-                                    {entry.agent_id && (
-                                        <div className="text-[10px] font-mono opacity-60">@ {entry.agent_id}</div>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-4 shrink-0">
-                                    {entry.duration_ms && <span className="text-xs font-mono opacity-60">{entry.duration_ms}ms</span>}
-                                    <StateChip label={entry.status || "Completed"} tone={opRowTone(entry.status || "Completed")} />
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="flex items-center justify-center h-full text-xs font-bold uppercase tracking-widest opacity-40">
-                                No recent operations
-                            </div>
-                        )}
-                    </div>
-                </Panel>
-            </div>
+                </div>
+            )}
 
-            {/* Right column: Pipeline Health, Mesh Topology */}
+            {/* Right column: Pipeline Health */}
             <div className="col-span-4 flex flex-col gap-4">
-                <Panel className="!p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                        <MessageSquare size={16} className="text-[var(--vscode-charts-purple)]" />
-                        <h3 className="text-sm font-bold uppercase tracking-widest opacity-90">Pipeline Health</h3>
+                <div className="p-4 border border-border bg-surface rounded-xl shadow-lg">
+                    <div className="flex items-center gap-2 mb-4 border-b border-border pb-3">
+                        <MessageSquare size={16} className="text-secondary-foreground" />
+                        <h3 className="text-sm font-rajdhani font-bold uppercase tracking-widest text-brass">Pipeline Health</h3>
                     </div>
-                    <div className="flex flex-col items-center justify-center py-4">
+                    <div className="flex flex-col items-center justify-center py-6">
                         {pipeline == null ? (
-                            <div className="text-center opacity-60 text-xs">Awaiting Pipeline Status</div>
+                            <div className="text-center text-[10px] font-mono text-steel uppercase tracking-widest">Awaiting Status</div>
                         ) : pipeline.ok === false ? (
                             <>
-                                <AlertCircle size={32} className="text-[var(--vscode-editorError-foreground)] mb-2" />
-                                <div className="text-xs font-bold text-[var(--vscode-editorError-foreground)] text-center">Pipeline Errors Detected</div>
+                                <AlertCircle size={32} className="text-destructive mb-3 animate-pulse" />
+                                <div className="text-xs font-rajdhani font-bold uppercase tracking-widest text-destructive text-center">Pipeline Errors Detected</div>
                             </>
                         ) : (
                             <>
-                                <CheckCircle2 size={32} className="text-[var(--vscode-testing-iconPassed)] mb-2" />
-                                <div className="text-xs font-bold text-[var(--vscode-testing-iconPassed)]">Pipeline OK</div>
+                                <CheckCircle2 size={32} className="text-primary mb-3 drop-shadow-[0_0_8px_var(--vox-amber-glow)]" />
+                                <div className="text-xs font-rajdhani font-bold uppercase tracking-widest text-primary">Pipeline Veritas</div>
                             </>
                         )}
                     </div>
-                </Panel>
-                
-                {meshTopology && Object.keys(meshTopology).length > 0 && (
-                    <Panel className="!p-4 flex-1">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Server size={16} className="text-[var(--vscode-charts-yellow)]" />
-                            <h3 className="text-sm font-bold uppercase tracking-widest opacity-90">Mesh Nodes Node</h3>
-                        </div>
-                        <div className="text-xs space-y-2 opacity-80 overflow-y-auto">
-                           {Array.isArray(meshTopology.nodes) && meshTopology.nodes.length > 0 
-                               ? meshTopology.nodes.map((node: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between border-b border-[var(--vscode-panel-border)] pb-1">
-                                        <span>{node.id || node.name || `Node ${idx}`}</span>
-                                        <span className="font-mono">{node.status || 'Active'}</span>
-                                    </div>
-                               )) 
-                               : <div>Mesh data attached but no nodes visible.</div>
-                           }
-                        </div>
-                    </Panel>
-                )}
+                </div>
             </div>
         </div>
     );
