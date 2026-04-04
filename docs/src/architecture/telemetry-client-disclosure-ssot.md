@@ -22,7 +22,7 @@ The VS Code webview sidebar ([`vox-vscode/webview-ui/src/index.tsx`](../../../vo
 - **Local stats / budgets** (current tab)
 - **Optional product telemetry** (future, if introduced)
 
-Prefer labels such as **“Usage & budgets”** or **“Local insights”** in product copy when implementing UX changes; keep route ids stable for compatibility unless a migration note ships in [CHANGELOG](../../CHANGELOG.md).
+Prefer labels such as **“Usage & budgets”** or **“Local insights”** in product copy when implementing UX changes; keep route ids stable for compatibility unless a migration note ships in [CHANGELOG](../../../CHANGELOG.md).
 
 ## MCP debug and payload visibility
 

@@ -10584,11 +10584,16 @@ dependencies = [
 name = "vox-clavis"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
+ "blake3",
  "keyring",
+ "rand 0.8.5",
  "secrecy",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "tokio",
+ "turso",
  "vox-bounded-fs",
 ]
 
@@ -10609,6 +10614,7 @@ dependencies = [
  "flate2",
  "glob",
  "hound",
+ "keyring",
  "landlock",
  "libc",
  "miette",
@@ -10705,6 +10711,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml 0.8.23",
+ "tracing",
  "vox-clavis",
 ]
 
@@ -11040,14 +11047,18 @@ dependencies = [
 name = "vox-orchestrator"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
+ "blake3",
  "chrono",
  "futures-util",
  "globset",
  "jj-lib",
  "jsonschema",
  "proptest",
+ "rand 0.8.5",
  "reqwest 0.12.28",
  "schemars",
  "serde",
@@ -11066,6 +11077,7 @@ dependencies = [
  "turso",
  "uuid",
  "vox-bounded-fs",
+ "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-lsp",
@@ -11352,6 +11364,7 @@ dependencies = [
  "data-encoding",
  "futures-util",
  "reqwest 0.12.28",
+ "secrecy",
  "semver",
  "serde",
  "serde_json",
@@ -11362,6 +11375,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "uuid",
+ "vox-clavis",
  "vox-container",
  "vox-db",
  "vox-pm",

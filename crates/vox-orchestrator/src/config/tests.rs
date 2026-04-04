@@ -128,7 +128,7 @@ fn populi_env_overrides_toml_control_url() {
     const KEY: &str = "VOX_ORCHESTRATOR_MESH_CONTROL_URL";
     let prev = std::env::var(KEY).ok();
     unsafe {
-        std::env::set_var(KEY, "http://env-wins:7777");
+        unsafe { std::env::set_var(KEY, "http://env-wins:7777") };
     }
 
     let dir = tempfile::tempdir().expect("tempdir");
@@ -156,7 +156,7 @@ control_url = "http://toml-loses:8888"
     unsafe {
         match prev {
             None => std::env::remove_var(KEY),
-            Some(v) => std::env::set_var(KEY, v),
+            Some(v) => unsafe { std::env::set_var(KEY, v) },
         }
     }
 }
@@ -176,10 +176,10 @@ fn repo_shard_env_overrides_apply_consistently() {
     let prev_rc_ms = std::env::var(RC_MS_KEY).ok();
 
     unsafe {
-        std::env::set_var(W_KEY, "1.25");
-        std::env::set_var(VF_KEY, "0.55");
-        std::env::set_var(RC_P_KEY, "3.0");
-        std::env::set_var(RC_MS_KEY, "90000");
+        unsafe { std::env::set_var(W_KEY, "1.25") };
+        unsafe { std::env::set_var(VF_KEY, "0.55") };
+        unsafe { std::env::set_var(RC_P_KEY, "3.0") };
+        unsafe { std::env::set_var(RC_MS_KEY, "90000") };
     }
 
     let mut cfg = OrchestratorConfig::default();
@@ -192,19 +192,19 @@ fn repo_shard_env_overrides_apply_consistently() {
     unsafe {
         match prev_w {
             None => std::env::remove_var(W_KEY),
-            Some(v) => std::env::set_var(W_KEY, v),
+            Some(v) => unsafe { std::env::set_var(W_KEY, v) },
         }
         match prev_vf {
             None => std::env::remove_var(VF_KEY),
-            Some(v) => std::env::set_var(VF_KEY, v),
+            Some(v) => unsafe { std::env::set_var(VF_KEY, v) },
         }
         match prev_rc_p {
             None => std::env::remove_var(RC_P_KEY),
-            Some(v) => std::env::set_var(RC_P_KEY, v),
+            Some(v) => unsafe { std::env::set_var(RC_P_KEY, v) },
         }
         match prev_rc_ms {
             None => std::env::remove_var(RC_MS_KEY),
-            Some(v) => std::env::set_var(RC_MS_KEY, v),
+            Some(v) => unsafe { std::env::set_var(RC_MS_KEY, v) },
         }
     }
 }
@@ -217,7 +217,7 @@ fn populi_remote_result_max_messages_env_override_applies() {
     let prev = std::env::var(KEY).ok();
 
     unsafe {
-        std::env::set_var(KEY, "17");
+        unsafe { std::env::set_var(KEY, "17") };
     }
     let mut cfg = OrchestratorConfig::default();
     cfg.merge_env_overrides();
@@ -226,7 +226,7 @@ fn populi_remote_result_max_messages_env_override_applies() {
     unsafe {
         match prev {
             None => std::env::remove_var(KEY),
-            Some(v) => std::env::set_var(KEY, v),
+            Some(v) => unsafe { std::env::set_var(KEY, v) },
         }
     }
 }

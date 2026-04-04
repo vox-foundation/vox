@@ -126,7 +126,7 @@ mod tests {
     fn peak_normalize_scales_quiet_signal() {
         // SAFETY: tests are single-threaded here; env is restored after the assertion.
         unsafe {
-            std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize");
+            unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize") };
         }
         let quiet: Vec<f32> = vec![0.01, -0.01, 0.005];
         let (out, d) = preprocess_audio_pcm_f32_reported(&quiet, 100);

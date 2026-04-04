@@ -505,6 +505,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                         privacy_class: None,
                         payload_blake3_hex: None,
                         worker_ed25519_sig_b64: None,
+                        jwe_payload: None,
                     })
                     .await
                     .is_ok();

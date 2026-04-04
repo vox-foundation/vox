@@ -655,6 +655,7 @@ pub(super) async fn deliver_a2a(
             idempotency_dedupe_key: Some(dedupe),
             payload_blake3_hex: req.payload_blake3_hex.clone(),
             worker_ed25519_sig_b64: req.worker_ed25519_sig_b64.clone(),
+            jwe_payload: req.jwe_payload.clone(),
         };
         let mut g = st.a2a_messages.write().await;
         a2a_sweep_expired_leases(&mut g, crate::now_ms());
@@ -688,6 +689,7 @@ pub(super) async fn deliver_a2a(
         idempotency_dedupe_key: None,
         payload_blake3_hex: req.payload_blake3_hex.clone(),
         worker_ed25519_sig_b64: req.worker_ed25519_sig_b64.clone(),
+        jwe_payload: req.jwe_payload.clone(),
     };
     let mut g = st.a2a_messages.write().await;
     a2a_sweep_expired_leases(&mut g, crate::now_ms());

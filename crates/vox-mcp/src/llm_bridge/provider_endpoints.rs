@@ -51,12 +51,38 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
                 Ok(format!("{trimmed}/v1{suffix}"))
             }
         }
-        ProviderType::GoogleDirect | ProviderType::Ollama => Err(HttpInferError {
+        ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => Err(HttpInferError {
             status: 0,
             message: format!(
                 "endpoint_for is not applicable to provider {:?}",
                 model.provider_type
             ),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_orchestrator::models::{ModelCapabilities, ModelSpec, ProviderType};
+
+    #[test]
+    fn test_endpoint_for_populi_mesh_rejected() {
+        let model = ModelSpec {
+            id: "mesh-model".into(),
+            canonical_slug: "mesh/model".into(),
+            provider: "mesh".into(),
+            provider_type: ProviderType::PopuliMesh,
+            max_tokens: 8000,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            supported_parameters: vec![],
+        };
+        let err = endpoint_for(&model).expect_err("should reject mesh");
+        assert!(err.message.contains("not applicable to provider PopuliMesh"));
     }
 }

@@ -215,7 +215,7 @@ Applicable lessons:
 Relevant sources:
 
 - [Serf gossip internals](https://github.com/hashicorp/serf/blob/master/docs/index.html.markdown)
-- [HashiCorp: Making Gossip More Robust with Lifeguard](https://www.hashicorp.com/blog/making-gossip-more-robust-with-lifeguard)
+- [HashiCorp: Making Gossip More Robust with Lifeguard](https://arxiv.org/abs/1707.00454)
 
 Applicable lessons:
 

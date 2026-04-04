@@ -373,6 +373,7 @@ pub async fn mcp_infer_tool_completion(
                         Some(estimated_usd),
                         Some(reconciled_usd),
                         Some(cost_source),
+                        None,
                     )
                     .await;
                 }

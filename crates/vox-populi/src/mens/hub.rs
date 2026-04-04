@@ -14,11 +14,13 @@ fn normalize_hf_token_env() {
     // Keep both vars aligned so hf-hub auth works regardless of which one operators set.
     if let (Some(token), None) = (hf_token.as_deref(), hub_token.as_deref()) {
         #[allow(unsafe_code)]
+        // SAFETY: Called sequentially before spawning HF requests.
         unsafe {
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", token);
         }
     } else if let (None, Some(token)) = (hf_token.as_deref(), hub_token.as_deref()) {
         #[allow(unsafe_code)]
+        // SAFETY: Called sequentially before spawning HF requests.
         unsafe {
             std::env::set_var("HF_TOKEN", token);
         }

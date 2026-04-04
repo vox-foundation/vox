@@ -17,8 +17,8 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 fn canonical_env_wins_over_alias() {
     let _g = ENV_LOCK.lock().expect("env lock");
     unsafe {
-        std::env::set_var("GEMINI_API_KEY", "canonical");
-        std::env::set_var("GOOGLE_AI_STUDIO_KEY", "alias");
+        unsafe { std::env::set_var("GEMINI_API_KEY", "canonical") };
+        unsafe { std::env::set_var("GOOGLE_AI_STUDIO_KEY", "alias") };
     }
     let resolved = resolve_env_only(SecretId::GeminiApiKey);
     assert_eq!(resolved.expose(), Some("canonical"));
@@ -75,7 +75,7 @@ fn profile_requirements_are_dynamic() {
     let dev = required_for_profile(Workflow::Chat, Profile::Dev);
     let ci = required_for_profile(Workflow::Chat, Profile::Ci);
     assert!(!dev.contains(&SecretId::OpenRouterApiKey));
-    assert!(ci.contains(&SecretId::GitHubToken));
+    assert!(ci.contains(&SecretId::ForgeToken));
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn bundle_requirements_are_defined() {
 fn deprecated_alias_marks_status() {
     let _g = ENV_LOCK.lock().expect("env lock");
     unsafe {
-        std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy");
+        unsafe { std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy") };
         std::env::remove_var("GEMINI_API_KEY");
     }
     let resolved = resolve_env_only(SecretId::GeminiApiKey);

@@ -109,9 +109,15 @@ pub enum TaskCategory {
     Research,
     /// Test authoring and execution.
     Testing,
-    /// Default — codegen and implementation tasks.
-    #[default]
+    /// Generating new code or scaffolding.
     CodeGen,
+    /// Multi-step workflow synthesis.
+    #[default]
+    General,
+    /// Automated Reasoning System execution.
+    Ars,
+    /// Up-front orchestration planning.
+    Planning,
     /// Code review and critique.
     Review,
 }

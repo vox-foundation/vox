@@ -12,7 +12,7 @@
 
 **Boundaries**
 
-- **Retention / sensitivity:** `ci_completion_*` is workspace-adjacent (S2); TTL and prune behavior are defined in [telemetry-retention-sensitivity-ssot](telemetry-retention-sensitivity-ssot.md) and [`contracts/db/retention-policy.yaml`](../../contracts/db/retention-policy.yaml) (`vox db prune-plan` / `prune-apply`).
+- **Retention / sensitivity:** `ci_completion_*` is workspace-adjacent (S2); TTL and prune behavior are defined in [telemetry-retention-sensitivity-ssot](telemetry-retention-sensitivity-ssot.md) and [`contracts/db/retention-policy.yaml`](../../../../../contracts/db/retention-policy.yaml) (`vox db prune-plan` / `prune-apply`).
 - Deterministic detectors and policy tiers live in the completion policy contract; `vox-toestub` remains the structural/TOESTUB truth surface.
 - Orchestrator placeholder/completion behavior: `crates/vox-orchestrator/src/services/policy.rs` and `orchestrator/task_dispatch/complete.rs`.
 - Mens scorecard summaries include an optional `completion_policy` crosswalk (`contracts/eval/mens-scorecard-summary.schema.json`) linking anti-stub metrics to this chain.

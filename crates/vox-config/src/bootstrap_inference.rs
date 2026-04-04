@@ -7,6 +7,7 @@
 pub const OPENROUTER_AUTO: &str = "openrouter/auto";
 
 /// OpenRouter free-tier preference route.
+#[allow(dead_code)]
 pub const OPENROUTER_FREE: &str = "openrouter/free";
 
 /// Research / planner / claim stages when no registry candidate exists.

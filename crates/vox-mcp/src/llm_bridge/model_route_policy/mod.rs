@@ -2,7 +2,6 @@
 
 mod policy;
 mod resolve;
-mod scoring;
 mod types;
 
 #[cfg(test)]

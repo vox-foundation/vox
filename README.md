@@ -3,13 +3,13 @@
 
   <br><br>
 
-  <p><strong>The end of the API layer. Build your database, backend, and UI in one seamless language.</strong></p>
+  <p><strong>One language. Database, backend, UI, and agent tools — built for developers and the models that generate code for them.</strong></p>
   <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 
   <br>
 
   <p>
-    <em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence! Or, shall we say, it is itself a thought, nothing but thought, and no longer the substance which we deemed it!"</em>
+    <em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em>
     <br>
     — Nathaniel Hawthorne, <em>The House of the Seven Gables</em> (1851)
   </p>
@@ -18,31 +18,17 @@
 
 ---
 
-Most full-stack projects force you to manually wire a SQL schema, backend types, REST endpoints, and frontend components together. When one drifts, the bug is silent until runtime.
+> **Early project.** Vox is under active development. The language, compiler, database layer, and MCP tooling work today; the distributed agent mesh and cross-node model routing are being built in the open alongside them. Expect fast iteration and some rough edges.
 
-Vox is a language and compiler that collapses these layers into one. You write your data model, server logic, and UI side-by-side. The compiler generates the endpoint wiring, client serialization, and TypeScript types — so you never write that glue by hand. The output is standard **Rust** on the server and **TypeScript/React** in the browser, so you're not locked into a runtime you don't control.
+Every full-stack project eventually drowns in sync problems — a SQL schema, a backend struct, a TypeScript interface, and a REST layer that are all supposed to say the same thing but gradually don't. Vox removes the problem by making them one thing. You write your data model, server logic, and UI in the same language; the compiler generates the wiring. The output is standard **Rust** on the server and **TypeScript/React** in the browser — nothing proprietary.
 
-It's aimed at developers building web applications, internal tools, data pipelines, or AI agent integrations who are tired of the same boilerplate every project.
-
-## The CLI
-
-Install the `vox` binary from this repository (see **Quick Start** below). For a curated, task-oriented list of subcommands, run **`vox commands --recommended`**, then `vox --help` for the full tree. Operator reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
+Vox is also designed as a first-class execution target for large language models. When a model needs to run code — retrieve data, call a tool, mutate state — it usually reaches for Python, a language with no type safety and silent failure modes. Vox gives it a compiled, verified surface instead. If the generated code mishandles an absent value or drops an error, the compiler rejects it before anything executes. One coherent language surface means less context for a model to hold, fewer APIs to hallucinate, and a shorter path from generated code to correct behavior.
 
 ## The Language in Five Steps
 
-### 1. Functions and types
+### 1. Schema, server, and query — one declaration
 
-```vox
-fn hello(name: str) to str {
-    ret "Hello " + name + "!"
-}
-```
-
-Typed parameters, explicit returns, no semicolons. If you know Python or Rust, it reads immediately.
-
-### 2. Your database schema and your application type are the same thing
-
-Normally: write a SQL migration, write a Rust struct, write a TypeScript interface, keep all three in sync. In Vox, you write one declaration and the compiler derives the rest:
+Normally a single entity means a SQL migration, a Rust struct, and a TypeScript interface, kept in sync manually. In Vox, you declare it once:
 
 ```vox
 @table type Task {
@@ -55,22 +41,18 @@ Normally: write a SQL migration, write a Rust struct, write a TypeScript interfa
 @server fn add_task(title: str, owner: str) to Id[Task] {
     ret db.insert(Task, { title: title, done: false, priority: 0, owner: owner })
 }
-```
 
-`@table` creates the database table. `@server` generates the HTTP endpoint and a matching TypeScript client function. You write the business logic; the compiler generates the surface.
-
-The query DSL is fluent and compiled — the compiler validates your queries against your schema:
-
-```vox
 @query
 fn recent_incomplete_tasks() to List[Task] {
     ret db.Task.where({ done: false }).order_by("priority", "desc").limit(10)
 }
 ```
 
-### 3. Frontend components call backend functions directly
+`@table` creates the database table. `@server` generates the HTTP endpoint and a matching TypeScript client function. `@query` is validated against your schema at compile time. You write the business logic; the compiler owns the surface.
 
-No fetch wrappers. No REST endpoint definitions. No client SDK to maintain. `complete_task` is a `@server` function — the compiler generates the network call, serialization, and type safety across the boundary:
+### 2. Frontend components call backend functions directly
+
+No fetch wrappers. No client SDK to maintain. `complete_task` below is a `@server` function — the compiler generates the network call, serialization, and type safety across the boundary automatically:
 
 ```vox
 import react.use_state
@@ -98,28 +80,25 @@ routes {
 }
 ```
 
-### 4. A type system that eliminates whole categories of bugs at compile time
+### 3. A type system that makes silence impossible
 
-Vox has no `null` and no `undefined`. If a value can be absent, you use `Option[T]`. If a function can fail, it returns `Result[T]`. You cannot ignore either — the compiler forces you to handle both branches:
+Vox has no `null` and no `undefined`. Absence is `Option[T]`; failure is `Result[T]`. The compiler forces you to handle both branches — missing a case is a compile error, not a surprise at 2am:
 
 ```vox
-type AppResult =
-    | Success(value: int)
-    | Failure(err: str)
-
-fn serialize_result(r: AppResult) to str {
-    match r {
-        Success(val) -> "num:" + str(val)
-        Failure(err) -> "err:" + err
+@server fn get_task(id: Id[Task]) to Result[Task] {
+    let row = db.Task.find(id)
+    match row {
+        Some(t) -> Ok(t)
+        None    -> Error("task not found")
     }
 }
 ```
 
-This same pattern applies everywhere — database queries, network calls, workflow steps. Missing a branch is a compile error, not a runtime crash at 2am.
+This pattern is consistent everywhere — database queries, network calls, workflow steps, AI tool calls. For generated code specifically, it's load-bearing: an LLM writing Vox cannot produce a program that silently passes a missing value or swallows an error. The compiler enforces exhaustiveness. The generated code either handles every branch or it doesn't build.
 
-### 5. Workflows that survive server crashes, actors that remember state
+### 4. Workflows that survive crashes, actors that hold state
 
-If your server goes down mid-payment, Vox's workflow runtime replays completed steps on restart. The durability is enforced by the compiler and runtime together — not a library you bolt on:
+`workflow` and `activity` are language keywords. If the server goes down mid-payment, the runtime replays completed steps on restart — no library required:
 
 ```vox
 activity charge_card(amount: int) to Result[str] {
@@ -130,28 +109,28 @@ activity charge_card(amount: int) to Result[str] {
 workflow checkout(amount: int) to str {
     let result = charge_card(amount)
     match result {
-        Ok(tx)     -> "Success: " + tx
+        Ok(tx)  -> "Success: " + tx
         Error(msg) -> "Failed: " + msg
     }
 }
 ```
 
-Actors persist state across restarts — useful for session state, rate limiters, counters, or any long-lived stateful service:
+Actors persist state across restarts — a clean primitive for rate limiters, session state, or background counters:
 
 ```vox
-actor PersistentCounter {
-    on increment() to int {
-        let current = state_load("counter")
-        let next    = current + 1
-        state_save("counter", next)
-        ret next
+actor RateLimiter {
+    on check(user_id: str) to Result[Unit] {
+        let hits = state_load(user_id) ?? 0
+        if hits >= 100 { ret Error("rate limit exceeded") }
+        state_save(user_id, hits + 1)
+        ret Ok(Unit)
     }
 }
 ```
 
-### 6. Expose any function to AI agents with one line
+### 5. A language models can write, call, and verify
 
-Add `@mcp.tool` and the compiler generates a [Model Context Protocol](https://modelcontextprotocol.io/) tool schema. Claude, Cursor, VS Code Copilot, and any MCP-compatible agent can discover and call your function immediately. No OpenAPI spec. No tool registration:
+Vox works in both directions with AI. Your functions become callable by any MCP-compatible agent — Claude, Cursor, VS Code Copilot — with one decorator. No OpenAPI spec, no tool registration, no schema drift:
 
 ```vox
 type SearchResult =
@@ -164,33 +143,21 @@ fn search_knowledge(query: str, max_results: int) to SearchResult {
 }
 ```
 
-The type signature is the contract. The compiler verifies it.
-
-### 7. Tests built into the language
+And when a model needs to *generate* code to act on your system — not just call a predefined tool but actually write logic — Vox is the right target. The type system constrains the output space. A model that writes Vox gets compiler feedback instead of runtime exceptions. `@test` closes the loop:
 
 ```vox
-fn mock_db_read() to str {
-    ret "mock_data"
-}
-
 @test
-fn test_user_count() to Unit {
-    let users = ["alice", "bob"]
-    assert(len(users) > 0)
-    let db_val = mock_db_read()
-    assert(db_val is "mock_data")
+fn test_search_returns_result() to Unit {
+    let r = search_knowledge("hello", 5)
+    assert(r is Found)
 }
 ```
-
-`@test` is a language construct. Tests run with `vox test` and integrate with the compiler's type checker.
 
 More examples: [`examples/golden/`](examples/golden/).
 
 ---
 
 ## Quick Start
-
-### Install
 
 **macOS / Linux:**
 ```bash
@@ -204,42 +171,84 @@ irm https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps
 
 If you already cloned the repo, run `./scripts/install.sh` or `.\scripts\install.ps1` directly.
 
-### Build and run
-
 ```bash
 vox init my-app
 cd my-app
 vox run src/main.vox
 ```
 
-### Explore the CLI
-
 ```text
-vox commands --recommended   List the most important starter commands
+vox commands --recommended   List the most useful starter commands
 vox doctor                   Verify toolchain and environment
-vox check <file>             Fast type validation without full build
+vox check <file>             Fast type validation without a full build
 vox build <file>             Compile and inspect generated output
-vox run <file>               Execute app locally end-to-end
 vox test <file>              Run @test functions
-vox bundle <file>            Produce deployable binary output
+vox bundle <file>            Produce a deployable binary
 ```
 
 Full command reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
 
 ---
 
-## What's Real Today
+## Agent Orchestration & AI Capabilities
 
-The language, compiler, and CLI are real and actively developed. Some areas to set expectations on:
+Vox ships a distributed execution layer that connects multiple Vox instances — local or remote — into a coordinated task graph.
 
-- **Core language** (functions, types, ADTs, match, actors, workflows) — active and documented.
-- **Database layer** (`@table`, `db.*` queries) — active; backed by SQLite/LibSQL.
-- **Frontend / island components** — active; emits TypeScript/React.
-- **MCP agent tooling** (`@mcp.tool`, `@mcp.resource`) — active.
-- **VS Code extension** — active; includes LSP, MCP workspace chat, and Oratio voice-to-code.
-- **Distributed/WASM/GPU training** — experimental; documented as such.
+### Multi-agent coordination
 
-The docs are written to reflect what the repo currently does, not a roadmap.
+The DEI orchestrator (`vox-dei`) runs multiple agents concurrently against a shared codebase, routing tasks by file affinity and role (Builder, Planner, Verifier). The full control surface is exposed through MCP tools, so the VS Code sidebar and other agents share the same interface:
+
+```text
+dei_task_pause       Suspend a running task
+dei_task_resume      Resume a suspended task
+dei_task_cancel      Cancel and release file locks
+dei_task_reassign    Transfer a task atomically between agents
+dei_agent_set_mode   Adjust an agent's execution mode
+```
+
+### The Populi mesh
+
+`vox populi` is a node registry for machines running Vox. Each node advertises its hardware — CPU, CUDA, Metal, VRAM — via NVML probing on startup. The orchestrator uses those hints to route training and inference where the hardware can support it.
+
+```bash
+VOX_MESH_ENABLED=1 VOX_MESH_NODE_ID=my-node vox populi serve
+```
+
+> **In progress.** Single-node operation and local GPU routing work today. Cross-node task relay is implemented behind the `populi-transport` feature flag; the end-to-end scheduling path is being hardened.
+
+### Model selection & provider routing
+
+A policy engine manages multi-provider inference with automatic retry, rate-limit awareness, and optional BYOK tracking:
+
+| Provider | Support | Notes |
+|---|---|---|
+| Ollama (local) | First-class | No cost, no disclosure |
+| Google Gemini | First-class | Privacy acknowledgment required |
+| Groq | First-class | Authoritative rate-limit headers |
+| OpenRouter | First-class | Local estimate |
+| OpenAI / Anthropic | Gated | Pro / Enterprise |
+| Together AI | Gated | ML-focused |
+
+```bash
+vox populi status --quotas   # view per-provider usage and remaining budget
+```
+
+### Local GPU & native training
+
+`vox populi probe` detects your GPU and recommends a QLoRA configuration. Training runs natively in Rust via [Burn](https://github.com/tracel-ai/burn) — no Python:
+
+```bash
+vox populi train --config qlora.toml
+vox populi serve --model mens/runs/latest/model_final.bin --port 8080
+```
+
+~4,000 tokens/second on an RTX 4080 SUPER. Served on an OpenAI-compatible `/v1/completions` endpoint.
+
+> **In progress.** Native training and local inference work today. Cloud-managed training and remote GPU provisioning are roadmap items.
+
+### Agent-to-agent (A2A) messaging
+
+Agents exchange typed, JWE-encrypted envelopes over a structured A2A bus. The local in-process bus is active in every session; HTTP relay across mesh nodes is available under the `populi-transport` feature flag.
 
 ---
 
@@ -262,11 +271,13 @@ The docs are written to reflect what the repo currently does, not a roadmap.
 
 ## Design Principles
 
-- **One language surface.** Schema, server logic, and UI described from one source. The compiler keeps them in sync.
+- **One source of truth.** Schema, server logic, and UI live together. The compiler keeps them in sync.
 - **Zero-null discipline.** No `null`, no `undefined`. Absence is `Option[T]`; failure is `Result[T]`. Both must be handled to compile.
 - **Errors are values.** `Result` and `match` replace exceptions. You cannot silently swallow a failure.
-- **Durability without a framework.** `workflow` and `actor` are language keywords. Replay and state persistence come from the compiler and runtime, not a dependency.
-- **AI-native surface.** `@mcp.tool` is a first-class decorator, not an integration plugin.
+- **Durability without a framework.** `workflow` and `actor` are language keywords, not libraries.
+- **A better LLM target.** A constrained, compiled language with a single coherent surface gives models less to hallucinate, and gives the compiler authority to reject bad generated code before it runs.
+- **AI-native.** `@mcp.tool` is a first-class decorator. The orchestrator, agent mesh, and model routing are built into the platform.
+- **Honest about maturity.** Capabilities are documented as they land — including the ones still being hardened.
 
 ---
 

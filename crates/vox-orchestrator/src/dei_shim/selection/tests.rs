@@ -16,6 +16,7 @@ fn resolve_registry_fallback_errors_on_unknown_override() {
         "",
         Some("definitely_not_a_real_model_id_xyz"),
         params,
+        None,
     );
     assert!(err.is_err());
 }

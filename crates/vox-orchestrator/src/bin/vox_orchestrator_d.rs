@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    runtime::spawn_stub_agent_fleet_if_enabled(orch.clone());
+    runtime::spawn_agent_fleet_if_enabled(orch.clone());
 
     // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
     let populi_remote_snapshot = Arc::new(RwLock::new(RemotePopuliSnapshot::default()));

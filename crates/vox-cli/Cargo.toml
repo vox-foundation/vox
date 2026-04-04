@@ -189,6 +189,7 @@ self_update = { version = "0.43.1", default-features = false, features = [
     "compression-zip-deflate",
 ] }
 semver = "1"
+keyring.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4", optional = true }

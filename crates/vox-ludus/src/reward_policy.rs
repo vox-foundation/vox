@@ -40,7 +40,7 @@ impl SessionState {
     }
 
     /// Whether this is the first occurrence of an event type this session.
-    pub fn is_novel(&self, event_type: &str) -> bool {
+    pub fn has_not_been_seen(&self, event_type: &str) -> bool {
         !self.seen_types.contains(event_type)
     }
 
@@ -50,8 +50,11 @@ impl SessionState {
     }
 }
 
-/// How many times the same event may fire in a session before rewards zero out.
-pub const GRIND_THRESHOLD: u32 = 30;
+/// How many times the same event may fire in a session before rewards taper out.
+pub const GRIND_TAPER_END: u32 = 30;
+
+/// The point at which rewards become completely suppressed.
+pub const GRIND_ZERO_THRESHOLD: u32 = 31;
 
 /// Novelty bonus factor applied to the first occurrence of each event type.
 const NOVELTY_FACTOR: f64 = 1.5;
@@ -246,10 +249,19 @@ pub fn learning_mode_crystal_jitter(
     if !matches!(crate::config_gate::mode(), vox_config::GamifyMode::Learning) {
         return 0;
     }
-    use std::collections::hash_map::DefaultHasher;
+    // FNV-1a inline to guarantee stability across Rust upgrades.
+    struct Fnv1a(u64);
+    impl std::hash::Hasher for Fnv1a {
+        fn finish(&self) -> u64 { self.0 }
+        fn write(&mut self, bytes: &[u8]) {
+            for &b in bytes {
+                self.0 = (self.0 ^ b as u64).wrapping_mul(1099511628211);
+            }
+        }
+    }
     use std::hash::{Hash, Hasher};
     let day = crate::quest::current_day_number();
-    let mut h = DefaultHasher::new();
+    let mut h = Fnv1a(14695981039346656037);
     user_id.hash(&mut h);
     day.hash(&mut h);
     event_type.hash(&mut h);
@@ -298,7 +310,7 @@ pub fn apply_policy(
     let grind_multiplier = match count {
         c if c <= full_cap => 1.0,
         c if c <= half_cap => 0.5,
-        c if c <= 30 => 0.1,
+        c if c <= GRIND_TAPER_END => 0.1,
         _ => {
             tracing::debug!(
                 "grind cap: event '{}' has fired {} times this session, reward zeroed",

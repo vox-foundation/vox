@@ -137,7 +137,7 @@ They are not benchmark scores and should not be confused with SWE-bench or vendo
 
 | Product | Official evidence used | Confidence | Notes |
 | --- | --- | --- | --- |
-| Cursor | [Agent mode](https://cursor.com/help/ai-features/agent), [Features](https://cursor.com/en/features), [Subagents](https://cursor.com/docs/subagents) | High | Best-documented all-around AI IDE in this research pass. |
+| Cursor | [Agent mode](https://docs.cursor.com), [Features](https://cursor.com/en/features), [Subagents](https://docs.cursor.com/troubleshooting/common-issues) | High | Best-documented all-around AI IDE in this research pass. |
 | Windsurf | [Cascade overview](https://docs.windsurf.com/windsurf/cascade/cascade), [Memories and rules](https://docs.windsurf.com/windsurf/cascade/memories), [Workflows](https://docs.windsurf.com/windsurf/cascade/workflows) | High | Particularly strong on repo-visible customization and workflow reuse. |
 | Antigravity | [Google Developers blog](https://developers.googleblog.com/build-with-google-antigravity-our-new-agentic-development-platform), [Community documentation mirror](https://antigravity.im/documentation) | Low | Interesting directionally, but evidence quality is weaker than the rest of the set. |
 | Claude Code | [Tools reference](http://code.claude.com/docs/en/tools-reference), [Subagents](https://code.claude.com/docs/en/sub-agents), [Hooks guide](https://code.claude.com/docs/en/hooks-guide) | High | Not a classic IDE, but a major reference for agent architecture. |

@@ -153,11 +153,11 @@ Theoretical memory usage based on NF4 quantization (actual results may vary):
 
 ## Contributing
 
-See workspace [AGENTS.md](../AGENTS.md) for coding conventions.
+See workspace [AGENTS.md](../../AGENTS.md) for coding conventions.
 
 ## License
 
 Dual licensed under MIT OR Apache-2.0 at your option.
 
 - [LICENSE-MIT](LICENSE-MIT)
-- [LICENSE-APACHE](LICENSE-APACHE)
+- *LICENSE-APACHE*

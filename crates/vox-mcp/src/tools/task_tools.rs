@@ -46,6 +46,9 @@ fn task_category_from_mcp_str(raw: &str) -> Option<TaskCategory> {
         "debugging" => Some(TaskCategory::Debugging),
         "research" => Some(TaskCategory::Research),
         "testing" => Some(TaskCategory::Testing),
+        "general" => Some(TaskCategory::General),
+        "ars" | "automated_reasoning" => Some(TaskCategory::Ars),
+        "planning" | "plan" => Some(TaskCategory::Planning),
         "codegen" | "code_gen" | "implementation" => Some(TaskCategory::CodeGen),
         "review" => Some(TaskCategory::Review),
         _ => {
@@ -122,6 +125,9 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         Some(TaskCategory::Review) => Some(vox_orchestrator::AgentExecutionRole::Verifier),
         Some(TaskCategory::Debugging) => Some(vox_orchestrator::AgentExecutionRole::Reproducer),
         Some(TaskCategory::CodeGen) => Some(vox_orchestrator::AgentExecutionRole::Builder),
+        Some(TaskCategory::General)
+        | Some(TaskCategory::Ars)
+        | Some(TaskCategory::Planning) => Some(vox_orchestrator::AgentExecutionRole::Planner),
         _ => None,
     };
     let (campaign_from_desc, tier_from_desc) = parse_campaign_from_description(&params.description);

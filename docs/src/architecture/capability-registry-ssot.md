@@ -16,11 +16,11 @@ Vox maps **semantic capabilities** (what an agent or human is allowed to do) sep
 
 | Artifact | Role |
 |----------|------|
-| [`contracts/capability/capability-registry.yaml`](../../../contracts/capability/capability-registry.yaml) | **Generated** from [`catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) (`capability:` block + curated projections); do not hand-edit |
+| [`contracts/capability/capability-registry.yaml`](../../../contracts/capability/capability-registry.yaml) | **Generated** from [`catalog.v1.yaml`](../../../../../../contracts/operations/catalog.v1.yaml) (`capability:` block + curated projections); do not hand-edit |
 | [`contracts/capability/capability-registry.schema.json`](../../../contracts/capability/capability-registry.schema.json) | JSON Schema for the YAML |
 | [`contracts/capability/model-manifest.generated.json`](../../../contracts/capability/model-manifest.generated.json) | Planner-oriented manifest (generated; do not hand-edit) |
 
-The Rust crate **`vox-capability-registry`** loads the document, validates cross-registry consistency against the MCP tool registry and **active** CLI paths from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (also catalog-projected), and builds the model manifest.
+The Rust crate **`vox-capability-registry`** loads the document, validates cross-registry consistency against the MCP tool registry and **active** CLI paths from [`contracts/cli/command-registry.yaml`](../../../../../../contracts/cli/command-registry.yaml) (also catalog-projected), and builds the model manifest.
 
 ## ID conventions
 
@@ -63,7 +63,7 @@ Cross-repo catalog queries stamp **`CrossRepoQueryTrace.source_plane`** as **`cl
 
 Concrete view sketches and data sources: [Capability visualization views](capability-visualization-views.md). Until those ship, use **`vox_capability_model_manifest`**, **`vox dei takeover-status`**, and **`vox ci capability-sync`** for inspection.
 
-After editing **capability metadata**, change [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) (operation rows + `capability:` block), then:
+After editing **capability metadata**, change [`contracts/operations/catalog.v1.yaml`](../../../../../../contracts/operations/catalog.v1.yaml) (operation rows + `capability:` block), then:
 
 ```powershell
 cargo run -p vox-cli -- ci operations-sync --target capability --write
@@ -82,7 +82,7 @@ Language builtins such as `std.fs` / path / process helpers are **not** the same
 
 ## Source of truth
 
-**Edit only** [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml). Regenerate `capability-registry.yaml` with `vox ci operations-sync --target capability --write`. Implicit `mcp.*` / `cli.*` coverage plus curated rows stay enforced via **`vox ci command-compliance`** / **`vox ci operations-verify`**.
+**Edit only** [`contracts/operations/catalog.v1.yaml`](../../../../../../contracts/operations/catalog.v1.yaml). Regenerate `capability-registry.yaml` with `vox ci operations-sync --target capability --write`. Implicit `mcp.*` / `cli.*` coverage plus curated rows stay enforced via **`vox ci command-compliance`** / **`vox ci operations-verify`**.
 
 ## Related docs
 

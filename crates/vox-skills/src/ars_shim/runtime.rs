@@ -56,12 +56,33 @@ impl ArsRuntime {
         if run_id.is_empty() {
             return Err(ArsRuntimeError::InvalidRun("empty run_id".into()));
         }
+
+        let mut _injected_secrets = std::collections::HashMap::new();
+        if let Some(req_secrets) = skill.metadata.get("requested_secrets").and_then(|v| v.as_array()) {
+            for req in req_secrets {
+                if let Some(sec_str) = req.as_str() {
+                    if let Ok(id) = sec_str.parse::<vox_clavis::spec::SecretId>() {
+                        let res = vox_clavis::resolve_secret(id);
+                        if res.is_present() {
+                            if let Some(val) = res.expose() {
+                                _injected_secrets.insert(sec_str.to_string(), val.to_string());
+                            }
+                        } else {
+                            // Deny-by-default logic for OpenClaw
+                            return Err(ArsRuntimeError::InvalidRun(format!("missing required secret: {}", sec_str)));
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(serde_json::json!({
             "status": "success",
             "run_id": run_id,
             "skill_id": skill.id,
             "skill_version": skill.version,
             "output": input,
+            "injected_secrets": _injected_secrets.keys().collect::<Vec<_>>() // track successful injection
         }))
     }
 }

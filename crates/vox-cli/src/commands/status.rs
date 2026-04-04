@@ -1,6 +1,7 @@
 //! `vox status` — AI provider usage, remaining budget, and cost summary.
 
 use anyhow::Result;
+use colored::Colorize;
 use serde_json::json;
 
 const PROVIDER_LIMITS: &[(&str, &str, u32)] = &[
@@ -132,6 +133,22 @@ pub async fn run(json_output: bool) -> Result<()> {
     if let Some(ref db) = db {
         let tracker = vox_orchestrator::usage::UsageTracker::new_ref(db);
         grand_cost = tracker.cost_summary_today().await.map(|c| c.total_cost_usd).unwrap_or(0.0);
+
+        println!();
+        println!("  {} (Last 7 Days)  ", "Cost by Category".bold());
+        if let Ok(categories) = tracker.cost_by_category(7).await {
+            for cat in categories {
+                println!("    {:<18} ${:>8.4}", cat.task_category, cat.total_usd);
+            }
+        }
+
+        println!();
+        println!("  {} (Last 7 Days)     ", "Cost by Model".bold());
+        if let Ok(models) = tracker.cost_by_model(7).await {
+            for md in models.into_iter().take(8) {
+                println!("    {:<25} ${:>8.4}", md.model_slug, md.total_usd);
+            }
+        }
     }
 
     println!();

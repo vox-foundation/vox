@@ -150,7 +150,7 @@ mod tests {
         ));
         queues.insert(AgentId(1), std::sync::Arc::new(std::sync::RwLock::new(q1)));
 
-        let budgets = BudgetManager::new();
+        let budgets = BudgetManager::new(None);
         let picked = lb.pick_agent(&queues, &budgets, &[]);
         assert_eq!(picked, Some(AgentId(2)));
     }

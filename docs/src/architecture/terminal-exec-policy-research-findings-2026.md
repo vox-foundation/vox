@@ -29,7 +29,7 @@ It is **research**, not a shipped contract. Implementation should follow a futur
 2. **Approval fatigue and false prompts** come from **string-level** or **prefix-only** matching when the model emits pipes, env prefixes, or `shell -c '…'` wrappers — matchers often disagree on what the “real” command is (**documented** + **community-reported**).
 3. **Security** requires **conservative fallback** when parsing is ambiguous; real bypass classes exist where static analysis disagrees with runtime shell folding (**security-advisory**).
 4. **PowerShell** helps agents produce **structured inspection output** (`ConvertTo-Json`, strict error semantics) but is **not** a substitute for sandboxing or a deny-first policy tier (**documented**).
-5. **Vox already owns** the right integration seam: [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml), [`crates/vox-cli/src/commands/ci/operations_catalog.rs`](../../../crates/vox-cli/src/commands/ci/operations_catalog.rs) (`operations-sync` / `operations-verify`), and planner metadata (`side_effect_class`, `scope_kind`, …). A future **`terminal/exec-policy.v1`** contract should **compile** to Cursor, Gemini, Codex, and Antigravity artifacts under CI, not be edited by hand in four places.
+5. **Vox already owns** the right integration seam: [`contracts/operations/catalog.v1.yaml`](../../../../../../contracts/operations/catalog.v1.yaml), [`crates/vox-cli/src/commands/ci/operations_catalog.rs`](../../../crates/vox-cli/src/commands/ci/operations_catalog.rs) (`operations-sync` / `operations-verify`), and planner metadata (`side_effect_class`, `scope_kind`, …). A future **`terminal/exec-policy.v1`** contract should **compile** to Cursor, Gemini, Codex, and Antigravity artifacts under CI, not be edited by hand in four places.
 
 ## External evidence by platform
 
@@ -41,13 +41,13 @@ It is **research**, not a shipped contract. Implementation should follow a futur
 - **No per-repo file** in this reference path; team admin controls can supersede user settings.
 - Explicit caveat: allowlists are **not** a security boundary — see Cursor’s own security guidance linked from the same page.
 
-Reference: [Cursor permissions.json reference](https://cursor.com/docs/reference/permissions.md)
+Reference: [Cursor permissions.json reference](https://docs.cursor.com/)
 
 ### Cursor CLI — separate permissions model (**documented**)
 
 The same doc notes **CLI permissions are separate** from the editor `permissions.json` surface. Any repo-wide automation must account for **two** configuration worlds if both are used.
 
-Reference: [Cursor permissions.json reference](https://cursor.com/docs/reference/permissions.md) (CLI permissions note)
+Reference: [Cursor permissions.json reference](https://docs.cursor.com/) (CLI permissions note)
 
 ### Cursor — community-reported matcher pain (**community-reported**)
 

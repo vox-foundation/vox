@@ -12,6 +12,8 @@ pub mod ai;
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
+/// Identity and master key generation.
+pub mod auth;
 /// Validation and static checking (`vox check`).
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).

@@ -68,6 +68,7 @@ pub mod bulletin;
 pub mod capability_probe;
 /// Dynamic model catalogs.
 pub mod catalog;
+pub mod catalog_classifier;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Canonical context envelope contract for cross-surface context payloads.

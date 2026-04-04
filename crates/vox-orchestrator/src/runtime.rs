@@ -44,22 +44,6 @@ pub trait TaskProcessor: Send + Sync {
     ) -> anyhow::Result<crate::types::TaskId>;
 }
 
-/// A default stub processor that simulates a short work slice (~50ms) then completes the task.
-pub struct StubTaskProcessor;
-
-#[async_trait::async_trait]
-impl TaskProcessor for StubTaskProcessor {
-    async fn process(
-        &self,
-        _agent_id: crate::types::AgentId,
-        task: crate::types::AgentTask,
-    ) -> anyhow::Result<crate::types::TaskId> {
-        // Small delay so scaling/retirement tests and metrics have a non-racy window.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        Ok(task.id)
-    }
-}
-
 /// A real AI-powered task processor that streams tokens back to the event bus.
 pub struct AiTaskProcessor {
     client: vox_ludus::ai::FreeAiClient,
@@ -185,6 +169,8 @@ impl TaskProcessor for AiTaskProcessor {
                 },
                 ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
                 ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Registry {
+                    // TODO: This silent detachment loops PopuliMesh tasks out through OpenRouter. 
+                    // Add/use `LudusStreamBackend::Populi` or Cascade + provider hint to fix billing double-count.
                     backend: vox_ludus::LudusStreamBackend::OpenRouter,
                     model: m.id.as_str(),
                 },
@@ -571,7 +557,7 @@ impl AgentFleet {
             )
         };
 
-        let load_history: Vec<f64> = Vec::new();
+        let load_history: Vec<f64> = crate::sync_lock::rw_read(&*self.orchestrator.load_history).iter().copied().collect();
         let action = ScalingService::decide_scaling(
             &status,
             &config,
@@ -669,8 +655,7 @@ pub fn agent_fleet_env_enabled() -> bool {
     }
 }
 
-/// Background [`AgentFleet`] loop (sync fleet + tick + scaling). No-op when [`agent_fleet_env_enabled`] is false.
-pub fn spawn_stub_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
+pub fn spawn_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
     if !agent_fleet_env_enabled() {
         tracing::info!(
             target: "vox_orchestrator::runtime",
@@ -679,30 +664,17 @@ pub fn spawn_stub_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
         return;
     }
     let scheduler = Arc::new(Scheduler::new());
-    let fleet = AgentFleet::new(
-        scheduler,
-        orchestrator,
-        Arc::new(StubTaskProcessor),
-    );
     tokio::spawn(async move {
+        let processor = Arc::new(AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await);
+        let fleet = AgentFleet::new(
+            scheduler,
+            orchestrator,
+            processor,
+        );
         tracing::info!(
             target: "vox_orchestrator::runtime",
-            "AgentFleet loop running (stub processor; MCP / orchestrator-d)"
+            "AgentFleet loop running (AiTaskProcessor; MCP / orchestrator-d)"
         );
         fleet.run().await;
     });
-}
-
-#[cfg(test)]
-mod stub_processor_tests {
-    use super::{StubTaskProcessor, TaskProcessor};
-    use crate::types::{AgentId, AgentTask, TaskId, TaskPriority};
-
-    #[tokio::test]
-    async fn stub_task_processor_returns_same_task_id() {
-        let p = StubTaskProcessor;
-        let task = AgentTask::new(TaskId(42), "test", TaskPriority::Normal, vec![]);
-        let out = p.process(AgentId(1), task.clone()).await.expect("ok");
-        assert_eq!(out, task.id);
-    }
 }

@@ -28,7 +28,7 @@ The `Publisher` honors `config.dry_run || item.syndication.dry_run`. When true:
 
 - **GitHub**: `GitHubPostType` (`Release` | `Discussion`) with serde-friendly YAML. `Discussion` requires `discussion_category`. `Release` uses `release_tag` (defaults to news id) and supports `draft`.
 - **Defaults**: `vox_publisher::contract` centralizes site URL, feed path, and API bases.
-- **Templates**: canonical Markdown lives under [`crates/vox-publisher/news-templates/`](../../crates/vox-publisher/news-templates/) (embedded at compile time). Human-facing copies may exist under `docs/news/templates/` but the crate directory is authoritative when they differ.
+- **Templates**: canonical Markdown lives under [`crates/vox-publisher/news-templates/`](../../../crates/vox-publisher/news-templates/) (embedded at compile time). Human-facing copies may exist under `docs/news/templates/` but the crate directory is authoritative when they differ.
 
 ### C. Maker–checker (two approvers) + “armed” gate
 
@@ -36,7 +36,7 @@ For **live** syndication (`!orchestrator.news.dry_run` and `!item.syndication.dr
 
 1. **VoxDb** must be attached.
 2. **`publication_approvals`** must contain **two distinct** `approver` values for the publication `id` + current content digest (`content_sha3_256`) (MCP: `vox_news_approve` and scientia publication tools).
-3. **`publish_armed`** must be true in `[orchestrator.news]` **or** environment `VOX_NEWS_PUBLISH_ARMED=1` (see [env-vars.md](../src/reference/env-vars.md)).
+3. **`publish_armed`** must be true in `[orchestrator.news]` **or** environment `VOX_NEWS_PUBLISH_ARMED=1` (see [env-vars.md](../reference/env-vars.md)).
 
 If any check fails, `NewsService` skips the item (no publish, no `published_news` row).
 

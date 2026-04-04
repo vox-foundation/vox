@@ -52,7 +52,7 @@ impl ScalingService {
             return ScalingAction::NoOp;
         }
 
-        let cost_critical = !budgets.agents_in_alert().is_empty();
+        let cost_critical = !budgets.agents_in_alert().is_empty() || budgets.is_fatigued();
 
         let profile = config.scaling_profile;
         let agent_count = status.agent_count;
@@ -182,7 +182,7 @@ mod tests {
             &[],
             0,
             &[],
-            &BudgetManager::new(),
+            &BudgetManager::new(None),
         );
         assert!(matches!(action, ScalingAction::ScaleUp { .. }));
     }
@@ -199,7 +199,7 @@ mod tests {
             &[],
             3,
             &[],
-            &BudgetManager::new(),
+            &BudgetManager::new(None),
         );
         assert!(matches!(action, ScalingAction::NoOp));
     }

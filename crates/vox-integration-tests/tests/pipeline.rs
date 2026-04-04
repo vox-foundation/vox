@@ -36,7 +36,7 @@ fn with_express_server_enabled<R>(f: impl FnOnce() -> R) -> R {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let _guard = Guard { prev };
     f()
@@ -83,7 +83,7 @@ fn with_web_ir_validate_enabled<R>(f: impl FnOnce() -> R) -> R {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let _guard = Guard { prev };
     f()
@@ -106,7 +106,7 @@ fn with_reactive_emit_views_enabled<R>(f: impl FnOnce() -> R) -> R {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let _guard = Guard { prev };
     f()

@@ -7,6 +7,8 @@ use crate::usage::LlmUsageKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+fn default_true() -> bool { true }
+
 /// Model tier for routing prioritization
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -18,15 +20,28 @@ pub enum ModelTier {
     Elite,
 }
 
-/// Rich capabilities for a model, imported from DeI
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+/// Rich capabilities for a model, imported from DeI and the OpenRouter /models catalog.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ModelCapabilities {
     pub supports_json: bool,
     pub supports_vision: bool,
+    #[serde(default = "default_true")]
+    pub supports_native_tools: bool,
     pub max_context: u64,
     pub tier: ModelTier,
+    /// Provider-reported RPM limit (e.g. from OpenRouter `per_request_limits`).
     pub rate_limit_rpm: Option<u32>,
+    /// Provider-reported RPD limit (e.g. from OpenRouter `per_request_limits`).
     pub rate_limit_rpd: Option<u32>,
+    /// Median response latency in milliseconds from catalog metadata (p50).
+    #[serde(default)]
+    pub latency_p50_ms: Option<u32>,
+    /// Whether the provider applies content moderation to outputs.
+    #[serde(default)]
+    pub is_moderated: bool,
+    /// Provider-reported uptime score 0.0–1.0 (1.0 = fully available).
+    #[serde(default)]
+    pub uptime_score: Option<f32>,
 }
 
 /// Specification for an LLM model in the registry.
@@ -184,6 +199,31 @@ pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
     HashMap::new()
 }
 
+/// Strength tags inferred from known provider families when name heuristics yield nothing.
+///
+/// Keyed on the provider prefix that appears before `/` in OpenRouter model ids (e.g. `anthropic`,
+/// `openai`, `google`). Returns an empty slice for unknown prefixes so heuristics still apply.
+#[must_use]
+pub fn provider_family_strengths(provider_prefix: &str) -> &'static [&'static str] {
+    match provider_prefix {
+        "anthropic" => &["codegen", "logic", "review", "research"],
+        "openai" => &["codegen", "logic", "research"],
+        "google" => &["research", "codegen", "logic"],
+        "deepseek" => &["codegen", "logic", "debugging"],
+        "qwen" | "qwen2" | "qwen2.5" => &["codegen", "logic"],
+        "mistral" | "mistralai" => &["codegen", "logic"],
+        "meta-llama" | "meta" => &["codegen", "logic", "research"],
+        "cohere" => &["research", "review"],
+        "perplexity" => &["research"],
+        "x-ai" => &["research", "logic"],
+        "nvidia" => &["codegen", "logic"],
+        "01-ai" => &["logic", "codegen"],
+        "amazon" => &["codegen", "research"],
+        "microsoft" => &["codegen", "logic"],
+        _ => &[],
+    }
+}
+
 fn premium_alias_toml_default() -> HashMap<String, String> {
     HashMap::new()
 }
@@ -238,6 +278,7 @@ pub fn task_category_premium_key(task_type: TaskCategory) -> &'static str {
         TaskCategory::Research => "research",
         TaskCategory::Parsing => "parsing",
         TaskCategory::Review => "review",
+        TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
     }
 }
 
@@ -250,5 +291,6 @@ pub(super) fn task_category_strength(task_type: TaskCategory) -> &'static str {
         TaskCategory::Research => "research",
         TaskCategory::Parsing => "parsing",
         TaskCategory::Review => "review",
+        TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
     }
 }

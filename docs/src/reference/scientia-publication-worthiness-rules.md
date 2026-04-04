@@ -202,5 +202,5 @@ When `metadata_json.scientia_distribution` is present:
 - COPE AI authorship and tooling position: [https://publicationethics.org/cope-position-statements/ai-author](https://publicationethics.org/cope-position-statements/ai-author)
 - ICMJE recommendations (AI tools and authorship context): [https://www.icmje.org/recommendations/](https://www.icmje.org/recommendations/)
 - Nature Portfolio policy on AI: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
-- Elsevier policy for AI-assisted writing: [https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing](https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing)
+- Elsevier policy for AI-assisted writing: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
 - TMLR venue policy context: [https://openreview.net/group?id=TMLR](https://openreview.net/group?id=TMLR)

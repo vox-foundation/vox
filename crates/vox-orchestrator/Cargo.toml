@@ -73,6 +73,11 @@ chrono = { workspace = true }
 walkdir = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-protocol = { workspace = true }
+aes-gcm = "0.10.3"
+rand.workspace = true
+base64.workspace = true
+vox-clavis.workspace = true
+blake3.workspace = true
 
 [[bin]]
 name = "vox-orchestrator-d"

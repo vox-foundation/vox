@@ -11,7 +11,7 @@ training_eligible: true
 
 ## Status
 
-**Roadmap:** sensitivity classes below are normative for future implementation. Current TTLs are authoritative in [retention-policy.yaml](../../contracts/db/retention-policy.yaml) and [`db_retention`](../../../crates/vox-cli/src/commands/db_retention.rs).
+**Roadmap:** sensitivity classes below are normative for future implementation. Current TTLs are authoritative in [retention-policy.yaml](../../../../../contracts/db/retention-policy.yaml) and [`db_retention`](../../../crates/vox-cli/src/commands/db_retention.rs).
 
 ## Sensitivity classes
 
@@ -28,11 +28,11 @@ training_eligible: true
 
 ### Today: `research_metrics`
 
-[retention-policy.yaml](../../contracts/db/retention-policy.yaml) lists `research_metrics` with **365 days** (`days` relative to `created_at`). Prune is operator-driven via `vox db prune-plan` / `prune-apply`.
+[retention-policy.yaml](../../../../../contracts/db/retention-policy.yaml) lists `research_metrics` with **365 days** (`days` relative to `created_at`). Prune is operator-driven via `vox db prune-plan` / `prune-apply`.
 
 ### Today: `ci_completion_*`
 
-Completion ingest persists workspace-adjacent rows ([`ci_completion.rs`](../../../crates/vox-db/src/schema/domains/ci_completion.rs)), classified **S2** (paths, fingerprints). [retention-policy.yaml](../../contracts/db/retention-policy.yaml) defines:
+Completion ingest persists workspace-adjacent rows ([`ci_completion.rs`](../../../crates/vox-db/src/schema/domains/ci_completion.rs)), classified **S2** (paths, fingerprints). [retention-policy.yaml](../../../../../contracts/db/retention-policy.yaml) defines:
 
 | Table | Prune rule | Notes |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Tables such as `conversation_messages`, `agent_events`, `behavior_events`, `llm_
 
 ## Controls linkage
 
-- **Prune:** [contracts/db/retention-policy.yaml](../../contracts/db/retention-policy.yaml)
+- **Prune:** [contracts/db/retention-policy.yaml](../../../../../contracts/db/retention-policy.yaml)
 - **Emergency / feature off:** env and flags documented per subsystem (mesh telemetry, Ludus, MCP cost events) — consolidated index in [env-vars](../reference/env-vars.md)
 
 ## Related

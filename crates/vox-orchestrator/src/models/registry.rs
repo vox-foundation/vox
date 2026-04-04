@@ -102,7 +102,11 @@ impl ModelRegistry {
                 .enable_all()
                 .build()
                 .map_err(|e| RefreshFail::Runtime(e.to_string()))?;
-            rt.block_on(async { OpenRouterCatalog::new().refresh().await })
+            rt.block_on(async { 
+                let mut models = OpenRouterCatalog::new().refresh().await?;
+                crate::catalog_classifier::classify_models(&mut models).await;
+                Ok::<_, anyhow::Error>(models)
+            })
                 .map_err(|e| RefreshFail::Fetch(e.to_string()))
         })
         .join();
@@ -221,6 +225,7 @@ impl ModelRegistry {
                 TaskCategory::Research => "research",
                 TaskCategory::Parsing => "parsing",
                 TaskCategory::Review => "review",
+                TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
             };
 
             return self
@@ -279,6 +284,7 @@ impl ModelRegistry {
                 TaskCategory::Research => "research",
                 TaskCategory::Parsing => "parsing",
                 TaskCategory::Review => "review",
+                TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
             };
 
             return self
@@ -324,6 +330,7 @@ impl ModelRegistry {
             TaskCategory::Research => "research",
             TaskCategory::Parsing => "parsing",
             TaskCategory::Review => "review",
+            TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
         };
 
         self.models
@@ -349,6 +356,7 @@ impl ModelRegistry {
             TaskCategory::Research => "research",
             TaskCategory::Parsing => "parsing",
             TaskCategory::Review => "review",
+            TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
         };
 
         self.models

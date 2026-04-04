@@ -27,8 +27,8 @@ impl InferStubEnvGuard {
         let lock = INFER_STUB_TEST_LOCK.lock().expect("infer stub test lock");
         // SAFETY: tests hold `INFER_STUB_TEST_LOCK`; no concurrent access to these env keys.
         unsafe {
-            std::env::set_var(INFER_STUB_BODY_ENV, stub_json);
-            std::env::set_var(INFER_STUB_ACK_ENV, "1");
+            unsafe { std::env::set_var(INFER_STUB_BODY_ENV, stub_json) };
+            unsafe { std::env::set_var(INFER_STUB_ACK_ENV, "1") };
         }
         Self { _lock: lock }
     }
@@ -52,7 +52,7 @@ impl OrchDaemonEnvGuard {
         let lock = ORCH_DAEMON_ENV_TEST_LOCK.lock().expect("orch daemon env lock");
         // SAFETY: tests hold `ORCH_DAEMON_ENV_TEST_LOCK`; no concurrent access to these env keys.
         unsafe {
-            std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", socket);
+            unsafe { std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", socket) };
             std::env::set_var(
                 "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
                 if writes_enabled { "1" } else { "0" },
@@ -1929,8 +1929,8 @@ impl McpToolArgsStorageGuard {
             .expect("mcp tool args storage lock");
         // SAFETY: tests hold `MCP_TOOL_ARGS_STORAGE_TEST_LOCK`; no concurrent access to these env keys.
         unsafe {
-            std::env::set_var("VOX_LUDUS_EMERGENCY_OFF", "1");
-            std::env::set_var("VOX_LUDUS_MCP_TOOL_ARGS", mode);
+            unsafe { std::env::set_var("VOX_LUDUS_EMERGENCY_OFF", "1") };
+            unsafe { std::env::set_var("VOX_LUDUS_MCP_TOOL_ARGS", mode) };
         }
         Self { _lock: lock }
     }

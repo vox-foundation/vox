@@ -26,7 +26,7 @@ Optional object storage (future R2 adapter): `R2_*` variables as in [Codex BaaS 
 
 ## Compose
 
-See [`docker-compose.yml`](docker-compose.yml). For **mens** alongside other services, merge env from [`docker/vox-compose-mens-environment.block.yaml`](../../docker/vox-compose-mens-environment.block.yaml) and follow [mesh SSOT](../../docs/src/reference/populi.md).
+See [`docker-compose.yml`](docker-compose.yml). For **mens** alongside other services, merge env from [`docker/vox-compose-populi-environment.block.yaml`](../../docker/vox-compose-populi-environment.block.yaml) and follow [mesh SSOT](../../docs/src/reference/populi.md).
 
 ## Related
 

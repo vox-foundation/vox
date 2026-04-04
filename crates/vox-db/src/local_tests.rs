@@ -416,7 +416,7 @@ async fn connect_default_with_training_fallback_resets_stale_sidecar() {
     let old = std::env::var("VOX_DATA_DIR").ok();
     // SAFETY: `DATA_DIR_LOCK` serializes tests that touch `VOX_DATA_DIR` for this module.
     unsafe {
-        std::env::set_var("VOX_DATA_DIR", dir.path().as_os_str());
+        unsafe { std::env::set_var("VOX_DATA_DIR", dir.path() }.as_os_str());
     }
 
     let db = VoxDb::connect_default_with_training_fallback()
@@ -430,7 +430,7 @@ async fn connect_default_with_training_fallback_resets_stale_sidecar() {
 
     unsafe {
         match &old {
-            Some(s) => std::env::set_var("VOX_DATA_DIR", s),
+            Some(s) => unsafe { std::env::set_var("VOX_DATA_DIR", s) },
             None => std::env::remove_var("VOX_DATA_DIR"),
         }
     }

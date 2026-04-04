@@ -286,7 +286,7 @@ Distribution precedence:
 - COPE AI tools position statement: [https://publicationethics.org/cope-position-statements/ai-author](https://publicationethics.org/cope-position-statements/ai-author)
 - ICMJE recommendations, including AI guidance: [https://www.icmje.org/recommendations/](https://www.icmje.org/recommendations/)
 - Nature Portfolio AI policy for authors: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
-- Elsevier generative AI in publishing policy: [https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing](https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing)
+- Elsevier generative AI in publishing policy: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
 - Crossref metadata best practices: [https://www.crossref.org/documentation/schema-library/markup-guide-metadata-segments/](https://www.crossref.org/documentation/schema-library/markup-guide-metadata-segments/)
 - Reddit Data API Wiki: [https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki)
 - Reddit Developer Terms: [https://www.redditinc.com/policies/developer-terms](https://www.redditinc.com/policies/developer-terms)

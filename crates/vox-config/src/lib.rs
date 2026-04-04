@@ -36,7 +36,8 @@ pub use rollout::{
 };
 pub use routing_policy::{
     AutoModelStrategy, AutoRoutingPriority, GeminiRoutePolicy, GeminiRouteTargets,
-    gemini_route_targets_from_env, resolve_openrouter_model,
+    OpenRouterRouteHint, RouteCostPreference,
+    derive_openrouter_route_hint, gemini_route_targets_from_env, resolve_openrouter_model,
 };
 
 /// Minimum Vox MCP server version required for full agent capability.

@@ -39,3 +39,5 @@ pub mod infisical;
 
 #[cfg(feature = "clavis-vault")]
 pub mod vault;
+
+pub mod vox_vault;

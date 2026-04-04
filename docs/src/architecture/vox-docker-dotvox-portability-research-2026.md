@@ -68,7 +68,7 @@ In that framing, Docker/OCI is not a side feature. It is the most realistic boun
   - [crates/vox-container/src/lib.rs](../../../crates/vox-container/src/lib.rs)
   - [crates/vox-container/src/deploy_target.rs](../../../crates/vox-container/src/deploy_target.rs)
   - [crates/vox-install-policy/src/lib.rs](../../../crates/vox-install-policy/src/lib.rs)
-  - [contracts/cli/command-registry.yaml](../../../contracts/cli/command-registry.yaml)
+  - [contracts/cli/command-registry.yaml](../../../../../../contracts/cli/command-registry.yaml)
   - [docs/src/reference/deployment-compose.md](../reference/deployment-compose.md)
   - [docs/src/architecture/vox-cross-platform-runbook.md](vox-cross-platform-runbook.md)
   - [docs/src/architecture/vox-packaging-research-findings-2026.md](vox-packaging-research-findings-2026.md)
@@ -191,7 +191,7 @@ This is useful because it shows a pattern Vox can copy:
 
 ### CLI portability surface is not fully converged
 
-[contracts/cli/command-registry.yaml](../../../contracts/cli/command-registry.yaml) is the machine-readable command SSOT, but it currently exposes PM verbs without a fully converged deploy/portability contract row set.
+[contracts/cli/command-registry.yaml](../../../../../../contracts/cli/command-registry.yaml) is the machine-readable command SSOT, but it currently exposes PM verbs without a fully converged deploy/portability contract row set.
 
 That does not mean a new system is needed. It means the portability story is partly modeled in code/docs and not yet fully surfaced through the same contract discipline as the packaging work.
 

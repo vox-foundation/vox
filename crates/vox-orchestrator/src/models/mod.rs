@@ -1,10 +1,11 @@
+pub(crate) mod spec;
 mod registry;
-mod spec;
+pub mod scoring;
 #[cfg(test)]
 mod tests;
 
 pub use registry::ModelRegistry;
 pub use spec::{
     ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, ModelTier, ProviderType,
-    route_backend_for_model, task_category_premium_key,
+    provider_family_strengths, route_backend_for_model, task_category_premium_key,
 };

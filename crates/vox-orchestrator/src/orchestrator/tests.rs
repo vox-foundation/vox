@@ -1115,6 +1115,7 @@ mod populi_single_owner {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .expect("relay result row");
@@ -1370,6 +1371,7 @@ mod populi_single_owner {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .expect("deliver remote envelope");
@@ -1481,6 +1483,7 @@ mod populi_single_owner {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .expect("deliver remote envelope");
@@ -1721,6 +1724,7 @@ mod populi_single_owner {
                 privacy_class: None,
                 payload_blake3_hex: None,
                 worker_ed25519_sig_b64: None,
+                jwe_payload: None,
             })
             .await
             .expect("relay result");

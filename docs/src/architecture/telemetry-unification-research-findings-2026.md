@@ -82,7 +82,7 @@ Current code and contract surface already includes:
 - Structured context-lifecycle tracing and policy-enforced validation in [`crates/vox-orchestrator/src/context_lifecycle.rs`](../../../crates/vox-orchestrator/src/context_lifecycle.rs).
 - MCP LLM cost event controls in [Crate API: vox-mcp](../api/vox-mcp.md) and [Environment variables (SSOT)](../reference/env-vars.md) (`VOX_MCP_LLM_COST_EVENTS`).
 - Existing privacy mode precedent (`full|hash|omit`) for tool arguments in [`crates/vox-ludus/src/mcp_privacy.rs`](../../../crates/vox-ludus/src/mcp_privacy.rs).
-- Retention hints in [`contracts/db/retention-policy.yaml`](../../../contracts/db/retention-policy.yaml) (for example, `research_metrics` at 365 days).
+- Retention hints in [`contracts/db/retention-policy.yaml`](../../../../../../contracts/db/retention-policy.yaml) (for example, `research_metrics` at 365 days).
 
 ### Important baseline finding
 

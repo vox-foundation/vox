@@ -177,9 +177,10 @@ pub enum BudgetSignal {
 }
 
 /// Tracks agent context budgets globally.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct BudgetManager {
     inner: Arc<std::sync::RwLock<HashMap<AgentId, ContextBudget>>>,
+    pub db: Option<Arc<vox_db::VoxDb>>,
     /// Phase 15: session-level attention budget.
     attention: Arc<std::sync::RwLock<AttentionBudget>>,
     /// Phase 15: per-agent EWMA trust scores.
@@ -190,12 +191,13 @@ pub struct BudgetManager {
 
 impl BudgetManager {
     /// Creates an empty manager; call [`Self::reset`] before tracking an agent.
-    pub fn new() -> Self {
+    pub fn new(db: Option<Arc<vox_db::VoxDb>>) -> Self {
         Self {
             inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
             attention: Arc::new(std::sync::RwLock::new(AttentionBudget::default())),
             trust_scores: Arc::new(std::sync::RwLock::new(HashMap::new())),
             fatigue: Arc::new(std::sync::RwLock::new(FatigueMonitor::new())),
+            db,
         }
     }
 
@@ -402,7 +404,7 @@ mod tests {
 
     #[test]
     fn budget_tracking_and_summarization() {
-        let manager = BudgetManager::new();
+        let manager = BudgetManager::new(None);
         let agent = AgentId(1);
 
         manager.reset(agent, 10_000);
@@ -423,7 +425,7 @@ mod tests {
 
     #[test]
     fn per_agent_allocation_cap() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         let agent = AgentId(2);
         let alloc = AgentBudgetAllocation::new(5_000, 1.00).with_alert_thresholds(0.6, 0.8);
         mgr.set_allocation(agent, alloc);
@@ -435,7 +437,7 @@ mod tests {
 
     #[test]
     fn cost_alert_fires_above_threshold() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         let agent = AgentId(3);
         let alloc = AgentBudgetAllocation::new(100_000, 10.0).with_alert_thresholds(0.8, 0.9);
         mgr.set_allocation(agent, alloc);
@@ -451,7 +453,7 @@ mod tests {
 
     #[test]
     fn rollover_grants_unused_tokens() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         let agent = AgentId(4);
         let alloc = AgentBudgetAllocation::new(10_000, 5.0).with_rollover(0.5);
         mgr.set_allocation(agent, alloc);
@@ -469,7 +471,7 @@ mod tests {
 
     #[test]
     fn total_cost_aggregation() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         mgr.record_cost(AgentId(1), 0.50);
         mgr.record_cost(AgentId(2), 0.75);
         mgr.record_cost(AgentId(3), 0.25);
@@ -480,7 +482,7 @@ mod tests {
     #[test]
     fn attention_signal_escalates_to_high() {
         use crate::attention::{ApprovalTier, AttentionEventType};
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         // Fill 75% of the default 1-hour budget (alert threshold 0.7)
         let cost_ms = (crate::attention::DEFAULT_ATTENTION_BUDGET_MS as f64 * 0.75) as u64;
         let event = AttentionEvent {
@@ -508,14 +510,14 @@ mod tests {
 
     #[test]
     fn attention_signal_normal_below_threshold() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         let signal = mgr.attention_signal(0.7);
         assert!(matches!(signal, BudgetSignal::Normal { .. }));
     }
 
     #[test]
     fn questioning_attention_debit_updates_spent_ms() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         let before = mgr.attention_snapshot().spent_ms;
         mgr.add_questioning_attention_debit_ms(500);
         assert_eq!(
@@ -526,7 +528,7 @@ mod tests {
 
     #[test]
     fn record_trust_outcome_updates_score() {
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         let agent = AgentId(42);
         for _ in 0..10 {
             mgr.record_trust_outcome(agent, true, 0.2, 5, 20);

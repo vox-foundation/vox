@@ -289,6 +289,7 @@ async fn run_remote_worker_tick(
                 privacy_class: envelope.privacy_class.clone(),
                 payload_blake3_hex: None,
                 worker_ed25519_sig_b64: None,
+                jwe_payload: None,
             })
             .await;
         if deliver_res.is_err() {

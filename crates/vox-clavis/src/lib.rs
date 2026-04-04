@@ -25,6 +25,7 @@ pub enum BackendMode {
     EnvOnly,
     Infisical,
     Vault,
+    VoxCloud,
 }
 
 impl BackendMode {
@@ -38,6 +39,7 @@ impl BackendMode {
             Some("env_only") | Some("env") => Self::EnvOnly,
             Some("infisical") => Self::Infisical,
             Some("vault") => Self::Vault,
+            Some("vox_cloud") | Some("voxcloud") => Self::VoxCloud,
             _ => Self::Auto,
         }
     }
@@ -59,7 +61,11 @@ pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
         BackendMode::EnvOnly => resolve_with_backend(backend::NoopBackend, id),
         BackendMode::Infisical => resolve_infisical(id),
         BackendMode::Vault => resolve_vault(id),
+        BackendMode::VoxCloud => resolve_vox_cloud(id),
         BackendMode::Auto => {
+            if std::env::var("VOX_TURSO_URL").is_ok() {
+                return resolve_vox_cloud(id);
+            }
             if std::env::var("INFISICAL_TOKEN").is_ok()
                 || std::env::var("INFISICAL_SERVICE_TOKEN").is_ok()
             {
@@ -68,8 +74,24 @@ pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
             if std::env::var("VAULT_ADDR").is_ok() && std::env::var("VAULT_TOKEN").is_ok() {
                 return resolve_vault(id);
             }
+            // fallback to cloud automatically if keyring has a master key
+            if keyring::Entry::new("vox-clavis-vault", "master").is_ok() {
+                 return resolve_vox_cloud(id);
+            }
             resolve_with_backend(backend::NoopBackend, id)
         }
+    }
+}
+
+fn resolve_vox_cloud(id: SecretId) -> ResolvedSecret {
+    match backend::vox_vault::VoxCloudBackend::new() {
+        Ok(backend) => resolve_with_backend(backend, id),
+        Err(e) => resolve_with_backend(
+            backend::UnavailableBackend {
+                reason: format!("VoxCloud backend failed to init: {}", e),
+            },
+            id,
+        ),
     }
 }
 

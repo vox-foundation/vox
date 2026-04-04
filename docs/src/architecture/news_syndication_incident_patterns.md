@@ -36,4 +36,4 @@ Searchable SSOT for **why** automated outbound publishing fails in production an
 ## References
 
 - Open Collective API direction (GraphQL v2): [Open Collective API](https://docs.opencollective.com/help/contributing/development/api) → `https://graphql-docs-v2.opencollective.com/`.
-- Cross-cutting env vars: [env-vars.md](../src/reference/env-vars.md).
+- Cross-cutting env vars: [env-vars.md](../reference/env-vars.md).

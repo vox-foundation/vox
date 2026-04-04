@@ -546,7 +546,7 @@ fn reactive_codegen_with_web_ir_view_env_still_succeeds() {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let _guard = Guard { prev };
 
@@ -626,7 +626,7 @@ fn reactive_view_bridge_stats_env_on_uses_non_legacy_pathways() {
     const KEY: &str = "VOX_WEBIR_EMIT_REACTIVE_VIEWS";
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let before = vox_compiler::codegen_ts::reactive::reactive_view_bridge_stats();
 

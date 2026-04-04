@@ -115,6 +115,47 @@ pub struct ProviderCost {
     pub cost_usd: f64,
 }
 
+/// Per-model cost breakdown row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelCost {
+    /// Provider slug.
+    pub provider: String,
+    /// Model id as stored in usage rows.
+    pub model: String,
+    /// Calls attributed to this model.
+    pub calls: u32,
+    /// Tokens consumed (input + output).
+    pub tokens: u64,
+    /// USD attributed to this model.
+    pub cost_usd: f64,
+}
+
+/// Per-task-category cost breakdown row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryCost {
+    /// Task category label (or `"unknown"` when not recorded).
+    pub category: String,
+    /// Calls attributed to this category.
+    pub calls: u32,
+    /// USD attributed to this category.
+    pub cost_usd: f64,
+}
+
+/// Unified cost summary merging cloud and local inference spend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnifiedCostSummary {
+    /// Total calls across all providers.
+    pub total_calls: u32,
+    /// Total USD spend including local inference cost estimate.
+    pub total_cost_usd: f64,
+    /// Per-provider breakdown.
+    pub by_provider: Vec<ProviderCost>,
+    /// Per-model breakdown sorted by cost descending.
+    pub by_model: Vec<ModelCost>,
+    /// Number of days covered by this summary.
+    pub days_covered: u32,
+}
+
 /// Tracks API usage per provider in VoxDB.
 pub struct UsageTracker<'a> {
     db: &'a vox_db::VoxDb,
@@ -174,10 +215,12 @@ impl<'a> UsageTracker<'a> {
             tokens_out,
             cost_usd,
             None,
-            None,
+            Some(cost_usd),
             Some(cost_usd),
             Some(cost_usd),
             Some("estimated"),
+            None,
+            None,
         )
         .await
     }
@@ -196,6 +239,8 @@ impl<'a> UsageTracker<'a> {
         estimated_cost_usd: Option<f64>,
         reconciled_cost_usd: Option<f64>,
         cost_source: Option<&str>,
+        task_category: Option<&str>,
+        agent_id: Option<&str>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let col = self.db.collection("provider_usage");
         col.ensure_table().await?;
@@ -205,7 +250,9 @@ impl<'a> UsageTracker<'a> {
             "user_id": self.user_id,
             "provider": provider,
             "model": model,
-            "date": date
+            "date": date,
+            "task_category": task_category.unwrap_or("unknown"),
+            "agent_id": agent_id.unwrap_or("unknown")
         });
 
         let existing = col.find(&filter).await?;
@@ -245,7 +292,9 @@ impl<'a> UsageTracker<'a> {
                 "reconciled_cost_usd": reconciled_cost_usd,
                 "cost_source": cost_source,
                 "is_rate_limited": false,
-                "last_429": Value::Null,
+                "last_429": serde_json::Value::Null,
+                "task_category": task_category.unwrap_or("unknown"),
+                "agent_id": agent_id.unwrap_or("unknown"),
             }))
             .await?;
         }
@@ -397,11 +446,11 @@ impl<'a> UsageTracker<'a> {
                 "google" => has_google_key,
                 "openrouter" => has_openrouter_key,
                 "ollama" => has_ollama,
-                "groq" => std::env::var("GROQ_API_KEY").ok().is_some(),
-                "cerebras" => std::env::var("CEREBRAS_API_KEY").ok().is_some(),
-                "mistral" => std::env::var("MISTRAL_API_KEY").ok().is_some(),
-                "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok().is_some(),
-                "sambanova" => std::env::var("SAMBANOVA_API_KEY").ok().is_some(),
+                "groq" => vox_clavis::resolve_secret(vox_clavis::SecretId::GroqApiKey).is_present(),
+                "cerebras" => vox_clavis::resolve_secret(vox_clavis::SecretId::CerebrasApiKey).is_present(),
+                "mistral" => vox_clavis::resolve_secret(vox_clavis::SecretId::MistralApiKey).is_present(),
+                "deepseek" => vox_clavis::resolve_secret(vox_clavis::SecretId::DeepSeekApiKey).is_present(),
+                "sambanova" => vox_clavis::resolve_secret(vox_clavis::SecretId::SambaNovaApiKey).is_present(),
                 "custom" => std::env::var("CUSTOM_OPENAI_API_KEY").ok().is_some(),
                 _ => false,
             }
@@ -493,6 +542,155 @@ impl<'a> UsageTracker<'a> {
             total_cost_usd: total_cost,
             by_provider: by_provider.into_values().collect(),
         })
+    }
+
+    /// Per-model cost breakdown for the last `since_days` days (1 = today only).
+    pub async fn cost_by_model(
+        &self,
+        since_days: u32,
+    ) -> Result<Vec<ModelCost>, Box<dyn std::error::Error + Send + Sync>> {
+        let col = self.db.collection("provider_usage");
+        col.ensure_table().await?;
+
+        let dates = Self::last_n_days(since_days.max(1));
+        let mut by_key: std::collections::HashMap<(String, String), ModelCost> =
+            std::collections::HashMap::new();
+
+        for date in &dates {
+            let filter = json!({ "user_id": self.user_id, "date": date });
+            let records = col.find(&filter).await?;
+            for (_id, doc) in records {
+                let provider = doc["provider"].as_str().unwrap_or("unknown").to_string();
+                let model = doc["model"].as_str().unwrap_or("*").to_string();
+                let calls = doc["calls"].as_u64().unwrap_or(0) as u32;
+                let tin = doc["tokens_in"].as_u64().unwrap_or(0);
+                let tout = doc["tokens_out"].as_u64().unwrap_or(0);
+                let cost = doc["cost_usd"].as_f64().unwrap_or(0.0);
+                let entry = by_key
+                    .entry((provider.clone(), model.clone()))
+                    .or_insert(ModelCost {
+                        provider,
+                        model,
+                        calls: 0,
+                        tokens: 0,
+                        cost_usd: 0.0,
+                    });
+                entry.calls += calls;
+                entry.tokens += tin + tout;
+                entry.cost_usd += cost;
+            }
+        }
+
+        let mut rows: Vec<ModelCost> = by_key.into_values().collect();
+        rows.sort_by(|a, b| b.cost_usd.total_cmp(&a.cost_usd));
+        Ok(rows)
+    }
+
+    /// Per-task-category cost breakdown for the last `since_days` days.
+    ///
+    /// Only rows that have a `task_category` field set (written by future orchestrator
+    /// instrumentation or MCP dispatch context) are included in the breakdown; the rest
+    /// fall into the `"unknown"` bucket.
+    pub async fn cost_by_category(
+        &self,
+        since_days: u32,
+    ) -> Result<Vec<CategoryCost>, Box<dyn std::error::Error + Send + Sync>> {
+        let col = self.db.collection("provider_usage");
+        col.ensure_table().await?;
+
+        let dates = Self::last_n_days(since_days.max(1));
+        let mut by_cat: std::collections::HashMap<String, CategoryCost> =
+            std::collections::HashMap::new();
+
+        for date in &dates {
+            let filter = json!({ "user_id": self.user_id, "date": date });
+            let records = col.find(&filter).await?;
+            for (_id, doc) in records {
+                let category = doc["task_category"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string();
+                let calls = doc["calls"].as_u64().unwrap_or(0) as u32;
+                let cost = doc["cost_usd"].as_f64().unwrap_or(0.0);
+                let entry = by_cat
+                    .entry(category.clone())
+                    .or_insert(CategoryCost {
+                        category,
+                        calls: 0,
+                        cost_usd: 0.0,
+                    });
+                entry.calls += calls;
+                entry.cost_usd += cost;
+            }
+        }
+
+        let mut rows: Vec<CategoryCost> = by_cat.into_values().collect();
+        rows.sort_by(|a, b| b.cost_usd.total_cmp(&a.cost_usd));
+        Ok(rows)
+    }
+
+    /// Unified cost summary merging cloud and local inference spend over `since_days` days.
+    ///
+    /// Populi Mesh spend is included under the `mens` provider slug.
+    pub async fn unified_cost_summary(
+        &self,
+        since_days: u32,
+    ) -> Result<UnifiedCostSummary, Box<dyn std::error::Error + Send + Sync>> {
+        let by_model = self.cost_by_model(since_days).await?;
+
+        let mut by_provider: std::collections::HashMap<String, ProviderCost> =
+            std::collections::HashMap::new();
+        for m in &by_model {
+            let entry = by_provider
+                .entry(m.provider.clone())
+                .or_insert(ProviderCost {
+                    provider: m.provider.clone(),
+                    calls: 0,
+                    cost_usd: 0.0,
+                });
+            entry.calls += m.calls;
+            entry.cost_usd += m.cost_usd;
+        }
+
+        let total_calls: u32 = by_model.iter().map(|m| m.calls).sum();
+        let total_cost: f64 = by_model.iter().map(|m| m.cost_usd).sum();
+
+        Ok(UnifiedCostSummary {
+            total_calls,
+            total_cost_usd: total_cost,
+            by_provider: by_provider.into_values().collect(),
+            by_model,
+            days_covered: since_days.max(1),
+        })
+    }
+
+    /// Returns the last `n` day strings in `YYYY-MM-DD` format (including today).
+    fn last_n_days(n: u32) -> Vec<String> {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let secs_per_day: u64 = 86_400;
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO)
+            .as_secs();
+        (0..n)
+            .map(|i| {
+                let day_secs = now_secs.saturating_sub(u64::from(i) * secs_per_day);
+                let days_since_epoch = day_secs / secs_per_day;
+                // Convert days-since-epoch to ISO date string.
+                // Uses Gregorian proleptic calendar arithmetic (no leap-second correction).
+                let z = days_since_epoch as i64 + 719_468;
+                let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+                let doe = z - era * 146_097;
+                let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+                let y = yoe + era * 400;
+                let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+                let mp = (5 * doy + 2) / 153;
+                let d = doy - (153 * mp + 2) / 5 + 1;
+                let m = if mp < 10 { mp + 3 } else { mp - 9 };
+                let y = if m <= 2 { y + 1 } else { y };
+                format!("{:04}-{:02}-{:02}", y, m, d)
+            })
+            .collect()
     }
 }
 

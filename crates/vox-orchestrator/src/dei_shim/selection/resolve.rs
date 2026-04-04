@@ -2,6 +2,8 @@ use crate::config::CostPreference;
 use crate::mode::InferenceConfig;
 use crate::models::{BestModelParams, ModelRegistry, ModelSpec, RoutingStrategy};
 use crate::types::TaskCategory;
+use crate::models::scoring::auto_score_model;
+use crate::usage::RemainingBudget;
 
 use super::free_tier::FreeTierRouteRequest;
 
@@ -67,6 +69,8 @@ pub struct RegistryModelResolutionParams {
     pub allow_cheapest_fallback: bool,
     /// OR with `task == Research`: force `web_search` modality in [`InferenceConfig`].
     pub force_web_search_for_task: bool,
+    /// Fill ratio if available
+    pub context_fill_ratio: Option<f32>,
 }
 
 impl Default for RegistryModelResolutionParams {
@@ -78,6 +82,7 @@ impl Default for RegistryModelResolutionParams {
             free_tier_fill_in_middle: false,
             allow_cheapest_fallback: false,
             force_web_search_for_task: false,
+            context_fill_ratio: None,
         }
     }
 }
@@ -95,6 +100,7 @@ pub fn resolve_model_with_registry_fallbacks(
     user_prompt: &str,
     preferred_id: Option<&str>,
     params: RegistryModelResolutionParams,
+    availability_hint: Option<&[RemainingBudget]>,
 ) -> Result<(ModelSpec, bool), String> {
     let (vis, web) = infer_prompt_capability_hints(user_prompt);
     cfg.modalities.vision |= vis;
@@ -116,16 +122,21 @@ pub fn resolve_model_with_registry_fallbacks(
     let mut selected = models
         .best_for_config(params.task, complexity, &cfg)
         .or_else(|| {
-            models.best_for_requirements(BestModelParams {
-                task_type: params.task,
-                complexity,
-                preference,
-                free_only,
-                requires_vision: vis,
-                requires_web_search: cfg.modalities.web_search,
-                strategy: RoutingStrategy::AutoRouterPreferred,
-                ..Default::default()
-            })
+            let strength = crate::models::registry::task_category_strength(params.task);
+            models
+                .list_models()
+                .into_iter()
+                .filter(|m| {
+                    if free_only && !m.is_free { return false; }
+                    if vis && !m.capabilities.supports_vision { return false; }
+                    if cfg.modalities.web_search && !m.capabilities.supports_web_search { return false; }
+                    crate::models::registry::ModelRegistry::matches_strength(m, strength)
+                })
+                .max_by(|a, b| {
+                    let score_a = auto_score_model(a, complexity, params.free_tier_latency_critical, params.context_fill_ratio, preference, availability_hint);
+                    let score_b = auto_score_model(b, complexity, params.free_tier_latency_critical, params.context_fill_ratio, preference, availability_hint);
+                    score_a.total_cmp(&score_b)
+                })
         })
         .or_else(|| {
             models.best_free_tier(FreeTierRouteRequest {

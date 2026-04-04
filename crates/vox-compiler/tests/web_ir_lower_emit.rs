@@ -212,7 +212,7 @@ fn codegen_emitter_honors_vox_webir_validate_success_path() {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let _guard = Guard { prev };
 
@@ -255,7 +255,7 @@ fn codegen_emitter_vox_webir_validate_fails_on_duplicate_route_trees() {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::set_var(KEY, "1");
+        unsafe { std::env::set_var(KEY, "1") };
     }
     let _guard = Guard { prev };
 

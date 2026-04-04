@@ -54,5 +54,5 @@ Use **`symbol_hints`** + **`quality_tag`** in [doc-inventory.json](doc-inventory
 ## Related
 
 - [documentation-rubric.md](documentation-rubric.md)
-- [llm-documentation-playbook.md](llm-documentation-playbook.md)
+- [doc-inventory.json](doc-inventory.json)
 - [.agents/cargo-safety.md](../../.agents/cargo-safety.md) (Windows / cargo lock hygiene)

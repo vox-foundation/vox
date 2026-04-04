@@ -25,7 +25,7 @@ fn swap_env(key: &str, val: Option<&str>) -> Option<String> {
     // SAFETY: env mutation isolated while holding `OPENREVIEW_ENV_LOCK` for the full test.
     unsafe {
         match val {
-            Some(v) => std::env::set_var(key, v),
+            Some(v) => unsafe { std::env::set_var(key, v) },
             None => std::env::remove_var(key),
         }
     }
@@ -57,7 +57,7 @@ impl Drop for EnvRestore {
         for (k, prev) in self.pairs.iter().rev() {
             unsafe {
                 match prev {
-                    Some(v) => std::env::set_var(k, v),
+                    Some(v) => unsafe { std::env::set_var(k, v) },
                     None => std::env::remove_var(k),
                 }
             }

@@ -184,6 +184,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
     },
+    /// Identity and master key integration (`vox auth`).
+    Auth {
+        /// Subcommand
+        #[command(subcommand)]
+        cmd: commands::auth::AuthCmd,
+    },
     /// Build a Vox source file, producing TypeScript output
     Build {
         /// Arguments.

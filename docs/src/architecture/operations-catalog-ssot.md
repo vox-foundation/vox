@@ -11,7 +11,7 @@ training_eligible: true
 
 The canonical edit surface for first-party operation identity is:
 
-- [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)
+- [`contracts/operations/catalog.v1.yaml`](../../../../../../contracts/operations/catalog.v1.yaml)
 
 Schema:
 
@@ -20,7 +20,7 @@ Schema:
 **Human-edited (first-party operations):** only this catalog YAML (including the nested `capability:` block for runtime builtin maps + capability exemptions). **Generated — do not hand-edit:**
 
 - MCP registry [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml)
-- CLI registry [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (non-CLI surfaces + `script_duals` / `env_var_ssot_index` are carried forward on sync)
+- CLI registry [`contracts/cli/command-registry.yaml`](../../../../../../contracts/cli/command-registry.yaml) (non-CLI surfaces + `script_duals` / `env_var_ssot_index` are carried forward on sync)
 - Capability registry [`contracts/capability/capability-registry.yaml`](../../../contracts/capability/capability-registry.yaml)
 
 `vox ci operations-verify` refuses drift: it compares those three files to fresh projections from the catalog (in addition to parity checks and MCP dispatch + input-schema + read-role governance coverage).

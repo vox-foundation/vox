@@ -101,6 +101,7 @@ pub async fn run(args: Args) -> Result<()> {
 
     // ── Env setup (suppress GPU/Vulkan noise) ─────────────────────────────────
     #[allow(unsafe_code)]
+    // SAFETY: CLI entrypoint environment mutation runs synchronously before multithreaded runtimes start.
     unsafe {
         if let Some(ref m) = model {
             std::env::set_var("VOX_BASE_MODEL", m);
@@ -142,6 +143,7 @@ pub async fn run(args: Args) -> Result<()> {
         );
     }
     #[allow(unsafe_code)]
+    // SAFETY: Single-threaded sync mutation prior to background execution or parallel pipelines.
     unsafe {
         if let Some(ref m) = model {
             std::env::set_var("VOX_BASE_MODEL", m);

@@ -482,14 +482,14 @@ mod tests {
         let prev = std::env::var("VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE").ok();
         // SAFETY: test-local env mutation; suite is not parallelized with other threads reading this var.
         unsafe {
-            std::env::set_var("VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE", "0.71");
+            unsafe { std::env::set_var("VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE", "0.71") };
         }
         let mut c = OratioRuntimeConfig::default();
         c.merge_env();
         assert!((c.routing.tool_route_min_confidence - 0.71).abs() < 0.001);
         unsafe {
             match prev {
-                Some(p) => std::env::set_var("VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE", p),
+                Some(p) => unsafe { std::env::set_var("VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE", p) },
                 None => std::env::remove_var("VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE"),
             }
         }

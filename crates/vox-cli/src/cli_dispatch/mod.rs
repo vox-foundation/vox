@@ -73,6 +73,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Clavis { cmd } => {
             crate::commands::clavis::run(cmd).await?;
         }
+        Cli::Auth { cmd } => {
+            crate::commands::auth::run(cmd).await?;
+        }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {
             run_review_subcommand(cmd).await?;

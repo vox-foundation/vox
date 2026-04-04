@@ -20,6 +20,11 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 keyring = { workspace = true }
 vox-bounded-fs = { workspace = true }
+turso = { workspace = true }
+blake3 = { workspace = true }
+aes-gcm = "0.10"
+rand = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

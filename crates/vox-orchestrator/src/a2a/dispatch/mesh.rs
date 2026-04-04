@@ -50,6 +50,7 @@ pub async fn relay_to_mesh(
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
@@ -63,6 +64,35 @@ pub async fn relay_remote_task_envelope(
     envelope: &RemoteTaskEnvelope,
 ) -> Result<(), String> {
     let payload = serde_json::to_string(envelope).map_err(|e| e.to_string())?;
+
+    let mut jwe_payload = None;
+    if let Ok(reqs) = serde_json::from_str::<serde_json::Value>(&envelope.capability_requirements_json) {
+        if let Some(arr) = reqs.get("required_secrets").and_then(|v| v.as_array()) {
+            let mut resolved_map = std::collections::HashMap::new();
+            for sec in arr {
+                if let Some(sec_str) = sec.as_str() {
+                    if let Ok(id) = sec_str.parse::<vox_clavis::spec::SecretId>() {
+                        let res = vox_clavis::resolve_secret(id);
+                        if let Some(val) = res.expose() {
+                            resolved_map.insert(sec_str.to_string(), val.to_string());
+                        }
+                    }
+                }
+            }
+            if !resolved_map.is_empty() {
+                let mesh_secret_res = vox_clavis::resolve_secret(vox_clavis::spec::SecretId::VoxMeshJwtHmacSecret);
+                if let Some(mesh_val) = mesh_secret_res.expose() {
+                    let derived = blake3::hash(mesh_val.as_bytes());
+                    if let Ok(secret_json) = serde_json::to_string(&resolved_map) {
+                        if let Ok(enc) = crate::a2a::jwe::encrypt_jwe_compact(secret_json.as_bytes(), derived.as_bytes()) {
+                            jwe_payload = Some(enc);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     client
         .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
             sender_agent_id: sender.0.to_string(),
@@ -73,6 +103,7 @@ pub async fn relay_remote_task_envelope(
             privacy_class: envelope.privacy_class.clone(),
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload,
         })
         .await
         .map(|_| ())
@@ -101,6 +132,7 @@ pub async fn relay_remote_task_cancel(
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .map(|_| ())

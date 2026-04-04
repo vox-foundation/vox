@@ -120,7 +120,7 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
     // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK`; no concurrent env access in tests.
     unsafe {
-        std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible");
+        unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
     }
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
@@ -325,7 +325,7 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
 fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
     unsafe {
-        std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible");
+        unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
     }
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;

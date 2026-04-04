@@ -73,6 +73,9 @@ pub struct A2ADeliverRequest {
     /// Ed25519 signature (Standard base64, 64 bytes) over raw 32-byte BLAKE3 digest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worker_ed25519_sig_b64: Option<String>,
+    /// JWE (JSON Web Encryption) block containing forwarded Clavis secrets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jwe_payload: Option<String>,
 }
 
 /// Persisted A2A delivery envelope in the control plane.
@@ -110,6 +113,9 @@ pub struct A2AStoredMessage {
     /// Copied from deliver: Standard base64 Ed25519 signature over raw BLAKE3 digest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worker_ed25519_sig_b64: Option<String>,
+    /// Copied from deliver: JWE block containing forwarded Clavis secrets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jwe_payload: Option<String>,
 }
 
 /// Reply from the control plane after an A2A deliver attempt.

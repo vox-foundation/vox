@@ -18,7 +18,7 @@ impl EnvGuard {
     fn set(key: &'static str, value: &str) -> Self {
         let prev = std::env::var_os(key);
         unsafe {
-            std::env::set_var(key, value);
+            unsafe { std::env::set_var(key, value) };
         }
         Self { key, prev }
     }
@@ -28,7 +28,7 @@ impl Drop for EnvGuard {
     fn drop(&mut self) {
         match &self.prev {
             Some(v) => unsafe {
-                std::env::set_var(self.key, v);
+                unsafe { std::env::set_var(self.key, v) };
             },
             None => unsafe {
                 std::env::remove_var(self.key);

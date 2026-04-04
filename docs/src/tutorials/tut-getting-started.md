@@ -119,7 +119,7 @@ You'll see step-by-step progress:
 vox run src/main.vox
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. You should see your app!
+Open `http://localhost:3000` in your browser. You should see your app!
 
 ## Step 6: Edit and Rebuild
 

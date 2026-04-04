@@ -100,7 +100,7 @@ mod tests {
     fn vram_override_env_is_respected() {
         // Set a fake value and confirm it returns correctly.
         unsafe {
-            std::env::set_var("VOX_VRAM_OVERRIDE_GB", "20.0");
+            unsafe { std::env::set_var("VOX_VRAM_OVERRIDE_GB", "20.0") };
         }
         assert_eq!(get_system_vram_gb(), Some(20.0));
         unsafe {

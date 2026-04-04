@@ -26,7 +26,7 @@ impl crate::orchestrator::Orchestrator {
                 crate::context::ContextStore::new(),
             )),
             budget_manager: std::sync::Arc::new(std::sync::RwLock::new({
-                let bm = crate::budget::BudgetManager::new();
+                let bm = crate::budget::BudgetManager::new(None);
                 bm.init_attention(config.attention_budget_ms);
                 bm
             })),
@@ -95,7 +95,7 @@ impl crate::orchestrator::Orchestrator {
                 crate::context::ContextStore::new(),
             )),
             budget_manager: std::sync::Arc::new(std::sync::RwLock::new({
-                let bm = crate::budget::BudgetManager::new();
+                let bm = crate::budget::BudgetManager::new(None);
                 bm.init_attention(config.attention_budget_ms);
                 bm
             })),

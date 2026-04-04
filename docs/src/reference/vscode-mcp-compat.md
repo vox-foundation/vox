@@ -12,7 +12,7 @@ category: "reference"
 |----------|------|
 | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | Canonical MCP tool **names**, descriptions, and **`product_lane`** (builds `vox-mcp-registry`; each listed tool exposes `_meta.vox_product_lane` in its tool descriptor) |
 | [`vox-vscode/scripts/check-mcp-tool-parity.mjs`](../../../vox-vscode/scripts/check-mcp-tool-parity.mjs) | **`npm run compile`** (and CI) runs this after registry generation: every `call('…')` / `callTool({ name: … })` in extension sources resolves to the canonical registry; aliases from [`tool_aliases.rs`](../../../crates/vox-mcp/src/tools/tool_aliases.rs) |
-| [`vox-vscode/scripts/check-activation-parity.mjs`](../../../vox-vscode/scripts/check-activation-parity.mjs) | **`npm run compile`** (and CI): every `contributes.commands` id has matching `onCommand:…` in `activationEvents` |
+| `vox-vscode/scripts/check-activation-parity.mjs` | **`npm run compile`** (and CI): every `contributes.commands` id has matching `onCommand:…` in `activationEvents` |
 | [`vox-vscode/scripts/generate-mcp-tool-registry.mjs`](../../../vox-vscode/scripts/generate-mcp-tool-registry.mjs) | First step of **`npm run compile`**: emits `mcpToolRegistry.generated.ts` (canonical tool names + `MCP_EXTENSION_EXPECTED_TOOLS`) |
 | Runtime `list_tools` | **Actual** advertised tools (includes skill-merged tools); `CapabilityRegistry` stores a fingerprint |
 | [`vox-vscode/src/protocol/hostToWebviewMessages.ts`](../../../vox-vscode/src/protocol/hostToWebviewMessages.ts) | zod schema for **host → webview** posts (`SidebarProvider.postMessage` validates before `postMessage`) |

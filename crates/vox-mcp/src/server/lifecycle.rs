@@ -28,7 +28,7 @@ pub fn mcp_agent_fleet_env_enabled() -> bool {
 }
 
 fn spawn_embedded_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
-    vox_orchestrator::runtime::spawn_stub_agent_fleet_if_enabled(orchestrator);
+    vox_orchestrator::runtime::spawn_agent_fleet_if_enabled(orchestrator);
 }
 
 /// Chosen orchestrator backend for the current MCP operation.

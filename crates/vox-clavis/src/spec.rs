@@ -145,6 +145,27 @@ pub struct SecretSpec {
     pub remediation: &'static str,
 }
 
+impl std::str::FromStr for SecretId {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let clean = s.trim().to_uppercase();
+        for spec in SPECS {
+            if spec.canonical_env.to_uppercase() == clean {
+                return Ok(spec.id);
+            }
+            for alias in spec.aliases {
+                if alias.to_uppercase() == clean {
+                    return Ok(spec.id);
+                }
+            }
+            if format!("{:?}", spec.id).to_uppercase() == clean {
+                return Ok(spec.id);
+            }
+        }
+        Err(format!("Unknown SecretId: {}", s))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequirementSet {
     AnyOf(&'static [SecretId]),
@@ -171,13 +192,6 @@ const ALL_CHAT_OPTIONALS: &[SecretId] = &[
 ];
 
 const CHAT_CLOUD_PRIMARY: &[SecretId] = &[SecretId::OpenRouterApiKey];
-const BUNDLE_DOC_NAMES: &[&str] = &[
-    "minimal_local_dev",
-    "minimal_cloud_dev",
-    "gpu_cloud",
-    "publish_review",
-    "mesh_roles",
-];
 
 const SPECS: &[SecretSpec] = &[
     SecretSpec {
@@ -187,8 +201,8 @@ const SPECS: &[SecretSpec] = &[
         deprecated_aliases: &["GOOGLE_AI_STUDIO_KEY"],
         backend_key: None,
         auth_registry: Some("google"),
-        policy: SecretPolicy::required_fail(),
-        remediation: "Run `vox clavis set google <token>` or set GEMINI_API_KEY.",
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Run `vox clavis set google <token>` or set GEMINI_API_KEY. Required if VOX_GEMINI_ROUTE_POLICY=google_direct_only.",
     },
     SecretSpec {
         id: SecretId::OpenRouterApiKey,
@@ -237,8 +251,8 @@ const SPECS: &[SecretSpec] = &[
         deprecated_aliases: &["GH_TOKEN", "GL_TOKEN"],
         backend_key: None,
         auth_registry: None,
-        policy: SecretPolicy::required_fail(),
-        remediation: "Set FORGE_TOKEN (or GITHUB_TOKEN/GITLAB_TOKEN) for forge API flows.",
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set FORGE_TOKEN (or GITHUB_TOKEN/GITLAB_TOKEN, matched in that order) for forge API flows.",
     },
     SecretSpec {
         id: SecretId::GroqApiKey,
@@ -788,7 +802,13 @@ pub fn requirements_for_bundle(bundle: SecretBundle) -> WorkflowRequirements {
 
 #[must_use]
 pub fn all_bundle_doc_names() -> &'static [&'static str] {
-    BUNDLE_DOC_NAMES
+    &[
+        "minimal_local_dev",
+        "minimal_cloud_dev",
+        "gpu_cloud",
+        "publish_review",
+        "mesh_roles",
+    ]
 }
 
 #[must_use]

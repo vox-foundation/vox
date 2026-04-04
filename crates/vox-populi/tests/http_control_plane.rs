@@ -192,7 +192,7 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
     let prev = std::env::var("VOX_MESH_SERVER_STALE_PRUNE_MS").ok();
     unsafe {
-        std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5");
+        unsafe { std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5") };
     }
 
     let state = PopuliTransportState::new();
@@ -222,7 +222,7 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     server.abort();
     unsafe {
         match prev {
-            Some(v) => std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", v) },
             None => std::env::remove_var("VOX_MESH_SERVER_STALE_PRUNE_MS"),
         }
     }
@@ -235,7 +235,7 @@ async fn a2a_deliver_respects_in_memory_cap() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
     let prev = std::env::var("VOX_MESH_A2A_MAX_MESSAGES").ok();
     unsafe {
-        std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3");
+        unsafe { std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3") };
     }
 
     let state = PopuliTransportState::new();
@@ -277,7 +277,7 @@ async fn a2a_deliver_respects_in_memory_cap() {
     server.abort();
     unsafe {
         match prev {
-            Some(v) => std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", v) },
             None => std::env::remove_var("VOX_MESH_A2A_MAX_MESSAGES"),
         }
     }
@@ -369,13 +369,13 @@ async fn bootstrap_exchange_works_once() {
     let bootstrap = "bootstrap-unit-test-token";
     // SAFETY: serialized by `ENV_MUTEX`, restored at test end.
     unsafe {
-        std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", bootstrap);
+        unsafe { std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", bootstrap) };
         std::env::set_var(
             "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
             (vox_populi::wall_clock_unix_ms() + 120_000).to_string(),
         );
-        std::env::set_var("VOX_MESH_TOKEN", "mesh-unit-token");
-        std::env::set_var("VOX_MESH_SCOPE_ID", "scope-unit");
+        unsafe { std::env::set_var("VOX_MESH_TOKEN", "mesh-unit-token") };
+        unsafe { std::env::set_var("VOX_MESH_SCOPE_ID", "scope-unit") };
     }
 
     let state = PopuliTransportState::new_for_serve();
@@ -412,19 +412,19 @@ async fn bootstrap_exchange_works_once() {
     server.abort();
     unsafe {
         match prev_bootstrap {
-            Some(v) => std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", v) },
             None => std::env::remove_var("VOX_MESH_BOOTSTRAP_TOKEN"),
         }
         match prev_expires {
-            Some(v) => std::env::set_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS", v) },
             None => std::env::remove_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS"),
         }
         match prev_token {
-            Some(v) => std::env::set_var("VOX_MESH_TOKEN", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_TOKEN", v) },
             None => std::env::remove_var("VOX_MESH_TOKEN"),
         }
         match prev_scope {
-            Some(v) => std::env::set_var("VOX_MESH_SCOPE_ID", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_SCOPE_ID", v) },
             None => std::env::remove_var("VOX_MESH_SCOPE_ID"),
         }
     }
@@ -1230,7 +1230,7 @@ async fn exec_lease_store_survives_restart_when_path_configured() {
     let dir = tempfile::tempdir().expect("tempdir");
     let lease_path = dir.path().join("exec-leases.json");
     unsafe {
-        std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", &lease_path);
+        unsafe { std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", &lease_path) };
     }
 
     let lease_id = {
@@ -1291,7 +1291,7 @@ async fn exec_lease_store_survives_restart_when_path_configured() {
 
     unsafe {
         match prev {
-            Some(v) => std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", v),
+            Some(v) => unsafe { std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", v) },
             None => std::env::remove_var("VOX_MESH_EXEC_LEASE_STORE_PATH"),
         }
     }

@@ -160,6 +160,7 @@ impl<'a> BudgetGate<'a> {
         estimated_cost_usd: Option<f64>,
         reconciled_cost_usd: Option<f64>,
         cost_source: Option<&str>,
+        task_category: Option<&str>,
     ) {
         self.budget_manager
             .record_usage(agent_id, (tokens_in + tokens_out) as usize);
@@ -177,6 +178,8 @@ impl<'a> BudgetGate<'a> {
                 estimated_cost_usd,
                 reconciled_cost_usd,
                 cost_source,
+                task_category,
+                Some(&agent_id.to_string()),
             )
             .await;
     }
@@ -268,6 +271,8 @@ impl<'a> Gate for BudgetGate<'a> {
                 Some(cost_usd),
                 Some(cost_usd),
                 Some("estimated"),
+                None,
+                Some(&agent_id.to_string()),
             )
             .await;
     }
@@ -283,7 +288,7 @@ mod budget_gate_tests {
     fn check_attention_snapshot_blocks_when_enabled_and_exhausted() {
         let mut cfg = OrchestratorConfig::default();
         cfg.attention_enabled = true;
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         mgr.init_attention(500);
         mgr.add_questioning_attention_debit_ms(500);
         let snap = mgr.attention_snapshot();
@@ -297,7 +302,7 @@ mod budget_gate_tests {
     fn check_attention_snapshot_allows_when_disabled_even_if_spent_high() {
         let cfg = OrchestratorConfig::default();
         assert!(!cfg.attention_enabled);
-        let mgr = BudgetManager::new();
+        let mgr = BudgetManager::new(None);
         mgr.init_attention(100);
         mgr.add_questioning_attention_debit_ms(500);
         let snap = mgr.attention_snapshot();
