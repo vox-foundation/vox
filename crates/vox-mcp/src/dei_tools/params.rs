@@ -75,3 +75,17 @@ pub struct RecordCostParams {
     /// Completion tokens billed.
     pub output_tokens: u32,
 }
+
+/// MCP arguments: attention analytics lookback.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AttentionSummaryParams {
+    /// Hours to look back (default 24).
+    pub hours: Option<u64>,
+}
+
+/// MCP arguments: agent-to-agent handoff lineage limits.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct HandoffLineageParams {
+    /// Maximum lineage rows to return.
+    pub limit: Option<u64>,
+}

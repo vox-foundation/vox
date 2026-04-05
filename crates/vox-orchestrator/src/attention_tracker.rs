@@ -18,6 +18,7 @@ pub struct AttentionSessionSummary {
     pub rejected: u32,
     pub efficiency: f64,
     pub auto_approve_ratio: f64,
+    pub max_offender: Option<(u64, u64)>,
 }
 
 /// Persists attention metrics to Arca (VoxDB) collections.
@@ -72,6 +73,7 @@ impl<'a> AttentionTracker<'a> {
         let mut total = 0u32;
         let mut auto = 0u32;
         let mut rejected = 0u32;
+        let mut agent_costs = std::collections::HashMap::new();
 
         for (_id, doc) in &all {
             let ts = doc["timestamp_ms"].as_u64().unwrap_or(0);
@@ -79,7 +81,11 @@ impl<'a> AttentionTracker<'a> {
                 continue;
             }
             total += 1;
-            total_cost += doc["cost_ms"].as_u64().unwrap_or(0);
+            let cost = doc["cost_ms"].as_u64().unwrap_or(0);
+            total_cost += cost;
+            if let Some(aid) = doc["agent_id"].as_u64() {
+                *agent_costs.entry(aid).or_insert(0) += cost;
+            }
             // Deserialize outcome via serde to avoid magic string comparison.
             // If deserialization fails the record is malformed; skip it gracefully.
             if let Ok(outcome) =
@@ -108,6 +114,7 @@ impl<'a> AttentionTracker<'a> {
             } else {
                 0.0
             },
+            max_offender: agent_costs.into_iter().max_by_key(|&(_, c)| c),
         })
     }
 

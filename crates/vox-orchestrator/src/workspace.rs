@@ -257,7 +257,24 @@ impl WorkspaceManager {
     /// Update a change's status.
     pub fn update_change_status(&mut self, change_id: ChangeId, status: ChangeStatus) {
         if let Some(change) = self.changes.get_mut(&change_id) {
-            change.status = status;
+            change.status = status.clone();
+
+            #[cfg(feature = "jj-backend")]
+            {
+                let task_id = change.id.0;
+                let agent_id = change.agent_id.0;
+                let desc = change.description.clone();
+
+                if status == ChangeStatus::Merged {
+                    tokio::spawn(async move {
+                        let _ = crate::jj_backend::JjBridge::flush_snapshot_commit(task_id, agent_id, &desc, None).await;
+                    });
+                } else if status == ChangeStatus::Abandoned {
+                    tokio::spawn(async move {
+                        let _ = crate::jj_backend::JjBridge::revert_agent_snapshot(None).await;
+                    });
+                }
+            }
         }
     }
 

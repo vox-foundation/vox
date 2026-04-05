@@ -110,6 +110,7 @@ const incomingSchema = z.union([
     z.object({ type: z.literal('ludusRefreshSnapshot') }),
     z.object({ type: z.literal('runTerminalCommand'), value: z.string() }),
     z.object({ type: z.literal('restartMcpServer') }),
+    z.object({ type: z.literal('emergencyStop') }),
 ]);
 
 export type WebviewToHostMessage =
@@ -162,7 +163,8 @@ export type WebviewToHostMessage =
     | { type: 'ludusAckAllNotifications' }
     | { type: 'ludusRefreshSnapshot' }
     | { type: 'runTerminalCommand'; value: string }
-    | { type: 'restartMcpServer' };
+    | { type: 'restartMcpServer' }
+    | { type: 'emergencyStop' };
 
 export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
     const r = incomingSchema.safeParse(raw);
@@ -172,6 +174,7 @@ export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
         case 'getInitialData':
         case 'pickModel':
         case 'rebalance':
+        case 'emergencyStop':
             return { type: o.type };
         case 'submitTask':
             if (typeof o.value === 'string') {

@@ -295,6 +295,15 @@ pub async fn save() -> Result<()> {
     Ok(())
 }
 
+/// `vox stop` — trigger early stop.
+pub async fn stop(reason: Option<String>) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    orch.emergency_stop(reason.clone());
+    println!("  {} Orchestrator emergency stop requested", "✓".green().bold());
+    Ok(())
+}
+
 /// `vox orchestrator load` — manually load orchestrator state.
 pub async fn load() -> Result<()> {
     let config = load_config();

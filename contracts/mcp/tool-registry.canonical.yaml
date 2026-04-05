@@ -47,6 +47,10 @@ tools:
   description: Returns current agent state, activity, mood, queue depth.
   product_lane: ai
   http_read_role_eligible: false
+- name: vox_attention_summary
+  description: Returns a summary of agent attention allocation and focus shifts over a time window.
+  product_lane: ai
+  http_read_role_eligible: true
 - name: vox_answer_question
   description: Answer a pending question from another agent.
   product_lane: ai
@@ -327,6 +331,10 @@ tools:
   description: Handoff summarized context from one agent to another.
   product_lane: ai
   http_read_role_eligible: false
+- name: vox_handoff_lineage
+  description: Returns the historical lineage of agent-to-agent task delegations and context handoffs.
+  product_lane: ai
+  http_read_role_eligible: true
 - name: vox_heartbeat
   description: Send an active heartbeat from a Vox agent session.
   product_lane: ai

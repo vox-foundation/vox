@@ -96,7 +96,7 @@ impl Default for OrchestratorConfig {
             completion_grounding_shadow: default_false(),
             completion_grounding_enforce: default_false(),
             // Phase 15: Attention budget
-            attention_enabled: false,
+            attention_enabled: true,
             attention_budget_ms: default_attention_budget_ms(),
             attention_alert_threshold: default_attention_alert_threshold(),
             attention_interrupt_cost_ms: default_attention_interrupt_cost_ms(),

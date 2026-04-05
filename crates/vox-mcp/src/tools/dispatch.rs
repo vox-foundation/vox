@@ -682,6 +682,12 @@ async fn handle_tool_call_inner(
         }
         "vox_lock_status" => Ok(crate::dei_tools::lock_status(state).await),
         "vox_budget_status" => Ok(crate::dei_tools::budget_status(state).await),
+        "vox_attention_summary" => {
+            Ok(crate::dei_tools::attention_summary(state, serde_json::from_value(args)?).await)
+        }
+        "vox_handoff_lineage" => {
+            Ok(crate::dei_tools::handoff_lineage(state, serde_json::from_value(args)?).await)
+        }
         "vox_cancel_task" => {
             Ok(crate::dei_tools::cancel_task(state, serde_json::from_value(args)?).await)
         }
@@ -755,6 +761,9 @@ async fn handle_tool_call_inner(
         }
         "vox_set_agent_budget" => {
             Ok(crate::context::set_agent_budget(state, serde_json::from_value(args)?).await)
+        }
+        "vox_emergency_stop" => {
+            Ok(crate::context::emergency_stop(state, serde_json::from_value(args)?).await)
         }
         "vox_handoff_context" => {
             Ok(crate::context::handoff_context(state, serde_json::from_value(args)?).await)

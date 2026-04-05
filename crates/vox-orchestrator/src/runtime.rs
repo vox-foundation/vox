@@ -3,7 +3,7 @@
 //! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
 //! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use vox_runtime::{
     ProcessHandle, RegistryError, mailbox::MessagePayload, process::ProcessContext,
@@ -95,6 +95,7 @@ impl AiTaskProcessor {
 
     async fn run_phase_stream(
         &self,
+        client: &vox_ludus::ai::FreeAiClient,
         agent_id: crate::types::AgentId,
         task: &crate::types::AgentTask,
         phase: ExecutorPhase,
@@ -111,7 +112,7 @@ impl AiTaskProcessor {
             prior_notes
         );
 
-        let mut stream = self.client.generate_stream_routed(&prompt, route).await;
+        let mut stream = client.generate_stream_routed(&prompt, route).await;
         let mut phase_text = String::new();
         while let Some(chunk_result) = stream.next().await {
             match chunk_result {
@@ -241,6 +242,16 @@ impl TaskProcessor for AiTaskProcessor {
             }
         }
 
+        let reconciled_cost = Arc::new(Mutex::new(0.0));
+        let client = {
+            let reconciled_cost = reconciled_cost.clone();
+            self.client.clone().with_cost_reporter(Arc::new(move |cost| {
+                if let Ok(mut lock) = reconciled_cost.lock() {
+                    *lock += cost;
+                }
+            }))
+        };
+
         let mut notes = String::new();
         let phases = [
             ExecutorPhase::Inspect,
@@ -254,6 +265,7 @@ impl TaskProcessor for AiTaskProcessor {
         for phase in phases {
             let phase_out = self
                 .run_phase_stream(
+                    &client,
                     agent_id,
                     &task,
                     phase,
@@ -304,6 +316,7 @@ impl TaskProcessor for AiTaskProcessor {
                 input_tokens,
                 output_tokens,
                 cost_usd,
+                reconciled_cost.lock().ok().and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
             )
             .await;
 

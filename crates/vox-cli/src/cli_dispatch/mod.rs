@@ -235,6 +235,12 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::StubCheck { args } => {
             run_diag_cmd(latin_cmd::DiagCmd::StubCheck(args)).await?;
         }
+        Cli::Stop { reason } => {
+            #[cfg(feature = "dei")]
+            crate::commands::dei::stop(reason).await?;
+            #[cfg(not(feature = "dei"))]
+            eprintln!("Feature 'dei' is not enabled.");
+        }
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         Cli::Mens { action } => {
             crate::commands::mens::run(action, global.json, global.verbose).await?;

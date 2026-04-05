@@ -1,4 +1,7 @@
-use super::params::{AgentEventsParams, CostHistoryParams, QueueStatusParams};
+use super::params::{
+    AgentEventsParams, AttentionSummaryParams, CostHistoryParams, HandoffLineageParams,
+    QueueStatusParams,
+};
 use crate::server::mcp_agent_fleet_env_enabled;
 use crate::sync_poison::{poison_rw_read, poison_rw_write};
 use crate::{ServerState, ToolResult};
@@ -215,6 +218,59 @@ pub async fn file_graph(state: &ServerState) -> String {
 
     let map = orch.affinity_map().as_json();
     ToolResult::ok(map).to_json()
+}
+
+/// Return the attention summary for the last `params.hours`.
+pub async fn attention_summary(state: &ServerState, params: AttentionSummaryParams) -> String {
+    if let Some(db) = &state.db {
+        let tracker = vox_orchestrator::attention_tracker::AttentionTracker::new(db);
+        let hours = params.hours.unwrap_or(24);
+        let since_ms = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64)
+            .saturating_sub(hours * 3600 * 1000);
+
+        match tracker.session_summary(since_ms).await {
+            Ok(summary) => ToolResult::ok(summary).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(
+                format!("Attention tracking error: {}", e),
+                REM_VOXDB_EVENTS,
+            )
+            .to_json(),
+        }
+    } else {
+        ToolResult::<String>::err_with_remediation(
+            "Database not configured, cannot fetch attention summary.",
+            REM_VOXDB_EVENTS,
+        )
+        .to_json()
+    }
+}
+
+/// Return the agent-to-agent handoff lineage from Codex.
+pub async fn handoff_lineage(state: &ServerState, params: HandoffLineageParams) -> String {
+    if let Some(db) = &state.db {
+        let repo = vox_orchestrator::lineage::repository_id();
+        let limit = params.limit.unwrap_or(50);
+        match db
+            .list_orchestration_lineage_events(&repo, Some("task_delegated"), limit as i64)
+            .await
+        {
+            Ok(events) => ToolResult::ok(events).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(
+                format!("Lineage DB error: {}", e),
+                REM_VOXDB_EVENTS,
+            )
+            .to_json(),
+        }
+    } else {
+        ToolResult::<String>::err_with_remediation(
+            "Database not configured, cannot fetch handoff lineage.",
+            REM_VOXDB_EVENTS,
+        )
+        .to_json()
+    }
 }
 
 /// Merge orchestrator config with on-disk `VoxConfig` toolchain map.

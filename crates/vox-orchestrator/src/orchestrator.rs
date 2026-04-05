@@ -109,4 +109,6 @@ pub struct Orchestrator {
     /// Last remote populi snapshot hints (from MCP federation poller); read-only placement signals.
     pub remote_populi_routing_hints:
         std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemotePopuliRoutingHint>>>,
+    /// Global stop flag to halt dispatch and execution.
+    pub stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }

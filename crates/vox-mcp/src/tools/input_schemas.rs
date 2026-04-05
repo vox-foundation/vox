@@ -165,6 +165,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
         ),
         "vox_set_agent_budget" => derived_tool_schema!(crate::context::SetAgentBudgetParams),
+        "vox_emergency_stop" => derived_tool_schema!(crate::context::EmergencyStopParams),
         "vox_handoff_context" => parse_obj(
             r#"{"type":"object","properties":{"from_agent":{"type":"integer","minimum":0},"to_agent":{"type":"integer","minimum":0}},"required":["from_agent","to_agent"],"additionalProperties":false}"#,
         ),

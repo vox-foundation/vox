@@ -5,6 +5,9 @@ pub enum OrchestratorError {
     /// Orchestrator is turned off via configuration.
     #[error("Orchestrator is disabled")]
     Disabled,
+    /// Orchestrator is in emergency stop state.
+    #[error("Orchestrator is stopped")]
+    Stopped,
     /// No additional agent slots remain.
     #[error("Maximum agents ({max}) reached")]
     MaxAgentsReached {

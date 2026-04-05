@@ -86,9 +86,23 @@ impl crate::orchestrator::Orchestrator {
             let binding = crate::topology::AgentDelegationBinding {
                 parent_agent_id: parent,
                 source_task_id,
-                reason: spawn_reason,
+                reason: spawn_reason.clone(),
             };
             crate::sync_lock::rw_write(&*self.agent_delegations).insert(agent_id, binding);
+
+            self.record_lineage_event(
+                "task_delegated",
+                source_task_id,
+                Some(agent_id),
+                None,
+                None,
+                None,
+                None,
+                Some(serde_json::json!({
+                    "reason": spawn_reason,
+                    "is_dynamic": true
+                })),
+            );
         }
         tracing::info!("Agent {} marked as dynamic", agent_id,);
         Ok(agent_id)
@@ -610,6 +624,19 @@ impl crate::orchestrator::Orchestrator {
                     source_task_id: None,
                     reason: "handoff_accept".to_string(),
                 },
+            );
+            self.record_lineage_event(
+                "task_delegated",
+                None,
+                Some(target_id),
+                None,
+                None,
+                None,
+                None,
+                Some(serde_json::json!({
+                    "reason": "handoff_accept",
+                    "from_agent": from_agent
+                })),
             );
         }
 

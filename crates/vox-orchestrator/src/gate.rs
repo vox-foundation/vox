@@ -205,15 +205,28 @@ impl<'a> BudgetGate<'a> {
         }
     }
 
-    /// Check whether the pilot's attention budget allows a new interrupt.
-    /// Returns `GateResult::Allowed` when `attention_enabled = false` (shadow mode).
-    #[must_use]
     pub fn check_attention(
         manager: &BudgetManager,
         config: &crate::config::OrchestratorConfig,
     ) -> GateResult {
         let snap = manager.attention_snapshot();
         Self::check_attention_snapshot(&snap, config)
+    }
+
+    /// Check whether the pilot's attention budget can sustain an interruption right now
+    /// based on the `InterruptionSignals`.
+    #[must_use]
+    pub fn can_interrupt(
+        manager: &BudgetManager,
+        config: &crate::config::OrchestratorConfig,
+        signals: &crate::attention::InterruptionSignals,
+    ) -> crate::attention::InterruptionDecision {
+        crate::attention::evaluate_interruption(
+            signals,
+            &manager.attention_snapshot(),
+            config.attention_enabled,
+            config.attention_alert_threshold,
+        )
     }
 
     /// Record usage with provider reconciliation metadata.

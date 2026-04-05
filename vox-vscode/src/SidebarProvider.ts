@@ -288,6 +288,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         );
                     }
                     break;
+                case 'emergencyStop':
+                    if (this._mcp.isToolAvailable('vox_emergency_stop')) {
+                        await this._mcp.emergencyStop('VS Code User triggered Stop All');
+                        void vscode.window.showInformationMessage('Emergency stop triggered.');
+                    } else {
+                        void vscode.window.showInformationMessage(
+                            'Emergency stop requires `vox_emergency_stop` on the connected MCP server.',
+                        );
+                    }
+                    break;
                 case 'runCommand':
                     if (parsed.value) await vscode.commands.executeCommand(parsed.value);
                     break;

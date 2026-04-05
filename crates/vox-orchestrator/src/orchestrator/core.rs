@@ -82,6 +82,7 @@ impl crate::orchestrator::Orchestrator {
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
             remote_populi_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
+            stop_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -151,7 +152,22 @@ impl crate::orchestrator::Orchestrator {
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
             remote_populi_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
+            stop_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
+    }
+
+    /// Check if the orchestrator is in an emergency stop state.
+    pub fn is_stopped(&self) -> bool {
+        self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Trigger a global emergency stop across the orchestrator.
+    pub fn emergency_stop(&self, reason: Option<String>) {
+        self.stop_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.event_bus.emit(crate::events::AgentEventKind::EmergencyStop {
+            reason,
+        });
+        tracing::warn!("Orchestrator emergency stop triggered.");
     }
 
     /// Initialize the orchestrator database schema and set the DB handle.
@@ -189,6 +205,45 @@ impl crate::orchestrator::Orchestrator {
     /// Access the underlying database handle if connected.
     pub fn db(&self) -> Option<std::sync::Arc<vox_db::VoxDb>> {
         crate::sync_lock::rw_read(&*self.db).clone()
+    }
+
+    /// Record a lineage event to the persistent Codex store asynchronously if attached.
+    pub fn record_lineage_event(
+        &self,
+        kind: &str,
+        task_id: Option<crate::TaskId>,
+        agent_id: Option<crate::AgentId>,
+        session_id: Option<String>,
+        workflow_id: Option<String>,
+        plan_session_id: Option<String>,
+        plan_node_id: Option<String>,
+        payload: Option<serde_json::Value>,
+    ) {
+        let Some(db) = self.db() else { return };
+        let repo = crate::lineage::repository_id();
+        let kind = kind.to_string();
+        let tid = task_id.map(|t| t.0 as i64).unwrap_or(0);
+        let aid = agent_id.map(|a| a.0 as i64);
+        let payload_str = payload.map(|p| p.to_string());
+
+        tokio::spawn(async move {
+            if let Err(e) = db
+                .append_orchestration_lineage_event(
+                    &repo,
+                    &kind,
+                    tid,
+                    aid,
+                    session_id.as_deref(),
+                    workflow_id.as_deref(),
+                    plan_session_id.as_deref(),
+                    plan_node_id.as_deref(),
+                    payload_str.as_deref(),
+                )
+                .await
+            {
+                tracing::debug!(error = %e, "lineage persistence failed");
+            }
+        });
     }
 
     /// Laplace-smoothed task reliability from Codex `agent_reliability`, when DB is attached.
@@ -250,6 +305,7 @@ impl crate::orchestrator::Orchestrator {
         input_tokens: u32,
         output_tokens: u32,
         cost_usd: f64,
+        header_cost_usd: Option<f64>,
     ) {
         let provider_str: String = provider.into();
         let model_str: String = model.into();
@@ -280,12 +336,19 @@ impl crate::orchestrator::Orchestrator {
         if let Some(db) = self.db() {
             let tracker = crate::usage::UsageTracker::new_ref(&*db);
             let _ = tracker
-                .record_call(
+                .record_call_detailed(
                     &provider_str,
                     &model_str,
                     input_tokens as u64,
                     output_tokens as u64,
-                    cost_usd,
+                    header_cost_usd.unwrap_or(cost_usd),
+                    None,
+                    header_cost_usd,
+                    Some(cost_usd),
+                    header_cost_usd.or(Some(cost_usd)),
+                    Some(if header_cost_usd.is_some() { "openrouter_header" } else { "heuristic" }),
+                    None,
+                    Some(&agent_id.to_string()),
                 )
                 .await;
         }

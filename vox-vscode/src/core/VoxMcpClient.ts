@@ -260,6 +260,9 @@ export class VoxMcpClient {
     async rebalance(): Promise<unknown> {
         return this.call('vox_rebalance', {});
     }
+    async emergencyStop(reason?: string): Promise<unknown> {
+        return this.call('vox_emergency_stop', { reason });
+    }
 
     async spawnAgent(name: string, dynamic = false): Promise<unknown> {
         return this.call('vox_spawn_agent', { name, dynamic });

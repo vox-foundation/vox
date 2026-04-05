@@ -452,6 +452,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::populi_cli::PopuliCli,
     },
+    /// Emergency stop the orchestrator (MCP/daemon local stop request)
+    Stop {
+        /// Reason for stopping
+        reason: Option<String>,
+    },
     /// Optional telemetry upload queue (local spool + explicit upload; ADR 023).
     Telemetry {
         /// Subcommand.

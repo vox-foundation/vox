@@ -8,7 +8,7 @@ use crate::ai::fallback::deterministic_response;
 use crate::ai::keys::{resolve_gemini_key, resolve_openrouter_key};
 use crate::ai::provider::FreeAiProvider;
 
-use super::{AiReportFn, FreeAiClient, LudusStreamBackend, StreamRoute};
+use super::{AiReportFn, CostReportFn, FreeAiClient, LudusStreamBackend, StreamRoute};
 
 impl FreeAiClient {
     /// Create a client with an explicit provider list.
@@ -21,12 +21,19 @@ impl FreeAiClient {
             providers,
             http,
             reporter: None,
+            cost_reporter: None,
         }
     }
 
     /// Set a reporter to receive provider events.
     pub fn with_reporter(mut self, reporter: AiReportFn) -> Self {
         self.reporter = Some(reporter);
+        self
+    }
+
+    /// Set a cost reporter.
+    pub fn with_cost_reporter(mut self, cost_reporter: CostReportFn) -> Self {
+        self.cost_reporter = Some(cost_reporter);
         self
     }
 
@@ -137,6 +144,7 @@ impl FreeAiClient {
         http: reqwest::Client,
         prompt: String,
         reporter: Option<AiReportFn>,
+        cost_reporter: Option<CostReportFn>,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         Box::pin(async_stream::try_stream! {
             for provider in providers {
@@ -192,7 +200,7 @@ impl FreeAiClient {
                         };
                         'or_try: for m in model_list {
                             let mut stream =
-                                Self::stream_openrouter(&http, api_key, &m, &prompt);
+                                Self::stream_openrouter(&http, api_key, &m, &prompt, cost_reporter.clone());
                             let mut saw_rate_limit = false;
                             let mut yielded = false;
                             while let Some(chunk) = stream.next().await {
@@ -289,6 +297,7 @@ impl FreeAiClient {
             self.http.clone(),
             prompt.to_string(),
             self.reporter.clone(),
+            self.cost_reporter.clone(),
         )
     }
 
@@ -302,9 +311,10 @@ impl FreeAiClient {
         let prompt_owned = prompt.to_string();
         let providers = self.providers.clone();
         let reporter = self.reporter.clone();
+        let cost_reporter = self.cost_reporter.clone();
 
         match route {
-            StreamRoute::Cascade => Self::cascade_stream(providers, http, prompt_owned, reporter),
+            StreamRoute::Cascade => Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter),
             StreamRoute::Registry {
                 backend: LudusStreamBackend::Ollama,
                 model,
@@ -327,7 +337,7 @@ impl FreeAiClient {
             } => {
                 let api_key = Self::gemini_key_from_providers(&providers);
                 if api_key.is_empty() {
-                    return Self::cascade_stream(providers, http, prompt_owned, reporter);
+                    return Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter);
                 }
                 let model = model.to_string();
                 Box::pin(async_stream::try_stream! {
@@ -347,12 +357,12 @@ impl FreeAiClient {
             } => {
                 let api_key = Self::openrouter_key_from_providers(&providers);
                 if api_key.is_empty() {
-                    return Self::cascade_stream(providers, http, prompt_owned, reporter);
+                    return Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter);
                 }
                 let model = model.to_string();
                 Box::pin(async_stream::try_stream! {
                     let mut stream =
-                        Self::stream_openrouter(&http, &api_key, &model, &prompt_owned);
+                        Self::stream_openrouter(&http, &api_key, &model, &prompt_owned, cost_reporter);
                     let mut any = false;
                     while let Some(chunk) = stream.next().await {
                         match chunk {
@@ -398,7 +408,7 @@ impl FreeAiClient {
                     let or_key = Self::openrouter_key_from_providers(&providers);
                     if !or_key.is_empty() {
                         let mut stream =
-                            Self::stream_openrouter(&http, &or_key, &model, &prompt_owned);
+                            Self::stream_openrouter(&http, &or_key, &model, &prompt_owned, cost_reporter.clone());
                         let mut any_or = false;
                         while let Some(chunk) = stream.next().await {
                             match chunk {
@@ -433,6 +443,7 @@ impl FreeAiClient {
                         http,
                         prompt_owned,
                         reporter,
+                        cost_reporter,
                     );
                     while let Some(item) = fallback.next().await {
                         match item {

@@ -107,11 +107,12 @@ impl FreeAiClient {
     }
 
     /// OpenRouter chat completions with `stream: true` (SSE `data:` lines).
-    pub(crate) fn stream_openrouter(
+     pub(crate) fn stream_openrouter(
         http: &reqwest::Client,
         api_key: &str,
         model: &str,
         prompt: &str,
+        cost_reporter: Option<super::CostReportFn>,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         let http = http.clone();
         let model = model.to_string();
@@ -155,6 +156,14 @@ impl FreeAiClient {
                     provider: format!("openrouter:{}", model),
                     retry_after_secs: retry_after,
                 })?;
+            }
+            if let Some(ref reporter) = cost_reporter {
+                if let Some(cost_val) = resp.headers()
+                    .get("x-response-cost")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<f64>().ok()) {
+                    reporter(cost_val);
+                }
             }
             let mut bytes_stream = if status.is_success() {
                 resp.bytes_stream()

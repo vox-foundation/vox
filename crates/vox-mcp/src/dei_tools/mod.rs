@@ -10,9 +10,10 @@ mod orchestrator_snapshot;
 mod vcs_runtime;
 
 pub use control::{
-    agent_events, budget_status, cancel_task, config_get, config_set, cost_history, drain_agent,
-    file_graph, lock_status, map_agent_session, orchestrator_start, pause_agent, queue_status,
-    rebalance, reorder_task, resume_agent, retire_agent, spawn_agent,
+    agent_events, attention_summary, budget_status, cancel_task, config_get, config_set,
+    cost_history, drain_agent, file_graph, handoff_lineage, lock_status, map_agent_session,
+    orchestrator_start, pause_agent, queue_status, rebalance, reorder_task, resume_agent,
+    retire_agent, spawn_agent,
 };
 pub use orchestrator_snapshot::orchestrator_status;
 pub use params::*;

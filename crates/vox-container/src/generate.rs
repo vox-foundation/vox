@@ -132,7 +132,7 @@ pub fn generate_default_dockerfile() -> String {
 }
 
 const COMPOSE_OPTIONAL_MESH_ENV: &str =
-    include_str!("../../../docker/vox-compose-populi-environment.block.yaml");
+    include_str!("../../../infra/containers/vox-compose-populi-environment.block.yaml");
 
 /// Generate a docker-compose.yml that works with both Docker Compose and
 /// Podman Compose.

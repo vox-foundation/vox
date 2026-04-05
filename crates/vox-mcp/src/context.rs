@@ -163,6 +163,21 @@ pub async fn context_budget(state: &ServerState, params: ContextBudgetParams) ->
 }
 
 /// Set a custom budget capped limit and persist to VoxDB.
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct EmergencyStopParams {
+    /// Optional reason for stopping the orchestrator.
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+pub async fn emergency_stop(state: &ServerState, params: EmergencyStopParams) -> String {
+    state.orchestrator.emergency_stop(params.reason.clone());
+    format!(
+        "Emergency stop triggered. Reason: {}",
+        params.reason.as_deref().unwrap_or("none")
+    )
+}
+
 pub async fn set_agent_budget(state: &ServerState, params: SetAgentBudgetParams) -> String {
     let orch = &state.orchestrator;
     let agent_id = vox_orchestrator::AgentId(params.agent_id);

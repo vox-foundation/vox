@@ -66,11 +66,38 @@ export const UnifiedDashboard = ({
                     )}
                     
                     {budgetHistory.length > 0 && (
-                        <div className="col-span-6 p-4 flex gap-4 items-center bg-machine border border-border rounded-lg shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                            <Activity size={20} className="text-cyan drop-shadow-[0_0_8px_var(--vox-cyan-glow)]" />
-                            <div className="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap font-mono text-cyan">
-                                <div className="text-steel text-[9px] tracking-widest uppercase mb-1">Recent Budget Spend</div>
-                                ${parseFloat(budgetHistory[budgetHistory.length - 1]?.total_cost_usd || 0).toFixed(4)}
+                        <div className="col-span-6 p-4 flex flex-col gap-3 bg-machine border border-border rounded-lg shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+                            <div className="flex gap-4 items-center">
+                                <Activity size={20} className="text-cyan drop-shadow-[0_0_8px_var(--vox-cyan-glow)] shrink-0" />
+                                <div className="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap font-mono text-cyan">
+                                    <div className="text-steel text-[9px] tracking-widest uppercase mb-1">Recent Budget Spend</div>
+                                    ${parseFloat(budgetHistory[budgetHistory.length - 1]?.total_cost_usd || 0).toFixed(4)}
+                                </div>
+                            </div>
+                            <div className="border-t border-border border-opacity-50 pt-3 mt-1 flex items-center gap-2">
+                                <span className="text-[10px] text-steel font-mono uppercase tracking-widest label">Set Limit ($)</span>
+                                <input 
+                                    type="number" 
+                                    id="budget-cap-input"
+                                    placeholder="5.00" 
+                                    className="bg-void border border-border rounded px-2 py-1 text-xs text-foreground font-mono w-24 focus:border-cyan focus:outline-none transition-colors"
+                                />
+                                <button
+                                    onClick={() => {
+                                        const el = document.getElementById('budget-cap-input') as HTMLInputElement;
+                                        if (el?.value) {
+                                            vscode.postMessage({ 
+                                                type: 'setAgentBudget', 
+                                                agentId: 0, 
+                                                maxCostUsd: parseFloat(el.value) 
+                                            });
+                                            el.value = '';
+                                        }
+                                    }}
+                                    className="text-[9px] font-bold tracking-widest uppercase bg-cyan bg-opacity-10 text-cyan border border-cyan border-opacity-30 rounded px-3 py-1.5 hover:bg-opacity-20 transition-colors shrink-0"
+                                >
+                                    APPLY
+                                </button>
                             </div>
                         </div>
                     )}
@@ -147,6 +174,13 @@ export const UnifiedDashboard = ({
                                     onClick={() => vscode.postMessage({ type: 'rebalance' })}
                                 >
                                     REBALANCE
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-1.5 rounded border border-destructive bg-machine text-[10px] font-bold uppercase tracking-widest text-destructive hover:bg-destructive hover:text-white transition-colors"
+                                    onClick={() => vscode.postMessage({ type: 'emergencyStop' })}
+                                >
+                                    ⛔ STOP ALL
                                 </button>
                             </div>
                         </div>

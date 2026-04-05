@@ -44,7 +44,7 @@ pub mod sync_lock;
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;
 
-mod lineage;
+pub mod lineage;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;

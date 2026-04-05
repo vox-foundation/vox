@@ -242,7 +242,7 @@ pub mod jj {
 
     /// Version of jj-lib this module was written against.
     /// If the build fails here, bump to the new version and audit the wrapper.
-    pub const JJ_LIB_PINNED_VERSION: &str = "0.27.0";
+    pub const JJ_LIB_PINNED_VERSION: &str = "0.39.0";
 
     /// Verify at test time that jj-lib is reachable and at the expected version.
     /// This test fails if jj-lib silently changes APIs.
@@ -252,6 +252,45 @@ pub mod jj {
         // If this test exists and compiles, jj-lib is available at the pinned version.
         // Add specific API probes here as we adopt more jj-lib surface.
         println!("jj-lib stability check: version gate = {JJ_LIB_PINNED_VERSION}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JjBridge CLI Facade
+// ---------------------------------------------------------------------------
+
+/// CLI subprocess adapter that provides operations like snapshot flushes to 
+/// Jujutsu without requiring the full jj-lib to be statically linked.
+pub struct JjBridge;
+
+impl JjBridge {
+    /// Flush a merged task/change snapshot to JJ as an anonymous branch.
+    pub async fn flush_snapshot_commit(task_id: impl std::fmt::Display, agent_id: impl std::fmt::Display, description: &str, cwd: Option<&str>) -> std::io::Result<()> {
+        let msg = format!("AgentTask {} (Agent {}) - {}", task_id, agent_id, description);
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.args(["commit", "-m", &msg]);
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        let out = cmd.output().await?;
+        if !out.status.success() {
+            tracing::warn!("JjBridge: commit flush failed: {}", String::from_utf8_lossy(&out.stderr));
+        }
+        Ok(())
+    }
+
+    /// Revert working copy state via `jj abandon @-` if an agent completely fails verification.
+    pub async fn revert_agent_snapshot(cwd: Option<&str>) -> std::io::Result<()> {
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.args(["abandon", "@-"]); // rollback last
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        let out = cmd.output().await?;
+        if !out.status.success() {
+            tracing::warn!("JjBridge: abandon revert failed: {}", String::from_utf8_lossy(&out.stderr));
+        }
+        Ok(())
     }
 }
 

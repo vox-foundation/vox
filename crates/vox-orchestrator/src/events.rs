@@ -137,6 +137,14 @@ pub enum AgentEventKind {
         session_id: Option<String>,
     },
 
+    /// A task was delegated (handed off) from one agent to another.
+    TaskDelegated {
+        parent_agent_id: AgentId,
+        child_agent_id: AgentId,
+        task_id: TaskId,
+        reason: String,
+    },
+
     /// A file lock was acquired.
     LockAcquired {
         agent_id: AgentId,
@@ -179,6 +187,11 @@ pub enum AgentEventKind {
         /// Structured temporal context (date, server_idle_secs)
         #[serde(default, skip_serializing_if = "Option::is_none")]
         temporal_context: Option<serde_json::Value>,
+    },
+
+    /// Global emergency stop triggered.
+    EmergencyStop {
+        reason: Option<String>,
     },
 
     /// Auto-continuation was triggered for an idle agent.

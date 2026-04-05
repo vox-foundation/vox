@@ -15,7 +15,7 @@ pub(crate) fn orchestration_campaign_id() -> Option<String> {
     })
 }
 
-pub(crate) fn repository_id() -> String {
+pub fn repository_id() -> String {
     let start = if let Ok(p) = std::env::var("VOX_REPOSITORY_ROOT") {
         let p = p.trim();
         if !p.is_empty() {

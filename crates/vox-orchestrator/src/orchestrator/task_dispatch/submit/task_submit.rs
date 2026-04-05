@@ -60,6 +60,9 @@ impl Orchestrator {
             if !config_guard.enabled {
                 return Err(OrchestratorError::Disabled);
             }
+            if self.is_stopped() {
+                return Err(OrchestratorError::Stopped);
+            }
             (
                 config_guard.default_priority,
                 config_guard.scope_enforcement,
