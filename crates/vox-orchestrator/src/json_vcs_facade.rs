@@ -1,10 +1,10 @@
 //! JSON payloads shared by MCP VCS tools and `vox dei` CLI (parity surface).
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
+use crate::Orchestrator;
 use crate::snapshot::SnapshotId;
 use crate::types::AgentId;
-use crate::Orchestrator;
 
 /// List recent snapshots (same shape as MCP `vox_snapshot_list`).
 pub fn snapshot_list_json(orch: &Orchestrator, agent_id: Option<u64>, limit: usize) -> Value {
@@ -84,9 +84,7 @@ pub fn workspace_create_json(orch: &Orchestrator, agent_id: u64) -> Value {
     };
     let ws_handle = orch.workspace_manager_handle();
     let mut mgr = crate::sync_lock::rw_write(&*ws_handle);
-    let ws = mgr
-        .create_workspace(AgentId(agent_id), base_id)
-        .clone();
+    let ws = mgr.create_workspace(AgentId(agent_id), base_id).clone();
     json!({
         "workspace_created": true,
         "agent_id": ws.agent_id.to_string(),

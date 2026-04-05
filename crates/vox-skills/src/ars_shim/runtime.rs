@@ -58,7 +58,11 @@ impl ArsRuntime {
         }
 
         let mut _injected_secrets = std::collections::HashMap::new();
-        if let Some(req_secrets) = skill.metadata.get("requested_secrets").and_then(|v| v.as_array()) {
+        if let Some(req_secrets) = skill
+            .metadata
+            .get("requested_secrets")
+            .and_then(|v| v.as_array())
+        {
             for req in req_secrets {
                 if let Some(sec_str) = req.as_str() {
                     if let Ok(id) = sec_str.parse::<vox_clavis::spec::SecretId>() {
@@ -69,7 +73,10 @@ impl ArsRuntime {
                             }
                         } else {
                             // Deny-by-default logic for OpenClaw
-                            return Err(ArsRuntimeError::InvalidRun(format!("missing required secret: {}", sec_str)));
+                            return Err(ArsRuntimeError::InvalidRun(format!(
+                                "missing required secret: {}",
+                                sec_str
+                            )));
                         }
                     }
                 }

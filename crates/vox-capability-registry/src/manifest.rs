@@ -21,11 +21,8 @@ pub fn build_model_manifest(
     mcp_tools: &[String],
     cli_paths_active: &[Vec<String>],
 ) -> ModelCapabilityManifest {
-    let curated_by_id: std::collections::HashMap<String, &CuratedCapability> = doc
-        .curated
-        .iter()
-        .map(|c| (c.id.clone(), c))
-        .collect();
+    let curated_by_id: std::collections::HashMap<String, &CuratedCapability> =
+        doc.curated.iter().map(|c| (c.id.clone(), c)).collect();
 
     let mcp_tools_out: Vec<Value> = mcp_tools
         .iter()
@@ -64,11 +61,7 @@ pub fn build_model_manifest(
     }
 }
 
-fn merge_mcp_entry(
-    tool: &str,
-    capability_id: &str,
-    curated: Option<&&CuratedCapability>,
-) -> Value {
+fn merge_mcp_entry(tool: &str, capability_id: &str, curated: Option<&&CuratedCapability>) -> Value {
     let base = json!({
         "capability_id": capability_id,
         "mcp_tool": tool,
@@ -81,7 +74,11 @@ fn merge_mcp_entry(
     }
 }
 
-fn merge_cli_entry(path: &[String], capability_id: &str, curated: Option<&&CuratedCapability>) -> Value {
+fn merge_cli_entry(
+    path: &[String],
+    capability_id: &str,
+    curated: Option<&&CuratedCapability>,
+) -> Value {
     let base = json!({
         "capability_id": capability_id,
         "cli_path": path,

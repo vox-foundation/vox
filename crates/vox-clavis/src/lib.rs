@@ -76,7 +76,7 @@ pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
             }
             // fallback to cloud automatically if keyring has a master key
             if keyring::Entry::new("vox-clavis-vault", "master").is_ok() {
-                 return resolve_vox_cloud(id);
+                return resolve_vox_cloud(id);
             }
             resolve_with_backend(backend::NoopBackend, id)
         }

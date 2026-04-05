@@ -10,10 +10,14 @@ pub mod empty_body;
 pub mod file_organization;
 /// Single files that exceed line or method-count thresholds (“god object” smell).
 pub mod god_object;
+/// Functions with trivially-default return values (compile but do nothing meaningful).
+pub mod hollow_fn;
 /// CR / CRLF in source files vs LF policy (`vox ci line-endings` parity).
 pub mod line_endings;
 /// Suspicious literals (large ints, long strings) that should be named constants.
 pub mod magic_value;
+/// Functions that are declared but not called anywhere in the crate.
+pub mod reachability;
 /// Scaling risks: blocking I/O in async, unbounded reads, SQL/HTTP heuristics.
 pub mod scaling;
 /// Optional JSON-schema cross-check when a schema path is configured.
@@ -26,14 +30,10 @@ pub mod sprawl;
 pub mod stringly_typed_enum;
 /// `TODO` / `unimplemented!` / obvious stub markers left in shipped code.
 pub mod stub;
-/// Functions with trivially-default return values (compile but do nothing meaningful).
-pub mod hollow_fn;
 /// References to symbols that are not defined or imported in the current compilation unit.
 pub mod unresolved_ref;
 /// Modules declared but never imported or wired into the build graph.
 pub mod unwired_module;
-/// Functions that are declared but not called anywhere in the crate.
-pub mod reachability;
 /// Heuristic `.unwrap()` in Rust (informational nudge).
 pub mod unwrap_call;
 /// Premature “done” comments or victory language without matching tests or implementation.

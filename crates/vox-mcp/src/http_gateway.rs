@@ -464,7 +464,7 @@ async fn handle_ws(
     role: AccessRole,
 ) {
     let mut rx = state.server_state.orchestrator.event_bus().subscribe();
-    
+
     loop {
         tokio::select! {
             msg = socket.recv() => {

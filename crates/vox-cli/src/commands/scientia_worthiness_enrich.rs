@@ -19,8 +19,8 @@ fn merge_eval_gate_from_run_dir(
     if trimmed.is_empty() {
         return Ok(manifest);
     }
-    let mut root: serde_json::Value =
-        serde_json::from_str(trimmed).with_context(|| "parse metadata_json for eval_gate run_dir merge")?;
+    let mut root: serde_json::Value = serde_json::from_str(trimmed)
+        .with_context(|| "parse metadata_json for eval_gate run_dir merge")?;
 
     let mut ev: vox_publisher::scientia_evidence::ScientiaEvidenceContext = root
         .get(METADATA_KEY_SCIENTIA_EVIDENCE)

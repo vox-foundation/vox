@@ -115,6 +115,9 @@ impl Default for OrchestratorConfig {
             tier_gate: crate::attention::TierGateConfig::default(),
             interruption_calibration: crate::attention::InterruptionCalibrationConfig::default(),
             news: NewsConfig::default(),
+            observer_enabled: false,
+            observer_model: None,
+            observer_poll_interval_ms: default_observer_poll_interval_ms(),
         }
     }
 }

@@ -159,8 +159,8 @@ impl<'a> Checker<'a> {
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
                     code: Some("typecheck.arg_mismatch".into()),
                     fixes: vec![],
-                line_col: None,
-});
+                    line_col: None,
+                });
             }
         }
     }

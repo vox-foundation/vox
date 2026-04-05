@@ -8,12 +8,12 @@ pub mod add;
 /// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;
+/// Identity and master key generation.
+pub mod auth;
 /// Building and codegen orchestration endpoints.
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
-/// Identity and master key generation.
-pub mod auth;
 /// Validation and static checking (`vox check`).
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
@@ -107,10 +107,10 @@ pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
 pub(crate) mod scientia_ledger_contract;
-/// Test suite integration wrapper (`vox test`).
-pub mod test;
 /// Optional telemetry upload queue (`vox telemetry`).
 pub mod telemetry;
+/// Test suite integration wrapper (`vox test`).
+pub mod test;
 pub mod update;
 
 /// Speech-to-text and transcript refinement (`vox oratio`).

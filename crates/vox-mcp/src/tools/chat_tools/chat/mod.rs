@@ -1,5 +1,5 @@
-mod hydrate;
 mod history;
+mod hydrate;
 mod mentions;
 mod message;
 

@@ -194,7 +194,11 @@ impl Parser {
             Token::Async => {
                 self.advance(); // eat 'async'
                 match self.peek().clone() {
-                    Token::Fn | Token::AtRequire | Token::AtEnsure | Token::AtInvariant | Token::AtFuzz => {
+                    Token::Fn
+                    | Token::AtRequire
+                    | Token::AtEnsure
+                    | Token::AtInvariant
+                    | Token::AtFuzz => {
                         let mut f = self.parse_fn_decl(false)?;
                         f.is_async = true;
                         Ok(Decl::Function(f))
@@ -218,7 +222,11 @@ impl Parser {
             Token::Pub => {
                 self.advance();
                 match self.peek().clone() {
-                    Token::Fn | Token::AtRequire | Token::AtEnsure | Token::AtInvariant | Token::AtFuzz => {
+                    Token::Fn
+                    | Token::AtRequire
+                    | Token::AtEnsure
+                    | Token::AtInvariant
+                    | Token::AtFuzz => {
                         let f = self.parse_fn_decl(true)?;
                         Ok(Decl::Function(f))
                     }

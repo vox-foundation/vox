@@ -66,7 +66,9 @@ pub async fn relay_remote_task_envelope(
     let payload = serde_json::to_string(envelope).map_err(|e| e.to_string())?;
 
     let mut jwe_payload = None;
-    if let Ok(reqs) = serde_json::from_str::<serde_json::Value>(&envelope.capability_requirements_json) {
+    if let Ok(reqs) =
+        serde_json::from_str::<serde_json::Value>(&envelope.capability_requirements_json)
+    {
         if let Some(arr) = reqs.get("required_secrets").and_then(|v| v.as_array()) {
             let mut resolved_map = std::collections::HashMap::new();
             for sec in arr {
@@ -80,11 +82,15 @@ pub async fn relay_remote_task_envelope(
                 }
             }
             if !resolved_map.is_empty() {
-                let mesh_secret_res = vox_clavis::resolve_secret(vox_clavis::spec::SecretId::VoxMeshJwtHmacSecret);
+                let mesh_secret_res =
+                    vox_clavis::resolve_secret(vox_clavis::spec::SecretId::VoxMeshJwtHmacSecret);
                 if let Some(mesh_val) = mesh_secret_res.expose() {
                     let derived = blake3::hash(mesh_val.as_bytes());
                     if let Ok(secret_json) = serde_json::to_string(&resolved_map) {
-                        if let Ok(enc) = crate::a2a::jwe::encrypt_jwe_compact(secret_json.as_bytes(), derived.as_bytes()) {
+                        if let Ok(enc) = crate::a2a::jwe::encrypt_jwe_compact(
+                            secret_json.as_bytes(),
+                            derived.as_bytes(),
+                        ) {
                             jwe_payload = Some(enc);
                         }
                     }

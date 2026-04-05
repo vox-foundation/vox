@@ -4,15 +4,15 @@ use vox_publisher::publication_preflight::{
     PreflightConfidence, PreflightFinding, PreflightReport, PreflightSeverity,
 };
 use vox_publisher::publication_worthiness::{
-    apply_prior_art_to_worthiness_inputs, load_contract_from_str, machine_venue_profile_violations,
-    validate_contract_invariants, WorthinessInputs,
+    WorthinessInputs, apply_prior_art_to_worthiness_inputs, load_contract_from_str,
+    machine_venue_profile_violations, validate_contract_invariants,
 };
 use vox_publisher::scientia_finding_ledger::{
-    impact_readership_projection_v1, novelty_decision_calibration_v1, NormalizedPriorArtHit,
-    NoveltyEvidenceBundleV1, NoveltyOverlapSummary, PriorArtSource,
+    NormalizedPriorArtHit, NoveltyEvidenceBundleV1, NoveltyOverlapSummary, PriorArtSource,
+    impact_readership_projection_v1, novelty_decision_calibration_v1,
 };
 use vox_publisher::scientia_heuristics::ScientiaHeuristics;
-use vox_publisher::scientia_prior_art::{empty_novelty_bundle, title_lexical_score, PriorArtQuery};
+use vox_publisher::scientia_prior_art::{PriorArtQuery, empty_novelty_bundle, title_lexical_score};
 
 fn default_contract() -> vox_publisher::publication_worthiness::PublicationWorthinessContract {
     let yaml = include_str!(concat!(
@@ -72,7 +72,9 @@ fn scientia_novelty_calibration_validates_against_telemetry_schema() {
     let schema_raw = std::fs::read_to_string(&schema_path).expect("read calibration schema");
     let schema: serde_json::Value = serde_json::from_str(&schema_raw).expect("parse schema");
     let validator = jsonschema::validator_for(&schema).expect("compile calibration schema");
-    validator.validate(&v).expect("calibration JSON should match SSOT schema");
+    validator
+        .validate(&v)
+        .expect("calibration JSON should match SSOT schema");
 }
 
 #[test]
@@ -119,7 +121,9 @@ fn scientia_novelty_prior_art_lowers_worthiness_novelty_metric() {
     let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);
     assert!(inputs.novelty < 0.95, "novelty={}", inputs.novelty);
     assert!(
-        notes.iter().any(|n| n.contains("novelty_after_prior_art_min")),
+        notes
+            .iter()
+            .any(|n| n.contains("novelty_after_prior_art_min")),
         "{notes:?}"
     );
 }

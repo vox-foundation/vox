@@ -55,8 +55,8 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
     if !metric_doc.is_file() {
         return Err(anyhow!("missing {}", metric_doc.display()));
     }
-    let metric_txt =
-        read_utf8_path_capped(&metric_doc).with_context(|| format!("read {}", metric_doc.display()))?;
+    let metric_txt = read_utf8_path_capped(&metric_doc)
+        .with_context(|| format!("read {}", metric_doc.display()))?;
 
     let taxonomy_doc = root.join("docs/src/architecture/telemetry-taxonomy-contracts-ssot.md");
     if !taxonomy_doc.is_file() {

@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
-use crate::types::{TaskCategory, AgentTask};
+use crate::types::{AgentTask, TaskCategory};
 
 use super::spec::{
     ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_premium_key,
@@ -102,12 +102,12 @@ impl ModelRegistry {
                 .enable_all()
                 .build()
                 .map_err(|e| RefreshFail::Runtime(e.to_string()))?;
-            rt.block_on(async { 
+            rt.block_on(async {
                 let mut models = OpenRouterCatalog::new().refresh().await?;
                 crate::catalog_classifier::classify_models(&mut models).await;
                 Ok::<_, anyhow::Error>(models)
             })
-                .map_err(|e| RefreshFail::Fetch(e.to_string()))
+            .map_err(|e| RefreshFail::Fetch(e.to_string()))
         })
         .join();
 
@@ -200,11 +200,7 @@ impl ModelRegistry {
     }
 
     /// Optimized routing for a specific agent task, leveraging tool and research hints.
-    pub fn best_for_task(
-        &self,
-        task: &AgentTask,
-        preference: CostPreference,
-    ) -> Option<ModelSpec> {
+    pub fn best_for_task(&self, task: &AgentTask, preference: CostPreference) -> Option<ModelSpec> {
         let mut complexity = task.estimated_complexity;
         let mut task_type = task.task_category;
 
@@ -213,7 +209,7 @@ impl ModelRegistry {
             task_type = TaskCategory::Research;
         }
 
-        // Precision-boost: Tasks with multiple tool hints get a complexity floor of 7 
+        // Precision-boost: Tasks with multiple tool hints get a complexity floor of 7
         // to ensure more powerful reasoning models are picked for complex tool coordination.
         if task.tool_hints.len() >= 2 && complexity < 7 {
             complexity = 7;

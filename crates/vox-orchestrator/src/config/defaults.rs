@@ -170,3 +170,7 @@ pub(super) fn default_repo_reduce_conflict_cooldown_ms() -> u64 {
 pub(super) fn default_populi_remote_lease_timeout_ms() -> u64 {
     300_000
 }
+
+pub(super) fn default_observer_poll_interval_ms() -> u64 {
+    10_000
+}

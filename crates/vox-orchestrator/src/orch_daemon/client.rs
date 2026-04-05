@@ -91,7 +91,10 @@ impl OrchDaemonClient {
     }
 
     /// [`orch_daemon_method::SUBMIT_TASK`] — returns `{"task_id": u64}`.
-    pub async fn submit_task(&self, params: serde_json::Value) -> anyhow::Result<serde_json::Value> {
+    pub async fn submit_task(
+        &self,
+        params: serde_json::Value,
+    ) -> anyhow::Result<serde_json::Value> {
         self.call(orch_daemon_method::SUBMIT_TASK, params).await
     }
 
@@ -159,7 +162,10 @@ impl OrchDaemonClient {
     }
 
     /// [`orch_daemon_method::SPAWN_AGENT_EXT`] — returns `{"agent_id": u64}`.
-    pub async fn spawn_agent_ext(&self, params: serde_json::Value) -> anyhow::Result<serde_json::Value> {
+    pub async fn spawn_agent_ext(
+        &self,
+        params: serde_json::Value,
+    ) -> anyhow::Result<serde_json::Value> {
         self.call(orch_daemon_method::SPAWN_AGENT_EXT, params).await
     }
 

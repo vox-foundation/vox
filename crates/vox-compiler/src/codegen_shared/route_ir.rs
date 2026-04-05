@@ -10,7 +10,7 @@
 //!   and return-type presence. Body stmts stay in HIR and are emitted by each backend.
 //! * Lowering is additive: the existing HIR structs ([`HirRoute`], [`HirServerFn`]) are
 //!   unchanged — `RouteIR` is a read-only projection computed at codegen time.
-use crate::hir::{HirHttpMethod, HirModule, HirParam, HirServerFn, HirRoute};
+use crate::hir::{HirHttpMethod, HirModule, HirParam, HirRoute, HirServerFn};
 
 /// Unified HTTP route contract used by Rust and TypeScript backends.
 ///
@@ -201,7 +201,11 @@ mod tests {
         assert_eq!(routes.len(), 1);
         assert_eq!(routes[0].method, RouteMethod::Post);
         assert_eq!(routes[0].kind, RouteKind::ServerFn);
-        assert!(routes[0].path.contains("greet"), "expected route path to contain fn name; got {:?}", routes[0].path);
+        assert!(
+            routes[0].path.contains("greet"),
+            "expected route path to contain fn name; got {:?}",
+            routes[0].path
+        );
         assert_eq!(routes[0].params.len(), 1);
         assert_eq!(routes[0].params[0].name, "name");
     }
@@ -219,6 +223,10 @@ mod tests {
         let routes = lower_module_routes(&hir);
         assert_eq!(routes.len(), 1);
         // contract_key is "POST /path" — must start with method
-        assert!(routes[0].contract_key.starts_with("POST "), "contract_key: {:?}", routes[0].contract_key);
+        assert!(
+            routes[0].contract_key.starts_with("POST "),
+            "contract_key: {:?}",
+            routes[0].contract_key
+        );
     }
 }

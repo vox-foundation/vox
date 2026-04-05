@@ -117,6 +117,21 @@ export class AgentController {
             });
         }
 
+        // Show auto-heal notification
+        if (ev.event_type === 'AutoHealApplied') {
+            vscode.window.showInformationMessage(
+                `🛠 Vox Agent [${agentId}] applied an automated compilation repair.`,
+                'View Details',
+                'Undo Repair'
+            ).then(sel => {
+                if (sel === 'View Details') {
+                    vscode.commands.executeCommand('vox.focusSidebar');
+                } else if (sel === 'Undo Repair') {
+                    vscode.commands.executeCommand('vox.undo');
+                }
+            });
+        }
+
         // Show error notification
         if (ev.event_type === 'TaskFailed' || ev.event_type === 'Error') {
             vscode.window.showWarningMessage(

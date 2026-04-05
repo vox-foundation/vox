@@ -115,6 +115,14 @@ pub(super) enum TrainingDbEvent {
         run_id: String,
         global_step: u32,
     },
+    GrpoStep {
+        run_id: String,
+        step: u32,
+        mean_reward: f32,
+        policy_loss: f32,
+        clip_fraction: f32,
+        parse_rate: f32,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default)]

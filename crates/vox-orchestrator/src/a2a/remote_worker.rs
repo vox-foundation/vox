@@ -31,38 +31,34 @@ fn parse_remote_payload_context(payload: &str) -> RemotePayloadContext {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(std::string::ToString::to_string);
-    let context_envelope_json = value
-        .get("context_envelope_json")
-        .and_then(|v| {
-            if let Some(s) = v.as_str() {
-                let trimmed = s.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            } else if v.is_object() {
-                serde_json::to_string(v).ok()
-            } else {
+    let context_envelope_json = value.get("context_envelope_json").and_then(|v| {
+        if let Some(s) = v.as_str() {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
                 None
-            }
-        });
-    let harness_spec_json = value
-        .get("harness_spec_json")
-        .and_then(|v| {
-            if let Some(s) = v.as_str() {
-                let trimmed = s.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            } else if v.is_object() {
-                serde_json::to_string(v).ok()
             } else {
-                None
+                Some(trimmed.to_string())
             }
-        });
+        } else if v.is_object() {
+            serde_json::to_string(v).ok()
+        } else {
+            None
+        }
+    });
+    let harness_spec_json = value.get("harness_spec_json").and_then(|v| {
+        if let Some(s) = v.as_str() {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        } else if v.is_object() {
+            serde_json::to_string(v).ok()
+        } else {
+            None
+        }
+    });
     RemotePayloadContext {
         session_id,
         thread_id,
@@ -148,11 +144,10 @@ async fn run_remote_worker_tick(
                         context_envelope_json,
                         3600,
                     );
-                    let seeded =
-                        orchestrator.attach_session_retrieval_envelope_if_present(
-                            crate::types::TaskId(envelope.task_id),
-                            &Some(session_id.to_string()),
-                        );
+                    let seeded = orchestrator.attach_session_retrieval_envelope_if_present(
+                        crate::types::TaskId(envelope.task_id),
+                        &Some(session_id.to_string()),
+                    );
                     tracing::debug!(
                         message_id = msg.id,
                         task_id = envelope.task_id,
@@ -447,7 +442,10 @@ mod tests {
             parsed.context_envelope_json.as_deref(),
             Some("{\"schema_version\":1}")
         );
-        assert_eq!(parsed.harness_spec_json.as_deref(), Some("{\"schema_version\":1}"));
+        assert_eq!(
+            parsed.harness_spec_json.as_deref(),
+            Some("{\"schema_version\":1}")
+        );
     }
 
     #[test]

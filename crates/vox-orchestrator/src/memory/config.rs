@@ -42,7 +42,11 @@ fn sanitize_account_id(raw: &str) -> String {
         })
         .take(128)
         .collect();
-    if s.is_empty() { "global".to_string() } else { s }
+    if s.is_empty() {
+        "global".to_string()
+    } else {
+        s
+    }
 }
 
 impl MemoryConfig {

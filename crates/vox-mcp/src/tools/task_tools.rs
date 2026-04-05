@@ -125,9 +125,9 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         Some(TaskCategory::Review) => Some(vox_orchestrator::AgentExecutionRole::Verifier),
         Some(TaskCategory::Debugging) => Some(vox_orchestrator::AgentExecutionRole::Reproducer),
         Some(TaskCategory::CodeGen) => Some(vox_orchestrator::AgentExecutionRole::Builder),
-        Some(TaskCategory::General)
-        | Some(TaskCategory::Ars)
-        | Some(TaskCategory::Planning) => Some(vox_orchestrator::AgentExecutionRole::Planner),
+        Some(TaskCategory::General) | Some(TaskCategory::Ars) | Some(TaskCategory::Planning) => {
+            Some(vox_orchestrator::AgentExecutionRole::Planner)
+        }
         _ => None,
     };
     let (campaign_from_desc, tier_from_desc) = parse_campaign_from_description(&params.description);
@@ -696,49 +696,48 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     };
 
     let repo_id = state.repository.repository_id.as_str();
-    let session_context_to_store: Option<vox_orchestrator::ContextEnvelope> =
-        if let Some(sid) = normalized_session_id
+    let session_context_to_store: Option<vox_orchestrator::ContextEnvelope> = if let Some(sid) =
+        normalized_session_id
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty())
-        {
-            let base: Option<vox_orchestrator::ContextEnvelope> =
-                if let Some((ref env, _)) = explicit_context_envelope {
-                    Some(env.clone())
-                } else if let Some(retrieval) = explicit_retrieval {
-                    Some(retrieval.to_context_envelope(repo_id, Some(sid)))
-                } else {
-                    None
+    {
+        let base: Option<vox_orchestrator::ContextEnvelope> =
+            if let Some((ref env, _)) = explicit_context_envelope {
+                Some(env.clone())
+            } else if let Some(retrieval) = explicit_retrieval {
+                Some(retrieval.to_context_envelope(repo_id, Some(sid)))
+            } else {
+                None
+            };
+        if let Some(mut base) = base {
+            apply_mcp_trace_to_context_envelope(
+                &mut base,
+                params.trace_id.as_deref(),
+                params.correlation_id.as_deref(),
+            );
+            let ingest_expectations =
+                vox_orchestrator::context_lifecycle::ContextIngestExpectations {
+                    repository_id: repo_id,
+                    session_id: Some(sid),
                 };
-            if let Some(mut base) = base {
-                apply_mcp_trace_to_context_envelope(
-                    &mut base,
-                    params.trace_id.as_deref(),
-                    params.correlation_id.as_deref(),
-                );
-                let ingest_expectations =
-                    vox_orchestrator::context_lifecycle::ContextIngestExpectations {
-                        repository_id: repo_id,
-                        session_id: Some(sid),
-                    };
-                if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
-                    &state.orchestrator_config,
-                    &base,
-                    ingest_expectations,
-                    vox_orchestrator::context_lifecycle::ContextIngestSource::McpSubmitTask,
-                ) {
-                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
-                        format!("context lifecycle policy rejected envelope: {e}"),
-                        REM_CONTEXT_ENVELOPE_JSON,
-                    )
-                    .to_json();
-                }
-                let context_key = session_context_envelope_key(sid);
-                let ctx_handle = orch.context_handle();
-                let existing_json = match crate::sync_poison::poison_rw_read(
-                    ctx_handle.read(),
-                    "orchestrator context",
-                ) {
+            if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
+                &state.orchestrator_config,
+                &base,
+                ingest_expectations,
+                vox_orchestrator::context_lifecycle::ContextIngestSource::McpSubmitTask,
+            ) {
+                return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                    format!("context lifecycle policy rejected envelope: {e}"),
+                    REM_CONTEXT_ENVELOPE_JSON,
+                )
+                .to_json();
+            }
+            let context_key = session_context_envelope_key(sid);
+            let ctx_handle = orch.context_handle();
+            let existing_json =
+                match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context")
+                {
                     Ok(g) => g.get(&context_key),
                     Err(e) => {
                         tracing::warn!(
@@ -748,7 +747,8 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         None
                     }
                 };
-                let mut merged = match vox_orchestrator::context_lifecycle::merge_context_envelope_for_session_store(
+            let mut merged =
+                match vox_orchestrator::context_lifecycle::merge_context_envelope_for_session_store(
                     existing_json.as_deref(),
                     &base,
                     state.orchestrator_config.context_lifecycle_shadow,
@@ -762,26 +762,28 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         .to_json();
                     }
                 };
-                vox_orchestrator::context_lifecycle::clamp_context_envelope_injection_budget(&mut merged);
-                if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
-                    &state.orchestrator_config,
-                    &merged,
-                    ingest_expectations,
-                    vox_orchestrator::context_lifecycle::ContextIngestSource::SessionStoreWrite,
-                ) {
-                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
-                        format!("context lifecycle policy rejected merged envelope: {e}"),
-                        REM_CONTEXT_ENVELOPE_JSON,
-                    )
-                    .to_json();
-                }
-                Some(merged)
-            } else {
-                None
+            vox_orchestrator::context_lifecycle::clamp_context_envelope_injection_budget(
+                &mut merged,
+            );
+            if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
+                &state.orchestrator_config,
+                &merged,
+                ingest_expectations,
+                vox_orchestrator::context_lifecycle::ContextIngestSource::SessionStoreWrite,
+            ) {
+                return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                    format!("context lifecycle policy rejected merged envelope: {e}"),
+                    REM_CONTEXT_ENVELOPE_JSON,
+                )
+                .to_json();
             }
+            Some(merged)
         } else {
             None
-        };
+        }
+    } else {
+        None
+    };
 
     let enqueue_hints = enqueue_hints_from_submit_params(&params);
     let submit_result: Result<TaskId, String> = if params.planning_mode.is_some() {
@@ -796,16 +798,17 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         .await
         .map_err(|e| e.to_string())
     } else {
-        state.submit_task_with_agent_backend(
-            description.clone(),
-            manifest,
-            priority,
-            params.agent_name.clone(),
-            params.capabilities.clone(),
-            enqueue_hints,
-            normalized_session_id.clone(),
-        )
-        .await
+        state
+            .submit_task_with_agent_backend(
+                description.clone(),
+                manifest,
+                priority,
+                params.agent_name.clone(),
+                params.capabilities.clone(),
+                enqueue_hints,
+                normalized_session_id.clone(),
+            )
+            .await
     };
     match submit_result {
         Ok(task_id) => {
@@ -832,10 +835,9 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                     );
                 }
             } else if let Some((context_envelope, _)) = &explicit_context_envelope
-                && let Some(env) =
-                    vox_orchestrator::SessionRetrievalEnvelope::from_context_envelope(
-                        context_envelope,
-                    )
+                && let Some(env) = vox_orchestrator::SessionRetrievalEnvelope::from_context_envelope(
+                    context_envelope,
+                )
             {
                 let soc = env.to_task_context();
                 if let Err(e) = orch.attach_socrates_context(task_id, soc) {
@@ -884,52 +886,53 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         });
                 }
             }
-            let shadow_plan_adequacy =
-                if params.planning_mode.is_none() && state.orchestrator_config.plan_adequacy_shadow {
-                    let pseudo = vec![crate::tools::chat_tools::params::PlanTask {
-                        id: 1,
-                        description: description.clone(),
-                        files: params.files.iter().map(|f| f.path.clone()).collect(),
-                        estimated_complexity: params.complexity.unwrap_or(5).clamp(1, 10),
-                        depends_on: vec![],
-                    }];
-                    let router_hint = params.goal_type.as_deref().and_then(|g| {
-                        match g.trim().to_ascii_lowercase().as_str() {
-                            "research" | "investigation" | "explore" | "discovery" => Some(8u8),
-                            "refactor" | "migration" | "modernize" => Some(6u8),
-                            "testing" | "test" | "qa" => Some(5u8),
-                            "docs" | "documentation" => Some(4u8),
-                            _ => None,
-                        }
-                    });
-                    let rep = crate::tools::chat_tools::analyze_plan_gaps(
-                        &description,
-                        params.files.len(),
-                        router_hint,
-                        None,
-                        &pseudo,
-                        None,
-                    );
-                    tracing::info!(
-                        target: "vox_mcp::submit_plan_adequacy",
-                        task_id = task_id.0,
-                        adequacy_score = rep.adequacy.score,
-                        is_too_thin = rep.adequacy.is_too_thin,
-                        reason_codes = ?rep.adequacy.reason_codes,
-                        critical_count = rep.critical_count,
-                        aggregate_unresolved_risk = rep.aggregate_unresolved_risk,
-                        "direct vox_submit_task: pseudo-plan adequacy shadow (use vox_plan when decomposition helps)",
-                    );
-                    Some(crate::params::SubmitShadowAdequacy {
-                        score: rep.adequacy.score,
-                        is_too_thin: rep.adequacy.is_too_thin,
-                        reason_codes: rep.adequacy.reason_codes.clone(),
-                        critical_count: rep.critical_count,
-                        aggregate_unresolved_risk: rep.aggregate_unresolved_risk,
-                    })
-                } else {
-                    None
-                };
+            let shadow_plan_adequacy = if params.planning_mode.is_none()
+                && state.orchestrator_config.plan_adequacy_shadow
+            {
+                let pseudo = vec![crate::tools::chat_tools::params::PlanTask {
+                    id: 1,
+                    description: description.clone(),
+                    files: params.files.iter().map(|f| f.path.clone()).collect(),
+                    estimated_complexity: params.complexity.unwrap_or(5).clamp(1, 10),
+                    depends_on: vec![],
+                }];
+                let router_hint = params.goal_type.as_deref().and_then(|g| {
+                    match g.trim().to_ascii_lowercase().as_str() {
+                        "research" | "investigation" | "explore" | "discovery" => Some(8u8),
+                        "refactor" | "migration" | "modernize" => Some(6u8),
+                        "testing" | "test" | "qa" => Some(5u8),
+                        "docs" | "documentation" => Some(4u8),
+                        _ => None,
+                    }
+                });
+                let rep = crate::tools::chat_tools::analyze_plan_gaps(
+                    &description,
+                    params.files.len(),
+                    router_hint,
+                    None,
+                    &pseudo,
+                    None,
+                );
+                tracing::info!(
+                    target: "vox_mcp::submit_plan_adequacy",
+                    task_id = task_id.0,
+                    adequacy_score = rep.adequacy.score,
+                    is_too_thin = rep.adequacy.is_too_thin,
+                    reason_codes = ?rep.adequacy.reason_codes,
+                    critical_count = rep.critical_count,
+                    aggregate_unresolved_risk = rep.aggregate_unresolved_risk,
+                    "direct vox_submit_task: pseudo-plan adequacy shadow (use vox_plan when decomposition helps)",
+                );
+                Some(crate::params::SubmitShadowAdequacy {
+                    score: rep.adequacy.score,
+                    is_too_thin: rep.adequacy.is_too_thin,
+                    reason_codes: rep.adequacy.reason_codes.clone(),
+                    critical_count: rep.critical_count,
+                    aggregate_unresolved_risk: rep.aggregate_unresolved_risk,
+                })
+            } else {
+                None
+            };
             let agent_id = orch
                 .task_assignments_copy()
                 .get(&task_id)
@@ -1096,7 +1099,10 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
         _ => TaskPriority::Normal,
     };
 
-    match state.reorder_task_backend(TaskId(params.task_id), priority).await {
+    match state
+        .reorder_task_backend(TaskId(params.task_id), priority)
+        .await
+    {
         Ok(()) => ToolResult::ok("Task reordered successfully".to_string()).to_json(),
         Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }

@@ -65,8 +65,6 @@ struct OpenRouterPricing {
 struct OpenRouterArchitecture {
     #[serde(default)]
     input_modalities: Vec<String>,
-    #[serde(default)]
-    output_modalities: Vec<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -219,11 +217,17 @@ impl ModelCatalog for OpenRouterCatalog {
         for m in body.data {
             let cost_input = m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0;
             let cost_output = m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0;
-            let p_zero = m.pricing.prompt == "0" || m.pricing.prompt == "0.0" || m.pricing.prompt.starts_with("-");
-            let c_zero = m.pricing.completion == "0" || m.pricing.completion == "0.0" || m.pricing.completion.starts_with("-");
+            let p_zero = m.pricing.prompt == "0"
+                || m.pricing.prompt == "0.0"
+                || m.pricing.prompt.starts_with("-");
+            let c_zero = m.pricing.completion == "0"
+                || m.pricing.completion == "0.0"
+                || m.pricing.completion.starts_with("-");
             let is_free = p_zero && c_zero;
-            // Simplify overall cost per 1k as the average.
-            let cost_per_1k = (cost_input + cost_output) / 2.0;
+
+            // True tokenomics tracked separately via cost_per_1k_input and cost_per_1k_output.
+            // The cost_per_1k legacy field defaults to output cost for registry sorting.
+            let cost_per_1k = cost_output;
 
             let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
 
@@ -331,8 +335,7 @@ mod tests {
 
     #[test]
     fn infer_strengths_unknown_provider_uses_name_heuristic() {
-        let strengths =
-            infer_strengths("acme/code-assist-7b", None, &["temperature".to_string()]);
+        let strengths = infer_strengths("acme/code-assist-7b", None, &["temperature".to_string()]);
         assert!(
             strengths.contains(&"codegen".to_string()),
             "name heuristic: 'code' → codegen"

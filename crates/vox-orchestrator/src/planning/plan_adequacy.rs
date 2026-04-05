@@ -570,7 +570,9 @@ pub fn plan_nodes_to_adequacy_tasks(nodes: &[super::PlanNode]) -> Vec<PlanAdequa
                 .iter()
                 .map(|f| f.path.to_string_lossy().into_owned())
                 .collect();
-            let inferred_cx = (crate::compaction::CompactionEngine::estimate_tokens(&n.description) / 10).clamp(1, 10) as u8;
+            let inferred_cx = (crate::compaction::CompactionEngine::estimate_tokens(&n.description)
+                / 10)
+                .clamp(1, 10) as u8;
             PlanAdequacyTask {
                 id: i + 1,
                 description: n.description.clone(),

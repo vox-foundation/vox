@@ -89,8 +89,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_unknown_table".into()),
             fixes: vec![],
-        line_col: None,
-});
+            line_col: None,
+        });
         return;
     };
 
@@ -109,8 +109,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_not_table".into()),
             fixes: vec![],
-        line_col: None,
-});
+            line_col: None,
+        });
         return;
     };
 
@@ -129,8 +129,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_unknown_field".into()),
             fixes: vec![],
-        line_col: None,
-});
+            line_col: None,
+        });
         return;
     };
 
@@ -149,8 +149,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_field_type".into()),
             fixes: vec![],
-        line_col: None,
-});
+            line_col: None,
+        });
     }
 }
 
@@ -242,8 +242,8 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         category: DiagnosticCategory::Lint,
                         code: Some("lint.index_unknown_table".into()),
                         fixes: vec![],
-                    line_col: None,
-});
+                        line_col: None,
+                    });
                 }
             }
             Decl::SearchIndex(si) => check_search_index_decl(&env, si, &mut diags),

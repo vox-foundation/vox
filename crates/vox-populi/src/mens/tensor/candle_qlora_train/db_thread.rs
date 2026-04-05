@@ -166,6 +166,23 @@ pub(super) fn spawn_training_db_writer(
                                 )
                                 .await;
                         }
+                        TrainingDbEvent::GrpoStep {
+                            run_id,
+                            step,
+                            mean_reward,
+                            policy_loss,
+                            clip_fraction,
+                            parse_rate,
+                        } => {
+                            let _ = db.insert_grpo_step(
+                                &run_id,
+                                step,
+                                mean_reward,
+                                policy_loss,
+                                clip_fraction,
+                                parse_rate,
+                            ).await;
+                        }
                     }
                 }
             });

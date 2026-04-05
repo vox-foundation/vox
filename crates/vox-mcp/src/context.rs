@@ -46,6 +46,23 @@ pub struct ContextBudgetParams {
     pub agent_id: u64,
 }
 
+/// MCP arguments: Set custom VoxDB-powered budget limits for an agent.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetAgentBudgetParams {
+    /// Agent to apply budget limits to.
+    pub agent_id: u64,
+    /// Maximum total tokens before hard-stop.
+    pub max_tokens: usize,
+    /// Maximum total dollar cost before hard-stop.
+    pub max_cost_usd: f64,
+    /// Ratio at which to trigger token warnings (default 0.8).
+    pub token_alert_threshold: Option<f64>,
+    /// Ratio at which to trigger cost warnings (default 0.9).
+    pub cost_alert_threshold: Option<f64>,
+    /// Token rollover fraction (0.0 to 1.0).
+    pub rollover_fraction: Option<f64>,
+}
+
 /// MCP arguments: copy summarized context from `from_agent` to `to_agent` via orchestrator handoff.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct HandoffContextParams {
@@ -143,6 +160,29 @@ pub async fn context_budget(state: &ServerState, params: ContextBudgetParams) ->
     } else {
         ToolResult::ok("No budget tracked for this agent.").to_json()
     }
+}
+
+/// Set a custom budget capped limit and persist to VoxDB.
+pub async fn set_agent_budget(state: &ServerState, params: SetAgentBudgetParams) -> String {
+    let orch = &state.orchestrator;
+    let agent_id = vox_orchestrator::AgentId(params.agent_id);
+    
+    let mut alloc = vox_orchestrator::budget::AgentBudgetAllocation::new(params.max_tokens, params.max_cost_usd);
+    if let (Some(token_al), Some(cost_al)) = (params.token_alert_threshold, params.cost_alert_threshold) {
+        alloc = alloc.with_alert_thresholds(token_al, cost_al);
+    }
+    if let Some(rollover) = params.rollover_fraction {
+        alloc = alloc.with_rollover(rollover);
+    }
+    
+    let bm = match crate::sync_poison::poison_rw_read(orch.budget_handle().read(), "budget manager lock") {
+        Ok(guard) => guard.clone(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json(),
+    };
+    
+    bm.set_and_persist_allocation(agent_id, alloc).await;
+    
+    ToolResult::ok(format!("Budget cap set and persisted for agent {}", params.agent_id)).to_json()
 }
 
 /// Handoff summarized context from one agent to another (async).

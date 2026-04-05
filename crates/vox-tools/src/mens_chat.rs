@@ -46,13 +46,16 @@ pub fn fallback_tool_system_prompt() -> String {
         "You have access to the following tools. To use a tool, output a JSON array of tool calls \
         inside a `<TOOL_CALLS>` XML block. Format: `<TOOL_CALLS>[{\"name\": \"tool_name\", \
         \"arguments\": {\"arg\": \"value\"}}]</TOOL_CALLS>`. Do not write anything else inside \
-        the block.\n\n"
+        the block.\n\n",
     );
     for cap in direct_mens_chat_capabilities(&registry) {
         let name = mcp_tool_name(cap);
         let params = mens_chat_parameters(&cap.capability_id);
         let params_json = serde_json::to_string_pretty(&params).unwrap_or_default();
-        instructions.push_str(&format!("Tool: {}\nDescription: {}\nParameters: {}\n\n", name, cap.description, params_json));
+        instructions.push_str(&format!(
+            "Tool: {}\nDescription: {}\nParameters: {}\n\n",
+            name, cap.description, params_json
+        ));
     }
     instructions
 }
@@ -63,7 +66,7 @@ pub fn parse_fallback_tools(content: &str) -> Vec<ToolCall> {
     let mut calls = Vec::new();
     let start_tag = "<TOOL_CALLS>";
     let end_tag = "</TOOL_CALLS>";
-    
+
     let mut current_idx = 0;
     while let Some(start_idx) = content[current_idx..].find(start_tag) {
         let absolute_start = current_idx + start_idx + start_tag.len();
@@ -71,8 +74,13 @@ pub fn parse_fallback_tools(content: &str) -> Vec<ToolCall> {
             let json_str = &content[absolute_start..absolute_start + end_idx];
             if let Ok(parsed_arr) = serde_json::from_str::<Vec<serde_json::Value>>(json_str) {
                 for (i, v) in parsed_arr.into_iter().enumerate() {
-                    if let (Some(name), Some(args)) = (v.get("name").and_then(|n| n.as_str()), v.get("arguments")) {
-                        let unix_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
+                    if let (Some(name), Some(args)) =
+                        (v.get("name").and_then(|n| n.as_str()), v.get("arguments"))
+                    {
+                        let unix_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis();
                         let id = format!("call_{}_{}", unix_ms, i);
                         calls.push(ToolCall {
                             id,
@@ -89,7 +97,6 @@ pub fn parse_fallback_tools(content: &str) -> Vec<ToolCall> {
     }
     calls
 }
-
 
 /// Run model-returned tool calls through the allowlisted executor.
 pub fn execute_tool_calls(tool_calls: &[ToolCall]) -> Vec<(String, String)> {

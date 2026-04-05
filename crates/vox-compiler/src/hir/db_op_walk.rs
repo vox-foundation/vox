@@ -152,7 +152,9 @@ fn walk_stmt(stmt: &HirStmt, f: &mut impl FnMut(&HirExpr)) {
         HirStmt::Return { value: Some(v), .. } => walk_expr(v, f),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => walk_expr(expr, f),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             walk_expr(condition, f);
             walk_stmts(body, f);
         }
@@ -273,7 +275,9 @@ fn walk_stmt_mut(stmt: &mut HirStmt, f: &mut impl FnMut(&mut HirExpr)) {
         HirStmt::Return { value: Some(v), .. } => walk_expr_mut(v, f),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => walk_expr_mut(expr, f),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             walk_expr_mut(condition, f);
             walk_stmts_mut(body, f);
         }

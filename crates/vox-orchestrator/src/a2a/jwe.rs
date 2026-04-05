@@ -2,10 +2,10 @@
 //! Implements a subset of RFC 7516 (dir + A256GCM) for zero-knowledge transit of Vault secrets.
 
 use aes_gcm::{
-    aead::{Aead, KeyInit, Payload},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, Payload},
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::RngCore;
 
 /// Hardcoded Base64URL-encoded header for `{"alg":"dir","enc":"A256GCM"}`
@@ -24,7 +24,7 @@ pub enum JweError {
 }
 
 /// Encrypt string payload into a Compact JWE string using `dir` (direct) routing and AES-256-GCM.
-/// 
+///
 /// `symmetric_key` must be exactly 32 bytes (256 bits).
 pub fn encrypt_jwe_compact(payload: &[u8], symmetric_key: &[u8; 32]) -> Result<String, JweError> {
     let cipher = Aes256Gcm::new(symmetric_key.into());
@@ -37,10 +37,7 @@ pub fn encrypt_jwe_compact(payload: &[u8], symmetric_key: &[u8; 32]) -> Result<S
     // of the Base64URL-encoded header string.
     let aad = JWE_HEADER_B64.as_bytes();
 
-    let payload_to_encrypt = Payload {
-        msg: payload,
-        aad,
-    };
+    let payload_to_encrypt = Payload { msg: payload, aad };
 
     let encrypted = cipher
         .encrypt(nonce, payload_to_encrypt)
@@ -66,18 +63,19 @@ pub fn encrypt_jwe_compact(payload: &[u8], symmetric_key: &[u8; 32]) -> Result<S
     //         BASE64URL(JWE Authentication Tag)
     //
     // For 'dir', the Encrypted Key is empty.
-    Ok(format!(
-        "{JWE_HEADER_B64}..{iv_b64}.{ct_b64}.{tag_b64}"
-    ))
+    Ok(format!("{JWE_HEADER_B64}..{iv_b64}.{ct_b64}.{tag_b64}"))
 }
 
 /// Decrypt a Compact JWE string using `dir` (direct) routing and AES-256-GCM.
-pub fn decrypt_jwe_compact(jwe_string: &str, symmetric_key: &[u8; 32]) -> Result<Vec<u8>, JweError> {
+pub fn decrypt_jwe_compact(
+    jwe_string: &str,
+    symmetric_key: &[u8; 32],
+) -> Result<Vec<u8>, JweError> {
     let parts: Vec<&str> = jwe_string.split('.').collect();
     if parts.len() != 5 {
         return Err(JweError::InvalidFormat);
     }
-    
+
     let header_b64 = parts[0];
     // parts[1] is the empty Encrypted Key
     let iv_b64 = parts[2];
@@ -149,6 +147,9 @@ mod tests {
     #[test]
     fn test_jwe_invalid_format() {
         let key = [0x42; 32];
-        assert!(matches!(decrypt_jwe_compact("invalid.jwe", &key), Err(JweError::InvalidFormat)));
+        assert!(matches!(
+            decrypt_jwe_compact("invalid.jwe", &key),
+            Err(JweError::InvalidFormat)
+        ));
     }
 }

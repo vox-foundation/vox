@@ -1,3 +1,12 @@
+---
+title: "Vox Developer User Journeys: Intent vs. Actualization"
+description: "Baseline target workflows mapping how real human developers interface with the Vox orchestrator system."
+category: "architecture"
+status: "research"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Developer User Journeys: Intent vs. Actualization
 
 This document records the baseline target workflows for the Vox orchestrator. As Vox seeks to differentiate itself from simple autocomplete plugins and fully autonomous isolated workers (e.g., Devin, RooCode, Cursor Composer), we must map out how real human developers will *actually* interface with the system.

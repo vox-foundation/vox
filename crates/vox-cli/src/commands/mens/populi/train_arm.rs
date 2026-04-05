@@ -141,8 +141,9 @@ pub async fn run_train(
                     "Regenerating..."
                 }
             );
-            let res = refresh_stale_training_corpus(root, &data_dir, &output_dir, &current_fp, strict)
-                .await;
+            let res =
+                refresh_stale_training_corpus(root, &data_dir, &output_dir, &current_fp, strict)
+                    .await;
             if strict {
                 res?;
             } else {
@@ -328,22 +329,12 @@ async fn refresh_stale_training_corpus(
 
     if let Ok(db) = vox_db::VoxDb::connect_default().await {
         if strict {
-            db.record_corpus_snapshot(
-                current_fp,
-                env!("CARGO_PKG_VERSION"),
-                pairs,
-                None,
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("record_corpus_snapshot: {e}"))?;
+            db.record_corpus_snapshot(current_fp, env!("CARGO_PKG_VERSION"), pairs, None)
+                .await
+                .map_err(|e| anyhow::anyhow!("record_corpus_snapshot: {e}"))?;
         } else {
             let _ = db
-                .record_corpus_snapshot(
-                    current_fp,
-                    env!("CARGO_PKG_VERSION"),
-                    pairs,
-                    None,
-                )
+                .record_corpus_snapshot(current_fp, env!("CARGO_PKG_VERSION"), pairs, None)
                 .await;
         }
     } else {

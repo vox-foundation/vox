@@ -705,11 +705,9 @@ pub async fn publication_status(publication_id: &str, with_worthiness: bool) -> 
     );
     let manifest_completion =
         vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
-    let evidence_complete =
-        Some(vox_publisher::scientia_discovery::evidence_completeness_score(
-            evidence_ref,
-            &scientia_h,
-        ));
+    let evidence_complete = Some(
+        vox_publisher::scientia_discovery::evidence_completeness_score(evidence_ref, &scientia_h),
+    );
     let transform_preview = vox_publisher::scientia_discovery::destination_transform_previews(
         &manifest,
         evidence.as_ref(),
@@ -803,10 +801,9 @@ pub async fn publication_discovery_explain(publication_id: &str) -> Result<()> {
         &evidence,
         &scientia_h,
     );
-    let novelty_bundle =
-        vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
-            row.metadata_json.as_deref(),
-        );
+    let novelty_bundle = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        row.metadata_json.as_deref(),
+    );
     if let Some(ref b) = novelty_bundle {
         vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, b);
     }
@@ -955,7 +952,8 @@ pub async fn publication_decision_explain(
         if manifest.content_type != "scientia" {
             anyhow::bail!("--live-prior-art requires content_type `scientia`");
         }
-        let candidate_id = vox_publisher::scientia_finding_ledger::default_candidate_id(publication_id);
+        let candidate_id =
+            vox_publisher::scientia_finding_ledger::default_candidate_id(publication_id);
         let query = vox_publisher::scientia_prior_art::PriorArtQuery {
             title: manifest.title.clone(),
             abstract_text: manifest.abstract_text.clone(),
@@ -978,15 +976,13 @@ pub async fn publication_decision_explain(
     }
     manifest =
         crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
-            manifest,
-            &db,
-            &repo_root,
-            None,
+            manifest, &db, &repo_root, None,
         )
         .await?;
 
-    let contract_yaml =
-        read_utf8_path_capped(&repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH))?;
+    let contract_yaml = read_utf8_path_capped(
+        &repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
+    )?;
     let contract = vox_publisher::publication_worthiness::load_contract_from_str(&contract_yaml)
         .context("worthiness yaml")?;
     vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
@@ -997,9 +993,10 @@ pub async fn publication_decision_explain(
         &contract,
         &scientia_h,
     );
-    let evidence =
-        vox_publisher::scientia_evidence::parse_scientia_evidence(manifest.metadata_json.as_deref())
-            .unwrap_or_default();
+    let evidence = vox_publisher::scientia_evidence::parse_scientia_evidence(
+        manifest.metadata_json.as_deref(),
+    )
+    .unwrap_or_default();
     let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         publication_id,
         manifest.source_ref.as_deref(),
@@ -1070,16 +1067,14 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
     )?);
     manifest =
         crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
-            manifest,
-            &db,
-            &repo_root,
-            None,
+            manifest, &db, &repo_root, None,
         )
         .await?;
 
-    let evidence =
-        vox_publisher::scientia_evidence::parse_scientia_evidence(manifest.metadata_json.as_deref())
-            .unwrap_or_default();
+    let evidence = vox_publisher::scientia_evidence::parse_scientia_evidence(
+        manifest.metadata_json.as_deref(),
+    )
+    .unwrap_or_default();
     let signals = if evidence.discovery_signals.is_empty() {
         vox_publisher::scientia_evidence::infer_discovery_signals(
             manifest.source_ref.as_deref(),
@@ -1112,8 +1107,9 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
     );
     candidate.novelty_evidence_bundle_id = Some(bundle.bundle_id.clone());
 
-    let contract_yaml =
-        read_utf8_path_capped(&repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH))?;
+    let contract_yaml = read_utf8_path_capped(
+        &repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
+    )?;
     let contract = vox_publisher::publication_worthiness::load_contract_from_str(&contract_yaml)?;
     vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
     let report = vox_publisher::publication_preflight::run_preflight_with_worthiness_heuristics(
@@ -1124,21 +1120,21 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
     );
 
     let decision_latency_ms = t0.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
-    let (worthiness_decision, worthiness_score, hard_metrics_ok) =
-        match report.worthiness.as_ref() {
-            Some(w) => (
-                serde_json::to_value(&w.decision)
-                    .ok()
-                    .and_then(|v| match v {
-                        serde_json::Value::String(s) => Some(s),
-                        _ => None,
-                    })
-                    .unwrap_or_else(|| "unknown".to_string()),
-                w.worthiness_score,
-                w.hard_metrics_ok,
-            ),
-            None => ("unknown".to_string(), 0.0, false),
-        };
+    let (worthiness_decision, worthiness_score, hard_metrics_ok) = match report.worthiness.as_ref()
+    {
+        Some(w) => (
+            serde_json::to_value(&w.decision)
+                .ok()
+                .and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s),
+                    _ => None,
+                })
+                .unwrap_or_else(|| "unknown".to_string()),
+            w.worthiness_score,
+            w.hard_metrics_ok,
+        ),
+        None => ("unknown".to_string(), 0.0, false),
+    };
     let calibration = vox_publisher::scientia_finding_ledger::novelty_decision_calibration_v1(
         publication_id,
         &candidate_id,
@@ -1151,7 +1147,10 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
         rank.prior_art_max_lexical_overlap,
     );
     let impact_readership_projection =
-        vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(&bundle, &scientia_h);
+        vox_publisher::scientia_finding_ledger::impact_readership_projection_v1(
+            &bundle,
+            &scientia_h,
+        );
 
     println!(
         "{}",

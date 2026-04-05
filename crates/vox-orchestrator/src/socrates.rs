@@ -286,6 +286,115 @@ pub fn evaluate_socrates_gate(
     }
 }
 
+pub fn spawn_socrates_research_poller(orch: std::sync::Arc<crate::Orchestrator>) {
+    tokio::spawn(async move {
+        let mut rx = orch.bulletin().subscribe();
+        loop {
+            match rx.recv().await {
+                Ok(crate::types::AgentMessage::A2A(msg)) => {
+                    if let crate::types::A2AMessageType::SocratesResearchRequest = msg.msg_type {
+                        let payload_json: serde_json::Value =
+                            serde_json::from_str(&msg.payload).unwrap_or_default();
+                        let target_agent_id = payload_json
+                            .get("agent_id")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or_default();
+                        let queue_depth = payload_json
+                            .get("queue_depth")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or_default();
+                        let reason = payload_json
+                            .get("reason")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Unknown");
+
+                        tracing::info!(
+                            "Socrates intercepted Research Request for Agent {}. Queue depth: {}. Reason: {}",
+                            target_agent_id,
+                            queue_depth,
+                            reason
+                        );
+
+                        // Capture structured AST/Compiler diagnostics to enforce rigorous integration tests
+                        let mut ast_diagnostics = String::new();
+                        if std::env::current_dir()
+                            .map(|p| p.join("Cargo.toml").exists())
+                            .unwrap_or(false)
+                        {
+                            let mut c = tokio::process::Command::new("cargo");
+                            c.arg("check").arg("--message-format=json");
+                            if let Ok(out) = c.output().await {
+                                let lines: Vec<&str> = std::str::from_utf8(&out.stdout)
+                                    .unwrap_or("")
+                                    .lines()
+                                    .collect();
+                                let mut errs = Vec::new();
+                                for l in lines {
+                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(l) {
+                                        if v["reason"] == "compiler-message"
+                                            && v["message"]["level"] == "error"
+                                        {
+                                            errs.push(
+                                                v["message"]["rendered"]
+                                                    .as_str()
+                                                    .unwrap_or("")
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                if !errs.is_empty() {
+                                    ast_diagnostics = format!(
+                                        "\n\nStructured AST Diagnostics:\n{}",
+                                        errs.join("\n")
+                                    );
+                                } else {
+                                    ast_diagnostics =
+                                        "\n\nStructured AST Diagnostics: Clean check.".to_string();
+                                }
+                            }
+                        }
+
+                        let desc = format!(
+                            "Analyze overloaded worker ID: {} pipeline. Queue depth is {}. Reason: {}. Evaluate dependency bottlenecks and propose load-shedding or parallel routing solutions to MCP.{}",
+                            target_agent_id, queue_depth, reason, ast_diagnostics
+                        );
+                        let observer_model = orch.config.read().unwrap().observer_model.clone();
+                        let hints = crate::types::TaskEnqueueHints {
+                            task_category: Some(crate::types::TaskCategory::Research),
+                            model_override: observer_model.clone(),
+                            model_preference: observer_model,
+                            ..Default::default()
+                        };
+
+                        let task_res = orch
+                            .submit_task_with_agent(
+                                desc,
+                                vec![],
+                                Some(crate::types::TaskPriority::Urgent),
+                                Some(target_agent_id.to_string()),
+                                None,
+                                Some(hints),
+                                None,
+                            )
+                            .await;
+                        if let Ok(task_id) = task_res {
+                            let socrates_context = SocratesTaskContext {
+                                required_citations: 1,
+                                ..Default::default()
+                            };
+                            let _ = orch.attach_socrates_context(task_id, socrates_context);
+                        }
+                    }
+                }
+                Ok(_) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

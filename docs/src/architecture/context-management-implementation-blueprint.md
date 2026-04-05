@@ -2,7 +2,7 @@
 title: "Context management implementation blueprint"
 description: "Epic structure, capability decomposition, delivery schema, and implementation mechanics for the Vox context-management program."
 category: "architecture"
-status: "planning"
+status: "roadmap"
 last_updated: 2026-03-30
 training_eligible: true
 ---

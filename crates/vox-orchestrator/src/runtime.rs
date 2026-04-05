@@ -18,7 +18,7 @@ use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
 use crate::types::TaskId;
 use futures_util::StreamExt;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// Message type sent to the ActorAgent to trigger task processing.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -153,25 +153,21 @@ impl TaskProcessor for AiTaskProcessor {
             if allowed_providers.is_empty() {
                 registry.best_for_task(&task, cost_pref)
             } else {
-                registry.best_for_task_with_filter(
-                    &task,
-                    cost_pref,
-                    |m| {
-                        let provider_str = match m.provider_type {
-                            crate::models::ProviderType::OpenRouter => "openrouter",
-                            crate::models::ProviderType::Ollama => "ollama",
-                            crate::models::ProviderType::GoogleDirect => "google",
-                            crate::models::ProviderType::Groq => "groq",
-                            crate::models::ProviderType::Cerebras => "cerebras",
-                            crate::models::ProviderType::Mistral => "mistral",
-                            crate::models::ProviderType::DeepSeek => "deepseek",
-                            crate::models::ProviderType::SambaNova => "sambanova",
-                            crate::models::ProviderType::PopuliMesh => "populimesh",
-                            crate::models::ProviderType::Custom(_) => "custom",
-                        };
-                        allowed_providers.contains(provider_str)
-                    }
-                )
+                registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                    let provider_str = match m.provider_type {
+                        crate::models::ProviderType::OpenRouter => "openrouter",
+                        crate::models::ProviderType::Ollama => "ollama",
+                        crate::models::ProviderType::GoogleDirect => "google",
+                        crate::models::ProviderType::Groq => "groq",
+                        crate::models::ProviderType::Cerebras => "cerebras",
+                        crate::models::ProviderType::Mistral => "mistral",
+                        crate::models::ProviderType::DeepSeek => "deepseek",
+                        crate::models::ProviderType::SambaNova => "sambanova",
+                        crate::models::ProviderType::PopuliMesh => "populimesh",
+                        crate::models::ProviderType::Custom(_) => "custom",
+                    };
+                    allowed_providers.contains(provider_str)
+                })
             }
         };
         let (usage_provider, usage_model) = if let Some(ref mo) = task.model_override {
@@ -228,8 +224,8 @@ impl TaskProcessor for AiTaskProcessor {
                 vox_runtime::routing_telemetry::unified_routing_rollout_enabled(),
                 task.id.0,
             );
-            let reason_s =
-                reason.to_json_bounded(vox_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
+            let reason_s = reason
+                .to_json_bounded(vox_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
             if let Err(e) = db
                 .record_routing_decision(
                     None::<&str>,
@@ -287,9 +283,10 @@ impl TaskProcessor for AiTaskProcessor {
         }
         let full_text = notes;
 
-        let input_tokens = crate::compaction::CompactionEngine::estimate_tokens(&task.description) as u32;
+        let input_tokens =
+            crate::compaction::CompactionEngine::estimate_tokens(&task.description) as u32;
         let output_tokens = crate::compaction::CompactionEngine::estimate_tokens(&full_text) as u32;
-        
+
         let cost_usd = if let Some(m) = routed.as_ref() {
             let input_cost = (input_tokens as f64 / 1000.0) * m.cost_per_1k_input;
             let output_cost = (output_tokens as f64 / 1000.0) * m.cost_per_1k_output;
@@ -595,7 +592,10 @@ impl AgentFleet {
             )
         };
 
-        let load_history: Vec<f64> = crate::sync_lock::rw_read(&*self.orchestrator.load_history).iter().copied().collect();
+        let load_history: Vec<f64> = crate::sync_lock::rw_read(&*self.orchestrator.load_history)
+            .iter()
+            .copied()
+            .collect();
         let action = ScalingService::decide_scaling(
             &status,
             &config,
@@ -617,11 +617,15 @@ impl AgentFleet {
                     .as_ref()
                     .map(|t| t.elapsed() >= std::time::Duration::from_millis(cooldown_ms))
                     .unwrap_or(true);
-                
+
                 if spawns < max_per_tick && cooldown_ok {
                     let limit = std::cmp::min(count, max_per_tick - spawns);
                     for _ in 0..limit {
-                        let name = format!("{}-{}", name_prefix, uuid::Uuid::new_v4().to_string().split('-').next().unwrap());
+                        let name = format!(
+                            "{}-{}",
+                            name_prefix,
+                            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+                        );
                         let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
                             &name,
                             None,
@@ -631,7 +635,8 @@ impl AgentFleet {
                         self.spawns_this_tick
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     }
-                    *crate::sync_lock::rw_write(&self.last_scale_up) = Some(std::time::Instant::now());
+                    *crate::sync_lock::rw_write(&self.last_scale_up) =
+                        Some(std::time::Instant::now());
                     tracing::info!(
                         "Scaling up: spawned {} dynamic agents (load: {:.2}, profile: {:?})",
                         limit,
@@ -709,12 +714,10 @@ pub fn spawn_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
     }
     let scheduler = Arc::new(Scheduler::new());
     tokio::spawn(async move {
-        let processor = Arc::new(AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await);
-        let fleet = AgentFleet::new(
-            scheduler,
-            orchestrator,
-            processor,
+        let processor = Arc::new(
+            AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await,
         );
+        let fleet = AgentFleet::new(scheduler, orchestrator, processor);
         tracing::info!(
             target: "vox_orchestrator::runtime",
             "AgentFleet loop running (AiTaskProcessor; MCP / orchestrator-d)"

@@ -13,8 +13,8 @@ use super::command_sync;
 use super::completion_quality;
 use super::contracts_index;
 use super::coverage_gates;
-use super::exec_policy_contract;
 use super::eval_matrix;
+use super::exec_policy_contract;
 use super::line_endings;
 use super::mens_scorecard;
 use super::openclaw_contract;
@@ -281,7 +281,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             package,
         } => release_build::run(&root, &target, version.as_deref(), &out_dir, package),
         CiCmd::ArtifactAudit { json } => super::workspace_artifacts::run_audit(&root, json),
-        CiCmd::ArtifactPrune { dry_run, apply, policy } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
+        CiCmd::ArtifactPrune {
+            dry_run,
+            apply,
+            policy,
+        } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
         CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
     }
 }

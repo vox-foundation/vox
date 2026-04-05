@@ -152,7 +152,9 @@ pub fn infer_stmt(stmt: &Stmt, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             }
         }
         Stmt::Expr { expr, .. } => infer_expr(expr, ctx, builtins),
-        Stmt::While { condition, body, .. } => {
+        Stmt::While {
+            condition, body, ..
+        } => {
             infer_expr(condition, ctx, builtins);
             for s in body {
                 infer_stmt(s, ctx, builtins);

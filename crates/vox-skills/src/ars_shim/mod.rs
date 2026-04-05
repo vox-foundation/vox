@@ -14,6 +14,8 @@ pub mod parser {
     pub use crate::parser::parse_skill_md;
 }
 
+pub use crate::manifest::{SkillCategory, SkillManifest, SkillPermission};
+pub use crate::{SkillRegistry, install_builtins};
 pub use domain::ArsSkill;
 pub use openclaw::{OpenClawClient, OpenClawRemoteConfig, OpenClawSkillSpec};
 pub use openclaw_adapter::{
@@ -29,5 +31,3 @@ pub use openclaw_discovery::{
 pub use openclaw_gateway_ws::{
     OpenClawGatewayWsClient, OpenClawGatewayWsConfig, OpenClawGatewayWsError,
 };
-pub use crate::manifest::{SkillCategory, SkillManifest, SkillPermission};
-pub use crate::{SkillRegistry, install_builtins};

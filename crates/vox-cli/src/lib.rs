@@ -17,11 +17,11 @@ mod codex_cmd;
 mod command_contract;
 mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
+pub mod artifact_policy;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
-pub mod artifact_policy;
 /// External `vox-dei-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
@@ -45,22 +45,22 @@ mod lock_telemetry;
 pub mod pipeline;
 #[cfg(feature = "populi")]
 mod populi_codex_telemetry;
+mod process_supervision;
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
-mod process_supervision;
 #[cfg(feature = "island")]
 mod table;
+mod telemetry_spool;
 pub mod templates;
 mod training;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
 mod wasi_dir_mode;
 mod watcher;
-/// Workspace journey VoxDb connect for repo-scoped CLI subcommands.
-pub mod workspace_db;
-mod telemetry_spool;
 #[cfg(feature = "workflow-runtime")]
 mod workflow_journal_codex;
+/// Workspace journey VoxDb connect for repo-scoped CLI subcommands.
+pub mod workspace_db;
 
 /// Legacy v0 integration helpers (external codegen API).
 pub mod v0;

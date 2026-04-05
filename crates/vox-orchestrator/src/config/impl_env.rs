@@ -266,9 +266,9 @@ impl OrchestratorConfig {
                 self.populi_rebalance_on_remote_schedulable_drop,
             );
         }
-        if let Ok(val) = std::env::var(
-            "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
-        ) {
+        if let Ok(val) =
+            std::env::var("VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP")
+        {
             self.populi_replay_queued_routes_on_remote_schedulable_drop = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
                 &val,

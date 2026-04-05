@@ -961,20 +961,16 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
 
     let before_after = clamp01(0.35 * r);
 
-    let abstract_boost = manifest
-        .abstract_text
-        .as_deref()
-        .map_or(0.0, |s| {
-            if s.trim().is_empty() {
-                0.0
-            } else {
-                h.worthiness_epistemic_abstract_boost
-            }
-        });
+    let abstract_boost = manifest.abstract_text.as_deref().map_or(0.0, |s| {
+        if s.trim().is_empty() {
+            0.0
+        } else {
+            h.worthiness_epistemic_abstract_boost
+        }
+    });
 
-    let epistemic = clamp01(
-        h.worthiness_epistemic_base + h.worthiness_epistemic_r_coef * r + abstract_boost,
-    );
+    let epistemic =
+        clamp01(h.worthiness_epistemic_base + h.worthiness_epistemic_r_coef * r + abstract_boost);
     let novelty = clamp01(h.worthiness_novelty_base + h.worthiness_novelty_r_coef * r);
     let reliability = clamp01(0.48 + 0.47 * r);
 
@@ -998,15 +994,14 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
     {
         inputs = crate::scientia_evidence::apply_scientia_evidence(inputs, &evidence);
     }
-    if let Some(bundle) =
-        crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(manifest.metadata_json.as_deref())
-    {
-        let _prior_notes =
-            crate::publication_worthiness::apply_prior_art_to_worthiness_inputs(
-                &mut inputs,
-                Some(&bundle),
-                Some(h),
-            );
+    if let Some(bundle) = crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        manifest.metadata_json.as_deref(),
+    ) {
+        let _prior_notes = crate::publication_worthiness::apply_prior_art_to_worthiness_inputs(
+            &mut inputs,
+            Some(&bundle),
+            Some(h),
+        );
     }
     inputs
 }
@@ -1029,7 +1024,9 @@ pub fn run_preflight_with_worthiness_heuristics(
     contract: &crate::publication_worthiness::PublicationWorthinessContract,
     heuristics: &crate::scientia_heuristics::ScientiaHeuristics,
 ) -> PreflightReport {
-    run_preflight_with_worthiness_attention_heuristics(manifest, profile, contract, None, heuristics)
+    run_preflight_with_worthiness_attention_heuristics(
+        manifest, profile, contract, None, heuristics,
+    )
 }
 
 /// Like [`run_preflight_with_worthiness`], with optional attention inputs.
@@ -1042,11 +1039,7 @@ pub fn run_preflight_with_worthiness_attention(
 ) -> PreflightReport {
     let default = crate::scientia_heuristics::ScientiaHeuristics::default();
     run_preflight_with_worthiness_attention_heuristics(
-        manifest,
-        profile,
-        contract,
-        attention,
-        &default,
+        manifest, profile, contract, attention, &default,
     )
 }
 
@@ -1060,9 +1053,9 @@ pub fn run_preflight_with_worthiness_attention_heuristics(
     heuristics: &crate::scientia_heuristics::ScientiaHeuristics,
 ) -> PreflightReport {
     let mut report = run_preflight_with_attention(manifest, profile, attention);
-    if let Some(bundle) =
-        crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(manifest.metadata_json.as_deref())
-    {
+    if let Some(bundle) = crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        manifest.metadata_json.as_deref(),
+    ) {
         let max_lex = bundle
             .overlap_summary
             .as_ref()

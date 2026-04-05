@@ -5,9 +5,12 @@ use std::path::{Path, PathBuf};
 /// Resolve `user_rel` strictly under `repo_root`: must be relative, no `..`, then return the
 /// joined path (may not exist yet). Callers that need an on-disk path under root should
 /// canonicalize after create/write.
-pub fn resolve_strict_repo_relative_path(repo_root: &Path, user_rel: &str) -> Result<PathBuf, String> {
-    let root = std::fs::canonicalize(repo_root)
-        .map_err(|e| format!("canonicalize repo root: {e}"))?;
+pub fn resolve_strict_repo_relative_path(
+    repo_root: &Path,
+    user_rel: &str,
+) -> Result<PathBuf, String> {
+    let root =
+        std::fs::canonicalize(repo_root).map_err(|e| format!("canonicalize repo root: {e}"))?;
     let rel = user_rel.trim();
     if rel.is_empty() {
         return Err("path must not be empty".into());
@@ -52,11 +55,14 @@ pub fn resolve_local_path_under_repo_root(
 }
 
 /// `/`-separated path relative to canonical `repo_root`.
-pub fn path_relative_to_repo_root(repo_root: &Path, absolute_file: &Path) -> Result<String, String> {
+pub fn path_relative_to_repo_root(
+    repo_root: &Path,
+    absolute_file: &Path,
+) -> Result<String, String> {
     let root_canon =
         std::fs::canonicalize(repo_root).map_err(|e| format!("canonicalize root: {e}"))?;
-    let file_canon = std::fs::canonicalize(absolute_file)
-        .map_err(|e| format!("canonicalize file: {e}"))?;
+    let file_canon =
+        std::fs::canonicalize(absolute_file).map_err(|e| format!("canonicalize file: {e}"))?;
     if !file_canon.starts_with(&root_canon) {
         return Err("file is not under repository root".into());
     }

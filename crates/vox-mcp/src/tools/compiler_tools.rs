@@ -39,15 +39,17 @@ async fn write_codegen_utf8_under_repo(
     user_rel: &str,
     utf8: &str,
 ) -> Result<(PathBuf, String, usize), String> {
-    let dest = vox_repository::resolve_strict_repo_relative_path(repo_root, user_rel)
-        .map_err(|e| if e.contains("empty") {
-            "output_path must not be empty".to_string()
-        } else if e.contains("relative") {
-            "output_path must be relative to the repository root".to_string()
-        } else if e.contains("..") {
-            "output_path must not contain '..'".to_string()
-        } else {
-            e
+    let dest =
+        vox_repository::resolve_strict_repo_relative_path(repo_root, user_rel).map_err(|e| {
+            if e.contains("empty") {
+                "output_path must not be empty".to_string()
+            } else if e.contains("relative") {
+                "output_path must be relative to the repository root".to_string()
+            } else if e.contains("..") {
+                "output_path must not contain '..'".to_string()
+            } else {
+                e
+            }
         })?;
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent)
@@ -97,7 +99,8 @@ async fn merge_meta_after_codegen_write(
     utf8: &str,
     vcs_agent_id: Option<u64>,
 ) -> Result<serde_json::Value, String> {
-    let (dest, rel, n) = write_codegen_utf8_under_repo(&state.repository.root, output_rel, utf8).await?;
+    let (dest, rel, n) =
+        write_codegen_utf8_under_repo(&state.repository.root, output_rel, utf8).await?;
     let snap = if let Some(aid) = vcs_agent_id {
         Some(
             state
@@ -726,8 +729,14 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             );
             let mut meta = serde_json::json!({ "runtime_generation_kpi": kpi });
             if let Some(ref op) = output_path_arg {
-                match merge_meta_after_codegen_write(state, meta.clone(), op, &completion, vcs_agent_id)
-                    .await
+                match merge_meta_after_codegen_write(
+                    state,
+                    meta.clone(),
+                    op,
+                    &completion,
+                    vcs_agent_id,
+                )
+                .await
                 {
                     Ok(m) => meta = m,
                     Err(e) => {
@@ -772,8 +781,14 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             );
             let mut meta = serde_json::json!({ "runtime_generation_kpi": kpi });
             if let Some(ref op) = output_path_arg {
-                match merge_meta_after_codegen_write(state, meta.clone(), op, &canonical, vcs_agent_id)
-                    .await
+                match merge_meta_after_codegen_write(
+                    state,
+                    meta.clone(),
+                    op,
+                    &canonical,
+                    vcs_agent_id,
+                )
+                .await
                 {
                     Ok(m) => meta = m,
                     Err(e) => {
@@ -913,20 +928,25 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
     let abs_path = state.repository.root.join(file_path);
     let original_text = match tokio::fs::read_to_string(&abs_path).await {
         Ok(t) => t,
-        Err(e) => return ToolResult::<String>::err(format!("Failed to read file: {}", e)).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err(format!("Failed to read file: {}", e)).to_json();
+        }
     };
 
     if !original_text.contains(target_content) {
         return ToolResult::<String>::err("target_content not found in file").to_json();
     }
 
-    let extension = std::path::Path::new(file_path).extension().and_then(|s| s.to_str()).unwrap_or("");
+    let extension = std::path::Path::new(file_path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
     let max_retries = 3;
     let mut retry_count = 0;
-    
+
     loop {
         let new_text = original_text.replace(target_content, &replacement_code);
-        
+
         let mut error_feedback = String::new();
 
         if extension == "vox" {
@@ -986,7 +1006,11 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 "apply_structured_edit runtime_kpi"
             );
             let meta = serde_json::json!({ "runtime_generation_kpi": kpi });
-            return ToolResult::ok_with_meta("Edit applied successfully (structural validation passed).".to_string(), meta).to_json();
+            return ToolResult::ok_with_meta(
+                "Edit applied successfully (structural validation passed).".to_string(),
+                meta,
+            )
+            .to_json();
         }
 
         retry_count += 1;
@@ -1003,7 +1027,7 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 0,
                 Some("semantic"),
             );
-            let meta = serde_json::json!({ 
+            let meta = serde_json::json!({
                 "runtime_generation_kpi": kpi,
                 "repair": {
                     "attempts": retry_count,
@@ -1012,9 +1036,12 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 }
             });
             return ToolResult::<String>::err_with_remediation_meta(
-                format!("Failed to generate valid edit after {} retries. Errors: {}", max_retries, error_feedback),
+                format!(
+                    "Failed to generate valid edit after {} retries. Errors: {}",
+                    max_retries, error_feedback
+                ),
                 REM_CODEGEN_REPAIR,
-                meta
+                meta,
             )
             .to_json();
         }
@@ -1038,7 +1065,9 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
             &feedback,
             resolution_template.clone(),
             session_id,
-        ).await {
+        )
+        .await
+        {
             let routing = crate::llm_bridge::McpInferRouting {
                 user_prompt: &feedback,
                 sticky_model_pref: None,
@@ -1047,7 +1076,7 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 allow_cloud_ollama_fallback: true,
                 user_id: session_id,
             };
-    
+
             if let Ok((completion, _, _)) = crate::llm_bridge::mcp_infer_completion(
                 state,
                 model,
@@ -1065,10 +1094,9 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 continue;
             }
         }
-        
+
         break;
     }
 
     ToolResult::<String>::err("Failed to repair edit automatically due to LLM error.").to_json()
 }
-

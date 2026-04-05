@@ -125,10 +125,9 @@ pub async fn vox_scientia_publication_discovery_explain(
         &evidence,
         &scientia_h,
     );
-    let novelty_bundle =
-        vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
-            row.metadata_json.as_deref(),
-        );
+    let novelty_bundle = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        row.metadata_json.as_deref(),
+    );
     if let Some(ref b) = novelty_bundle {
         vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, b);
     }
@@ -281,9 +280,8 @@ pub async fn vox_scientia_publication_discovery_refresh_evidence(
         manifest.metadata_json.as_deref(),
     )
     .unwrap_or_default();
-    let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
-        &repo_root,
-    );
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
     let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         params.publication_id.as_str(),
         manifest.source_ref.as_deref(),

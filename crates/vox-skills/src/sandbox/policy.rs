@@ -15,7 +15,9 @@ pub enum PolicyError {
     #[error("Skill '{id}' requires explicit operator approval. Run `vox openclaw approve {id}`")]
     NotApproved { id: String },
     /// Skill is in Untrusted state and cannot be promoted automatically.
-    #[error("Skill '{id}' is in Untrusted state. Review and approve via `vox openclaw approve {id}`")]
+    #[error(
+        "Skill '{id}' is in Untrusted state. Review and approve via `vox openclaw approve {id}`"
+    )]
     Untrusted { id: String },
 }
 

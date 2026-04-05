@@ -344,7 +344,8 @@ pub fn machine_venue_profile_violations(
         match check.as_str() {
             "double_blind_anonymization" => {
                 let bad = report.findings.iter().any(|f| {
-                    f.code.starts_with("double_blind_") && f.severity == crate::publication_preflight::PreflightSeverity::Error
+                    f.code.starts_with("double_blind_")
+                        && f.severity == crate::publication_preflight::PreflightSeverity::Error
                 });
                 if bad {
                     out.push("venue_profile:double_blind_anonymization:not_met".to_string());

@@ -7,7 +7,9 @@ use crate::usage::LlmUsageKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 /// Model tier for routing prioritization
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -204,7 +206,14 @@ pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
 #[must_use]
 pub fn provider_family_strengths(provider_prefix: &str) -> &'static [&'static str] {
     match provider_prefix {
-        "anthropic" => &["codegen", "logic", "review", "research", "ui-codegen", "frontend"],
+        "anthropic" => &[
+            "codegen",
+            "logic",
+            "review",
+            "research",
+            "ui-codegen",
+            "frontend",
+        ],
         "openai" => &["codegen", "logic", "research"],
         "google" => &["research", "codegen", "logic"],
         "deepseek" => &["codegen", "logic", "debugging"],

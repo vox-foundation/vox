@@ -173,7 +173,6 @@ pub struct TaskEnqueueHints {
     pub research_hints: Vec<String>,
 }
 
-
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CompletionAttestation {
@@ -574,6 +573,9 @@ mod tests {
             Some(crate::reconstruction::AgentExecutionRole::Verifier)
         );
         assert_eq!(back.thread_id.as_deref(), Some("thread-123"));
-        assert_eq!(back.harness_spec_json.as_deref(), Some("{\"schema_version\":1}"));
+        assert_eq!(
+            back.harness_spec_json.as_deref(),
+            Some("{\"schema_version\":1}")
+        );
     }
 }

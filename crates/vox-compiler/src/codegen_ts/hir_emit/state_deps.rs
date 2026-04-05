@@ -129,7 +129,9 @@ fn collect_deps_stmt(stmt: &HirStmt, state_names: &HashSet<String>, deps: &mut H
                 collect_deps(v, state_names, deps);
             }
         }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             collect_deps(condition, state_names, deps);
             for s in body {
                 collect_deps_stmt(s, state_names, deps);

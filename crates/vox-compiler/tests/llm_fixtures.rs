@@ -1,7 +1,7 @@
-use vox_compiler::parser::parse;
-use vox_compiler::lexer::cursor::lex;
-use vox_compiler::hir::lower::lower_module;
 use std::fs;
+use vox_compiler::hir::lower::lower_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parse;
 
 #[test]
 fn test_all_llm_fixtures() {

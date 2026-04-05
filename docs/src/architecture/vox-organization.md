@@ -1,3 +1,12 @@
+---
+title: "Vox Architectural Organization & Governance"
+description: "Strict organizational principles enforced via vox architect command and TOESTUB reasoning engine."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Architectural Organization & Governance
 
 This document outlines the strict organizational principles for the Vox repository. Adherence is enforced via the `vox architect` command and the `vox-toestub` reasoning engine.

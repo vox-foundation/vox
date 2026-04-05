@@ -669,13 +669,7 @@ fn install_candidate(
         json_output,
     )?;
 
-    run_bootstrap_environment_check(
-        candidate,
-        auth,
-        target_triple,
-        &checksum_txt,
-        json_output,
-    )?;
+    run_bootstrap_environment_check(candidate, auth, target_triple, &checksum_txt, json_output)?;
 
     Ok(())
 }
@@ -723,7 +717,8 @@ fn maybe_install_openclaw_sidecar(
     };
     let mut ex = Extract::from_source(&archive_path);
     ex.archive(archive_kind_for_asset_name(&sidecar_asset));
-    ex.extract_file(tmp.path(), &sidecar_bin).map_err(|e| anyhow!("Failed to extract OpenClaw sidecar: {e}"))?;
+    ex.extract_file(tmp.path(), &sidecar_bin)
+        .map_err(|e| anyhow!("Failed to extract OpenClaw sidecar: {e}"))?;
 
     let extracted = tmp.path().join(&sidecar_bin);
     let dest = dest_dir.join(&sidecar_bin);

@@ -152,6 +152,8 @@ pub enum A2AMessageType {
     SnapshotShare,
     /// Broadcast a unified news item to all publishers.
     BroadcastNews,
+    /// MENS Observer requests validation research from Socrates.
+    SocratesResearchRequest,
 }
 
 impl A2AMessageType {
@@ -172,6 +174,7 @@ impl A2AMessageType {
             Self::CancelRequest => "cancel_request",
             Self::SnapshotShare => "snapshot_share",
             Self::BroadcastNews => "broadcast_news",
+            Self::SocratesResearchRequest => "socrates_research_request",
         }
     }
 }

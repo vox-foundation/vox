@@ -19,6 +19,7 @@ pub enum AgentRole {
     Verifier,
     Synthesizer,
     Researcher,
+    Observer,
 }
 
 /// Parent binding for a child agent.
@@ -107,23 +108,30 @@ impl AgentTopologySnapshot {
         // Append any orphaned/disconnected nodes flat at the bottom
         for node in &self.nodes {
             if !visited.contains(&node.agent_id) {
-                out.push_str(&format!("- [Disconnected] Agent {} [Role: {:?}] - Status: {}\n", 
-                    node.name, 
+                out.push_str(&format!(
+                    "- [Disconnected] Agent {} [Role: {:?}] - Status: {}\n",
+                    node.name,
                     node.role,
-                    if node.in_progress { "working" } else if node.paused { "paused" } else { "idle" }
+                    if node.in_progress {
+                        "working"
+                    } else if node.paused {
+                        "paused"
+                    } else {
+                        "idle"
+                    }
                 ));
             }
         }
-        
+
         out
     }
 
     fn aria_append_node(
-        out: &mut String, 
-        node: &AgentTopologyNode, 
-        all_nodes: &[AgentTopologyNode], 
+        out: &mut String,
+        node: &AgentTopologyNode,
+        all_nodes: &[AgentTopologyNode],
         depth: usize,
-        visited: &mut std::collections::HashSet<AgentId>
+        visited: &mut std::collections::HashSet<AgentId>,
     ) {
         if visited.contains(&node.agent_id) {
             return;
@@ -131,12 +139,23 @@ impl AgentTopologySnapshot {
         visited.insert(node.agent_id);
 
         let indent = " ".repeat(depth * 2);
-        let status = if node.in_progress { "working" } else if node.paused { "paused" } else { "idle" };
+        let status = if node.in_progress {
+            "working"
+        } else if node.paused {
+            "paused"
+        } else {
+            "idle"
+        };
         let dynamic_str = if node.dynamic { " (Dynamic)" } else { "" };
-        out.push_str(&format!("{}- Agent {} [Role: {:?}]{} - Status: {}\n", 
-            indent, node.name, node.role, dynamic_str, status));
-        
-        for child in all_nodes.iter().filter(|n| n.parent_agent_id == Some(node.agent_id)) {
+        out.push_str(&format!(
+            "{}- Agent {} [Role: {:?}]{} - Status: {}\n",
+            indent, node.name, node.role, dynamic_str, status
+        ));
+
+        for child in all_nodes
+            .iter()
+            .filter(|n| n.parent_agent_id == Some(node.agent_id))
+        {
             Self::aria_append_node(out, child, all_nodes, depth + 1, visited);
         }
     }

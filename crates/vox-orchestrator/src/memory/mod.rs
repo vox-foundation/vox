@@ -8,6 +8,7 @@
 //!   compaction to prevent knowledge loss. Durable SSOT for agent rows is **Codex**
 //!   (`vox_db::Codex`); file logs are a complementary human-editable layer.
 
+pub mod account_registry;
 mod config;
 mod daily_log;
 mod error;
@@ -17,7 +18,6 @@ mod search_hit;
 #[cfg(test)]
 mod tests;
 mod time;
-pub mod account_registry;
 
 pub use account_registry::AccountMemoryRegistry;
 pub use config::MemoryConfig;

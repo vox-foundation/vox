@@ -110,7 +110,7 @@ const dashboardMarkup = renderToStaticMarkup(
     meshTopology: null
   })
 );
-assertContains(dashboardMarkup, 'Unified Command Center', 'dashboard');
+assertContains(dashboardMarkup, 'IMPERIUM', 'dashboard');
 assertContains(dashboardMarkup, 'Operation Stream', 'dashboard');
 
 console.log('smoke-webview-render: OK');

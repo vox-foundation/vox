@@ -120,10 +120,7 @@ pub(crate) fn run_persistence_outbox_lifecycle_pass(
             "retry_count".to_string(),
             serde_json::Value::from(retry_count),
         );
-        normalized.insert(
-            "schema_version".to_string(),
-            serde_json::Value::from(1),
-        );
+        normalized.insert("schema_version".to_string(), serde_json::Value::from(1));
         kept.push(serde_json::Value::Object(normalized));
     }
 
@@ -524,6 +521,38 @@ async fn replay_one_entry(db: &std::sync::Arc<vox_db::VoxDb>, entry: &serde_json
             )
             .await
             .is_ok()
+        }
+        Some("insert_victory_verdict") => {
+            let Some(task_id) = replay.get("task_id").and_then(serde_json::Value::as_str) else {
+                return false;
+            };
+            let Some(verdict_val) = replay.get("verdict") else {
+                return false;
+            };
+            let Ok(verdict) = serde_json::from_value::<crate::VictoryVerdict>(verdict_val.clone())
+            else {
+                return false;
+            };
+            db.insert_victory_verdict(task_id, &verdict).await.is_ok()
+        }
+        Some("insert_observer_event") => {
+            let Some(session_id) = replay.get("session_id").and_then(serde_json::Value::as_str)
+            else {
+                return false;
+            };
+            let Some(task_id) = replay.get("task_id").and_then(serde_json::Value::as_str) else {
+                return false;
+            };
+            let Some(report_val) = replay.get("report") else {
+                return false;
+            };
+            let Ok(report) = serde_json::from_value::<crate::ObservationReport>(report_val.clone())
+            else {
+                return false;
+            };
+            db.insert_observer_event(session_id, task_id, &report)
+                .await
+                .is_ok()
         }
         _ => false,
     }

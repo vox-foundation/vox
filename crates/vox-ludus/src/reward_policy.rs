@@ -252,7 +252,9 @@ pub fn learning_mode_crystal_jitter(
     // FNV-1a inline to guarantee stability across Rust upgrades.
     struct Fnv1a(u64);
     impl std::hash::Hasher for Fnv1a {
-        fn finish(&self) -> u64 { self.0 }
+        fn finish(&self) -> u64 {
+            self.0
+        }
         fn write(&mut self, bytes: &[u8]) {
             for &b in bytes {
                 self.0 = (self.0 ^ b as u64).wrapping_mul(1099511628211);

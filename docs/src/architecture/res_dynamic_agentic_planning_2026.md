@@ -1,3 +1,12 @@
+---
+title: "2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration"
+description: "Research synthesis on LLM agent planning, context management, workflow orchestration, and state persistence."
+category: "architecture"
+status: "research"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # 2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration
 
 This document synthesizes the findings from an extensive 20-search research phase conducted in March 2026, analyzing modern paradigms for Large Language Model (LLM) agent planning, context management, workflow orchestration, and state persistence. 

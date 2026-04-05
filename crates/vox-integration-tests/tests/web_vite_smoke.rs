@@ -23,7 +23,11 @@ async fn full_stack_minimal_vite_production_build() {
         repo.pop();
     }
     let vox_file = repo.join("crates/vox-integration-tests/tests/fixtures/full_stack_minimal.vox");
-    assert!(vox_file.is_file(), "missing fixture: {}", vox_file.display());
+    assert!(
+        vox_file.is_file(),
+        "missing fixture: {}",
+        vox_file.display()
+    );
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let ts_out = tmp.path().join("ts");

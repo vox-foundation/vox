@@ -133,7 +133,10 @@ pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> S
             let mut val = serde_json::to_value(&enriched).unwrap_or(serde_json::json!({}));
             // Provide the legacy filename attribute
             if let Some(obj) = val.as_object_mut() {
-                obj.insert("file".to_string(), serde_json::Value::String(file.display().to_string()));
+                obj.insert(
+                    "file".to_string(),
+                    serde_json::Value::String(file.display().to_string()),
+                );
             }
             val
         })

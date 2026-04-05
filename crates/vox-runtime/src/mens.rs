@@ -64,7 +64,9 @@ impl MensConfig {
     pub fn from_env() -> Self {
         Self {
             base_url: vox_config::inference::local_ollama_populi_base_url(),
-            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliApiKey).expose().map(|s| s.to_string()),
+            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliApiKey)
+                .expose()
+                .map(|s| s.to_string()),
             model: std::env::var("POPULI_MODEL").unwrap_or_else(|_| "default-model".to_string()),
             temperature: std::env::var("POPULI_TEMPERATURE")
                 .ok()

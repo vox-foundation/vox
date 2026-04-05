@@ -10,6 +10,7 @@ pub async fn run_status(
     as_json: bool,
     quotas: bool,
     config: bool,
+    db: bool,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
     if config {
@@ -34,6 +35,18 @@ pub async fn run_status(
         {
             anyhow::bail!(
                 "BYOK quota display requires the codex feature. Rebuild with: cargo build -p vox-cli --features codex"
+            );
+        }
+    }
+    if db {
+        #[cfg(feature = "codex")]
+        {
+            return display_db_intelligence(as_json).await;
+        }
+        #[cfg(not(feature = "codex"))]
+        {
+            anyhow::bail!(
+                "Database intelligence display requires the codex feature. Rebuild with: cargo build -p vox-cli --features codex"
             );
         }
     }
@@ -473,6 +486,7 @@ mod tests {
             false,
             false,
             false,
+            false,
         )
         .await;
         assert!(
@@ -488,6 +502,7 @@ mod tests {
             true,
             false,
             false,
+            false,
         )
         .await;
         assert!(result.is_ok());
@@ -496,7 +511,14 @@ mod tests {
     #[cfg(not(feature = "codex"))]
     #[tokio::test]
     async fn run_status_quotas_without_codex_returns_error() {
-        let result = run_status(Some(PathBuf::from("/nonexistent")), false, true, false).await;
+        let result = run_status(
+            Some(PathBuf::from("/nonexistent")),
+            false,
+            true,
+            false,
+            false,
+        )
+        .await;
         assert!(result.is_err(), "quotas without codex feature should error");
         assert!(
             result.unwrap_err().to_string().contains("codex"),
@@ -512,4 +534,66 @@ mod tests {
         let _ = display_quotas(true).await;
         let _ = display_quotas(false).await;
     }
+}
+
+#[cfg(feature = "codex")]
+async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
+    use owo_colors::OwoColorize;
+    let vox_db = vox_db::VoxDb::connect_default().await?;
+
+    let quality = vox_db.query_corpus_quality_summary().await?;
+    let steps = vox_db.query_recent_grpo_steps(None, 10).await?;
+
+    if as_json {
+        let out = serde_json::json!({
+            "corpus_quality": quality,
+            "recent_grpo_steps": steps,
+        });
+        println!("{}", serde_json::to_string_pretty(&out)?);
+    } else {
+        println!(
+            "\n  {}",
+            "MENS Intelligence Summary (Arca DB)".bold().cyan()
+        );
+        println!("  ┌─ Corpus Quality ───────────────────────────┐");
+        println!("  │ Total Pairs:     {:<26}│", quality.total_pairs);
+        println!(
+            "  │ Parse Rate:      {:<26.2}%│",
+            quality.parse_rate * 100.0
+        );
+        println!("  │ Avg AST Depth:   {:<26.2}│", quality.avg_ast_depth);
+        println!(
+            "  │ Avg Constructs:  {:<26.2}│",
+            quality.avg_construct_count
+        );
+        println!("  │ Avg Reward:      {:<26.2}│", quality.avg_reward_score);
+        println!("  └────────────────────────────────────────────┘");
+
+        if !steps.is_empty() {
+            println!("\n  {}", "Recent GRPO Steps".bold().cyan());
+            println!(
+                "  {:<12} {:>6} {:>8} {:>10} {:>8}",
+                "Run ID", "Step", "Reward", "Loss", "Parse %"
+            );
+            for s in steps {
+                let short_id = if s.run_id.len() > 10 {
+                    &s.run_id[..10]
+                } else {
+                    &s.run_id
+                };
+                println!(
+                    "  {:<12} {:>6} {:>8.4} {:>10.4} {:>8.1}%",
+                    short_id,
+                    s.step,
+                    s.mean_reward,
+                    s.policy_loss,
+                    s.parse_rate * 100.0
+                );
+            }
+        } else {
+            println!("\n  {}", "No GRPO steps found in database.".yellow());
+        }
+        println!();
+    }
+    Ok(())
 }

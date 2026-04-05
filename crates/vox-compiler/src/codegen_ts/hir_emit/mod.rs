@@ -415,7 +415,9 @@ pub(crate) fn emit_hir_stmt(
                 format!("{pad}return;\n")
             }
         }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             let cond = emit_hir_expr(condition, state_names, island_names);
             let mut out = format!("{pad}while ({cond}) {{\n");
             for s in body {

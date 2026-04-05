@@ -6,7 +6,6 @@ use super::params::{
 };
 use super::plan_gap;
 use super::plan_loop;
-use vox_orchestrator::planning::{ContentBlock, markdown_to_content_blocks};
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::params::ToolResult;
 use crate::server::ServerState;
@@ -18,6 +17,7 @@ use crate::tools::chat_socrates_meta::{
     clarification_turn_for_session, mcp_questioning_session_key, socrates_surface_tags,
     socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
 };
+use vox_orchestrator::planning::{ContentBlock, markdown_to_content_blocks};
 
 const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
 const REM_MCP_MODEL_LOCK: &str =

@@ -16,6 +16,7 @@ mod agent_lifecycle;
 mod campaigns;
 mod core;
 mod lease_watchdog;
+pub mod observer_loop;
 mod persistence_outbox;
 mod route_replay;
 mod scaling;

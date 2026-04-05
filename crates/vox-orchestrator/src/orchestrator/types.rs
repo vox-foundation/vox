@@ -35,6 +35,9 @@ pub enum OrchestratorError {
     /// Undo/redo referenced a missing oplog entry.
     #[error("Operation not found")]
     OperationNotFound,
+    /// Task behavioral validation failed.
+    #[error("Task validation failed: {0}")]
+    TaskValidationFailed(String),
     /// Persistent layer failure surfaced to callers.
     #[error("Database error: {0}")]
     DatabaseError(String),

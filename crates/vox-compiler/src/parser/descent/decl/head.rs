@@ -2,10 +2,10 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
-    IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    ComponentDecl, Decl, EffectDecl, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
+    IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport,
-    ServerFnDecl, TestDecl, ForallDecl,
+    ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -500,7 +500,11 @@ impl Parser {
         }
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Forall(ForallDecl { label, iterations: 1000, func: f }))
+        Ok(Decl::Forall(ForallDecl {
+            label,
+            iterations: 1000,
+            func: f,
+        }))
     }
 
     pub(crate) fn parse_server_fn(&mut self) -> Result<Decl, ()> {

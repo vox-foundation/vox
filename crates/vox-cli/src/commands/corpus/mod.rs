@@ -65,6 +65,7 @@ pub enum CorpusAction {
         output: std::path::PathBuf,
     },
     /// Validate and deduplicate a corpus JSONL file
+    #[command(name = "validate-batch", alias = "validate")]
     Validate {
         /// Input JSONL file
         #[arg(required = true)]

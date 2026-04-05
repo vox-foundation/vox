@@ -7,7 +7,7 @@
 
 use crate::usage_policy::resolve_provider_limits;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::json;
 
 /// Default `retry_after_secs` when a provider row is marked rate-limited ([`BudgetGate`](crate::gate::BudgetGate)).
 pub const DEFAULT_RATE_LIMIT_RETRY_SECS: u64 = 60;
@@ -253,8 +253,12 @@ impl<'a> UsageTracker<'a> {
             "date": date
         });
 
-        static USAGE_MUTEX: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
-        let _guard = USAGE_MUTEX.get_or_init(|| tokio::sync::Mutex::new(())).lock().await;
+        static USAGE_MUTEX: std::sync::OnceLock<tokio::sync::Mutex<()>> =
+            std::sync::OnceLock::new();
+        let _guard = USAGE_MUTEX
+            .get_or_init(|| tokio::sync::Mutex::new(()))
+            .lock()
+            .await;
 
         let existing = col.find(&filter).await?;
         if let Some((id, doc)) = existing.into_iter().next() {
@@ -448,11 +452,20 @@ impl<'a> UsageTracker<'a> {
                 "openrouter" => has_openrouter_key,
                 "ollama" => has_ollama,
                 "groq" => vox_clavis::resolve_secret(vox_clavis::SecretId::GroqApiKey).is_present(),
-                "cerebras" => vox_clavis::resolve_secret(vox_clavis::SecretId::CerebrasApiKey).is_present(),
-                "mistral" => vox_clavis::resolve_secret(vox_clavis::SecretId::MistralApiKey).is_present(),
-                "deepseek" => vox_clavis::resolve_secret(vox_clavis::SecretId::DeepSeekApiKey).is_present(),
-                "sambanova" => vox_clavis::resolve_secret(vox_clavis::SecretId::SambaNovaApiKey).is_present(),
-                "custom" => vox_clavis::resolve_secret(vox_clavis::SecretId::CustomOpenAiApiKey).is_present(),
+                "cerebras" => {
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::CerebrasApiKey).is_present()
+                }
+                "mistral" => {
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::MistralApiKey).is_present()
+                }
+                "deepseek" => {
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::DeepSeekApiKey).is_present()
+                }
+                "sambanova" => {
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::SambaNovaApiKey).is_present()
+                }
+                "custom" => vox_clavis::resolve_secret(vox_clavis::SecretId::CustomOpenAiApiKey)
+                    .is_present(),
                 _ => false,
             }
         }
@@ -613,13 +626,11 @@ impl<'a> UsageTracker<'a> {
                     .to_string();
                 let calls = doc["calls"].as_u64().unwrap_or(0) as u32;
                 let cost = doc["cost_usd"].as_f64().unwrap_or(0.0);
-                let entry = by_cat
-                    .entry(category.clone())
-                    .or_insert(CategoryCost {
-                        category,
-                        calls: 0,
-                        cost_usd: 0.0,
-                    });
+                let entry = by_cat.entry(category.clone()).or_insert(CategoryCost {
+                    category,
+                    calls: 0,
+                    cost_usd: 0.0,
+                });
                 entry.calls += calls;
                 entry.cost_usd += cost;
             }

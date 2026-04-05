@@ -26,7 +26,9 @@ fn accept_handoff_rejects_invalid_context_envelope_metadata() {
     let orch = Orchestrator::new(OrchestratorConfig::for_testing());
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "bad context")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, "{not-json");
-    let err = orch.accept_handoff(payload).expect_err("should reject handoff");
+    let err = orch
+        .accept_handoff(payload)
+        .expect_err("should reject handoff");
     assert!(
         err.to_string().contains("Handoff invariant failed"),
         "expected invariant failure, got: {err}"
@@ -54,12 +56,17 @@ fn accept_handoff_accepts_valid_context_envelope_metadata() {
         verification_reason: None,
         recommended_next_action: None,
     };
-    let context =
-        vox_orchestrator::ContextEnvelope::from_session_retrieval("repo-handoff", "sid-handoff", &retrieval);
+    let context = vox_orchestrator::ContextEnvelope::from_session_retrieval(
+        "repo-handoff",
+        "sid-handoff",
+        &retrieval,
+    );
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "good context")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json);
-    let accepted = orch.accept_handoff(payload).expect("handoff should succeed");
+    let accepted = orch
+        .accept_handoff(payload)
+        .expect("handoff should succeed");
     assert_eq!(accepted, AgentId(1));
     assert_eq!(orch.status().agent_count, 1);
 }
@@ -86,13 +93,17 @@ fn accept_handoff_persists_context_envelope_by_session_id() {
         verification_reason: None,
         recommended_next_action: None,
     };
-    let context =
-        vox_orchestrator::ContextEnvelope::from_session_retrieval("repo-handoff", "sid-handoff-persist", &retrieval);
+    let context = vox_orchestrator::ContextEnvelope::from_session_retrieval(
+        "repo-handoff",
+        "sid-handoff-persist",
+        &retrieval,
+    );
     let key = vox_orchestrator::session_context_envelope_key("sid-handoff-persist");
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "persist context")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json.clone());
-    orch.accept_handoff(payload).expect("handoff should succeed");
+    orch.accept_handoff(payload)
+        .expect("handoff should succeed");
     let mut saw_handoff = false;
     for _ in 0..8 {
         let evt = rx.try_recv().expect("handoff event");
@@ -137,19 +148,21 @@ fn accept_handoff_does_not_persist_when_context_session_id_missing() {
         verification_reason: None,
         recommended_next_action: None,
     };
-    let mut context =
-        vox_orchestrator::ContextEnvelope::from_session_retrieval("repo-handoff", "sid-missing", &retrieval);
+    let mut context = vox_orchestrator::ContextEnvelope::from_session_retrieval(
+        "repo-handoff",
+        "sid-missing",
+        &retrieval,
+    );
     context.subject.session_id = None;
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "no session id")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json);
-    orch.accept_handoff(payload).expect("handoff should succeed");
+    orch.accept_handoff(payload)
+        .expect("handoff should succeed");
     let handle = orch.context_handle();
     let entries = vox_orchestrator::sync_lock::rw_read(&*handle).entries();
     assert!(
-        entries
-            .keys()
-            .all(|k| !k.starts_with("context_envelope:")),
+        entries.keys().all(|k| !k.starts_with("context_envelope:")),
         "no session-scoped context key should be persisted when session_id is absent"
     );
 }
@@ -170,7 +183,8 @@ fn accept_handoff_emits_harness_metadata_fields() {
             HARNESS_SPEC_JSON_METADATA_KEY,
             serde_json::to_string(&harness).expect("serialize harness"),
         );
-    orch.accept_handoff(payload).expect("handoff should succeed");
+    orch.accept_handoff(payload)
+        .expect("handoff should succeed");
     let mut saw_handoff = false;
     for _ in 0..8 {
         let evt = rx.try_recv().expect("handoff event");

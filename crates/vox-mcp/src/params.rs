@@ -251,7 +251,6 @@ pub struct SubmitTaskParams {
     pub research_hints: Vec<String>,
 }
 
-
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.
 #[derive(Debug, Clone, Serialize)]
 pub struct SubmitShadowAdequacy {

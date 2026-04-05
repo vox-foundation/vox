@@ -36,6 +36,12 @@ impl crate::orchestrator::Orchestrator {
             agent_id,
             name.to_string(),
         );
+
+        let bm = crate::sync_lock::rw_read(&*self.budget_manager).clone();
+        tokio::spawn(async move {
+            bm.load_user_configured_budget(agent_id).await;
+        });
+
         tracing::info!("Spawned agent {} (name: {})", agent_id, name);
         Ok(agent_id)
     }
@@ -180,7 +186,10 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Retire an agent: release all locks/affinity/scope, drain its queue, and return remaining tasks.
-    pub async fn retire_agent(&self, agent_id: AgentId) -> Result<Vec<AgentTask>, OrchestratorError> {
+    pub async fn retire_agent(
+        &self,
+        agent_id: AgentId,
+    ) -> Result<Vec<AgentTask>, OrchestratorError> {
         let (remaining, session_id) = {
             let queue_lock = crate::sync_lock::rw_write(&*self.agents)
                 .remove(&agent_id)
@@ -215,7 +224,9 @@ impl crate::orchestrator::Orchestrator {
         // If this agent was mapped to a session, flush its socrates thinking context to DB.
         if let Some(sid) = session_id {
             let key = crate::socrates::session_context_envelope_key(&sid);
-            let envelope_opt = crate::sync_lock::rw_read(&*self.context_store).get(&key).clone();
+            let envelope_opt = crate::sync_lock::rw_read(&*self.context_store)
+                .get(&key)
+                .clone();
             if let Some(envelope_json) = envelope_opt {
                 let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
                 if let Some(db) = db_opt {

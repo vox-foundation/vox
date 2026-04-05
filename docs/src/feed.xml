@@ -5,167 +5,167 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 29 Mar 2026 09:42:43 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 05 Apr 2026 18:15:55 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
-    <title>ADR 017: Populi lease-based authoritative remote execution</title>
-    <link>https://vox-lang.org/adr/017-populi-lease-remote-execution.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/017-populi-lease-remote-execution.html</guid>
-    <description>Normative target model for single-owner lease semantics, A2A transport, and local fallback when promoting remote execution beyond best-effort relay.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Redirect</title>
+    <link>https://vox-lang.org/api/vox-dei-sandbox.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/vox-dei-sandbox.html</guid>
+    <description>Redirect</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>ADR 018: Populi GPU truth layering</title>
-    <link>https://vox-lang.org/adr/018-populi-gpu-truth-layering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/018-populi-gpu-truth-layering.html</guid>
-    <description>Normative layering between probe-backed hardware facts, allocatable capacity, and operator policy labels for Populi scheduling.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Redirect: vox-gamify</title>
+    <link>https://vox-lang.org/api/vox-gamify.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/vox-gamify.html</guid>
+    <description>Redirect: vox-gamify</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/README.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/README.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Developer User Journeys: Intent vs. Actualization</title>
+    <link>https://vox-lang.org/architecture/agentic-user-journeys.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-user-journeys.html</guid>
+    <description>Baseline target workflows mapping how real human developers interface with the Vox orchestrator system.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Example: Durable Execution Example</title>
-    <link>https://vox-lang.org/api/example_durable_execution.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/example_durable_execution.html</guid>
-    <description>Official documentation for Example: Durable Execution Example for the Vox language. Detailed technical reference, architecture guides, an</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Completion policy SSOT (LLM premature-completion)</title>
+    <link>https://vox-lang.org/architecture/completion-policy-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/completion-policy-ssot.html</guid>
+    <description>Single source of truth for LLM completion policy enforcement, TOESTUB integration, and CI gating.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Architecture index</title>
-    <link>https://vox-lang.org/architecture/architecture-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
-    <description>Guide to the current architecture, SSOT, research, and roadmap documentation under docs/src/architecture.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>English-Core + Latin Alias Migration Ledger</title>
+    <link>https://vox-lang.org/architecture/english_core_migration_ledger.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/english_core_migration_ledger.html</guid>
+    <description>Complete migration tracking for nomenclature transition from Latin aliases (vox-dei, vox-ars) to English canonical names.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Maintainability hotspot matrix (baseline)</title>
-    <link>https://vox-lang.org/architecture/maintainability-hotspot-matrix.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/maintainability-hotspot-matrix.html</guid>
-    <description>Tracking matrix for the package and maintainability overhaul: duplicates, target consolidation, gating tests, and acceptance criteria.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Memory System</title>
+    <link>https://vox-lang.org/architecture/memory_system.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/memory_system.html</guid>
+    <description>Persistent, searchable long-term storage architecture for agent knowledge with three-layer design.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Populi GPU mesh implementation plan 2026</title>
-    <link>https://vox-lang.org/architecture/populi-gpu-mesh-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/populi-gpu-mesh-implementation-plan-2026.html</guid>
-    <description>Roadmap for evolving Populi into a user-owned GPU mesh with phased rollout, ADR boundaries, and a first execution ownership model.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>News syndication: incident patterns and mitigations</title>
+    <link>https://vox-lang.org/architecture/news_syndication_incident_patterns.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/news_syndication_incident_patterns.html</guid>
+    <description>Searchable SSOT for automated outbound publishing failure modes and Vox-specific safety controls.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Populi GPU network research 2026</title>
-    <link>https://vox-lang.org/architecture/populi-gpu-network-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/populi-gpu-network-research-2026.html</guid>
-    <description>Research synthesis for evolving Populi from a CPU-first control plane into a user-owned local or internet-distributed GPU network without changing shipped behavior yet.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Unified News Syndication Security &amp; Safety</title>
+    <link>https://vox-lang.org/architecture/news_syndication_security.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/news_syndication_security.html</guid>
+    <description>Safety mechanisms and architectural constraints preventing accidental automated social media posts.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Protocol convergence research 2026</title>
-    <link>https://vox-lang.org/architecture/protocol-convergence-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/protocol-convergence-research-2026.html</guid>
-    <description>Advisory synthesis: converging on one taxonomy and durable SSOT (Vox DB / Codex) while choosing HTTP, SSE, WebSockets, MCP, and mesh transports by semantic lane—not by forcing a single wire format.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>2026 State-of-the-Art: Dynamic Agentic Planning &amp; Orchestration</title>
+    <link>https://vox-lang.org/architecture/res_dynamic_agentic_planning_2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/res_dynamic_agentic_planning_2026.html</guid>
+    <description>Research synthesis on LLM agent planning, context management, workflow orchestration, and state persistence.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Research index</title>
-    <link>https://vox-lang.org/architecture/research-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/research-index.html</guid>
-    <description>Guide to the research, findings, and roadmap-heavy documentation in the architecture section.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Security Model</title>
+    <link>https://vox-lang.org/architecture/security_model.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/security_model.html</guid>
+    <description>Multi-layer protection against prompt injection, scope violations, and unauthorized access via SecurityPolicy and SecurityGuard.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Explanation: Durable Execution</title>
-    <link>https://vox-lang.org/explanation/expl-durable-execution.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-durable-execution.html</guid>
-    <description>Official documentation for workflow durability in Vox&apos;s interpreted runtime, including journal semantics, replay limits, and idempotency guidance.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Session Management</title>
+    <link>https://vox-lang.org/architecture/session_management.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/session_management.html</guid>
+    <description>Persistent conversation history, metadata, and state management across agent interactions.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>OpenClaw Competitive Analysis</title>
-    <link>https://vox-lang.org/explanation/expl-openclaw-analysis.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-openclaw-analysis.html</guid>
-    <description>Official documentation for OpenClaw Competitive Analysis for the Vox language. Detailed technical reference, architecture guides, and imp</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Architectural Organization &amp; Governance</title>
+    <link>https://vox-lang.org/architecture/vox-organization.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-organization.html</guid>
+    <description>Strict organizational principles enforced via vox architect command and TOESTUB reasoning engine.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Explanation: Security Model</title>
-    <link>https://vox-lang.org/explanation/expl-security.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-security.html</guid>
-    <description>Official documentation for Explanation: Security Model for the Vox language. Detailed technical reference, architecture guides, and imple</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint</title>
+    <link>https://vox-lang.org/architecture/vox_agentic_loop_and_mens_plan.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox_agentic_loop_and_mens_plan.html</guid>
+    <description>254-task implementation blueprint covering OOPAV agent loop, MENS grammar-aware training, and GRPO reinforcement learning.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Populi overlay personal cluster runbook</title>
-    <link>https://vox-lang.org/operations/populi-overlay-personal-cluster-runbook.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/operations/populi-overlay-personal-cluster-runbook.html</guid>
-    <description>Operator steps and WAN boundaries for user-owned Populi clusters across VPN-style overlays.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox VS Code Extension — Frontend Redesign Research (2026)</title>
+    <link>https://vox-lang.org/architecture/vscode-extension-redesign-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vscode-extension-redesign-research-2026.html</guid>
+    <description>Research substrate for Industrial Cyber-Renaissance reskin using v0.dev workflow and React-based webview architecture.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Populi remote execution rollout checklist</title>
-    <link>https://vox-lang.org/operations/populi-remote-execution-rollout-checklist.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/operations/populi-remote-execution-rollout-checklist.html</guid>
-    <description>Go/no-go criteria, kill-switch validation, and rollback steps before enabling authoritative or pilot remote execution beyond local defaults.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Skill Marketplace</title>
+    <link>https://vox-lang.org/reference/skill_marketplace.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/skill_marketplace.html</guid>
+    <description>Documentation for the Vox skills ecosystem including ARS runtime, skill registries, and workflows.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Deployment: Docker, Compose, Coolify, CI (SSOT)</title>
-    <link>https://vox-lang.org/reference/deployment-compose.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/deployment-compose.html</guid>
-    <description>Official documentation for Deployment: Docker, Compose, Coolify, CI (SSOT) for the Vox language. Detailed technical reference, architectu</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Webhook Integration</title>
+    <link>https://vox-lang.org/reference/webhook_integration.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/webhook_integration.html</guid>
+    <description>Lightweight HTTP gateway for receiving events from external services and routing into the orchestrator with HMAC verification.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Environment variables (SSOT)</title>
-    <link>https://vox-lang.org/reference/env-vars.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/env-vars.html</guid>
-    <description>Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Automated Testing Research for the Vox Language</title>
+    <link>https://vox-lang.org/architecture/automated-testing-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/automated-testing-research-2026.html</guid>
+    <description>State of the art, implications, and roadmap for automated test generation including PBT, mutation testing, and LLM-driven synthesis.</description>
+    <pubDate>Sat, 04 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Mens Cloud GPU Training Strategy</title>
-    <link>https://vox-lang.org/reference/mens-cloud-gpu.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/mens-cloud-gpu.html</guid>
-    <description>Official documentation for Mens Cloud GPU Training Strategy for the Vox language. Detailed technical reference, architecture guides, an</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Vox Language Testing Pipeline</title>
+    <link>https://vox-lang.org/architecture/vox-language-testing-pipeline.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-language-testing-pipeline.html</guid>
+    <description>Embedding tests into .vox format and LLM to Vox delivery pipeline with five-stage gate validation.</description>
+    <pubDate>Sat, 04 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Unified orchestration — SSOT</title>
-    <link>https://vox-lang.org/reference/orchestration-unified.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/orchestration-unified.html</guid>
-    <description>Official documentation for Unified orchestration — SSOT for the Vox language. Detailed technical reference, architecture guides, and impl</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>Contributor hub</title>
+    <link>https://vox-lang.org/contributors/contributor-hub.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/contributor-hub.html</guid>
+    <description>Start here for contributor-facing Vox documentation, governance, inventories, and review checklists.</description>
+    <pubDate>Fri, 03 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Populi work-type placement policy matrix</title>
-    <link>https://vox-lang.org/reference/populi-work-type-placement-matrix.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/populi-work-type-placement-matrix.html</guid>
-    <description>Canonical matrix of allowed, gated, and out-of-scope work classes across local, trusted LAN, and overlay-WAN personal clusters.</description>
-    <pubDate>Sun, 29 Mar 2026 00:00:00 GMT</pubDate>
+    <title>ADR 023: Optional telemetry remote upload</title>
+    <link>https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</guid>
+    <description>Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.</description>
+    <pubDate>Thu, 02 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>

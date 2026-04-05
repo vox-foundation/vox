@@ -164,7 +164,10 @@ fn try_parse_task_item(line: &str) -> Option<ContentBlock> {
 
     // Extract description: strip `**…**` markdown bold
     let desc_raw = if after_num.starts_with("**") {
-        let end = after_num[2..].find("**").map(|p| p + 2).unwrap_or(after_num.len());
+        let end = after_num[2..]
+            .find("**")
+            .map(|p| p + 2)
+            .unwrap_or(after_num.len());
         &after_num[2..end]
     } else {
         // Fall back to text before ` — `

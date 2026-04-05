@@ -1,3 +1,12 @@
+---
+title: "Vox Security Model"
+description: "Multi-layer protection against prompt injection, scope violations, and unauthorized access via SecurityPolicy and SecurityGuard."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Security Model
 
 The Vox security model (`SecurityPolicy`, `SecurityGuard`, `AuditLog`) is defined in `vox-orchestrator` and provides multi-layer protection against prompt injection, scope violations, and unauthorized access.

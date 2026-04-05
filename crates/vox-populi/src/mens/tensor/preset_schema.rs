@@ -226,10 +226,10 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
         "vox-gen" => TrainPresetProfile {
             rank: 16,
             alpha: 32.0,
-            seq_len: 256,  // .vox programs are compact; 256 tokens covers most functions
+            seq_len: 256, // .vox programs are compact; 256 tokens covers most functions
             batch_size: 2,
             grad_accum: 8,
-            epochs: 5,     // more epochs for code: grammar must be memorized
+            epochs: 5, // more epochs for code: grammar must be memorized
             warmup: 60,
             lr: 1.5e-4,
         },

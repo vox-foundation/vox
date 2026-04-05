@@ -365,10 +365,9 @@ mod chat_history_params_tests {
 
     #[test]
     fn chat_history_explicit_session_round_trips() {
-        let p: ChatHistoryParams = serde_json::from_str(
-            r#"{"session_id":"vscode-sidebar","trace_id":"t1"}"#,
-        )
-        .expect("deserialize");
+        let p: ChatHistoryParams =
+            serde_json::from_str(r#"{"session_id":"vscode-sidebar","trace_id":"t1"}"#)
+                .expect("deserialize");
         assert_eq!(p.session_id, "vscode-sidebar");
         assert_eq!(p.trace_id.as_deref(), Some("t1"));
     }

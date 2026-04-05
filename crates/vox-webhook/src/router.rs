@@ -196,7 +196,7 @@ async fn receive_webhook(
         .or_else(|| headers.get("x-vox-signature"))
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-        
+
     let req_timestamp = headers
         .get("x-signature-timestamp")
         .or_else(|| headers.get("x-slack-request-timestamp"))

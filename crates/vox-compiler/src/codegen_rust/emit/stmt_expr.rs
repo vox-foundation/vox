@@ -70,10 +70,21 @@ pub(super) fn emit_stmt(
                 emit_expr_with(expr, is_route, is_actor, mutation_tx)
             )
         }
-        HirStmt::While { condition, body, .. } => {
-            let mut s = format!("{pad}while {} {{\n", emit_expr_with(condition, is_route, is_actor, mutation_tx));
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            let mut s = format!(
+                "{pad}while {} {{\n",
+                emit_expr_with(condition, is_route, is_actor, mutation_tx)
+            );
             for stmt in body {
-                s.push_str(&emit_stmt(stmt, indent + 1, is_route, is_actor, mutation_tx));
+                s.push_str(&emit_stmt(
+                    stmt,
+                    indent + 1,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                ));
             }
             s.push_str(&format!("{pad}}}\n"));
             s
@@ -81,7 +92,13 @@ pub(super) fn emit_stmt(
         HirStmt::Loop { body, .. } => {
             let mut s = format!("{pad}loop {{\n");
             for stmt in body {
-                s.push_str(&emit_stmt(stmt, indent + 1, is_route, is_actor, mutation_tx));
+                s.push_str(&emit_stmt(
+                    stmt,
+                    indent + 1,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                ));
             }
             s.push_str(&format!("{pad}}}\n"));
             s

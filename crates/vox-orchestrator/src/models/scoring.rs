@@ -1,7 +1,7 @@
-use vox_config::AutoRoutingPriority;
 use crate::config::CostPreference;
 use crate::models::ModelSpec;
 use crate::usage::RemainingBudget;
+use vox_config::AutoRoutingPriority;
 
 const QUALITY_FREE_PAID_COMPONENT: f64 = 0.35;
 const QUALITY_PAID_COMPONENT: f64 = 0.95;
@@ -101,7 +101,10 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
         ProviderType::GoogleDirect => 0.8,
         ProviderType::OpenRouter => {
             // Give fast engines on OpenRouter a better fallback if missing p50
-            if m.id.to_lowercase().contains("llama-3") || m.id.to_lowercase().contains("groq") || m.id.to_lowercase().contains("cerebras") {
+            if m.id.to_lowercase().contains("llama-3")
+                || m.id.to_lowercase().contains("groq")
+                || m.id.to_lowercase().contains("cerebras")
+            {
                 0.85
             } else {
                 0.7
@@ -127,7 +130,10 @@ pub(super) fn throughput_score(m: &ModelSpec) -> f64 {
 /// modest penalty vs. a pristine 1.0) for providers where we have no uptime signal.
 #[must_use]
 pub(super) fn health_score(m: &ModelSpec) -> f64 {
-    m.capabilities.uptime_score.map(|u| u as f64).unwrap_or(0.85)
+    m.capabilities
+        .uptime_score
+        .map(|u| u as f64)
+        .unwrap_or(0.85)
 }
 
 #[must_use]
@@ -189,8 +195,7 @@ pub fn auto_score_model(
         return RATE_LIMITED_SCORE_FLOOR;
     }
 
-    let balance_bias =
-        1.0_f64 - f64::from(context_fill_ratio.unwrap_or(0.0).clamp(0.0, 1.0));
+    let balance_bias = 1.0_f64 - f64::from(context_fill_ratio.unwrap_or(0.0).clamp(0.0, 1.0));
     let availability_score = if remaining == 0 {
         EMPTY_BUDGET_AVAILABILITY_SCORE
     } else {

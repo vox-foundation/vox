@@ -287,14 +287,18 @@ pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> S
             .iter()
             .rev()
             .find(|(k, _)| k == vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
-            .and_then(|(_, raw)| serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok())
+            .and_then(|(_, raw)| {
+                serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok()
+            })
             .and_then(|env| env.subject.session_id);
         let expected_thread_id = payload
             .metadata
             .iter()
             .rev()
             .find(|(k, _)| k == vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
-            .and_then(|(_, raw)| serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok())
+            .and_then(|(_, raw)| {
+                serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok()
+            })
             .and_then(|env| env.subject.thread_id);
         let expectations = vox_orchestrator::HarnessIngestExpectations {
             repository_id: state.repository.repository_id.as_str(),

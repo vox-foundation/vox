@@ -354,6 +354,13 @@ export class VoxMcpClient {
     async preferenceSet(key: string, value: unknown): Promise<unknown> {
         return this.call('vox_preference_set', { key, value: JSON.stringify(value) });
     }
+    async setAgentBudget(agentId: number, maxTokens?: number, maxCostUsd?: number): Promise<unknown> {
+        return this.call('vox_set_agent_budget', {
+            agent_id: agentId,
+            max_tokens: maxTokens,
+            max_cost_usd: maxCostUsd,
+        });
+    }
 
     // ── Memory & Knowledge ────────────────────────────────────────────────────
     async memoryStore(key: string, value: string): Promise<unknown> {

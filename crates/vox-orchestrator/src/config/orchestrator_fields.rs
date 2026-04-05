@@ -244,7 +244,10 @@ pub struct OrchestratorConfig {
     #[serde(default, alias = "mesh_remote_lease_gated_roles")]
     pub populi_remote_lease_gated_roles: Vec<crate::reconstruction::AgentExecutionRole>,
     /// Timeout in milliseconds for authoritative Populi remote leases (default: 300000 / 5min).
-    #[serde(default = "default_populi_remote_lease_timeout_ms", alias = "mesh_remote_lease_timeout_ms")]
+    #[serde(
+        default = "default_populi_remote_lease_timeout_ms",
+        alias = "mesh_remote_lease_timeout_ms"
+    )]
     pub populi_remote_lease_timeout_ms: u64,
     /// When true, MCP tool LLM calls collapse system/user turns into a single string
     /// formatted with `<|im_start|>` markers instead of JSON message arrays.
@@ -357,4 +360,15 @@ pub struct OrchestratorConfig {
     /// Configuration for the unified news publisher (docs/news/ → RSS/X/GitHub).
     #[serde(default)]
     pub news: NewsConfig,
+
+    // ── Phase 16: OAPV Observer ─────────────────────────────────────────────
+    /// Enable the autonomous Observer loop (OAPV). Default: false.
+    #[serde(default = "default_false")]
+    pub observer_enabled: bool,
+    /// Model to use for routine observation inference. Configurable from VS Code.
+    #[serde(default)]
+    pub observer_model: Option<String>,
+    /// Background poll interval (milliseconds) for the Observer loop. Default: 10_000.
+    #[serde(default = "default_observer_poll_interval_ms")]
+    pub observer_poll_interval_ms: u64,
 }

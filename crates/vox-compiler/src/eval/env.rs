@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::value::VoxValue;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Scope {

@@ -182,7 +182,10 @@ pub fn run_cargo(req: &CargoRequest) -> Result<Output> {
     if let Some(ref td) = req.target_dir {
         if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
             tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
-            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+            anyhow::bail!(
+                "Disallowed target directory: {}. Target sprawl outside policy is forbidden.",
+                td.display()
+            );
         }
         cmd.env("CARGO_TARGET_DIR", td);
     }
@@ -247,7 +250,10 @@ pub fn run_cargo_inherit(req: &CargoRequest) -> Result<std::process::ExitStatus>
     if let Some(ref td) = req.target_dir {
         if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
             tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
-            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+            anyhow::bail!(
+                "Disallowed target directory: {}. Target sprawl outside policy is forbidden.",
+                td.display()
+            );
         }
         cmd.env("CARGO_TARGET_DIR", td);
     }
@@ -367,7 +373,10 @@ pub fn run_cargo_spawn(req: &CargoRequest) -> Result<MonitoredCargoChildSync> {
     if let Some(ref td) = req.target_dir {
         if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
             tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
-            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+            anyhow::bail!(
+                "Disallowed target directory: {}. Target sprawl outside policy is forbidden.",
+                td.display()
+            );
         }
         cmd.env("CARGO_TARGET_DIR", td);
     }
@@ -511,7 +520,10 @@ pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoC
     if let Some(ref td) = req.target_dir {
         if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
             tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
-            anyhow::bail!("Disallowed target directory: {}. Target sprawl outside policy is forbidden.", td.display());
+            anyhow::bail!(
+                "Disallowed target directory: {}. Target sprawl outside policy is forbidden.",
+                td.display()
+            );
         }
         cmd.env("CARGO_TARGET_DIR", td);
     }

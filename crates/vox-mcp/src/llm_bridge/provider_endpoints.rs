@@ -51,13 +51,15 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
                 Ok(format!("{trimmed}/v1{suffix}"))
             }
         }
-        ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => Err(HttpInferError {
-            status: 0,
-            message: format!(
-                "endpoint_for is not applicable to provider {:?}",
-                model.provider_type
-            ),
-        }),
+        ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
+            Err(HttpInferError {
+                status: 0,
+                message: format!(
+                    "endpoint_for is not applicable to provider {:?}",
+                    model.provider_type
+                ),
+            })
+        }
     }
 }
 
@@ -83,6 +85,9 @@ mod tests {
             supported_parameters: vec![],
         };
         let err = endpoint_for(&model).expect_err("should reject mesh");
-        assert!(err.message.contains("not applicable to provider PopuliMesh"));
+        assert!(
+            err.message
+                .contains("not applicable to provider PopuliMesh")
+        );
     }
 }

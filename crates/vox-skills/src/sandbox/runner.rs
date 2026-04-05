@@ -11,8 +11,8 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Instant;
 
-use vox_container::detect::{RuntimePreference, detect_runtime};
 use vox_container::ContainerRuntime;
+use vox_container::detect::{RuntimePreference, detect_runtime};
 
 use crate::ars_shim::manifest::ResourceLimits;
 
@@ -77,8 +77,7 @@ impl SandboxedSkillRunner {
 
     /// Detect with an explicit runtime preference (for testing / ops overrides).
     pub fn with_preference(pref: RuntimePreference) -> Result<Self, SandboxError> {
-        let runtime = detect_runtime(pref)
-            .map_err(|e| SandboxError::NoRuntime(e.to_string()))?;
+        let runtime = detect_runtime(pref).map_err(|e| SandboxError::NoRuntime(e.to_string()))?;
         Ok(Self {
             runtime: Arc::from(runtime),
             sandbox_image: SANDBOX_IMAGE_TAG.to_string(),
@@ -104,11 +103,7 @@ impl SandboxedSkillRunner {
     ///   --memory=<Xm> --cpus=<Y> \
     ///   vox-skill-sandbox:latest "<command>"
     /// ```
-    pub fn run(
-        &self,
-        command: &str,
-        limits: &ResourceLimits,
-    ) -> Result<SkillOutput, SandboxError> {
+    pub fn run(&self, command: &str, limits: &ResourceLimits) -> Result<SkillOutput, SandboxError> {
         let start = Instant::now();
 
         let runtime_name = self.runtime.name();

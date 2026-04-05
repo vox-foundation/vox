@@ -445,7 +445,9 @@ pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
         Stmt::Expr { expr, .. } => {
             format!("{pad}{};\n", emit_expr(expr))
         }
-        Stmt::While { condition, body, .. } => {
+        Stmt::While {
+            condition, body, ..
+        } => {
             let cond = emit_expr(condition);
             let body_str: Vec<String> = body.iter().map(|s| emit_stmt(s, indent + 1)).collect();
             format!("{pad}while ({cond}) {{\n{}{pad}}}\n", body_str.join(""))

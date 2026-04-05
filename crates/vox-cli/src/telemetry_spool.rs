@@ -133,7 +133,10 @@ pub async fn upload_pending(
                 format!("Bearer {}", t.trim()),
             );
         }
-        let resp = req.send().await.with_context(|| format!("POST {}", p.display()))?;
+        let resp = req
+            .send()
+            .await
+            .with_context(|| format!("POST {}", p.display()))?;
         let status = resp.status();
         if status.is_success() {
             ack(&p)?;

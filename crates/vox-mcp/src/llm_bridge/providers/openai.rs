@@ -115,11 +115,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
         message: format!("LLM JSON: {e}"),
     })?;
 
-    let message = parsed
-        .choices
-        .into_iter()
-        .next()
-        .and_then(|c| c.message);
+    let message = parsed.choices.into_iter().next().and_then(|c| c.message);
 
     fn coerce_json_fallback(mut s: &str) -> String {
         s = s.trim();

@@ -3,8 +3,8 @@
 //! Identifies tasks that have exceeded their remote authoritative lease duration
 //! and recovers them to the local agent queue.
 
-use crate::types::now_unix_ms;
 use crate::orchestrator::Orchestrator;
+use crate::types::now_unix_ms;
 
 impl Orchestrator {
     /// Identifies and recovers expired Populi remote leases.
@@ -15,7 +15,10 @@ impl Orchestrator {
     pub fn tick_populi_remote_lease_watchdog(&self) {
         let (lease_timeout_ms, lease_gating_enabled) = {
             let config = crate::sync_lock::rw_read(&*self.config);
-            (config.populi_remote_lease_timeout_ms, config.populi_remote_lease_gating_enabled)
+            (
+                config.populi_remote_lease_timeout_ms,
+                config.populi_remote_lease_gating_enabled,
+            )
         };
 
         // If lease gating is disabled globally, we skip the authoritative check.
@@ -60,11 +63,12 @@ impl Orchestrator {
                     "Failed to fallback expired remote task locally"
                 );
             } else {
-                self.event_bus.emit(crate::events::AgentEventKind::TaskExpired {
-                    task_id,
-                    agent_id: crate::types::AgentId(0), // Orchestrator-level reaper event
-                    age_ms: lease_timeout_ms,
-                });
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::TaskExpired {
+                        task_id,
+                        agent_id: crate::types::AgentId(0), // Orchestrator-level reaper event
+                        age_ms: lease_timeout_ms,
+                    });
             }
         }
     }

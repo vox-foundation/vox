@@ -1,6 +1,6 @@
+use super::LowerCtx;
 use crate::ast::decl::fundecl::{FnDecl, VerifyMode};
 use crate::hir::HirStmt;
-use super::LowerCtx;
 
 impl LowerCtx {
     /// Lowers contracts into the function body based on VerifyMode.
@@ -11,7 +11,10 @@ impl LowerCtx {
                 let mut new_body = Vec::new();
                 for pre in &f.preconditions {
                     let expr = self.lower_expr(pre);
-                    new_body.push(HirStmt::Expr { expr, span: crate::ast::span::Span::new(0, 0) });
+                    new_body.push(HirStmt::Expr {
+                        expr,
+                        span: crate::ast::span::Span::new(0, 0),
+                    });
                 }
                 new_body.append(&mut body);
                 new_body
@@ -20,12 +23,18 @@ impl LowerCtx {
                 let mut new_body = Vec::new();
                 for pre in &f.preconditions {
                     let expr = self.lower_expr(pre);
-                    new_body.push(HirStmt::Expr { expr, span: crate::ast::span::Span::new(0, 0) });
+                    new_body.push(HirStmt::Expr {
+                        expr,
+                        span: crate::ast::span::Span::new(0, 0),
+                    });
                 }
                 new_body.append(&mut body);
                 for post in &f.postconditions {
                     let expr = self.lower_expr(post);
-                    new_body.push(HirStmt::Expr { expr, span: crate::ast::span::Span::new(0, 0) });
+                    new_body.push(HirStmt::Expr {
+                        expr,
+                        span: crate::ast::span::Span::new(0, 0),
+                    });
                 }
                 new_body
             }

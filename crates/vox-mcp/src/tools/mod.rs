@@ -33,11 +33,11 @@ pub mod oratio_tools;
 pub mod persistence_tools;
 /// Local mens registry status (`vox_populi_local_status`).
 pub mod populi_tools;
+/// `vox init` parity scaffold (`vox_project_init`).
+pub mod project_init_tools;
 /// Socrates questioning / clarification answer persistence (`VoxDb`).
 pub mod questioning_tools;
 mod registry;
-/// `vox init` parity scaffold (`vox_project_init`).
-pub mod project_init_tools;
 /// Explicit repo catalog + read-only polyrepo query tools.
 pub mod repo_catalog_tools;
 /// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.

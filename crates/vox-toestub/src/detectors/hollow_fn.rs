@@ -1,7 +1,7 @@
 use crate::rules::{DetectionRule, Finding, FindingConfidence, Language, Severity, SourceFile};
+use quote::ToTokens;
 use regex::Regex;
 use syn::visit::Visit;
-use quote::ToTokens;
 
 /// Detects functions whose bodies contain only a trivially-default return value,
 /// making them structural skeletons that compile but do nothing meaningful.
@@ -17,15 +17,19 @@ impl Default for HollowFnDetector {
 }
 
 const ALLOWED_FN_NAMES: &[&str] = &[
-    "default", "new", "main", "noop", "no_op", "stub", "drop", "fmt", "clone", 
-    "deref", "as_ref", "as_mut", "from", "into", "try_from", "try_into",
+    "default", "new", "main", "noop", "no_op", "stub", "drop", "fmt", "clone", "deref", "as_ref",
+    "as_mut", "from", "into", "try_from", "try_into",
 ];
 
 impl HollowFnDetector {
     pub fn new() -> Self {
         Self {
-            ts_fn_re: Regex::new(r"(?:function|async function)\s+(\w+)\s*\([^)]*\)[^{]*\{([^}]*)\}").expect("valid regex"),
-            ts_hollow_ui_re: Regex::new(r"return\s*<[a-zA-Z0-9_]+>(?:\s*)</[a-zA-Z0-9_]+>;?").expect("valid regex"),
+            ts_fn_re: Regex::new(
+                r"(?:function|async function)\s+(\w+)\s*\([^)]*\)[^{]*\{([^}]*)\}",
+            )
+            .expect("valid regex"),
+            ts_hollow_ui_re: Regex::new(r"return\s*<[a-zA-Z0-9_]+>(?:\s*)</[a-zA-Z0-9_]+>;?")
+                .expect("valid regex"),
         }
     }
 
@@ -38,19 +42,47 @@ impl HollowFnDetector {
 
     fn is_hollow_expr_ast(expr: &str) -> bool {
         let e = expr.replace(" ", "");
-        if ["Ok(())", "Ok(Default::default())", "Default::default()", "true", "false", "0", "0.0", 
-            "\"\"", "String::new()", "Vec::new()", "vec![]", "HashMap::new()", "HashSet::new()", 
-            "BTreeMap::new()", "BTreeSet::new()", "None", "()", "Ok(String::new())", "Ok(Vec::new())", 
-            "Ok(0)", "Ok(false)", "Ok(true)", "Err(())", "Box::new()"]
-            .contains(&e.as_str()) {
+        if [
+            "Ok(())",
+            "Ok(Default::default())",
+            "Default::default()",
+            "true",
+            "false",
+            "0",
+            "0.0",
+            "\"\"",
+            "String::new()",
+            "Vec::new()",
+            "vec![]",
+            "HashMap::new()",
+            "HashSet::new()",
+            "BTreeMap::new()",
+            "BTreeSet::new()",
+            "None",
+            "()",
+            "Ok(String::new())",
+            "Ok(Vec::new())",
+            "Ok(0)",
+            "Ok(false)",
+            "Ok(true)",
+            "Err(())",
+            "Box::new()",
+        ]
+        .contains(&e.as_str())
+        {
             return true;
         }
 
-        if (e.contains("Default::default()") || e.contains("..Default::default()")) && e.contains('{') {
+        if (e.contains("Default::default()") || e.contains("..Default::default()"))
+            && e.contains('{')
+        {
             return false;
         }
 
-        if e.ends_with("::default()") && !e.starts_with("Self") && e.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+        if e.ends_with("::default()")
+            && !e.starts_with("Self")
+            && e.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        {
             return true;
         }
 
@@ -90,10 +122,18 @@ impl HollowFnDetector {
         false
     }
 
-    fn detect_rust(&self, file: &SourceFile, rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect_rust(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let Some(ctx) = rust_ctx else { return vec![]; };
-        let Ok(ast) = &ctx.ast else { return vec![]; };
+        let Some(ctx) = rust_ctx else {
+            return vec![];
+        };
+        let Ok(ast) = &ctx.ast else {
+            return vec![];
+        };
 
         struct Visitor<'a> {
             file: &'a SourceFile,
@@ -114,11 +154,16 @@ impl HollowFnDetector {
                 }
                 let name = node.sig.ident.to_string();
                 let line = node.sig.ident.span().start().line;
-                
-                if self.file.lines.get(line.saturating_sub(1)).map_or(false, |l| l.contains("toestub-ignore")) {
+
+                if self
+                    .file
+                    .lines
+                    .get(line.saturating_sub(1))
+                    .map_or(false, |l| l.contains("toestub-ignore"))
+                {
                     return;
                 }
-                
+
                 self.check_block(&name, &node.block, line);
                 syn::visit::visit_item_fn(self, node);
             }
@@ -129,11 +174,16 @@ impl HollowFnDetector {
                 }
                 let name = node.sig.ident.to_string();
                 let line = node.sig.ident.span().start().line;
-                
-                if self.file.lines.get(line.saturating_sub(1)).map_or(false, |l| l.contains("toestub-ignore")) {
+
+                if self
+                    .file
+                    .lines
+                    .get(line.saturating_sub(1))
+                    .map_or(false, |l| l.contains("toestub-ignore"))
+                {
                     return;
                 }
-                
+
                 self.check_block(&name, &node.block, line);
                 syn::visit::visit_impl_item_fn(self, node);
             }
@@ -151,9 +201,16 @@ impl HollowFnDetector {
                     match stmt {
                         syn::Stmt::Expr(expr, semi) => {
                             if let syn::Expr::Macro(mac) = expr {
-                                let path = mac.mac.path.to_token_stream().to_string().replace(" ", "");
-                                if path.contains("println") || path.contains("tracing::") || path.contains("dbg") || path.contains("eprintln") {
-                                    if semi.is_none() { last_expr = Some(expr); }
+                                let path =
+                                    mac.mac.path.to_token_stream().to_string().replace(" ", "");
+                                if path.contains("println")
+                                    || path.contains("tracing::")
+                                    || path.contains("dbg")
+                                    || path.contains("eprintln")
+                                {
+                                    if semi.is_none() {
+                                        last_expr = Some(expr);
+                                    }
                                     continue;
                                 }
                             }
@@ -176,7 +233,11 @@ impl HollowFnDetector {
                         }
                         syn::Stmt::Macro(mac) => {
                             let path = mac.mac.path.to_token_stream().to_string().replace(" ", "");
-                            if path.contains("println") || path.contains("tracing::") || path.contains("dbg") || path.contains("eprintln") {
+                            if path.contains("println")
+                                || path.contains("tracing::")
+                                || path.contains("dbg")
+                                || path.contains("eprintln")
+                            {
                                 continue;
                             }
                             meaningful_stmts += 1;
@@ -213,14 +274,17 @@ impl HollowFnDetector {
             }
         }
 
-        let mut visitor = Visitor { file, findings: &mut findings };
+        let mut visitor = Visitor {
+            file,
+            findings: &mut findings,
+        };
         visitor.visit_file(ast);
         findings
     }
 
     fn detect_typescript(&self, file: &SourceFile) -> Vec<Finding> {
         let mut findings = Vec::new();
-        
+
         let ts_hollow = [
             "return true",
             "return false",
@@ -233,7 +297,7 @@ impl HollowFnDetector {
             "return 0",
             "return",
             "return { } as any",
-            "return <> </>"
+            "return <> </>",
         ];
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -241,8 +305,10 @@ impl HollowFnDetector {
                 if let (Some(name), Some(body)) = (caps.get(1), caps.get(2)) {
                     let body_trimmed = body.as_str().trim().trim_end_matches(';').trim();
                     let mut is_hollow = ts_hollow.iter().any(|h| body_trimmed == *h);
-                    
-                    if !is_hollow && (body_trimmed == "return <></>" || body_trimmed == "return [] as any") {
+
+                    if !is_hollow
+                        && (body_trimmed == "return <></>" || body_trimmed == "return [] as any")
+                    {
                         is_hollow = true;
                     }
                     if !is_hollow && self.ts_hollow_ui_re.is_match(body_trimmed) {
@@ -292,7 +358,11 @@ impl DetectionRule for HollowFnDetector {
     fn languages(&self) -> &[Language] {
         &[Language::Rust, Language::TypeScript]
     }
-    fn detect(&self, file: &SourceFile, rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         match file.language {
             Language::Rust => self.detect_rust(file, rust_ctx),
             Language::TypeScript => self.detect_typescript(file),
@@ -313,8 +383,16 @@ mod tests {
     #[test]
     fn detects_ok_unit_hollow() {
         let d = HollowFnDetector::new();
-        let f = source("rs", "fn process_event(e: Event) -> Result<()> {\n    Ok(())\n}");
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None }; let findings = d.detect(&f, rust_ctx.as_ref());
+        let f = source(
+            "rs",
+            "fn process_event(e: Event) -> Result<()> {\n    Ok(())\n}",
+        );
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
+        let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.iter().any(|f| f.rule_id == "skeleton/hollow-fn"),
             "should detect Ok(()) hollow function"
@@ -325,7 +403,12 @@ mod tests {
     fn detects_true_hollow() {
         let d = HollowFnDetector::new();
         let f = source("rs", "fn validate(input: &str) -> bool {\n    true\n}");
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None }; let findings = d.detect(&f, rust_ctx.as_ref());
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
+        let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.iter().any(|f| f.rule_id == "skeleton/hollow-fn"),
             "should detect `true` hollow function"
@@ -336,7 +419,12 @@ mod tests {
     fn detects_vec_new_hollow() {
         let d = HollowFnDetector::new();
         let f = source("rs", "fn get_items() -> Vec<Item> {\n    Vec::new()\n}");
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None }; let findings = d.detect(&f, rust_ctx.as_ref());
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
+        let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.iter().any(|f| f.rule_id == "skeleton/hollow-fn"),
             "should detect Vec::new() hollow function"
@@ -350,7 +438,12 @@ mod tests {
             "rs",
             "fn build_config() -> Config {\n    Default::default()\n}",
         );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None }; let findings = d.detect(&f, rust_ctx.as_ref());
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
+        let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.iter().any(|f| f.rule_id == "skeleton/hollow-fn"),
             "should detect Default::default() hollow function"
@@ -364,7 +457,12 @@ mod tests {
             "rs",
             "fn build_response() -> Response {\n    Response::default()\n}",
         );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None }; let findings = d.detect(&f, rust_ctx.as_ref());
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
+        let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.iter().any(|f| f.rule_id == "skeleton/hollow-fn"),
             "should detect Response::default() hollow function"
@@ -378,7 +476,12 @@ mod tests {
             "rs",
             "impl Default for Config {\n    fn default() -> Self {\n        Default::default()\n    }\n}",
         );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None }; let findings = d.detect(&f, rust_ctx.as_ref());
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
+        let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.is_empty(),
             "should skip fn default() in Default impls"
@@ -392,7 +495,11 @@ mod tests {
             "rs",
             "impl Config {\n    pub fn new() -> Self {\n        Default::default()\n    }\n}",
         );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None };
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
         let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(findings.is_empty(), "should skip fn new() constructors");
     }
@@ -404,7 +511,11 @@ mod tests {
             "rs",
             "#[cfg(test)]\nmod tests {\n    fn helper() -> bool {\n        true\n    }\n}",
         );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None };
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
         let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(findings.is_empty(), "should skip functions in test modules");
     }
@@ -412,11 +523,12 @@ mod tests {
     #[test]
     fn skips_functions_with_real_logic() {
         let d = HollowFnDetector::new();
-        let f = source(
-            "rs",
-            "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
-        );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None };
+        let f = source("rs", "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}");
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
         let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(findings.is_empty(), "should skip functions with real logic");
     }
@@ -428,7 +540,11 @@ mod tests {
             "rs",
             "fn noop_handler(e: Event) -> Result<()> { // toestub-ignore(skeleton)\n    Ok(())\n}",
         );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None };
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
         let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(findings.is_empty(), "should skip suppressed functions");
     }
@@ -437,7 +553,11 @@ mod tests {
     fn detects_ts_hollow() {
         let d = HollowFnDetector::new();
         let f = source("ts", "function validate(input: string) { return true }");
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None };
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
         let findings = d.detect(&f, rust_ctx.as_ref());
         assert!(
             findings.iter().any(|f| f.rule_id == "skeleton/hollow-fn"),
@@ -448,13 +568,16 @@ mod tests {
     #[test]
     fn skips_ts_real_function() {
         let d = HollowFnDetector::new();
-        let f = source(
-            "ts",
-            "function add(a: number, b: number) { return a + b }",
-        );
-        let rust_ctx = if f.language == Language::Rust { Some(crate::analysis::RustFileContext::parse(&f.content)) } else { None };
+        let f = source("ts", "function add(a: number, b: number) { return a + b }");
+        let rust_ctx = if f.language == Language::Rust {
+            Some(crate::analysis::RustFileContext::parse(&f.content))
+        } else {
+            None
+        };
         let findings = d.detect(&f, rust_ctx.as_ref());
-        assert!(findings.is_empty(), "should skip TS functions with real logic");
+        assert!(
+            findings.is_empty(),
+            "should skip TS functions with real logic"
+        );
     }
 }
-

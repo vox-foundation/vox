@@ -323,6 +323,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             quotas,
             config,
             cloud,
+            db,
         } => {
             if cloud {
                 #[cfg(feature = "codex")]
@@ -350,7 +351,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 }
             }
             let _ = _global_json;
-            status::run_status(run_dir, _global_json, quotas, config).await
+            status::run_status(run_dir, _global_json, quotas, config, db).await
         }
 
         #[cfg(feature = "gpu")]

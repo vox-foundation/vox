@@ -198,8 +198,8 @@ fn latin_alias_parity_with_catalog() {
         .ancestors()
         .nth(2)
         .expect("repo root above crates/vox-cli");
-    let lib_rs = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs"))
-        .expect("read lib.rs");
+    let lib_rs =
+        read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs")).expect("read lib.rs");
     check_latin_alias_parity_with_catalog(repo_root, &lib_rs)
         .expect("T068/T069: visible_alias ↔ catalog latin_aliases parity");
 }
@@ -214,8 +214,8 @@ fn latin_english_alias_declared_in_lib() {
         .ancestors()
         .nth(2)
         .expect("repo root above crates/vox-cli");
-    let lib_rs = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs"))
-        .expect("read lib.rs");
+    let lib_rs =
+        read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs")).expect("read lib.rs");
 
     // T075: vox dei → orchestrator alias
     assert!(
@@ -238,8 +238,8 @@ fn latin_english_alias_declared_in_lib() {
 /// from the clap tree (via visible_alias the command appears in `--help` output).
 #[test]
 fn latin_aliases_appear_in_help_text() {
-    use clap::CommandFactory;
     use crate::VoxCliRoot;
+    use clap::CommandFactory;
 
     let help = VoxCliRoot::command().render_long_help().to_string();
 

@@ -47,7 +47,9 @@ impl Printer {
                 self.print_expr(expr);
                 self.out.push('\n');
             }
-            Stmt::While { condition, body, .. } => {
+            Stmt::While {
+                condition, body, ..
+            } => {
                 self.write_indent();
                 self.out.push_str("while ");
                 self.print_expr(condition);

@@ -152,7 +152,8 @@ fn probe_gpu_nvidia_smi_linux() -> Option<GpuInfo> {
     if !out.status.success() {
         return None;
     }
-    let line = String::from_utf8_lossy(&out.stdout).lines().next()?.trim();
+    let binding = String::from_utf8_lossy(&out.stdout);
+    let line = binding.lines().next()?.trim();
     if line.is_empty() {
         return None;
     }

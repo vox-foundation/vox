@@ -1,6 +1,6 @@
-use vox_skills::sandbox::{SandboxPolicy, resolve_policy};
-use vox_skills::sandbox::fallback::{FallbackError, OpenClawSidecarSandbox};
 use vox_skills::ars_shim::manifest::{SkillKind, TrustLevel};
+use vox_skills::sandbox::fallback::{FallbackError, OpenClawSidecarSandbox};
+use vox_skills::sandbox::{SandboxPolicy, resolve_policy};
 
 #[test]
 fn test_openclaw_sandbox_policy_resolution() {
@@ -18,7 +18,7 @@ async fn test_openclaw_fallback_connection_failure() {
     // Testing the OpenClaw adapter's unreachable fallback behavior.
     // Ensure that it gracefully fails and yields SidecarUnreachable instead of panicking.
     let res = OpenClawSidecarSandbox::connect().await;
-    
+
     match res {
         Err(FallbackError::SidecarUnreachable(_)) => {
             // Expected since no sidecar is running in tests
@@ -29,15 +29,19 @@ async fn test_openclaw_fallback_connection_failure() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_execute_skill_deny_by_default() {
-    use vox_skills::ars_shim::runtime::{ArsRuntime, ArsRuntimeError};
-    use vox_skills::ars_shim::domain::ArsSkill;
     use serde_json::json;
     use std::sync::Arc;
+    use vox_skills::ars_shim::domain::ArsSkill;
+    use vox_skills::ars_shim::runtime::{ArsRuntime, ArsRuntimeError};
 
-    let db = Arc::new(vox_db::VoxDb::connect(vox_db::DbConfig::Memory).await.unwrap());
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .unwrap(),
+    );
     let hooks = Arc::new(vox_skills::ars_shim::hooks::HookRegistry::new());
     let runtime = ArsRuntime::new(db, hooks);
-    
+
     let skill = ArsSkill {
         id: "test_denied_secret".into(),
         namespace: "test".into(),
@@ -56,11 +60,11 @@ async fn test_execute_skill_deny_by_default() {
     };
 
     let result = runtime.execute_skill("run-123", &skill, json!({})).await;
-    
+
     // We expect it to be unauthorized/invalid since 'FAKE_UNATHORIZED_KEY' isn't available
     assert!(
         matches!(result, Err(ArsRuntimeError::InvalidRun(_))),
-        "Expected InvalidRun error due to deny-by-default secret gating, but got {:?}", 
+        "Expected InvalidRun error due to deny-by-default secret gating, but got {:?}",
         result
     );
 }

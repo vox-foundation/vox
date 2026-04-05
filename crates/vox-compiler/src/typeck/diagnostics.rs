@@ -118,8 +118,13 @@ impl Diagnostic {
             (line, col)
         };
         let (line_start, col_start) = compute(self.span.start);
-        let (line_end, col_end)     = compute(self.span.end.min(source.len().saturating_sub(1)));
-        self.line_col = Some(LineCol { line_start, col_start, line_end, col_end });
+        let (line_end, col_end) = compute(self.span.end.min(source.len().saturating_sub(1)));
+        self.line_col = Some(LineCol {
+            line_start,
+            col_start,
+            line_end,
+            col_end,
+        });
         self
     }
     /// Build a simple error diagnostic (no type diff).
@@ -136,8 +141,8 @@ impl Diagnostic {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
-        line_col: None,
-}
+            line_col: None,
+        }
     }
 
     /// Build a simple warning diagnostic (no type diff).
@@ -154,8 +159,8 @@ impl Diagnostic {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
-        line_col: None,
-}
+            line_col: None,
+        }
     }
 
     /// HIR structural invariant violation (after lowering).
@@ -172,8 +177,8 @@ impl Diagnostic {
             category: DiagnosticCategory::HirInvariant,
             code: None,
             fixes: vec![],
-        line_col: None,
-}
+            line_col: None,
+        }
     }
 
     /// AST -> HIR lowering diagnostic surfaced through structured diagnostics.
@@ -190,8 +195,8 @@ impl Diagnostic {
             category: DiagnosticCategory::Lowering,
             code: None,
             fixes: vec![],
-        line_col: None,
-}
+            line_col: None,
+        }
     }
 
     /// Runtime/embedding contract diagnostic surfaced through structured diagnostics.
@@ -208,8 +213,8 @@ impl Diagnostic {
             category: DiagnosticCategory::RuntimeContract,
             code: None,
             fixes: vec![],
-        line_col: None,
-}
+            line_col: None,
+        }
     }
 
     /// Extract a few lines around `span` for display.

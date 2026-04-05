@@ -57,13 +57,20 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
         }
 
         // Count constructs
+        let mut count_for_record = 0u32;
         if let Some(constructs) = record.get("constructs").and_then(|v| v.as_array()) {
+            count_for_record = constructs.len() as u32;
             for c in constructs {
                 if let Some(s) = c.as_str() {
                     *construct_counts.entry(s.to_string()).or_insert(0) += 1;
                 }
             }
         }
+
+        record.as_object_mut().unwrap().insert(
+            "construct_count".to_string(),
+            serde_json::json!(count_for_record),
+        );
 
         valid.push(record);
     }
@@ -95,6 +102,46 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
         body.push('\n');
     }
     tokio::fs::write(output, body).await?;
+
+    #[cfg(feature = "database")]
+    {
+        if let Ok(db) = vox_db::VoxDb::connect_default().await {
+            for record in &deduped {
+                let hash = record
+                    .get("ast_hash")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let source = record.get("source").and_then(|v| v.as_str()).unwrap_or("");
+                // validate-batch implies successful compiler parse or generated.
+                // We map this into upsert_corpus_quality.
+                let parse_valid = true;
+                let ast_depth = record
+                    .get("difficulty")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(1) as u32;
+                let count = record
+                    .get("construct_count")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
+                let split = record
+                    .get("split")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("train");
+
+                let _ = db
+                    .upsert_corpus_quality(
+                        hash,
+                        source,
+                        parse_valid,
+                        ast_depth,
+                        count,
+                        0.0, // default reward
+                        split,
+                    )
+                    .await;
+            }
+        }
+    }
 
     // Coverage report
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();

@@ -1,20 +1,26 @@
 pub use vox_eval::*;
 
-pub mod value;
+pub mod builtins;
 pub mod env;
 pub mod expr;
 pub mod stmt;
-pub mod builtins;
+pub mod value;
 
 use crate::hir::nodes::HirModule;
-use value::VoxValue;
 use env::Scope;
+use value::VoxValue;
 
 #[derive(Debug)]
 pub enum EvalError {
     UndefinedVariable(String),
-    TypeError { expected: &'static str, found: String },
-    ArityMismatch { expected: usize, found: usize },
+    TypeError {
+        expected: &'static str,
+        found: String,
+    },
+    ArityMismatch {
+        expected: usize,
+        found: usize,
+    },
     StepLimitExceeded,
     AssertionFailed(String),
     Panic(String),
@@ -40,16 +46,16 @@ impl Interpreter {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
-                env: self.scope.clone()
+                env: self.scope.clone(),
             };
             self.scope.set(f.name.clone(), val);
         }
-        
+
         for f in &module.tests {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
-                env: self.scope.clone()
+                env: self.scope.clone(),
             };
             self.scope.set(f.name.clone(), val);
         }
@@ -58,16 +64,28 @@ impl Interpreter {
     }
 
     pub fn call(&mut self, name: &str, args: Vec<VoxValue>) -> Result<VoxValue, EvalError> {
-        let val = self.scope.get(name).cloned().ok_or_else(|| EvalError::UndefinedVariable(name.to_string()))?;
-        if let VoxValue::Fn { params, body, mut env } = val {
+        let val = self
+            .scope
+            .get(name)
+            .cloned()
+            .ok_or_else(|| EvalError::UndefinedVariable(name.to_string()))?;
+        if let VoxValue::Fn {
+            params,
+            body,
+            mut env,
+        } = val
+        {
             if params.len() != args.len() {
-                return Err(EvalError::ArityMismatch { expected: params.len(), found: args.len() });
+                return Err(EvalError::ArityMismatch {
+                    expected: params.len(),
+                    found: args.len(),
+                });
             }
             env.push_frame();
             for (p, arg) in params.iter().zip(args) {
                 env.set(p.clone(), arg);
             }
-            
+
             // Temporary variable to hold the old scope context
             let old_scope = self.scope.clone();
             self.scope = env;
@@ -84,7 +102,10 @@ impl Interpreter {
             self.scope = old_scope;
             Ok(res)
         } else {
-            Err(EvalError::TypeError { expected: "function", found: "other".into() })
+            Err(EvalError::TypeError {
+                expected: "function",
+                found: "other".into(),
+            })
         }
     }
 

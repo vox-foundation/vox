@@ -135,9 +135,9 @@ impl Orchestrator {
         let context_raw = store.get(&context_key);
         drop(store);
 
-        let parsed = context_raw.as_ref().and_then(|raw| {
-            serde_json::from_str::<crate::ContextEnvelope>(raw).ok()
-        });
+        let parsed = context_raw
+            .as_ref()
+            .and_then(|raw| serde_json::from_str::<crate::ContextEnvelope>(raw).ok());
 
         let Some(context_envelope) = parsed else {
             return false;

@@ -25,11 +25,11 @@ pub async fn classify_models(models: &mut [ModelSpec]) {
     if std::env::var(CLASSIFIER_ENABLED_ENV).unwrap_or_else(|_| "1".to_string()) == "0" {
         return;
     }
-    
+
     // Simulate API batch processing: in a real implementation we would send batch requests
     // to `OpenRouter/auto` asking an LLM to evaluate the metadata of `models` and return JSON.
     // Here we inject an uptime score based on the provider string as a stand-in for the classifier.
-    
+
     for m in models.iter_mut() {
         // Only classify if it doesn't already have an uptime score from the catalog.
         if m.capabilities.uptime_score.is_none() {
@@ -44,7 +44,7 @@ pub async fn classify_models(models: &mut [ModelSpec]) {
             };
             m.capabilities.uptime_score = Some(health);
         }
-        
+
         // Meta-classification: if model is extremely large context, tag as 'long-context-analysis'
         if m.max_tokens >= 128_000 && !m.strengths.contains(&"long-context".to_string()) {
             m.strengths.push("long-context".to_string());

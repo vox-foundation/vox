@@ -549,8 +549,6 @@ pub struct HirMcpResource {
     pub func: HirFn,
 }
 
-
-
 /// A property-based `@forall` test.
 #[derive(Debug, Clone)]
 pub struct HirForall {

@@ -1,6 +1,6 @@
-use crate::hir::nodes::{HirExpr, HirBinOp, HirUnOp};
 use super::value::VoxValue;
-use super::{Interpreter, EvalError};
+use super::{EvalError, Interpreter};
+use crate::hir::nodes::{HirBinOp, HirExpr, HirUnOp};
 
 pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
@@ -40,7 +40,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let mut val = VoxValue::Null;
             for stmt in stmts {
                 val = super::stmt::eval_stmt(interp, stmt)?;
-                if matches!(val, VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Continue) {
+                if matches!(
+                    val,
+                    VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Continue
+                ) {
                     break;
                 }
             }
@@ -50,11 +53,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         HirExpr::Binary(op, left, right, _) => {
             let l = eval_expr(interp, left)?;
             if *op == HirBinOp::And {
-                if let VoxValue::Bool(false) = l { return Ok(VoxValue::Bool(false)); }
+                if let VoxValue::Bool(false) = l {
+                    return Ok(VoxValue::Bool(false));
+                }
                 return eval_expr(interp, right);
             }
             if *op == HirBinOp::Or {
-                if let VoxValue::Bool(true) = l { return Ok(VoxValue::Bool(true)); }
+                if let VoxValue::Bool(true) = l {
+                    return Ok(VoxValue::Bool(true));
+                }
                 return eval_expr(interp, right);
             }
             let r = eval_expr(interp, right)?;
@@ -70,16 +77,30 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b)),
                 (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b)),
                 (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a >= b)),
-                (HirBinOp::Add, VoxValue::Str(a), VoxValue::Str(b)) => Ok(VoxValue::Str(format!("{}{}", a, b))),
-                (HirBinOp::Add, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a + b)),
-                (HirBinOp::Sub, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a - b)),
-                (HirBinOp::Mul, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a * b)),
-                (HirBinOp::Div, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a / b)),
+                (HirBinOp::Add, VoxValue::Str(a), VoxValue::Str(b)) => {
+                    Ok(VoxValue::Str(format!("{}{}", a, b)))
+                }
+                (HirBinOp::Add, VoxValue::Float(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a + b))
+                }
+                (HirBinOp::Sub, VoxValue::Float(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a - b))
+                }
+                (HirBinOp::Mul, VoxValue::Float(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a * b))
+                }
+                (HirBinOp::Div, VoxValue::Float(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a / b))
+                }
                 (HirBinOp::Lt, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Bool(a < b)),
                 (HirBinOp::Gt, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Bool(a > b)),
-                (HirBinOp::Lte, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Bool(a <= b)),
-                (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Float(b)) => Ok(VoxValue::Bool(a >= b)),
-                _ => Ok(VoxValue::Null)
+                (HirBinOp::Lte, VoxValue::Float(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool(a <= b))
+                }
+                (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool(a >= b))
+                }
+                _ => Ok(VoxValue::Null),
             }
         }
         HirExpr::Unary(op, inner, _) => {
@@ -88,21 +109,29 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirUnOp::Not, VoxValue::Bool(b)) => Ok(VoxValue::Bool(!b)),
                 (HirUnOp::Neg, VoxValue::Int(n)) => Ok(VoxValue::Int(-n)),
                 (HirUnOp::Neg, VoxValue::Float(f)) => Ok(VoxValue::Float(-f)),
-                _ => Ok(VoxValue::Null)
+                _ => Ok(VoxValue::Null),
             }
         }
         HirExpr::If(cond, then_b, else_b, _) => {
             let c = eval_expr(interp, cond)?;
             let b = match c {
                 VoxValue::Bool(b) => b,
-                _ => return Err(EvalError::TypeError { expected: "bool", found: "other".into() })
+                _ => {
+                    return Err(EvalError::TypeError {
+                        expected: "bool",
+                        found: "other".into(),
+                    });
+                }
             };
             if b {
                 interp.scope.push_frame();
                 let mut val = VoxValue::Null;
                 for stmt in then_b {
                     val = super::stmt::eval_stmt(interp, stmt)?;
-                    if matches!(val, VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Continue) {
+                    if matches!(
+                        val,
+                        VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Continue
+                    ) {
                         break;
                     }
                 }
@@ -113,7 +142,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 let mut val = VoxValue::Null;
                 for stmt in el_b {
                     val = super::stmt::eval_stmt(interp, stmt)?;
-                    if matches!(val, VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Continue) {
+                    if matches!(
+                        val,
+                        VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Continue
+                    ) {
                         break;
                     }
                 }
@@ -124,11 +156,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
         }
         HirExpr::Lambda(params, _, body, _) => {
-            let b = vec![crate::hir::nodes::HirStmt::Expr { expr: *body.clone(), span: crate::ast::span::Span::new(0, 0) }];
+            let b = vec![crate::hir::nodes::HirStmt::Expr {
+                expr: *body.clone(),
+                span: crate::ast::span::Span::new(0, 0),
+            }];
             Ok(VoxValue::Fn {
                 params: params.iter().map(|p| p.name.clone()).collect(),
                 body: b,
-                env: interp.scope.clone()
+                env: interp.scope.clone(),
             })
         }
         HirExpr::Call(callee, args, _, _) => {
@@ -139,7 +174,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // Try global built-in first when callee is a bare identifier
             if let HirExpr::Ident(name, _) = callee.as_ref() {
                 if interp.scope.get(name).is_none() {
-                    if let Some(result) = super::builtins::call_global_builtin(name, eval_args.clone()) {
+                    if let Some(result) =
+                        super::builtins::call_global_builtin(name, eval_args.clone())
+                    {
                         return Ok(result);
                     } else if matches!(name.as_str(), "assert") {
                         // assert returning None means failure
@@ -149,12 +186,16 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
             let c = eval_expr(interp, callee)?;
             match c {
-                VoxValue::Fn { params, body, mut env } => {
+                VoxValue::Fn {
+                    params,
+                    body,
+                    mut env,
+                } => {
                     env.push_frame();
                     for (p, arg) in params.iter().zip(eval_args) {
                         env.set(p.clone(), arg);
                     }
-                    
+
                     let old_scope = interp.scope.clone();
                     interp.scope = env;
 
@@ -173,7 +214,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope = old_scope;
                     Ok(val)
                 }
-                _ => Err(EvalError::TypeError { expected: "function", found: "other".into() })
+                _ => Err(EvalError::TypeError {
+                    expected: "function",
+                    found: "other".into(),
+                }),
             }
         }
         HirExpr::MethodCall(obj, method, args, _) => {
@@ -185,7 +229,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             if let Some(r) = super::builtins::call_builtin_method(&o, method, eval_args) {
                 Ok(r)
             } else {
-                Err(EvalError::AssertionFailed(format!("Method {} not found", method)))
+                Err(EvalError::AssertionFailed(format!(
+                    "Method {} not found",
+                    method
+                )))
             }
         }
         HirExpr::Match(subject, arms, _) => {
@@ -223,9 +270,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 interp.scope.pop_frame();
                 Ok(VoxValue::List(results))
             } else {
-                Err(EvalError::TypeError { expected: "List", found: "other".into() })
+                Err(EvalError::TypeError {
+                    expected: "List",
+                    found: "other".into(),
+                })
             }
         }
-        _ => Ok(VoxValue::Null)
+        _ => Ok(VoxValue::Null),
     }
 }

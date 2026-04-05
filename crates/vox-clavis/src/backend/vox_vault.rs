@@ -26,8 +26,12 @@ impl VoxCloudBackend {
 
         let conn: turso::Connection = rt.block_on(async {
             if db_url.starts_with("file:") {
-                let db = turso::Builder::new_local(&db_url).build().await.map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))?;
-                db.connect().map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))
+                let db = turso::Builder::new_local(&db_url)
+                    .build()
+                    .await
+                    .map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))?;
+                db.connect()
+                    .map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))
             } else {
                 let db = turso::sync::Builder::new_remote(":memory:")
                     .with_remote_url(&db_url)
@@ -35,7 +39,9 @@ impl VoxCloudBackend {
                     .build()
                     .await
                     .map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))?;
-                db.connect().await.map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))
+                db.connect()
+                    .await
+                    .map_err(|e: turso::Error| SecretError::BackendMisconfigured(e.to_string()))
             }
         })?;
 
@@ -70,7 +76,7 @@ impl VoxCloudBackend {
         let mut nonce_bytes = [0u8; 12];
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
-        
+
         let ciphertext = cipher
             .encrypt(nonce, plaintext.as_bytes())
             .map_err(|e| SecretError::BackendUnavailable(format!("Encryption failed: {}", e)))?;
@@ -89,7 +95,7 @@ impl VoxCloudBackend {
             .await
             .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))
         })?;
-        
+
         Ok(())
     }
 }
@@ -134,9 +140,9 @@ impl SecretBackend for VoxCloudBackend {
                 let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&self.master_key));
                 let nonce = Nonce::from_slice(&nonce_bytes);
 
-                let plaintext = cipher
-                    .decrypt(nonce, ciphertext.as_ref())
-                    .map_err(|e| SecretError::BackendQueryFailed(format!("Decryption failed: {}", e)))?;
+                let plaintext = cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|e| {
+                    SecretError::BackendQueryFailed(format!("Decryption failed: {}", e))
+                })?;
                 Ok(Some(plaintext))
             } else {
                 Ok(None)

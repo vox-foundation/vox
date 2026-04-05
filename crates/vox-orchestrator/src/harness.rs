@@ -203,7 +203,8 @@ impl AgentHarnessSpec {
                 },
                 HarnessRole {
                     role_id: "worker".to_string(),
-                    prompt_purpose: "Perform substantive task work within declared scope.".to_string(),
+                    prompt_purpose: "Perform substantive task work within declared scope."
+                        .to_string(),
                     responsibilities: vec![
                         "Produce required artifacts.".to_string(),
                         "Return evidence needed for completion.".to_string(),
@@ -408,7 +409,10 @@ pub fn validate_agent_harness_ingest(
             errors.push(format!("role {:?} prompt_purpose is empty", role.role_id));
         }
         if role.responsibilities.is_empty() {
-            errors.push(format!("role {:?} must declare responsibilities", role.role_id));
+            errors.push(format!(
+                "role {:?} must declare responsibilities",
+                role.role_id
+            ));
         }
     }
 
@@ -515,13 +519,8 @@ mod tests {
 
     #[test]
     fn defaults_fill_missing_subject_continuity() {
-        let mut harness = AgentHarnessSpec::minimal_contract_first(
-            "repo-fill",
-            "Fill defaults",
-            None,
-            None,
-            &[],
-        );
+        let mut harness =
+            AgentHarnessSpec::minimal_contract_first("repo-fill", "Fill defaults", None, None, &[]);
         harness.subject.repository_id.clear();
         apply_harness_subject_defaults(
             &mut harness,

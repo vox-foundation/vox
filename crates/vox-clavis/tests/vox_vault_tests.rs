@@ -1,6 +1,6 @@
 use secrecy::ExposeSecret;
-use vox_clavis::backend::vox_vault::VoxCloudBackend;
 use vox_clavis::backend::SecretBackend;
+use vox_clavis::backend::vox_vault::VoxCloudBackend;
 use vox_clavis::spec::{SecretId, SecretSpec};
 
 #[test]
@@ -27,14 +27,17 @@ fn test_vox_vault_encryption_decryption_cycle() {
     };
 
     let plaintext = "vox_vault_test_secret_12345";
-    
+
     // Test write
-    backend.write_secret("FAKE_TARGET_TEST", plaintext).expect("failed to write secret to vault");
+    backend
+        .write_secret("FAKE_TARGET_TEST", plaintext)
+        .expect("failed to write secret to vault");
 
     // Test read
-    let resolved = backend.resolve(SecretId::CustomOpenAiApiKey, spec)
+    let resolved = backend
+        .resolve(SecretId::CustomOpenAiApiKey, spec)
         .expect("failed to resolve secret from vault")
         .expect("secret not found after write");
-    
+
     assert_eq!(resolved.expose_secret(), plaintext);
 }

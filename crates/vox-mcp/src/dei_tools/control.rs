@@ -112,13 +112,10 @@ pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -
     {
         Ok(count) => ToolResult::ok(format!(
             "Drained {} tasks from agent {}",
-            count,
-            params.agent_id
+            count, params.agent_id
         ))
         .to_json(),
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(e, REM_ORCH_TASK).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_ORCH_TASK).to_json(),
     }
 }
 
@@ -361,9 +358,7 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
             ));
         }
         (_, Some(err)) => {
-            honest_message.push_str(&format!(
-                " External orch.status RPC failed: {err}"
-            ));
+            honest_message.push_str(&format!(" External orch.status RPC failed: {err}"));
         }
         _ => {}
     }

@@ -27,7 +27,10 @@ pub fn resolve_openrouter_model(preferred: Option<String>) -> String {
         AutoModelStrategy::PreferredModel => preferred
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| {
-                tracing::warn!("PreferredModel strategy active but no model specified. Falling back to {}.", crate::OPENROUTER_AUTO);
+                tracing::warn!(
+                    "PreferredModel strategy active but no model specified. Falling back to {}.",
+                    crate::OPENROUTER_AUTO
+                );
                 crate::OPENROUTER_AUTO.to_string()
             }),
     }

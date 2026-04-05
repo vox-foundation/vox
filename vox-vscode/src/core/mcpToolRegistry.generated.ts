@@ -205,6 +205,7 @@ export const MCP_CANONICAL_TOOL_NAMES = [
     "vox_session_list",
     "vox_session_reset",
     "vox_set_active_model",
+    "vox_set_agent_budget",
     "vox_set_context",
     "vox_set_model",
     "vox_skill_info",

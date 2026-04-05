@@ -98,6 +98,7 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
 
   const [agentControlId, setAgentControlId] = useState(0);
   const [manualId, setManualId] = useState('');
+  const [budgetUsd, setBudgetUsd] = useState(0);
 
   useEffect(() => {
     if (numericIds.length > 0 && !numericIds.includes(agentControlId)) {
@@ -261,6 +262,27 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
             >
               Retire
             </button>
+          </div>
+          <div className="flex flex-col gap-1 mt-2 border-t border-white/5 pt-2">
+            <label className="text-[9px] text-zinc-500">Override Agent Dollar Cap ($)</label>
+            <div className="flex items-center gap-2">
+              <input
+                className="text-[11px] bg-zinc-900 border border-white/10 rounded px-2 py-1 text-zinc-200 w-full"
+                placeholder="e.g. 5.00"
+                type="number"
+                step="0.01"
+                onChange={(e) => setBudgetUsd(parseFloat(e.target.value))}
+              />
+              <button
+                type="button"
+                disabled={!canSend || isNaN(budgetUsd)}
+                className={lifecycleBtn}
+                style={btnStyle}
+                onClick={() => canSend && !isNaN(budgetUsd) && vscode.postMessage({ type: 'setAgentBudget', agentId: resolvedAgentId, maxCostUsd: budgetUsd })}
+              >
+                Set
+              </button>
+            </div>
           </div>
         </Panel>
         <Panel position="top-left" className="glass p-4 rounded-xl border border-white/5 flex flex-col gap-3">

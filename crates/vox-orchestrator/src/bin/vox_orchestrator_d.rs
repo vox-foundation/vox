@@ -51,9 +51,7 @@ async fn main() -> anyhow::Result<()> {
         .try_init();
 
     let bind_raw = std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET").map_err(|_| {
-        anyhow::anyhow!(
-            "VOX_ORCHESTRATOR_DAEMON_SOCKET is required (e.g. 127.0.0.1:9745 or stdio)"
-        )
+        anyhow::anyhow!("VOX_ORCHESTRATOR_DAEMON_SOCKET is required (e.g. 127.0.0.1:9745 or stdio)")
     })?;
 
     let cfg = load_config();
@@ -89,14 +87,8 @@ async fn main() -> anyhow::Result<()> {
         Arc::clone(&populi_remote_snapshot),
         Arc::clone(&populi_poll_join),
     );
-    a2a::spawn_populi_remote_result_poller(
-        orch.clone(),
-        Arc::new(Mutex::new(None)),
-    );
-    a2a::spawn_populi_remote_worker_poller(
-        orch.clone(),
-        Arc::new(Mutex::new(None)),
-    );
+    a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
+    a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
     orchestrator_event_log::spawn_orchestrator_event_log_sink(orch.clone(), None);
     if let Some(db) = db_holder.as_ref() {
         clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
@@ -105,6 +97,7 @@ async fn main() -> anyhow::Result<()> {
             Arc::new(Mutex::new(None)),
         );
     }
+    vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
 
     if orch_daemon::is_stdio_transport(&bind_raw) {
         return orch_daemon::run_stdio_server(repository_id, orch).await;

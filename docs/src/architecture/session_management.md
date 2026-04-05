@@ -1,3 +1,12 @@
+---
+title: "Vox Session Management"
+description: "Persistent conversation history, metadata, and state management across agent interactions."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Session Management
 
 Sessions allow agents to maintain persistent conversation history, metadata, and state across interactions.

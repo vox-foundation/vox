@@ -166,22 +166,37 @@ pub(crate) fn render_markdown(src: &str) -> String {
         }
 
         // ── List items ───────────────────────────────────────────────────────
-        if let Some(rest) = trimmed.strip_prefix("- [x] ").or(trimmed.strip_prefix("- [X] ")) {
-            let marker = if c { "  ✓ ".green().to_string() } else { "  ✓ ".to_string() };
+        if let Some(rest) = trimmed
+            .strip_prefix("- [x] ")
+            .or(trimmed.strip_prefix("- [X] "))
+        {
+            let marker = if c {
+                "  ✓ ".green().to_string()
+            } else {
+                "  ✓ ".to_string()
+            };
             out.push_str(&marker);
             out.push_str(&render_inline_code(rest, c));
             out.push('\n');
             continue;
         }
         if let Some(rest) = trimmed.strip_prefix("- [ ] ") {
-            let marker = if c { "  ○ ".dimmed().to_string() } else { "  ○ ".to_string() };
+            let marker = if c {
+                "  ○ ".dimmed().to_string()
+            } else {
+                "  ○ ".to_string()
+            };
             out.push_str(&marker);
             out.push_str(&render_inline_code(rest, c));
             out.push('\n');
             continue;
         }
         if let Some(rest) = trimmed.strip_prefix("- ").or(trimmed.strip_prefix("* ")) {
-            let marker = if c { "  • ".cyan().to_string() } else { "  • ".to_string() };
+            let marker = if c {
+                "  • ".cyan().to_string()
+            } else {
+                "  • ".to_string()
+            };
             out.push_str(&marker);
             out.push_str(&render_inline_code(rest, c));
             out.push('\n');
@@ -330,17 +345,26 @@ mod tests {
     fn code_block_no_ansi_when_color_off() {
         // Should only contain printable ASCII + box-drawing chars, no ESC sequences.
         let rendered = render_code_block("rust", "fn main() {}");
-        assert!(!rendered.contains('\x1b'), "unexpected ANSI in: {rendered:?}");
+        assert!(
+            !rendered.contains('\x1b'),
+            "unexpected ANSI in: {rendered:?}"
+        );
         assert!(rendered.contains("┌"), "missing top border");
         assert!(rendered.contains("└"), "missing bottom border");
-        assert!(rendered.contains("    fn main() {}"), "missing indented code");
+        assert!(
+            rendered.contains("    fn main() {}"),
+            "missing indented code"
+        );
     }
 
     #[test]
     fn render_markdown_indents_code_fence() {
         let md = "Here is some code:\n\n```rust\nfn foo() {}\n```\n\nDone.";
         let out = render_markdown(md);
-        assert!(out.contains("    fn foo() {}"), "code not indented in:\n{out}");
+        assert!(
+            out.contains("    fn foo() {}"),
+            "code not indented in:\n{out}"
+        );
         assert!(!out.contains("```"), "raw fence leaked into output:\n{out}");
     }
 

@@ -854,7 +854,7 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         SecretId::VoxZenodoAccessToken
         | SecretId::VoxOpenReviewEmail
         | SecretId::VoxOpenReviewPassword
-        |         SecretId::VoxCrossrefPlusApiKey
+        | SecretId::VoxCrossrefPlusApiKey
         | SecretId::VoxArxivAssistHandoffSecret => &[Capability::ScholarlyPublication],
         SecretId::VoxSearchQdrantApiKey
         | SecretId::PopuliApiKey

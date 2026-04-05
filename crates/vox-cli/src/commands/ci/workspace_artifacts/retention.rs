@@ -167,7 +167,9 @@ pub(crate) fn plan_mens_run_deletions(
     let protected_names: HashSet<String> = policy.protected_names.iter().cloned().collect();
 
     let mut rows: Vec<MensRunRow> = Vec::new();
-    for entry in fs::read_dir(&runs_root).with_context(|| format!("read {}", runs_root.display()))? {
+    for entry in
+        fs::read_dir(&runs_root).with_context(|| format!("read {}", runs_root.display()))?
+    {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().to_string();
         if name == "latest" {
@@ -290,7 +292,11 @@ fn collect_stale_rename_under(dir: &Path, max_depth: usize) -> Vec<PathBuf> {
     if !dir.is_dir() {
         return out;
     }
-    for e in WalkDir::new(dir).max_depth(max_depth).into_iter().filter_map(Result::ok) {
+    for e in WalkDir::new(dir)
+        .max_depth(max_depth)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         if e.path_is_symlink() {
             continue;
         }
@@ -316,7 +322,10 @@ pub(crate) fn path_allowed_for_prune(path: &Path, root: &Path) -> bool {
     if artifact_policy::is_allowed_artifact_path(path, root) {
         return true;
     }
-    if repo_root_stale_target_dirs(root).iter().any(|p| path.starts_with(p)) {
+    if repo_root_stale_target_dirs(root)
+        .iter()
+        .any(|p| path.starts_with(p))
+    {
         return true;
     }
     if let (Some(parent), Some(name)) = (path.parent(), path.file_name().and_then(|s| s.to_str())) {

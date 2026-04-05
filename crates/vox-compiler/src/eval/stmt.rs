@@ -1,8 +1,12 @@
-use crate::hir::nodes::{HirStmt, HirPattern, HirExpr};
 use super::value::VoxValue;
-use super::{Interpreter, EvalError};
+use super::{EvalError, Interpreter};
+use crate::hir::nodes::{HirExpr, HirPattern, HirStmt};
 
-pub fn eval_pattern(interp: &mut Interpreter, pattern: &HirPattern, value: VoxValue) -> Result<(), EvalError> {
+pub fn eval_pattern(
+    interp: &mut Interpreter,
+    pattern: &HirPattern,
+    value: VoxValue,
+) -> Result<(), EvalError> {
     match pattern {
         HirPattern::Ident(name, _) => {
             interp.scope.set(name.clone(), value);
@@ -17,10 +21,16 @@ pub fn eval_pattern(interp: &mut Interpreter, pattern: &HirPattern, value: VoxVa
                     }
                     Ok(())
                 } else {
-                    Err(EvalError::TypeError { expected: "Tuple of same length", found: "Tuple".into() })
+                    Err(EvalError::TypeError {
+                        expected: "Tuple of same length",
+                        found: "Tuple".into(),
+                    })
                 }
             } else {
-                Err(EvalError::TypeError { expected: "Tuple", found: "other".into() })
+                Err(EvalError::TypeError {
+                    expected: "Tuple",
+                    found: "other".into(),
+                })
             }
         }
         HirPattern::Constructor(_, _, _) => {
@@ -31,7 +41,9 @@ pub fn eval_pattern(interp: &mut Interpreter, pattern: &HirPattern, value: VoxVa
             if lit_val == value {
                 Ok(())
             } else {
-                Err(EvalError::AssertionFailed("Pattern match literal mismatched".into()))
+                Err(EvalError::AssertionFailed(
+                    "Pattern match literal mismatched".into(),
+                ))
             }
         }
     }
@@ -63,13 +75,20 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
             }
             Ok(VoxValue::Null)
         }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             loop {
                 let c = super::expr::eval_expr(interp, condition)?;
                 if let VoxValue::Bool(b) = c {
-                    if !b { break; }
+                    if !b {
+                        break;
+                    }
                 } else {
-                    return Err(EvalError::TypeError { expected: "bool", found: "other".into() });
+                    return Err(EvalError::TypeError {
+                        expected: "bool",
+                        found: "other".into(),
+                    });
                 }
                 interp.scope.push_frame();
                 for s in body {
@@ -91,26 +110,24 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
             }
             Ok(VoxValue::Null)
         }
-        HirStmt::Loop { body, .. } => {
-            loop {
-                interp.scope.push_frame();
-                for s in body {
-                    let v = eval_stmt(interp, s)?;
-                    match v {
-                        VoxValue::_Break => {
-                            interp.scope.pop_frame();
-                            return Ok(VoxValue::Null);
-                        }
-                        VoxValue::_Continue => break,
-                        VoxValue::_Return(r) => {
-                            interp.scope.pop_frame();
-                            return Ok(VoxValue::_Return(r));
-                        }
-                        _ => {}
+        HirStmt::Loop { body, .. } => loop {
+            interp.scope.push_frame();
+            for s in body {
+                let v = eval_stmt(interp, s)?;
+                match v {
+                    VoxValue::_Break => {
+                        interp.scope.pop_frame();
+                        return Ok(VoxValue::Null);
                     }
+                    VoxValue::_Continue => break,
+                    VoxValue::_Return(r) => {
+                        interp.scope.pop_frame();
+                        return Ok(VoxValue::_Return(r));
+                    }
+                    _ => {}
                 }
-                interp.scope.pop_frame();
             }
-        }
+            interp.scope.pop_frame();
+        },
     }
 }

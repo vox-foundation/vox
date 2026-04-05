@@ -7,8 +7,14 @@ use vox_orchestrator::OrchestratorConfig;
 async fn test_a2a_mcp_roundtrip() {
     let config = OrchestratorConfig::for_testing();
     let state = ServerState::new(config);
-    let sender = state.orchestrator.spawn_agent("a2a-mcp-snd").expect("spawn sender");
-    let receiver = state.orchestrator.spawn_agent("a2a-mcp-rcv").expect("spawn receiver");
+    let sender = state
+        .orchestrator
+        .spawn_agent("a2a-mcp-snd")
+        .expect("spawn sender");
+    let receiver = state
+        .orchestrator
+        .spawn_agent("a2a-mcp-rcv")
+        .expect("spawn receiver");
 
     let send_req = serde_json::json!({
         "sender_id": sender.0,
@@ -62,7 +68,10 @@ async fn test_a2a_mcp_roundtrip() {
         .await
         .unwrap();
     let inbox2: serde_json::Value = serde_json::from_str(&inbox_resp2).expect("inbox2 json");
-    let pending = inbox2["data"]["messages"].as_array().map(Vec::len).unwrap_or(0);
+    let pending = inbox2["data"]["messages"]
+        .as_array()
+        .map(Vec::len)
+        .unwrap_or(0);
     assert_eq!(pending, 0, "inbox should be empty after ack: {inbox_resp2}");
 
     let history_req = serde_json::json!({

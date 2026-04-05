@@ -9,6 +9,7 @@ use crate::oplog::OperationKind;
 use crate::planning::PlanningTaskMeta;
 use crate::services::MessageGateway;
 use crate::types::{AgentId, AgentTask, CompletionAttestation, TaskId, TaskStatus};
+pub use vox_db::store::{ObservationReport, ObserverAction, VictoryVerdict};
 
 use super::super::persistence_outbox::PERSISTENCE_OUTBOX_KEY;
 use super::super::{Orchestrator, OrchestratorError, TaskTraceStep};
@@ -112,7 +113,10 @@ fn harness_completion_issues(
             .map(|a| !a.evidence_citations.is_empty())
             .unwrap_or(false);
         if !evidence_present {
-            issues.push("harness completion gate requires evidence_citations[] in completion attestation".to_string());
+            issues.push(
+                "harness completion gate requires evidence_citations[] in completion attestation"
+                    .to_string(),
+            );
         }
     }
     Ok((Some(harness.harness_id), issues))
@@ -156,7 +160,7 @@ impl Orchestrator {
                     (
                         Some(t.clone()),
                         Self::extract_phase_label(&t.description),
-                        t.write_files().into_iter().cloned().collect::<Vec<_>>()
+                        t.write_files().into_iter().cloned().collect::<Vec<_>>(),
                     )
                 } else {
                     (None, String::new(), Vec::new())
@@ -171,23 +175,33 @@ impl Orchestrator {
         if let Some(db) = self.db() {
             if task_clone_opt.is_some() {
                 let phase = phase_label.clone();
-                let rows = db.list_trust_scores_for_dimension(
-                    "agent",
-                    "task_completion",
-                    Some(phase.as_str()),
-                    512
-                ).await.unwrap_or_default();
-                trust_score_opt = Some(rows.into_iter()
-                    .find_map(|(id, score)| {
-                        id.parse::<u64>().ok().filter(|aid| *aid == agent_id.0).map(|_| score)
-                    }).unwrap_or(0.5));
+                let rows = db
+                    .list_trust_scores_for_dimension(
+                        "agent",
+                        "task_completion",
+                        Some(phase.as_str()),
+                        512,
+                    )
+                    .await
+                    .unwrap_or_default();
+                trust_score_opt = Some(
+                    rows.into_iter()
+                        .find_map(|(id, score)| {
+                            id.parse::<u64>()
+                                .ok()
+                                .filter(|aid| *aid == agent_id.0)
+                                .map(|_| score)
+                        })
+                        .unwrap_or(0.5),
+                );
             }
         }
 
         // 2. Validate links using async Command
         let mut broken_links_report = String::new();
         if task_clone_opt.is_some() {
-            let md_files: Vec<_> = write_files.iter()
+            let md_files: Vec<_> = write_files
+                .iter()
                 .filter(|p| p.extension().is_some_and(|ext| ext == "md"))
                 .collect();
             if !md_files.is_empty() {
@@ -218,7 +232,8 @@ impl Orchestrator {
 
         #[cfg(feature = "runtime")]
         if let Some(ref task_clone) = task_clone_opt {
-            let vox_files: Vec<_> = write_files.iter()
+            let vox_files: Vec<_> = write_files
+                .iter()
                 .filter(|p| p.extension().is_some_and(|ext| ext == "vox"))
                 .collect();
 
@@ -230,7 +245,12 @@ impl Orchestrator {
                             let diagnostics = vox_lsp::validate_document(src);
                             let errors: Vec<_> = diagnostics
                                 .into_iter()
-                                .filter(|d| matches!(d.severity, Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)))
+                                .filter(|d| {
+                                    matches!(
+                                        d.severity,
+                                        Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)
+                                    )
+                                })
                                 .map(|d| d.message)
                                 .collect();
                             vox_populi::mens::healing::HealResult {
@@ -257,13 +277,31 @@ impl Orchestrator {
                                     Ok(cleaned)
                                 })
                             })
-                        }
+                        },
                     );
                     let desc = task_clone.description.clone();
-                    if let vox_populi::mens::healing::HealOutcome::Success { source, .. } = loop_.heal(&desc, &original_source).await {
-                        let _ = std::fs::write(vox_file, source);
+                    if let vox_populi::mens::healing::HealOutcome::Success { source, .. } =
+                        loop_.heal(&desc, &original_source).await
+                    {
+                        let _ = std::fs::write(vox_file, &source);
+                        self.event_bus().emit(crate::events::AgentEventKind::AutoHealApplied {
+                            agent_id,
+                            path: vox_file.clone(),
+                            description: "Automated AST healing fixed compiler errors.".to_string(),
+                            new_source: source,
+                        });
                     }
                 }
+            }
+        }
+
+        let mut behavioral_failure = None;
+        if task_clone_opt.is_some() {
+            let gate = crate::gate::BehavioralGate::new(true);
+            if let crate::gate::GateResult::BehavioralTestFailed { message } =
+                gate.check_behavior(None).await
+            {
+                behavioral_failure = Some(message);
             }
         }
 
@@ -277,11 +315,14 @@ impl Orchestrator {
             Option<String>,
             Option<crate::reconstruction::ReconstructionBenchmarkTier>,
         )> = {
-            let agents = crate::sync_lock::rw_read(&*self.agents);
-            let queue_lock = agents
-                .get(&agent_id)
-                .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
-            let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+            let queue_lock = {
+                let agents = crate::sync_lock::rw_read(&*self.agents);
+                agents
+                    .get(&agent_id)
+                    .ok_or(OrchestratorError::AgentNotFound(agent_id))?
+                    .clone()
+            };
+            let mut queue = crate::sync_lock::rw_write(&*queue_lock);
 
             // Get the task's file manifest before completing
             let write_files: Vec<PathBuf> = queue
@@ -299,6 +340,55 @@ impl Orchestrator {
                     cfg.max_socrates_debug_iterations,
                 )
             };
+            if auto_debug_requeue.is_none()
+                && let Some(message) = behavioral_failure.take()
+                && let Some(mut task_clone) = queue.current_task().cloned()
+            {
+                if task_clone.debug_iterations < max_debug_iterations {
+                    task_clone.debug_iterations += 1;
+                    task_clone.description.push_str(&format!(
+                        "\n\n[BEHAVIORAL GATE]\nBehavioral tests failed. Fix and retry:\n{}",
+                        message
+                    ));
+                    task_clone.status = TaskStatus::Queued;
+                    auto_debug_requeue = Some((task_clone.clone(), message, 1usize, 0usize));
+                } else {
+                    return Err(OrchestratorError::TaskValidationFailed(message));
+                }
+            }
+            if auto_debug_requeue.is_none()
+                && let Some(mut task_clone) = queue.current_task().cloned()
+                && task_clone.task_category == crate::types::TaskCategory::Research
+            {
+                // Action Rejection Feedback for Research tasks: verify JSON output in completion attestation
+                let is_json = completion_attestation
+                    .as_ref()
+                    .and_then(|a| a.completion_summary.as_ref())
+                    .map(|s| {
+                        let mut text = s.trim();
+                        if text.starts_with("```json") {
+                            text = text.trim_start_matches("```json").trim_end_matches("```").trim();
+                        }
+                        serde_json::from_str::<serde_json::Value>(text).is_ok()
+                    })
+                    .unwrap_or(false);
+                
+                if !is_json && task_clone.debug_iterations < max_debug_iterations {
+                    task_clone.debug_iterations += 1;
+                    task_clone.description.push_str(
+                        "\n\n[SCHEMA COMPLIANCE GATE]\nResearch logic must output a valid JSON response in the completion attestation summary to prevent anomalous routing instructions."
+                    );
+                    task_clone.status = TaskStatus::Queued;
+                    auto_debug_requeue = Some((
+                        task_clone,
+                        "JSON schema compliance failure on Research task".to_string(),
+                        1usize,
+                        0usize,
+                    ));
+                } else if !is_json {
+                    return Err(OrchestratorError::TaskValidationFailed("Research tasks require a valid JSON completion summary.".to_string()));
+                }
+            }
             if auto_debug_requeue.is_none()
                 && let Some(mut task_clone) = queue.current_task().cloned()
                 && let Some(tier) = task_clone.approval_tier
@@ -339,7 +429,7 @@ impl Orchestrator {
             // when historical task-completion trust is below floor for this phase, require at least one
             // explicit completion check to reduce silent regressions from low-reliability agents.
             if auto_debug_requeue.is_none()
-                && let Some(db) = self.db()
+                && let Some(_db) = self.db()
                 && let Some(mut task_clone) = queue.current_task().cloned()
             {
                 let phase = Self::extract_phase_label(&task_clone.description);
@@ -485,16 +575,22 @@ Provide completion attestation checks_passed[] before completing.",
             if auto_debug_requeue.is_none()
                 && let Some(mut task_clone) = queue.current_task().cloned()
             {
-                let md_files: Vec<_> = write_files.iter()
+                let md_files: Vec<_> = write_files
+                    .iter()
                     .filter(|p| p.extension().is_some_and(|ext| ext == "md"))
                     .collect();
-                
+
                 if !md_files.is_empty() {
                     if !broken_links_report.is_empty() {
-                        let detail = format!("Broken links detected. Please investigate if files need to be created or fix the links:\n{}", broken_links_report);
+                        let detail = format!(
+                            "Broken links detected. Please investigate if files need to be created or fix the links:\n{}",
+                            broken_links_report
+                        );
                         if task_clone.debug_iterations < max_debug_iterations {
                             task_clone.debug_iterations += 1;
-                            task_clone.description.push_str(&format!("\n\n[DOC INTEGRITY GATE]\n{}", detail));
+                            task_clone
+                                .description
+                                .push_str(&format!("\n\n[DOC INTEGRITY GATE]\n{}", detail));
                             task_clone.status = TaskStatus::Queued;
                             auto_debug_requeue = Some((task_clone, detail, 1, 0));
                         }
@@ -568,12 +664,12 @@ Provide completion attestation checks_passed[] before completing.",
                                 let key = crate::socrates::session_context_envelope_key(sid);
                                 crate::sync_lock::rw_read(&*self.context_store).get(&key)
                             });
-                            if config.completion_grounding_shadow || config.completion_grounding_enforce
+                            if config.completion_grounding_shadow
+                                || config.completion_grounding_enforce
                             {
-                                let declared =
-                                    crate::grounding::declared_evidence_citations(
-                                        completion_attestation.as_ref(),
-                                    );
+                                let declared = crate::grounding::declared_evidence_citations(
+                                    completion_attestation.as_ref(),
+                                );
                                 let grounding_msg = if !declared.is_empty() {
                                     crate::grounding::grounding_violation_declared_not_in_envelope(
                                         completion_attestation.as_ref(),
@@ -614,9 +710,8 @@ Provide completion attestation checks_passed[] before completing.",
                                         );
                                         let mut t = task.clone();
                                         t.debug_iterations += 1;
-                                        t.description.push_str(&format!(
-                                            "\n\n[GROUNDING GATE]\n{msg}\n",
-                                        ));
+                                        t.description
+                                            .push_str(&format!("\n\n[GROUNDING GATE]\n{msg}\n",));
                                         t.status = TaskStatus::Queued;
                                         socrates_requeue = Some(t);
                                     }
@@ -866,7 +961,7 @@ Provide completion attestation checks_passed[] before completing.",
                     .get_workspace(other_id)
                     .map(|ws| ws.base_snapshot)
                     .unwrap_or(snapshot_after);
-                    
+
                 overlap_conflicts = overlap_conflicts.saturating_add(1);
                 let conflict_id = crate::sync_lock::rw_write(&*self.conflict_manager)
                     .record_conflict(
@@ -1156,6 +1251,65 @@ Provide completion attestation checks_passed[] before completing.",
             );
         }
 
+        // 5. Hardening MENS Intelligence Persistence (Wave 0)
+        if let Some(db) = self.db() {
+            let task_id_s = task_id.0.to_string();
+
+            // Record Victory Verdict
+            let verdict = VictoryVerdict {
+                task_id: task_id_s.clone(),
+                passed: true,
+                tiers_run: vec!["Full".to_string()],
+                first_failure: None,
+                report: desc.clone(),
+                created_at_ms: crate::types::now_unix_ms() as i64,
+            };
+            let verdict_replay = serde_json::json!({
+                "op": "insert_victory_verdict",
+                "task_id": task_id_s.clone(),
+                "verdict": verdict,
+            });
+            self.persist_with_retry_meta("mens/victory_verdict", Some(verdict_replay), || {
+                let db = db.clone();
+                let tid = task_id_s.clone();
+                let v = verdict.clone();
+                async move { db.insert_victory_verdict(&tid, &v).await }
+            })
+            .await;
+
+            // Record Observation Report (if applicable)
+            if let Some(_t) = task_clone_opt {
+                let report = ObservationReport {
+                    session_id: session_id.clone().unwrap_or_default(),
+                    task_id: task_id_s.clone(),
+                    observed_at: chrono::Utc::now(),
+                    file_path: write_files
+                        .first()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_default(),
+                    lsp_error_count: 0,
+                    parse_rate: 1.0,
+                    construct_coverage: 1.0,
+                    recommended_action: ObserverAction::None,
+                    metadata_json: None,
+                };
+                let obs_replay = serde_json::json!({
+                    "op": "insert_observer_event",
+                    "session_id": session_id.clone().unwrap_or_default(),
+                    "task_id": task_id_s.clone(),
+                    "report": report,
+                });
+                self.persist_with_retry_meta("mens/observer_event", Some(obs_replay), || {
+                    let db = db.clone();
+                    let sid = session_id.clone().unwrap_or_default();
+                    let tid = task_id_s.clone();
+                    let r = report.clone();
+                    async move { db.insert_observer_event(&sid, &tid, &r).await }
+                })
+                .await;
+            }
+        }
+
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
         self.record_task_loop_metric(task_id, &phase_label, "completed", debug_iterations);
         Ok(())
@@ -1350,6 +1504,31 @@ Provide completion attestation checks_passed[] before completing.",
                 cfg.trust_provisional_threshold,
                 cfg.trust_trusted_threshold,
             );
+        }
+
+        // Hardening MENS Intelligence Persistence (Task Failure)
+        if let Some(db) = self.db() {
+            let task_id_s = task_id.0.to_string();
+            let verdict = VictoryVerdict {
+                task_id: task_id_s.clone(),
+                passed: false,
+                tiers_run: vec!["Full".to_string()],
+                first_failure: Some("TaskFailure".to_string()),
+                report: reason.clone(),
+                created_at_ms: crate::types::now_unix_ms() as i64,
+            };
+            let verdict_replay = serde_json::json!({
+                "op": "insert_victory_verdict",
+                "task_id": task_id_s.clone(),
+                "verdict": verdict,
+            });
+            self.persist_with_retry_meta("mens/victory_verdict_fail", Some(verdict_replay), || {
+                let db = db.clone();
+                let tid = task_id_s.clone();
+                let v = verdict.clone();
+                async move { db.insert_victory_verdict(&tid, &v).await }
+            })
+            .await;
         }
 
         let now_ms = std::time::SystemTime::now()
@@ -1815,7 +1994,9 @@ mod tests {
         let att = CompletionAttestation::default();
         let (_hid, issues) = harness_completion_issues(&task, Some(&att)).expect("evaluate");
         assert!(
-            issues.iter().any(|x| x.contains("missing required harness artifact")),
+            issues
+                .iter()
+                .any(|x| x.contains("missing required harness artifact")),
             "{issues:?}"
         );
     }

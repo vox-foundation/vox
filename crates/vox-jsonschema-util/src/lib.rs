@@ -33,7 +33,10 @@ pub fn validate(
     context: impl std::fmt::Display,
 ) -> anyhow::Result<()> {
     if let Err(e) = validator.validate(instance) {
-        return Err(anyhow!("JSON Schema validation ({context}): path {}: {e:#}", e.instance_path));
+        return Err(anyhow!(
+            "JSON Schema validation ({context}): path {}: {e:#}",
+            e.instance_path
+        ));
     }
     Ok(())
 }

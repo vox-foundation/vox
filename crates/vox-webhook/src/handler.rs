@@ -107,7 +107,13 @@ impl WebhookHandler {
         if let Some(ref secret) = self.secret {
             let raw_body = serde_json::to_string(&payload.body)?;
             match &payload.signature {
-                Some(sig) => crate::signing::verify_payload(secret, raw_body.as_bytes(), sig, &payload.timestamp, &payload.source)?,
+                Some(sig) => crate::signing::verify_payload(
+                    secret,
+                    raw_body.as_bytes(),
+                    sig,
+                    &payload.timestamp,
+                    &payload.source,
+                )?,
                 None => return Err(WebhookError::InvalidSignature),
             }
         }

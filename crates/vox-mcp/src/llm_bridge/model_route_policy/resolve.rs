@@ -7,9 +7,9 @@ use vox_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
 
 use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_ollama_model_allowed};
-use vox_orchestrator::models::scoring::auto_score_model;
 use super::types::McpChatModelResolution;
 use crate::server::ServerState;
+use vox_orchestrator::models::scoring::auto_score_model;
 
 /// Token fill ratio for the global MCP LLM budget agent (`AgentId(0)`), if tracked.
 #[must_use]
@@ -72,14 +72,28 @@ pub fn resolve_mcp_chat_model_sync(
     }
 
     if let Some(m) = registry
-            .list_models()
-            .into_iter()
-            .filter(mcp_ollama_model_allowed)
-            .max_by(|a, b| {
-                let score_a = auto_score_model(a, res.complexity, res.free_tier_latency_critical, res.context_fill_ratio, preference, availability_hint);
-                let score_b = auto_score_model(b, res.complexity, res.free_tier_latency_critical, res.context_fill_ratio, preference, availability_hint);
-                score_a.total_cmp(&score_b)
-            })
+        .list_models()
+        .into_iter()
+        .filter(mcp_ollama_model_allowed)
+        .max_by(|a, b| {
+            let score_a = auto_score_model(
+                a,
+                res.complexity,
+                res.free_tier_latency_critical,
+                res.context_fill_ratio,
+                preference,
+                availability_hint,
+            );
+            let score_b = auto_score_model(
+                b,
+                res.complexity,
+                res.free_tier_latency_critical,
+                res.context_fill_ratio,
+                preference,
+                availability_hint,
+            );
+            score_a.total_cmp(&score_b)
+        })
     {
         let m = apply_gemini_policy(&registry, m, false);
         let m = enforce_free_tier_if_needed(&registry, &res, m)?;

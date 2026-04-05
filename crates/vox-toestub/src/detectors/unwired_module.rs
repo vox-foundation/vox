@@ -285,7 +285,8 @@ mod tests {
             "pub mod alpha;\npub mod beta;\npub(crate) mod gamma;\n",
         );
         assert_eq!(
-            d.detect(&f, None).len(), 3,
+            d.detect(&f, None).len(),
+            3,
             "public module declarations are now checked for wiring"
         );
     }

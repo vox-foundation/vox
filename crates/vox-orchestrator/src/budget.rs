@@ -213,12 +213,36 @@ impl BudgetManager {
     }
 
     /// Set a per-agent allocation cap (overrides default limits).
+    /// Set a per-agent allocation cap (overrides default limits) synchronously.
     pub fn set_allocation(&self, agent_id: AgentId, allocation: AgentBudgetAllocation) {
         let mut map = sync_lock::rw_write(&*self.inner);
         let budget = map
             .entry(agent_id)
             .or_insert_with(|| ContextBudget::new(agent_id, allocation.max_tokens));
         budget.allocation = Some(allocation);
+    }
+
+    /// Load the custom dollar caps or budgets powered by VoxDB.
+    pub async fn load_user_configured_budget(&self, agent_id: AgentId) {
+        if let Some(db) = &self.db {
+            let key = format!("agent_budget.{}", agent_id.0);
+            if let Ok(Some(val)) = db.get_user_preference("local_user", &key).await {
+                if let Ok(alloc) = serde_json::from_str::<AgentBudgetAllocation>(&val) {
+                    self.set_allocation(agent_id, alloc);
+                }
+            }
+        }
+    }
+
+    /// Save the custom dollar caps or budgets powered by VoxDB.
+    pub async fn set_and_persist_allocation(&self, agent_id: AgentId, allocation: AgentBudgetAllocation) {
+        self.set_allocation(agent_id, allocation.clone());
+        if let Some(db) = &self.db {
+            let key = format!("agent_budget.{}", agent_id.0);
+            if let Ok(val) = serde_json::to_string(&allocation) {
+                let _ = db.set_user_preference("local_user", &key, &val).await;
+            }
+        }
     }
 
     /// Record token usage for an agent.

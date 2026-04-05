@@ -1,9 +1,9 @@
 //! Webhook signature generation and verification using HMAC-SHA3-256.
 
 use data_encoding::HEXLOWER;
-use sha3::{Digest as Sha3Digest, Sha3_256};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use sha2::{Digest as Sha2Digest, Sha256};
-use ed25519_dalek::{VerifyingKey, Signature, Verifier};
+use sha3::{Digest as Sha3Digest, Sha3_256};
 
 use crate::WebhookError;
 
@@ -106,28 +106,31 @@ pub fn verify_payload(
             let ts = timestamp.as_deref().unwrap_or("");
             let mut message = ts.as_bytes().to_vec();
             message.extend_from_slice(payload);
-            
-            let public_key_bytes = HEXLOWER.decode(secret.as_bytes())
+
+            let public_key_bytes = HEXLOWER
+                .decode(secret.as_bytes())
                 .map_err(|_| WebhookError::InvalidSignature)?;
             let mut pk_arr = [0u8; 32];
             if public_key_bytes.len() != 32 {
                 return Err(WebhookError::InvalidSignature);
             }
             pk_arr.copy_from_slice(&public_key_bytes);
-            
-            let sig_bytes = HEXLOWER.decode(signature.as_bytes())
+
+            let sig_bytes = HEXLOWER
+                .decode(signature.as_bytes())
                 .map_err(|_| WebhookError::InvalidSignature)?;
             let mut sig_arr = [0u8; 64];
             if sig_bytes.len() != 64 {
                 return Err(WebhookError::InvalidSignature);
             }
             sig_arr.copy_from_slice(&sig_bytes);
-                
-            let public_key = VerifyingKey::from_bytes(&pk_arr)
-                .map_err(|_| WebhookError::InvalidSignature)?;
+
+            let public_key =
+                VerifyingKey::from_bytes(&pk_arr).map_err(|_| WebhookError::InvalidSignature)?;
             let ed_sig = Signature::from_bytes(&sig_arr);
-                
-            public_key.verify(&message, &ed_sig)
+
+            public_key
+                .verify(&message, &ed_sig)
                 .map_err(|_| WebhookError::InvalidSignature)?;
             Ok(())
         }
@@ -137,10 +140,10 @@ pub fn verify_payload(
             let ts_prefix = format!("v0:{}:", ts);
             let mut message = ts_prefix.as_bytes().to_vec();
             message.extend_from_slice(payload);
-            
+
             let expected = sign_hmac_sha256(secret, &message);
             let expected_full = format!("v0={}", expected.0);
-            
+
             if constant_time_eq(expected_full.as_bytes(), signature.as_bytes()) {
                 Ok(())
             } else {

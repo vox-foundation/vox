@@ -428,7 +428,11 @@ pub async fn execute_search_plan(
                     url,
                     policy.qdrant_collection.as_str(),
                 );
-                let trace = ctx.trace_id.as_deref().map(str::trim).filter(|s| !s.is_empty());
+                let trace = ctx
+                    .trace_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty());
                 match client
                     .search_vectors(
                         qv.as_slice(),

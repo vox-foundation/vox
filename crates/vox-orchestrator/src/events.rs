@@ -395,6 +395,24 @@ pub enum AgentEventKind {
         /// Age in milliseconds.
         age_ms: u64,
     },
+
+    /// OAPV Observer anomaly detected (mens_observer_observations) for MCP dashboards.
+    MensObserverObservation {
+        agent_id: AgentId,
+        observation_type: String,
+        queue_depth: usize,
+    },
+
+    /// AST Healing was applied automatically on a file.
+    AutoHealApplied {
+        agent_id: AgentId,
+        /// Path of the healed file
+        path: PathBuf,
+        /// Description of the healing action
+        description: String,
+        /// The new source after healing
+        new_source: String,
+    },
 }
 
 // ---------------------------------------------------------------------------

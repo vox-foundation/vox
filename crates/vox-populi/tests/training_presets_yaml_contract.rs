@@ -24,8 +24,7 @@ struct PresetRow {
 fn training_presets_yaml_covers_known_presets() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let path = manifest_dir.join("../../contracts/mens/training-presets.v1.yaml");
-    let raw = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let root: Root = serde_yaml::from_str(&raw).expect("parse training-presets YAML");
 
     assert_eq!(

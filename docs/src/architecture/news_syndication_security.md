@@ -1,3 +1,12 @@
+---
+title: "Unified News Syndication Security & Safety"
+description: "Safety mechanisms and architectural constraints preventing accidental automated social media posts."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Unified News Syndication Security & Safety
 
 This document outlines the safety mechanisms and architectural constraints designed to prevent accidental or malformed automated posts to social media (Twitter/X, GitHub, Open Collective) and RSS by the CI/CD pipeline and Vox Orchestrator agents.

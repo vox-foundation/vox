@@ -34,12 +34,14 @@ async fn run_login() -> Result<()> {
     use anyhow::Context;
     let keyring = keyring::Entry::new("vox-clavis-env", "turso-url")
         .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
-    keyring.set_password(url)
+    keyring
+        .set_password(url)
         .context("Failed to set turso-url in keyring.")?;
-    
+
     let keyring_token = keyring::Entry::new("vox-clavis-env", "turso-token")
         .context("Failed to instantiate keyring for turso-token.")?;
-    keyring_token.set_password(token)
+    keyring_token
+        .set_password(token)
         .context("Failed to set turso-token in keyring.")?;
 
     println!("Vault configuration complete. Please run `vox auth unlock` next.");
@@ -53,13 +55,14 @@ async fn run_unlock() -> Result<()> {
     let mut pwd = String::new();
     io::stdin().read_line(&mut pwd)?;
     let pwd = pwd.trim();
-    
+
     use anyhow::Context;
     let keyring_pwd = keyring::Entry::new("vox-clavis-vault", "master")
         .context("Failed to instantiate keyring for vault master key.")?;
-    keyring_pwd.set_password(pwd)
+    keyring_pwd
+        .set_password(pwd)
         .context("Failed to store master key in keyring.")?;
-    
+
     println!("Vault successfully unlocked via Argon2-derived master key!");
     Ok(())
 }

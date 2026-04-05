@@ -8,8 +8,8 @@
 use std::collections::HashSet;
 
 use crate::context_envelope::ContextEnvelope;
-use crate::types::CompletionAttestation;
 use crate::socrates::SocratesTaskContext;
+use crate::types::CompletionAttestation;
 
 const VOXCITE_OPEN: &str = "[[voxcite:";
 const VOXCITE_CLOSE: &str = "]]";
@@ -107,35 +107,14 @@ pub fn classify_line_claim_kind(line: &str) -> ClaimKind {
     {
         return ClaimKind::Speculative;
     }
-    const PROC_PHRASE: &[&str] = &[
-        "add file",
-        "create a pr",
-        "use command",
-        "cherry-pick",
-    ];
+    const PROC_PHRASE: &[&str] = &["add file", "create a pr", "use command", "cherry-pick"];
     if PROC_PHRASE.iter().any(|m| lower.contains(m)) {
         return ClaimKind::Procedural;
     }
     const PROC_WORD: &[&str] = &[
-        "run",
-        "execute",
-        "navigate",
-        "open",
-        "install",
-        "click",
-        "then",
-        "first",
-        "next",
-        "submit",
-        "refactor",
-        "rename",
-        "delete",
-        "remove",
-        "rebuild",
-        "restart",
-        "rebase",
-        "squash",
-        "bump",
+        "run", "execute", "navigate", "open", "install", "click", "then", "first", "next",
+        "submit", "refactor", "rename", "delete", "remove", "rebuild", "restart", "rebase",
+        "squash", "bump",
     ];
     if PROC_WORD
         .iter()
@@ -212,17 +191,13 @@ pub(crate) fn split_summary_into_claim_segments(summary: &str) -> Vec<&str> {
         if matches!(
             t.as_str(),
             "st" | "jr" | "sr" | "ave" | "blvd" | "ltd" | "inc" | "mme" | "mlle" | "nr" | "tel"
-        ) && !base
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_uppercase())
+        ) && !base.chars().next().is_some_and(|c| c.is_ascii_uppercase())
         {
             return false;
         }
         matches!(
             t.as_str(),
-            "mr"
-                | "mrs"
+            "mr" | "mrs"
                 | "ms"
                 | "dr"
                 | "prof"
@@ -266,9 +241,7 @@ pub(crate) fn split_summary_into_claim_segments(summary: &str) -> Vec<&str> {
                 let followed_by_break = if rest.is_empty() {
                     true
                 } else {
-                    rest.chars()
-                        .next()
-                        .is_some_and(|next| next.is_whitespace())
+                    rest.chars().next().is_some_and(|next| next.is_whitespace())
                 };
                 if !followed_by_break {
                     false
@@ -330,7 +303,7 @@ pub fn grounding_violation_factual_mode_without_declarations(
     Some(format!(
         "factual_mode requires explicit evidence: summary contains ~{factual_segments} factual-looking segment(s) but no evidence_citations or [[voxcite:…]] markers (required_citations={})",
         socrates.required_citations
-  ))
+    ))
 }
 
 /// Extract `[[voxcite:...]]` markers from free text (marker body is trimmed).
@@ -490,10 +463,7 @@ mod tests {
 
     #[test]
     fn classify_short_line_uses_scalar_count_not_byte_len() {
-        assert_eq!(
-            classify_line_claim_kind("😀😀😀"),
-            ClaimKind::Procedural
-        );
+        assert_eq!(classify_line_claim_kind("😀😀😀"), ClaimKind::Procedural);
     }
 
     #[test]
@@ -579,14 +549,7 @@ mod tests {
     fn split_respects_nr_and_tel_abbrev_before_period() {
         let s = "Box Nr. 7; Tel. +1-800; the API returns 200.";
         let p = split_summary_into_claim_segments(s);
-        assert_eq!(
-            p,
-            vec![
-                "Box Nr. 7",
-                "Tel. +1-800",
-                "the API returns 200"
-            ]
-        );
+        assert_eq!(p, vec!["Box Nr. 7", "Tel. +1-800", "the API returns 200"]);
     }
 
     #[test]
@@ -600,20 +563,14 @@ mod tests {
     fn split_keeps_german_compound_street_before_period() {
         let s = "Office at Hauptstr. The API returns 404.";
         let p = split_summary_into_claim_segments(s);
-        assert_eq!(
-            p,
-            vec!["Office at Hauptstr. The API returns 404"]
-        );
+        assert_eq!(p, vec!["Office at Hauptstr. The API returns 404"]);
     }
 
     #[test]
     fn short_str_street_oststr_kept_when_not_false_positive_suffix() {
         let s = "Near Oststr. The API returns 404.";
         let p = split_summary_into_claim_segments(s);
-        assert_eq!(
-            p,
-            vec!["Near Oststr. The API returns 404"]
-        );
+        assert_eq!(p, vec!["Near Oststr. The API returns 404"]);
     }
 
     #[test]
@@ -636,20 +593,14 @@ mod tests {
     fn split_keeps_ascii_strasse_compound_before_period() {
         let s = "Office at Hauptstrasse. The API returns 404.";
         let p = split_summary_into_claim_segments(s);
-        assert_eq!(
-            p,
-            vec!["Office at Hauptstrasse. The API returns 404"]
-        );
+        assert_eq!(p, vec!["Office at Hauptstrasse. The API returns 404"]);
     }
 
     #[test]
     fn split_keeps_unicode_strasse_suffix_before_period() {
         let s = "Büro Müllerstraße. Der Port ist 443.";
         let p = split_summary_into_claim_segments(s);
-        assert_eq!(
-            p,
-            vec!["Büro Müllerstraße. Der Port ist 443"]
-        );
+        assert_eq!(p, vec!["Büro Müllerstraße. Der Port ist 443"]);
     }
 
     #[test]
@@ -749,9 +700,7 @@ mod tests {
             completion_summary: Some("Run cargo test; then submit the patch for review.".into()),
             ..Default::default()
         };
-        assert!(
-            grounding_violation_factual_mode_without_declarations(Some(&att), &soc).is_none()
-        );
+        assert!(grounding_violation_factual_mode_without_declarations(Some(&att), &soc).is_none());
     }
 
     #[test]

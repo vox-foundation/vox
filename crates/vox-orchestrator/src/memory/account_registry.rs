@@ -37,10 +37,7 @@ impl AccountMemoryRegistry {
     /// On first call for a given `account_id` the manager is constructed and
     /// stored; subsequent calls return the same `Arc`.
     pub fn get_or_create(&self, account_id: &str) -> Result<Arc<MemoryManager>, MemoryError> {
-        let mut map = self
-            .managers
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut map = self.managers.lock().unwrap_or_else(|e| e.into_inner());
 
         if let Some(existing) = map.get(account_id) {
             return Ok(Arc::clone(existing));

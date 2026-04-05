@@ -11,8 +11,8 @@ use sha2::{Digest, Sha256};
 
 use crate::scientia_evidence::METADATA_KEY_SCIENTIA_NOVELTY_BUNDLE;
 use crate::scientia_finding_ledger::{
-    NoveltyEvidenceBundleV1, NoveltyOverlapSummary, NoveltyQueryTrace, NoveltyRecencyBucket,
-    NormalizedPriorArtHit, PriorArtSource,
+    NormalizedPriorArtHit, NoveltyEvidenceBundleV1, NoveltyOverlapSummary, NoveltyQueryTrace,
+    NoveltyRecencyBucket, PriorArtSource,
 };
 use crate::scientia_heuristics::ScientiaHeuristics;
 
@@ -162,7 +162,11 @@ async fn http_get_text(client: &reqwest::Client, url: &str) -> Result<(String, i
     Ok((text, status))
 }
 
-fn openalex_hits(v: &JsonValue, search_face: &str, h: &ScientiaHeuristics) -> Vec<NormalizedPriorArtHit> {
+fn openalex_hits(
+    v: &JsonValue,
+    search_face: &str,
+    h: &ScientiaHeuristics,
+) -> Vec<NormalizedPriorArtHit> {
     let mut out = Vec::new();
     let Some(arr) = v.get("results").and_then(|x| x.as_array()) else {
         return out;
@@ -204,7 +208,11 @@ fn openalex_hits(v: &JsonValue, search_face: &str, h: &ScientiaHeuristics) -> Ve
     out
 }
 
-fn crossref_hits(v: &JsonValue, search_face: &str, h: &ScientiaHeuristics) -> Vec<NormalizedPriorArtHit> {
+fn crossref_hits(
+    v: &JsonValue,
+    search_face: &str,
+    h: &ScientiaHeuristics,
+) -> Vec<NormalizedPriorArtHit> {
     let mut out = Vec::new();
     let items = v
         .pointer("/message/items")
@@ -213,11 +221,7 @@ fn crossref_hits(v: &JsonValue, search_face: &str, h: &ScientiaHeuristics) -> Ve
         .unwrap_or_default();
     let take_n = h.prior_art_results_per_source.max(1).min(50) as usize;
     for w in items.into_iter().take(take_n) {
-        let doi = w
-            .get("DOI")
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .trim();
+        let doi = w.get("DOI").and_then(|x| x.as_str()).unwrap_or("").trim();
         let title = w
             .get("title")
             .and_then(|x| x.as_array())
@@ -251,9 +255,18 @@ fn crossref_hits(v: &JsonValue, search_face: &str, h: &ScientiaHeuristics) -> Ve
     out
 }
 
-fn s2_hits(v: &JsonValue, search_face: &str, h: &ScientiaHeuristics, raw_query_for_fallback_url: &str) -> Vec<NormalizedPriorArtHit> {
+fn s2_hits(
+    v: &JsonValue,
+    search_face: &str,
+    h: &ScientiaHeuristics,
+    raw_query_for_fallback_url: &str,
+) -> Vec<NormalizedPriorArtHit> {
     let mut out = Vec::new();
-    let data = v.get("data").and_then(|x| x.as_array()).cloned().unwrap_or_default();
+    let data = v
+        .get("data")
+        .and_then(|x| x.as_array())
+        .cloned()
+        .unwrap_or_default();
     let take_n = h.prior_art_results_per_source.max(1).min(50) as usize;
     for w in data.into_iter().take(take_n) {
         let pid = w
@@ -479,30 +492,19 @@ pub async fn fetch_prior_art_federated(
                     Ok((body, st)) => {
                         traces.push(NoveltyQueryTrace {
                             source: "semantic_scholar".to_string(),
-                            request_fingerprint_sha256: trace_fp(
-                                "semantic_scholar",
-                                &trace_digest,
-                            ),
+                            request_fingerprint_sha256: trace_fp("semantic_scholar", &trace_digest),
                             http_status: Some(st),
                             cached: Some(false),
                         });
                         if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
-                            hits.extend(s2_hits(
-                                &v,
-                                &search,
-                                heuristics,
-                                title_only,
-                            ));
+                            hits.extend(s2_hits(&v, &search, heuristics, title_only));
                             sources_done.push(PriorArtSource::SemanticScholar);
                         }
                     }
                     Err(e) => {
                         traces.push(NoveltyQueryTrace {
                             source: "semantic_scholar".to_string(),
-                            request_fingerprint_sha256: trace_fp(
-                                "semantic_scholar",
-                                &trace_digest,
-                            ),
+                            request_fingerprint_sha256: trace_fp("semantic_scholar", &trace_digest),
                             http_status: None,
                             cached: Some(false),
                         });

@@ -1,3 +1,12 @@
+---
+title: "News syndication: incident patterns and mitigations"
+description: "Searchable SSOT for automated outbound publishing failure modes and Vox-specific safety controls."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # News syndication: incident patterns and mitigations
 
 Searchable SSOT for **why** automated outbound publishing fails in production and how Vox constrains it.

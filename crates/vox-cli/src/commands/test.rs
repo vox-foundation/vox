@@ -42,9 +42,7 @@ pub async fn run(args: &crate::cli_args::TestArgs) -> Result<()> {
         cmd.env("VOX_FORALL_ITERATIONS", iters.to_string());
     }
 
-    let status = cmd
-        .status()
-        .context("Failed to execute cargo test")?;
+    let status = cmd.status().context("Failed to execute cargo test")?;
 
     if !status.success() {
         anyhow::bail!("Tests failed with exit code: {:?}", status.code());

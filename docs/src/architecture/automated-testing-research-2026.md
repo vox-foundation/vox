@@ -1,3 +1,12 @@
+---
+title: "Automated Testing Research for the Vox Language"
+description: "State of the art, implications, and roadmap for automated test generation including PBT, mutation testing, and LLM-driven synthesis."
+category: "architecture"
+status: "research"
+last_updated: 2026-04-04
+training_eligible: true
+---
+
 # Automated Testing Research for the Vox Language
 ## State of the Art, Implications, and Roadmap (2026)
 

@@ -32,5 +32,7 @@ fn context_envelope_projection_validates_against_contract_schema() {
         &retrieval,
     );
     let instance = serde_json::to_value(&envelope).expect("serialize context envelope");
-    validator.validate(&instance).expect("validate against schema");
+    validator
+        .validate(&instance)
+        .expect("validate against schema");
 }

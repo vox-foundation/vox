@@ -425,14 +425,12 @@ pub fn std_namespace_runtime_call(
         ("fs", "exists") if !args.is_empty() => {
             Some(format!("std::path::Path::new(&{}).exists()", args[0]))
         }
-        ("fs", "is_file") if !args.is_empty() => Some(format!(
-            "std::path::Path::new(&{}).is_file()",
-            args[0]
-        )),
-        ("fs", "is_dir") if !args.is_empty() => Some(format!(
-            "std::path::Path::new(&{}).is_dir()",
-            args[0]
-        )),
+        ("fs", "is_file") if !args.is_empty() => {
+            Some(format!("std::path::Path::new(&{}).is_file()", args[0]))
+        }
+        ("fs", "is_dir") if !args.is_empty() => {
+            Some(format!("std::path::Path::new(&{}).is_dir()", args[0]))
+        }
         ("fs", "canonicalize") if !args.is_empty() => Some(format!(
             "std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
             args[0]

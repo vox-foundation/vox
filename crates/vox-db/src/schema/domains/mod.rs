@@ -6,6 +6,7 @@ pub mod execution;
 pub mod foundation;
 pub mod gamification_coordination;
 pub mod knowledge;
+pub mod mens_intelligence;
 pub mod packages;
 pub mod publish_cloud;
 pub mod toestub_build;

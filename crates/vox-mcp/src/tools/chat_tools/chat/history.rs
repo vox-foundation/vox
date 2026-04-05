@@ -1,5 +1,5 @@
-use super::hydrate::context_history_or_hydrate;
 use super::super::params::{ChatHistoryParams, ChatTranscriptEntry};
+use super::hydrate::context_history_or_hydrate;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::session_identity::normalize_chat_session_id;

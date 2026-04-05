@@ -214,4 +214,14 @@ CREATE TABLE IF NOT EXISTS reconstruction_benchmark_kpis (
     recorded_at_ms INTEGER NOT NULL,
     PRIMARY KEY (campaign_id, benchmark_tier)
 );
+
+-- MENS Telemetry secondary channel for non-code OAPV observation feedback
+CREATE TABLE IF NOT EXISTS mens_observer_observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id TEXT,
+    observation_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    recorded_at_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mens_obs_agent ON mens_observer_observations(agent_id);
 ";

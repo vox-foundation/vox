@@ -1,3 +1,12 @@
+---
+title: "Vox Memory System"
+description: "Persistent, searchable long-term storage architecture for agent knowledge with three-layer design."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Memory System
 
 The Vox memory system provides persistent, searchable long-term storage for agent knowledge, structured around three layers.

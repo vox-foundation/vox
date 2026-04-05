@@ -680,6 +680,15 @@ pub(super) fn run_training_loop(
                 Some(prev) => 0.1 * (loss_val as f64) + 0.9 * prev,
             });
 
+            let _ = db_tx.send(TrainingDbEvent::GrpoStep {
+                run_id: run_id.to_string(),
+                step: global_step,
+                mean_reward: pair.rating.unwrap_or(0) as f32, // placeholder for RL reward
+                policy_loss: loss_val,
+                clip_fraction: 0.0, // placeholder
+                parse_rate: 1.0,    // placeholder
+            });
+
             // ── Progress reporting every 5s ───────────────────────────────────
             let elapsed_since_progress = last_progress.elapsed();
             if elapsed_since_progress >= progress_every {

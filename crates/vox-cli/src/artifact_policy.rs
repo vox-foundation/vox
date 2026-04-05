@@ -42,10 +42,7 @@ fn temp_vox_slot(root: &Path) -> PathBuf {
 /// Isolated Cargo target dirs for this repo under OS temp (`…/vox-targets/<hash>/…`).
 pub(crate) fn transient_lane_roots(root: &Path) -> [PathBuf; 2] {
     let base = temp_vox_slot(root);
-    [
-        base.join("nested-ci"),
-        base.join("mens-gate-safe"),
-    ]
+    [base.join("nested-ci"), base.join("mens-gate-safe")]
 }
 
 pub fn ci_nested_target(root: &Path) -> PathBuf {
@@ -113,7 +110,10 @@ mod tests {
     fn allows_canonical_target_subdir() {
         let root = Path::new("/repo");
         assert!(is_allowed_artifact_path(&root.join("target"), root));
-        assert!(is_allowed_artifact_path(&root.join("target/debug/vox"), root));
+        assert!(is_allowed_artifact_path(
+            &root.join("target/debug/vox"),
+            root
+        ));
     }
 
     #[test]

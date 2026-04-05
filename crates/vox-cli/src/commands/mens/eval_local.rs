@@ -215,9 +215,11 @@ pub fn run_eval_local(
                 }
             };
 
-        let semantic_pass_at_k = samples_json
-            .iter()
-            .any(|v| v.get("semantic_pass").and_then(|x| x.as_bool()).unwrap_or(false));
+        let semantic_pass_at_k = samples_json.iter().any(|v| {
+            v.get("semantic_pass")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false)
+        });
         let entry = serde_json::json!({
             "manifest_index": manifest_index,
             "id": id,

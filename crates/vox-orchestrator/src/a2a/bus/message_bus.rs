@@ -15,6 +15,8 @@ pub struct MessageBus {
         std::sync::RwLock<HashMap<AgentId, std::sync::RwLock<VecDeque<A2AMessage>>>>,
     /// Audit trail of all messages (most recent at back).
     pub(crate) audit_trail: std::sync::RwLock<Vec<A2AMessage>>,
+    /// Lock-free queue for ingesting audit messages.
+    pub(crate) audit_queue: crossbeam_queue::SegQueue<A2AMessage>,
     /// ID generator.
     id_gen: AtomicU64,
     /// Maximum inbox size per agent before oldest messages are dropped.
@@ -24,11 +26,21 @@ pub struct MessageBus {
 }
 
 impl MessageBus {
+    /// Synchronize the lock-free audit queue into the main audit trail vector.
+    fn sync_audit_trail(&self) {
+        if !self.audit_queue.is_empty() {
+            let mut locked = crate::sync_lock::rw_write(&self.audit_trail);
+            while let Some(msg) = self.audit_queue.pop() {
+                locked.push(msg);
+            }
+        }
+    }
     /// Create a new message bus.
     pub fn new(max_inbox_size: usize) -> Self {
         Self {
             inboxes: std::sync::RwLock::new(HashMap::new()),
             audit_trail: std::sync::RwLock::new(Vec::new()),
+            audit_queue: crossbeam_queue::SegQueue::new(),
             id_gen: AtomicU64::new(1),
             max_inbox_size,
             dropped_messages: AtomicU64::new(0),
@@ -86,7 +98,7 @@ impl MessageBus {
             }
         }
 
-        crate::sync_lock::rw_write(&self.audit_trail).push(msg);
+        self.audit_queue.push(msg);
 
         tracing::debug!(
             from = %sender,
@@ -127,7 +139,7 @@ impl MessageBus {
             }
         }
 
-        crate::sync_lock::rw_write(&self.audit_trail).push(msg);
+        self.audit_queue.push(msg);
         id
     }
 
@@ -152,11 +164,23 @@ impl MessageBus {
                     self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                 }
                 inbox.push_back(msg);
+            } else {
+                drop(inboxes);
+                let mut inboxes = crate::sync_lock::rw_write(&self.inboxes);
+                let inbox_lock = inboxes
+                    .entry(receiver)
+                    .or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+                let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                if inbox.len() >= self.max_inbox_size {
+                    inbox.pop_front();
+                    self.dropped_messages.fetch_add(1, Ordering::Relaxed);
+                }
+                inbox.push_back(msg);
             }
         }
 
         let audit_msg = A2AMessage::new(id, sender, None, msg_type, payload);
-        crate::sync_lock::rw_write(&self.audit_trail).push(audit_msg);
+        self.audit_queue.push(audit_msg);
         id
     }
 
@@ -200,6 +224,7 @@ impl MessageBus {
 
     /// Retrieve all messages in a specific thread, across all agents.
     pub fn messages_in_thread(&self, thread_id: &ThreadId) -> Vec<A2AMessage> {
+        self.sync_audit_trail();
         let audit = crate::sync_lock::rw_read(&self.audit_trail);
         let mut msgs: Vec<_> = audit
             .iter()
@@ -256,9 +281,21 @@ impl MessageBus {
                     self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                 }
                 inbox.push_back(msg.clone());
+            } else {
+                drop(inboxes);
+                let mut inboxes = crate::sync_lock::rw_write(&self.inboxes);
+                let inbox_lock = inboxes
+                    .entry(receiver)
+                    .or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+                let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                if inbox.len() >= self.max_inbox_size {
+                    inbox.pop_front();
+                    self.dropped_messages.fetch_add(1, Ordering::Relaxed);
+                }
+                inbox.push_back(msg.clone());
             }
         }
-        crate::sync_lock::rw_write(&self.audit_trail).push(msg);
+        self.audit_queue.push(msg);
         id
     }
 
@@ -294,8 +331,16 @@ impl MessageBus {
         let inboxes = crate::sync_lock::rw_read(&self.inboxes);
         if let Some(inbox_lock) = inboxes.get(&agent_id) {
             let mut inbox = crate::sync_lock::rw_write(inbox_lock);
-            if let Some(msg) = inbox.iter_mut().find(|m| m.id == message_id) {
-                msg.acknowledged = true;
+            let mut found = false;
+            for msg in inbox.iter_mut() {
+                if msg.id == message_id {
+                    msg.acknowledged = true;
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                inbox.retain(|msg| !msg.acknowledged);
                 return true;
             }
         }
@@ -304,11 +349,13 @@ impl MessageBus {
 
     /// Get the audit trail (all messages ever sent).
     pub fn audit_trail(&self) -> Vec<A2AMessage> {
+        self.sync_audit_trail();
         crate::sync_lock::rw_read(&self.audit_trail).clone()
     }
 
     /// Get audit trail messages since a given timestamp.
     pub fn audit_since(&self, since_ms: u64) -> Vec<A2AMessage> {
+        self.sync_audit_trail();
         crate::sync_lock::rw_read(&self.audit_trail)
             .iter()
             .filter(|m| m.timestamp_ms >= since_ms)
@@ -330,6 +377,7 @@ impl MessageBus {
 
     /// Total messages in the audit trail.
     pub fn total_messages(&self) -> usize {
+        self.sync_audit_trail();
         crate::sync_lock::rw_read(&self.audit_trail).len()
     }
 

@@ -1,6 +1,15 @@
+---
+title: "Vox Skill Marketplace"
+description: "Documentation for the Vox skills ecosystem including ARS runtime, skill registries, and workflows."
+category: "reference"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Skill Marketplace
 
-The Vox skill marketplace (`vox-skills` crate) provides a plugin system for extending agent capabilities with installable, versioned skills.
+The Vox skill marketplace (`vox-skills` crate) provides a plugin system
 
 ## What is a Skill?
 

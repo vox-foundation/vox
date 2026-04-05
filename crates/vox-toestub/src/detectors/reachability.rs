@@ -1,7 +1,7 @@
-use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use crate::analysis::RustFileContext;
-use syn::visit::Visit;
+use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use quote::ToTokens;
+use syn::visit::Visit;
 
 #[derive(Default)]
 pub struct ReachabilityDetector {}
@@ -10,10 +10,16 @@ impl ReachabilityDetector {
     pub fn new() -> Self {
         Self {}
     }
-    
-    fn detect_rust<'a>(&self, file: &'a SourceFile, rust_ctx: Option<&'a RustFileContext>) -> Vec<Finding> {
+
+    fn detect_rust<'a>(
+        &self,
+        file: &'a SourceFile,
+        rust_ctx: Option<&'a RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let Some(ctx) = rust_ctx else { return findings; };
+        let Some(ctx) = rust_ctx else {
+            return findings;
+        };
         let ast = match &ctx.ast {
             Ok(ast) => ast,
             Err(_) => return findings,
@@ -31,8 +37,18 @@ impl ReachabilityDetector {
 }
 
 const TRIVIAL_RETURNS: &[&str] = &[
-    "Ok(())", "Default::default()", "true", "false", "0", "0.0",
-    "\"\"", "String::new()", "Vec::new()", "None", "()", "Ok(true)"
+    "Ok(())",
+    "Default::default()",
+    "true",
+    "false",
+    "0",
+    "0.0",
+    "\"\"",
+    "String::new()",
+    "Vec::new()",
+    "None",
+    "()",
+    "Ok(true)",
 ];
 
 struct ReachVisitor<'a, 'b> {
@@ -64,7 +80,9 @@ impl<'a, 'b> ReachVisitor<'a, 'b> {
 
         if is_trivial {
             let count_in_file = self.content.matches(&name).count();
-            if count_in_file <= 1 && !crate::run_context::workspace_crate_contains_word(&self.file.path, &name) {
+            if count_in_file <= 1
+                && !crate::run_context::workspace_crate_contains_word(&self.file.path, &name)
+            {
                 self.findings.push(Finding {
                     rule_id: "skeleton/declared-not-called".to_string(),
                     rule_name: "Integration Graph Reachability Detector".to_string(),
@@ -123,7 +141,11 @@ impl DetectionRule for ReachabilityDetector {
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }
-    fn detect(&self, file: &SourceFile, rust: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         match file.language {
             Language::Rust => self.detect_rust(file, rust),
             _ => Vec::new(),

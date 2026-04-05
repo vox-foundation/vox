@@ -320,6 +320,9 @@ pub enum PopuliAction {
         /// Show cloud GPU dispatch summary and accrued cost.
         #[arg(long, default_value = "false")]
         cloud: bool,
+        /// Query MENS intelligence metrics from the Arca database.
+        #[arg(long, default_value = "false")]
+        db: bool,
     },
 
     /// Tail `train.err.log` + training JSONL telemetry (periodic summary; default poll 3s).

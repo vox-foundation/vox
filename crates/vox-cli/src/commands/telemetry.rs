@@ -82,8 +82,8 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
         TelemetryCmd::Export { spool, out } => {
             let root = resolve_spool(spool);
             let n = if let Some(p) = out {
-                let mut f = fs::File::create(&p)
-                    .with_context(|| format!("create {}", p.display()))?;
+                let mut f =
+                    fs::File::create(&p).with_context(|| format!("create {}", p.display()))?;
                 telemetry_spool::export_jsonl(&root, &mut f)?
             } else {
                 let mut stdout = std::io::stdout().lock();
@@ -93,8 +93,8 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
         }
         TelemetryCmd::Enqueue { spool, json } => {
             let root = resolve_spool(spool);
-            let raw = fs::read_to_string(&json)
-                .with_context(|| format!("read {}", json.display()))?;
+            let raw =
+                fs::read_to_string(&json).with_context(|| format!("read {}", json.display()))?;
             let value: serde_json::Value =
                 serde_json::from_str(&raw).context("parse --json file as JSON")?;
             let path = telemetry_spool::enqueue(&root, &value)?;

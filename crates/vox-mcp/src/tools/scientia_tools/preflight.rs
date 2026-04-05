@@ -163,9 +163,10 @@ pub async fn vox_scientia_publication_preflight(
             )
             .to_json();
         }
-        let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
-            &state.repository.root,
-        );
+        let scientia_h =
+            vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+                &state.repository.root,
+            );
         vox_publisher::publication_preflight::run_preflight_with_worthiness_attention_heuristics(
             &manifest,
             profile,

@@ -1,6 +1,15 @@
+---
+title: "Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint"
+description: "254-task implementation blueprint covering OOPAV agent loop, MENS grammar-aware training, and GRPO reinforcement learning."
+category: "architecture"
+status: "roadmap"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint
 
-> **Research completed:** 2026-04-05  
+> **Research completed:** 2026-04-05
 > **Two interlocked workstreams:**  
 > 1. **Agentic Loop** — Observe → Orient → Plan → Act → Verify (OOPAV)  
 > 2. **MENS Syntax Intelligence** — Grammar-aware training, constrained inference, MCP pre-emit validation

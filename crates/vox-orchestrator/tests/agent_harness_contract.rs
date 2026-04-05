@@ -16,5 +16,7 @@ fn agent_harness_projection_validates_against_contract_schema() {
         &["artifacts/response.md".to_string()],
     );
     let instance = serde_json::to_value(&harness).expect("serialize harness");
-    validator.validate(&instance).expect("validate against schema");
+    validator
+        .validate(&instance)
+        .expect("validate against schema");
 }

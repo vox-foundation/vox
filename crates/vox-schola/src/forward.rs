@@ -286,11 +286,7 @@ pub(crate) fn maybe_forward_to_vox(
     trajectory_quality_floor: Option<u8>,
     trajectory_quality_boost: f32,
 ) -> anyhow::Result<Option<std::process::ExitStatus>> {
-    if std::env::var("VOX_SCHOLA_TRAIN_IN_PROCESS")
-        .ok()
-        .as_deref()
-        == Some("1")
-    {
+    if std::env::var("VOX_SCHOLA_TRAIN_IN_PROCESS").ok().as_deref() == Some("1") {
         return Ok(None);
     }
 
@@ -421,7 +417,10 @@ mod tests {
         );
         assert_eq!(args.first().map(String::as_str), Some("mens"));
         assert_eq!(args.get(1).map(String::as_str), Some("train"));
-        assert!(args.windows(2).any(|w| w[0] == "--backend" && w[1] == "qlora"));
+        assert!(
+            args.windows(2)
+                .any(|w| w[0] == "--backend" && w[1] == "qlora")
+        );
     }
 
     #[test]

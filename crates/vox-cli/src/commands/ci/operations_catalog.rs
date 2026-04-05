@@ -952,36 +952,70 @@ pub fn sync(repo_root: &Path, target: &str, write: bool) -> Result<()> {
 fn verify_catalog_nomenclature(catalog: &OperationsCatalog) -> Result<()> {
     let mut alias_to_id = BTreeMap::new();
     for row in &catalog.operations {
-        let is_core_canonical = ["orchestrator", "skills", "forge", "database", "secrets", "speech", "ml", "gamification", "tutorial", "pm", "package_manager"]
-            .contains(&row.canonical_name.as_deref().unwrap_or(""));
-            
-        let has_alias = row.latin_aliases.as_ref().map(|v| !v.is_empty()).unwrap_or(false);
+        let is_core_canonical = [
+            "orchestrator",
+            "skills",
+            "forge",
+            "database",
+            "secrets",
+            "speech",
+            "ml",
+            "gamification",
+            "tutorial",
+            "pm",
+            "package_manager",
+        ]
+        .contains(&row.canonical_name.as_deref().unwrap_or(""));
+
+        let has_alias = row
+            .latin_aliases
+            .as_ref()
+            .map(|v| !v.is_empty())
+            .unwrap_or(false);
         if is_core_canonical && !has_alias {
-            return Err(anyhow!("command-compliance T045: English canonical command '{}' must declare at least one Latin alias in `latin_aliases`", row.id));
+            return Err(anyhow!(
+                "command-compliance T045: English canonical command '{}' must declare at least one Latin alias in `latin_aliases`",
+                row.id
+            ));
         }
 
         if let Some(aliases) = &row.latin_aliases {
             for alias in aliases {
                 // Check grammar T053: invalid alias grammar tags
                 if !alias.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
-                    return Err(anyhow!("command-compliance T053: Latin alias '{}' has invalid grammar tag (must be lower-kebab-case)", alias));
+                    return Err(anyhow!(
+                        "command-compliance T053: Latin alias '{}' has invalid grammar tag (must be lower-kebab-case)",
+                        alias
+                    ));
                 }
 
                 if Some(alias.as_str()) == row.canonical_name.as_deref() {
-                    return Err(anyhow!("command-compliance T046: Latin alias '{}' cannot be the canonical structural identifier for '{}'", alias, row.id));
+                    return Err(anyhow!(
+                        "command-compliance T046: Latin alias '{}' cannot be the canonical structural identifier for '{}'",
+                        alias,
+                        row.id
+                    ));
                 }
-                
+
                 if let Some(existing_id) = alias_to_id.insert(alias.clone(), row.id.clone()) {
                     if existing_id != row.id {
-                         return Err(anyhow!("command-compliance T047: Latin alias collision for '{}' between '{}' and '{}'", alias, existing_id, row.id));
+                        return Err(anyhow!(
+                            "command-compliance T047: Latin alias collision for '{}' between '{}' and '{}'",
+                            alias,
+                            existing_id,
+                            row.id
+                        ));
                     }
                 }
             }
         }
-        
+
         if let Some(c) = &row.cli {
             if c.status == "retired" && has_alias {
-                return Err(anyhow!("command-compliance T050: retired command '{}' cannot have Latin aliases", row.id));
+                return Err(anyhow!(
+                    "command-compliance T050: retired command '{}' cannot have Latin aliases",
+                    row.id
+                ));
             }
         }
     }
@@ -992,7 +1026,12 @@ fn verify_catalog_nomenclature(catalog: &OperationsCatalog) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn create_row(id: &str, canon: Option<&str>, aliases: Option<Vec<&str>>, status: &str) -> OperationRow {
+    fn create_row(
+        id: &str,
+        canon: Option<&str>,
+        aliases: Option<Vec<&str>>,
+        status: &str,
+    ) -> OperationRow {
         OperationRow {
             id: id.to_string(),
             title: "".to_string(),
@@ -1029,9 +1068,12 @@ mod tests {
             schema_version: 1,
             capability: Default::default(),
             exemptions: Default::default(),
-            operations: vec![
-                create_row("orchestrator", Some("orchestrator"), None, "active"),
-            ],
+            operations: vec![create_row(
+                "orchestrator",
+                Some("orchestrator"),
+                None,
+                "active",
+            )],
         };
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_err());
@@ -1046,9 +1088,12 @@ mod tests {
             schema_version: 1,
             capability: Default::default(),
             exemptions: Default::default(),
-            operations: vec![
-                create_row("test-op", Some("dei"), Some(vec!["dei"]), "active"),
-            ],
+            operations: vec![create_row(
+                "test-op",
+                Some("dei"),
+                Some(vec!["dei"]),
+                "active",
+            )],
         };
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_err());
@@ -1077,9 +1122,12 @@ mod tests {
             schema_version: 1,
             capability: Default::default(),
             exemptions: Default::default(),
-            operations: vec![
-                create_row("op1", Some("op1"), Some(vec!["alias"]), "retired"),
-            ],
+            operations: vec![create_row(
+                "op1",
+                Some("op1"),
+                Some(vec!["alias"]),
+                "retired",
+            )],
         };
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_err());
@@ -1092,9 +1140,12 @@ mod tests {
             schema_version: 1,
             capability: Default::default(),
             exemptions: Default::default(),
-            operations: vec![
-                create_row("op1", Some("op1"), Some(vec!["UPPERCASE"]), "active"),
-            ],
+            operations: vec![create_row(
+                "op1",
+                Some("op1"),
+                Some(vec!["UPPERCASE"]),
+                "active",
+            )],
         };
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_err());
@@ -1107,9 +1158,12 @@ mod tests {
             schema_version: 1,
             capability: Default::default(),
             exemptions: Default::default(),
-            operations: vec![
-                create_row("dei", Some("orchestrator"), Some(vec!["dei"]), "active"),
-            ],
+            operations: vec![create_row(
+                "dei",
+                Some("orchestrator"),
+                Some(vec!["dei"]),
+                "active",
+            )],
         };
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_ok());

@@ -64,7 +64,8 @@ pub struct DiscoveryCandidateRank {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_class: Option<crate::scientia_finding_ledger::FindingCandidateClass>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub confidence_decomposition: Option<crate::scientia_finding_ledger::FindingConfidenceDecomposition>,
+    pub confidence_decomposition:
+        Option<crate::scientia_finding_ledger::FindingConfidenceDecomposition>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub significance_axes: Option<crate::scientia_finding_ledger::SignificanceAxes>,
     /// Max prior-art lexical overlap when a novelty bundle is attached (0–1).
@@ -94,7 +95,10 @@ pub struct ManifestCompletionReport {
     pub field_provenance: Vec<FieldProvenanceEntry>,
 }
 
-fn strength_weight(s: DiscoverySignalStrength, h: &crate::scientia_heuristics::ScientiaHeuristics) -> u32 {
+fn strength_weight(
+    s: DiscoverySignalStrength,
+    h: &crate::scientia_heuristics::ScientiaHeuristics,
+) -> u32 {
     match s {
         DiscoverySignalStrength::Strong => h.rank_weight_strong,
         DiscoverySignalStrength::Supporting => h.rank_weight_supporting,
@@ -253,21 +257,20 @@ pub fn rank_candidate_heuristics(
 
     let intake_low = tier == DiscoveryIntakeTier::LowSignal;
     let candidate_class = crate::scientia_finding_ledger::infer_candidate_class(&signals);
-    let confidence_decomposition = Some(crate::scientia_finding_ledger::confidence_from_signal_counts(
-        strong_n,
-        sup_n,
-        info_n,
-        unresolved_conflicts,
-        h,
-    ));
-    let significance_axes = Some(crate::scientia_finding_ledger::significance_from_heuristics(
-        score,
-        strong_n,
-        sup_n,
-        intake_low,
-        None,
-        h,
-    ));
+    let confidence_decomposition = Some(
+        crate::scientia_finding_ledger::confidence_from_signal_counts(
+            strong_n,
+            sup_n,
+            info_n,
+            unresolved_conflicts,
+            h,
+        ),
+    );
+    let significance_axes = Some(
+        crate::scientia_finding_ledger::significance_from_heuristics(
+            score, strong_n, sup_n, intake_low, None, h,
+        ),
+    );
 
     DiscoveryCandidateRank {
         publication_id: publication_id.to_string(),

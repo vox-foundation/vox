@@ -83,6 +83,12 @@ const incomingSchema = z.union([
         type: z.literal('updateBudgetCap'),
         value: z.union([z.number(), z.string()]).optional(),
     }),
+    z.object({
+        type: z.literal('setAgentBudget'),
+        agentId: z.number().int().min(0),
+        maxTokens: z.number().min(0).optional(),
+        maxCostUsd: z.number().min(0).optional(),
+    }),
     z.object({ type: z.literal('updateApiKey'), provider: z.string().optional(), value: z.string().optional() }),
     z.object({ type: z.literal('setModel'), value: z.string().optional() }),
     z.object({
@@ -140,6 +146,7 @@ export type WebviewToHostMessage =
       }
     | { type: 'pickModel' }
     | { type: 'updateBudgetCap'; value: number | string }
+    | { type: 'setAgentBudget'; agentId: number; maxTokens?: number; maxCostUsd?: number }
     | { type: 'updateApiKey'; provider: string; value: string }
     | { type: 'setModel'; value: string }
     | { type: 'resumeWorkflow'; step?: string | number }
@@ -252,6 +259,13 @@ export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
         case 'updateBudgetCap':
             if (o.value === undefined) return null;
             return { type: 'updateBudgetCap', value: o.value };
+        case 'setAgentBudget':
+            return {
+                type: 'setAgentBudget',
+                agentId: o.agentId,
+                maxTokens: o.maxTokens,
+                maxCostUsd: o.maxCostUsd,
+            };
         case 'updateApiKey': {
             const p = o.provider;
             if (typeof p !== 'string') return null;

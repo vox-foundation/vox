@@ -325,9 +325,7 @@ async fn handle_tool_call_inner(
         "vox_inline_edit" => {
             Ok(chat_tools::inline_edit(state, serde_json::from_value(args)?).await)
         }
-        "vox_apply_structured_edit" => {
-            Ok(compiler_tools::apply_structured_edit(state, args).await)
-        }
+        "vox_apply_structured_edit" => Ok(compiler_tools::apply_structured_edit(state, args).await),
         "vox_plan" => Ok(chat_tools::plan_goal(state, serde_json::from_value(args)?).await),
         "vox_replan" => Ok(chat_tools::plan_replan(state, serde_json::from_value(args)?).await),
         "vox_plan_status" => {
@@ -528,27 +526,27 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
-        "vox_scientia_publication_novelty_fetch" => Ok(
-            scientia_tools::vox_scientia_publication_novelty_fetch(
+        "vox_scientia_publication_novelty_fetch" => {
+            Ok(scientia_tools::vox_scientia_publication_novelty_fetch(
                 state,
                 serde_json::from_value(args)?,
             )
-            .await,
-        ),
-        "vox_scientia_publication_decision_explain" => Ok(
-            scientia_tools::vox_scientia_publication_decision_explain(
+            .await)
+        }
+        "vox_scientia_publication_decision_explain" => {
+            Ok(scientia_tools::vox_scientia_publication_decision_explain(
                 state,
                 serde_json::from_value(args)?,
             )
-            .await,
-        ),
-        "vox_scientia_publication_novelty_happy_path" => Ok(
-            scientia_tools::vox_scientia_publication_novelty_happy_path(
+            .await)
+        }
+        "vox_scientia_publication_novelty_happy_path" => {
+            Ok(scientia_tools::vox_scientia_publication_novelty_happy_path(
                 state,
                 serde_json::from_value(args)?,
             )
-            .await,
-        ),
+            .await)
+        }
         "vox_scientia_assist_suggestions" => Ok(scientia_tools::vox_scientia_assist_suggestions(
             state,
             serde_json::from_value(args)?,
@@ -754,6 +752,9 @@ async fn handle_tool_call_inner(
         }
         "vox_context_budget" => {
             Ok(crate::context::context_budget(state, serde_json::from_value(args)?).await)
+        }
+        "vox_set_agent_budget" => {
+            Ok(crate::context::set_agent_budget(state, serde_json::from_value(args)?).await)
         }
         "vox_handoff_context" => {
             Ok(crate::context::handoff_context(state, serde_json::from_value(args)?).await)

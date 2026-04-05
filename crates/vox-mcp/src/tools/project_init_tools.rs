@@ -6,7 +6,11 @@ use crate::server::ServerState;
 const REM_PROJECT_INIT: &str = "Provide `project_name`, optional `package_kind` (default application), optional `template` (chatbot|dashboard|api), optional `target_subdir` (repo-relative, no `..`). Refuses if Vox.toml or skill file already exists.";
 
 pub async fn project_init(state: &ServerState, args: serde_json::Value) -> String {
-    let project_name = match args.get("project_name").and_then(|v| v.as_str()).map(str::trim) {
+    let project_name = match args
+        .get("project_name")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+    {
         Some(s) if !s.is_empty() => s.to_string(),
         _ => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -42,14 +46,13 @@ pub async fn project_init(state: &ServerState, args: serde_json::Value) -> Strin
         package_kind,
         template.as_deref(),
     ) {
-        Ok(summary) => ToolResult::ok(
-            serde_json::to_value(&summary).expect("ScaffoldSummary serializes"),
-        )
-        .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
-            e.to_string(),
-            REM_PROJECT_INIT,
-        )
-        .to_json(),
+        Ok(summary) => {
+            ToolResult::ok(serde_json::to_value(&summary).expect("ScaffoldSummary serializes"))
+                .to_json()
+        }
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_PROJECT_INIT)
+                .to_json()
+        }
     }
 }

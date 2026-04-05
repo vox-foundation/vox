@@ -255,7 +255,9 @@ pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), Hando
         .find(|(k, _)| k == CONTEXT_ENVELOPE_JSON_METADATA_KEY)
         && let Err(err) = serde_json::from_str::<crate::ContextEnvelope>(context_json)
     {
-        return Err(HandoffInvariantError::InvalidContextEnvelope(err.to_string()));
+        return Err(HandoffInvariantError::InvalidContextEnvelope(
+            err.to_string(),
+        ));
     }
     if let Some((_, harness_json)) = payload
         .metadata
@@ -282,7 +284,9 @@ pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), Hando
 
 /// Returns compact event metadata derived from optional handoff context / harness metadata.
 #[must_use]
-pub fn handoff_context_event_metadata(payload: &HandoffPayload) -> (bool, bool, Option<String>, Option<String>) {
+pub fn handoff_context_event_metadata(
+    payload: &HandoffPayload,
+) -> (bool, bool, Option<String>, Option<String>) {
     let Some((_, context_json)) = payload
         .metadata
         .iter()
@@ -323,7 +327,7 @@ pub fn handoff_context_event_metadata(payload: &HandoffPayload) -> (bool, bool, 
     let has_harness_spec = payload
         .metadata
         .iter()
-            .any(|(k, _)| k == HARNESS_SPEC_JSON_METADATA_KEY);
+        .any(|(k, _)| k == HARNESS_SPEC_JSON_METADATA_KEY);
     (true, has_harness_spec, session_id, thread_id)
 }
 
@@ -549,11 +553,10 @@ mod tests {
             Some("thread-handoff"),
             &["artifacts/out.md".to_string()],
         );
-        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff")
-            .with_metadata(
-                HARNESS_SPEC_JSON_METADATA_KEY,
-                serde_json::to_string(&harness).expect("serialize harness"),
-            );
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff").with_metadata(
+            HARNESS_SPEC_JSON_METADATA_KEY,
+            serde_json::to_string(&harness).expect("serialize harness"),
+        );
         execute_handoff(&payload, &bus).expect("valid harness metadata");
     }
 
@@ -579,7 +582,8 @@ mod tests {
             verification_reason: None,
             recommended_next_action: None,
         };
-        let context = crate::ContextEnvelope::from_session_retrieval("repo", "sid-event", &retrieval);
+        let context =
+            crate::ContextEnvelope::from_session_retrieval("repo", "sid-event", &retrieval);
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff with context")
             .with_metadata(
                 CONTEXT_ENVELOPE_JSON_METADATA_KEY,

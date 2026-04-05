@@ -90,10 +90,7 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         .reorder_task(task_id, "urgent")
         .await
         .expect("reorder_task");
-    let _ = client
-        .cancel_task(task_id)
-        .await
-        .expect("cancel_task");
+    let _ = client.cancel_task(task_id).await.expect("cancel_task");
 
     let submitted2 = client
         .submit_task(serde_json::json!({

@@ -29,7 +29,10 @@ pub struct FatigueMonitor {
 
 impl Default for FatigueMonitor {
     fn default() -> Self {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         Self {
             recent_context_switches: 0,
             last_interaction_ms: now,
@@ -57,9 +60,12 @@ impl FatigueMonitor {
     /// Evaluate if the developer has hit a cognitive pacing threshold.
     /// Returns a FatigueEvent if the developer requires intervention.
     pub fn evaluate_fatigue(&self, attention_spent_ratio: f64) -> Option<FatigueEvent> {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         let session_duration_ms = now.saturating_sub(self.session_start_ms);
-        
+
         // Thresholds derived from `04_mental_health_and_fatigue_lake.md`
         let hours_worked = session_duration_ms as f64 / 3_600_000.0;
 
@@ -72,13 +78,15 @@ impl FatigueMonitor {
         } else if self.recent_context_switches > 25 {
             Some(FatigueEvent {
                 timestamp_ms: now,
-                trigger_reason: "High cognitive thrashing (Exceeds context switch threshold)".to_string(),
+                trigger_reason: "High cognitive thrashing (Exceeds context switch threshold)"
+                    .to_string(),
                 required_rest_ms: 5 * 60 * 1000,
             })
         } else if hours_worked > 4.0 {
             Some(FatigueEvent {
                 timestamp_ms: now,
-                trigger_reason: "Continuous working flow exceeds 4 hours; risk of burnout".to_string(),
+                trigger_reason: "Continuous working flow exceeds 4 hours; risk of burnout"
+                    .to_string(),
                 required_rest_ms: 30 * 60 * 1000,
             })
         } else {

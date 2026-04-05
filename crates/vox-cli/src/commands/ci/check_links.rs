@@ -35,12 +35,20 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
         } else if abs_t.is_dir() {
             collect_markdown_files(&abs_t, &mut markdown_files);
         } else {
-            println!("{} Target not found or invalid: {:?}", "SKIP".yellow(), abs_t);
+            println!(
+                "{} Target not found or invalid: {:?}",
+                "SKIP".yellow(),
+                abs_t
+            );
             return Ok(());
         }
     } else {
         if !docs_src.exists() {
-            println!("{} Docs source not found at {:?}", "SKIP".yellow(), docs_src);
+            println!(
+                "{} Docs source not found at {:?}",
+                "SKIP".yellow(),
+                docs_src
+            );
             return Ok(());
         }
         collect_markdown_files(&docs_src, &mut markdown_files);
@@ -95,10 +103,20 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
 
             // Normalize and check existence
             if !target_path.exists() {
-                broken_links.push((path.to_path_buf(), target_full.to_string(), target_path, "missing_file"));
+                broken_links.push((
+                    path.to_path_buf(),
+                    target_full.to_string(),
+                    target_path,
+                    "missing_file",
+                ));
             } else if let Some(anchor_text) = anchor {
                 if !check_anchor(&target_path, anchor_text) {
-                    broken_links.push((path.to_path_buf(), target_full.to_string(), target_path, "missing_anchor"));
+                    broken_links.push((
+                        path.to_path_buf(),
+                        target_full.to_string(),
+                        target_path,
+                        "missing_anchor",
+                    ));
                 }
             }
         }
@@ -109,9 +127,16 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     let mut failed = false;
 
     if !nesting_errors.is_empty() {
-        println!("{} Found {} inappropriately nested files (> 3 levels deep in docs/src):", "FAIL".red().bold(), nesting_errors.len());
+        println!(
+            "{} Found {} inappropriately nested files (> 3 levels deep in docs/src):",
+            "FAIL".red().bold(),
+            nesting_errors.len()
+        );
         for f in &nesting_errors {
-            println!("  {}", f.strip_prefix(repo_root).unwrap_or(f).display().yellow());
+            println!(
+                "  {}",
+                f.strip_prefix(repo_root).unwrap_or(f).display().yellow()
+            );
         }
         failed = true;
     }
@@ -138,7 +163,10 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     if failed {
         Err(anyhow::anyhow!("Documentation integrity check failed"))
     } else {
-        println!("{} All internal links and structures are valid!", "PASS".green().bold());
+        println!(
+            "{} All internal links and structures are valid!",
+            "PASS".green().bold()
+        );
         Ok(())
     }
 }
@@ -148,11 +176,11 @@ fn check_anchor(path: &Path, anchor: &str) -> bool {
         Ok(c) => c,
         Err(_) => return false,
     };
-    
+
     // Convert anchor to a header string. Example: "phase-1:-harden-the-core-ci-link-checker"
     // This is a simplistic check, matching `# some text` ignoring case and punctuation where needed.
     // For robust matching, we look for an explicit inline `<a id="...">` or `<a name="...">` OR a header line.
-    
+
     let a_id_pattern = format!("id=\"{anchor}\"");
     let a_name_pattern = format!("name=\"{anchor}\"");
     if content.contains(&a_id_pattern) || content.contains(&a_name_pattern) {
@@ -165,7 +193,8 @@ fn check_anchor(path: &Path, anchor: &str) -> bool {
         if line.starts_with('#') {
             let text = line.trim_start_matches('#').trim();
             // Basic markdown anchor generation: lowercase, replace spaces with hyphen, remove punctuation
-            let generated = text.to_lowercase()
+            let generated = text
+                .to_lowercase()
                 .chars()
                 .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '-')
                 .collect::<String>()
@@ -175,7 +204,7 @@ fn check_anchor(path: &Path, anchor: &str) -> bool {
             }
         }
     }
-    
+
     false
 }
 

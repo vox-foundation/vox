@@ -58,9 +58,7 @@ impl OrchestratorInboxItem {
     pub fn from_webhook(event: WebhookEvent) -> Self {
         let kind = match (event.source.as_ref(), event.event_type.as_ref()) {
             ("github" | "gitlab", "push" | "tag_push") => InboxItemKind::GitPush,
-            ("github" | "gitlab", "pull_request" | "merge_request") => {
-                InboxItemKind::PullRequest
-            }
+            ("github" | "gitlab", "pull_request" | "merge_request") => InboxItemKind::PullRequest,
             ("discord" | "slack", _) => InboxItemKind::ChannelMessage,
             _ => InboxItemKind::ExternalEvent,
         };
@@ -79,10 +77,7 @@ pub struct WebhookOrchestratorBridge {
 
 impl WebhookOrchestratorBridge {
     /// Create a bridge that subscribes to `event_sink` and delegates to `orch`.
-    pub fn new(
-        event_sink: &broadcast::Sender<WebhookEvent>,
-        orch: Arc<Orchestrator>,
-    ) -> Self {
+    pub fn new(event_sink: &broadcast::Sender<WebhookEvent>, orch: Arc<Orchestrator>) -> Self {
         Self {
             rx: event_sink.subscribe(),
             orch,
@@ -105,23 +100,27 @@ impl WebhookOrchestratorBridge {
                 Ok(event) => {
                     let item = OrchestratorInboxItem::from_webhook(event.clone());
                     debug!(kind = ?item.kind, source = %event.source, "Forwarding webhook event to orchestrator");
-                    
+
                     let prompt = format!(
-                        "Process incoming webhook event from source {}. Event type: {}. Payload: {}", 
-                        event.source, 
+                        "Process incoming webhook event from source {}. Event type: {}. Payload: {}",
+                        event.source,
                         event.event_type,
                         serde_json::to_string(&event.payload).unwrap_or_default()
                     );
-                    
-                    if let Err(e) = self.orch.submit_task_with_agent(
-                        prompt,
-                        vec![],
-                        Some(vox_orchestrator::types::TaskPriority::Normal),
-                        None,
-                        None,
-                        None,
-                        None,
-                    ).await {
+
+                    if let Err(e) = self
+                        .orch
+                        .submit_task_with_agent(
+                            prompt,
+                            vec![],
+                            Some(vox_orchestrator::types::TaskPriority::Normal),
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                        .await
+                    {
                         error!("Failed to submit webhook task to orchestrator: {}", e);
                     }
                 }

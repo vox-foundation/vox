@@ -2,8 +2,8 @@
 //! Smoke tests for `vox-capability-registry` public API.
 
 use vox_capability_registry::{
-    PopuliExposure, active_vox_cli_paths_from_command_registry_yaml,
-    capability_to_openai_function, default_registry, mens_chat_parameters,
+    PopuliExposure, active_vox_cli_paths_from_command_registry_yaml, capability_to_openai_function,
+    default_registry, mens_chat_parameters,
 };
 
 #[test]
@@ -91,10 +91,7 @@ operations:
   - { surface: other, path: [y], status: active }
 ";
     let paths = active_vox_cli_paths_from_command_registry_yaml(yaml).unwrap();
-    assert_eq!(
-        paths,
-        vec![vec!["a".to_string(), "b".to_string()]]
-    );
+    assert_eq!(paths, vec![vec!["a".to_string(), "b".to_string()]]);
 }
 
 #[test]

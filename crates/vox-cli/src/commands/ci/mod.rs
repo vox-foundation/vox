@@ -18,8 +18,8 @@ mod operations_catalog;
 mod pm_provenance;
 mod release_build;
 mod scaling_audit;
-mod scientia_worthiness_contract;
 mod scientia_novelty_ledger_contract;
+mod scientia_worthiness_contract;
 pub mod workspace_artifacts;
 
 mod cmd_enums;

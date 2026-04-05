@@ -13,8 +13,8 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
-use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use vox_protocol::orch_daemon_method;
+use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 use crate::Orchestrator;
 use crate::types::TaskId;
@@ -85,7 +85,7 @@ pub async fn dispatch_request(
                 );
             }
             response_result(&req.id, diag)
-        },
+        }
         orch_daemon_method::STATUS => match serde_json::to_value(orch.status()) {
             Ok(v) => response_result(&req.id, v),
             Err(e) => response_err(&req.id, e.to_string()),
@@ -140,17 +140,15 @@ pub async fn dispatch_request(
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
             let capability_requirements = match req.params.get("capability_requirements") {
-                Some(v) => {
-                    match serde_json::from_value::<crate::TaskCapabilityHints>(v.clone()) {
-                        Ok(c) => Some(c),
-                        Err(e) => {
-                            return response_err(
-                                &req.id,
-                                format!("invalid capability_requirements: {e}"),
-                            )
-                        }
+                Some(v) => match serde_json::from_value::<crate::TaskCapabilityHints>(v.clone()) {
+                    Ok(c) => Some(c),
+                    Err(e) => {
+                        return response_err(
+                            &req.id,
+                            format!("invalid capability_requirements: {e}"),
+                        );
                     }
-                }
+                },
                 None => None,
             };
             let enqueue_hints = match req.params.get("enqueue_hints") {
@@ -177,7 +175,9 @@ pub async fn dispatch_request(
                 )
                 .await
             {
-                Ok(task_id) => response_result(&req.id, serde_json::json!({ "task_id": task_id.0 })),
+                Ok(task_id) => {
+                    response_result(&req.id, serde_json::json!({ "task_id": task_id.0 }))
+                }
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
@@ -250,9 +250,10 @@ pub async fn dispatch_request(
                 return response_err(&req.id, "params.agent_id (u64) required");
             };
             match orch.drain_agent(crate::AgentId(agent_id)) {
-                Ok(drained) => {
-                    response_result(&req.id, serde_json::json!({ "drained_count": drained.len() }))
-                }
+                Ok(drained) => response_result(
+                    &req.id,
+                    serde_json::json!({ "drained_count": drained.len() }),
+                ),
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
@@ -279,10 +280,7 @@ pub async fn dispatch_request(
                 .get("source_task_id")
                 .and_then(|x| x.as_u64())
                 .map(TaskId);
-            let delegation_reason = req
-                .params
-                .get("delegation_reason")
-                .and_then(|x| x.as_str());
+            let delegation_reason = req.params.get("delegation_reason").and_then(|x| x.as_str());
             let res = if dynamic {
                 orch.spawn_dynamic_agent_with_parent(
                     name,

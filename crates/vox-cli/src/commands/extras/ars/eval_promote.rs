@@ -10,7 +10,8 @@ pub async fn eval_task(body: &str, input_json: Option<&str>) -> Result<()> {
     println!("🚀 Evaluating ephemeral task in sandbox...");
     let limits = vox_skills::ars_shim::manifest::ResourceLimits::default();
 
-    let result = vox_skills::ars_shim::executor::execute_vox_task(body, &input, &limits, None).await?;
+    let result =
+        vox_skills::ars_shim::executor::execute_vox_task(body, &input, &limits, None).await?;
 
     println!("\nResult:");
     println!("{}", serde_json::to_string_pretty(&result).unwrap());

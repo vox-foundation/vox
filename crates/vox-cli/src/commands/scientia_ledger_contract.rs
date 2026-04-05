@@ -8,9 +8,11 @@ use serde_json::Value as JsonValue;
 use super::ci::bounded_read::read_utf8_path_capped;
 
 /// Repo-relative path to finding candidate v1 JSON Schema.
-pub const FINDING_CANDIDATE_SCHEMA_REL: &str = "contracts/scientia/finding-candidate.v1.schema.json";
+pub const FINDING_CANDIDATE_SCHEMA_REL: &str =
+    "contracts/scientia/finding-candidate.v1.schema.json";
 /// Repo-relative path to novelty evidence bundle v1 JSON Schema.
-pub const NOVELTY_BUNDLE_SCHEMA_REL: &str = "contracts/scientia/novelty-evidence-bundle.v1.schema.json";
+pub const NOVELTY_BUNDLE_SCHEMA_REL: &str =
+    "contracts/scientia/novelty-evidence-bundle.v1.schema.json";
 
 fn validate_json_against_schema(
     repo_root: &Path,
@@ -27,7 +29,10 @@ fn validate_json_against_schema(
     let schema_val: JsonValue = serde_json::from_str(&schema_src).with_context(|| {
         format!(
             "parse JSON Schema {}",
-            schema_path.strip_prefix(repo_root).unwrap_or(&schema_path).display()
+            schema_path
+                .strip_prefix(repo_root)
+                .unwrap_or(&schema_path)
+                .display()
         )
     })?;
     let data_val: JsonValue = serde_json::from_str(&data_src)

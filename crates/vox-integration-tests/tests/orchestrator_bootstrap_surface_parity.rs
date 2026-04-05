@@ -21,7 +21,11 @@ impl Drop for RestoreCwd {
 async fn mcp_server_state_matches_shared_bootstrap() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path().to_path_buf();
-    fs::write(root.join("Vox.toml"), "[project]\nname = \"mcp_bootstrap_parity\"\n").unwrap();
+    fs::write(
+        root.join("Vox.toml"),
+        "[project]\nname = \"mcp_bootstrap_parity\"\n",
+    )
+    .unwrap();
 
     let cwd = std::env::current_dir().expect("cwd");
     let _restore = RestoreCwd(cwd);
@@ -31,7 +35,10 @@ async fn mcp_server_state_matches_shared_bootstrap() {
     let build = build_repo_scoped_orchestrator(config.clone(), None);
     let state = ServerState::new(config);
 
-    assert_eq!(build.repository.repository_id, state.repository.repository_id);
+    assert_eq!(
+        build.repository.repository_id,
+        state.repository.repository_id
+    );
     assert_eq!(
         build.config.memory.log_dir,
         state.orchestrator_config.memory.log_dir

@@ -1,6 +1,6 @@
-pub(crate) mod spec;
 mod registry;
 pub mod scoring;
+pub(crate) mod spec;
 #[cfg(test)]
 mod tests;
 

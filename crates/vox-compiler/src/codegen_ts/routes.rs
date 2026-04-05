@@ -68,8 +68,8 @@ fn http_method_ord(m: HirHttpMethod) -> u8 {
 
 /// Fail-fast checks for duplicate Express registrations and empty paths (OP-0170).
 pub fn validate_express_route_emit_input(hir: &HirModule) -> Result<(), String> {
+    use crate::codegen_shared::{RouteMethod, lower_module_routes};
     use std::collections::HashSet;
-    use crate::codegen_shared::{lower_module_routes, RouteMethod};
 
     let routes = lower_module_routes(hir);
     let mut http_keys = HashSet::<(RouteMethod, String)>::new();
@@ -212,7 +212,9 @@ fn emit_hir_route_stmt(stmt: &HirStmt) -> String {
         HirStmt::Expr { expr, .. } => {
             format!("{};\n", emit_hir_route_expr(expr))
         }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             let cond = emit_hir_route_expr(condition);
             let mut out = format!("while ({cond}) {{\n");
             for s in body {

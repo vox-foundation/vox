@@ -1,3 +1,12 @@
+---
+title: "Completion policy SSOT (LLM premature-completion)"
+description: "Single source of truth for LLM completion policy enforcement, TOESTUB integration, and CI gating."
+category: "architecture"
+status: "current"
+last_updated: 2026-04-05
+training_eligible: true
+---
+
 # Completion policy SSOT (LLM premature-completion)
 
 **Policy contract:** `contracts/operations/completion-policy.v1.yaml` (validated by `vox ci command-compliance` against `contracts/operations/completion-policy.v1.schema.json`).

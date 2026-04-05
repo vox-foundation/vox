@@ -1,3 +1,12 @@
+---
+title: "Vox Language Testing Pipeline"
+description: "Embedding tests into .vox format and LLM to Vox delivery pipeline with five-stage gate validation."
+category: "architecture"
+status: "research"
+last_updated: 2026-04-04
+training_eligible: true
+---
+
 # Vox Language Testing Pipeline
 ## Embedding Tests Into the .vox Format & the LLM → Vox Delivery Pipeline
 

@@ -268,16 +268,12 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 publication_id,
                 offline,
                 persist_metadata,
-            } => {
-                db::publication_novelty_fetch(&publication_id, offline, persist_metadata).await
-            }
+            } => db::publication_novelty_fetch(&publication_id, offline, persist_metadata).await,
             DbCliPublication::PublicationDecisionExplain {
                 publication_id,
                 live_prior_art,
                 offline,
-            } => {
-                db::publication_decision_explain(&publication_id, live_prior_art, offline).await
-            }
+            } => db::publication_decision_explain(&publication_id, live_prior_art, offline).await,
             DbCliPublication::PublicationNoveltyHappyPath {
                 publication_id,
                 offline,

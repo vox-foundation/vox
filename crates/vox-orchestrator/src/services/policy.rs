@@ -78,7 +78,8 @@ impl PolicyEngine {
         let Some(task) = task else {
             return PolicyCheckResult::Allowed;
         };
-        let write_manifest: std::collections::HashSet<_> = task.write_files().iter().cloned().collect();
+        let write_manifest: std::collections::HashSet<_> =
+            task.write_files().iter().cloned().collect();
         let is_write_task = !write_manifest.is_empty();
 
         let Some(att) = attestation else {
@@ -102,7 +103,11 @@ impl PolicyEngine {
         }
 
         if is_write_task {
-            let actual_touched: std::collections::HashSet<_> = att.artifact_paths.iter().map(|p| std::path::PathBuf::from(p)).collect();
+            let actual_touched: std::collections::HashSet<_> = att
+                .artifact_paths
+                .iter()
+                .map(|p| std::path::PathBuf::from(p))
+                .collect();
             let mut untouched = Vec::new();
             for planned in &write_manifest {
                 if !actual_touched.contains(planned.as_path()) {
@@ -112,7 +117,8 @@ impl PolicyEngine {
             if !untouched.is_empty() {
                 return PolicyCheckResult::ScopeDenied(format!(
                     "Completion policy denied: {} planned files not in artifact_paths: {:?}. Use force_risky to bypass.",
-                    untouched.len(), untouched
+                    untouched.len(),
+                    untouched
                 ));
             }
         } else {
@@ -134,7 +140,11 @@ impl PolicyEngine {
         }
         let has_evidence = !att.artifact_paths.is_empty() || !att.checks_passed.is_empty();
         if !has_evidence {
-            let task_type = if is_write_task { "write task" } else { "no-write task" };
+            let task_type = if is_write_task {
+                "write task"
+            } else {
+                "no-write task"
+            };
             return PolicyCheckResult::ScopeDenied(format!(
                 "Completion policy denied: {} requires artifact_paths or checks_passed evidence",
                 task_type
@@ -288,7 +298,7 @@ mod tests {
         let path = PathBuf::from("src/foo.rs");
         let manifest = vec![FileAffinity::write(&path)];
         let task = AgentTask::new(TaskId(3), "write task", TaskPriority::Normal, manifest);
-        
+
         let att_missing = CompletionAttestation {
             completion_summary: Some("Wrote code without artifacts.".into()),
             checks_passed: vec!["cargo check".into()],

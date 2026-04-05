@@ -49,7 +49,9 @@ struct OrchDaemonEnvGuard {
 
 impl OrchDaemonEnvGuard {
     fn enter(socket: &str, writes_enabled: bool) -> Self {
-        let lock = ORCH_DAEMON_ENV_TEST_LOCK.lock().expect("orch daemon env lock");
+        let lock = ORCH_DAEMON_ENV_TEST_LOCK
+            .lock()
+            .expect("orch daemon env lock");
         // SAFETY: tests hold `ORCH_DAEMON_ENV_TEST_LOCK`; no concurrent access to these env keys.
         unsafe {
             unsafe { std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", socket) };
@@ -517,8 +519,9 @@ async fn vox_agent_handoff_accepts_valid_context_envelope_json() {
         verification_reason: None,
         recommended_next_action: None,
     };
-    let context =
-        vox_orchestrator::ContextEnvelope::from_session_retrieval("repo-mcp", "sid-mcp", &retrieval);
+    let context = vox_orchestrator::ContextEnvelope::from_session_retrieval(
+        "repo-mcp", "sid-mcp", &retrieval,
+    );
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let raw = tools::handle_tool_call(
         &state,
@@ -757,11 +760,12 @@ async fn orchestrator_accept_handoff_context_metadata_reaches_ludus_accept_paylo
         &retrieval,
     );
     let context_json = serde_json::to_string(&context).expect("serialize context");
-    let payload = vox_orchestrator::HandoffPayload::new(AgentId(1), Some(AgentId(2)), "accept handoff")
-        .with_metadata(
-            vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY,
-            context_json,
-        );
+    let payload =
+        vox_orchestrator::HandoffPayload::new(AgentId(1), Some(AgentId(2)), "accept handoff")
+            .with_metadata(
+                vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY,
+                context_json,
+            );
     state
         .orchestrator
         .accept_handoff(payload)
@@ -2020,10 +2024,7 @@ async fn handle_tool_call_respects_mcp_tool_args_hash_for_stored_payloads() {
             if p.get("tool").and_then(|t| t.as_str()) != Some("vox_skill_list") {
                 continue;
             }
-            let args = p
-                .get("args")
-                .and_then(|a| a.as_str())
-                .unwrap_or_default();
+            let args = p.get("args").and_then(|a| a.as_str()).unwrap_or_default();
             assert!(
                 args.starts_with("xxh3:"),
                 "expected hashed args, got args field: {:?}",

@@ -23,7 +23,7 @@ use tokio::process::Command;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
 
-pub use check_terminal::{validate_policy_file, DEFAULT_POLICY_REL};
+pub use check_terminal::{DEFAULT_POLICY_REL, validate_policy_file};
 
 /// `vox shell` subcommands (`repl` when omitted).
 #[derive(Subcommand, Clone, Debug)]
@@ -121,15 +121,15 @@ pub async fn run_shell() -> anyhow::Result<()> {
                     );
                 }
                 match Command::new(cmd).args(args).status().await {
-                Ok(status) if !status.success() => {
-                    eprintln!("Command exited with status: {status}");
+                    Ok(status) if !status.success() => {
+                        eprintln!("Command exited with status: {status}");
+                    }
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                        eprintln!("vox shell: command not found: {cmd}");
+                    }
+                    Err(e) => eprintln!("{e}"),
+                    Ok(_) => {}
                 }
-                Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                    eprintln!("vox shell: command not found: {cmd}");
-                }
-                Err(e) => eprintln!("{e}"),
-                Ok(_) => {}
-            }
             }
         }
     }

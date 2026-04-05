@@ -1,8 +1,10 @@
-use super::super::params::ChatTranscriptEntry;
 use super::super::now_ts;
+use super::super::params::ChatTranscriptEntry;
 use crate::server::ServerState;
 
-pub(crate) fn workspace_turn_to_chat_entry(row: vox_db::WorkspaceTranscriptTurnRow) -> ChatTranscriptEntry {
+pub(crate) fn workspace_turn_to_chat_entry(
+    row: vox_db::WorkspaceTranscriptTurnRow,
+) -> ChatTranscriptEntry {
     let context_files: Vec<String> =
         serde_json::from_str(&row.context_files_json).unwrap_or_default();
     let timestamp = if row.created_unix > 0 {
@@ -56,10 +58,7 @@ pub(crate) async fn context_history_or_hydrate(
                 .await
             {
                 Ok(rows) if !rows.is_empty() => {
-                    history = rows
-                        .into_iter()
-                        .map(workspace_turn_to_chat_entry)
-                        .collect();
+                    history = rows.into_iter().map(workspace_turn_to_chat_entry).collect();
                     tracing::info!(
                         target: "vox_mcp::transcript_hydrate",
                         session = %session_id,

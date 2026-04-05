@@ -94,10 +94,13 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
             continue;
         }
         let lower = token.to_ascii_lowercase();
-        
-        // If the speaker profile is dysarthric, bypass the standard confusion 
+
+        // If the speaker profile is dysarthric, bypass the standard confusion
         // map as their speech patterns require their distinct fine-tuned mappings.
-        if !matches!(ctx.speaker_profile, crate::speaker_profile::SpeakerProfile::Dysarthric(_)) {
+        if !matches!(
+            ctx.speaker_profile,
+            crate::speaker_profile::SpeakerProfile::Dysarthric(_)
+        ) {
             if let Some(mapped) = confusion.get(lower.as_str()) {
                 trace.push(CorrectionTrace {
                     rule: "confusion_map".to_string(),
@@ -109,7 +112,7 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
                 continue;
             }
         }
-        
+
         if domain_lexicon.contains(&lower) {
             if token != lower {
                 trace.push(CorrectionTrace {

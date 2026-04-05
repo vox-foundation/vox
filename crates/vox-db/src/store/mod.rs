@@ -33,10 +33,12 @@ pub use types::{
     SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
     ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry, UserEntry,
     WarningRow, WorkflowExecutionRow,
+    ObservationReport, ObserverAction, TestDecision, TestDecisionPolicy, VictoryVerdict, TierResult,
 };
 
 pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};
 pub use ops_mens_cloud::CloudCostSummary;
+pub use ops_mens_intelligence::{CorpusQualitySummary, GrpoStepRow};
 
 mod open;
 mod ops;
@@ -51,6 +53,7 @@ mod ops_ludus;
 mod ops_mcp_diagnostics;
 mod ops_memory;
 mod ops_mens_cloud;
+mod ops_mens_intelligence;
 mod ops_news;
 mod ops_orchestrator;
 mod ops_planning;

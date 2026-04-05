@@ -13,8 +13,8 @@ pub mod populi_toml;
 mod repo_catalog;
 mod repo_query_trace;
 mod repo_workspace_status;
-mod skill_scaffold;
 mod resolve;
+mod skill_scaffold;
 mod workspace_layout;
 mod workspace_path_migration;
 
@@ -30,13 +30,9 @@ pub use git_root::find_git_work_tree;
 pub use gpu_inventory::{GpuInventorySnapshot, probe_nvidia_gpu_inventory_best_effort};
 pub use id::compute_repository_id;
 pub use path_safety::{
-    path_relative_to_repo_root, resolve_local_path_under_repo_root, resolve_strict_repo_relative_path,
+    path_relative_to_repo_root, resolve_local_path_under_repo_root,
+    resolve_strict_repo_relative_path,
 };
-pub use repo_query_trace::{
-    repo_query_file_with_plane, repo_query_history_with_plane, repo_query_text_with_plane,
-};
-pub use repo_workspace_status::{RepoWorkspaceStatus, repo_workspace_status_for_cwd};
-pub use skill_scaffold::{skill_markdown_filename, skill_markdown_for_project};
 pub use populi_toml::{
     MeshToml, MeshTomlError, VoxMeshToml, VoxMeshTomlError, read_vox_populi_toml,
 };
@@ -49,10 +45,15 @@ pub use repo_catalog::{
     refresh_repo_catalog, repo_catalog_manifest_path, repo_query_file, repo_query_history,
     repo_query_text, resolve_repo_catalog,
 };
+pub use repo_query_trace::{
+    repo_query_file_with_plane, repo_query_history_with_plane, repo_query_text_with_plane,
+};
+pub use repo_workspace_status::{RepoWorkspaceStatus, repo_workspace_status_for_cwd};
 pub use resolve::{
     VOX_REPO_ROOT_ENV, find_cargo_workspace_root, find_cargo_workspace_root_from,
     find_project_manifest_root, resolve_from_cargo_workspace, resolve_repo_root_for_ci,
 };
+pub use skill_scaffold::{skill_markdown_filename, skill_markdown_for_project};
 pub use workspace_layout::{
     cargo_workspace_member_dirs, go_roots, node_workspace_packages, python_roots,
 };

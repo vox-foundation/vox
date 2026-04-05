@@ -182,7 +182,8 @@ pub fn scaffold_vox_project_at(
     package_kind: &str,
     template: Option<&str>,
 ) -> Result<ScaffoldSummary> {
-    std::fs::create_dir_all(root).with_context(|| format!("create scaffold root {}", root.display()))?;
+    std::fs::create_dir_all(root)
+        .with_context(|| format!("create scaffold root {}", root.display()))?;
 
     let mut created_relative_paths = Vec::new();
 

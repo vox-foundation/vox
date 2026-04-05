@@ -88,10 +88,7 @@ pub enum ChatProviderRouteKind {
         model: String,
     },
     /// Remote mesh node API.
-    PopuliMesh {
-        base_url: String,
-        model: String,
-    },
+    PopuliMesh { base_url: String, model: String },
     /// Hugging Face Inference Providers router (OpenAI-compatible).
     HuggingFaceRouter(HuggingFaceRouterEndpoint),
     /// Pinned HF Inference Endpoint (dedicated deployment).
@@ -294,7 +291,8 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             response_format: None,
             timeout_ms: None,
         },
-        ChatProviderRouteKind::PopuliLocal { base_url, model } | ChatProviderRouteKind::PopuliMesh { base_url, model } => {
+        ChatProviderRouteKind::PopuliLocal { base_url, model }
+        | ChatProviderRouteKind::PopuliMesh { base_url, model } => {
             let base = base_url.trim_end_matches('/');
             LlmConfig {
                 provider: "ollama".to_string(),

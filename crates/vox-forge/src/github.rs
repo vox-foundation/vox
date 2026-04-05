@@ -490,7 +490,10 @@ impl GitForgeProvider for GitHubProvider {
         let tag_name = release.tag_name;
         // Optionally handle finding existing tags like octocrab did, but we just try to create for simplicity,
         // or check first.
-        let check_url = format!("{}/repos/{owner}/{repo}/releases/tags/{tag_name}", self.api_base);
+        let check_url = format!(
+            "{}/repos/{owner}/{repo}/releases/tags/{tag_name}",
+            self.api_base
+        );
         if let Ok(existing) = self.get_json(&check_url).await {
             if let Some(url) = existing["html_url"].as_str() {
                 return Ok(url.to_string());
@@ -537,26 +540,49 @@ impl GitForgeProvider for GitHubProvider {
             "variables": { "o": owner, "n": repo }
         });
 
-        let resp = self.client.post(&gql_url)
+        let resp = self
+            .client
+            .post(&gql_url)
             .bearer_auth(&self.token)
             .json(&q_repo)
             .send()
-            .await.map_err(|e| ForgeError::Network(e.to_string()))?;
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
         if !resp.status().is_success() {
-            return Err(ForgeError::Http { status: resp.status().as_u16(), message: resp.text().await.unwrap_or_default() });
+            return Err(ForgeError::Http {
+                status: resp.status().as_u16(),
+                message: resp.text().await.unwrap_or_default(),
+            });
         }
-        let body: Value = resp.json().await.map_err(|e| ForgeError::Network(e.to_string()))?;
+        let body: Value = resp
+            .json()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
         if body.get("errors").is_some() {
-            return Err(ForgeError::Http { status: 400, message: body["errors"].to_string() });
+            return Err(ForgeError::Http {
+                status: 400,
+                message: body["errors"].to_string(),
+            });
         }
 
         let repo_id = body["data"]["repository"]["id"].as_str().unwrap_or("");
-        let nodes = body["data"]["repository"]["discussionCategories"]["nodes"].as_array().unwrap();
+        let nodes = body["data"]["repository"]["discussionCategories"]["nodes"]
+            .as_array()
+            .unwrap();
 
         let cat_lower = category_name.to_lowercase();
-        let category_id = nodes.iter().find(|n| {
-            n["name"].as_str().map(|s| s.to_lowercase() == cat_lower).unwrap_or(false)
-        }).and_then(|n| n["id"].as_str()).ok_or_else(|| ForgeError::NotFound { resource: format!("Category {category_name}") })?;
+        let category_id = nodes
+            .iter()
+            .find(|n| {
+                n["name"]
+                    .as_str()
+                    .map(|s| s.to_lowercase() == cat_lower)
+                    .unwrap_or(false)
+            })
+            .and_then(|n| n["id"].as_str())
+            .ok_or_else(|| ForgeError::NotFound {
+                resource: format!("Category {category_name}"),
+            })?;
 
         let mutation = serde_json::json!({
             "query": r#"mutation($input:CreateDiscussionInput!){
@@ -574,19 +600,34 @@ impl GitForgeProvider for GitHubProvider {
             }
         });
 
-        let resp2 = self.client.post(&gql_url)
+        let resp2 = self
+            .client
+            .post(&gql_url)
             .bearer_auth(&self.token)
             .json(&mutation)
             .send()
-            .await.map_err(|e| ForgeError::Network(e.to_string()))?;
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
         if !resp2.status().is_success() {
-            return Err(ForgeError::Http { status: resp2.status().as_u16(), message: resp2.text().await.unwrap_or_default() });
+            return Err(ForgeError::Http {
+                status: resp2.status().as_u16(),
+                message: resp2.text().await.unwrap_or_default(),
+            });
         }
-        let body2: Value = resp2.json().await.map_err(|e| ForgeError::Network(e.to_string()))?;
+        let body2: Value = resp2
+            .json()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
         if body2.get("errors").is_some() {
-            return Err(ForgeError::Http { status: 400, message: body2["errors"].to_string() });
+            return Err(ForgeError::Http {
+                status: 400,
+                message: body2["errors"].to_string(),
+            });
         }
-        let url = body2["data"]["createDiscussion"]["discussion"]["url"].as_str().unwrap_or("").to_string();
+        let url = body2["data"]["createDiscussion"]["discussion"]["url"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
         Ok(url)
     }
 

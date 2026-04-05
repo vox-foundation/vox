@@ -22,9 +22,7 @@ impl Drop for RestoreCwd {
 async fn vox_project_init_writes_nested_application() {
     let _lock = PROJECT_INIT_CWD_LOCK.lock().expect("cwd lock");
     let prev = std::env::current_dir().expect("cwd");
-    let _restore = RestoreCwd {
-        prev: prev.clone(),
-    };
+    let _restore = RestoreCwd { prev: prev.clone() };
     let t = TempDir::new().expect("temp workspace");
     std::env::set_current_dir(t.path()).expect("chdir temp");
 
@@ -44,6 +42,9 @@ async fn vox_project_init_writes_nested_application() {
     let v: serde_json::Value = serde_json::from_str(&raw).expect("json");
     assert_eq!(v["success"], true, "{raw}");
     let root = t.path().join("packages").join("nested_app");
-    assert!(root.join("Vox.toml").is_file(), "expected Vox.toml under {root:?}");
+    assert!(
+        root.join("Vox.toml").is_file(),
+        "expected Vox.toml under {root:?}"
+    );
     assert!(root.join("src/main.vox").is_file());
 }

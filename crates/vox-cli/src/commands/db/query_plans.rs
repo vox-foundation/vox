@@ -157,7 +157,9 @@ fn collect_query_plans_stmt(
         HirStmt::Return { value: Some(v), .. } => collect_query_plans_expr(v, out),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => collect_query_plans_expr(expr, out),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             collect_query_plans_expr(condition, out);
             for st in body {
                 collect_query_plans_stmt(st, out);

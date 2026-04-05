@@ -21,10 +21,7 @@ impl Parser {
                 Err(()) => {
                     // Recovery: skip to the next statement boundary so we can
                     // collect further errors within the same block.
-                    while !matches!(
-                        self.peek(),
-                        Token::Newline | Token::RBrace | Token::Eof
-                    ) {
+                    while !matches!(self.peek(), Token::Newline | Token::RBrace | Token::Eof) {
                         self.advance();
                     }
                 }

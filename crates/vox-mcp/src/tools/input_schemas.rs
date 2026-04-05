@@ -164,14 +164,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_context_budget" => parse_obj(
             r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
         ),
+        "vox_set_agent_budget" => derived_tool_schema!(crate::context::SetAgentBudgetParams),
         "vox_handoff_context" => parse_obj(
             r#"{"type":"object","properties":{"from_agent":{"type":"integer","minimum":0},"to_agent":{"type":"integer","minimum":0}},"required":["from_agent","to_agent"],"additionalProperties":false}"#,
         ),
 
         // ── Gamify ───────────────────────────────────────────────────────────
-        "vox_check_mood" | "vox_agent_status" | "vox_agent_continue" | "vox_agent_assess" => parse_obj(
-            r#"{"type":"object","additionalProperties":true,"description":"Pass agent_id and other fields per orchestrator tool docs."}"#,
-        ),
+        "vox_check_mood" | "vox_agent_status" | "vox_agent_continue" | "vox_agent_assess" => {
+            parse_obj(
+                r#"{"type":"object","additionalProperties":true,"description":"Pass agent_id and other fields per orchestrator tool docs."}"#,
+            )
+        }
         "vox_agent_handoff" => parse_obj(
             r#"{"type":"object","properties":{"from_agent_id":{"type":"integer","minimum":0},"to_agent_id":{"type":"integer","minimum":0},"plan_summary":{"type":"string","minLength":1},"unresolved_objectives":{"type":"array","items":{"type":"string"}},"verification_criteria":{"type":"array","items":{"type":"string"}},"context_envelope_json":{"type":"string","minLength":1},"harness_spec_json":{"type":"string","minLength":1}},"required":["from_agent_id","to_agent_id","plan_summary"],"additionalProperties":false}"#,
         ),
@@ -631,7 +634,9 @@ mod tests {
             props.contains_key("context_envelope_json"),
             "missing context_envelope_json field"
         );
-        let context_prop = props.get("context_envelope_json").expect("context_envelope_json");
+        let context_prop = props
+            .get("context_envelope_json")
+            .expect("context_envelope_json");
         assert!(
             schema_has_concrete_shape(context_prop, &root),
             "context_envelope_json must expose a concrete schema shape or resolvable $ref"

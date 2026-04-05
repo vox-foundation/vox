@@ -109,8 +109,7 @@ fn classify_row(
         .unwrap_or(UNIX_EPOCH);
     let bytes = path_size_bytes(&path);
     let tracked = false;
-    let delete_candidate =
-        delete_candidate_override.unwrap_or_else(|| delete_reason.is_some());
+    let delete_candidate = delete_candidate_override.unwrap_or_else(|| delete_reason.is_some());
     ArtifactAuditRow {
         path: path.to_string_lossy().to_string(),
         class: class.to_string(),
@@ -149,7 +148,10 @@ fn emit_large_tracked_mens_advisories(rows: &[ArtifactAuditRow]) {
     }
 }
 
-fn collect_inventory(root: &Path, policy: &WorkspaceArtifactRetentionFile) -> Result<Vec<ArtifactAuditRow>> {
+fn collect_inventory(
+    root: &Path,
+    policy: &WorkspaceArtifactRetentionFile,
+) -> Result<Vec<ArtifactAuditRow>> {
     let (mens_delete, _) = plan_mens_run_deletions(root, &policy.mens)?;
     let mens_set: HashSet<PathBuf> = mens_delete.into_iter().collect();
 
@@ -199,7 +201,9 @@ fn collect_inventory(root: &Path, policy: &WorkspaceArtifactRetentionFile) -> Re
 
     let runs_root = root.join("mens").join("runs");
     if runs_root.is_dir() {
-        for entry in fs::read_dir(&runs_root).with_context(|| format!("read {}", runs_root.display()))? {
+        for entry in
+            fs::read_dir(&runs_root).with_context(|| format!("read {}", runs_root.display()))?
+        {
             let entry = entry?;
             let ft = entry.file_type()?;
             if ft.is_symlink() || !ft.is_dir() {
@@ -257,10 +261,7 @@ fn collect_inventory(root: &Path, policy: &WorkspaceArtifactRetentionFile) -> Re
         let mut r = classify_row(
             cw.clone(),
             "WorkspaceTarget",
-            Some(
-                "canonical Cargo target — not removed by artifact-prune; use cargo clean"
-                    .into(),
-            ),
+            Some("canonical Cargo target — not removed by artifact-prune; use cargo clean".into()),
             Some(false),
         );
         refresh_tracked(root, &mut r, &cw);
@@ -295,13 +296,7 @@ pub fn run_audit(root: &Path, json: bool) -> Result<()> {
             let tr = if r.tracked { "tracked" } else { "untracked" };
             println!(
                 "{}\t{}\t{}B\t{}d\t{}\t{}\t{:?}",
-                r.path,
-                r.class,
-                r.bytes,
-                r.age_days,
-                tr,
-                dc,
-                r.delete_reason
+                r.path, r.class, r.bytes, r.age_days, tr, dc, r.delete_reason
             );
         }
     }
@@ -434,9 +429,7 @@ pub fn run_prune(root: &Path, dry_run: bool, apply: bool, policy_arg: Option<&Pa
         *counts.entry(class).or_insert(0) += 1;
     }
 
-    println!(
-        "artifact-prune: dry_run={dry_run} reclaimed_bytes={reclaimed} per_class={counts:?}"
-    );
+    println!("artifact-prune: dry_run={dry_run} reclaimed_bytes={reclaimed} per_class={counts:?}");
     Ok(())
 }
 
@@ -463,6 +456,9 @@ mod tests {
             latest_pointer: "mens/runs/latest".into(),
         };
         let (del, _) = plan_mens_run_deletions(root, &policy).unwrap();
-        assert!(del.len() <= 1, "expected at most one deleted when min_keep=2");
+        assert!(
+            del.len() <= 1,
+            "expected at most one deleted when min_keep=2"
+        );
     }
 }

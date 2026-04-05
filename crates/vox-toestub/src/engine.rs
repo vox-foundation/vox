@@ -91,14 +91,17 @@ struct PreludeAllowFile {
 
 fn collect_workspace_cross_refs(
     files: &[crate::rules::SourceFile],
-) -> (HashMap<String, HashSet<String>>, HashMap<String, HashSet<String>>) {
+) -> (
+    HashMap<String, HashSet<String>>,
+    HashMap<String, HashSet<String>>,
+) {
     let re_crate = regex::Regex::new(r"\bcrate::([a-zA-Z_][a-zA-Z0-9_]*)").expect("valid regex");
     let re_super = regex::Regex::new(r"\bsuper::([a-zA-Z_][a-zA-Z0-9_]*)").expect("valid regex");
     let re_word = regex::Regex::new(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b").expect("valid regex");
-    
+
     let mut mod_refs: HashMap<String, HashSet<String>> = HashMap::new();
     let mut words: HashMap<String, HashSet<String>> = HashMap::new();
-    
+
     for f in files {
         if f.language != Language::Rust {
             continue;
@@ -110,7 +113,10 @@ fn collect_workspace_cross_refs(
             if let Some(m) = cap.get(1) {
                 let name = m.as_str();
                 if !matches!(name, "self" | "super" | "crate") {
-                    mod_refs.entry(key.clone()).or_default().insert(name.to_string());
+                    mod_refs
+                        .entry(key.clone())
+                        .or_default()
+                        .insert(name.to_string());
                 }
             }
         }
@@ -118,11 +124,14 @@ fn collect_workspace_cross_refs(
             if let Some(m) = cap.get(1) {
                 let name = m.as_str();
                 if !matches!(name, "self" | "super" | "crate") {
-                    mod_refs.entry(key.clone()).or_default().insert(name.to_string());
+                    mod_refs
+                        .entry(key.clone())
+                        .or_default()
+                        .insert(name.to_string());
                 }
             }
         }
-        
+
         // Fast word accumulation for reachability heuristic
         let word_set = words.entry(key.clone()).or_default();
         for cap in re_word.captures_iter(&f.content) {
@@ -202,7 +211,8 @@ impl ToestubEngine {
 
         let scanner = Scanner::new(roots, &self.config.excludes, self.config.languages.clone());
         let files = scanner.scan();
-        let (workspace_crate_mod_refs, workspace_crate_words) = collect_workspace_cross_refs(&files);
+        let (workspace_crate_mod_refs, workspace_crate_words) =
+            collect_workspace_cross_refs(&files);
 
         let _run_ctx_guard =
             crate::run_context::RunContextGuard::new(crate::run_context::RunContext {

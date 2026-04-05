@@ -37,13 +37,15 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
         ProviderType::Custom(_) => {
             required_secret(vox_clavis::SecretId::CustomOpenAiApiKey, "Custom OpenAI")
         }
-        ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => Err(HttpInferError {
-            status: 0,
-            message: format!(
-                "bearer_for is not applicable to provider {:?}",
-                model.provider_type
-            ),
-        }),
+        ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
+            Err(HttpInferError {
+                status: 0,
+                message: format!(
+                    "bearer_for is not applicable to provider {:?}",
+                    model.provider_type
+                ),
+            })
+        }
     }
 }
 
@@ -82,16 +84,14 @@ pub(crate) fn extra_headers_for(model: &ModelSpec) -> HashMap<String, String> {
 /// Falls back to `Fallback` (resilience-first) when unset or unknown.
 fn openrouter_route_hint_from_env() -> vox_config::OpenRouterRouteHint {
     use vox_config::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
-    let raw = std::env::var("VOX_OPENROUTER_ROUTE_HINT")
-        .unwrap_or_default();
+    let raw = std::env::var("VOX_OPENROUTER_ROUTE_HINT").unwrap_or_default();
     match raw.trim().to_ascii_lowercase().as_str() {
         "price" | "economy" | "cheap" => OpenRouterRouteHint::Price,
         "quality" | "performance" | "best" => OpenRouterRouteHint::Quality,
         "fallback" | "resilience" => OpenRouterRouteHint::Fallback,
         // Derive from orchestrator cost preference env when explicit hint absent.
         _ => {
-            let pref_raw = std::env::var("VOX_COST_PREFERENCE")
-                .unwrap_or_default();
+            let pref_raw = std::env::var("VOX_COST_PREFERENCE").unwrap_or_default();
             let pref = match pref_raw.trim().to_ascii_lowercase().as_str() {
                 "performance" | "quality" => RouteCostPreference::Performance,
                 _ => RouteCostPreference::Economy,
@@ -127,7 +127,10 @@ mod tests {
     fn test_bearer_for_populi_mesh_rejected() {
         let model = mesh_model();
         let err = bearer_for(&model).expect_err("should reject mesh");
-        assert!(err.message.contains("not applicable to provider PopuliMesh"));
+        assert!(
+            err.message
+                .contains("not applicable to provider PopuliMesh")
+        );
     }
 
     #[test]
@@ -153,7 +156,10 @@ mod tests {
             supported_parameters: vec![],
         };
         let headers = extra_headers_for(&model);
-        assert_eq!(headers.get("HTTP-Referer").map(String::as_str), Some("https://vox.app"));
+        assert_eq!(
+            headers.get("HTTP-Referer").map(String::as_str),
+            Some("https://vox.app")
+        );
         assert_eq!(headers.get("X-Title").map(String::as_str), Some("Vox"));
         #[allow(unsafe_code)]
         unsafe {

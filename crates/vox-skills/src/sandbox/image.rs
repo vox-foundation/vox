@@ -33,16 +33,16 @@ pub fn sandbox_image_present(runtime: &dyn ContainerRuntime, tag: &str) -> bool 
 ///
 /// This is a blocking operation; call from `tokio::task::spawn_blocking` when
 /// invoked from async context.
-pub fn ensure_sandbox_image(
-    runtime: &dyn ContainerRuntime,
-    tag: &str,
-) -> Result<(), ImageError> {
+pub fn ensure_sandbox_image(runtime: &dyn ContainerRuntime, tag: &str) -> Result<(), ImageError> {
     if sandbox_image_present(runtime, tag) {
         tracing::debug!(tag, "Sandbox image already present");
         return Ok(());
     }
 
-    tracing::info!(tag, "Sandbox image not found — building from embedded Dockerfile");
+    tracing::info!(
+        tag,
+        "Sandbox image not found — building from embedded Dockerfile"
+    );
 
     let tmp = std::env::temp_dir().join("vox-skill-sandbox-build");
     std::fs::create_dir_all(&tmp)?;

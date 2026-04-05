@@ -301,7 +301,9 @@ pub async fn bench_build_run(
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false)
             {
-                println!("Recorded fallback metrics to research_metrics (VOX_BENCHMARK_TELEMETRY).");
+                println!(
+                    "Recorded fallback metrics to research_metrics (VOX_BENCHMARK_TELEMETRY)."
+                );
             } else {
                 println!(
                     "Skipping research_metrics fallback (set VOX_BENCHMARK_TELEMETRY=1 to record benchmark_event)."

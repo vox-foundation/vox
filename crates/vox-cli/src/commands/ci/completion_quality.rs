@@ -424,7 +424,11 @@ fn append_toestub_findings(
         suggest_fixes: false,
         languages: Some(vec![Language::Rust]),
         excludes: vec!["**/target/**".to_string()],
-        rule_filter: Some(vec!["victory-claim".to_string(), "skeleton/hollow-fn".to_string(), "skeleton/declared-not-called".to_string()]),
+        rule_filter: Some(vec![
+            "victory-claim".to_string(),
+            "skeleton/hollow-fn".to_string(),
+            "skeleton/declared-not-called".to_string(),
+        ]),
         run_mode: ToestubRunMode::Audit,
         ..ToestubConfig::default()
     };

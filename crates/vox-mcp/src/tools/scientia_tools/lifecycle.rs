@@ -227,9 +227,10 @@ pub async fn vox_scientia_publication_prepare(
     if intake_gate != DiscoveryIntakeGate::None {
         let empty_rank_evidence = ScientiaEvidenceContext::default();
         let ev_ref = scientia_evidence.as_ref().unwrap_or(&empty_rank_evidence);
-        let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
-            &state.repository.root,
-        );
+        let scientia_h =
+            vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
+                &state.repository.root,
+            );
         let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
             params.publication_id.as_str(),
             Some("mcp://vox_scientia_publication_prepare"),

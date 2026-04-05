@@ -276,16 +276,18 @@ impl crate::orchestrator::Orchestrator {
             budget.record_usage(agent_id, (input_tokens + output_tokens) as usize);
             budget.record_cost(agent_id, cost_usd);
         }
-        
+
         if let Some(db) = self.db() {
             let tracker = crate::usage::UsageTracker::new_ref(&*db);
-            let _ = tracker.record_call(
-                &provider_str,
-                &model_str,
-                input_tokens as u64,
-                output_tokens as u64,
-                cost_usd,
-            ).await;
+            let _ = tracker
+                .record_call(
+                    &provider_str,
+                    &model_str,
+                    input_tokens as u64,
+                    output_tokens as u64,
+                    cost_usd,
+                )
+                .await;
         }
 
         let (op_id, entry_meta) = {

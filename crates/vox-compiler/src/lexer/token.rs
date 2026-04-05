@@ -132,7 +132,6 @@ pub enum Token {
     AtFuzz,
 
     // ── Symbols ───────────────────────────────────────────────
-
     #[token("(")]
     LParen,
     #[token(")")]

@@ -41,8 +41,8 @@ pub fn spawn_populi_federation_poller(
     let populi_heartbeat_stale_ms = orchestrator_config.stale_threshold_ms;
     let populi_rebalance_on_remote_schedulable_drop =
         orchestrator_config.populi_rebalance_on_remote_schedulable_drop;
-    let populi_replay_queued_routes_on_remote_schedulable_drop = orchestrator_config
-        .populi_replay_queued_routes_on_remote_schedulable_drop;
+    let populi_replay_queued_routes_on_remote_schedulable_drop =
+        orchestrator_config.populi_replay_queued_routes_on_remote_schedulable_drop;
     let reconcile_exec_leases = std::env::var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE")
         .map(|v| {
             let t = v.trim();
@@ -75,9 +75,8 @@ pub fn spawn_populi_federation_poller(
         loop {
             tick.tick().await;
             let timeout = std::time::Duration::from_millis(timeout_ms);
-            let client =
-                vox_populi::http_client::PopuliHttpClient::new_with_timeout(&url, timeout)
-                    .with_env_token();
+            let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(&url, timeout)
+                .with_env_token();
             let now = vox_populi::wall_clock_unix_ms();
             match client.list_nodes().await {
                 Ok(f) => {
@@ -93,10 +92,9 @@ pub fn spawn_populi_federation_poller(
                         .nodes
                         .iter()
                         .map(|n| {
-                            let heartbeat_stale =
-                                populi_heartbeat_stale_ms > 0
-                                    && now.saturating_sub(n.last_seen_unix_ms)
-                                        > populi_heartbeat_stale_ms;
+                            let heartbeat_stale = populi_heartbeat_stale_ms > 0
+                                && now.saturating_sub(n.last_seen_unix_ms)
+                                    > populi_heartbeat_stale_ms;
                             RemotePopuliRoutingHint {
                                 node_id: n.id.clone(),
                                 capabilities: n.capabilities.clone(),

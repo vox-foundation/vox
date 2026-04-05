@@ -252,7 +252,10 @@ pub fn scaffold_react_app(
     {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().is_some_and(|e| e == "tsx" || e == "ts" || e == "css") {
+        if path
+            .extension()
+            .is_some_and(|e| e == "tsx" || e == "ts" || e == "css")
+        {
             let dest = generated_dir.join(path.file_name().unwrap());
             std::fs::copy(&path, &dest)
                 .with_context(|| format!("Failed to copy {} to generated/", path.display()))?;

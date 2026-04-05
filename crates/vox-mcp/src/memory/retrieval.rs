@@ -188,7 +188,10 @@ impl RetrievalEvidenceEnvelope {
             conflict_policy: vox_orchestrator::ContextConflictPolicy {
                 merge_strategy: vox_orchestrator::ContextMergeStrategy::ConfidenceWeighted,
                 stale_after_ms: Some(3_600_000),
-                dedupe_key: Some(format!("retrieval:{repository_id}:{}", session_id.unwrap_or("none"))),
+                dedupe_key: Some(format!(
+                    "retrieval:{repository_id}:{}",
+                    session_id.unwrap_or("none")
+                )),
                 overwrite_requires_evidence: Some(true),
                 conflict_class: Some(vox_orchestrator::ContextConflictClass::SourceTrust),
             },

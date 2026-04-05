@@ -161,7 +161,8 @@ pub fn infer_candidate_class(signals: &[DiscoverySignal]) -> FindingCandidateCla
         match s.family {
             DiscoverySignalFamily::TelemetryAggregate => saw_telemetry = true,
             DiscoverySignalFamily::TrustRollup => saw_trust = true,
-            DiscoverySignalFamily::EvalGate | DiscoverySignalFamily::BenchmarkPair
+            DiscoverySignalFamily::EvalGate
+            | DiscoverySignalFamily::BenchmarkPair
             | DiscoverySignalFamily::MensScorecard => saw_eval = true,
             DiscoverySignalFamily::ReproducibilityArtifact => saw_repro = true,
             DiscoverySignalFamily::Documentation | DiscoverySignalFamily::LinkedCorpus => {
@@ -387,7 +388,8 @@ pub fn impact_readership_projection_v1(
         }
     }
     if counts.is_empty() {
-        coverage.push("no cited_by_count on normalized hits (source APIs omitted or offline)".into());
+        coverage
+            .push("no cited_by_count on normalized hits (source APIs omitted or offline)".into());
     }
     let max_c = counts.iter().copied().max();
     let mean_v = if velocities.is_empty() {

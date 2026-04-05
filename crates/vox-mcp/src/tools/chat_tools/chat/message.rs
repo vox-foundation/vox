@@ -1,8 +1,8 @@
 use serde_json::Value;
 
-use super::hydrate::context_history_or_hydrate;
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
+use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, mcp_infer_completion};
 use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
@@ -220,7 +220,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // 3. Call LLM with cognitive-profile aware routing.
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
-    let (session_id, implicit_session_default) = normalize_chat_session_id(params.session_id.as_deref());
+    let (session_id, implicit_session_default) =
+        normalize_chat_session_id(params.session_id.as_deref());
     let thread_id_for_envelope = params.thread_id.clone();
     let journey_id = params
         .journey_id
@@ -342,7 +343,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         error = %e,
                         "cognitive profile model resolution failed — using standard routing"
                     );
-                    match call_llm(state, &system_prompt, &user_prompt, Some(session_id.as_str())).await {
+                    match call_llm(
+                        state,
+                        &system_prompt,
+                        &user_prompt,
+                        Some(session_id.as_str()),
+                    )
+                    .await
+                    {
                         Ok(r) => r,
                         Err(e2) => {
                             return ToolResult::<String>::err_with_remediation(
@@ -355,7 +363,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
             }
         }
-        None => match call_llm(state, &system_prompt, &user_prompt, Some(session_id.as_str())).await {
+        None => match call_llm(
+            state,
+            &system_prompt,
+            &user_prompt,
+            Some(session_id.as_str()),
+        )
+        .await
+        {
             Ok(r) => r,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(
@@ -424,14 +439,18 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             match crate::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
                 Ok(mut ctx) => {
                     ctx.set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
-                    if let Some(ev) = &retrieval_evidence
-                    {
+                    if let Some(ev) = &retrieval_evidence {
                         let context_envelope = ev.to_context_envelope(
                             state.repository.repository_id.as_str(),
                             Some(session_id.as_str()),
                         );
                         if let Ok(context_json) = serde_json::to_string(&context_envelope) {
-                            ctx.set(vox_orchestrator::AgentId(0), &context_key, &context_json, 3600);
+                            ctx.set(
+                                vox_orchestrator::AgentId(0),
+                                &context_key,
+                                &context_json,
+                                3600,
+                            );
                         }
                     }
                 }

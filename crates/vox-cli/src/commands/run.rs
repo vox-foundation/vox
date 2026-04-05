@@ -81,15 +81,20 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     if mode == RunMode::Interp {
         let source = std::fs::read_to_string(file).context("Failed to read file")?;
         let tokens = vox_compiler::lexer::lex(&source);
-        let module = vox_compiler::parser::descent::parse(tokens).map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
+        let module = vox_compiler::parser::descent::parse(tokens)
+            .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
         let lowered = vox_compiler::hir::lower::lower_module(&module);
-        
+
         // Use default high step limit for non-looping scripts typically used as A2A
         let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-        interpreter.run_module(&lowered).map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
-        
+        interpreter
+            .run_module(&lowered)
+            .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
+
         // Pass CLI args to main if we can, but main takes no args currently.
-        let res = interpreter.call("main", vec![]).map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+        let res = interpreter
+            .call("main", vec![])
+            .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
         println!("{:?}", res);
         return Ok(());
     }

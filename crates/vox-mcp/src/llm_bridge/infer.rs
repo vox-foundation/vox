@@ -298,6 +298,9 @@ pub async fn mcp_infer_tool_completion(
                 GateResult::AttentionExhausted { message, .. } => {
                     return Err(message);
                 }
+                GateResult::BehavioralTestFailed { message } => {
+                    return Err(message);
+                }
             }
         }
 

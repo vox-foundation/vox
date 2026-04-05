@@ -10,9 +10,9 @@ use tokio::sync::Mutex;
 
 use vox_db::VoxDb;
 use vox_orchestrator::{
-    AgentEvent, AgentId, AgentTask, BudgetManager, CompletionAttestation, FileAffinity, Orchestrator,
-    OrchestratorConfig, RemotePopuliSnapshot, TaskCapabilityHints, TaskEnqueueHints, TaskId,
-    TaskPriority, SessionConfig, SessionManager, build_repo_scoped_orchestrator,
+    AgentEvent, AgentId, AgentTask, BudgetManager, CompletionAttestation, FileAffinity,
+    Orchestrator, OrchestratorConfig, RemotePopuliSnapshot, SessionConfig, SessionManager,
+    TaskCapabilityHints, TaskEnqueueHints, TaskId, TaskPriority, build_repo_scoped_orchestrator,
     build_repo_scoped_orchestrator_for_repository,
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
@@ -125,7 +125,10 @@ impl ServerState {
     pub fn new(config: OrchestratorConfig) -> Self {
         let build = build_repo_scoped_orchestrator(config, None);
         let repository = build.repository.clone();
-        vox_repository::migrate_legacy_sessions_into_vox(&repository.root, &repository.repository_id);
+        vox_repository::migrate_legacy_sessions_into_vox(
+            &repository.root,
+            &repository.repository_id,
+        );
         vox_repository::migrate_legacy_memory_shard_into_vox_memory(
             &repository.root,
             &repository.repository_id,
@@ -216,8 +219,9 @@ impl ServerState {
                 t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
             })
             .unwrap_or(false);
-        let client =
-            vox_orchestrator::orch_daemon::OrchDaemonClient::new(vox_orchestrator::orch_daemon::normalize_tcp_bind_addr(addr));
+        let client = vox_orchestrator::orch_daemon::OrchDaemonClient::new(
+            vox_orchestrator::orch_daemon::normalize_tcp_bind_addr(addr),
+        );
         match client.ping().await {
             Ok(v) => {
                 let local = self.repository.repository_id.as_str();
@@ -254,7 +258,8 @@ impl ServerState {
                 }
             }
             Err(e) => {
-                self.orch_daemon_repo_id_aligned.store(false, Ordering::SeqCst);
+                self.orch_daemon_repo_id_aligned
+                    .store(false, Ordering::SeqCst);
                 tracing::warn!(
                     target: "vox_mcp::orch_daemon",
                     error = %e,
@@ -289,10 +294,7 @@ impl ServerState {
     pub(crate) fn orch_daemon_tcp_client_when_repo_aligned(
         &self,
     ) -> Option<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-        if !self
-            .orch_daemon_repo_id_aligned
-            .load(Ordering::SeqCst)
-        {
+        if !self.orch_daemon_repo_id_aligned.load(Ordering::SeqCst) {
             return None;
         }
         let raw = std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET").ok()?;
@@ -364,9 +366,7 @@ impl ServerState {
 
     /// Select write backend based on env + daemon alignment.
     pub fn orchestrator_backend_mode_for_writes(&self) -> OrchestratorBackendMode {
-        if self
-            .orch_daemon_tcp_client_when_repo_aligned()
-            .is_some()
+        if self.orch_daemon_tcp_client_when_repo_aligned().is_some()
             && Self::mcp_env_truthy("VOX_MCP_ORCHESTRATOR_RPC_WRITES")
         {
             OrchestratorBackendMode::DaemonAlignedTcp
@@ -396,7 +396,10 @@ impl ServerState {
                 "enqueue_hints": enqueue_hints,
                 "session_id": session_id,
             });
-            let resp = client.submit_task(params).await.map_err(|e| e.to_string())?;
+            let resp = client
+                .submit_task(params)
+                .await
+                .map_err(|e| e.to_string())?;
             let task_id = resp
                 .get("task_id")
                 .and_then(|x| x.as_u64())
@@ -464,7 +467,9 @@ impl ServerState {
                 .map(|_| ())
                 .map_err(|e| e.to_string());
         }
-        self.orchestrator.cancel_task(task_id).map_err(|e| e.to_string())
+        self.orchestrator
+            .cancel_task(task_id)
+            .map_err(|e| e.to_string())
     }
 
     /// Reorder task against selected write backend.
@@ -494,7 +499,10 @@ impl ServerState {
     /// Drain agent against selected write backend.
     pub async fn drain_agent_backend(&self, agent_id: AgentId) -> Result<usize, String> {
         if let Some(client) = self.orch_daemon_client_for_task_writes_rpc() {
-            let v = client.drain_agent(agent_id.0).await.map_err(|e| e.to_string())?;
+            let v = client
+                .drain_agent(agent_id.0)
+                .await
+                .map_err(|e| e.to_string())?;
             let n = v
                 .get("drained_count")
                 .and_then(|x| x.as_u64())

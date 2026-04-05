@@ -348,238 +348,250 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         }
         cmd => {
             let db_cmd = match cmd {
-        ScientiaCmd::FindingCandidateValidate { .. }
-        | ScientiaCmd::NoveltyEvidenceBundleValidate { .. } => unreachable!(
-            "finding-candidate-validate and novelty-evidence-bundle-validate handled above"
-        ),
-        ScientiaCmd::CapabilityList => DbCli::Core(DbCliCore::CapabilityList),
-        ScientiaCmd::ResearchList {
-            vendor,
-            topic,
-            limit,
-        } => DbCli::Core(DbCliCore::ResearchList {
-            vendor,
-            topic,
-            limit,
-        }),
-        ScientiaCmd::ResearchMapList {
-            vendor,
-            topic,
-            limit,
-        } => DbCli::Core(DbCliCore::ResearchMapList {
-            vendor,
-            topic,
-            limit,
-        }),
-        ScientiaCmd::RetrievalStatus => DbCli::Core(DbCliCore::RetrievalStatus),
-        ScientiaCmd::MirrorSearchCorpus {
-            root,
-            source_uri_prefix,
-        } => DbCli::Core(DbCliCore::MirrorSearchCorpus {
-            root,
-            source_uri_prefix,
-        }),
-        ScientiaCmd::ResearchRefresh { vendor, dry_run } => {
-            DbCli::Core(DbCliCore::ResearchRefresh { vendor, dry_run })
-        }
-        ScientiaCmd::PublicationPrepare {
-            body,
-            preflight,
-            preflight_profile,
-            discovery_intake_gate,
-        } => DbCli::Publication(DbCliPublication::PublicationPrepare {
-            content_type: "scientia".to_string(),
-            body,
-            preflight,
-            preflight_profile,
-            discovery_intake_gate,
-        }),
-        ScientiaCmd::PublicationPrepareValidated {
-            body,
-            preflight_profile,
-            discovery_intake_gate,
-        } => DbCli::Publication(DbCliPublication::PublicationPrepareValidated {
-            content_type: "scientia".to_string(),
-            body,
-            preflight_profile,
-            discovery_intake_gate,
-        }),
-        ScientiaCmd::PublicationPreflight {
-            publication_id,
-            profile,
-            with_worthiness,
-        } => DbCli::Publication(DbCliPublication::PublicationPreflight {
-            publication_id,
-            profile,
-            with_worthiness,
-        }),
-        ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
-            DbCli::Publication(DbCliPublication::PublicationZenodoMetadata { publication_id })
-        }
-        ScientiaCmd::PublicationOpenreviewProfile { publication_id } => {
-            DbCli::Publication(DbCliPublication::PublicationOpenreviewProfile { publication_id })
-        }
-        ScientiaCmd::PublicationScholarlyStagingExport {
-            publication_id,
-            output_dir,
-            venue,
-        } => DbCli::Publication(DbCliPublication::PublicationScholarlyStagingExport {
-            publication_id,
-            output_dir,
-            venue,
-        }),
-        ScientiaCmd::PublicationWorthinessEvaluate {
-            contract_yaml,
-            metrics_json,
-        } => DbCli::Publication(DbCliPublication::PublicationWorthinessEvaluate {
-            contract_yaml,
-            metrics_json,
-        }),
-        ScientiaCmd::PublicationApprove {
-            publication_id,
-            approver,
-        } => DbCli::Publication(DbCliPublication::PublicationApprove {
-            publication_id,
-            approver,
-        }),
-        ScientiaCmd::PublicationSubmitLocal {
-            publication_id,
-            adapter,
-        } => DbCli::Publication(DbCliPublication::PublicationSubmitLocal {
-            publication_id,
-            adapter,
-        }),
-        ScientiaCmd::PublicationStatus {
-            publication_id,
-            with_worthiness,
-        } => DbCli::Publication(DbCliPublication::PublicationStatus {
-            publication_id,
-            with_worthiness,
-        }),
-        ScientiaCmd::PublicationDiscoveryScan { state, limit } => {
-            DbCli::Publication(DbCliPublication::PublicationDiscoveryScan {
-                content_type: Some("scientia".to_string()),
-                state,
-                limit,
-            })
-        }
-        ScientiaCmd::PublicationDiscoveryExplain { publication_id } => {
-            DbCli::Publication(DbCliPublication::PublicationDiscoveryExplain { publication_id })
-        }
-        ScientiaCmd::PublicationTransformPreview { publication_id } => {
-            DbCli::Publication(DbCliPublication::PublicationTransformPreview { publication_id })
-        }
-        ScientiaCmd::PublicationNoveltyFetch {
-            publication_id,
-            offline,
-            persist_metadata,
-        } => DbCli::Publication(DbCliPublication::PublicationNoveltyFetch {
-            publication_id,
-            offline,
-            persist_metadata,
-        }),
-        ScientiaCmd::PublicationDecisionExplain {
-            publication_id,
-            live_prior_art,
-            offline,
-        } => DbCli::Publication(DbCliPublication::PublicationDecisionExplain {
-            publication_id,
-            live_prior_art,
-            offline,
-        }),
-        ScientiaCmd::PublicationNoveltyHappyPath {
-            publication_id,
-            offline,
-        } => DbCli::Publication(DbCliPublication::PublicationNoveltyHappyPath {
-            publication_id,
-            offline,
-        }),
-        ScientiaCmd::PublicationScholarlyRemoteStatus {
-            publication_id,
-            external_submission_id,
-        } => DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatus {
-            publication_id,
-            external_submission_id,
-        }),
-        ScientiaCmd::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
-            DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatusSyncAll {
-                publication_id,
-            })
-        }
-        ScientiaCmd::PublicationScholarlyRemoteStatusSyncBatch {
-            limit,
-            iterations,
-            interval_secs,
-            max_runtime_secs,
-            jitter_secs,
-        } => DbCli::Publication(
-            DbCliPublication::PublicationScholarlyRemoteStatusSyncBatch {
-                limit,
-                iterations,
-                interval_secs,
-                max_runtime_secs,
-                jitter_secs,
-            },
-        ),
-        ScientiaCmd::PublicationArxivHandoffRecord {
-            publication_id,
-            stage,
-            operator,
-            note,
-            arxiv_id,
-        } => DbCli::Publication(DbCliPublication::PublicationArxivHandoffRecord {
-            publication_id,
-            stage,
-            operator,
-            note,
-            arxiv_id,
-        }),
-        ScientiaCmd::PublicationExternalJobsDue { limit } => {
-            DbCli::Publication(DbCliPublication::PublicationExternalJobsDue { limit })
-        }
-        ScientiaCmd::PublicationExternalJobsDeadLetter { limit } => {
-            DbCli::Publication(DbCliPublication::PublicationExternalJobsDeadLetter { limit })
-        }
-        ScientiaCmd::PublicationExternalJobsReplay { job_id } => {
-            DbCli::Publication(DbCliPublication::PublicationExternalJobsReplay { job_id })
-        }
-        ScientiaCmd::PublicationExternalJobsTick {
-            limit,
-            lock_ttl_ms,
-            lock_owner,
-            iterations,
-            interval_secs,
-            max_runtime_secs,
-            jitter_secs,
-        } => DbCli::Publication(DbCliPublication::PublicationExternalJobsTick {
-            limit,
-            lock_ttl_ms,
-            lock_owner,
-            iterations,
-            interval_secs,
-            max_runtime_secs,
-            jitter_secs,
-        }),
-        ScientiaCmd::PublicationScholarlyPipelineRun {
-            publication_id,
-            preflight_profile,
-            dry_run,
-            staging_output_dir,
-            venue,
-            adapter,
-            json,
-        } => DbCli::Publication(DbCliPublication::PublicationScholarlyPipelineRun {
-            publication_id,
-            preflight_profile,
-            dry_run,
-            staging_output_dir,
-            venue,
-            adapter,
-            json,
-        }),
-        ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
-            DbCli::Publication(DbCliPublication::PublicationExternalPipelineMetrics { since_hours })
-        }
+                ScientiaCmd::FindingCandidateValidate { .. }
+                | ScientiaCmd::NoveltyEvidenceBundleValidate { .. } => unreachable!(
+                    "finding-candidate-validate and novelty-evidence-bundle-validate handled above"
+                ),
+                ScientiaCmd::CapabilityList => DbCli::Core(DbCliCore::CapabilityList),
+                ScientiaCmd::ResearchList {
+                    vendor,
+                    topic,
+                    limit,
+                } => DbCli::Core(DbCliCore::ResearchList {
+                    vendor,
+                    topic,
+                    limit,
+                }),
+                ScientiaCmd::ResearchMapList {
+                    vendor,
+                    topic,
+                    limit,
+                } => DbCli::Core(DbCliCore::ResearchMapList {
+                    vendor,
+                    topic,
+                    limit,
+                }),
+                ScientiaCmd::RetrievalStatus => DbCli::Core(DbCliCore::RetrievalStatus),
+                ScientiaCmd::MirrorSearchCorpus {
+                    root,
+                    source_uri_prefix,
+                } => DbCli::Core(DbCliCore::MirrorSearchCorpus {
+                    root,
+                    source_uri_prefix,
+                }),
+                ScientiaCmd::ResearchRefresh { vendor, dry_run } => {
+                    DbCli::Core(DbCliCore::ResearchRefresh { vendor, dry_run })
+                }
+                ScientiaCmd::PublicationPrepare {
+                    body,
+                    preflight,
+                    preflight_profile,
+                    discovery_intake_gate,
+                } => DbCli::Publication(DbCliPublication::PublicationPrepare {
+                    content_type: "scientia".to_string(),
+                    body,
+                    preflight,
+                    preflight_profile,
+                    discovery_intake_gate,
+                }),
+                ScientiaCmd::PublicationPrepareValidated {
+                    body,
+                    preflight_profile,
+                    discovery_intake_gate,
+                } => DbCli::Publication(DbCliPublication::PublicationPrepareValidated {
+                    content_type: "scientia".to_string(),
+                    body,
+                    preflight_profile,
+                    discovery_intake_gate,
+                }),
+                ScientiaCmd::PublicationPreflight {
+                    publication_id,
+                    profile,
+                    with_worthiness,
+                } => DbCli::Publication(DbCliPublication::PublicationPreflight {
+                    publication_id,
+                    profile,
+                    with_worthiness,
+                }),
+                ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
+                    DbCli::Publication(DbCliPublication::PublicationZenodoMetadata {
+                        publication_id,
+                    })
+                }
+                ScientiaCmd::PublicationOpenreviewProfile { publication_id } => {
+                    DbCli::Publication(DbCliPublication::PublicationOpenreviewProfile {
+                        publication_id,
+                    })
+                }
+                ScientiaCmd::PublicationScholarlyStagingExport {
+                    publication_id,
+                    output_dir,
+                    venue,
+                } => DbCli::Publication(DbCliPublication::PublicationScholarlyStagingExport {
+                    publication_id,
+                    output_dir,
+                    venue,
+                }),
+                ScientiaCmd::PublicationWorthinessEvaluate {
+                    contract_yaml,
+                    metrics_json,
+                } => DbCli::Publication(DbCliPublication::PublicationWorthinessEvaluate {
+                    contract_yaml,
+                    metrics_json,
+                }),
+                ScientiaCmd::PublicationApprove {
+                    publication_id,
+                    approver,
+                } => DbCli::Publication(DbCliPublication::PublicationApprove {
+                    publication_id,
+                    approver,
+                }),
+                ScientiaCmd::PublicationSubmitLocal {
+                    publication_id,
+                    adapter,
+                } => DbCli::Publication(DbCliPublication::PublicationSubmitLocal {
+                    publication_id,
+                    adapter,
+                }),
+                ScientiaCmd::PublicationStatus {
+                    publication_id,
+                    with_worthiness,
+                } => DbCli::Publication(DbCliPublication::PublicationStatus {
+                    publication_id,
+                    with_worthiness,
+                }),
+                ScientiaCmd::PublicationDiscoveryScan { state, limit } => {
+                    DbCli::Publication(DbCliPublication::PublicationDiscoveryScan {
+                        content_type: Some("scientia".to_string()),
+                        state,
+                        limit,
+                    })
+                }
+                ScientiaCmd::PublicationDiscoveryExplain { publication_id } => {
+                    DbCli::Publication(DbCliPublication::PublicationDiscoveryExplain {
+                        publication_id,
+                    })
+                }
+                ScientiaCmd::PublicationTransformPreview { publication_id } => {
+                    DbCli::Publication(DbCliPublication::PublicationTransformPreview {
+                        publication_id,
+                    })
+                }
+                ScientiaCmd::PublicationNoveltyFetch {
+                    publication_id,
+                    offline,
+                    persist_metadata,
+                } => DbCli::Publication(DbCliPublication::PublicationNoveltyFetch {
+                    publication_id,
+                    offline,
+                    persist_metadata,
+                }),
+                ScientiaCmd::PublicationDecisionExplain {
+                    publication_id,
+                    live_prior_art,
+                    offline,
+                } => DbCli::Publication(DbCliPublication::PublicationDecisionExplain {
+                    publication_id,
+                    live_prior_art,
+                    offline,
+                }),
+                ScientiaCmd::PublicationNoveltyHappyPath {
+                    publication_id,
+                    offline,
+                } => DbCli::Publication(DbCliPublication::PublicationNoveltyHappyPath {
+                    publication_id,
+                    offline,
+                }),
+                ScientiaCmd::PublicationScholarlyRemoteStatus {
+                    publication_id,
+                    external_submission_id,
+                } => DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatus {
+                    publication_id,
+                    external_submission_id,
+                }),
+                ScientiaCmd::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
+                    DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatusSyncAll {
+                        publication_id,
+                    })
+                }
+                ScientiaCmd::PublicationScholarlyRemoteStatusSyncBatch {
+                    limit,
+                    iterations,
+                    interval_secs,
+                    max_runtime_secs,
+                    jitter_secs,
+                } => DbCli::Publication(
+                    DbCliPublication::PublicationScholarlyRemoteStatusSyncBatch {
+                        limit,
+                        iterations,
+                        interval_secs,
+                        max_runtime_secs,
+                        jitter_secs,
+                    },
+                ),
+                ScientiaCmd::PublicationArxivHandoffRecord {
+                    publication_id,
+                    stage,
+                    operator,
+                    note,
+                    arxiv_id,
+                } => DbCli::Publication(DbCliPublication::PublicationArxivHandoffRecord {
+                    publication_id,
+                    stage,
+                    operator,
+                    note,
+                    arxiv_id,
+                }),
+                ScientiaCmd::PublicationExternalJobsDue { limit } => {
+                    DbCli::Publication(DbCliPublication::PublicationExternalJobsDue { limit })
+                }
+                ScientiaCmd::PublicationExternalJobsDeadLetter { limit } => {
+                    DbCli::Publication(DbCliPublication::PublicationExternalJobsDeadLetter {
+                        limit,
+                    })
+                }
+                ScientiaCmd::PublicationExternalJobsReplay { job_id } => {
+                    DbCli::Publication(DbCliPublication::PublicationExternalJobsReplay { job_id })
+                }
+                ScientiaCmd::PublicationExternalJobsTick {
+                    limit,
+                    lock_ttl_ms,
+                    lock_owner,
+                    iterations,
+                    interval_secs,
+                    max_runtime_secs,
+                    jitter_secs,
+                } => DbCli::Publication(DbCliPublication::PublicationExternalJobsTick {
+                    limit,
+                    lock_ttl_ms,
+                    lock_owner,
+                    iterations,
+                    interval_secs,
+                    max_runtime_secs,
+                    jitter_secs,
+                }),
+                ScientiaCmd::PublicationScholarlyPipelineRun {
+                    publication_id,
+                    preflight_profile,
+                    dry_run,
+                    staging_output_dir,
+                    venue,
+                    adapter,
+                    json,
+                } => DbCli::Publication(DbCliPublication::PublicationScholarlyPipelineRun {
+                    publication_id,
+                    preflight_profile,
+                    dry_run,
+                    staging_output_dir,
+                    venue,
+                    adapter,
+                    json,
+                }),
+                ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
+                    DbCli::Publication(DbCliPublication::PublicationExternalPipelineMetrics {
+                        since_hours,
+                    })
+                }
             };
             db_cli::run(db_cmd).await
         }

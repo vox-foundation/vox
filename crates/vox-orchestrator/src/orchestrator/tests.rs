@@ -578,7 +578,9 @@ mod orch_smoke {
         }
     }
 
-    async fn orch_memory_with_init(cfg: OrchestratorConfig) -> (std::sync::Arc<vox_db::VoxDb>, Orchestrator) {
+    async fn orch_memory_with_init(
+        cfg: OrchestratorConfig,
+    ) -> (std::sync::Arc<vox_db::VoxDb>, Orchestrator) {
         let db = std::sync::Arc::new(
             vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
                 .await
@@ -904,12 +906,12 @@ mod orch_smoke {
 #[cfg(test)]
 mod populi_single_owner {
     use super::*;
+    #[cfg(feature = "populi-transport")]
+    use crate::a2a::populi_remote_worker_tick_once;
     use crate::a2a::{
         REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE,
         RemoteTaskEnvelope, RemoteTaskResult,
     };
-    #[cfg(feature = "populi-transport")]
-    use crate::a2a::populi_remote_worker_tick_once;
     use crate::config::OrchestratorConfig;
     use crate::reconstruction::AgentExecutionRole;
     use crate::types::{
@@ -1248,8 +1250,9 @@ mod populi_single_owner {
             {
                 let env: RemoteTaskEnvelope =
                     serde_json::from_str(&msg.payload).expect("remote envelope parse");
-                relayed_payload =
-                    Some(serde_json::from_str::<serde_json::Value>(&env.payload).expect("payload parse"));
+                relayed_payload = Some(
+                    serde_json::from_str::<serde_json::Value>(&env.payload).expect("payload parse"),
+                );
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
@@ -1257,8 +1260,14 @@ mod populi_single_owner {
         let payload = relayed_payload.expect("expected remote_task_envelope relay");
         assert_eq!(payload["session_id"], serde_json::json!(sid));
         assert_eq!(payload["thread_id"], serde_json::json!("thread-lease"));
-        assert_eq!(payload["context_envelope_json"], serde_json::json!(context_json));
-        assert_eq!(payload["harness_spec_json"], serde_json::json!(harness_json));
+        assert_eq!(
+            payload["context_envelope_json"],
+            serde_json::json!(context_json)
+        );
+        assert_eq!(
+            payload["harness_spec_json"],
+            serde_json::json!(harness_json)
+        );
 
         server.abort();
     }
@@ -1293,7 +1302,12 @@ mod populi_single_owner {
         let aid = orch.agent_ids()[0];
 
         let remote_task_id = TaskId(9944);
-        let mut task = AgentTask::new(remote_task_id, "remote-worker-seed", TaskPriority::Normal, vec![]);
+        let mut task = AgentTask::new(
+            remote_task_id,
+            "remote-worker-seed",
+            TaskPriority::Normal,
+            vec![],
+        );
         task.populi_remote_delegate = Some(PopuliRemoteDelegate {
             idempotency_key: "k9944".into(),
             lease_id: None,
@@ -1328,7 +1342,8 @@ mod populi_single_owner {
             verification_reason: None,
             recommended_next_action: None,
         };
-        let context = crate::ContextEnvelope::from_session_retrieval("repo-worker-test", sid, &retrieval);
+        let context =
+            crate::ContextEnvelope::from_session_retrieval("repo-worker-test", sid, &retrieval);
         let context_json = serde_json::to_string(&context).expect("serialize context envelope");
         let key = crate::socrates::session_context_envelope_key(sid);
         assert!(
@@ -1359,7 +1374,9 @@ mod populi_single_owner {
             artifact_refs_json: None,
             session_id: Some(sid.to_string()),
             thread_id: None,
-            context_envelope_json: Some(serde_json::to_string(&context).expect("serialize context")),
+            context_envelope_json: Some(
+                serde_json::to_string(&context).expect("serialize context"),
+            ),
             harness_spec_json: None,
         };
         http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
@@ -1441,7 +1458,8 @@ mod populi_single_owner {
             verification_reason: None,
             recommended_next_action: None,
         };
-        let context = crate::ContextEnvelope::from_session_retrieval("repo-object-worker", sid, &retrieval);
+        let context =
+            crate::ContextEnvelope::from_session_retrieval("repo-object-worker", sid, &retrieval);
         let context_value = serde_json::to_value(&context).expect("serialize context");
         let key = crate::socrates::session_context_envelope_key(sid);
         assert!(
@@ -1471,7 +1489,9 @@ mod populi_single_owner {
             artifact_refs_json: None,
             session_id: Some(sid.to_string()),
             thread_id: None,
-            context_envelope_json: Some(serde_json::to_string(&context).expect("serialize context")),
+            context_envelope_json: Some(
+                serde_json::to_string(&context).expect("serialize context"),
+            ),
             harness_spec_json: None,
         };
         http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
@@ -1493,8 +1513,12 @@ mod populi_single_owner {
         let stored = crate::sync_lock::rw_read(&*orch.context_store)
             .get(&key)
             .expect("worker should seed context envelope key");
-        let parsed: crate::ContextEnvelope = serde_json::from_str(&stored).expect("stored context json");
-        assert_eq!(parsed.envelope_type, crate::ContextEnvelopeType::RetrievalEvidence);
+        let parsed: crate::ContextEnvelope =
+            serde_json::from_str(&stored).expect("stored context json");
+        assert_eq!(
+            parsed.envelope_type,
+            crate::ContextEnvelopeType::RetrievalEvidence
+        );
 
         server.abort();
     }
@@ -1823,7 +1847,8 @@ mod populi_single_owner {
             verification_reason: None,
             recommended_next_action: None,
         };
-        let context = crate::ContextEnvelope::from_session_retrieval("repo-non-lease", sid, &retrieval);
+        let context =
+            crate::ContextEnvelope::from_session_retrieval("repo-non-lease", sid, &retrieval);
         let context_json = serde_json::to_string(&context).expect("serialize context envelope");
         let key = crate::socrates::session_context_envelope_key(sid);
         crate::sync_lock::rw_write(&*orch.context_store).set(
@@ -1856,15 +1881,19 @@ mod populi_single_owner {
             {
                 let env: RemoteTaskEnvelope =
                     serde_json::from_str(&msg.payload).expect("remote envelope parse");
-                relayed_payload =
-                    Some(serde_json::from_str::<serde_json::Value>(&env.payload).expect("payload parse"));
+                relayed_payload = Some(
+                    serde_json::from_str::<serde_json::Value>(&env.payload).expect("payload parse"),
+                );
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
         let payload = relayed_payload.expect("expected non-lease relay payload");
         assert_eq!(payload["session_id"], serde_json::json!(sid));
-        assert_eq!(payload["context_envelope_json"], serde_json::json!(context_json));
+        assert_eq!(
+            payload["context_envelope_json"],
+            serde_json::json!(context_json)
+        );
 
         server.abort();
     }
@@ -1941,22 +1970,12 @@ mod route_replay_tests {
         );
         let q_heavy = orch.agent_queue(heavy_id).expect("heavy queue");
         assert!(
-            !q_heavy
-                .read()
-                .unwrap()
-                .tasks()
-                .iter()
-                .any(|t| t.id == tid),
+            !q_heavy.read().unwrap().tasks().iter().any(|t| t.id == tid),
             "task should leave heavy pending queue"
         );
         let q_light = orch.agent_queue(light_id).expect("light queue");
         assert!(
-            q_light
-                .read()
-                .unwrap()
-                .tasks()
-                .iter()
-                .any(|t| t.id == tid),
+            q_light.read().unwrap().tasks().iter().any(|t| t.id == tid),
             "task should land on light"
         );
     }
@@ -1977,9 +1996,7 @@ mod route_replay_tests {
         let tid = orch
             .submit_task_with_agent(
                 "delegate hold",
-                vec![FileAffinity::write(
-                    "route_replay_fixture/delegate_skip.rs",
-                )],
+                vec![FileAffinity::write("route_replay_fixture/delegate_skip.rs")],
                 None,
                 Some("heavy".into()),
                 None,
@@ -2019,12 +2036,7 @@ mod route_replay_tests {
         );
         let q_heavy = orch.agent_queue(heavy_id).expect("heavy queue");
         assert!(
-            q_heavy
-                .read()
-                .unwrap()
-                .tasks()
-                .iter()
-                .any(|t| t.id == tid),
+            q_heavy.read().unwrap().tasks().iter().any(|t| t.id == tid),
             "task stays pending on heavy"
         );
     }

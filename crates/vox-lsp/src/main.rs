@@ -170,10 +170,7 @@ impl LanguageServer for Backend {
         }
     }
 
-    async fn code_lens(
-        &self,
-        params: CodeLensParams,
-    ) -> Result<Option<Vec<CodeLens>>> {
+    async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
         let uri = &params.text_document.uri;
         let text = match self.documents.lock() {
             Ok(g) => g.get(uri).cloned(),

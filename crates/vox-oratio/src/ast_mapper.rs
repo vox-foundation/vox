@@ -16,14 +16,18 @@ pub struct AstTarget {
 pub fn map_to_ast_target(transcript: &str) -> Option<AstTarget> {
     let lower = transcript.to_ascii_lowercase();
     let parts: Vec<&str> = lower.split_whitespace().collect();
-    
+
     for (i, p) in parts.iter().enumerate() {
         if *p == "function" || *p == "fn" || *p == "struct" || *p == "type" {
-            let kind = if *p == "fn" { "function".to_string() } else { p.to_string() };
+            let kind = if *p == "fn" {
+                "function".to_string()
+            } else {
+                p.to_string()
+            };
             let mut name = None;
             if i + 1 < parts.len() {
                 // Next word is probably the symbol name
-                let clean = parts[i+1].trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                let clean = parts[i + 1].trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
                 if !clean.is_empty() {
                     name = Some(clean.to_string());
                 }

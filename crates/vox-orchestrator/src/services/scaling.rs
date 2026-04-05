@@ -4,7 +4,6 @@
 //! the orchestrator applies. Scale-down is guarded so agents with critical
 //! work are not retired.
 
-
 use crate::config::OrchestratorConfig;
 use crate::orchestrator::OrchestratorStatus;
 use crate::types::AgentId;
@@ -45,7 +44,7 @@ impl ScalingService {
         status: &OrchestratorStatus,
         config: &OrchestratorConfig,
         _load_history: &[f64],
-        remote_gpu_capacity: usize,
+        _remote_gpu_capacity: usize,
         idle_dynamic: &[IdleDynamicAgent],
         budgets: &crate::budget::BudgetManager,
     ) -> ScalingAction {
@@ -85,7 +84,9 @@ impl ScalingService {
             };
             if per_agent * remote_gpu_relief >= threshold {
                 let name_prefix = "transient".to_string();
-                let desired_new = ((max_relevant_load - (agent_count as f64 * threshold)) / threshold).ceil() as usize;
+                let desired_new = ((max_relevant_load - (agent_count as f64 * threshold))
+                    / threshold)
+                    .ceil() as usize;
                 let count = desired_new.clamp(1, max_agents.saturating_sub(agent_count));
                 return ScalingAction::ScaleUp { name_prefix, count };
             }

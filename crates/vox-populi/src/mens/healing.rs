@@ -162,7 +162,10 @@ impl HealingLoop {
         let path = dir.join("heal_pairs.jsonl");
         let line = serde_json::to_string(&pair)?;
         use std::io::Write;
-        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
         writeln!(f, "{line}")?;
         Ok(())
     }

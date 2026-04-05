@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use vox_skills::ars_shim::context::{ArsContextBundle, ContextPolicy, RetrievalTier, assemble_bundle};
+use vox_skills::ars_shim::context::{
+    ArsContextBundle, ContextPolicy, RetrievalTier, assemble_bundle,
+};
 
 const CONTEXT_MEMORY_TYPES: &[&str] = &["session_turn", "message", "tool_call"];
 

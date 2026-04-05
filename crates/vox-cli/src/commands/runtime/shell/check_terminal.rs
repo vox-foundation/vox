@@ -72,7 +72,11 @@ fn repo_root() -> PathBuf {
 fn resolve_pwsh() -> Result<PathBuf> {
     which::which("pwsh")
         .or_else(|_| which::which("powershell"))
-        .map_err(|_| anyhow!("`pwsh` (or `powershell`) not found on PATH; terminal AST check requires PowerShell"))
+        .map_err(|_| {
+            anyhow!(
+                "`pwsh` (or `powershell`) not found on PATH; terminal AST check requires PowerShell"
+            )
+        })
 }
 
 fn policy_path(explicit: Option<&Path>) -> PathBuf {
@@ -81,7 +85,10 @@ fn policy_path(explicit: Option<&Path>) -> PathBuf {
         .unwrap_or_else(|| repo_root().join(DEFAULT_POLICY_REL))
 }
 
-pub fn validate_policy_yaml_against_schema(repo_root: &Path, policy_yaml: &Path) -> Result<ExecPolicyV1> {
+pub fn validate_policy_yaml_against_schema(
+    repo_root: &Path,
+    policy_yaml: &Path,
+) -> Result<ExecPolicyV1> {
     let schema_path = repo_root.join(SCHEMA_REL);
     let schema_src = read_utf8_path_capped(&schema_path)
         .with_context(|| format!("read {}", schema_path.display()))?;
@@ -250,14 +257,18 @@ fn check_network_urls(
         return Ok(());
     }
     for cmd in &extraction.commands {
-        let Some(name) = cmd.name.as_deref() else { continue };
+        let Some(name) = cmd.name.as_deref() else {
+            continue;
+        };
         let nkey = normalize_invocation_name(name).to_ascii_lowercase();
         if !fetch_commands.contains(&nkey) {
             continue;
         }
         for lit in &extraction.string_literals {
             for cap in url_host_regex().captures_iter(lit) {
-                let Some(host_part) = cap.get(1).map(|m| m.as_str()) else { continue };
+                let Some(host_part) = cap.get(1).map(|m| m.as_str()) else {
+                    continue;
+                };
                 let host = host_part
                     .split_once(':')
                     .map(|(h, _)| h)
@@ -286,7 +297,10 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
     let policy_path = policy_path(policy_file);
     let policy = validate_policy_yaml_against_schema(&root, &policy_path)?;
     if policy.version != 1 {
-        return Err(anyhow!("unsupported exec policy version {}", policy.version));
+        return Err(anyhow!(
+            "unsupported exec policy version {}",
+            policy.version
+        ));
     }
 
     let extraction = run_pwsh_extract(&root, payload)?;
@@ -297,10 +311,7 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
             .iter()
             .map(|e| format!("{} ({})", e.message, e.text))
             .collect();
-        return Err(anyhow!(
-            "PowerShell parse error(s): {}",
-            msgs.join("; ")
-        ));
+        return Err(anyhow!("PowerShell parse error(s): {}", msgs.join("; ")));
     }
 
     let cmdlets = allowed_cmdlets_set(&policy);
@@ -374,10 +385,7 @@ mod shell_policy_tests {
         }
         let root = repo_root();
         let policy = root.join(DEFAULT_POLICY_REL);
-        let err = run_check(
-            "Totally-Fake-Cmdlet-VoxPolicyTest",
-            Some(policy.as_path()),
-        );
+        let err = run_check("Totally-Fake-Cmdlet-VoxPolicyTest", Some(policy.as_path()));
         assert!(
             err.is_err(),
             "expected policy rejection, got {:?}",

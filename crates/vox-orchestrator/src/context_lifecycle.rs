@@ -15,10 +15,10 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::OrchestratorConfig;
 use crate::context_envelope::{
     ContextEnvelope, ContextFact, ContextMergeStrategy, ContextProvenance,
 };
-use crate::OrchestratorConfig;
 
 fn harness_id_from_context(envelope: &ContextEnvelope) -> Option<&str> {
     let payload = envelope.content.structured_payload.as_ref()?;
@@ -129,7 +129,11 @@ pub(crate) fn validate_context_envelope_ingest(
         ));
     }
 
-    if let Some(sid) = expectations.session_id.map(str::trim).filter(|s| !s.is_empty()) {
+    if let Some(sid) = expectations
+        .session_id
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         if let Some(env_sid) = envelope
             .subject
             .session_id
@@ -170,8 +174,10 @@ pub fn clamp_context_envelope_injection_budget(envelope: &mut ContextEnvelope) {
         return;
     }
     let cut = summary.floor_char_boundary(max_bytes.saturating_sub(64));
-    envelope.content.summary_text =
-        format!("{}…\n[vox: summary truncated to max_tokens_for_injection={max_tok}]", &summary[..cut]);
+    envelope.content.summary_text = format!(
+        "{}…\n[vox: summary truncated to max_tokens_for_injection={max_tok}]",
+        &summary[..cut]
+    );
     envelope.budget.token_estimate = Some(max_tok);
 }
 
@@ -243,19 +249,11 @@ pub fn merge_context_envelope_for_session_store(
     let existing: Option<ContextEnvelope> = existing_json
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(|raw| {
-            serde_json::from_str::<ContextEnvelope>(raw).map_err(|e| e.to_string())
-        })
+        .map(|raw| serde_json::from_str::<ContextEnvelope>(raw).map_err(|e| e.to_string()))
         .transpose()?;
 
     let Some(prev) = existing else {
-        trace_context_select_shadow(
-            shadow_log_select,
-            strategy,
-            "initial_store",
-            incoming,
-            None,
-        );
+        trace_context_select_shadow(shadow_log_select, strategy, "initial_store", incoming, None);
         return Ok(incoming.clone());
     };
     let prev_id = prev.envelope_id.as_str();
@@ -348,17 +346,17 @@ fn merge_envelopes_crdt(prev: &ContextEnvelope, incoming: &ContextEnvelope) -> C
     out.envelope_id = format!("ctx-crdt-merge-{now_ms}");
     out.created_at_unix_ms = now_ms;
     let merged_summary = match (
-            prev.content.summary_text.trim().is_empty(),
-            incoming.content.summary_text.trim().is_empty(),
-        ) {
-            (true, true) => String::new(),
-            (false, true) => prev.content.summary_text.clone(),
-            (true, false) => incoming.content.summary_text.clone(),
-            (false, false) => format!(
-                "{}\n---\n{}",
-                prev.content.summary_text, incoming.content.summary_text
-            ),
-        };
+        prev.content.summary_text.trim().is_empty(),
+        incoming.content.summary_text.trim().is_empty(),
+    ) {
+        (true, true) => String::new(),
+        (false, true) => prev.content.summary_text.clone(),
+        (true, false) => incoming.content.summary_text.clone(),
+        (false, false) => format!(
+            "{}\n---\n{}",
+            prev.content.summary_text, incoming.content.summary_text
+        ),
+    };
     out.content.summary_text = merged_summary;
     out.content.facts = merge_facts_crdt(&prev.content.facts, &incoming.content.facts);
     out.content.tags = merge_tags(&prev.content.tags, &incoming.content.tags);
@@ -415,7 +413,8 @@ fn merge_provenance_crdt(
             out.observed_via.push(o.clone());
         }
     }
-    out.observed_via.push("context_lifecycle:crdt_merge".to_string());
+    out.observed_via
+        .push("context_lifecycle:crdt_merge".to_string());
     out
 }
 

@@ -8,7 +8,8 @@ use anyhow::Context;
 use serde::Deserialize;
 
 /// Default repo-relative path for the combined dynamics / impact seed.
-pub const DYNAMICS_SEED_REL_PATH: &str = "contracts/scientia/impact-readership-projection.seed.v1.yaml";
+pub const DYNAMICS_SEED_REL_PATH: &str =
+    "contracts/scientia/impact-readership-projection.seed.v1.yaml";
 
 /// Flat runtime heuristics (defaults match pre-contract behavior).
 #[derive(Debug, Clone)]

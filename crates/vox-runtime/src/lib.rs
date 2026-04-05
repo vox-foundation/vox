@@ -24,8 +24,6 @@ pub mod mailbox;
 pub mod mens;
 /// SSOT chat routing: manual URL, Mens, HF dedicated/router, OpenRouter.
 pub mod model_resolution;
-/// Shared routing decision telemetry for DB joins (bounded `reason_json`).
-pub mod routing_telemetry;
 /// Opaque process identifiers for actors and messaging.
 pub mod pid;
 /// Actor `ProcessContext`, `ProcessHandle`, and `spawn_process`.
@@ -38,6 +36,8 @@ pub mod registry;
 pub mod resilient_http;
 /// RAG-style chunk retrieval, context budgets, and provenance records.
 pub mod retrieval;
+/// Shared routing decision telemetry for DB joins (bounded `reason_json`).
+pub mod routing_telemetry;
 /// Cooperative Tokio-backed scheduler registering spawned actors.
 pub mod scheduler;
 /// Per-table reactive mutation notifications (broadcast channels for reactive queries).

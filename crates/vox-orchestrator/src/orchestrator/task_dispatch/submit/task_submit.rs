@@ -55,7 +55,7 @@ impl Orchestrator {
         enqueue_hints: Option<TaskEnqueueHints>,
         session_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
-        let (default_priority, scope_enforcement) = {
+        let (default_priority, _scope_enforcement) = {
             let config_guard = crate::sync_lock::rw_read(&*self.config);
             if !config_guard.enabled {
                 return Err(OrchestratorError::Disabled);
@@ -117,9 +117,9 @@ impl Orchestrator {
             }
         }
         #[cfg(feature = "populi-transport")]
-        let relay_thread_id_seed = task.thread_id.clone();
+        let _relay_thread_id_seed = task.thread_id.clone();
         #[cfg(feature = "populi-transport")]
-        let relay_harness_spec_json_seed = task.harness_spec_json.clone();
+        let _relay_harness_spec_json_seed = task.harness_spec_json.clone();
         task.start(); // ensure started_at_ms is populated for orchestrator-submitted tasks
         if let (Some(campaign_id), Some(tier)) = (task.campaign_id.clone(), task.benchmark_tier) {
             let _ = self
@@ -151,12 +151,16 @@ impl Orchestrator {
             return Err(OrchestratorError::ApprovalBlocked(reason));
         }
 
-        self.process_task_submission_logic(&mut task, agent_id, &file_manifest).await?;
+        self.process_task_submission_logic(&mut task, agent_id, &file_manifest)
+            .await?;
         Ok(task_id)
     }
 
     /// Re-submit an existing task to the orchestrator (e.g. after agent retirement).
-    pub async fn submit_existing_task(&self, mut task: AgentTask) -> Result<TaskId, OrchestratorError> {
+    pub async fn submit_existing_task(
+        &self,
+        mut task: AgentTask,
+    ) -> Result<TaskId, OrchestratorError> {
         let task_id = task.id;
         let file_manifest = task.file_manifest.clone();
 
@@ -175,12 +179,17 @@ impl Orchestrator {
             return Err(OrchestratorError::AgentNotFound(agent_id));
         }
 
-        self.process_task_submission_logic(&mut task, agent_id, &file_manifest).await?;
+        self.process_task_submission_logic(&mut task, agent_id, &file_manifest)
+            .await?;
         Ok(task_id)
     }
 
-
-    pub async fn process_task_submission_logic(&self, task: &mut AgentTask, agent_id: crate::types::AgentId, file_manifest: &[FileAffinity]) -> Result<(), OrchestratorError> {
+    pub async fn process_task_submission_logic(
+        &self,
+        task: &mut AgentTask,
+        agent_id: crate::types::AgentId,
+        file_manifest: &[FileAffinity],
+    ) -> Result<(), OrchestratorError> {
         let task_id = task.id;
         let session_id = task.session_id.clone();
         let capability_requirements = task.capability_requirements.clone();
@@ -294,7 +303,8 @@ impl Orchestrator {
             let c = crate::sync_lock::rw_read(&*self.config);
             let lease_gated =
                 crate::populi_remote::task_matches_populi_remote_lease_gate(&task, &c);
-            let rp = if !cfg!(feature = "populi-transport") || !c.populi_remote_execute_experimental {
+            let rp = if !cfg!(feature = "populi-transport") || !c.populi_remote_execute_experimental
+            {
                 None
             } else {
                 match (
@@ -381,7 +391,7 @@ impl Orchestrator {
                 if lease_id.is_none() {
                     // Fall through to local enqueue only.
                 } else {
-                    let mut t = task_for_enqueue.take().expect("task present before hold");
+                    let t = task_for_enqueue.take().expect("task present before hold");
                     let held_thread_id = t.thread_id.clone();
                     let held_harness_spec_json = t.harness_spec_json.clone();
                     t.populi_remote_delegate = Some(crate::types::PopuliRemoteDelegate {
@@ -398,12 +408,13 @@ impl Orchestrator {
                         let agents = crate::sync_lock::rw_read(&*self.agents);
                         if let Some(queue_lock) = agents.get(&agent_id) {
                             let mut queue = crate::sync_lock::rw_write(&**queue_lock);
-                            self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
-                                task_id,
-                                agent_id,
-                                description: t.description.clone(),
-                                session_id: t.session_id.clone(),
-                            });
+                            self.event_bus
+                                .emit(crate::events::AgentEventKind::TaskSubmitted {
+                                    task_id,
+                                    agent_id,
+                                    description: t.description.clone(),
+                                    session_id: t.session_id.clone(),
+                                });
                             match queue.hold_for_populi_remote((*t).clone()) {
                                 Ok(()) => HoldOutcome::Held,
                                 Err(crate::queue::PopuliRemoteHoldError::AgentBusy) => {
@@ -465,9 +476,7 @@ impl Orchestrator {
                         "harness_spec_json": held_harness_spec_json.clone(),
                     })
                     .to_string();
-                    let campaign_id = lineage_campaign_id
-                        .clone()
-                        .filter(|s| !s.is_empty());
+                    let campaign_id = lineage_campaign_id.clone().filter(|s| !s.is_empty());
                     let envelope = crate::a2a::RemoteTaskEnvelope {
                         idempotency_key: idempotency_key.clone(),
                         task_id: task_id.0,

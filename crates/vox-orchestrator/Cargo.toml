@@ -78,6 +78,7 @@ rand.workspace = true
 base64.workspace = true
 vox-clavis.workspace = true
 blake3.workspace = true
+crossbeam-queue = "0.3.12"
 
 [[bin]]
 name = "vox-orchestrator-d"

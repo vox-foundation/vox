@@ -25,11 +25,9 @@ impl crate::orchestrator::Orchestrator {
             let mut scope = crate::sync_lock::rw_write(&*self.scope_guard);
             scope.revoke_file(from, path);
             scope.assign_file(to, path.clone());
-            let _ = self.lock_manager.try_acquire(
-                path,
-                to,
-                crate::locks::LockKind::Exclusive,
-            );
+            let _ = self
+                .lock_manager
+                .try_acquire(path, to, crate::locks::LockKind::Exclusive);
         }
         let agents = crate::sync_lock::rw_read(&*self.agents);
         if let Some(target_lock) = agents.get(&to) {

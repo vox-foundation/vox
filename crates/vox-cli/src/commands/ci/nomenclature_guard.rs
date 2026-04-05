@@ -31,21 +31,21 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
     ("populi", "ml"),
     ("ludus", "gamification"),
     ("schola", "tutorial"),
-    ("mens", "ml"),  // mens overlaps with ml/populi domain
+    ("mens", "ml"), // mens overlaps with ml/populi domain
 ];
 
 /// These historical crates ARE allowed despite using Latin names (grandfathered).
 /// Do not add new entries here without a policy proposal.
 const HISTORICAL_ALLOWLIST: &[&str] = &[
-    "vox-dei",       // grandfathered — being migrated to vox-orchestrator (Phase 3)
-    "vox-ars",       // grandfathered — being migrated to vox-skills (Phase 4)
-    "vox-clavis",    // canonical secret manager — name IS its Latin identity (policy exception)
+    "vox-dei",          // grandfathered — being migrated to vox-orchestrator (Phase 3)
+    "vox-ars",          // grandfathered — being migrated to vox-skills (Phase 4)
+    "vox-clavis",       // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
-    "vox-skills",    // canonical English — permitted
-    "vox-ludus",     // grandfathered — being migrated to vox-gamification
-    "vox-oratio",    // grandfathered — being migrated to vox-speech
-    "vox-populi",    // grandfathered — being migrated to vox-ml
-    "vox-schola",    // grandfathered — being migrated to vox-tutorial
+    "vox-skills",       // canonical English — permitted
+    "vox-ludus",        // grandfathered — being migrated to vox-gamification
+    "vox-oratio",       // grandfathered — being migrated to vox-speech
+    "vox-populi",       // grandfathered — being migrated to vox-ml
+    "vox-schola",       // grandfathered — being migrated to vox-tutorial
 ];
 
 #[derive(Serialize)]
@@ -60,13 +60,15 @@ pub struct NomenclatureViolation {
 pub(crate) fn run(repo_root: &Path, json: bool) -> Result<()> {
     let crates_dir = repo_root.join("crates");
     if !crates_dir.is_dir() {
-        return Err(anyhow!("missing crates/ directory at {}", repo_root.display()));
+        return Err(anyhow!(
+            "missing crates/ directory at {}",
+            repo_root.display()
+        ));
     }
 
     let mut violations: Vec<NomenclatureViolation> = Vec::new();
 
-    let entries = std::fs::read_dir(&crates_dir)
-        .map_err(|e| anyhow!("read_dir crates/: {e}"))?;
+    let entries = std::fs::read_dir(&crates_dir).map_err(|e| anyhow!("read_dir crates/: {e}"))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| anyhow!("read crates/ entry: {e}"))?;
@@ -112,7 +114,10 @@ pub(crate) fn run(repo_root: &Path, json: bool) -> Result<()> {
             .map_err(|e| anyhow!("serialize violations: {e}"))?;
         println!("{out}");
         if !violations.is_empty() {
-            return Err(anyhow!("nomenclature-guard: {} violation(s) found", violations.len()));
+            return Err(anyhow!(
+                "nomenclature-guard: {} violation(s) found",
+                violations.len()
+            ));
         }
         return Ok(());
     }

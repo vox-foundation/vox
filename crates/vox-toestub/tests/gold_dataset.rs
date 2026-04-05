@@ -38,9 +38,8 @@ fn validate_against_schema(instance: &serde_json::Value) {
             panic!("read gold schema {}: {e}", schema_path.display());
         }))
         .expect("parse gold schema");
-    let validator =
-        vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
-            .expect("compile gold schema");
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+        .expect("compile gold schema");
     vox_jsonschema_util::validate(instance, &validator, "gold dataset")
         .expect("gold dataset must match schema");
 }

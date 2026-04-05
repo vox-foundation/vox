@@ -3,9 +3,9 @@
 use std::path::Path;
 
 use crate::{
-    repo_query_file, repo_query_history, repo_query_text, QueryFileParams, QueryHistoryParams,
-    QueryTextParams, RepoCatalogError, RepoFileReadResponse, RepoHistoryResponse,
-    RepoTextSearchResponse,
+    QueryFileParams, QueryHistoryParams, QueryTextParams, RepoCatalogError, RepoFileReadResponse,
+    RepoHistoryResponse, RepoTextSearchResponse, repo_query_file, repo_query_history,
+    repo_query_text,
 };
 
 pub fn repo_query_text_with_plane(

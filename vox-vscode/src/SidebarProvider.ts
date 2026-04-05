@@ -194,6 +194,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'updateBudgetCap':
                     await this._mcp.preferenceSet(VoxPreferenceKey.budgetCapUsd, parsed.value);
                     break;
+                case 'setAgentBudget':
+                    if (this._mcp.isToolAvailable('vox_set_agent_budget')) {
+                        await this._mcp.setAgentBudget(
+                            parsed.agentId,
+                            parsed.maxTokens,
+                            parsed.maxCostUsd
+                        );
+                        void vscode.window.showInformationMessage(`Budget for agent ${parsed.agentId} updated.`);
+                    } else {
+                        void vscode.window.showWarningMessage('Server does not support vox_set_agent_budget.');
+                    }
+                    break;
                 case 'updateApiKey':
                     await this._mcp.preferenceSet(byokPreferenceKey(parsed.provider), parsed.value);
                     break;

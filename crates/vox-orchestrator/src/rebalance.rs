@@ -97,11 +97,10 @@ impl LoadBalancer {
         queues: &HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>,
         dynamic_agents: &[AgentId],
     ) -> LoadBalancerAction {
-        let mut total_queued = 0;
         let mut total_weighted_load = 0.0;
         for q_lock in queues.values() {
             let q = crate::sync_lock::rw_read(q_lock);
-            total_queued += q.len();
+
             total_weighted_load += q.weighted_load();
         }
 
@@ -138,7 +137,9 @@ impl LoadBalancer {
         // Prefer retiring the agent that has been idle the longest
         candidates.sort_by_key(|c| c.1);
         if let Some((agent_id, _)) = candidates.first() {
-            return LoadBalancerAction::ScaleDown { agent_id: *agent_id };
+            return LoadBalancerAction::ScaleDown {
+                agent_id: *agent_id,
+            };
         }
 
         LoadBalancerAction::None
