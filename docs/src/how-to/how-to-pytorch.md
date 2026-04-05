@@ -187,7 +187,7 @@ Vox auto-selects the right PyTorch wheel source based on your detected GPU:
 
 ## See Also
 
-- [`@py.import` decorator reference](../reference/ref-decorators.md#pyimport)
+- [`@py.import` decorator reference](../reference/ref-decorators.md)
 - [Candle inference serving](../../../crates/vox-populi/src/mens/tensor/candle_inference_serve.rs)
 - [NumPy integration patterns](how-to-ai-agents.md)
 

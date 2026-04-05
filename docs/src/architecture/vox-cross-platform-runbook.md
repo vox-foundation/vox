@@ -48,7 +48,7 @@ Images are **operator-defined tags** unless your registry publishes blessed name
 | **`vox`** (default build) | *(empty)* | `vox mcp` | **3000** |
 | **`vox:mens-worker`** | `mens,script-execution` | `vox mcp`, `vox populi serve`, or `vox run --mode script` per service | **3000**, **9847** (control plane) |
 
-- **Sidecar:** `VOX_MESH_MESH_SIDECAR=1` + [`docker/vox-entrypoint.sh`](../../../docker/vox-entrypoint.sh) can run **`vox populi serve`** beside **`vox mcp`** in one container; see Dockerfile comments and [deployment compose SSOT](../reference/deployment-compose.md).
+- **Sidecar:** `VOX_MESH_MESH_SIDECAR=1` + [`infra/containers/entrypoints/vox-entrypoint.sh`](../../../infra/containers/entrypoints/vox-entrypoint.sh) can run **`vox populi serve`** beside **`vox mcp`** in one container; see Dockerfile comments and [deployment compose SSOT](../reference/deployment-compose.md).
 - **CI smoke tags:** default **`vox:ci-smoke`**; mens/features matrix **`vox:ci-mens`** and **`vox:ci-mens-worker`** (same image, two names) — [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml).
 
 ## Env-over-features

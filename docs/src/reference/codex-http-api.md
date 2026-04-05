@@ -12,7 +12,7 @@ Rust implementation surfaces live in **`vox-db`** (Codex schema, readiness, stor
 
 ## SSOT
 
-- **OpenAPI 3** — [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) (validated by [`scripts/check_codex_ssot.sh`](../../../scripts/check_codex_ssot.sh) / [`scripts/check_codex_ssot.ps1`](../../../scripts/check_codex_ssot.ps1)).
+- **OpenAPI 3** — [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) (validated by [`scripts/check_codex_ssot.ps1`](../../../scripts/check_codex_ssot.ps1)).
 
 ## Tests
 

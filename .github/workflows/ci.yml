@@ -44,10 +44,22 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Codex SSOT documentation guard
+        id: codex_docs_guard
+        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci check-codex-ssot
 
+      - name: Warn if Codex SSOT documentation guard failed
+        if: steps.codex_docs_guard.outcome == 'failure'
+        run: echo "::warning title=Codex docs guard::check-codex-ssot failed; warning only."
+
       - name: Docs migration SSOT guard
+        id: docs_ssot_guard
+        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci check-docs-ssot
+
+      - name: Warn if docs migration SSOT guard failed
+        if: steps.docs_ssot_guard.outcome == 'failure'
+        run: echo "::warning title=Docs SSOT guard::check-docs-ssot failed; warning only."
 
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance

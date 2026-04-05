@@ -79,7 +79,7 @@ This section **does not replace** code review; it records architectural debt to 
 
 - **New numeric policy** for impact/readership → update the seed YAML + one line in this doc’s changelog (below).  
 - **New external signal family** → add to seed `signal_families` + document license/opt-in here.  
-- **Shipped JSON shape** → add or extend a JSON Schema under `contracts/scientia/` and register in [`contracts/index.yaml`](../../../../../../contracts/index.yaml).
+- **Shipped JSON shape** → add or extend a JSON Schema under `contracts/scientia/` and register in [`contracts/index.yaml`](../../../contracts/index.yaml).
 
 ## Changelog
 

@@ -701,9 +701,9 @@ async fn handle_tool_call_inner(
             Ok(crate::dei_tools::cost_history(state, serde_json::from_value(args)?).await)
         }
         "vox_file_graph" => Ok(crate::dei_tools::file_graph(state).await),
-        "vox_config_get" => Ok(crate::dei_tools::config_get(state).await),
-        "vox_config_set" => Ok(crate::dei_tools::config_set(state, args).await),
-        "vox_map_agent_session" => {
+        "vox_config_get" | "vox_get_config" => Ok(crate::dei_tools::config_get(state).await),
+        "vox_config_set" | "vox_set_config" => Ok(crate::dei_tools::config_set(state, args).await),
+        "vox_map_agent_session" | "vox_map_opencode_session" | "vox_map_vscode_session" => {
             Ok(crate::dei_tools::map_agent_session(state, serde_json::from_value(args)?).await)
         }
         "vox_poll_events" => {

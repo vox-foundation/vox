@@ -283,6 +283,10 @@ tools:
   description: Aggregate trust_rollups by dimension, domain, entity_type, or combined keys (mean/min/max score, counts, sample mass).
   product_lane: data
   http_read_role_eligible: false
+- name: vox_emergency_stop
+  description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
+  product_lane: ai
+  http_read_role_eligible: false
 - name: vox_decorator_registry
   description: Return detailed metadata for all @decorators in the Vox language.
   product_lane: app

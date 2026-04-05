@@ -27,14 +27,14 @@ Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` a
 
 - **Binary:** `vox` (release), optional features via `VOX_CLI_FEATURES` (e.g. `mens,script-execution`).
 - **Data:** volume **`/root/.vox`**; align with `VOX_DB_*` / local SQLite layout per [ADR 004](../adr/004-codex-arca-turso-ssot.md).
-- **Mens sidecar (single container):** `VOX_MESH_MESH_SIDECAR=1` + entrypoint [`docker/vox-entrypoint.sh`](../../../docker/vox-entrypoint.sh); exposes **9847** when used.
-- **Health:** `vox doctor --probe` (see root `Dockerfile` and `docker/Dockerfile.populi` `HEALTHCHECK`).
+- **Mens sidecar (single container):** `VOX_MESH_MESH_SIDECAR=1` + entrypoint [`infra/containers/entrypoints/vox-entrypoint.sh`](../../../infra/containers/entrypoints/vox-entrypoint.sh); exposes **9847** when used.
+- **Health:** `vox doctor --probe` (see root `Dockerfile` and [`infra/containers/Dockerfile.populi`](../../../infra/containers/Dockerfile.populi) `HEALTHCHECK`).
 
 ## Environment SSOT (Compose-friendly)
 
 - **Codex / Turso:** `VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_DB_PATH` — [env-vars SSOT](env-vars.md), [ADR 004](../adr/004-codex-arca-turso-ssot.md).
 - **Mens:** full `VOX_MESH_*` table — [mens SSOT](populi.md). Optional **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** for MCP to read mens nodes (see [`examples/mens-compose.yml`](../../../docker-compose.yml)). With a client-suitable URL, **`vox-mcp`** also **HTTP join/heartbeat** to the control plane (see mens SSOT **`VOX_MESH_HTTP_*`**). **Overlay / WAN personal clusters:** [Populi overlay runbook](../operations/populi-overlay-personal-cluster-runbook.md).
-- **Optional mens env block (one text SSOT):** [`docker/vox-compose-mens-environment.block.yaml`](../../../docker/vox-compose-populi-environment.block.yaml) — embedded into generated Compose in `vox-container`; keep [`examples/mens-compose.yml`](../../../docker-compose.yml) semantically aligned (comments in that file point here).
+- **Optional mens env block (one text SSOT):** [`infra/containers/vox-compose-populi-environment.block.yaml`](../../../infra/containers/vox-compose-populi-environment.block.yaml) — embedded into generated Compose in `vox-container`; keep [`examples/mens-compose.yml`](../../../docker-compose.yml) semantically aligned (comments in that file point here).
 - **Inference / mobile:** `VOX_INFERENCE_PROFILE` and LAN/cloud patterns — [mobile / edge AI SSOT](mobile-edge-ai.md) (phones do **not** run this `Dockerfile`).
 
 ## Runtimes: Docker vs Podman

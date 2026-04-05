@@ -24,10 +24,10 @@ This page is the **normative documentation map** for telemetry, observability, a
 The first telemetry-trust **research** pass was correct to defer code and schema changes. For **implementation**, the following gaps must stay explicit:
 
 1. **Environment variable SSOT drift:** `VOX_BENCHMARK_TELEMETRY` and `VOX_SYNTAX_K_TELEMETRY` are implemented in [`crates/vox-cli/src/benchmark_telemetry.rs`](../../../crates/vox-cli/src/benchmark_telemetry.rs) and must appear in [Environment variables (SSOT)](../reference/env-vars.md) alongside deeper docs in [orchestration-unified](../reference/orchestration-unified.md) and [mens-training](../reference/mens-training.md).
-2. **Machine contracts beyond `research_metrics`:** [context-lifecycle-telemetry.schema.json](../../../../../contracts/orchestration/context-lifecycle-telemetry.schema.json) is part of the telemetry vocabulary; it is not optional detail.
+2. **Machine contracts beyond `research_metrics`:** [context-lifecycle-telemetry.schema.json](../../../contracts/orchestration/context-lifecycle-telemetry.schema.json) is part of the telemetry vocabulary; it is not optional detail.
 3. **`ci_completion_*` is workspace-adjacent:** Tables defined in [`crates/vox-db/src/schema/domains/ci_completion.rs`](../../../crates/vox-db/src/schema/domains/ci_completion.rs) carry paths and metadata. They are **not** interchangeable with coarse product telemetry without a separate sensitivity class (see [Telemetry retention and sensitivity SSOT](telemetry-retention-sensitivity-ssot.md)).
 4. **VS Code and debug surfaces:** The extension webview uses a **`telemetry` tab id** for local dashboards; that naming can collide with user expectations about “phone-home” telemetry. [vscode-mcp-compat](../reference/vscode-mcp-compat.md) documents `vox.mcp.debugPayloads` — high sensitivity and must sit inside the same trust framework as Ludus MCP arg modes.
-5. **Governance hooks:** New operations and drift checks must stay aligned with [operations catalog](../../../../../contracts/operations/catalog.v1.yaml), [data-ssot-guards](../../../crates/vox-cli/src/commands/ci/run_body_helpers/data_ssot_guards.rs), and [CHANGELOG](../../../CHANGELOG.md).
+5. **Governance hooks:** New operations and drift checks must stay aligned with [operations catalog](../../../contracts/operations/catalog.v1.yaml), [data-ssot-guards](../../../crates/vox-cli/src/commands/ci/run_body_helpers/data_ssot_guards.rs), and [CHANGELOG](../../../CHANGELOG.md).
 
 ## Authoritative SSOT set (no duplicate primaries)
 
@@ -35,9 +35,9 @@ The first telemetry-trust **research** pass was correct to defer code and schema
 | -------- | -------------- | ------------------------- |
 | `research_metrics` row shape, session prefixes, validation | [telemetry-metric-contract](../reference/telemetry-metric-contract.md), [`research_metrics_contract.rs`](../../../crates/vox-db/src/research_metrics_contract.rs) | Crate doc comments |
 | Env names and roles | [env-vars](../reference/env-vars.md) | orchestration-unified, mens-training, populi SSOT |
-| Table TTL hints for prune | [retention-policy.yaml](../../../../../contracts/db/retention-policy.yaml) | [db retention CLI](../../../crates/vox-cli/src/commands/db_retention.rs) |
+| Table TTL hints for prune | [retention-policy.yaml](../../../contracts/db/retention-policy.yaml) | [db retention CLI](../../../crates/vox-cli/src/commands/db_retention.rs) |
 | Completion CI telemetry schemas | `contracts/telemetry/completion-*.v1.schema.json` | [completion-policy-ssot](completion-policy-ssot.md) |
-| Context lifecycle tracing fields | [context-lifecycle-telemetry.schema.json](../../../../../contracts/orchestration/context-lifecycle-telemetry.schema.json) | [`context_lifecycle.rs`](../../../crates/vox-orchestrator/src/context_lifecycle.rs) |
+| Context lifecycle tracing fields | [context-lifecycle-telemetry.schema.json](../../../contracts/orchestration/context-lifecycle-telemetry.schema.json) | [`context_lifecycle.rs`](../../../crates/vox-orchestrator/src/context_lifecycle.rs) |
 | Taxonomy and event families (rollout) | [telemetry-taxonomy-contracts-ssot](telemetry-taxonomy-contracts-ssot.md) | contracts under `contracts/telemetry/` |
 | Client disclosure and debug | [telemetry-client-disclosure-ssot](telemetry-client-disclosure-ssot.md) | vox-vscode README |
 | Secrets for any future upload endpoint | [AGENTS.md](../../../AGENTS.md), Clavis | — |

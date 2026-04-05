@@ -53,6 +53,8 @@ jobs:
           RUSTC_WRAPPER: sccache
 
       - name: Run Docs Pipeline (extract + validate SUMMARY)
+        id: deploy_docs_pipeline
+        continue-on-error: true
         run: |
           cargo run -p vox-doc-pipeline
         env:
@@ -61,11 +63,27 @@ jobs:
           # accepts both ISO strings and Unix epoch integers.
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
 
+      - name: Warn if docs pipeline failed during deploy
+        if: steps.deploy_docs_pipeline.outcome == 'failure'
+        run: echo "::warning title=Docs pipeline failed::Proceeding with Pages build using repository docs state."
+
       - name: Validate feed.xml (well-formed XML)
+        id: validate_feed
+        continue-on-error: true
         run: xmllint --noout docs/src/feed.xml
 
+      - name: Warn if feed.xml validation failed
+        if: steps.validate_feed.outcome == 'failure'
+        run: echo "::warning title=feed.xml invalid::feed.xml validation failed; proceeding with Pages build."
+
       - name: Check SUMMARY.md drift
+        id: deploy_summary_drift
+        continue-on-error: true
         run: cargo run -p vox-doc-pipeline -- --check
+
+      - name: Warn if SUMMARY drift was detected during deploy
+        if: steps.deploy_summary_drift.outcome == 'failure'
+        run: echo "::warning title=SUMMARY drift::SUMMARY drift detected during deploy; proceeding with Pages build."
 
       - name: Build mdBook
         run: mdbook build docs

@@ -63,7 +63,7 @@ flowchart TB
 
 ## Phase 2 — Retention and sensitivity enforcement
 
-- Extend [retention-policy.yaml](../../../../../contracts/db/retention-policy.yaml) for `ci_completion_*` and any new telemetry tables.
+- Extend [retention-policy.yaml](../../../contracts/db/retention-policy.yaml) for `ci_completion_*` and any new telemetry tables.
 - Document S0–S3 mapping per table in [telemetry-retention-sensitivity-ssot](telemetry-retention-sensitivity-ssot.md).
 - Add tests or guards that prune-plan covers every telemetry-class table.
 

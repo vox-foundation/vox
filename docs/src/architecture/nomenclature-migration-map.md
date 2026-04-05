@@ -28,9 +28,10 @@ training_eligible: false
 | Crate **`vox-codex-api`** | **Codex HTTP** surface in **`vox-db`** (and `vox` CLI); no separate `vox-codex-api` package |
 | Split compiler crates (`vox-lexer`, `vox-parser`, …) as workspace members | **`vox-compiler`** monolith: `lexer`, `parser`, `hir`, `typeck`, `codegen_*` modules |
 
+<a id="latin_ns-command-registry-group-labels"></a>
 ## `latin_ns` (command-registry group labels)
 
-Values come from [`contracts/cli/command-registry.yaml`](../../../../../../contracts/cli/command-registry.yaml). They are **telemetry / grouping buckets**, not extra argv you must type. Optional Latin **routes** are `vox fabrica`, `vox diag`, `vox ars`, `vox mens`, `vox recensio` (see [CLI reference](../reference/cli.md)); English paths remain canonical.
+Values come from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml). They are **telemetry / grouping buckets**, not extra argv you must type. Optional Latin **routes** are `vox fabrica`, `vox diag`, `vox ars`, `vox mens`, `vox recensio` (see [CLI reference](../reference/cli.md)); English paths remain canonical.
 
 | `latin_ns` | Theme (mnemonic) | Example English commands |
 |------------|------------------|---------------------------|

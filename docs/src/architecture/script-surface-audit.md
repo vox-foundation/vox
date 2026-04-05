@@ -16,10 +16,10 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | `crates/vox-compiler/src/typeck/checker.py` | **Removed** (empty; real checker is Rust `typeck/checker/`). |
 | `patches/aegis-0.9.8/src/test-vectors/gen.py` | Vendor patch maintenance |
 | `scripts/extract_mcp_tool_registry.py` | Legacy migration recovery (gated) |
-| `docker/populi-entrypoint.sh` | Runtime boundary (container) |
-| `docker/vox-entrypoint.sh` | Runtime boundary (container) |
+| `infra/containers/entrypoints/populi-entrypoint.sh` | Runtime boundary (container) |
+| `infra/containers/entrypoints/vox-entrypoint.sh` | Runtime boundary (container) |
 | `scripts/check_codex_ssot.ps1` | CI guard wrapper |
-| `scripts/check_codex_ssot.sh` | CI guard wrapper |
+| `scripts/check_codex_ssot.ps1` | CI guard wrapper |
 | `scripts/check_cuda_feature_builds.sh` | CI guard wrapper |
 | `scripts/check_docs_ssot.ps1` | CI guard wrapper |
 | `scripts/check_docs_ssot.sh` | CI guard wrapper |
@@ -62,8 +62,8 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | [`scripts/windows/ensure_cuda_path.ps1`](../../../scripts/windows/ensure_cuda_path.ps1) | Persists User `PATH` / `CUDA_PATH`; invasive OS mutation — belongs outside normal `vox` runs. |
 | [`scripts/windows/stop_stuck_cargo_tests.ps1`](../../../scripts/windows/stop_stuck_cargo_tests.ps1) | Win32 process cleanup (LNK1104 / hung tests). |
 | [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1) | Until lifted into Rust: isolated `CARGO_TARGET_DIR`, temp `vox.exe`, `-Detach`, log tee — **Windows file-lock / agent timeouts**. |
-| [`docker/vox-entrypoint.sh`](../../../docker/vox-entrypoint.sh) | PID1 sidecar: background `populi serve` + `exec` main (container semantics). |
-| [`docker/populi-entrypoint.sh`](../../../docker/populi-entrypoint.sh) | Cloud train/serve/agent dispatch: `curl`, HF CLI, traps — **runtime boundary** (see gaps below). |
+| [`infra/containers/entrypoints/vox-entrypoint.sh`](../../../infra/containers/entrypoints/vox-entrypoint.sh) | PID1 sidecar: background `populi serve` + `exec` main (container semantics). |
+| [`infra/containers/entrypoints/populi-entrypoint.sh`](../../../infra/containers/entrypoints/populi-entrypoint.sh) | Cloud train/serve/agent dispatch: `curl`, HF CLI, traps — **runtime boundary** (see gaps below). |
 
 ### Useful but replaceable
 
@@ -85,7 +85,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | Script pattern | Canonical command |
 |----------------|-------------------|
 | `check_docs_ssot.*` | `vox ci check-docs-ssot` |
-| `check_codex_ssot.*` | `vox ci check-codex-ssot` |
+| `check_codex_ssot.ps1` | `vox ci check-codex-ssot` |
 | `verify_workspace_manifest.sh` | `vox ci manifest` |
 | `check_vox_cli_feature_matrix.sh` | `vox ci feature-matrix` |
 | `check_vox_cli_no_vox_orchestrator.sh` | `vox ci no-vox-orchestrator-import` |
@@ -104,7 +104,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | Live training tails | `telemetry_watch.ps1` | **Done:** `vox mens watch-telemetry` (alias `watch`; default 3s poll). PS1 delegates. |
 | CUDA release build + log | `cursor_background_cuda_build*.ps1` | **Done:** `vox ci cuda-release-build` (tee under `mens/runs/logs`); PS1 delegates. |
 | Full-repo TOESTUB | `toestub_self_apply.*` | **Done:** `vox ci toestub-self-apply`; shell scripts delegate. |
-| Cloud container train | `populi-entrypoint.sh` | **Train:** `vox mens train`. **Serve:** `vox mens serve` + **`vox-schola`** copied in [`docker/Dockerfile.populi`](../../../docker/Dockerfile.populi). **Agent:** still explicit unsupported in entrypoint (use cloud dispatch). |
+| Cloud container train | `populi-entrypoint.sh` | **Train:** `vox mens train`. **Serve:** `vox mens serve` + **`vox-schola`** copied in [`infra/containers/Dockerfile.populi`](../../../infra/containers/Dockerfile.populi). **Agent:** still explicit unsupported in entrypoint (use cloud dispatch). |
 
 ### Not a Vox-language duplicate (keep at boundary)
 
@@ -126,7 +126,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 
 - Removed empty `crates/vox-compiler/src/typeck/checker.py` (doc inventory regenerated).
 - Fix [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1) to use **`vox mens train`** (not `vox populi train`).
-- Align [`docker/populi-entrypoint.sh`](../../../docker/populi-entrypoint.sh) **train** branch to **`vox mens train`**; document **serve/agent** limitations in this doc.
+- Align [`infra/containers/entrypoints/populi-entrypoint.sh`](../../../infra/containers/entrypoints/populi-entrypoint.sh) **train** branch to **`vox mens train`**; document **serve/agent** limitations in this doc.
 - Mark **`vox_continuous_trainer.ps1`** as deprecated in-script; prefer **`vox mens corpus`** + **`vox mens pipeline`**.
 - Correct **[`scripts/README.md`](../../../scripts/README.md)** canonical train line to match **`vox mens train`** (matches `run_qwen25_qlora_real_4080.ps1`).
 - Extend [`docs/agents/script-registry.json`](../../agents/script-registry.json) with missing tracked scripts.

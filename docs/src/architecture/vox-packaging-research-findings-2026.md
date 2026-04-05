@@ -38,7 +38,7 @@ This rewrite corrects those gaps and converts findings into implementation-grade
   - [crates/vox-cli/src/build_service.rs](../../../crates/vox-cli/src/build_service.rs)
   - [crates/vox-cli/src/commands/run.rs](../../../crates/vox-cli/src/commands/run.rs)
   - [crates/vox-pm/src/lib.rs](../../../crates/vox-pm/src/lib.rs)
-  - [contracts/cli/command-registry.yaml](../../../../../../contracts/cli/command-registry.yaml)
+  - [contracts/cli/command-registry.yaml](../../../contracts/cli/command-registry.yaml)
 - External benchmark pass: 24 web searches (Cargo, registries, lockfile systems, supply-chain controls).
 - Source weighting:
   - Tier A: canonical specs and official docs.
@@ -49,7 +49,7 @@ This rewrite corrects those gaps and converts findings into implementation-grade
 
 ### Command surface and namespace
 
-- **Phase B:** `vox install` is **not** a CLI subcommand; it does not appear in [crates/vox-cli/src/lib.rs](../../../crates/vox-cli/src/lib.rs) or [contracts/cli/command-registry.yaml](../../../../../../contracts/cli/command-registry.yaml) (use **`vox add`** / **`vox lock`** / **`vox sync`** / **`vox pm`** — see [pm-migration-2026.md](../reference/pm-migration-2026.md)).
+- **Phase B:** `vox install` is **not** a CLI subcommand; it does not appear in [crates/vox-cli/src/lib.rs](../../../crates/vox-cli/src/lib.rs) or [contracts/cli/command-registry.yaml](../../../contracts/cli/command-registry.yaml) (use **`vox add`** / **`vox lock`** / **`vox sync`** / **`vox pm`** — see [pm-migration-2026.md](../reference/pm-migration-2026.md)).
 - **Historical (pre‑2026 wave):** `Install` had been a hidden migration-error variant; that shim is removed.
 - `add/remove/update/lock/sync/pm` are first-class in [crates/vox-cli/src/commands/mod.rs](../../../crates/vox-cli/src/commands/mod.rs).
 - CLI design rules already call out the anti-pattern of near-synonyms (`update` vs `upgrade`) in [docs/src/reference/cli.md](../reference/cli.md).

@@ -16,7 +16,7 @@ This document is **roadmap**: it defines the target taxonomy and contract layeri
 ## Goals
 
 - One vocabulary for **event families**, **sensitivity**, **retention class**, and **transmission** across CLI, MCP, orchestrator, Populi, CI, and clients.
-- No duplicate schema primaries: extend [contracts/index.yaml](../../../../../contracts/index.yaml) rather than ad-hoc JSON in random folders.
+- No duplicate schema primaries: extend [contracts/index.yaml](../../../contracts/index.yaml) rather than ad-hoc JSON in random folders.
 - Keep **content-bearing** payloads out of the usage-telemetry namespace (see [telemetry-trust-ssot](telemetry-trust-ssot.md)).
 
 ## Event family model (target)
@@ -59,7 +59,7 @@ From [`research_metrics_contract.rs`](../../../crates/vox-db/src/research_metric
 
 ## Target: single telemetry contract registry row pattern
 
-Future work SHOULD register each family in [contracts/index.yaml](../../../../../contracts/index.yaml) with:
+Future work SHOULD register each family in [contracts/index.yaml](../../../contracts/index.yaml) with:
 
 - `description`
 - `enforced_by` including at least one of: `vox ci command-compliance`, `vox ci data-ssot-guards`, crate tests

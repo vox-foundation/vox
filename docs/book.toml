@@ -20,7 +20,7 @@ additional-css = ["theme/custom.css"]
 mathjax-support = false
 git-repository-url = "https://github.com/vox-foundation/vox"
 git-repository-icon = "fab-github"
-edit-url-template = "https://github.com/vox-foundation/vox/edit/main/docs/src/{path}"
+edit-url-template = "https://github.com/vox-foundation/vox/edit/main/docs/{path}"
 
 [output.html.search]
 enable = true
