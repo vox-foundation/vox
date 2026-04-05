@@ -27,6 +27,7 @@ use crate::hir::*;
 use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 
 mod async_flags;
+mod contracts;
 mod db_select_normalize;
 mod decl;
 mod expr_db;
@@ -63,6 +64,7 @@ impl LowerCtx {
             workflows: Vec::new(),
             activities: Vec::new(),
             tests: Vec::new(),
+            foralls: Vec::new(),
             server_fns: Vec::new(),
             query_fns: Vec::new(),
             mutation_fns: Vec::new(),
@@ -167,6 +169,14 @@ impl LowerCtx {
                 }
                 Decl::Test(t) => {
                     hir.tests.push(self.lower_fn(&t.func, false));
+                }
+                Decl::Forall(f) => {
+                    let func = self.lower_fn(&f.func, false);
+                    hir.foralls.push(HirForall {
+                        label: f.label.clone(),
+                        iterations: f.iterations,
+                        func,
+                    });
                 }
                 // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
                 Decl::ServerFn(s) => {
@@ -367,6 +377,9 @@ pub fn lower_classic_component_view(comp: &HirComponent) -> Option<(HirExpr, Has
                 }
             }
             Stmt::Return { value: None, .. } => {}
+            Stmt::While { .. } | Stmt::Loop { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+                let _ = ctx.lower_stmt(stmt);
+            }
         }
     }
 

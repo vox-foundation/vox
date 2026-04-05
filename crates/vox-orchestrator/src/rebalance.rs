@@ -17,9 +17,9 @@ pub enum RebalanceStrategy {
     Hybrid,
 }
 
-/// Decisions for dynamic scaling.
+/// Decisions for load-balancer driven scaling.
 #[derive(Debug, Clone, PartialEq)]
-pub enum ScalingAction {
+pub enum LoadBalancerAction {
     /// Start a new dynamic agent to handle load.
     ScaleUp {
         /// Suggested name for the spawned worker.
@@ -28,12 +28,23 @@ pub enum ScalingAction {
         model: ModelConfig,
     },
     /// Stop an idle agent to save cost.
+    ///
+    /// NOTE: Callers must ensure that redistribution occurs for any tasks
+    /// that are assigned or in-flight at the moment of retirement to prevent loss.
     ScaleDown {
         /// Agent selected for teardown.
         agent_id: AgentId,
     },
     /// No action needed.
     None,
+}
+
+/// Statistics used for scaling heuristics.
+pub struct ScalingMetrics {
+    pub total_queued: usize,
+    pub total_weighted_load: f64,
+    pub active_agents: usize,
+    pub dynamic_agents: Vec<AgentId>,
 }
 
 /// Logic for cost-aware rebalancing and dynamic scaling.
@@ -78,41 +89,59 @@ impl LoadBalancer {
         candidates.first().map(|(id, _)| *id)
     }
 
-    /// Evaluate if we need to scale up or down.
+    /// Determine if additional agents are required or if some can be retired.
+    ///
+    /// Uses weighted load to accurately reflect the burden on the system beyond raw counts.
     pub fn evaluate_scaling(
         &self,
         queues: &HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>,
         dynamic_agents: &[AgentId],
-    ) -> ScalingAction {
+    ) -> LoadBalancerAction {
         let mut total_queued = 0;
+        let mut total_weighted_load = 0.0;
         for q_lock in queues.values() {
-            total_queued += crate::sync_lock::rw_read(q_lock).len();
+            let q = crate::sync_lock::rw_read(q_lock);
+            total_queued += q.len();
+            total_weighted_load += q.weighted_load();
         }
 
         let avg_load = if queues.is_empty() {
             0.0
         } else {
-            total_queued as f64 / queues.len() as f64
+            total_weighted_load / queues.len() as f64
         };
 
+        // Scale up if the average load exceeds our efficiency threshold
+        // (weighted_load factors in priority and complexity)
         if avg_load > self.scale_up_threshold as f64 {
-            return ScalingAction::ScaleUp {
+            return LoadBalancerAction::ScaleUp {
                 agent_name: "dynamic-worker".to_string(),
+                // Use a default model config or refine based on queue needs
                 model: ModelConfig::default(),
             };
         }
 
-        // Check if any dynamic agent is totally idle
+        // Scale down policy: find the dynamic agent with the least impact if removed.
+        // We only scale down if they are actually idle to minimize redistribution churn.
+        let mut candidates = Vec::new();
+
         for id in dynamic_agents {
             if let Some(q_lock) = queues.get(id) {
                 let q = crate::sync_lock::rw_read(q_lock);
+                // Hard requirement for scale down: no active work and no queue.
                 if q.is_empty() && q.in_progress_count() == 0 {
-                    return ScalingAction::ScaleDown { agent_id: *id };
+                    candidates.push((*id, q.last_active));
                 }
             }
         }
 
-        ScalingAction::None
+        // Prefer retiring the agent that has been idle the longest
+        candidates.sort_by_key(|c| c.1);
+        if let Some((agent_id, _)) = candidates.first() {
+            return LoadBalancerAction::ScaleDown { agent_id: *agent_id };
+        }
+
+        LoadBalancerAction::None
     }
 }
 
@@ -171,6 +200,6 @@ mod tests {
         queues.insert(AgentId(1), std::sync::Arc::new(std::sync::RwLock::new(q)));
 
         let action = lb.evaluate_scaling(&queues, &[]);
-        assert!(matches!(action, ScalingAction::ScaleUp { .. }));
+        assert!(matches!(action, LoadBalancerAction::ScaleUp { .. }));
     }
 }

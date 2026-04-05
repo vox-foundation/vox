@@ -47,6 +47,38 @@ impl Printer {
                 self.print_expr(expr);
                 self.out.push('\n');
             }
+            Stmt::While { condition, body, .. } => {
+                self.write_indent();
+                self.out.push_str("while ");
+                self.print_expr(condition);
+                self.out.push_str(" {\n");
+                self.indent();
+                for s in body {
+                    self.print_stmt(s);
+                }
+                self.dedent();
+                self.write_indent();
+                self.out.push_str("}\n");
+            }
+            Stmt::Loop { body, .. } => {
+                self.write_indent();
+                self.out.push_str("loop {\n");
+                self.indent();
+                for s in body {
+                    self.print_stmt(s);
+                }
+                self.dedent();
+                self.write_indent();
+                self.out.push_str("}\n");
+            }
+            Stmt::Break { .. } => {
+                self.write_indent();
+                self.out.push_str("break\n");
+            }
+            Stmt::Continue { .. } => {
+                self.write_indent();
+                self.out.push_str("continue\n");
+            }
         }
     }
 }

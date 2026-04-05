@@ -50,6 +50,7 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::McpTool(_) => "mcp_tool",
             Decl::McpResource(_) => "mcp_resource",
             Decl::Test(_) => "test",
+            Decl::Forall(_) => "forall",
             Decl::ServerFn(_) => "server_fn",
             Decl::Table(_) => "table",
             Decl::Collection(_) => "collection",

@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
-use crate::types::TaskCategory;
+use crate::types::{TaskCategory, AgentTask};
 
 use super::spec::{
     ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_premium_key,
@@ -199,17 +199,61 @@ impl ModelRegistry {
         self.models.insert(spec.id.clone(), spec);
     }
 
+    /// Optimized routing for a specific agent task, leveraging tool and research hints.
+    pub fn best_for_task(
+        &self,
+        task: &AgentTask,
+        preference: CostPreference,
+    ) -> Option<ModelSpec> {
+        let mut complexity = task.estimated_complexity;
+        let mut task_type = task.task_category;
+
+        // Item 19: Cascade Routing - Upgrade category if hints suggest research intent.
+        if !task.research_hints.is_empty() && task_type != TaskCategory::Research {
+            task_type = TaskCategory::Research;
+        }
+
+        // Precision-boost: Tasks with multiple tool hints get a complexity floor of 7 
+        // to ensure more powerful reasoning models are picked for complex tool coordination.
+        if task.tool_hints.len() >= 2 && complexity < 7 {
+            complexity = 7;
+        }
+
+        self.best_for(task_type, complexity, preference)
+    }
+
+    /// Like [`Self::best_for_task`] but only considers models for which `pred` returns true.
+    pub fn best_for_task_with_filter(
+        &self,
+        task: &AgentTask,
+        preference: CostPreference,
+        pred: impl FnMut(&ModelSpec) -> bool,
+    ) -> Option<ModelSpec> {
+        let mut complexity = task.estimated_complexity;
+        let mut task_type = task.task_category;
+
+        if !task.research_hints.is_empty() && task_type != TaskCategory::Research {
+            task_type = TaskCategory::Research;
+        }
+
+        if task.tool_hints.len() >= 2 && complexity < 7 {
+            complexity = 7;
+        }
+
+        self.best_for_with_filter(task_type, complexity, preference, pred)
+    }
+
     /// Return the best model for a given task category and complexity.
-    /// If preference is Economy, it will favor models with lower cost_per_1k.
-    /// If complexity is low, it will favor cheaper models to save budget.
     pub fn best_for(
         &self,
         task_type: TaskCategory,
         complexity: u8,
         preference: CostPreference,
     ) -> Option<ModelSpec> {
-        // Automatic Dynamic Tiering: Low complexity tasks don't need premium models
-        let effective_pref = if complexity <= 3 {
+        // Complexity-aware routing: Low complexity tasks default to economy unless preference is Performance.
+        // Item 19 Fix: High-cost models (o1/gpt-4o) are often needed for low-complexity tasks that require
+        // precision (Socratic Verification). Do not force Economy if explicit Performance is set.
+        let effective_pref = if complexity <= 3 && preference == CostPreference::Economy {
             CostPreference::Economy
         } else {
             preference
@@ -269,7 +313,7 @@ impl ModelRegistry {
         preference: CostPreference,
         mut pred: impl FnMut(&ModelSpec) -> bool,
     ) -> Option<ModelSpec> {
-        let effective_pref = if complexity <= 3 {
+        let effective_pref = if complexity <= 3 && preference == CostPreference::Economy {
             CostPreference::Economy
         } else {
             preference

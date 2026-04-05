@@ -119,7 +119,7 @@ pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             commands::check::run(&a.file, a.emit_training_jsonl.as_deref()).await?;
         }
         FabricaCmd::Test(a) => {
-            commands::test::run(&a.file).await?;
+            commands::test::run(&a).await?;
         }
         FabricaCmd::Run(a) => {
             if let Some(p) = a.port {

@@ -1,7 +1,7 @@
 // Statement, block, and pattern parsing.
 
 use super::Parser;
-use crate::ast::expr::Expr;
+use crate::ast::expr::{BinOp, Expr};
 use crate::ast::pattern::Pattern;
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
@@ -16,7 +16,19 @@ impl Parser {
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
                 break;
             }
-            stmts.push(self.parse_stmt()?);
+            match self.parse_stmt() {
+                Ok(s) => stmts.push(s),
+                Err(()) => {
+                    // Recovery: skip to the next statement boundary so we can
+                    // collect further errors within the same block.
+                    while !matches!(
+                        self.peek(),
+                        Token::Newline | Token::RBrace | Token::Eof
+                    ) {
+                        self.advance();
+                    }
+                }
+            }
             self.skip_newlines();
         }
         self.skip_newlines();
@@ -28,7 +40,7 @@ impl Parser {
         let start = self.span();
         match self.peek().clone() {
             Token::Let => self.parse_let_stmt(),
-            Token::Ret => {
+            Token::Ret | Token::Return => {
                 self.advance();
                 let value = if matches!(self.peek(), Token::Newline | Token::RBrace | Token::Eof) {
                     None
@@ -40,6 +52,16 @@ impl Parser {
                     span: start.merge(self.span()),
                 })
             }
+            Token::While => self.parse_while_stmt(),
+            Token::Loop => self.parse_loop_stmt(),
+            Token::Break => {
+                self.advance();
+                Ok(Stmt::Break { span: start })
+            }
+            Token::Continue => {
+                self.advance();
+                Ok(Stmt::Continue { span: start })
+            }
             _ => {
                 let expr = self.parse_expr()?;
                 if self.eat(&Token::Eq) {
@@ -49,6 +71,29 @@ impl Parser {
                         value,
                         span: start.merge(self.span()),
                     })
+                } else if let Some(op) = match self.peek().clone() {
+                    Token::PlusEq => Some(BinOp::Add),
+                    Token::MinusEq => Some(BinOp::Sub),
+                    Token::StarEq => Some(BinOp::Mul),
+                    Token::SlashEq => Some(BinOp::Div),
+                    _ => None,
+                } {
+                    self.advance();
+                    let rhs = self.parse_expr()?;
+                    let span = start.merge(self.span());
+                    // x += e => x = x + e desugaring at AST level
+                    let target_expr = expr.clone();
+                    let binary_expr = Expr::Binary {
+                        op,
+                        left: Box::new(expr),
+                        right: Box::new(rhs),
+                        span,
+                    };
+                    Ok(Stmt::Assign {
+                        target: target_expr,
+                        value: binary_expr,
+                        span,
+                    })
                 } else {
                     Ok(Stmt::Expr {
                         expr: expr.clone(),
@@ -57,6 +102,30 @@ impl Parser {
                 }
             }
         }
+    }
+
+    pub(crate) fn parse_while_stmt(&mut self) -> Result<Stmt, ()> {
+        let start = self.span();
+        self.advance(); // while
+        let condition = self.parse_expr()?;
+        self.expect(&Token::LBrace)?;
+        let body = self.parse_block()?;
+        Ok(Stmt::While {
+            condition,
+            body,
+            span: start.merge(self.span()),
+        })
+    }
+
+    pub(crate) fn parse_loop_stmt(&mut self) -> Result<Stmt, ()> {
+        let start = self.span();
+        self.advance(); // loop
+        self.expect(&Token::LBrace)?;
+        let body = self.parse_block()?;
+        Ok(Stmt::Loop {
+            body,
+            span: start.merge(self.span()),
+        })
     }
 
     pub(crate) fn parse_let_stmt(&mut self) -> Result<Stmt, ()> {

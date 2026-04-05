@@ -461,8 +461,8 @@ const SPECS: &[SecretSpec] = &[
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "Optional HS256 secret for JWT mesh bearer tokens (set on server + issuer).",
+        policy: SecretPolicy::required_fail(),
+        remediation: "Required API secret for JWT mesh bearer tokens (set on server + issuer).",
     },
     SecretSpec {
         id: SecretId::VoxMeshWorkerResultVerifyKey,
@@ -471,8 +471,8 @@ const SPECS: &[SecretSpec] = &[
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "Optional Ed25519 public key to verify signed `job_result` / `job_fail` deliveries (worker signs BLAKE3 digest).",
+        policy: SecretPolicy::required_fail(),
+        remediation: "Required Ed25519 public key to verify signed `job_result` / `job_fail` deliveries to prevent spoofing.",
     },
     SecretSpec {
         id: SecretId::VoxNewsTwitterBearer,
@@ -763,7 +763,11 @@ pub fn requirements_for_profile_mode(
             SecretId::VoxArxivAssistHandoffSecret,
         ],
         Workflow::DbRemote => vec![],
-        Workflow::MensMesh => vec![],
+        Workflow::MensMesh => vec![
+            SecretId::VoxMeshJwtHmacSecret,
+            SecretId::VoxMeshWorkerResultVerifyKey,
+            SecretId::PopuliApiKey,
+        ],
     };
     WorkflowRequirements { blocking, optional }
 }

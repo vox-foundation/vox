@@ -463,61 +463,80 @@ async fn handle_ws(
     identity: String,
     role: AccessRole,
 ) {
-    while let Some(msg) = socket.recv().await {
-        let Ok(msg) = msg else {
-            break;
-        };
-        match msg {
-            Message::Text(text) => {
-                if let Err(msg) = enforce_rate_limit(&state, &identity) {
-                    let _ = socket
-                        .send(Message::Text(
-                            serde_json::json!({
-                                "type": "error",
-                                "success": false,
-                                "is_error": true,
-                                "error": msg
-                            })
-                            .to_string()
-                            .into(),
-                        ))
-                        .await;
-                    break;
-                }
-                let parsed: Result<WsMessageIn, _> = serde_json::from_str(&text);
-                let reply = match parsed {
-                    Ok(req) => ws_handle_message(&state, req, peer, role).await,
-                    Err(e) => WsMessageOut {
-                        id: None,
-                        msg_type: "error".to_string(),
-                        success: false,
-                        is_error: true,
-                        data: Value::Null,
-                        error: Some(format!("invalid websocket payload: {e}")),
-                    },
-                };
-                if socket
-                    .send(Message::Text(
-                        serde_json::to_string(&reply)
-                            .unwrap_or_else(|_| {
-                                "{\"type\":\"error\",\"success\":false,\"is_error\":true}"
+    let mut rx = state.server_state.orchestrator.event_bus().subscribe();
+    
+    loop {
+        tokio::select! {
+            msg = socket.recv() => {
+                let Some(Ok(msg)) = msg else { break };
+                match msg {
+                    Message::Text(text) => {
+                        if let Err(msg) = enforce_rate_limit(&state, &identity) {
+                            let _ = socket
+                                .send(Message::Text(
+                                    serde_json::json!({
+                                        "type": "error",
+                                        "success": false,
+                                        "is_error": true,
+                                        "error": msg
+                                    })
                                     .to_string()
-                            })
-                            .into(),
-                    ))
-                    .await
-                    .is_err()
-                {
+                                    .into(),
+                                ))
+                                .await;
+                            break;
+                        }
+                        let parsed: Result<WsMessageIn, _> = serde_json::from_str(&text);
+                        let reply = match parsed {
+                            Ok(req) => ws_handle_message(&state, req, peer, role).await,
+                            Err(e) => WsMessageOut {
+                                id: None,
+                                msg_type: "error".to_string(),
+                                success: false,
+                                is_error: true,
+                                data: Value::Null,
+                                error: Some(format!("invalid websocket payload: {e}")),
+                            },
+                        };
+                        if socket
+                            .send(Message::Text(
+                                serde_json::to_string(&reply)
+                                    .unwrap_or_else(|_| {
+                                        "{\"type\":\"error\",\"success\":false,\"is_error\":true}"
+                                            .to_string()
+                                    })
+                                    .into(),
+                            ))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Message::Ping(bytes) => {
+                        if socket.send(Message::Pong(bytes)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Message::Close(_) => break,
+                    _ => {}
+                }
+            }
+            Ok(event) = rx.recv() => {
+                let out = WsMessageOut {
+                    id: None,
+                    msg_type: "agent_event".to_string(),
+                    success: true,
+                    is_error: false,
+                    data: serde_json::to_value(&event).unwrap_or(Value::Null),
+                    error: None,
+                };
+                if socket.send(Message::Text(
+                    serde_json::to_string(&out).unwrap_or_default().into()
+                )).await.is_err() {
                     break;
                 }
             }
-            Message::Ping(bytes) => {
-                if socket.send(Message::Pong(bytes)).await.is_err() {
-                    break;
-                }
-            }
-            Message::Close(_) => break,
-            _ => {}
         }
     }
 }

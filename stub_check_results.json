@@ -1,0 +1,111 @@
+   Compiling vox-corpus v0.1.0 (C:\Users\Owner\vox\crates\vox-corpus)
+   Compiling vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.81s
+     Running `target\debug\vox.exe stub-check --path crates/vox-lsp/src --format json`
+{
+  "schema_version": 1,
+  "tool_version": "0.1.0",
+  "files_scanned": 6,
+  "rules_applied": 19,
+  "rust_parse_failures": 0,
+  "suppressions_applied": 0,
+  "findings": [
+    {
+      "rule_id": "arch/schema_compliance",
+      "rule_name": "Schema Compliance Detector",
+      "severity": "error",
+      "file": "crates/vox-lsp/src\\code_lens.rs",
+      "line": 1,
+      "column": 0,
+      "message": "File 'crates/vox-lsp/src/code_lens.rs' is in a managed directory but not registered in vox-schema.json.",
+      "suggestion": "Register the crate in vox-schema.json or move the file to an authorized location."
+    },
+    {
+      "rule_id": "arch/schema_compliance",
+      "rule_name": "Schema Compliance Detector",
+      "severity": "error",
+      "file": "crates/vox-lsp/src\\completions.rs",
+      "line": 1,
+      "column": 0,
+      "message": "File 'crates/vox-lsp/src/completions.rs' is in a managed directory but not registered in vox-schema.json.",
+      "suggestion": "Register the crate in vox-schema.json or move the file to an authorized location."
+    },
+    {
+      "rule_id": "arch/schema_compliance",
+      "rule_name": "Schema Compliance Detector",
+      "severity": "error",
+      "file": "crates/vox-lsp/src\\grammar.rs",
+      "line": 1,
+      "column": 0,
+      "message": "File 'crates/vox-lsp/src/grammar.rs' is in a managed directory but not registered in vox-schema.json.",
+      "suggestion": "Register the crate in vox-schema.json or move the file to an authorized location."
+    },
+    {
+      "rule_id": "arch/schema_compliance",
+      "rule_name": "Schema Compliance Detector",
+      "severity": "error",
+      "file": "crates/vox-lsp/src\\lib.rs",
+      "line": 1,
+      "column": 0,
+      "message": "File 'crates/vox-lsp/src/lib.rs' is in a managed directory but not registered in vox-schema.json.",
+      "suggestion": "Register the crate in vox-schema.json or move the file to an authorized location."
+    },
+    {
+      "rule_id": "arch/schema_compliance",
+      "rule_name": "Schema Compliance Detector",
+      "severity": "error",
+      "file": "crates/vox-lsp/src\\main.rs",
+      "line": 1,
+      "column": 0,
+      "message": "File 'crates/vox-lsp/src/main.rs' is in a managed directory but not registered in vox-schema.json.",
+      "suggestion": "Register the crate in vox-schema.json or move the file to an authorized location."
+    },
+    {
+      "rule_id": "arch/schema_compliance",
+      "rule_name": "Schema Compliance Detector",
+      "severity": "error",
+      "file": "crates/vox-lsp/src\\symbols.rs",
+      "line": 1,
+      "column": 0,
+      "message": "File 'crates/vox-lsp/src/symbols.rs' is in a managed directory but not registered in vox-schema.json.",
+      "suggestion": "Register the crate in vox-schema.json or move the file to an authorized location."
+    },
+    {
+      "rule_id": "skeleton/hollow-fn",
+      "rule_name": "Hollow Function Detector",
+      "severity": "warning",
+      "file": "crates/vox-lsp/src\\main.rs",
+      "line": 108,
+      "column": 0,
+      "message": "Function `shutdown` has a hollow body (returns `Ok(())` without meaningful computation)",
+      "suggestion": "Implement the function logic, or if intentionally empty, add a comment explaining why.",
+      "context": " 106 |     }\n 107 | \n 108 |     async fn shutdown(&self) -> Result<()> {\n 109 |         Ok(())\n 110 |     }",
+      "confidence": "medium",
+      "evidence": {
+        "fn_name": "shutdown",
+        "hollow_expr": "Ok(())"
+      }
+    }
+  ]
+}
+[1m🦶 TOESTUB:[0m Scanned 6 files with 19 rules, found 7 issues.
+[31m   ⚠  0 critical, 6 errors require attention.[39m
+
+## TOESTUB Task Queue
+
+### 🔴 Immediate
+
+- [ ] **arch/schema_compliance** `crates/vox-lsp/src\code_lens.rs:1`
+- [ ] **arch/schema_compliance** `crates/vox-lsp/src\completions.rs:1`
+- [ ] **arch/schema_compliance** `crates/vox-lsp/src\grammar.rs:1`
+- [ ] **arch/schema_compliance** `crates/vox-lsp/src\lib.rs:1`
+- [ ] **arch/schema_compliance** `crates/vox-lsp/src\main.rs:1`
+- [ ] **arch/schema_compliance** `crates/vox-lsp/src\symbols.rs:1`
+
+### 🟡 Next Session
+
+- [ ] **skeleton/hollow-fn** `crates/vox-lsp/src\main.rs:108`
+
+
+Error: TOESTUB found 6 error-level issues.
+error: process didn't exit successfully: `target\debug\vox.exe stub-check --path crates/vox-lsp/src --format json` (exit code: 1)

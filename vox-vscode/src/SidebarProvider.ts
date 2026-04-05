@@ -13,7 +13,9 @@ import type {
     WorkspaceInspectorState,
 } from './types';
 
-const POLL_MS = 5000;
+
+const SIDEBAR_WS_DEBOUNCE_MS = 300;
+
 const LUDUS_SNAPSHOT_MIN_MS = 3000;
 const INSPECTOR_REFRESH_MS = 15000;
 
@@ -21,7 +23,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _chatController: ChatController;
     private _contextEngine = new WorkspaceContextEngine();
-    private _pollHandle?: NodeJS.Timeout;
+    private _ws?: WebSocket;
+    private _wsReconnectTimer?: NodeJS.Timeout;
+    private _wsDebounceTimer?: NodeJS.Timeout;
     private _lastLudusSnapshotPoll = 0;
     private _lastInspectorRefresh = 0;
     private _composerState: ComposerState = {
@@ -69,7 +73,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         view.webview.html = this._getHtml(view.webview);
 
         this._chatController.loadHistory();
-        this._startPolling();
+        this._connectEventStream();
 
         view.webview.onDidReceiveMessage(async (msg: unknown) => {
             const parsed = parseWebviewMessage(msg);
@@ -338,11 +342,32 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    private _startPolling(): void {
-        if (this._pollHandle) clearInterval(this._pollHandle);
-        this._pollHandle = setInterval(() => {
-            void this._sendFullState();
-        }, POLL_MS);
+    private _connectEventStream(): void {
+        clearTimeout(this._wsReconnectTimer);
+        const port = vscode.workspace.getConfiguration('vox').get<number>('mcp.httpPort') || 3921;
+        const wsUrl = `ws://127.0.0.1:${port}/v1/ws`;
+        try {
+            this._ws = new globalThis.WebSocket(wsUrl);
+            this._ws.onopen = () => {
+                // Push initial full state on connect
+                void this._sendFullState();
+            };
+            this._ws.onmessage = () => {
+                // Debounce rapid event bursts into a single state refresh
+                clearTimeout(this._wsDebounceTimer);
+                this._wsDebounceTimer = setTimeout(() => {
+                    void this._sendFullState();
+                }, SIDEBAR_WS_DEBOUNCE_MS);
+            };
+            this._ws.onclose = () => {
+                this._wsReconnectTimer = setTimeout(() => this._connectEventStream(), 5000);
+            };
+            this._ws.onerror = () => {
+                this._ws?.close();
+            };
+        } catch {
+            this._wsReconnectTimer = setTimeout(() => this._connectEventStream(), 5000);
+        }
     }
 
     private async _applyChanges(

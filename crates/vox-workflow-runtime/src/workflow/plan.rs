@@ -175,6 +175,12 @@ fn collect_activity_calls_from_stmts(
             HirStmt::Expr { expr, .. } => {
                 collect_from_expr(workflow_name, expr, ctx, out, branch_counter)?
             }
+            HirStmt::While { .. } | HirStmt::Loop { .. } => {
+                anyhow::bail!("workflow `{workflow_name}`: interpreted durable planning does not support `while` or `loop` statements")
+            }
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => {
+                anyhow::bail!("workflow `{workflow_name}`: interpreted durable planning does not support `break` or `continue`")
+            }
         }
     }
     Ok(())

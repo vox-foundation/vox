@@ -212,6 +212,25 @@ fn emit_hir_route_stmt(stmt: &HirStmt) -> String {
         HirStmt::Expr { expr, .. } => {
             format!("{};\n", emit_hir_route_expr(expr))
         }
+        HirStmt::While { condition, body, .. } => {
+            let cond = emit_hir_route_expr(condition);
+            let mut out = format!("while ({cond}) {{\n");
+            for s in body {
+                out.push_str(&format!("  {}", emit_hir_route_stmt(s)));
+            }
+            out.push_str("    }\n");
+            out
+        }
+        HirStmt::Loop { body, .. } => {
+            let mut out = "while (true) {\n".to_string();
+            for s in body {
+                out.push_str(&format!("  {}", emit_hir_route_stmt(s)));
+            }
+            out.push_str("    }\n");
+            out
+        }
+        HirStmt::Break { .. } => "break;\n".to_string(),
+        HirStmt::Continue { .. } => "continue;\n".to_string(),
     }
 }
 

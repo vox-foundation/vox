@@ -219,7 +219,9 @@ impl ModelCatalog for OpenRouterCatalog {
         for m in body.data {
             let cost_input = m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0;
             let cost_output = m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0;
-            let is_free = cost_input == 0.0 && cost_output == 0.0;
+            let p_zero = m.pricing.prompt == "0" || m.pricing.prompt == "0.0" || m.pricing.prompt.starts_with("-");
+            let c_zero = m.pricing.completion == "0" || m.pricing.completion == "0.0" || m.pricing.completion.starts_with("-");
+            let is_free = p_zero && c_zero;
             // Simplify overall cost per 1k as the average.
             let cost_per_1k = (cost_input + cost_output) / 2.0;
 
@@ -229,11 +231,7 @@ impl ModelCatalog for OpenRouterCatalog {
             let supports_vision = architecture
                 .input_modalities
                 .iter()
-                .any(|v| v.eq_ignore_ascii_case("image"))
-                || architecture
-                    .output_modalities
-                    .iter()
-                    .any(|v| v.eq_ignore_ascii_case("image"));
+                .any(|v| v.eq_ignore_ascii_case("image"));
             let supports_json = m
                 .supported_parameters
                 .iter()
@@ -270,7 +268,7 @@ impl ModelCatalog for OpenRouterCatalog {
                 .top_provider
                 .and_then(|tp| tp.max_completion_tokens)
                 .filter(|n| *n > 0)
-                .unwrap_or_else(|| m.context_length.min(16_384));
+                .unwrap_or(m.context_length);
 
             models.push(ModelSpec {
                 id: m.id.clone(),

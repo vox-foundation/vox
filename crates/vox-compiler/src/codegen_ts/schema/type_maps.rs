@@ -148,6 +148,7 @@ pub fn type_to_voxdb_validator(ty: &TypeExpr) -> String {
         }
         TypeExpr::Function { .. } => "v.any() /* Function */".to_string(),
         TypeExpr::Unit { .. } => "v.null()".to_string(),
+        TypeExpr::Infer { .. } => "v.any()".to_string(),
     }
 }
 
@@ -199,6 +200,7 @@ pub(super) fn type_to_ts(ty: &TypeExpr) -> String {
             format!("[{}]", elems.join(", "))
         }
         TypeExpr::Unit { .. } => "void".to_string(),
+        TypeExpr::Infer { .. } => "any".to_string(),
     }
 }
 

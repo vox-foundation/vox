@@ -90,6 +90,9 @@ impl LanguageServer for Backend {
                     ..Default::default()
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
+                code_lens_provider: Some(CodeLensOptions {
+                    resolve_provider: Some(false),
+                }),
                 ..Default::default()
             },
             ..Default::default()
@@ -164,6 +167,30 @@ impl LanguageServer for Backend {
             Ok(Some(DocumentSymbolResponse::Nested(symbols)))
         } else {
             Ok(None)
+        }
+    }
+
+    async fn code_lens(
+        &self,
+        params: CodeLensParams,
+    ) -> Result<Option<Vec<CodeLens>>> {
+        let uri = &params.text_document.uri;
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("code_lens: documents mutex poisoned: {e}");
+                return Ok(None);
+            }
+        };
+        let Some(text) = text else {
+            return Ok(Some(vec![]));
+        };
+        let tokens = lex(&text);
+        if let Ok(module) = parse(tokens) {
+            let lenses = vox_lsp::code_lens::code_lenses_for_module(&module, &text);
+            Ok(Some(lenses))
+        } else {
+            Ok(Some(vec![]))
         }
     }
 

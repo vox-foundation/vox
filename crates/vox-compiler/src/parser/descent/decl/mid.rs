@@ -79,7 +79,7 @@ impl Parser {
                 self.expect(&Token::LParen)?;
                 let params = self.parse_params()?;
                 self.expect(&Token::RParen)?;
-                let ret = if self.eat(&Token::To) {
+                let ret = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
                     Some(self.parse_type_expr()?)
                 } else {
                     None
@@ -115,7 +115,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let ret = if self.eat(&Token::To) {
+        let ret = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -140,7 +140,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let ret = if self.eat(&Token::To) {
+        let ret = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -163,20 +163,20 @@ impl Parser {
     pub(crate) fn parse_http_route(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat 'http'
-        let method = match self.peek() {
-            Token::Get => {
+        let method = match self.peek().clone() {
+            Token::Ident(m) if m == "get" => {
                 self.advance();
                 HttpMethod::Get
             }
-            Token::Post => {
+            Token::Ident(m) if m == "post" => {
                 self.advance();
                 HttpMethod::Post
             }
-            Token::Put => {
+            Token::Ident(m) if m == "put" => {
                 self.advance();
                 HttpMethod::Put
             }
-            Token::Delete => {
+            Token::Ident(m) if m == "delete" => {
                 self.advance();
                 HttpMethod::Delete
             }
@@ -207,7 +207,7 @@ impl Parser {
                 return Err(());
             }
         };
-        let ret = if self.eat(&Token::To) {
+        let ret = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None

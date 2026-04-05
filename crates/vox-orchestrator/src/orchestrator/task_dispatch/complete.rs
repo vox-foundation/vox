@@ -148,6 +148,125 @@ impl Orchestrator {
             String,
         )> = None;
 
+        let (task_clone_opt, phase_label, write_files) = {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            if let Some(queue_lock) = agents.get(&agent_id) {
+                let queue = crate::sync_lock::rw_read(&**queue_lock);
+                if let Some(t) = queue.current_task() {
+                    (
+                        Some(t.clone()),
+                        Self::extract_phase_label(&t.description),
+                        t.write_files().into_iter().cloned().collect::<Vec<_>>()
+                    )
+                } else {
+                    (None, String::new(), Vec::new())
+                }
+            } else {
+                (None, String::new(), Vec::new())
+            }
+        };
+
+        // 1. Fetch trust_score
+        let mut trust_score_opt = None;
+        if let Some(db) = self.db() {
+            if task_clone_opt.is_some() {
+                let phase = phase_label.clone();
+                let rows = db.list_trust_scores_for_dimension(
+                    "agent",
+                    "task_completion",
+                    Some(phase.as_str()),
+                    512
+                ).await.unwrap_or_default();
+                trust_score_opt = Some(rows.into_iter()
+                    .find_map(|(id, score)| {
+                        id.parse::<u64>().ok().filter(|aid| *aid == agent_id.0).map(|_| score)
+                    }).unwrap_or(0.5));
+            }
+        }
+
+        // 2. Validate links using async Command
+        let mut broken_links_report = String::new();
+        if task_clone_opt.is_some() {
+            let md_files: Vec<_> = write_files.iter()
+                .filter(|p| p.extension().is_some_and(|ext| ext == "md"))
+                .collect();
+            if !md_files.is_empty() {
+                let mut broken_reports = Vec::new();
+                for md_file in md_files {
+                    let out = tokio::process::Command::new("cargo")
+                        .arg("run")
+                        .arg("-p")
+                        .arg("vox-cli")
+                        .arg("--")
+                        .arg("ci")
+                        .arg("check-links")
+                        .arg("--target")
+                        .arg(md_file)
+                        .output()
+                        .await;
+                    if let Ok(out) = out {
+                        if !out.status.success() {
+                            broken_reports.push(String::from_utf8_lossy(&out.stdout).to_string());
+                        }
+                    }
+                }
+                if !broken_reports.is_empty() {
+                    broken_links_report = broken_reports.join("\n");
+                }
+            }
+        }
+
+        #[cfg(feature = "runtime")]
+        if let Some(ref task_clone) = task_clone_opt {
+            let vox_files: Vec<_> = write_files.iter()
+                .filter(|p| p.extension().is_some_and(|ext| ext == "vox"))
+                .collect();
+
+            for vox_file in vox_files {
+                if let Ok(original_source) = vox_bounded_fs::read_utf8_path_capped(vox_file) {
+                    let loop_ = vox_populi::mens::healing::HealingLoop::new(
+                        3,
+                        |src| {
+                            let diagnostics = vox_lsp::validate_document(src);
+                            let errors: Vec<_> = diagnostics
+                                .into_iter()
+                                .filter(|d| matches!(d.severity, Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)))
+                                .map(|d| d.message)
+                                .collect();
+                            vox_populi::mens::healing::HealResult {
+                                ok: errors.is_empty(),
+                                diagnostics: errors,
+                            }
+                        },
+                        |src, errs| {
+                            tokio::task::block_in_place(|| {
+                                tokio::runtime::Handle::current().block_on(async {
+                                    let prompt = format!(
+                                        "Fix these Vox compiler errors:\n{}\n\nCode:\n```vox\n{}\n```\n\nReturn only the fixed code, no extra text.",
+                                        errs.join("\n"), src
+                                    );
+                                    let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+                                    let raw = client.generate(&prompt).await.unwrap_or_default();
+                                    
+                                    let mut cleaned = raw;
+                                    if cleaned.starts_with("```vox") {
+                                        cleaned = cleaned.trim_start_matches("```vox").trim_end_matches("```").trim().to_string();
+                                    } else if cleaned.starts_with("```") {
+                                        cleaned = cleaned.trim_start_matches("```").trim_end_matches("```").trim().to_string();
+                                    }
+                                    Ok(cleaned)
+                                })
+                            })
+                        }
+                    );
+                    let desc = task_clone.description.clone();
+                    if let vox_populi::mens::healing::HealOutcome::Success { source, .. } = loop_.heal(&desc, &original_source).await {
+                        let _ = std::fs::write(vox_file, source);
+                    }
+                }
+            }
+        }
+
         let completion_data: Option<(
             Vec<PathBuf>,
             Option<String>,
@@ -224,25 +343,7 @@ impl Orchestrator {
                 && let Some(mut task_clone) = queue.current_task().cloned()
             {
                 let phase = Self::extract_phase_label(&task_clone.description);
-                let trust_score = db.block_on(async {
-                    let rows = db
-                        .list_trust_scores_for_dimension(
-                            "agent",
-                            "task_completion",
-                            Some(phase.as_str()),
-                            512,
-                        )
-                        .await
-                        .unwrap_or_default();
-                    rows.into_iter()
-                        .find_map(|(id, score)| {
-                            id.parse::<u64>()
-                                .ok()
-                                .filter(|aid| *aid == agent_id.0)
-                                .map(|_| score)
-                        })
-                        .unwrap_or(0.5)
-                });
+                let trust_score = trust_score_opt.unwrap_or(0.5);
                 let floor = crate::sync_lock::rw_read(&*self.config).trust_task_completion_floor;
                 let has_checks = completion_attestation
                     .as_ref()
@@ -250,9 +351,9 @@ impl Orchestrator {
                     .unwrap_or(false);
                 if trust_score < floor
                     && !has_checks
-                    && task_clone.debug_iterations < max_toestub_debug_iterations
+                    && task_clone.toestub_iterations < max_toestub_debug_iterations
                 {
-                    task_clone.debug_iterations += 1;
+                    task_clone.toestub_iterations += 1;
                     task_clone.description.push_str(&format!(
                         "\n\n[TRUST GATE]\nAgent task-completion trust {:.2} is below floor {:.2} for phase `{}`. \
 Provide completion attestation checks_passed[] before completing.",
@@ -389,27 +490,8 @@ Provide completion attestation checks_passed[] before completing.",
                     .collect();
                 
                 if !md_files.is_empty() {
-                    let mut broken_reports = Vec::new();
-                    for md_file in md_files {
-                        let out = std::process::Command::new("cargo")
-                            .arg("run")
-                            .arg("-p")
-                            .arg("vox-cli")
-                            .arg("--")
-                            .arg("ci")
-                            .arg("check-links")
-                            .arg("--target")
-                            .arg(md_file)
-                            .output();
-                        if let Ok(out) = out {
-                            if !out.status.success() {
-                                broken_reports.push(String::from_utf8_lossy(&out.stdout).to_string());
-                            }
-                        }
-                    }
-                    
-                    if !broken_reports.is_empty() {
-                        let detail = format!("Broken links detected. Please investigate if files need to be created or fix the links:\n{}", broken_reports.join("\n"));
+                    if !broken_links_report.is_empty() {
+                        let detail = format!("Broken links detected. Please investigate if files need to be created or fix the links:\n{}", broken_links_report);
                         if task_clone.debug_iterations < max_debug_iterations {
                             task_clone.debug_iterations += 1;
                             task_clone.description.push_str(&format!("\n\n[DOC INTEGRITY GATE]\n{}", detail));
@@ -445,7 +527,7 @@ Provide completion attestation checks_passed[] before completing.",
                         if let Some(db) = self.db() {
                             let repo = crate::lineage::repository_id();
                             let mut payload = serde_json::json!({
-                                "toestub_iteration": requeue_task.debug_iterations,
+                                "toestub_iteration": requeue_task.toestub_iterations,
                                 "error_count": err_n,
                                 "warning_count": warn_n,
                                 "report_preview": err_report.chars().take(800).collect::<String>(),
@@ -780,12 +862,17 @@ Provide completion attestation checks_passed[] before completing.",
             let overlaps = crate::sync_lock::rw_read(&*self.workspace_manager)
                 .overlapping_paths(agent_id, other_id);
             for overlap_path in overlaps {
+                let other_base_snapshot = crate::sync_lock::rw_read(&*self.workspace_manager)
+                    .get_workspace(other_id)
+                    .map(|ws| ws.base_snapshot)
+                    .unwrap_or(snapshot_after);
+                    
                 overlap_conflicts = overlap_conflicts.saturating_add(1);
                 let conflict_id = crate::sync_lock::rw_write(&*self.conflict_manager)
                     .record_conflict(
                         overlap_path.clone(),
                         Some(snapshot_after),
-                        vec![(agent_id, snapshot_after), (other_id, snapshot_after)],
+                        vec![(agent_id, snapshot_after), (other_id, other_base_snapshot)],
                     );
                 self.event_bus
                     .emit(crate::events::AgentEventKind::ConflictDetected {
@@ -1635,7 +1722,7 @@ Provide completion attestation checks_passed[] before completing.",
         }
     }
 
-    async fn persist_with_retry_meta<E, F, Fut>(
+    pub(crate) async fn persist_with_retry_meta<E, F, Fut>(
         &self,
         lane: &str,
         replay_meta: Option<serde_json::Value>,

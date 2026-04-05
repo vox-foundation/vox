@@ -20,6 +20,7 @@ pub mod hir;
 pub mod language_surface;
 pub mod lexer;
 pub mod parser;
+pub mod llm_prompt;
 pub mod react_bridge;
 pub mod runtime_projection;
 pub mod rust_interop_support;

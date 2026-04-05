@@ -48,14 +48,15 @@ impl Parser {
                 Token::Minus => BinOp::Sub,
                 Token::Star => BinOp::Mul,
                 Token::Slash => BinOp::Div,
+                Token::Percent => BinOp::Mod,
                 Token::Lt => BinOp::Lt,
                 Token::Gt => BinOp::Gt,
                 Token::Lte => BinOp::Lte,
                 Token::Gte => BinOp::Gte,
                 Token::And => BinOp::And,
                 Token::Or => BinOp::Or,
-                Token::Is => BinOp::Is,
-                Token::Isnt => BinOp::Isnt,
+                Token::Is | Token::EqEq => BinOp::Is,
+                Token::Isnt | Token::NotEq => BinOp::Isnt,
                 Token::PipeOp => BinOp::Pipe,
                 _ => break,
             };
@@ -85,6 +86,6 @@ fn infix_bp(op: BinOp) -> (u8, u8) {
         BinOp::Is | BinOp::Isnt => (7, 8),
         BinOp::Lt | BinOp::Gt | BinOp::Lte | BinOp::Gte => (9, 10),
         BinOp::Add | BinOp::Sub => (11, 12),
-        BinOp::Mul | BinOp::Div => (13, 14),
+        BinOp::Mul | BinOp::Div | BinOp::Mod => (13, 14),
     }
 }

@@ -389,7 +389,7 @@ mod orch_smoke {
             .unwrap()
             .enqueue(task);
 
-        let remaining = orch.retire_agent(agent_id).unwrap();
+        let remaining = orch.retire_agent(agent_id).await.unwrap();
         assert_eq!(remaining.len(), 1);
         assert!(orch.agent_queue(agent_id).is_none());
     }

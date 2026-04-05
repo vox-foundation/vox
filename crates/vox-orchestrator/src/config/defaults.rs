@@ -49,7 +49,7 @@ pub(super) fn default_resource_exponent() -> f64 {
     1.0
 }
 pub(super) fn default_max_spawn_per_tick() -> usize {
-    1
+    5
 }
 pub(super) fn default_scaling_cooldown_ms() -> u64 {
     5_000

@@ -33,7 +33,7 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             let _left_ty = infer_expr(left, ctx, builtins);
             let _right_ty = infer_expr(right, ctx, builtins);
             match op {
-                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => _left_ty,
+                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod => _left_ty,
                 BinOp::Lt
                 | BinOp::Gt
                 | BinOp::Lte
@@ -152,5 +152,19 @@ pub fn infer_stmt(stmt: &Stmt, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             }
         }
         Stmt::Expr { expr, .. } => infer_expr(expr, ctx, builtins),
+        Stmt::While { condition, body, .. } => {
+            infer_expr(condition, ctx, builtins);
+            for s in body {
+                infer_stmt(s, ctx, builtins);
+            }
+            Ty::Unit
+        }
+        Stmt::Loop { body, .. } => {
+            for s in body {
+                infer_stmt(s, ctx, builtins);
+            }
+            Ty::Never
+        }
+        Stmt::Break { .. } | Stmt::Continue { .. } => Ty::Never,
     }
 }

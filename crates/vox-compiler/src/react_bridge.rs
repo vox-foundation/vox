@@ -66,6 +66,18 @@ pub fn for_each_vox_hook_call_in_stmt(stmt: &Stmt, f: &mut impl FnMut(&str, Span
             }
         }
         Stmt::Expr { expr, .. } => for_each_vox_hook_call_in_expr(expr, f),
+        Stmt::While { condition, body, .. } => {
+            for_each_vox_hook_call_in_expr(condition, f);
+            for s in body {
+                for_each_vox_hook_call_in_stmt(s, f);
+            }
+        }
+        Stmt::Loop { body, .. } => {
+            for s in body {
+                for_each_vox_hook_call_in_stmt(s, f);
+            }
+        }
+        Stmt::Break { .. } | Stmt::Continue { .. } => {}
     }
 }
 

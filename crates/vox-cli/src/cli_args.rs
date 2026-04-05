@@ -29,6 +29,18 @@ pub struct CheckArgs {
 pub struct TestArgs {
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Filter tests by label
+    #[arg(long)]
+    pub filter: Option<String>,
+    /// Number of property testing iterations
+    #[arg(long)]
+    pub forall_iterations: Option<u32>,
+    /// Instrument for branch coverage
+    #[arg(long)]
+    pub coverage: bool,
+    /// Update snapshot golden files
+    #[arg(long)]
+    pub update_snapshots: bool,
 }
 
 /// `vox run` / `vox fabrica run`

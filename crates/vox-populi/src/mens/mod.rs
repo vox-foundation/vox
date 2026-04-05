@@ -10,6 +10,9 @@
 
 pub mod tensor;
 
+#[cfg(feature = "mens")]
+pub mod healing;
+
 #[cfg(feature = "mens-hf-hub")]
 pub mod hub;
 

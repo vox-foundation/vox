@@ -21,6 +21,8 @@ pub enum TypeExpr {
     Tuple { elements: Vec<TypeExpr>, span: Span },
     /// Unit type (void)
     Unit { span: Span },
+    /// Infer: `_` in type position; triggers type inference.
+    Infer { span: Span },
 }
 
 impl TypeExpr {
@@ -30,7 +32,8 @@ impl TypeExpr {
             | TypeExpr::Generic { span, .. }
             | TypeExpr::Function { span, .. }
             | TypeExpr::Tuple { span, .. }
-            | TypeExpr::Unit { span } => *span,
+            | TypeExpr::Unit { span }
+            | TypeExpr::Infer { span } => *span,
         }
     }
 }

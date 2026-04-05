@@ -239,6 +239,7 @@ pub fn emit_expr(expr: &Expr) -> String {
                 BinOp::Or => "||",
                 BinOp::Is => "===",
                 BinOp::Isnt => "!==",
+                BinOp::Mod => "%",
                 BinOp::Pipe => "|>", // handled separately in practice
             };
             if matches!(op, BinOp::Pipe) {
@@ -444,6 +445,17 @@ pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
         Stmt::Expr { expr, .. } => {
             format!("{pad}{};\n", emit_expr(expr))
         }
+        Stmt::While { condition, body, .. } => {
+            let cond = emit_expr(condition);
+            let body_str: Vec<String> = body.iter().map(|s| emit_stmt(s, indent + 1)).collect();
+            format!("{pad}while ({cond}) {{\n{}{pad}}}\n", body_str.join(""))
+        }
+        Stmt::Loop { body, .. } => {
+            let body_str: Vec<String> = body.iter().map(|s| emit_stmt(s, indent + 1)).collect();
+            format!("{pad}while (true) {{\n{}{pad}}}\n", body_str.join(""))
+        }
+        Stmt::Break { .. } => format!("{pad}break;\n"),
+        Stmt::Continue { .. } => format!("{pad}continue;\n"),
     }
 }
 

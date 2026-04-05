@@ -112,7 +112,8 @@ mod tests {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
-        }];
+        line_col: None,
+}];
         let fixes = fixer.suggest_fixes("let x = 1", &diags);
         assert_eq!(fixes.len(), 1);
         assert!(fixes[0].diff.contains("-let x = 1"));
@@ -133,7 +134,8 @@ mod tests {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
-        }];
+        line_col: None,
+}];
         let fixes = fixer.suggest_fixes("ret x", &diags);
         assert_eq!(fixes.len(), 1);
         assert!(fixes[0].diff.contains("No automated fix available"));

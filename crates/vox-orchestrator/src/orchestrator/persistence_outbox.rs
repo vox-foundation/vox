@@ -120,6 +120,10 @@ pub(crate) fn run_persistence_outbox_lifecycle_pass(
             "retry_count".to_string(),
             serde_json::Value::from(retry_count),
         );
+        normalized.insert(
+            "schema_version".to_string(),
+            serde_json::Value::from(1),
+        );
         kept.push(serde_json::Value::Object(normalized));
     }
 

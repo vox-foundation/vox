@@ -72,7 +72,7 @@ impl Parser {
             Token::LParen => {
                 self.advance();
                 let e = self.parse_expr()?;
-                if self.eat(&Token::Comma) {
+                let paren_expr = if self.eat(&Token::Comma) {
                     let mut elems = vec![e];
                     loop {
                         self.skip_newlines();
@@ -85,15 +85,76 @@ impl Parser {
                         }
                     }
                     self.skip_newlines();
-                    self.expect(&Token::RParen)?;
+                    if self.expect(&Token::RParen).is_err() {
+                        return Err(());
+                    }
                     Expr::TupleLit {
                         elements: elems,
                         span: start.merge(self.span()),
                     }
                 } else {
                     self.skip_newlines();
-                    self.expect(&Token::RParen)?;
+                    if self.expect(&Token::RParen).is_err() {
+                        return Err(());
+                    }
                     e
+                };
+
+                if self.eat(&Token::FatArrow) {
+                    let mut params = Vec::new();
+                    match paren_expr {
+                        Expr::Ident { name, span } => {
+                            params.push(crate::ast::expr::Param {
+                                name,
+                                type_ann: None,
+                                default: None,
+                                span,
+                            });
+                        }
+                        Expr::TupleLit { elements, .. } => {
+                            for elem in elements {
+                                match elem {
+                                    Expr::Ident { name, span } => {
+                                        params.push(crate::ast::expr::Param {
+                                            name,
+                                            type_ann: None,
+                                            default: None,
+                                            span,
+                                        });
+                                    }
+                                    _ => {
+                                        self.errors.push(ParseError::classified(
+                                            elem.span(),
+                                            "Expected identifier in lambda parameters",
+                                            vec![],
+                                            None,
+                                            ParseErrorClass::Expression,
+                                        ));
+                                        return Err(());
+                                    }
+                                }
+                            }
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                paren_expr.span(),
+                                "Expected identifier or tuple in lambda parameters",
+                                vec![],
+                                None,
+                                ParseErrorClass::Expression,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    let body = self.parse_expr()?;
+                    Expr::Lambda {
+                        params,
+                        return_type: None,
+                        body: Box::new(body),
+                        span: start.merge(self.span()),
+                    }
+                } else {
+                    paren_expr
                 }
             }
             Token::LBracket => {
@@ -129,7 +190,22 @@ impl Parser {
             Token::Lt => self.parse_jsx()?,
             Token::Ident(name) => {
                 self.advance();
-                Expr::Ident { name, span: start }
+                if self.eat(&Token::FatArrow) {
+                    let body = self.parse_expr()?;
+                    Expr::Lambda {
+                        params: vec![crate::ast::expr::Param {
+                            name: name.clone(),
+                            type_ann: None,
+                            default: None,
+                            span: start,
+                        }],
+                        return_type: None,
+                        body: Box::new(body),
+                        span: start.merge(self.span()),
+                    }
+                } else {
+                    Expr::Ident { name, span: start }
+                }
             }
             Token::TypeIdent(name) => {
                 self.advance();
@@ -359,7 +435,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) {
+        let return_type = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None

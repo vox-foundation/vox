@@ -60,6 +60,15 @@ pub enum DiagnosticCategory {
     Lint,
 }
 
+/// Line/column enrichment added on demand by machine consumers (LSP, healing loop).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LineCol {
+    pub line_start: usize,
+    pub col_start: usize,
+    pub line_end: usize,
+    pub col_end: usize,
+}
+
 /// A structured diagnostic emitted by the type checker and related frontend passes.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Diagnostic {
@@ -80,9 +89,39 @@ pub struct Diagnostic {
     /// Optional structured fixes (additive; consumers ignore if unsupported).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fixes: Vec<DiagnosticFix>,
+    /// Line/column info enriched from source (optional, computed on demand).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line_col: Option<LineCol>,
 }
 
 impl Diagnostic {
+    /// Enrich this diagnostic with line/column data computed from `source`.
+    ///
+    /// Call on the way out of the compiler pipeline when a machine consumer
+    /// (healing loop, LSP, `vox check --json`) needs precise cursor locations.
+    #[must_use]
+    pub fn with_line_col(mut self, source: &str) -> Self {
+        let compute = |byte_offset: usize| -> (usize, usize) {
+            let mut line = 1usize;
+            let mut col = 1usize;
+            for (i, ch) in source.char_indices() {
+                if i == byte_offset {
+                    break;
+                }
+                if ch == '\n' {
+                    line += 1;
+                    col = 1;
+                } else {
+                    col += 1;
+                }
+            }
+            (line, col)
+        };
+        let (line_start, col_start) = compute(self.span.start);
+        let (line_end, col_end)     = compute(self.span.end.min(source.len().saturating_sub(1)));
+        self.line_col = Some(LineCol { line_start, col_start, line_end, col_end });
+        self
+    }
     /// Build a simple error diagnostic (no type diff).
     #[must_use]
     pub fn error(message: String, span: Span, source: &str) -> Self {
@@ -97,7 +136,8 @@ impl Diagnostic {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
-        }
+        line_col: None,
+}
     }
 
     /// Build a simple warning diagnostic (no type diff).
@@ -114,7 +154,8 @@ impl Diagnostic {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
-        }
+        line_col: None,
+}
     }
 
     /// HIR structural invariant violation (after lowering).
@@ -131,7 +172,8 @@ impl Diagnostic {
             category: DiagnosticCategory::HirInvariant,
             code: None,
             fixes: vec![],
-        }
+        line_col: None,
+}
     }
 
     /// AST -> HIR lowering diagnostic surfaced through structured diagnostics.
@@ -148,7 +190,8 @@ impl Diagnostic {
             category: DiagnosticCategory::Lowering,
             code: None,
             fixes: vec![],
-        }
+        line_col: None,
+}
     }
 
     /// Runtime/embedding contract diagnostic surfaced through structured diagnostics.
@@ -165,7 +208,8 @@ impl Diagnostic {
             category: DiagnosticCategory::RuntimeContract,
             code: None,
             fixes: vec![],
-        }
+        line_col: None,
+}
     }
 
     /// Extract a few lines around `span` for display.

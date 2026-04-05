@@ -36,7 +36,7 @@ pub struct AgentQueue {
     /// Whether this queue is paused (no dequeue).
     pub paused: bool,
     /// Last time this agent was active (enqueued, dequeued, or completed a task).
-    pub last_active: std::time::SystemTime,
+    pub last_active: std::time::Instant,
     /// ID of the AI agent session mapped to this queue, if any.
     pub agent_session_id: Option<String>,
     /// Hardware capabilities this agent queue provides (for GPU-aware routing).

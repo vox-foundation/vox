@@ -1,0 +1,1 @@
+fn test_05() to Unit { let x = 5 }

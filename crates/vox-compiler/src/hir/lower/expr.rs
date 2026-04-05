@@ -43,6 +43,7 @@ impl LowerCtx {
                     BinOp::Or => HirBinOp::Or,
                     BinOp::Is => HirBinOp::Is,
                     BinOp::Isnt => HirBinOp::Isnt,
+                    BinOp::Mod => HirBinOp::Mod,
                     BinOp::Pipe => HirBinOp::Pipe,
                 };
                 HirExpr::Binary(

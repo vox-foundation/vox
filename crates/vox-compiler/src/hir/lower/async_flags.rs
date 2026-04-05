@@ -10,6 +10,11 @@ fn has_async_stmt(s: &HirStmt) -> bool {
         HirStmt::Assign { value, .. } => has_async_expr(value),
         HirStmt::Return { value, .. } => value.as_ref().is_some_and(has_async_expr),
         HirStmt::Expr { expr, .. } => has_async_expr(expr),
+        HirStmt::While { condition, body, .. } => {
+            has_async_expr(condition) || has_async_stmts(body)
+        }
+        HirStmt::Loop { body, .. } => has_async_stmts(body),
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => false,
     }
 }
 

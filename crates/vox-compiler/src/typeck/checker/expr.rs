@@ -169,7 +169,8 @@ impl<'a> Checker<'a> {
                             category: DiagnosticCategory::Typecheck,
                             code: Some("typecheck.deprecated_ident".into()),
                             fixes: vec![],
-                        });
+                        line_col: None,
+});
                     }
                     binding.ty.clone()
                 } else if let Some(ty) = self.builtins.lookup_var(name) {
@@ -327,7 +328,8 @@ impl<'a> Checker<'a> {
                         category: DiagnosticCategory::Lint,
                         code: Some("lint.db_unsafe_query".into()),
                         fixes: vec![],
-                    });
+                    line_col: None,
+});
                 }
                 let Some(binding) = self.env.lookup(table) else {
                     self.diags.push(Diagnostic::error(

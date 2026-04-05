@@ -22,7 +22,7 @@ news-publish = [
 ]
 # `TaskCapabilityHints` JSON Schema for MCP tool registration (`vox-mcp` enables this).
 json-schema = ["dep:schemars"]
-runtime = ["vox-runtime"]
+runtime = ["vox-runtime", "vox-populi/mens"]
 toestub-gate = ["vox-toestub", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
 lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]

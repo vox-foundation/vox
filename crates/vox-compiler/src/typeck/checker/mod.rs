@@ -150,7 +150,8 @@ impl<'a> Checker<'a> {
                                 category: DiagnosticCategory::Typecheck,
                                 code: Some("typecheck.reactive.state".into()),
                                 fixes: vec![],
-                            });
+                            line_col: None,
+});
                         }
                         t
                     } else {
@@ -182,7 +183,8 @@ impl<'a> Checker<'a> {
                                 category: DiagnosticCategory::Typecheck,
                                 code: Some("typecheck.reactive.derived".into()),
                                 fixes: vec![],
-                            });
+                            line_col: None,
+});
                         }
                         t
                     } else {
@@ -409,7 +411,8 @@ impl<'a> Checker<'a> {
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.query_not_readonly".into()),
                 fixes: vec![],
-            });
+            line_col: None,
+});
         }
     }
 
@@ -427,6 +430,12 @@ impl<'a> Checker<'a> {
             HirStmt::Return { value, .. } => value
                 .as_ref()
                 .is_some_and(Self::contains_db_write_or_unsafe_in_expr),
+            HirStmt::While { condition, body, .. } => {
+                Self::contains_db_write_or_unsafe_in_expr(condition)
+                    || Self::contains_db_write_or_unsafe_in_stmts(body)
+            }
+            HirStmt::Loop { body, .. } => Self::contains_db_write_or_unsafe_in_stmts(body),
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => false,
             HirStmt::Expr { expr, .. } => Self::contains_db_write_or_unsafe_in_expr(expr),
         }
     }
@@ -590,6 +599,21 @@ impl<'a> Checker<'a> {
                 }
                 Ty::Never
             }
+            HirStmt::While { condition, body, .. } => {
+                let cond_ty = self.check_expr(condition);
+                let _ = self.uf.unify(&cond_ty, &Ty::Bool);
+                for stmt in body {
+                    self.check_stmt(stmt);
+                }
+                Ty::Unit
+            }
+            HirStmt::Loop { body, .. } => {
+                for stmt in body {
+                    self.check_stmt(stmt);
+                }
+                Ty::Never
+            }
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => Ty::Never,
             HirStmt::Expr { expr, .. } => self.check_expr(expr),
         }
     }

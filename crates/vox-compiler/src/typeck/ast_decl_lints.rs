@@ -51,6 +51,7 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
             Ty::Tuple(elements.iter().map(|e| resolve_type(e, env)).collect())
         }
         TypeExpr::Unit { .. } => Ty::Unit,
+        TypeExpr::Infer { .. } => Ty::Error,
     }
 }
 
@@ -88,7 +89,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_unknown_table".into()),
             fixes: vec![],
-        });
+        line_col: None,
+});
         return;
     };
 
@@ -107,7 +109,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_not_table".into()),
             fixes: vec![],
-        });
+        line_col: None,
+});
         return;
     };
 
@@ -126,7 +129,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_unknown_field".into()),
             fixes: vec![],
-        });
+        line_col: None,
+});
         return;
     };
 
@@ -145,7 +149,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             category: DiagnosticCategory::Lint,
             code: Some("lint.search_index_field_type".into()),
             fixes: vec![],
-        });
+        line_col: None,
+});
     }
 }
 
@@ -173,7 +178,8 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.component_react_hook".into()),
                 fixes: vec![],
-            });
+            line_col: None,
+});
         });
     }
     diags
@@ -207,7 +213,8 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         category: DiagnosticCategory::Lint,
                         code: Some("lint.table_id_column".into()),
                         fixes: vec![],
-                    });
+                    line_col: None,
+});
                 }
             }
             register_table(&mut env, t);
@@ -235,7 +242,8 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         category: DiagnosticCategory::Lint,
                         code: Some("lint.index_unknown_table".into()),
                         fixes: vec![],
-                    });
+                    line_col: None,
+});
                 }
             }
             Decl::SearchIndex(si) => check_search_index_decl(&env, si, &mut diags),

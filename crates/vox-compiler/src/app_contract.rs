@@ -153,6 +153,7 @@ fn type_expr_signature(te: &TypeExpr) -> String {
             format!("({elems})")
         }
         TypeExpr::Unit { .. } => "Unit".to_string(),
+        TypeExpr::Infer { .. } => "any".to_string(),
     }
 }
 

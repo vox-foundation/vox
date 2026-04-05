@@ -164,12 +164,32 @@ export class VoxMcpClient {
         files: string[] = [],
         mode?: string,
         traceId?: string,
+        accessMode: 'read' | 'write' = 'write'
     ): Promise<SubmitTaskResponse | null> {
         const fileSpecs =
             files.length > 0
-                ? files.map((path) => ({ path, access: 'read' as const }))
-                : [{ path: '.', access: 'read' as const }];
-        const payload: Record<string, unknown> = { description, files: fileSpecs };
+                ? files.map((path) => ({ path, access: accessMode }))
+                : [{ path: '.', access: accessMode }];
+
+        const tool_hints: string[] = [];
+        const research_hints: string[] = [];
+        const toolRegex = /\[\[tool:([^\]]+)\]\]/g;
+        const researchRegex = /\[\[research:([^\]]+)\]\]/g;
+
+        let match;
+        while ((match = toolRegex.exec(description)) !== null) {
+            tool_hints.push(match[1]);
+        }
+        while ((match = researchRegex.exec(description)) !== null) {
+            research_hints.push(match[1]);
+        }
+
+        const payload: Record<string, unknown> = {
+            description,
+            files: fileSpecs,
+            tool_hints,
+            research_hints,
+        };
         if (mode) payload.planning_mode = mode;
         const tid =
             traceId ??
@@ -178,6 +198,7 @@ export class VoxMcpClient {
                 : undefined);
         if (tid) payload.trace_id = tid;
         const result = await this.call<SubmitTaskResponse>('vox_submit_task', payload);
+
         if (result?.shadow_plan_adequacy) {
             const sh = result.shadow_plan_adequacy;
             this.outputChannel.appendLine(

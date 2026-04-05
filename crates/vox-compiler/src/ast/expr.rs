@@ -48,6 +48,8 @@ pub enum BinOp {
     Is,
     /// Reference inequality (`isnt`).
     Isnt,
+    /// Modulo (`%`).
+    Mod,
     /// Pipeline application (`|>`).
     Pipe,
 }

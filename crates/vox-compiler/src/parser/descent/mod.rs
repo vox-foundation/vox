@@ -135,7 +135,14 @@ impl Parser {
                 | Token::AtMutation
                 | Token::Component
                 | Token::AtV0
-                | Token::AtLoading => break,
+                | Token::AtForall
+                | Token::AtRequire
+                | Token::AtEnsure
+                | Token::AtInvariant
+                | Token::AtFuzz
+                | Token::AtLoading
+                | Token::Let
+                | Token::Async => break,
                 Token::RBrace => {
                     self.advance();
                     break;
@@ -164,16 +171,54 @@ impl Parser {
             Token::AtQuery => self.parse_query_fn(),
             Token::AtMutation => self.parse_mutation_fn(),
             Token::AtV0 => self.parse_v0_component(),
+            Token::AtForall => self.parse_forall(),
             Token::AtMcpTool => self.parse_mcp_tool(),
             Token::AtMcpResource => self.parse_mcp_resource(),
-            Token::Fn => {
+            Token::Let => {
+                let start = self.span();
+                self.advance(); // eat 'let'
+                let _mutable = self.eat(&Token::Mut);
+                let name = self.parse_ident_name()?;
+                self.expect(&Token::Eq)?;
+                let value = self.parse_expr()?;
+                Ok(Decl::Const(crate::ast::decl::ConstDecl {
+                    name,
+                    value,
+                    type_ann: None,
+                    is_pub: false,
+                    is_deprecated: false,
+                    is_build_const: false,
+                    span: start.merge(self.span()),
+                }))
+            }
+            Token::Async => {
+                self.advance(); // eat 'async'
+                match self.peek().clone() {
+                    Token::Fn | Token::AtRequire | Token::AtEnsure | Token::AtInvariant | Token::AtFuzz => {
+                        let mut f = self.parse_fn_decl(false)?;
+                        f.is_async = true;
+                        Ok(Decl::Function(f))
+                    }
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected fn after async",
+                            vec!["fn".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        Err(())
+                    }
+                }
+            }
+            Token::Fn | Token::AtRequire | Token::AtEnsure | Token::AtInvariant | Token::AtFuzz => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))
             }
             Token::Pub => {
                 self.advance();
                 match self.peek().clone() {
-                    Token::Fn => {
+                    Token::Fn | Token::AtRequire | Token::AtEnsure | Token::AtInvariant | Token::AtFuzz => {
                         let f = self.parse_fn_decl(true)?;
                         Ok(Decl::Function(f))
                     }

@@ -34,7 +34,12 @@ pub fn lease_claimer_node_id(cfg: &OrchestratorConfig) -> String {
     let preferred = std::env::var("VOX_MESH_NODE_ID")
         .ok()
         .or_else(|| cfg.populi_scope_id.clone())
-        .unwrap_or_else(|| "orchestrator-local".to_string());
+        .unwrap_or_else(|| {
+            let host = std::env::var("COMPUTERNAME")
+                .or_else(|_| std::env::var("HOSTNAME"))
+                .unwrap_or_else(|_| "local".to_string());
+            format!("orchestrator-{host}")
+        });
     format!("orch-{preferred}")
 }
 

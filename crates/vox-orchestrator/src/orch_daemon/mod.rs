@@ -302,7 +302,7 @@ pub async fn dispatch_request(
             let Some(agent_id) = req.params.get("agent_id").and_then(|x| x.as_u64()) else {
                 return response_err(&req.id, "params.agent_id (u64) required");
             };
-            match orch.retire_agent(crate::AgentId(agent_id)) {
+            match orch.retire_agent(crate::AgentId(agent_id)).await {
                 Ok(remaining) => response_result(
                     &req.id,
                     serde_json::json!({ "remaining_tasks": remaining.len() }),

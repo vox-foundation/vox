@@ -74,6 +74,7 @@ pub fn emit_hir_expr(
                 HirBinOp::Or => "||",
                 HirBinOp::Is => "===",
                 HirBinOp::Isnt => "!==",
+                HirBinOp::Mod => "%",
                 HirBinOp::Pipe => "|>",
             };
             if matches!(op, HirBinOp::Pipe) {
@@ -414,6 +415,25 @@ pub(crate) fn emit_hir_stmt(
                 format!("{pad}return;\n")
             }
         }
+        HirStmt::While { condition, body, .. } => {
+            let cond = emit_hir_expr(condition, state_names, island_names);
+            let mut out = format!("{pad}while ({cond}) {{\n");
+            for s in body {
+                out.push_str(&emit_hir_stmt(s, state_names, island_names, indent + 2));
+            }
+            out.push_str(&format!("{pad}}}\n"));
+            out
+        }
+        HirStmt::Loop { body, .. } => {
+            let mut out = format!("{pad}while (true) {{\n");
+            for s in body {
+                out.push_str(&emit_hir_stmt(s, state_names, island_names, indent + 2));
+            }
+            out.push_str(&format!("{pad}}}\n"));
+            out
+        }
+        HirStmt::Break { .. } => format!("{pad}break;\n"),
+        HirStmt::Continue { .. } => format!("{pad}continue;\n"),
     }
 }
 

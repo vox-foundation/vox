@@ -68,6 +68,7 @@ vox-pm = { version = "0.1.0", path = "../vox-pm" }
 vox-project-scaffold = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-browser = { workspace = true }
+axum-extra = { version = "0.12.5", features = ["typed-header"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

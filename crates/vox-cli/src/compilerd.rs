@@ -56,6 +56,12 @@ struct DocParams {
 #[derive(Debug, Deserialize)]
 struct TestParams {
     file: PathBuf,
+    filter: Option<String>,
+    forall_iterations: Option<u32>,
+    #[serde(default)]
+    coverage: bool,
+    #[serde(default)]
+    update_snapshots: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -239,8 +245,14 @@ async fn handle_doc(req: &DispatchRequest) -> anyhow::Result<()> {
 
 async fn handle_test(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: TestParams = serde_json::from_value(req.params.clone())
-        .context("params must be {{ \"file\": \"...\" }}")?;
-    crate::commands::test::run(&p.file)
+        .context("params must be {{ \"file\": \"...\", ... }}")?;
+    crate::commands::test::run(&crate::cli_args::TestArgs {
+        file: p.file,
+        filter: p.filter,
+        forall_iterations: p.forall_iterations,
+        coverage: p.coverage,
+        update_snapshots: p.update_snapshots,
+    })
         .await
         .context("test failed")?;
     finish_ok(&req.id, Value::Null).await

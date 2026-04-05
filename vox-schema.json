@@ -39,6 +39,14 @@
     "vox-cli": {
       "role": "Primary `vox` CLI, CI guards, and workspace tooling",
       "path_pattern": "crates/vox-cli/src/**/*.rs"
+    },
+    "vox-lsp": {
+      "role": "Language Server Protocol frontend: diagnostics, hover, completion, code lens",
+      "path_pattern": "crates/vox-lsp/src/**/*.rs"
+    },
+    "vox-compiler": {
+      "role": "Lexer, parser, HIR lowering, typechecking, and codegen pipeline",
+      "path_pattern": "crates/vox-compiler/src/**/*.rs"
     }
   },
   "staging_policy": {

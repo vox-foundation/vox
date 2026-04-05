@@ -242,7 +242,7 @@ mod tests {
     fn test_http_route() {
         let tokens = lex_tokens("http post \"/api/chat\" to Result {");
         assert_eq!(tokens[0], Token::Http);
-        assert_eq!(tokens[1], Token::Post);
+        assert_eq!(tokens[1], Token::Ident("post".into()));
     }
 
     #[test]
@@ -298,7 +298,7 @@ http post "/api/chat" to Result {
         assert!(token_types.contains(&&Token::Fn));
         assert!(token_types.contains(&&Token::Match));
         assert!(token_types.contains(&&Token::Http));
-        assert!(token_types.contains(&&Token::Post));
+        assert!(token_types.contains(&&Token::Ident("post".into())));
         assert!(token_types.contains(&&Token::Spawn));
         assert!(token_types.contains(&&Token::LBrace));
         assert!(token_types.contains(&&Token::RBrace));

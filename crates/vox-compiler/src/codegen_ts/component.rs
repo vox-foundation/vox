@@ -113,6 +113,9 @@ pub fn generate_component_from_web_ir(
                 }
             },
             Stmt::Return { .. } => {}
+            Stmt::While { .. } | Stmt::Loop { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+                out.push_str(&emit_component_stmt(stmt));
+            }
         }
     }
 
@@ -236,6 +239,9 @@ pub fn generate_component(
                 value: Some(expr), ..
             } => {
                 jsx_return = Some(format!("    {}", emit_expr(expr)));
+            }
+            Stmt::While { .. } | Stmt::Loop { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+                out.push_str(&emit_component_stmt(stmt));
             }
             _ => {}
         }
@@ -392,5 +398,6 @@ pub fn map_vox_type_to_ts(ty: &crate::ast::types::TypeExpr) -> String {
             format!("[{}]", elems.join(", "))
         }
         crate::ast::types::TypeExpr::Unit { .. } => "void".to_string(),
+        crate::ast::types::TypeExpr::Infer { .. } => "any".to_string(),
     }
 }

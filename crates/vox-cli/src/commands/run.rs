@@ -18,6 +18,8 @@ pub enum RunMode {
     App,
     /// Always use the script runner (`fn main()`), requires `--features script-execution`.
     Script,
+    /// Tree-walking HIR Interpreter execution (fast execution for scripts).
+    Interp,
 }
 
 /// Parse run mode strings from CLI / `vox-compilerd` JSON (`auto`, `app`, `script`).
@@ -27,6 +29,7 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
     match s.trim().to_ascii_lowercase().as_str() {
         "app" => RunMode::App,
         "script" => RunMode::Script,
+        "interp" => RunMode::Interp,
         _ => RunMode::Auto,
     }
 }
@@ -75,9 +78,26 @@ async fn mesh_publish_best_effort_for_run() {
 pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     mesh_publish_best_effort_for_run().await;
 
+    if mode == RunMode::Interp {
+        let source = std::fs::read_to_string(file).context("Failed to read file")?;
+        let tokens = vox_compiler::lexer::lex(&source);
+        let module = vox_compiler::parser::descent::parse(tokens).map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
+        let lowered = vox_compiler::hir::lower::lower_module(&module);
+        
+        // Use default high step limit for non-looping scripts typically used as A2A
+        let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
+        interpreter.run_module(&lowered).map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
+        
+        // Pass CLI args to main if we can, but main takes no args currently.
+        let res = interpreter.call("main", vec![]).map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+        println!("{:?}", res);
+        return Ok(());
+    }
+
     let use_script = match mode {
         RunMode::App => false,
         RunMode::Script => true,
+        RunMode::Interp => unreachable!(),
         RunMode::Auto => match vox_config::VoxConfig::load().web_run_mode {
             vox_config::WebRunMode::App => false,
             vox_config::WebRunMode::Script => true,

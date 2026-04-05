@@ -1,6 +1,6 @@
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use std::sync::Mutex;
 
 use crate::backend::SecretBackend;

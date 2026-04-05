@@ -37,6 +37,21 @@ impl LowerCtx {
                 expr: self.lower_expr(expr),
                 span: *span,
             },
+            Stmt::While {
+                condition,
+                body,
+                span,
+            } => HirStmt::While {
+                condition: self.lower_expr(condition),
+                body: body.iter().map(|s| self.lower_stmt(s)).collect(),
+                span: *span,
+            },
+            Stmt::Loop { body, span } => HirStmt::Loop {
+                body: body.iter().map(|s| self.lower_stmt(s)).collect(),
+                span: *span,
+            },
+            Stmt::Break { span } => HirStmt::Break { span: *span },
+            Stmt::Continue { span } => HirStmt::Continue { span: *span },
         }
     }
 

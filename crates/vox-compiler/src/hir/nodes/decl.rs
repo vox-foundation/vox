@@ -53,6 +53,8 @@ pub struct HirModule {
     pub activities: Vec<HirActivity>,
     /// `@test` functions.
     pub tests: Vec<HirFn>,
+    /// `@forall` properties.
+    pub foralls: Vec<HirForall>,
     /// `@server` RPC functions.
     pub server_fns: Vec<HirServerFn>,
     /// `@query` read-only DB / API functions (POST JSON body, `/api/query/...`).
@@ -544,6 +546,16 @@ pub struct HirMcpResource {
     /// Stable resource URI (e.g. `notes://recent`).
     pub uri: String,
     pub description: String,
+    pub func: HirFn,
+}
+
+
+
+/// A property-based `@forall` test.
+#[derive(Debug, Clone)]
+pub struct HirForall {
+    pub label: String,
+    pub iterations: u32,
     pub func: HirFn,
 }
 

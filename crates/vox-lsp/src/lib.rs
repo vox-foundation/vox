@@ -12,6 +12,7 @@ use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_ast_module;
 
+pub mod code_lens;
 pub mod completions;
 pub mod grammar;
 pub mod symbols;
@@ -175,6 +176,14 @@ fn collect_mesh_activity_spans_from_stmts(stmts: &[Stmt], out: &mut Vec<vox_comp
                 value: Some(value), ..
             } => collect_mesh_activity_spans_from_expr(value, out),
             Stmt::Return { value: None, .. } => {}
+            Stmt::While { condition, body, .. } => {
+                collect_mesh_activity_spans_from_expr(condition, out);
+                collect_mesh_activity_spans_from_stmts(body, out);
+            }
+            Stmt::Loop { body, .. } => {
+                collect_mesh_activity_spans_from_stmts(body, out);
+            }
+            Stmt::Break { .. } | Stmt::Continue { .. } => {}
         }
     }
 }

@@ -243,7 +243,14 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 256))]
     pub correlation_id: Option<String>,
+    /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
+    #[serde(default)]
+    pub tool_hints: Vec<String>,
+    /// Optional research intent hints (e.g. [[research:vector]]).
+    #[serde(default)]
+    pub research_hints: Vec<String>,
 }
+
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.
 #[derive(Debug, Clone, Serialize)]

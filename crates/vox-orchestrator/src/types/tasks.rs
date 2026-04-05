@@ -165,7 +165,14 @@ pub struct TaskEnqueueHints {
     /// Optional portable harness contract supplied by the caller.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness_spec_json: Option<String>,
+    /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_hints: Vec<String>,
+    /// Optional research intent hints (e.g. [[research:vector]]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub research_hints: Vec<String>,
 }
+
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -243,6 +250,18 @@ pub struct AgentTask {
     pub task_category: TaskCategory,
     /// Number of times this task has been re-routed due to validation failures.
     pub debug_iterations: u8,
+    /// Number of times this task has failed Toestub gates.
+    #[serde(default)]
+    pub toestub_iterations: u8,
+    /// Number of times this task has failed Socrates evidence checks.
+    #[serde(default)]
+    pub socrates_iterations: u8,
+    /// Optional tool declaration hints extracted from description (e.g. `[[tool:vox_run_tests]]`).
+    #[serde(default)]
+    pub tool_hints: Vec<String>,
+    /// Optional research intent hints extracted from description (e.g. `[[research:vector]]`).
+    #[serde(default)]
+    pub research_hints: Vec<String>,
     /// Number of retry attempts (for timeout/failure recovery).
     pub retry_count: u32,
     /// When the task was created (not serialized — reconstructed on load).
@@ -311,9 +330,11 @@ impl AgentTask {
         priority: TaskPriority,
         file_manifest: Vec<FileAffinity>,
     ) -> Self {
+        let description = description.into();
+        let (tool_hints, research_hints) = Self::parse_description_hints(&description);
         Self {
             id,
-            description: description.into(),
+            description,
             priority,
             status: TaskStatus::Queued,
             file_manifest,
@@ -323,6 +344,11 @@ impl AgentTask {
             model_override: None,
             task_category: TaskCategory::default(),
             debug_iterations: 0,
+            toestub_iterations: 0,
+            socrates_iterations: 0,
+            tool_hints,
+            research_hints,
+            campaign_id: None,
             retry_count: 0,
             created_at: Some(Instant::now()),
             created_at_ms: now_unix_ms(),
@@ -338,12 +364,45 @@ impl AgentTask {
             plan_node_id: None,
             plan_version: None,
             execution_policy_json: None,
-            campaign_id: None,
             benchmark_tier: None,
             execution_role: None,
             harness_spec_json: None,
             populi_remote_delegate: None,
         }
+    }
+
+    /// Extract structured hints from double-bracketed tags in the description.
+    ///
+    /// Matches `[[tool:name]]` and `[[research:topic]]`.
+    pub fn parse_description_hints(description: &str) -> (Vec<String>, Vec<String>) {
+        let mut tools = Vec::new();
+        let mut research = Vec::new();
+
+        // Simple manual scan to avoid heavy regex in core task types if possible.
+        let mut start = 0;
+        while let Some(open) = description[start..].find("[[") {
+            let open_pos = start + open;
+            if let Some(close) = description[open_pos..].find("]]") {
+                let close_pos = open_pos + close;
+                let inner = &description[open_pos + 2..close_pos];
+                if let Some(colon) = inner.find(':') {
+                    let kind = &inner[..colon];
+                    let value = inner[colon + 1..].trim();
+                    if !value.is_empty() {
+                        match kind {
+                            "tool" => tools.push(value.to_string()),
+                            "research" => research.push(value.to_string()),
+                            _ => {}
+                        }
+                    }
+                }
+                start = close_pos + 2;
+            } else {
+                break;
+            }
+        }
+
+        (tools, research)
     }
 
     /// Attach a session ID to this task.

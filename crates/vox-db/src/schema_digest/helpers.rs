@@ -134,6 +134,7 @@ fn type_expr_to_string(ty: &TypeExpr) -> String {
             format!("({})", el_strs.join(", "))
         }
         TypeExpr::Unit { .. } => "Unit".to_string(),
+        TypeExpr::Infer { .. } => "_".to_string(),
     }
 }
 

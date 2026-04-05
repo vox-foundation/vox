@@ -37,10 +37,7 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
         | Token::Pub
         | Token::Ret
         | Token::Http
-        | Token::Get
-        | Token::Post
-        | Token::Put
-        | Token::Delete
+        | Token::Async
         | Token::In
         | Token::Is
         | Token::Isnt => Some(2), // KEYWORD

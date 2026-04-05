@@ -1,0 +1,1 @@
+fn simple_test() to Unit { let m = "text" }

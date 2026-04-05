@@ -129,11 +129,9 @@ pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
         | ProviderType::Cerebras
         | ProviderType::SambaNova
         | ProviderType::Custom(_) => {
-            if spec.id.contains('/') {
-                ModelRouteBackend::OpenRouter
-            } else {
-                ModelRouteBackend::CascadeFallback
-            }
+            // P0 Fix: Map arbitrarily typed third-party providers (even those lacking '/') to
+            // OpenRouter or a non-cascading endpoint. CascadeFallback on unknown IDs loops infinitely.
+            ModelRouteBackend::OpenRouter
         }
     }
 }
@@ -206,7 +204,7 @@ pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
 #[must_use]
 pub fn provider_family_strengths(provider_prefix: &str) -> &'static [&'static str] {
     match provider_prefix {
-        "anthropic" => &["codegen", "logic", "review", "research"],
+        "anthropic" => &["codegen", "logic", "review", "research", "ui-codegen", "frontend"],
         "openai" => &["codegen", "logic", "research"],
         "google" => &["research", "codegen", "logic"],
         "deepseek" => &["codegen", "logic", "debugging"],

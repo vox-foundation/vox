@@ -3,6 +3,17 @@ use crate::ast::span::Span;
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
 
+/// Verification mode for contracts and assertions.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum VerifyMode {
+    /// No runtime checks; contracts are stripped.
+    Off,
+    /// Preconditions are checked; postconditions are ignored (development safe).
+    RequireOnly,
+    /// Both preconditions and postconditions are checked.
+    Full,
+}
+
 /// Function declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FnDecl {
@@ -46,6 +57,16 @@ pub struct FnDecl {
     pub cors: Option<String>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
+    /// Postcondition expressions from `@ensure(expr)` decorators.
+    pub postconditions: Vec<Expr>,
+    /// Class invariants (if this is a method).
+    pub invariants: Vec<Expr>,
+    /// How strictly to enforce contracts at runtime.
+    pub verify_mode: VerifyMode,
+    /// Optional strategy override for property testing.
+    pub test_strategy: Option<String>,
+    /// Whether this function is a fuzzing target.
+    pub is_fuzz: bool,
     /// Source location.
     pub span: Span,
 }
@@ -73,7 +94,20 @@ pub struct StyleBlock {
 /// Test declaration (wraps a function with @test semantics).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TestDecl {
+    /// Human-readable label/description for the test.
+    pub label: String,
     /// The underlying function implementing the test.
+    pub func: FnDecl,
+}
+
+/// Property-based test declaration.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ForallDecl {
+    /// Human-readable description.
+    pub label: String,
+    /// How many generated iterations to run.
+    pub iterations: u32,
+    /// The underlying function implementing the property to check.
     pub func: FnDecl,
 }
 

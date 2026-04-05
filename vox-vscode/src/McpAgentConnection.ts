@@ -3,14 +3,13 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import * as vscode from 'vscode';
 import { parseMcpToolResult, unwrapVoxToolEnvelope } from './core/mcpToolResult';
 
-const DEFAULT_FILES = [{ path: '.', access: 'read' as const }];
-
 /** Standalone stdio MCP client (legacy / tests); prefer {@link VoxMcpClient} for the extension. */
 export class McpAgentConnection {
     private client: Client;
     private seenEventIds = new Set<string>();
     private transport: StdioClientTransport;
-    private pollTimer?: ReturnType<typeof setInterval>;
+    private _ws?: WebSocket;
+    private _reconnectWsTimer?: NodeJS.Timeout;
 
     constructor(
         private outputChannel: vscode.OutputChannel,
@@ -47,8 +46,8 @@ export class McpAgentConnection {
             const toolsResponse = await this.client.listTools();
             this.outputChannel.appendLine(`Found ${toolsResponse.tools.length} MCP tools.`);
 
-            if (this.pollTimer) clearInterval(this.pollTimer);
-            this.pollTimer = setInterval(() => void this.pollEvents(), 3000);
+            if (this._ws) this._ws.close();
+            this._connectWebSocket();
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
             this.outputChannel.appendLine(`Failed to connect to MCP: ${msg}`);
@@ -56,53 +55,64 @@ export class McpAgentConnection {
     }
 
     dispose(): void {
-        if (this.pollTimer) clearInterval(this.pollTimer);
+        clearTimeout(this._reconnectWsTimer);
+        if (this._ws) this._ws.close();
         void this.client.close();
     }
 
-    private async pollEvents(): Promise<void> {
+    private _connectWebSocket(): void {
         if (!this.onEvent) return;
+        const port = vscode.workspace.getConfiguration('vox').get<number>('mcp.httpPort') || 3921;
+        const wsUrl = `ws://127.0.0.1:${port}/v1/ws`;
+        
         try {
-            const [eventsResult, budgetResult] = await Promise.all([
-                this.client.callTool({ name: 'vox_poll_events', arguments: { limit: 10 } }).catch(() => null),
-                this.client.callTool({ name: 'vox_budget_status', arguments: {} }).catch(() => null),
-            ]);
-
-            if (eventsResult) {
-                const parsed = parseMcpToolResult(eventsResult);
-                const unwrapped = unwrapVoxToolEnvelope(parsed, this.outputChannel, 'vox_poll_events');
-                if (Array.isArray(unwrapped)) {
-                    for (const ev of unwrapped.reverse()) {
-                        const rec = ev as { id?: unknown; agent_id?: unknown; timestamp?: unknown; event_type?: unknown; type?: unknown };
-                        const id =
-                            rec.id !== undefined && rec.id !== null
-                                ? String(rec.id)
-                                : `${rec.agent_id}-${rec.timestamp}-${rec.event_type ?? rec.type}`;
+            this._ws = new globalThis.WebSocket(wsUrl);
+            
+            this._ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.msg_type === 'agent_event' && data.data) {
+                        const ev = data.data;
+                        const id = ev.id ?? `${ev.agent_id}-${ev.timestamp}-${ev.event_type ?? ev.type}`;
                         if (!this.seenEventIds.has(id)) {
                             this.seenEventIds.add(id);
-                            this.onEvent(ev);
+                            if (this.onEvent) this.onEvent(ev);
                         }
                     }
+                } catch {
+                    // Ignore parse errors
                 }
-            }
+            };
 
-            if (budgetResult) {
-                const parsed = parseMcpToolResult(budgetResult);
-                const unwrapped = unwrapVoxToolEnvelope(parsed, this.outputChannel, 'vox_budget_status');
-                this.onEvent({ type: 'budget_status', data: unwrapped });
-            }
-        } catch {
-            /* poll is best-effort */
+            this._ws.onclose = () => {
+                this._scheduleWsReconnect();
+            };
+
+            this._ws.onerror = () => {
+                this._ws?.close();
+            };
+        } catch (e) {
+            this._scheduleWsReconnect();
         }
     }
 
-    async submitTask(task: string) {
+    private _scheduleWsReconnect(): void {
+        clearTimeout(this._reconnectWsTimer);
+        this._reconnectWsTimer = setTimeout(() => {
+            if (this._ws && this._ws.readyState !== globalThis.WebSocket.CLOSED) return;
+            this._connectWebSocket();
+        }, 5000);
+    }
+
+
+
+    async submitTask(task: string, accessMode: 'read' | 'write' = 'write') {
         try {
             const result = await this.client.callTool({
                 name: 'vox_submit_task',
                 arguments: {
                     description: task,
-                    files: DEFAULT_FILES,
+                    files: [{ path: '.', access: accessMode }],
                 },
             });
             return result;

@@ -135,9 +135,44 @@ impl TaskProcessor for AiTaskProcessor {
         task: crate::types::AgentTask,
     ) -> anyhow::Result<crate::types::TaskId> {
         let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        let mut allowed_providers = std::collections::HashSet::new();
+        if let Some(db) = self.orchestrator.db() {
+            let tracker = crate::usage::UsageTracker::new_ref(&*db);
+            if let Ok(budgets) = tracker.remaining_all().await {
+                for b in budgets {
+                    if b.remaining > 0 && !b.rate_limited {
+                        allowed_providers.insert(b.provider.clone());
+                    }
+                }
+            }
+        }
+
+        let models_handle = self.orchestrator.models_handle();
         let routed = {
-            let registry = crate::sync_lock::rw_read(&*self.orchestrator.models);
-            registry.best_for(task.task_category, task.estimated_complexity, cost_pref)
+            let registry = crate::sync_lock::rw_read(&*models_handle);
+            if allowed_providers.is_empty() {
+                registry.best_for_task(&task, cost_pref)
+            } else {
+                registry.best_for_task_with_filter(
+                    &task,
+                    cost_pref,
+                    |m| {
+                        let provider_str = match m.provider_type {
+                            crate::models::ProviderType::OpenRouter => "openrouter",
+                            crate::models::ProviderType::Ollama => "ollama",
+                            crate::models::ProviderType::GoogleDirect => "google",
+                            crate::models::ProviderType::Groq => "groq",
+                            crate::models::ProviderType::Cerebras => "cerebras",
+                            crate::models::ProviderType::Mistral => "mistral",
+                            crate::models::ProviderType::DeepSeek => "deepseek",
+                            crate::models::ProviderType::SambaNova => "sambanova",
+                            crate::models::ProviderType::PopuliMesh => "populimesh",
+                            crate::models::ProviderType::Custom(_) => "custom",
+                        };
+                        allowed_providers.contains(provider_str)
+                    }
+                )
+            }
         };
         let (usage_provider, usage_model) = if let Some(ref mo) = task.model_override {
             ("task_override".to_string(), mo.clone())
@@ -168,12 +203,7 @@ impl TaskProcessor for AiTaskProcessor {
                     model: m.id.as_str(),
                 },
                 ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
-                ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Registry {
-                    // TODO: This silent detachment loops PopuliMesh tasks out through OpenRouter. 
-                    // Add/use `LudusStreamBackend::Populi` or Cascade + provider hint to fix billing double-count.
-                    backend: vox_ludus::LudusStreamBackend::OpenRouter,
-                    model: m.id.as_str(),
-                },
+                ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Cascade,
             }
         } else {
             vox_ludus::StreamRoute::Cascade
@@ -257,11 +287,16 @@ impl TaskProcessor for AiTaskProcessor {
         }
         let full_text = notes;
 
-        // Estimate token counts (4 chars ≈ 1 token as a rough heuristic)
-        let input_tokens = (task.description.len() / 4).max(1) as u32;
-        let output_tokens = (full_text.len() / 4).max(1) as u32;
-        // Approximate cost: $0.000001 per token (conservative free-tier estimate)
-        let cost_usd = (input_tokens + output_tokens) as f64 * 0.000_001;
+        let input_tokens = crate::compaction::CompactionEngine::estimate_tokens(&task.description) as u32;
+        let output_tokens = crate::compaction::CompactionEngine::estimate_tokens(&full_text) as u32;
+        
+        let cost_usd = if let Some(m) = routed.as_ref() {
+            let input_cost = (input_tokens as f64 / 1000.0) * m.cost_per_1k_input;
+            let output_cost = (output_tokens as f64 / 1000.0) * m.cost_per_1k_output;
+            input_cost + output_cost
+        } else {
+            (input_tokens + output_tokens) as f64 * 0.000_001
+        };
 
         // Record usage through the unified pipeline (event bus + budget + oplog)
         self.orchestrator
@@ -418,10 +453,8 @@ pub struct AgentFleet {
     orchestrator: Arc<Orchestrator>,
     processor: Arc<dyn TaskProcessor>,
     /// Last time we performed a scale-up (for cooldown).
-    #[allow(dead_code)]
     last_scale_up: std::sync::RwLock<Option<Instant>>,
-    /// Number of agents spawned in the current tick (reset each check_scaling).
-    #[allow(dead_code)]
+    /// Number of agents spawned in the current tick (reset at start of check_scaling).
     spawns_this_tick: std::sync::atomic::AtomicUsize,
 }
 
@@ -520,6 +553,11 @@ impl AgentFleet {
 
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.
     pub async fn check_scaling(&self) {
+        // Reset spawn counter at the start of each scaling cycle so each tick
+        // gets a clean budget — avoids stale carry-over from concurrent paths.
+        self.spawns_this_tick
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+
         let (status, idle_dynamic, config, budget_manager, remote_gpu_capacity) = {
             let orch = &*self.orchestrator;
             let config_arc = orch.config_handle();
@@ -569,7 +607,7 @@ impl AgentFleet {
 
         match action {
             ScalingAction::NoOp => {}
-            ScalingAction::ScaleUp { name } => {
+            ScalingAction::ScaleUp { name_prefix, count } => {
                 let max_per_tick = config.max_spawn_per_tick;
                 let cooldown_ms = config.scaling_cooldown_ms;
                 let spawns = self
@@ -577,21 +615,26 @@ impl AgentFleet {
                     .load(std::sync::atomic::Ordering::Relaxed);
                 let cooldown_ok = crate::sync_lock::rw_read(&self.last_scale_up)
                     .as_ref()
-                    .map(|t| t.elapsed() >= Duration::from_millis(cooldown_ms))
+                    .map(|t| t.elapsed() >= std::time::Duration::from_millis(cooldown_ms))
                     .unwrap_or(true);
+                
                 if spawns < max_per_tick && cooldown_ok {
-                    let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
-                        &name,
-                        None,
-                        Some("scaling_load"),
-                        None,
-                    );
-                    self.spawns_this_tick
-                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    *crate::sync_lock::rw_write(&self.last_scale_up) = Some(Instant::now());
+                    let limit = std::cmp::min(count, max_per_tick - spawns);
+                    for _ in 0..limit {
+                        let name = format!("{}-{}", name_prefix, uuid::Uuid::new_v4().to_string().split('-').next().unwrap());
+                        let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
+                            &name,
+                            None,
+                            Some("scaling_load"),
+                            None,
+                        );
+                        self.spawns_this_tick
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    *crate::sync_lock::rw_write(&self.last_scale_up) = Some(std::time::Instant::now());
                     tracing::info!(
-                        "Scaling up: spawning '{}' (load: {:.2}, profile: {:?})",
-                        name,
+                        "Scaling up: spawned {} dynamic agents (load: {:.2}, profile: {:?})",
+                        limit,
                         status.total_weighted_load,
                         config.scaling_profile
                     );
@@ -605,13 +648,14 @@ impl AgentFleet {
                     );
                 }
                 for id in agent_ids {
-                    let _ = self.orchestrator.retire_agent(id);
+                    if let Ok(remaining) = self.orchestrator.retire_agent(id).await {
+                        for task in remaining {
+                            let _ = self.orchestrator.submit_existing_task(task).await;
+                        }
+                    }
                 }
             }
         }
-
-        self.spawns_this_tick
-            .store(0, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Start the main orchestrator loop: rebalancing, maintenance, and fleet syncing.

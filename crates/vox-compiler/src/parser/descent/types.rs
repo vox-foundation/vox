@@ -54,6 +54,8 @@ impl Parser {
                 args,
                 span: start.merge(self.span()),
             })
+        } else if self.eat(&Token::Underscore) {
+            Ok(TypeExpr::Infer { span: start })
         } else {
             Ok(TypeExpr::Named {
                 name,

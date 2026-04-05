@@ -158,6 +158,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         && execution_role.is_none()
         && thread_id.is_none()
         && harness_spec_json.is_none()
+        && params.tool_hints.is_empty()
+        && params.research_hints.is_empty()
     {
         return None;
     }
@@ -171,6 +173,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         execution_role,
         thread_id,
         harness_spec_json,
+        tool_hints: params.tool_hints.clone(),
+        research_hints: params.research_hints.clone(),
     })
 }
 

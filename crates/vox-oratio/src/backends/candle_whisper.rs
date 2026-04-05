@@ -250,7 +250,7 @@ impl LanguageEnvOverride {
         unsafe {
             match language {
                 Some(l) if !l.trim().is_empty() => {
-                    unsafe { std::env::set_var("VOX_ORATIO_LANGUAGE", l.trim() });
+                    unsafe { std::env::set_var("VOX_ORATIO_LANGUAGE", l.trim()) };
                 }
                 _ => {
                     std::env::remove_var("VOX_ORATIO_LANGUAGE");

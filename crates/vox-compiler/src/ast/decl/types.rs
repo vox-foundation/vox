@@ -106,6 +106,8 @@ pub enum Decl {
     Test(TestDecl),
     /// Server-only RPC / RSC-style function.
     ServerFn(ServerFnDecl),
+    /// Property-based test declaration.
+    Forall(ForallDecl),
     /// Codex table schema.
     Table(TableDecl),
     /// Document collection schema.
@@ -188,6 +190,7 @@ impl Decl {
             Decl::HttpRoute(h) => h.span,
             Decl::McpTool(m) => m.func.span,
             Decl::Test(t) => t.func.span,
+            Decl::Forall(f) => f.func.span,
             Decl::ServerFn(s) => s.func.span,
             Decl::Table(t) => t.span,
             Decl::Collection(c) => c.span,

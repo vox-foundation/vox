@@ -122,24 +122,20 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
     })
 }
 
-/// Typecheck / HIR validation diagnostics as pretty-printed JSON (same shape as `vox --json check` stdout).
 #[must_use]
 pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> String {
     let output: Vec<serde_json::Value> = result
         .diagnostics
         .iter()
-        .enumerate()
-        .map(|(i, d)| {
-            let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
-            serde_json::json!({
-                "code": format!("E{:04}", i + 1),
-                "severity": format!("{:?}", d.severity),
-                "category": format!("{:?}", d.category),
-                "message": d.message,
-                "file": file.display().to_string(),
-                "line": line,
-                "col": col,
-            })
+        .map(|d| {
+            // Apply new wave 3 enrichment
+            let enriched = d.clone().with_line_col(&result.source);
+            let mut val = serde_json::to_value(&enriched).unwrap_or(serde_json::json!({}));
+            // Provide the legacy filename attribute
+            if let Some(obj) = val.as_object_mut() {
+                obj.insert("file".to_string(), serde_json::Value::String(file.display().to_string()));
+            }
+            val
         })
         .collect();
     serde_json::to_string_pretty(&output).unwrap_or_default()

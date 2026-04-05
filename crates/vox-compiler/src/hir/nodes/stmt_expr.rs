@@ -214,6 +214,8 @@ pub enum HirBinOp {
     Is,
     /// `isnt`
     Isnt,
+    /// `%`
+    Mod,
     /// `|>`
     Pipe,
 }
@@ -292,6 +294,32 @@ pub enum HirStmt {
         /// Evaluated expression.
         expr: HirExpr,
         /// Span covering the statement.
+        span: Span,
+    },
+    /// While loop.
+    While {
+        /// Loop condition.
+        condition: HirExpr,
+        /// Loop body.
+        body: Vec<HirStmt>,
+        /// Span.
+        span: Span,
+    },
+    /// Infinite loop.
+    Loop {
+        /// Loop body.
+        body: Vec<HirStmt>,
+        /// Span.
+        span: Span,
+    },
+    /// Break.
+    Break {
+        /// Span.
+        span: Span,
+    },
+    /// Continue.
+    Continue {
+        /// Span.
         span: Span,
     },
 }

@@ -180,26 +180,70 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Retire an agent: release all locks/affinity/scope, drain its queue, and return remaining tasks.
-    pub fn retire_agent(&self, agent_id: AgentId) -> Result<Vec<AgentTask>, OrchestratorError> {
-        let queue_lock = crate::sync_lock::rw_write(&*self.agents)
-            .remove(&agent_id)
-            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
-        let mut queue = crate::sync_lock::rw_write(&*queue_lock);
+    pub async fn retire_agent(&self, agent_id: AgentId) -> Result<Vec<AgentTask>, OrchestratorError> {
+        let (remaining, session_id) = {
+            let queue_lock = crate::sync_lock::rw_write(&*self.agents)
+                .remove(&agent_id)
+                .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+            let mut queue = crate::sync_lock::rw_write(&*queue_lock);
 
-        self.lock_manager.release_all(agent_id);
-        self.affinity_map.release_all(agent_id);
-        crate::sync_lock::rw_write(&*self.scope_guard).clear_scope(agent_id);
-        crate::sync_lock::rw_write(&*self.dynamic_agents).remove(&agent_id);
-        {
-            let mut delegations = crate::sync_lock::rw_write(&*self.agent_delegations);
-            delegations.remove(&agent_id);
-            delegations.retain(|_, binding| binding.parent_agent_id != agent_id);
+            self.lock_manager.release_all(agent_id);
+            self.affinity_map.release_all(agent_id);
+            crate::sync_lock::rw_write(&*self.scope_guard).clear_scope(agent_id);
+            crate::sync_lock::rw_write(&*self.dynamic_agents).remove(&agent_id);
+            {
+                let mut delegations = crate::sync_lock::rw_write(&*self.agent_delegations);
+                delegations.remove(&agent_id);
+                delegations.retain(|_, binding| binding.parent_agent_id != agent_id);
+            }
+            crate::sync_lock::rw_write(&*self.dynamic_spawn_context).remove(&agent_id);
+            crate::sync_lock::rw_write(&*self.agent_handles).remove(&agent_id);
+            crate::sync_lock::rw_write(&*self.heartbeat_monitor).unregister(agent_id);
+
+            let mut remaining = queue.drain_tasks();
+
+            // Re-queue the in-progress task if it was interrupted by retirement
+            if let Some(mut task) = queue.in_progress.take() {
+                task.status = TaskStatus::Queued;
+                remaining.insert(0, task);
+            }
+
+            let sid = queue.agent_session_id.clone();
+            (remaining, sid)
+        };
+
+        // If this agent was mapped to a session, flush its socrates thinking context to DB.
+        if let Some(sid) = session_id {
+            let key = crate::socrates::session_context_envelope_key(&sid);
+            let envelope_opt = crate::sync_lock::rw_read(&*self.context_store).get(&key).clone();
+            if let Some(envelope_json) = envelope_opt {
+                let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+                if let Some(db) = db_opt {
+                    let sid_clone = sid.clone();
+                    let data_clone = envelope_json.clone();
+                    self.persist_with_retry_meta("session_context_retirement_flush", None, move || {
+                        let db = db.clone();
+                        let sid = sid_clone.clone();
+                        let data = data_clone.clone();
+                        async move {
+                            db.save_memory(vox_db::SaveMemoryParams {
+                                agent_id: "orchestrator",
+                                session_id: &sid,
+                                memory_type: "socrates_session_context",
+                                content: "Durable context envelope flushed on agent retirement scaling event",
+                                metadata: Some(&data),
+                                importance: 1.0,
+                                vcs_snapshot_id: None,
+                            })
+                            .await
+                            .map(|_| ())
+                        }
+                    })
+                    .await;
+                }
+            }
         }
-        crate::sync_lock::rw_write(&*self.dynamic_spawn_context).remove(&agent_id);
-        crate::sync_lock::rw_write(&*self.agent_handles).remove(&agent_id);
-        crate::sync_lock::rw_write(&*self.heartbeat_monitor).unregister(agent_id);
 
-        let remaining = queue.drain_tasks();
         MessageGateway::publish_agent_retired(&self.event_bus, agent_id);
         tracing::info!(
             "Retired agent {} — {} tasks to redistribute",
@@ -379,6 +423,9 @@ impl crate::orchestrator::Orchestrator {
             return Err(OrchestratorError::TaskNotFound(task_id));
         };
         task.populi_remote_delegate = None;
+        task.debug_iterations = 0;
+        task.toestub_iterations = 0;
+        task.socrates_iterations = 0;
         task.status = TaskStatus::Queued;
         queue.enqueue(task);
         tracing::info!(
@@ -469,7 +516,7 @@ impl crate::orchestrator::Orchestrator {
                         }
                     };
                     crate::sync_lock::rw_write(&*self.context_store).set(
-                        crate::types::AgentId(0),
+                        from_agent,
                         key,
                         merged_json,
                         3600,

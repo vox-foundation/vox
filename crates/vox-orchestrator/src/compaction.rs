@@ -183,7 +183,10 @@ impl CompactionEngine {
     /// Replace with tiktoken / sentencepiece for accuracy;
     /// this is intentionally dependency-free for now.
     pub fn estimate_tokens(text: &str) -> usize {
-        (text.len() / 4).max(1)
+        let char_count = text.chars().count() as f64;
+        let byte_count = text.len() as f64;
+        let tokens = (char_count / 4.0) + ((byte_count - char_count) / 2.0);
+        tokens.ceil().max(1.0) as usize
     }
 
     /// Returns `true` if current token usage warrants compaction.

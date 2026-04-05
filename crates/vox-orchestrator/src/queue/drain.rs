@@ -18,7 +18,7 @@ impl AgentQueue {
         task.status = TaskStatus::InProgress;
         task.start(); // record wall-clock start for temporal context injection
         self.in_progress = Some(task.clone());
-        self.last_active = std::time::SystemTime::now();
+        self.last_active = std::time::Instant::now();
         Some(task)
     }
 
@@ -35,7 +35,7 @@ impl AgentQueue {
                 self.in_progress = None;
                 // Unblock tasks that depended on this one
                 self.unblock(task_id);
-                self.last_active = std::time::SystemTime::now();
+                self.last_active = std::time::Instant::now();
                 return true;
             }
         }
@@ -123,7 +123,7 @@ impl AgentQueue {
         task.status = TaskStatus::InProgress;
         task.start();
         self.in_progress = Some(task);
-        self.last_active = std::time::SystemTime::now();
+        self.last_active = std::time::Instant::now();
         Ok(())
     }
 

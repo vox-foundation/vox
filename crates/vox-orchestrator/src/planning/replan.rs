@@ -74,6 +74,8 @@ pub async fn enqueue_recovery_first_node(
                 execution_role: meta.execution_role,
                 thread_id: None,
                 harness_spec_json: None,
+                tool_hints: vec![],
+                research_hints: vec![],
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

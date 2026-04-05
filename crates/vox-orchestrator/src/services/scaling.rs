@@ -4,7 +4,6 @@
 //! the orchestrator applies. Scale-down is guarded so agents with critical
 //! work are not retired.
 
-use std::time::SystemTime;
 
 use crate::config::OrchestratorConfig;
 use crate::orchestrator::OrchestratorStatus;
@@ -15,10 +14,12 @@ use crate::types::AgentId;
 pub enum ScalingAction {
     /// No change.
     NoOp,
-    /// Spawn one dynamic agent with the given name.
+    /// Spawn dynamic agents with the given name prefix.
     ScaleUp {
-        /// Worker name label for logging and process naming.
-        name: String,
+        /// Worker name prefix for logging and process naming.
+        name_prefix: String,
+        /// Number of agents to spawn in this batch.
+        count: usize,
     },
     /// Retire these dynamic agent IDs (idle and past retirement threshold).
     ScaleDown {
@@ -28,7 +29,7 @@ pub enum ScalingAction {
 }
 
 /// Idle dynamic agent candidate for scale-down (agent id and last activity time).
-pub type IdleDynamicAgent = (AgentId, SystemTime);
+pub type IdleDynamicAgent = (AgentId, std::time::Instant);
 
 /// Stateless scaling service.
 pub struct ScalingService;
@@ -70,7 +71,7 @@ impl ScalingService {
         } else {
             0.0
         };
-        let remote_gpu_relief = if remote_gpu_capacity > 0 { 0.75 } else { 1.0 };
+        let remote_gpu_relief = 1.0; // P2 Fix: ignoring broad GPU hints since tasks may not be GPU-bound.
         let max_relevant_load =
             status.total_weighted_load.max(status.predicted_load) + queue_pressure_boost;
 
@@ -83,26 +84,27 @@ impl ScalingService {
                 max_relevant_load
             };
             if per_agent * remote_gpu_relief >= threshold {
-                let name = format!("transient-{}", agent_count + 1);
-                return ScalingAction::ScaleUp { name };
+                let name_prefix = "transient".to_string();
+                let desired_new = ((max_relevant_load - (agent_count as f64 * threshold)) / threshold).ceil() as usize;
+                let count = desired_new.clamp(1, max_agents.saturating_sub(agent_count));
+                return ScalingAction::ScaleUp { name_prefix, count };
             }
         } else if agent_count == 0 && max_relevant_load > 0.0 {
             return ScalingAction::ScaleUp {
-                name: "default".to_string(),
+                name_prefix: "default".to_string(),
+                count: 1,
             };
         }
 
         // Scale down: retire idle dynamic agents past effective retirement time (safe: only idle agents)
-        let now = SystemTime::now();
+        let now = std::time::Instant::now();
         let mut to_retire = Vec::new();
         for (agent_id, last_active) in idle_dynamic {
             if (agent_count - to_retire.len()) <= min_agents {
                 break;
             }
-            if let Ok(elapsed) = now.duration_since(*last_active) {
-                if elapsed.as_millis() as u64 > retirement_ms {
-                    to_retire.push(*agent_id);
-                }
+            if now.duration_since(*last_active).as_millis() as u64 > retirement_ms {
+                to_retire.push(*agent_id);
             }
         }
 

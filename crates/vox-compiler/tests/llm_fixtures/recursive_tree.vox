@@ -1,0 +1,10 @@
+type Tree =
+    | Leaf(value: int)
+    | Node(left: Tree, right: Tree)
+
+fn sum_tree(t: Tree) -> int {
+    match t {
+        Leaf(v) -> { return v }
+        Node(l, r) -> { return sum_tree(l) + sum_tree(r) }
+    }
+}

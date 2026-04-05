@@ -10,7 +10,8 @@ impl LowerCtx {
         let id = self.def_map.define(f.name.clone());
         self.def_map.push_scope();
         let params = f.params.iter().map(|p| self.lower_param(p)).collect();
-        let body = f.body.iter().map(|s| self.lower_stmt(s)).collect();
+        let mut body = f.body.iter().map(|s| self.lower_stmt(s)).collect();
+        body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
         HirFn {
@@ -64,6 +65,7 @@ impl LowerCtx {
                 HirType::Tuple(elements.iter().map(|e| self.lower_type(e)).collect())
             }
             TypeExpr::Unit { .. } => HirType::Unit,
+            TypeExpr::Infer { .. } => HirType::Named("_".to_string()),
         }
     }
     pub(crate) fn lower_typedef(&mut self, t: &TypeDefDecl) -> HirTypeDef {

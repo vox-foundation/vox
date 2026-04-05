@@ -58,7 +58,7 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div => {
+            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
                 if l == Ty::Int && r == Ty::Int {
                     Ty::Int
                 } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
@@ -159,7 +159,8 @@ impl<'a> Checker<'a> {
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
                     code: Some("typecheck.arg_mismatch".into()),
                     fixes: vec![],
-                });
+                line_col: None,
+});
             }
         }
     }

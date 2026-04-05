@@ -5,7 +5,7 @@ use crate::ast::decl::{
     ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
     IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport,
-    ServerFnDecl, TestDecl,
+    ServerFnDecl, TestDecl, ForallDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -465,9 +465,42 @@ impl Parser {
 
     pub(crate) fn parse_test(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @test
+        let mut label = String::new();
+        if self.eat(&Token::LParen) {
+            match self.peek().clone() {
+                Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                    self.advance();
+                    label = s;
+                }
+                _ => {}
+            }
+            let _ = self.eat(&Token::RParen);
+        }
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Test(TestDecl { func: f }))
+        Ok(Decl::Test(TestDecl { label, func: f }))
+    }
+
+    pub(crate) fn parse_forall(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @forall
+        let mut label = String::new();
+        if self.eat(&Token::LParen) {
+            match self.peek().clone() {
+                Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                    self.advance();
+                    label = s;
+                }
+                _ => {
+                    while !self.eat(&Token::RParen) && !matches!(self.peek(), Token::Eof) {
+                        self.advance();
+                    }
+                }
+            }
+            let _ = self.eat(&Token::RParen);
+        }
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Forall(ForallDecl { label, iterations: 1000, func: f }))
     }
 
     pub(crate) fn parse_server_fn(&mut self) -> Result<Decl, ()> {
@@ -493,6 +526,40 @@ impl Parser {
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
         let start = self.span();
+        let mut preconditions = Vec::new();
+        let mut postconditions = Vec::new();
+        let mut invariants = Vec::new();
+        let mut is_fuzz = false;
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::AtRequire => {
+                    self.advance();
+                    self.expect(&Token::LParen)?;
+                    preconditions.push(self.parse_expr()?);
+                    self.expect(&Token::RParen)?;
+                }
+                Token::AtEnsure => {
+                    self.advance();
+                    self.expect(&Token::LParen)?;
+                    postconditions.push(self.parse_expr()?);
+                    self.expect(&Token::RParen)?;
+                }
+                Token::AtInvariant => {
+                    self.advance();
+                    self.expect(&Token::LParen)?;
+                    invariants.push(self.parse_expr()?);
+                    self.expect(&Token::RParen)?;
+                }
+                Token::AtFuzz => {
+                    self.advance();
+                    is_fuzz = true;
+                }
+                _ => break,
+            }
+        }
+
         self.expect(&Token::Fn)?;
         let name = self.parse_ident_name()?;
 
@@ -513,7 +580,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) {
+        let return_type = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -540,7 +607,12 @@ impl Parser {
             auth_provider: None,
             roles: vec![],
             cors: None,
-            preconditions: vec![],
+            preconditions,
+            postconditions,
+            invariants,
+            verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
+            test_strategy: None,
+            is_fuzz,
             span: start.merge(self.span()),
         })
     }

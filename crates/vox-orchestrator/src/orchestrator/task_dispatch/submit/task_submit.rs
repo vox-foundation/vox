@@ -103,6 +103,12 @@ impl Orchestrator {
                     task.thread_id = Some(trimmed.to_string());
                 }
             }
+            if !h.tool_hints.is_empty() {
+                task.tool_hints.extend(h.tool_hints.clone());
+            }
+            if !h.research_hints.is_empty() {
+                task.research_hints.extend(h.research_hints.clone());
+            }
             if let Some(ref harness_spec_json) = h.harness_spec_json {
                 let trimmed = harness_spec_json.trim();
                 if !trimmed.is_empty() {
@@ -145,7 +151,43 @@ impl Orchestrator {
             return Err(OrchestratorError::ApprovalBlocked(reason));
         }
 
-        let policy_trust = {
+        self.process_task_submission_logic(&mut task, agent_id, &file_manifest).await?;
+        Ok(task_id)
+    }
+
+    /// Re-submit an existing task to the orchestrator (e.g. after agent retirement).
+    pub async fn submit_existing_task(&self, mut task: AgentTask) -> Result<TaskId, OrchestratorError> {
+        let task_id = task.id;
+        let file_manifest = task.file_manifest.clone();
+
+        // Re-route the task
+        let agent_id = self
+            .resolve_route(
+                &file_manifest,
+                None, // Don't force target agent for re-route
+                task.capability_requirements.as_ref(),
+                Some(task.description.as_str()),
+                Some(task_id),
+            )
+            .await?;
+
+        if !crate::sync_lock::rw_read(&*self.agents).contains_key(&agent_id) {
+            return Err(OrchestratorError::AgentNotFound(agent_id));
+        }
+
+        self.process_task_submission_logic(&mut task, agent_id, &file_manifest).await?;
+        Ok(task_id)
+    }
+
+
+    pub async fn process_task_submission_logic(&self, task: &mut AgentTask, agent_id: crate::types::AgentId, file_manifest: &[FileAffinity]) -> Result<(), OrchestratorError> {
+        let task_id = task.id;
+        let session_id = task.session_id.clone();
+        let capability_requirements = task.capability_requirements.clone();
+        let relay_thread_id_seed = task.thread_id.clone();
+        let relay_harness_spec_json_seed = task.harness_spec_json.clone();
+
+        let (policy_trust, scope_enforcement) = {
             let cfg = crate::sync_lock::rw_read(&*self.config);
             let mut t = PolicyTrustRelax::default();
             if cfg.trust_gate_relax_enabled {
@@ -153,7 +195,7 @@ impl Orchestrator {
                 t.min_reliability = cfg.trust_gate_relax_min_reliability;
                 t.agent_reliability = self.lookup_agent_reliability_sync(agent_id);
             }
-            t
+            (t, cfg.scope_enforcement)
         };
 
         // Pre-queue policy check (locks; scope when enforcement enabled).
@@ -167,7 +209,7 @@ impl Orchestrator {
                 &self.lock_manager,
                 scope_guard_ref,
                 &self.event_bus,
-                &file_manifest,
+                file_manifest,
                 agent_id,
                 policy_trust,
             ) {
@@ -182,7 +224,7 @@ impl Orchestrator {
         }
 
         // Try to acquire locks for write files
-        for fa in &file_manifest {
+        for fa in file_manifest {
             if fa.access == AccessKind::Write {
                 let lock_kind = LockKind::Exclusive;
                 // If lock fails, we still enqueue (the agent will retry when it picks up the task)
@@ -191,7 +233,7 @@ impl Orchestrator {
         }
 
         // Assign files to the agent in the affinity map and scope guard
-        for fa in &file_manifest {
+        for fa in file_manifest {
             if fa.access == AccessKind::Write {
                 self.affinity_map.assign(&fa.path, agent_id);
                 crate::sync_lock::rw_write(&*self.scope_guard)
@@ -220,8 +262,8 @@ impl Orchestrator {
 
         self.record_operation(
             agent_id,
-            OperationKind::TaskSubmit { task_id: task_id.0 },
-            format!("Submitted task {}", task_id),
+            OperationKind::TaskSubmit { task_id: task.id.0 },
+            format!("Submitted task {}", task.id),
             Some(snapshot_before),
             None,
             None,
@@ -238,7 +280,7 @@ impl Orchestrator {
         let lineage_benchmark_tier = task.benchmark_tier;
         let lineage_execution_role = task.execution_role;
         let cleanup_claims = |agent_id: crate::types::AgentId| {
-            for fa in &file_manifest {
+            for fa in file_manifest {
                 if fa.access == AccessKind::Write {
                     self.lock_manager.release(&fa.path, agent_id);
                     self.affinity_map.release(&fa.path);
@@ -362,7 +404,7 @@ impl Orchestrator {
                                 description: t.description.clone(),
                                 session_id: t.session_id.clone(),
                             });
-                            match queue.hold_for_populi_remote(t) {
+                            match queue.hold_for_populi_remote((*t).clone()) {
                                 Ok(()) => HoldOutcome::Held,
                                 Err(crate::queue::PopuliRemoteHoldError::AgentBusy) => {
                                     HoldOutcome::AgentBusy
@@ -491,7 +533,7 @@ impl Orchestrator {
                         session_id: task.session_id.clone(),
                     });
                 let q_len = queue.len();
-                queue.enqueue(task);
+                queue.enqueue((*task).clone());
                 crate::sync_lock::rw_write(&*self.task_assignments).insert(task_id, agent_id);
 
                 tracing::info!(
@@ -708,7 +750,7 @@ impl Orchestrator {
             }
         }
 
-        Ok(task_id)
+        Ok(())
     }
 
     /// Submit a task with planning metadata attached.

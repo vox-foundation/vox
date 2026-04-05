@@ -63,6 +63,8 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "default",
     "distributed",
     "mobile_edge",
+    // Code-generation fine-tune preset (Vox .box target language).
+    "vox-gen",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -217,6 +219,18 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             grad_accum: 8,
             epochs: 3,
             warmup: 40,
+            lr: 1.5e-4,
+        },
+        // Vox .vox code-generation fine-tune — short sequences, aggressive LoRA rank
+        // to capture the compact grammar surface. Designed for RTX 4080-class (16GB).
+        "vox-gen" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 256,  // .vox programs are compact; 256 tokens covers most functions
+            batch_size: 2,
+            grad_accum: 8,
+            epochs: 5,     // more epochs for code: grammar must be memorized
+            warmup: 60,
             lr: 1.5e-4,
         },
         _ => TrainPresetProfile {

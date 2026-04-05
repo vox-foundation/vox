@@ -14,7 +14,7 @@ impl AgentQueue {
             in_progress: None,
             completed: Vec::new(),
             paused: false,
-            last_active: std::time::SystemTime::now(),
+            last_active: std::time::Instant::now(),
             agent_session_id: None,
             capabilities: crate::contract::TaskCapabilityHints::default(),
             active_skills: std::collections::HashMap::new(),
@@ -50,7 +50,7 @@ impl AgentQueue {
             })
             .unwrap_or(self.tasks.len());
         self.tasks.insert(pos, task);
-        self.last_active = std::time::SystemTime::now();
+        self.last_active = std::time::Instant::now();
     }
 
     /// Change the priority of a queued task and reorder.

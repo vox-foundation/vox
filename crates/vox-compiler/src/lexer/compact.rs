@@ -100,10 +100,6 @@ fn is_word(t: &Token) -> bool {
             | Token::AtIndex
             | Token::AtV0
             | Token::AtIsland
-            | Token::Get
-            | Token::Post
-            | Token::Put
-            | Token::Delete
             | Token::Ident(_)
             | Token::TypeIdent(_)
             | Token::IntLit(_)

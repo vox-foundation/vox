@@ -215,9 +215,9 @@ impl<'a> UsageTracker<'a> {
             tokens_out,
             cost_usd,
             None,
+            None,
             Some(cost_usd),
-            Some(cost_usd),
-            Some(cost_usd),
+            None,
             Some("estimated"),
             None,
             None,
@@ -250,10 +250,11 @@ impl<'a> UsageTracker<'a> {
             "user_id": self.user_id,
             "provider": provider,
             "model": model,
-            "date": date,
-            "task_category": task_category.unwrap_or("unknown"),
-            "agent_id": agent_id.unwrap_or("unknown")
+            "date": date
         });
+
+        static USAGE_MUTEX: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+        let _guard = USAGE_MUTEX.get_or_init(|| tokio::sync::Mutex::new(())).lock().await;
 
         let existing = col.find(&filter).await?;
         if let Some((id, doc)) = existing.into_iter().next() {
@@ -451,7 +452,7 @@ impl<'a> UsageTracker<'a> {
                 "mistral" => vox_clavis::resolve_secret(vox_clavis::SecretId::MistralApiKey).is_present(),
                 "deepseek" => vox_clavis::resolve_secret(vox_clavis::SecretId::DeepSeekApiKey).is_present(),
                 "sambanova" => vox_clavis::resolve_secret(vox_clavis::SecretId::SambaNovaApiKey).is_present(),
-                "custom" => std::env::var("CUSTOM_OPENAI_API_KEY").ok().is_some(),
+                "custom" => vox_clavis::resolve_secret(vox_clavis::SecretId::CustomOpenAiApiKey).is_present(),
                 _ => false,
             }
         }

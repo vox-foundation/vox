@@ -1,0 +1,11 @@
+@test
+fn test_addition() {
+    let x = 2
+    let y = 3
+    assert(x + y == 5)
+}
+
+@test
+fn test_sub() {
+    assert(10 - 2 == 8)
+}

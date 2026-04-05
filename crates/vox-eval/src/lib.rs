@@ -162,7 +162,15 @@ fn get_vox_constructs() -> &'static HashMap<&'static str, Regex> {
         );
         m.insert(
             "ret",
-            Regex::new(r"(?m)^\s*ret\s+").expect("vox-eval static regex: ret"), // OnceLock
+            Regex::new(r"(?m)^\s*(?:ret|return)\s+").expect("vox-eval static regex: ret"), // OnceLock
+        );
+        m.insert(
+            "while",
+            Regex::new(r"(?m)^\s*while\s+").expect("vox-eval static regex: while"), // OnceLock
+        );
+        m.insert(
+            "loop",
+            Regex::new(r"(?m)^\s*loop\s+").expect("vox-eval static regex: loop"), // OnceLock
         );
         m.insert(
             "assert",
