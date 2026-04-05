@@ -52,6 +52,13 @@ populi/data/*.jsonl
 .vox/cache/
 *.db-wal
 *.db-shm
+*.db
+stub_check_results*.json
+opencode.json
+.opencode/
+vox-agent.json
+vox-schema.json
+stub_check_results2.json
 
 
 # Jujutsu VCS

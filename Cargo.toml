@@ -1,9 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-exclude = [
-    "crates/vox-py",
-]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
