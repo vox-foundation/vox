@@ -4,26 +4,31 @@
 // status: golden
 // ---
 
-// [REGION:start]
+// ANCHOR: start
+// ANCHOR: data_model
 @table type Note {
     title: str
     content: str
 }
+// ANCHOR_END: data_model
 
 @server fn health() to Result[str] {
     ret Ok("ok")
 }
 
+// ANCHOR: ui
 @island fn App() {
     <div>"Hello Vox"</div>
 }
+// ANCHOR_END: ui
 
 routes {
     "/" to App
 }
-// [END:start]
+// ANCHOR_END: start
 
-// [REGION:concepts]
+// ANCHOR: concepts
+// ANCHOR: logic
 @query fn get_notes() to List[Note] {
     ret db.Note.all()
 }
@@ -37,4 +42,5 @@ workflow order(id: str) to Result[Unit] {
     let status = activity check_inventory(id)
     ret Ok(())
 }
-// [END:concepts]
+// ANCHOR_END: logic
+// ANCHOR_END: concepts

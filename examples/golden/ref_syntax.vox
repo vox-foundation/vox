@@ -1,16 +1,16 @@
-// [REGION:comments]
+// ANCHOR: comments
 // Single line comment
 /* Multi-line
    comment */
-// [END:comments]
+// ANCHOR_END: comments
 
-// [REGION:variables]
+// ANCHOR: variables
 let x = 10;
 let mutable y = 20;
 y = 30;
-// [END:variables]
+// ANCHOR_END: variables
 
-// [REGION:control_flow]
+// ANCHOR: control_flow
 fn demo_flow(val: int) {
     if val > 10 {
         print("large");
@@ -26,9 +26,9 @@ fn demo_flow(val: int) {
         break;
     }
 }
-// [END:control_flow]
+// ANCHOR_END: control_flow
 
-// [REGION:functions]
+// ANCHOR: functions
 fn add(a: int, b: int) -> int {
     return a + b;
 }
@@ -37,4 +37,4 @@ fn add(a: int, b: int) -> int {
 fn Button(label: str) {
     <button>{label}</button>
 }
-// [END:functions]
+// ANCHOR_END: functions

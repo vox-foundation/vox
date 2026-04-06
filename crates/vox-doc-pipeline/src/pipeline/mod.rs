@@ -82,9 +82,21 @@ pub fn run() {
                 }
                 LintKind::RawVoxCodeBlock => {
                     eprintln!(
-                        "  ERROR  {}:{} — raw vox/tsx code block detected; replace with `{{{{#include ...}}}}` from `examples/golden/` or add `// Skip-Test`",
+                        "  ERROR  {}:{} — raw vox/tsx code block detected; replace with `{{{{#include ...}}}}` from `examples/golden/` or add `// vox:skip`",
                         rel.display(),
                         e.line
+                    );
+                }
+                LintKind::BrokenIncludeAnchor { file, anchor } => {
+                    eprintln!(
+                        "  ERROR  {} — unresolved anchor `:{}` in `{{{{#include ...}}}}`. Check if REGION exists in the golden file.",
+                        rel.display(), anchor
+                    );
+                }
+                LintKind::WholeFileIncludeHasTrainingHeader { file } => {
+                    eprintln!(
+                        "  ERROR  {} — whole-file include pulls in `// ---` training metadata from {}. Use `{{{{#include {}:display}}}}`.",
+                        rel.display(), file, file
                     );
                 }
             }
@@ -101,6 +113,8 @@ pub fn run() {
                         | LintKind::UnknownCategory { .. }
                         | LintKind::UnknownStatus { .. }
                         | LintKind::RawVoxCodeBlock
+                        | LintKind::BrokenIncludeAnchor { .. }
+                        | LintKind::WholeFileIncludeHasTrainingHeader { .. }
                 )
             })
             .count();

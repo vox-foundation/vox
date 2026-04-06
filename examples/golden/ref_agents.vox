@@ -1,4 +1,4 @@
-// [REGION:basic_agent]
+// ANCHOR: basic_agent
 agent Assistant {
     version "1.0.0"
 
@@ -10,9 +10,9 @@ agent Assistant {
         print("Migrating data...");
     }
 }
-// [END:basic_agent]
+// ANCHOR_END: basic_agent
 
-// [REGION:stateful_agent]
+// ANCHOR: stateful_agent
 agent MemoryBank {
     let entries: List[str] = [];
 
@@ -24,4 +24,4 @@ agent MemoryBank {
         return entries;
     }
 }
-// [END:stateful_agent]
+// ANCHOR_END: stateful_agent

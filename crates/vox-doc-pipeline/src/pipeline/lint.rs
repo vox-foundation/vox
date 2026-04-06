@@ -134,9 +134,19 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
                 }
             }
         } else if fence_open && fence_is_vox {
-            if trimmed.contains("{{#include") || trimmed.contains("// Skip-Test") {
+            if trimmed.contains("{{#include") || trimmed.contains("// vox:skip") || trimmed.contains("// Skip-Test") {
                 fence_has_include = true;
             }
+        }
+        
+        // Also check for naked includes everywhere
+        if !fence_open && trimmed.starts_with("{{#include ") {
+            // Naked include check handles parsing anchors
+            check_include_anchor(path, trimmed, line_no, errors);
+        }
+        // Fenced includes
+        if fence_open && trimmed.starts_with("{{#include ") {
+            check_include_anchor(path, trimmed, line_no, errors);
         }
     }
 
@@ -196,3 +206,49 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
         });
     }
 }
+
+fn check_include_anchor(path: &Path, line: &str, line_no: usize, errors: &mut Vec<LintError>) {
+    let Some(start) = line.find("{{#include ") else { return };
+    let Some(end) = line[start..].find("}}") else { return };
+    let include_body = &line[start + 11..start + end].trim();
+    
+    let parts: Vec<&str> = include_body.split(':').collect();
+    let target_file = parts[0];
+    let anchor = if parts.len() > 1 { Some(parts[1]) } else { None };
+    
+    // Resolve target path relative to current file's dir
+    let mut target_path = path.parent().unwrap_or(Path::new("")).to_path_buf();
+    target_path.push(target_file);
+    
+    // Normalize path to some degree for reading, assuming docs/src as root of md files
+    // But since target_file is usually `../../../examples/...` we just read it relative to cwd
+    let content_res = vox_bounded_fs::read_utf8_path_capped(&target_path);
+    if let Ok(content) = content_res {
+        if let Some(anchor_name) = anchor {
+            // Looking for `// ANCHOR: anchor_name`
+            let needle = format!("ANCHOR: {}", anchor_name);
+            if !content.contains(&needle) {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: line_no,
+                    kind: LintKind::BrokenIncludeAnchor {
+                        file: target_file.to_string(),
+                        anchor: anchor_name.to_string(),
+                    },
+                });
+            }
+        } else {
+            // Whole file include. Warn if it has `// ---` at the top
+            if content.starts_with("// ---") {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: line_no,
+                    kind: LintKind::WholeFileIncludeHasTrainingHeader {
+                        file: target_file.to_string(),
+                    },
+                });
+            }
+        }
+    }
+}
+

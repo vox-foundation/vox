@@ -1,26 +1,26 @@
-// [REGION:scalar]
+// ANCHOR: scalar
 let i: int = 42;
 let f: float = 3.14;
 let s: str = "hello";
 let b: bool = true;
 let c: char = 'x';
-// [END:scalar]
+// ANCHOR_END: scalar
 
-// [REGION:collections]
+// ANCHOR: collections
 let nums: List[int] = [1, 2, 3];
 let mapping: Map[str, int] = {"a": 1, "b": 2};
 let tags: Set[str] = {"rust", "vox"};
-// [END:collections]
+// ANCHOR_END: collections
 
-// [REGION:adt]
+// ANCHOR: adt
 type NetworkState {
     Disconnected
     Connecting
     Connected { address: str, port: int }
 }
-// [END:adt]
+// ANCHOR_END: adt
 
-// [REGION:matching]
+// ANCHOR: matching
 fn handle_state(state: NetworkState) {
     match state {
         NetworkState::Disconnected => print("offline")
@@ -28,4 +28,4 @@ fn handle_state(state: NetworkState) {
         NetworkState::Connected { address, .. } => print("connected to " + address)
     }
 }
-// [END:matching]
+// ANCHOR_END: matching

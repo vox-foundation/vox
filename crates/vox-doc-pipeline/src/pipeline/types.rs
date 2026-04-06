@@ -29,4 +29,6 @@ pub(crate) enum LintKind {
     UnknownCategory { value: String },
     UnknownStatus { value: String },
     RawVoxCodeBlock,
+    BrokenIncludeAnchor { file: String, anchor: String },
+    WholeFileIncludeHasTrainingHeader { file: String },
 }

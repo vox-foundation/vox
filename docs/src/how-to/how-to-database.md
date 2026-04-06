@@ -15,14 +15,16 @@ Vox utilizes a unified storage paradigm known as Codex, which compiles into type
 
 Any type struct adorned with the `@table` decorator becomes a persistent database entity.
 
+```vox
 {{#include ../../../examples/golden/getting_started.vox:data_model}}
+```
 
 ### Adding Index Declarations
 
 To speed up lookups, use the `@index` syntax. The compiler will generate the necessary DB metadata for you.
 
 ```vox
-// Skip-Test
+// vox:skip
 // Creates a fast lookup tree for 'owner'
 @index Task.by_owner on (owner)
 ```
@@ -33,7 +35,7 @@ The built-in `db` module uses code-generation to inject statically typed accesso
 
 - **Create**:
   ```vox
-  // Skip-Test
+  // vox:skip
   let new_id: Id[Task] = db.Task.insert({ 
       title: "Clean desk", 
       done: false, 
@@ -43,7 +45,7 @@ The built-in `db` module uses code-generation to inject statically typed accesso
   ```
 - **Read**:
   ```vox
-  // Skip-Test
+  // vox:skip
   match db.Task.find(new_id) {
       Some(t) -> println(t.title)
       None    -> println("Not found")
@@ -51,12 +53,12 @@ The built-in `db` module uses code-generation to inject statically typed accesso
   ```
 - **Update**:
   ```vox
-  // Skip-Test
+  // vox:skip
   db.Task.update(new_id, { done: true })
   ```
 - **Delete**:
   ```vox
-  // Skip-Test
+  // vox:skip
   db.Task.delete(new_id)
   ```
 
@@ -66,13 +68,13 @@ Instead of raw string interpolation, use Vox's exact literal querying to avoid i
 
 // Fetch simple exact match parameters
 ```vox
-// Skip-Test
+// vox:skip
 let alice_tasks = db.Task.filter({ owner: "alice" })
 ```
 
 // Advanced predicate-object queries
 ```vox
-// Skip-Test
+// vox:skip
 let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).all()
 ```
 
@@ -81,7 +83,7 @@ let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).
 You can apply limits, multi-field ordering, and select specific field projections by chaining.
 
 ```vox
-// Skip-Test
+// vox:skip
 let feed = db.Task
             .where({ done: false })
             .order_by("priority", "desc")
@@ -95,7 +97,9 @@ For security, you should rarely expose `db.*` calls directly to UI islands or ag
 
 The compiler verifies that a `@query` function does not contain `.insert`, `.update`, or `.delete` operations.
 
+```vox
 {{#include ../../../examples/golden/getting_started.vox:logic}}
+```
 
 ## The Escape Hatch: Raw SQL
 
@@ -105,7 +109,7 @@ Occasionally, complex analytic aggregations exceed the currently supported ORM b
 > Use this **only** as a last resort. Raw SQL queries bypass Vox's type checking checks on schema changes. 
 
 ```vox
-// Skip-Test
+// vox:skip
 let count = db.query("SELECT COUNT(*) FROM Task WHERE owner = ?", ["alice"])
 ```
 

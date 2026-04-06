@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // ---
 # @training_prompt: Define a Success/Failure union and serialize it with match.
+// ANCHOR: display
 type AppResult =
     | Success(value: int)
     | Failure(err: str)
@@ -20,3 +21,4 @@ fn serialize_app_result(r: AppResult) to str {
         Failure(err) -> "err:" + err
     }
 }
+// ANCHOR_END: display

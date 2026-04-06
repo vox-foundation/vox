@@ -40,7 +40,7 @@ In Vox, `null` and `undefined` do not exist. Absence must be modeled explicitly 
 A named collection of fields.
 
 ```vox
-// Skip-Test
+// vox:skip
 @table type Task {
     id:       Id[Task]
     title:    str
@@ -52,13 +52,17 @@ A named collection of fields.
 ### Enums (Sum Types / Tagged Unions)
 Types that can be one of several variants, potentially carrying extra data.
 
+```vox
 {{#include ../../../examples/golden/ref_types.vox:adt}}
+```
 
 ---
 
 Vox uses the `match` keyword for exhaustive destructuring of ADTs. The compiler will reject a match expression that does not cover every possible variant.
 
+```vox
 {{#include ../../../examples/golden/ref_types.vox:matching}}
+```
 
 ---
 
@@ -66,7 +70,7 @@ Vox uses the `match` keyword for exhaustive destructuring of ADTs. The compiler 
 Used for values that might be missing.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn find_user(id: int) -> Option[User] {
     return db.User.find(id)
 }
@@ -76,7 +80,7 @@ fn find_user(id: int) -> Option[User] {
 Used for operations that can fail.
 
 ```vox
-// Skip-Test
+// vox:skip
 @server fn update_task(id: Id[Task], title: str) -> Result[Unit, str] {
     if title.len() == 0 {
         return Err("Title cannot be empty")
@@ -91,7 +95,7 @@ Used for operations that can fail.
 Similar to Rust, the `?` operator can be used to early-return on `None` or `Err`.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn get_user_email(id: int) -> Option[str] {
     let user = find_user(id)? // If None, returns None early
     return Some(user.email)
@@ -105,7 +109,7 @@ fn get_user_email(id: int) -> Option[str] {
 You rarely need Type annotations for local variables. Vox infers them from the right-hand side or from how the variable is used.
 
 ```vox
-// Skip-Test
+// vox:skip
 let x = 10                  // inferred as int
 let names = ["Alice", "Bob"] // inferred as list[str]
 let result = add_task("Hi")  // inferred from add_task signature

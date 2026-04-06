@@ -18,7 +18,7 @@ Learn how to build modern, reactive user interfaces with Vox. This tutorial cove
 Vox interactive UI components are defined with the `@island` decorator. They look and feel like React components but are compiled and hydrated for maximum performance.
 
 ```vox
-// Skip-Test
+// vox:skip
 @island
 fn Profile(name: str, bio: str) -> Element {
     <div class="p-6 bg-white shadow rounded-lg">
@@ -33,7 +33,7 @@ fn Profile(name: str, bio: str) -> Element {
 You can mix lightweight server-rendered HTML routes with rich client-side islands. 
 
 ```vox
-// Skip-Test
+// vox:skip
 http get "/profile" -> Element {
     // This renders purely on the server
     <html>
@@ -51,7 +51,7 @@ http get "/profile" -> Element {
 Vox supports a JSX-like syntax directly in `.vox` files. You can embed variables using braces, map over collections, and conditionally render elements.
 
 ```vox
-// Skip-Test
+// vox:skip
 @island
 fn UserList(users: list[str]) -> Element {
     <ul class="divide-y">
@@ -66,14 +66,16 @@ fn UserList(users: list[str]) -> Element {
 
 The true power of Vox lies in its technical unification. You can call `@mutation` or `@server fn` functions directly from your UI event handlers. Use standard React-like `onChange` or `onClick` attributes.
 
+```vox
 {{#include ../../../examples/golden/getting_started.vox:ui}}
+```
 
 ## 5. Routing
 
 You map a route to your island or server handler through the global `routes { }` block.
 
 ```vox
-// Skip-Test
+// vox:skip
 routes {
     "/" -> NewsletterForm
 }

@@ -32,7 +32,7 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Effect**: Compiles to a Tokio timer loop or cron job scheduling block.
 - **Usage**:
 ```vox
-// Skip-Test
+// vox:skip
 @scheduled("0 * * * *")
 fn hourly_task() { 
     // Logic here
@@ -56,7 +56,7 @@ fn hourly_task() {
 - **Effect**: Generates Rust migrations and typed query interfaces.
 - **Usage**:
 ```vox
-// Skip-Test
+// vox:skip
 @table type MyRecord {
     id: str
 }
@@ -72,7 +72,7 @@ fn hourly_task() {
 - **Effect**: Injects validation checks before assignment/constructor.
 - **Usage**:
 ```vox
-// Skip-Test
+// vox:skip
 @require(len(self.pwd) > 8)
 type User {
     pwd: str
@@ -86,7 +86,7 @@ type User {
 - **Effect**: Parser emits `HirIsland`. Writes `vox-islands-meta.ts`. Mounts onto the client.
 - **Usage**:
   ```vox
-  // Skip-Test
+  // vox:skip
   @island
   fn Counter(initial: Option[int]) -> Element { ... }
   ```
@@ -96,7 +96,7 @@ type User {
 - **Effect**: Emits `{Name}.tsx`. When `routes { }` produces the router shim, this becomes the `pendingComponent`.
 - **Usage**:
 ```vox
-// Skip-Test
+// vox:skip
 @loading
 fn Spinner() -> Element { 
     <div class="spinner">"…"</div>
@@ -128,7 +128,7 @@ fn Spinner() -> Element {
 - **Effect**: Validates handler signatures and tool requirements in the HIR.
 - **Usage**:
   ```vox
-  // Skip-Test
+  // vox:skip
   agent Assistant { on greet() { ... } }
   ```
 
@@ -136,10 +136,14 @@ fn Spinner() -> Element {
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
 
+```vox
 {{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+```
 
 ### `@mcp.resource`
 - **Goal**: Exposes dynamic readable content to MCP.
 - **Effect**: Registers a resource URI endpoint via `getResources`.
 
+```vox
 {{#include ../../../examples/golden/ref_orchestrator.vox:mcp_resource}}
+```

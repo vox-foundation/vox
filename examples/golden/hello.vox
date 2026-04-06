@@ -10,6 +10,8 @@
 // training_weight: 1.0
 // ---
 // @training_prompt: Write a minimal Vox hello-world function
+// ANCHOR: display
 fn hello(name: str) to str {
     ret "Hello " + name + "!"
 }
+// ANCHOR_END: display

@@ -14,7 +14,9 @@ In Vox, **Actors** are the primary unit of stateful concurrency. Unlike standard
 
 An actor is defined with the `actor` keyword. Its internal state is private and only accessible via message handlers.
 
+```vox
 {{#include ../../../examples/golden/ref_actors.vox:basic_actor}}
+```
 
 ## 2. Spawning and Identity
 
@@ -23,7 +25,7 @@ To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts a
 To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
 ```vox
-// Skip-Test
+// vox:skip
 @server fn demo_actors() -> int {
     // Spawn a new instance
     let ref = spawn GlobalCounter()
@@ -52,7 +54,7 @@ Vox actors are not just in-memory. By using `state_load` and `state_save`, you t
 Actors can talk to each other. Because each actor has its own mailbox, they process messages **sequentially** but run in **parallel** with other actors.
 
 ```vox
-// Skip-Test
+// vox:skip
 actor Logger {
     on log(msg: str) {
         print("[LOG]: " + msg)

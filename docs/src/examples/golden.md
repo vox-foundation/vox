@@ -17,7 +17,7 @@ Working code examples demonstrating Vox language features. Each `.vox` file is a
 The smallest valid Vox program: a typed function that returns a string. Demonstrates the `fn` keyword, explicit return type, string concatenation, and `ret`.
 
 ```vox
-{{#include ../../../examples/golden/hello.vox}}
+{{#include ../../../examples/golden/hello.vox:display}}
 ```
 
 ---
@@ -27,7 +27,7 @@ The smallest valid Vox program: a typed function that returns a string. Demonstr
 A complete data layer in one file. `@table` generates the database schema, `@query` wires a read-only resolver, `@mutation` wires a write operation, and `@get` exposes an HTTP handler — all with the Rust Axum backend generated automatically.
 
 ```vox
-{{#include ../../../examples/golden/crud_api.vox}}
+{{#include ../../../examples/golden/crud_api.vox:display}}
 ```
 
 ---
@@ -37,7 +37,7 @@ A complete data layer in one file. `@table` generates the database schema, `@que
 Actors are isolated units of concurrency. This actor holds an integer counter in its state and exposes an `Increment` message handler that returns the new count. Spawning the actor allocates a mailbox and an address.
 
 ```vox
-{{#include ../../../examples/golden/counter_actor.vox}}
+{{#include ../../../examples/golden/counter_actor.vox:display}}
 ```
 
 ---
@@ -47,7 +47,7 @@ Actors are isolated units of concurrency. This actor holds an integer counter in
 Workflows survive server restarts by journaling each activity result. The `charge_card` activity is idempotent and retryable. Pattern matching on `Result` makes both happy-path and error-path explicit.
 
 ```vox
-{{#include ../../../examples/golden/checkout_workflow.vox}}
+{{#include ../../../examples/golden/checkout_workflow.vox:display}}
 ```
 
 ---
@@ -57,7 +57,7 @@ Workflows survive server restarts by journaling each activity result. The `charg
 The `@mcp.tool` decorator generates a Model Context Protocol tool schema from the function signature. AI agents (including Vox's built-in DEI orchestrator) can discover and call these functions without any glue code.
 
 ```vox
-{{#include ../../../examples/golden/mcp_tools.vox}}
+{{#include ../../../examples/golden/mcp_tools.vox:display}}
 ```
 
 ---
@@ -67,7 +67,7 @@ The `@mcp.tool` decorator generates a Model Context Protocol tool schema from th
 Demonstrates an actor-based multi-agent system. `TaskMessage` is a structured message type. `WorkerAgent` receives `HandleTask` messages and tracks the number of processed tasks in its actor state.
 
 ```vox
-{{#include ../../../examples/golden/agent_pipeline.vox}}
+{{#include ../../../examples/golden/agent_pipeline.vox:display}}
 ```
 
 ---
@@ -77,7 +77,7 @@ Demonstrates an actor-based multi-agent system. `TaskMessage` is a structured me
 Full-stack UI composition. `@island` marks interactive components that get client-side hydration. `layout` wraps every route with shared chrome. `routes` maps URL paths to components.
 
 ```vox
-{{#include ../../../examples/golden/dashboard_ui.vox}}
+{{#include ../../../examples/golden/dashboard_ui.vox:display}}
 ```
 
 ---
@@ -87,7 +87,7 @@ Full-stack UI composition. `@island` marks interactive components that get clien
 Demonstrates algebraic data types with a type parameter, trait definition, and `impl` block. `AppResult[T]` is a generic union type (Vox's alternative to exceptions). The `Serializable` trait requires a `serialize` method.
 
 ```vox
-{{#include ../../../examples/golden/type_system.vox}}
+{{#include ../../../examples/golden/type_system.vox:display}}
 ```
 
 ---
@@ -97,7 +97,7 @@ Demonstrates algebraic data types with a type parameter, trait definition, and `
 `@fixture` sets up shared test data. `@mock` replaces external dependencies. `@test` declares a test function. The `|>` pipe operator and `len` built-in demonstrate Vox's functional style.
 
 ```vox
-{{#include ../../../examples/golden/test_suite.vox}}
+{{#include ../../../examples/golden/test_suite.vox:display}}
 ```
 
 ---
@@ -107,5 +107,5 @@ Demonstrates algebraic data types with a type parameter, trait definition, and `
 Typed configuration blocks and named environment definitions. `config` generates validated config structs. `environment` names deployment targets with typed key-value pairs.
 
 ```vox
-{{#include ../../../examples/golden/config_deploy.vox}}
+{{#include ../../../examples/golden/config_deploy.vox:display}}
 ```

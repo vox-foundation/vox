@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // ---
 // @training_prompt: Model task payloads as an ADT and handle them in an actor `on` handler.
+// ANCHOR: display
 type TaskMessage =
     | Msg(id: int, payload: str)
 
@@ -22,3 +23,4 @@ actor WorkerAgent {
         ret "Task " + str(id) + " done"
     }
 }
+// ANCHOR_END: display

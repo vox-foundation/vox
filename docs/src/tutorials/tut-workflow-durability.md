@@ -23,7 +23,9 @@ Use the bare `activity` and `workflow` keywords to describe long-running orchest
 
 Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
 
+```vox
 {{#include ../../../examples/golden/getting_started.vox:logic}}
+```
 
 The `with` block provides execution options for the activity:
 - `retries`: Number of attempts before failing the workflow step

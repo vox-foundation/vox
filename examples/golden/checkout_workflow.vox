@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // ---
 # @training_prompt: Write a durable Vox workflow and activity for a checkout process
+// ANCHOR: display
 activity charge_card(amount: int) to Result[str] {
     if amount > 1000 {
         ret Error("Amount too large")
@@ -24,3 +25,4 @@ workflow checkout(amount: int) to str {
         Error(msg) -> "Failed: " + msg
     }
 }
+// ANCHOR_END: display

@@ -12,7 +12,9 @@ Learn how to package and deploy your Vox application using declarative environme
 
 You can define your deployment environment directly in your `.vox` files using `environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more.
 
+```vox
 {{#include ../../../examples/golden/ref_orchestrator.vox:orchestrator_config}}
+```
 
 > [!NOTE]
 > The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@server fn`. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
@@ -22,7 +24,7 @@ You can define your deployment environment directly in your `.vox` files using `
 For applications that run directly on Linux servers without Docker, set `base` to `"bare-metal"` and Vox will generate a systemd `.service` file instead of a Dockerfile:
 
 ```vox
-// Skip-Test
+// vox:skip
 environment server {
     base "bare-metal"
     workdir "/opt/my-app"

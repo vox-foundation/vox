@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // ---
 # @training_prompt: Represent database settings as a Vox ADT and expose deployment-shaped helpers.
+// ANCHOR: display
 type DatabaseConfig =
     | DatabaseConfig(url: str, pool_size: int)
 
@@ -24,3 +25,4 @@ fn prod_replica_count() to int {
 fn prod_debug_enabled() to bool {
     ret false
 }
+// ANCHOR_END: display

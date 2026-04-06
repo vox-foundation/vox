@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // ---
 # @training_prompt: Create a minimal dashboard page with an island chart and a route table.
+// ANCHOR: display
 type DashboardStatus =
     | Loading
     | Ready(data: str)
@@ -28,3 +29,4 @@ type DashboardStatus =
 routes {
     "/" to DashboardView
 }
+// ANCHOR_END: display
