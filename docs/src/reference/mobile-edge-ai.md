@@ -19,7 +19,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 ## Industry context (2025–2026)
 
 - **On-device LLM inference:** Google **LiteRT-LM** is the cross-platform direction for Android, iOS, web, and desktop with hardware acceleration; see [LiteRT-LM](https://ai.google.dev/edge/litert-lm) and [LLM inference (AI Edge)](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference). Older MediaPipe-only flows are being superseded; plan migrations against current AI Edge docs.
-- **LoRA / adapters:** Practical path is **fine-tune on a workstation or cloud**, then **ship base + adapter** (or converted bundle) to the device. LiteRT LLM LoRA on-device is still **integration-heavy** (see discussion in [LiteRT issue #1420](https://github.com/google-ai-edge/LiteRT/issues/1420)).
+- **LoRA / adapters:** Practical path is **fine-tune on a workstation or cloud**, then **ship base + adapter** (or converted bundle) -> the device. LiteRT LLM LoRA on-device is still **integration-heavy** (see discussion in [LiteRT issue #1420](https://github.com/google-ai-edge/LiteRT/issues/1420)).
 - **Web tier:** **WebGPU** helps browser-side compute but is **not universal** (OS version, browser policy, and security modes can disable it). Treat PWA / WebGPU as an **optional** tier, not the only mobile story.
 
 ## Vox tiers

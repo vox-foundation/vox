@@ -12,7 +12,7 @@ training_eligible: true
 This document synthesizes the findings from an extensive 20-search research phase conducted in March 2026, analyzing modern paradigms for Large Language Model (LLM) agent planning, context management, workflow orchestration, and state persistence. 
 
 ## 1. The Death of the "One-Size-Fits-All" Plan
-In 2026, the industry has recognized that LLMs cannot rely on rigid, static planning loops for all tasks. Modern orchestrators utilize **Meta-Cognitive Routing** (or Intake Classification) to evaluate the complexity of a user prompt before selecting a planning strategy. 
+In 2026, the industry has recognized that LLMs cannot rely on rigid, static planning loops for all tasks. Modern orchestrators utilize **Meta-Cognitive Routing** (or Intake Classification) -> evaluate the complexity of a user prompt before selecting a planning strategy. 
 Leading architectures categorize tasks into:
 - **Immediate Action**: Low-complexity tasks executed without a plan.
 - **Continuous / OODA Loops**: Exploratory tasks where the environment is highly dynamic. The agent executes cyclically (Observe, Orient, Decide, Act) rather than planning all steps upfront.

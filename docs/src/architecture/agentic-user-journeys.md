@@ -54,7 +54,7 @@ Here are the primary user journeys the Vox architecture must support:
 *   **Vox Advantage:** Safe, iterative sandbox execution within the repository leveraging the native shell discipline, bounded by the developer's attention budget (`contracts/operations/completion-policy.v1.yaml`).
 
 ### Journey D: Multi-Agent Orchestration (Architect vs. Implementer)
-*   **Goal:** Utilizing different model classes (e.g., a "reasoning" model for planning, a "fast" model for typing) to optimize speed and cost.
+*   **Goal:** Utilizing different model classes (e.g., a "reasoning" model for planning, a "fast" model for typing) -> optimize speed and cost.
 *   **The Flow:** The user defines a complex feature. Vox's orchestrator first delegates to the Architect agent, which produces a `plan.md`. The Orchestrator then spins up multiple Implementer agents in parallel to handle distinct files, merging the results.
 *   **Vox Advantage:** The native `vox-orchestrator` orchestrator natively understands parallel sub-agents and file affinity, unlike traditional single-threaded IDE plugins.
 

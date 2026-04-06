@@ -28,7 +28,7 @@ You avoid writing boilerplate. State synchronization and type-checking happen sa
 Below is a complete, working React frontend and Rust backend in a single `.vox` file.
 
 ```tsx
-// Skip-Test
+// vox:skip
 import react.use_state
 
 // 1. DDL & Struct defined once entirely.

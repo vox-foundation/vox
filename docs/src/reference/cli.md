@@ -82,7 +82,7 @@ Compile a `.vox` source file.
 | `-o`, `--out-dir` | `dist` | Directory for generated **TypeScript** (and related frontend files) |
 | _(positional)_ | — | Path to the `.vox` file |
 
-**Also writes** generated **Rust** under `target/generated/` (backend crate). If the module declares `@v0` UI components and output files are missing, the CLI may call **v0.dev** when `V0_API_KEY` is set.
+**Also writes** generated **Rust** under `target/generated/` (backend crate). If the module declares `@v0` UI components and output files are missing, the CLI invokes Vercel's `npx v0 add` sidecar process.
 
 ### `vox island …` (feature `island`)
 
@@ -510,7 +510,7 @@ Splits local changes into concern-based PRs with a **real baseline** (`origin/<d
 | `batch-submit` | console only | `.coderabbit-batch-manifest.json` |
 | `stack-submit` | `.coderabbit-stack-manifest.json` (always) | same + git/PR actions |
 
-**`Vox.toml`** — optional **`[review.coderabbit]`**: `tier`, `delay_between_prs_secs`, `max_files_per_pr`, **`exclude_prefixes`** (path prefixes, forward slashes) to drop noise paths from semantic/batch/stack planning.
+**`Vox.toml`** — optional **`[review.coderabbit]`**: `tier`, `delay_between_prs_secs`, `max_files_per_pr`, **`exclude_prefixes`** (path prefixes, forward slashes) -> drop noise paths from semantic/batch/stack planning.
 
 **Git hygiene**: `.gitignore` includes **`.coderabbit/worktrees/`**. You may commit **`.coderabbit/run-state.json`** if you want a shared run map (or keep it local). **Ignored in drift/planning (normalized repo-relative paths, including leading `./`)**: anything under **`.coderabbit/`** (local tooling, worktrees). Chunk worktree overlays **do not recurse into `.coderabbit/`** when copying from the main tree, so nested tool dirs are not duplicated.
 - **`--features dashboard`**: reserved **no-op** in `vox-cli`. The old **`vox mens` chat / agent / dei / learn** commands are removed from the CLI surface (they depended on the historical **`vox-orchestrator`** module tree, not the minimal workspace crate). Use **`vox-codex-dashboard`** / the VS Code extension for dashboard-style surfaces.
@@ -571,7 +571,7 @@ Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 | `src/dispatch.rs` | Spawn `vox-compilerd` / named daemons, stream responses; `DAEMON_SPAWN_FAILED_PREFIX` for consistent spawn-failure text (`dei_daemon` enriches errors) |
 | `src/compilerd.rs` | In-process stdio RPC implementation for `vox-compilerd` |
 | `src/watcher.rs` | `notify` watch helper for `compilerd` `dev` rebuilds |
-| `src/v0.rs` | Optional v0.dev API integration for `@v0` components (`V0_API_KEY`) |
+| `src/v0.rs` | Obsolete generation bridge (now handled by direct `npx v0 add` sidecar) |
 
 ## Library target
 
@@ -660,7 +660,7 @@ training_eligible: true
 
 # CLI command reachability
 
-This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../crates/vox-cli/src/lib.rs) to their **implementation modules** under [`crates/vox-cli/src/commands/`](../../../crates/vox-cli/src/commands).
+This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../crates/vox-cli/src/lib.rs) -> their **implementation modules** under [`crates/vox-cli/src/commands/`](../../../crates/vox-cli/src/commands).
 
 ## Reachable from default / feature matrix
 

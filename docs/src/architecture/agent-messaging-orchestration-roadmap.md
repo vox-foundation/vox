@@ -16,13 +16,13 @@ This document outlines the aspirational goals for the Vox Distributed Execution 
 **Aspirational Goals**:
 - **Continuous Context Engineering**: Move beyond static prompt injection. Introduce automatic real-time context summarization where long-running agent threads compress their episodic memory into semantic checkpoints.
 - **Multimodal State Integration**: Support the injection of UI visual snapshots and multimodal telemetry natively in `ChatMessage` constructs, preventing agents from becoming text-blind to DOM or pixel-level changes.
-- **Context Routing**: Implement policies that automatically "shed" irrelevant history when an agent shifts execution domains (e.g., from database debugging to UI CSS tweaking) to save token budgets and prevent hallucination bleed.
+- **Context Routing**: Implement policies that automatically "shed" irrelevant history when an agent shifts execution domains (e.g., from database debugging to UI CSS tweaking) -> save token budgets and prevent hallucination bleed.
 
 ## 2. Multi-Agent Topologies & Orchestration
 
 **Current State**: Tasks are routed to the most capable single agent based on affinity (`vox-orchestrator`'s routing service).
 **Aspirational Goals**:
-- **Specialized "Agent Pods"**: Break down monolith tasks into sub-delegations using a hierarchical task network (HTN). Assign specialized agents (Planner, Executor, Verifier, Researcher) to specific nodes instead of relying on general-purpose code-gen agents.
+- **Specialized "Agent Pods"**: Break down monolith tasks into sub-delegations using a hierarchical task network (HTN). Assign specialized agents (Planner, Executor, Verifier, Researcher) -> specific nodes instead of relying on general-purpose code-gen agents.
 - **Dynamic Handoff/Triage (Delegation Pattern)**: An agent can unilaterally pause execution to issue an A2A RPC requesting help from an agent with higher `Trust` or specific `tool` permissions (e.g., a "Security Agent" for signing commits or handling API tokens).
 - **Parallel Analysis (Map-Reduce)**: The Orchestrator should support spawning *N* ephemeral agents to analyze independent files concurrently across the mens, gathering the results via an accumulator agent.
 

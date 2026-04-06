@@ -17,8 +17,7 @@ pub struct SchemaDigest {
     pub queries: Vec<FunctionInfo>,
     /// All declared mutations.
     pub mutations: Vec<FunctionInfo>,
-    /// All declared actions.
-    pub actions: Vec<FunctionInfo>,
+
     /// Human-readable summary for LLM prompts.
     pub summary: String,
     /// The exact VCS context snapshot ID this schema belongs to.

@@ -68,7 +68,7 @@ impl Parser {
                 Token::For => {
                     children.push(self.parse_for()?);
                 }
-                Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                Token::StringLit(s) => {
                     let sp = self.span();
                     self.advance();
                     children.push(Expr::StringLit { value: s, span: sp });

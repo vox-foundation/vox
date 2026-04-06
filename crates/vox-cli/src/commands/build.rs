@@ -84,33 +84,24 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
             if !target_path.exists() {
                 println!("Generating v0 component '{}'...", component_name);
 
-                // Determine prompt and optional image path
-                let (prompt, image_path) = if !comp.prompt.is_empty() {
-                    (comp.prompt.clone(), None)
-                } else if let Some(img_str) = &comp.image_path {
-                    let parent = file.parent().unwrap_or(Path::new("."));
-                    let path = parent.join(img_str);
-                    (
-                        "Create a component based on the provided image.".to_string(),
-                        Some(path),
-                    )
-                } else {
-                    ("Create a React component".to_string(), None)
-                };
-
-                match crate::v0::generate_component(
-                    &prompt,
-                    component_name,
-                    out_dir,
-                    image_path.as_deref(),
-                )
-                .await
-                {
-                    Ok(path) => println!("  generated v0 component: {}", path.display()),
-                    Err(e) => eprintln!(
-                        "  failed to generate v0 component '{}': {}",
-                        component_name, e
-                    ),
+                println!("Downloading v0 component '{}' via npx v0 add...", component_name);
+                let status = tokio::process::Command::new("npx")
+                    .arg("v0")
+                    .arg("add")
+                    .arg(&comp.v0_id)
+                    .arg("--name")
+                    .arg(component_name)
+                    .arg("--path")
+                    .arg(target_path.to_string_lossy().as_ref())
+                    .arg("--yes")
+                    .current_dir(file.parent().unwrap_or(Path::new(".")))
+                    .status()
+                    .await;
+                
+                match status {
+                    Ok(s) if s.success() => println!("  generated v0 component: {}", target_path.display()),
+                    Ok(s) => eprintln!("  failed to download v0 component '{}': exited with {}", component_name, s),
+                    Err(e) => eprintln!("  failed to execute npx v0 add for '{}': {}", component_name, e),
                 }
             } else {
                 println!("  skipping v0 component '{}' (file exists)", component_name);

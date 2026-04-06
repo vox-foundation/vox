@@ -86,7 +86,7 @@ impl Parser {
                             self.advance();
                             self.expect(&Token::Colon)?;
                             let value = match self.peek().clone() {
-                                Token::StringLit(v) | Token::SingleQuoteStringLit(v) => {
+                                Token::StringLit(v) => {
                                     self.advance();
                                     v
                                 }
@@ -382,7 +382,7 @@ impl Parser {
             Token::LParen => {
                 self.advance();
                 let u = match self.peek().clone() {
-                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                    Token::StringLit(s) => {
                         self.advance();
                         s
                     }
@@ -399,7 +399,7 @@ impl Parser {
                 };
                 self.expect(&Token::Comma)?;
                 let d = match self.peek().clone() {
-                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                    Token::StringLit(s) => {
                         self.advance();
                         s
                     }
@@ -417,16 +417,16 @@ impl Parser {
                 self.expect(&Token::RParen)?;
                 (u, d)
             }
-            Token::StringLit(_) | Token::SingleQuoteStringLit(_) => {
+            Token::StringLit(_) => {
                 let u = match self.peek().clone() {
-                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                    Token::StringLit(s) => {
                         self.advance();
                         s
                     }
                     _ => unreachable!(),
                 };
                 let d = match self.peek().clone() {
-                    Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                    Token::StringLit(s) => {
                         self.advance();
                         s
                     }
@@ -468,7 +468,7 @@ impl Parser {
         let mut label = String::new();
         if self.eat(&Token::LParen) {
             match self.peek().clone() {
-                Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                Token::StringLit(s) => {
                     self.advance();
                     label = s;
                 }
@@ -486,7 +486,7 @@ impl Parser {
         let mut label = String::new();
         if self.eat(&Token::LParen) {
             match self.peek().clone() {
-                Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
+                Token::StringLit(s) => {
                     self.advance();
                     label = s;
                 }
@@ -584,7 +584,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
+        let return_type = if self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -601,13 +601,7 @@ impl Parser {
             is_deprecated: false,
             is_pure: false,
             is_traced: false,
-            is_llm: false,
-            llm_model: None,
-            is_layout: false,
             is_pub,
-            is_metric: false,
-            metric_name: None,
-            is_health: false,
             auth_provider: None,
             roles: vec![],
             cors: None,

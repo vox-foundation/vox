@@ -63,17 +63,7 @@ impl Decl {
                     m.func.cors = cors;
                 }
             }
-            Decl::Action(a) => {
-                if auth.is_some() {
-                    a.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    a.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    a.func.cors = cors;
-                }
-            }
+
             Decl::HttpRoute(h) => {
                 if auth.is_some() {
                     h.auth_provider = auth;
@@ -165,12 +155,6 @@ impl Decl {
         is_deprecated: bool,
         is_pure: bool,
         is_traced: bool,
-        is_llm: bool,
-        llm_model: Option<String>,
-        is_layout: bool,
-        is_metric: bool,
-        metric_name: Option<String>,
-        is_health: bool,
     ) {
         match self {
             Decl::Function(f) => {
@@ -183,16 +167,6 @@ impl Decl {
                 if is_traced {
                     f.is_traced = true;
                 }
-                if is_llm {
-                    f.is_llm = true;
-                    f.llm_model = llm_model;
-                }
-                if is_layout {
-                    f.is_layout = true;
-                }
-                if is_health {
-                    f.is_health = true;
-                }
             }
             Decl::Component(c) => {
                 if is_deprecated {
@@ -200,13 +174,6 @@ impl Decl {
                 }
                 if is_traced {
                     c.func.is_traced = true;
-                }
-                if is_metric {
-                    c.func.is_metric = true;
-                    c.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    c.func.is_health = true;
                 }
             }
             Decl::Test(t) => {
@@ -216,13 +183,6 @@ impl Decl {
                 if is_traced {
                     t.func.is_traced = true;
                 }
-                if is_metric {
-                    t.func.is_metric = true;
-                    t.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    t.func.is_health = true;
-                }
             }
             Decl::ServerFn(s) => {
                 if is_deprecated {
@@ -230,13 +190,6 @@ impl Decl {
                 }
                 if is_traced {
                     s.func.is_traced = true;
-                }
-                if is_metric {
-                    s.func.is_metric = true;
-                    s.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    s.func.is_health = true;
                 }
             }
             Decl::Query(q) => {
@@ -246,13 +199,6 @@ impl Decl {
                 if is_traced {
                     q.func.is_traced = true;
                 }
-                if is_metric {
-                    q.func.is_metric = true;
-                    q.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    q.func.is_health = true;
-                }
             }
             Decl::Mutation(m) => {
                 if is_deprecated {
@@ -261,42 +207,14 @@ impl Decl {
                 if is_traced {
                     m.func.is_traced = true;
                 }
-                if is_metric {
-                    m.func.is_metric = true;
-                    m.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    m.func.is_health = true;
-                }
             }
-            Decl::Action(a) => {
-                if is_deprecated {
-                    a.func.is_deprecated = true;
-                }
-                if is_traced {
-                    a.func.is_traced = true;
-                }
-                if is_metric {
-                    a.func.is_metric = true;
-                    a.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    a.func.is_health = true;
-                }
-            }
+
             Decl::Skill(s) => {
                 if is_deprecated {
                     s.func.is_deprecated = true;
                 }
                 if is_traced {
                     s.func.is_traced = true;
-                }
-                if is_metric {
-                    s.func.is_metric = true;
-                    s.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    s.func.is_health = true;
                 }
             }
             Decl::AgentDef(a) => {
@@ -306,13 +224,6 @@ impl Decl {
                 if is_traced {
                     a.func.is_traced = true;
                 }
-                if is_metric {
-                    a.func.is_metric = true;
-                    a.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    a.func.is_health = true;
-                }
             }
             Decl::Scheduled(s) => {
                 if is_deprecated {
@@ -320,13 +231,6 @@ impl Decl {
                 }
                 if is_traced {
                     s.func.is_traced = true;
-                }
-                if is_metric {
-                    s.func.is_metric = true;
-                    s.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    s.func.is_health = true;
                 }
             }
             Decl::McpTool(m) => {
@@ -336,13 +240,6 @@ impl Decl {
                 if is_traced {
                     m.func.is_traced = true;
                 }
-                if is_metric {
-                    m.func.is_metric = true;
-                    m.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    m.func.is_health = true;
-                }
             }
             Decl::McpResource(m) => {
                 if is_deprecated {
@@ -351,13 +248,6 @@ impl Decl {
                 if is_traced {
                     m.func.is_traced = true;
                 }
-                if is_metric {
-                    m.func.is_metric = true;
-                    m.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    m.func.is_health = true;
-                }
             }
             Decl::Page(p) => {
                 if is_deprecated {
@@ -365,13 +255,6 @@ impl Decl {
                 }
                 if is_traced {
                     p.func.is_traced = true;
-                }
-                if is_metric {
-                    p.func.is_metric = true;
-                    p.func.metric_name = metric_name.clone();
-                }
-                if is_health {
-                    p.func.is_health = true;
                 }
             }
             Decl::Workflow(w) => {

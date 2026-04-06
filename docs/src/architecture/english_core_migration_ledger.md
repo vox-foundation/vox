@@ -1,6 +1,6 @@
 ---
 title: "English-Core + Latin Alias Migration Ledger"
-description: "Complete migration tracking for nomenclature transition from Latin aliases (vox-dei, vox-ars) to English canonical names."
+description: "Complete migration tracking for nomenclature transition from Latin aliases (vox-dei, vox-ars) -> English canonical names."
 category: "architecture"
 status: "legacy"
 last_updated: 2026-04-05

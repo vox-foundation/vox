@@ -15,14 +15,14 @@ Vox embraces a server-first web architecture. In Vox v0.3+, the v0.2 `@island` d
 
 Client-side interactive user interfaces are modeled using hydrated React components known as islands. 
 
-- `@island fn ComponentName(props: ModelType) -> Element { }`  
+- `@island ComponentName { props: ModelType }`  
   *Compiles into a TypeScript/React TSX artifact injected via hydration into static HTML generated server-side.* 
 
 ### Using Functional State Hooks (`react.use_state`)
 
 Because Islands are fully bridged React outputs, you can instantiate frontend React state mapping hooks seamlessly. 
 ```vox
-// Skip-Test
+// vox:skip
 import react.use_state
 
 @island
@@ -55,7 +55,7 @@ Vox enables inline API mapping without full standalone Axum scaffolding using ra
 All paths and mappings flow back into the monolithic static web table defined near the core namespace termination. 
 
 ```vox
-// Skip-Test
+// vox:skip
 // Registers physical route distributions for frontend UI hydration
 routes {
     "/"              -> HomeIsland         

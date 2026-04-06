@@ -15,7 +15,7 @@ Vox historically documented importing Python libraries from `.vox` via `@py.impo
 ## Quick Start
 
 ```vox
-// Skip-Test
+// vox:skip
 @py.import torch
 @py.import torch.nn as nn
 
@@ -83,7 +83,7 @@ Return values come back as their string representation. Use helper utilities lik
 ## PyTorch Example
 
 ```vox
-// Skip-Test
+// vox:skip
 @py.import torch
 @py.import torch.nn as nn
 @py.import torch.nn.functional as F
@@ -106,7 +106,7 @@ fn main() {
 ## NumPy Example
 
 ```vox
-// Skip-Test
+// vox:skip
 @py.import numpy as np
 
 fn moving_average(data: list[float], window: int) -> list[float] {
@@ -256,7 +256,7 @@ nn::Sequential::new(vec![
 ### Example: MLP inference without Python
 
 ```vox
-// Skip-Test
+// vox:skip
 import tensor as t
 import nn
 

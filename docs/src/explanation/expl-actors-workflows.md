@@ -5,7 +5,7 @@ category: "explanation"
 last_updated: 2026-04-06
 status: "current"
 training_eligible: true
- ---
+---
 # Actors & Workflows
 
 Vox provides two first-class concurrency primitives: **Actors** for lightweight message-passing and **Workflows** for orchestrating activities. Actor behavior is materially implemented today. Workflow durability is currently a mix of language intent, generated async code, and a separate interpreted runtime.
@@ -19,9 +19,9 @@ Actors are isolated processes with their own state and a mailbox for receiving m
 ### Defining an Actor
 
 ```vox
-// Skip-Test
+// vox:skip
 actor Counter {
-    let mutable count: int = 0;
+    let mut count: int = 0
 
     on increment(amount: int) -> int {
         count = count + amount;
@@ -46,7 +46,7 @@ Key concepts:
 ### Spawning and Messaging
 
 ```vox
-// Skip-Test
+// vox:skip
 fn main() {
     // spawn() creates a new actor instance, returns a handle (ActorRef)
     let counter = spawn Counter();
@@ -67,7 +67,7 @@ fn main() {
 Define typed messages for inter-actor communication:
 
 ```vox
-// Skip-Test
+// vox:skip
 type Greeting {
     from_name: str,
     text: str,
@@ -79,7 +79,7 @@ type Greeting {
 Actors can persist state across restarts using `state_load` and `state_save`:
 
 ```vox
-// Skip-Test
+// vox:skip
 actor PersistentCounter {
     on increment() -> int {
         let current = state_load("counter");
@@ -91,6 +91,9 @@ actor PersistentCounter {
 ```
 
 This compiles to database-backed state management — the actor's count survives process restarts.
+
+> [!NOTE]
+> `state_load(key: str) -> T` and `state_save(key: str, val: T) -> Unit` are **compiler-injected built-ins** available *only* inside `actor` blocks. They seamlessly marshal generic types directly to the persistence layer.
 
 ### How Actors Compile
 
@@ -109,7 +112,7 @@ This compiles to database-backed state management — the actor's count survives
 Activities are retryable units of work that may fail. They are the **only** place for side effects within workflows.
 
 ```vox
-// Skip-Test
+// vox:skip
 activity fetch_user_data(user_id: str) -> Result[str] {
     // Would call an external API in production
     return Ok("User data for " + user_id);
@@ -146,7 +149,7 @@ Current state:
 - **Escape hatch / current durable path:** the interpreted workflow runtime used by `vox mens workflow ...`.
 
 ```vox
-// Skip-Test
+// vox:skip
 workflow onboard_user(user_id: str, email: str) -> Result[str] {
     // Step 1: Fetch user profile
     let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" };
@@ -176,7 +179,7 @@ The `with` expression carries workflow activity options. Some are honored today 
 
 The interpreted workflow runtime can skip previously completed activities when restarted with the same workflow, run id, and activity ids because it records journal/tracker data before replay and now stores step result payloads for linear replay. Generated Rust workflows do **not** yet compile into a durable state machine.
 
-**Durable spine (today):** the supported replay/idempotency story is the interpreted `vox mens workflow …` runtime. Rust-emitted `async fn` workflows are orchestration helpers only until generated code adopts the same journaling contract. Generated-workflow parity remains intentionally out of scope until Vox has a formal replay model and ADR for it.
+**Durable spine (today):** the supported replay/idempotency story is the interpreted `vox mens workflow …` runtime (see [ADR-019](../adr/019-durable-workflow-journal-contract-v1.md)). Rust-emitted `async fn` workflows are orchestration helpers only until generated code adopts the same journaling contract. Generated-workflow parity remains intentionally out of scope until Vox has a formal replay model and ADR for it (see [ADR-021](../adr/021-generated-workflow-durability-parity.md)).
 
 ### How Workflows Compile
 
@@ -194,7 +197,7 @@ The interpreted workflow runtime can skip previously completed activities when r
 A complete workflow combining activities with different retry policies:
 
 ```vox
-// Skip-Test
+// vox:skip
 type OrderResult {
     Ok { order_id: str }
     Error { message: str }

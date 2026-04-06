@@ -63,7 +63,7 @@ vox-compiler (lexer/parser) ──► codegen / build.rs or `vox ci` step
 ## Implementation order
 
 1. Add a **single** generator entrypoint (crate binary or `vox ci` subcommand) that emits the minimal JSON contract from `Token` / parser tables.
-2. Wire **one** consumer (speech artifact or MCP) to the generated file; keep the old file until diff is zero.
+2. Wire **one** consumer (speech artifact or MCP) -> the generated file; keep the old file until diff is zero.
 3. Migrate LSP and eval last (highest churn in snippets vs plain names).
 
 See also: [Outbound HTTP policy](outbound-http-policy.md), [OpenAPI contract SSOT](openapi-contract-ssot.md).

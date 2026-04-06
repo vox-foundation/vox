@@ -28,7 +28,7 @@ direct Rust calls — there is no FFI overhead.
 ## Vox Syntax
 
 ```vox
-// Skip-Test
+// vox:skip
 // Fast non-cryptographic hash (XXH3-128)
 let cache_key = std.hash_fast(content)
 
@@ -45,7 +45,7 @@ let ts = std.now_ms()
 Also available via namespaced syntax:
 
 ```vox
-// Skip-Test
+// vox:skip
 let h1 = std.crypto.hash_fast(text)   // same as std.hash_fast
 let h2 = std.crypto.uuid()            // same as std.uuid
 let t  = std.time.now_ms()            // same as std.now_ms

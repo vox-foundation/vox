@@ -28,6 +28,8 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Usage**: `@mutation fn save_data() -> bool { ... }`
 
 ### `@scheduled`
+> [!NOTE]
+> Planned — not yet parseable.
 - **Goal**: Run a background task periodically.
 - **Effect**: Compiles to a Tokio timer loop or cron job scheduling block.
 - **Usage**:
@@ -40,11 +42,15 @@ fn hourly_task() {
 ```
 
 ### `@pure`
+> [!NOTE]
+> Planned — not yet parseable.
 - **Goal**: Designates a function as side-effect free.
 - **Effect**: Allows the compiler to aggressively optimize and caching the output.
 - **Usage**: `@pure fn compute_hash(data: str) -> str { ... }`
 
 ### `@deprecated`
+> [!NOTE]
+> Planned — not yet parseable.
 - **Goal**: Marks a function or type as pending removal.
 - **Effect**: Emits compiler warnings when used.
 - **Usage**: `@deprecated("Use new_function instead")`
@@ -87,8 +93,7 @@ type User {
 - **Usage**:
   ```vox
   // vox:skip
-  @island
-  fn Counter(initial: Option[int]) -> Element { ... }
+  @island Counter { initial: Option[int] }
   ```
 
 ### `@loading`
@@ -104,9 +109,9 @@ fn Spinner() -> Element {
 ```
 
 ### `@v0`
-- **Goal**: AI-generated React component via v0.dev.
-- **Effect**: Stubs `.tsx` implementation from prompt.
-- **Usage**: `@v0 "prompt" fn Dashboard() -> Element { }`
+- **Goal**: Retrieve an AI-generated React component natively via Vercel's unofficial CLI.
+- **Effect**: Downloads `.tsx` implementation and wraps it as an island.
+- **Usage**: `@v0 "chat-id" fn Dashboard() -> Element { }`
 
 ## Testing & Tooling
 
@@ -116,22 +121,22 @@ fn Spinner() -> Element {
 - **Usage**: `@test fn check_auth() { ... }`
 
 ### `@mock`
-> [!WARNING]
-> This feature is partially implemented (aspirational). Use standard helper functions for mocking instead.
+> [!NOTE] 
+> **Planned.** Not yet supported by the parser. Use standard functions for test setup or `spawn` dependencies.
 
 ### `@fixture`
-> [!WARNING]
-> This feature is partially implemented (aspirational). Use standard helper functions for fixtures instead.
+> [!NOTE] 
+> **Planned.** Not yet supported by the parser. Use helper functions called within `@test` blocks instead.
 
-### `@agent`
-- **Goal**: Defines a native AI agent identity.
-- **Effect**: Validates handler signatures and tool requirements in the HIR.
-- **Usage**:
-  ```vox
-  // vox:skip
-  agent Assistant { on greet() { ... } }
-  ```
-
+### `agent` (Keyword)
+Agents are defined using the `agent` keyword (not a decorator).
+```vox
+// vox:skip
+agent Assistant { 
+    instructions: "Help the user"
+    tools: [search_kb]
+}
+```
 ### `@mcp.tool`
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.

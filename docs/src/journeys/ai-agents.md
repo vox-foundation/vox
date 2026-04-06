@@ -24,7 +24,7 @@ In Vox, the chaos of generative models is bounded by the compiler's zero-null gu
 By adding a single decorator—`@mcp.tool`— Vox parses the docstring, the types, and the return structure, turning your server function into a ready-to-execute schema for your LLM.
 
 ```vox
-// Skip-Test
+// vox:skip
 // This feature is partially implemented.
 type SearchResult {
     Found { text: str, score: int }

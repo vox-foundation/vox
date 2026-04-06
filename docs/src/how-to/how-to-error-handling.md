@@ -15,7 +15,7 @@ Learn the best practices for error management in Vox to build robust, fault-tole
 Vox uses the functional `Result[T, E]` type for operations that can fail, rather than standard exceptions.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn find_user(id: str) -> Result[str] {
     if id == "" {
         return Error("Invalid ID")
@@ -29,7 +29,7 @@ fn find_user(id: str) -> Result[str] {
 The `?` operator provides ergonomic error propagation. If an expression evaluates to `Error`, the surrounding function returns that error immediately.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn process_order(id: str) -> Result[bool] {
     let user = find_user(id)?
     // `check_balance` might also return a Result
@@ -43,7 +43,7 @@ fn process_order(id: str) -> Result[bool] {
 Vox allows you to handle `Result` types directly using exhaustive pattern matching. (Error display in UI is covered in the islands tutorial).
 
 ```vox
-// Skip-Test
+// vox:skip
 let result = find_user("123")
 
 match result {
@@ -52,10 +52,40 @@ match result {
 }
 ```
 
-## 4. Panic vs. Error
+## 4. Converting Errors with `Result[T, E]`
 
-- **Errors (`Result`)**: Use for expected failures (e.g., user not found, validation error).
-- **Panics**: Use for unrecoverable logic errors or violated invariants (e.g., array out of bounds). Panics trigger actor restarts in stateful systems.
+You can transform results using functional combinators or explicit pattern matching.
+
+```vox
+// vox:skip
+fn get_user_name(id: str) -> Result[str] {
+    let user = find_user(id).map_err(|e| "User fetch failed: " + e)?
+    return Ok(user.name)
+}
+```
+
+## 5. Preconditions with `@require`
+
+For invariant safety (assertions that must hold for a type to be valid), use the `@require` decorator. This acts as a construction-time guard.
+
+```vox
+// vox:skip
+@require(self.age >= 18)
+type Adult {
+    name: str
+    age: int
+}
+```
+
+If the condition fails during instantiation, a panic is triggered (or an error returned if used within a fallible constructor context).
+
+---
+
+## Best Practices
+
+1. **Surface Results Early**: Always surface the `Result` type rather than attempting to `unwrap()` or panic inside production web routes.
+2. **Contextualize Errors**: Use `.map_err()` to add context to low-level errors (e.g., "Database error" -> "Failed to save user").
+3. **Use `?` for Flow**: The `?` operator is the preferred way to maintain a "happy path" while handling fallibility.
 
 ---
 

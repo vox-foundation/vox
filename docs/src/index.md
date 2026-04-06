@@ -10,15 +10,29 @@ training_eligible: true
 difficulty: "beginner"
 ---
 
+# Vox Programming Language
+
 <div class="vox-hero">
-  <img src="assets/logo.png" alt="Vox Logo" class="logo" />
-  <h1>Vox Programming Language</h1>
-  <p class="subtitle">The AI-native language for compiler-enforced reality. Define data, server, and UI in a single source with Rust and TypeScript outputs.</p>
+    <img src="assets/logo.png" alt="Vox logo" class="logo" />
+    <h1>The AI-Native Programming Language</h1>
+    <p class="subtitle">One language. Any model. 100% type-safe tool execution.</p>
+    <div class="vox-cta-container">
+        <a href="tutorials/tut-getting-started.md" class="vox-cta primary">Get Started</a>
+        <a href="reference/ref-syntax.md" class="vox-cta secondary">Syntax Reference</a>
+    </div>
 </div>
 
-## The Full Stack in One File
+Vox integrates the entire stack into a single, compiled boundary. It generates your database schema, server logic, React islands, and MCP tools from a single source file.
 
-Vox unites the whole stack through a safe, declarative compiler.
+## Why Vox?
+
+- **Compiled Agent Boundaries**: Prevent LLM hallucinations by providing a statically checked interface for agent tool calls via MCP.
+- **Unified Type Safety**: Define types once. The compiler generates synchronized Rust (backend) and TypeScript (frontend) definitions automatically.
+- **Durable by Design**: Build resilient background tasks using native `workflow` and `actor` primitives that survive process restarts.
+- **Zero-Null Discipline**: Explicit handling of absence with `Option[T]` and `Result[T, E]`. The compiler enforces exhaustive branching.
+- **Built-in AI Tooling**: Every function can be exported as an MCP tool, allowing agents to natively discover and invoke your application's logic.
+
+## Showcase: The Full Stack in One File
 
 ### 1. Data and Logic
 ```vox
@@ -35,28 +49,35 @@ Vox unites the whole stack through a safe, declarative compiler.
 {{#include ../../examples/golden/index_showcase.vox:mcp}}
 ```
 
-## Why Vox?
+## Documentation Structure
 
-- **One Source of Truth**: Application structure, backend codegen, and UI artifacts are all defined in a single language. No more duplicate type definitions across SQL, Rust, and TypeScript.
-- **Compiler-Enforced Reality**: Prevent AI agent hallucinations by providing a statically checked boundary for agent interactions via MCP.
-- **Zero-Null Discipline**: Explicit handling of absence with `Option[T]` and `Result[T, E]`. The compiler statically enforces exhaustive match checks.
-- **Durable Orchestration**: Built-in support for distributed tracking, `actor` patterns, and resuming long-running `workflow` logic via interpreted execution.
-- **AI-Native Tooling**: Model Context Protocol (MCP) tool schema generation out-of-the-box, allowing LLMs and agents to natively invoke your application's logic.
+Vox uses the **Diátaxis** framework to organize knowledge by user intent.
 
-## Documentation
-
-Vox uses the **Diátaxis** quadrant to structure its documentation.
-
-| Need a Step-by-Step Lesson? | Need to Solve a Problem? |
-| :-------------------------- | :----------------------- |
-| **[Tutorials](tutorials/tut-getting-started.md)**<br/>Build the Task app, understand actors, and integrate UI. | **[How-To Guides](how-to/how-to-islands-and-pages.md)**<br/>Database ops, writing MCP tools, and deploying. |
-
-| Need Broad Understanding? | Need Exact Details? |
-| :------------------------- | :------------------ |
-| **[Explanations](explanation/why-vox-for-ai.md)**<br/>Our compilation strategy, ML pipelines, and ADRs. | **[Reference](reference/ref-syntax.md)**<br/>Decorators, the Standard Library, and CLI bindings. |
+<div class="quadrant-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 2rem 0;">
+    <div style="border: 1px solid var(--table-border-color); padding: 1rem; border-radius: 8px;">
+        <h3>Learning Oriented</h3>
+        <p><strong>[Tutorials](tutorials/tut-getting-started.md)</strong></p>
+        <p>Step-by-step lessons to build applications and understand core concepts.</p>
+    </div>
+    <div style="border: 1px solid var(--table-border-color); padding: 1rem; border-radius: 8px;">
+        <h3>Problem Oriented</h3>
+        <p><strong>[How-To Guides](how-to/how-to-islands-and-pages.md)</strong></p>
+        <p>Practical recipes for specific tasks like deployment or database scaling.</p>
+    </div>
+    <div style="border: 1px solid var(--table-border-color); padding: 1rem; border-radius: 8px;">
+        <h3>Understanding Oriented</h3>
+        <p><strong>[Explanations](explanation/why-vox-for-ai.md)</strong></p>
+        <p>High-level overviews of the compiler architecture and design philosophy.</p>
+    </div>
+    <div style="border: 1px solid var(--table-border-color); padding: 1rem; border-radius: 8px;">
+        <h3>Information Oriented</h3>
+        <p><strong>[Reference](reference/ref-syntax.md)</strong></p>
+        <p>Technical specifications for keywords, decorators, and the standard library.</p>
+    </div>
+</div>
 
 ## Quick Links
-- **[Installation](reference/ref-installation.md)**: Install the `vox` CLI and toolchain constraints.
-- **[Why Vox for AI?](explanation/why-vox-for-ai.md)**: Explore the architectural decisions behind preventing LLM hallucinations.
-- **[Golden Examples](examples/golden.md)**: Learn through strictly verified snippets covering edge cases and syntax.
-- **[GitHub Repository](https://github.com/vox-foundation/vox)**: For contribution guidelines and core development workflow (Apache-2.0).
+- **[Installation Guide](tutorials/tut-getting-started.md)**: Set up the `vox` toolchain on your machine.
+- **[Golden Examples](examples/golden.md)**: Scannable, verified code snippets for common patterns.
+- **[Internal Architecture](architecture/architecture-index.md)**: Deep dives into the compiler and runtime internals.
+- **[GitHub Repository](https://github.com/vox-foundation/vox)**: Core source code and contributor space (Apache-2.0).

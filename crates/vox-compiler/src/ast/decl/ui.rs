@@ -5,8 +5,7 @@ use crate::ast::types::TypeExpr;
 /// v0.dev AI-generated component declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct V0ComponentDecl {
-    pub prompt: String,
-    pub image_path: Option<String>,
+    pub v0_id: String,
     pub name: String,
     pub return_type: Option<TypeExpr>,
     pub span: Span,

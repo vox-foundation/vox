@@ -12,17 +12,17 @@
 # @training_prompt: Define Vox MCP tools and read-only resources.
 // ANCHOR: display
 @mcp.tool "read_file: Reads a file from disk"
-fn read_file(path: str) to str {
+fn read_file(path: str) -> str {
     ret "file contents"
 }
 
 @mcp.tool "file_uri: Echo path as a logical file URI"
-fn file_uri(path: str) to str {
+fn file_uri(path: str) -> str {
     ret "file://" + path
 }
 
 @mcp.resource("vox://golden/mcp-status", "Static status blob for golden tests")
-fn mcp_golden_status() to str {
+fn mcp_golden_status() -> str {
     ret "ok"
 }
 // ANCHOR_END: display

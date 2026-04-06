@@ -19,7 +19,7 @@ Operator-facing sequence for converging on **canonical `vox.db`**, telemetry con
 
 1. `vox codex export-legacy backup.jsonl` (opens source without baseline migrate).
 2. Point `VOX_DB_PATH` at a **new file** or delete the old DB.
-3. Run any command that connects normally (e.g. `vox codex verify`) to apply baseline.
+3. Run any command that connects normally (e.g. `vox codex verify`) -> apply baseline.
 4. `vox codex import-legacy backup.jsonl` (**replace** semantics — tables cleared then loaded).
 
 ## Stage 2 — Training telemetry sidecar (`vox_training_telemetry.db`)

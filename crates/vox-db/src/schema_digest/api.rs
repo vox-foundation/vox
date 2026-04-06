@@ -22,7 +22,7 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
     let mut indexes = Vec::new();
     let mut queries = Vec::new();
     let mut mutations = Vec::new();
-    let mut actions = Vec::new();
+
 
     // Collect all table names for relationship detection
     let table_names: Vec<String> = module
@@ -78,9 +78,7 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
             Decl::Mutation(m) => {
                 mutations.push(extract_function_info(&m.func, &table_names));
             }
-            Decl::Action(a) => {
-                actions.push(extract_function_info(&a.func, &table_names));
-            }
+
             _ => {}
         }
     }
@@ -89,7 +87,7 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
     let relationships = detect_relationships(&tables);
 
     // Generate human-readable summary
-    let summary = generate_summary(&tables, &indexes, &queries, &mutations, &actions);
+    let summary = generate_summary(&tables, &indexes, &queries, &mutations);
 
     SchemaDigest {
         tables,
@@ -98,7 +96,6 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
         indexes,
         queries,
         mutations,
-        actions,
         summary,
         vcs_snapshot_id,
     }
@@ -290,24 +287,6 @@ pub fn format_llm_context(digest: &SchemaDigest) -> String {
         out.push('\n');
     }
 
-    if !digest.actions.is_empty() {
-        out.push_str("### Actions (side-effects)\n\n");
-        for a in &digest.actions {
-            let params: Vec<String> = a
-                .params
-                .iter()
-                .map(|p| format!("{}:{}", p.name, p.type_str))
-                .collect();
-            let ret = a.return_type.as_deref().unwrap_or("void");
-            out.push_str(&format!(
-                "- `{}({})` → {}\n",
-                a.name,
-                params.join(", "),
-                ret
-            ));
-        }
-        out.push('\n');
-    }
 
     out
 }

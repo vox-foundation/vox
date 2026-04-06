@@ -1,10 +1,10 @@
 // INV-01: invalid top-level line between valid declarations (recovery exercise).
-fn first() to int {
+fn first() -> int {
     ret 1
 }
 
 @@@ not_a_vox_construct @@@
 
-fn second() to int {
+fn second() -> int {
     ret 2
 }

@@ -26,7 +26,7 @@ Companion: [publication readiness audit](../architecture/scientia-publication-re
 | **Discovery signal** | Typed entry under `scientia_evidence.discovery_signals` (`contracts/scientia/discovery-signal.schema.json`): strength, family, provenance — used for **deterministic** candidate ranking only. |
 | **Machine suggestion** | LLM/heuristic output labeled `machine_suggested` + `requires_human_review` (`contracts/scientia/machine-suggestion-block.schema.json`); never grounds novelty or final claims. |
 
-**Lifecycle (happy path):** `draft` manifest → `publication-prepare` (optional `--discovery-intake-gate` for scientia-only gating; optional `preflight_profile=arxiv-assist` when arXiv handoff is the target) → optional `publication-discovery-refresh-evidence` (or MCP `vox_scientia_publication_discovery_refresh_evidence`) to merge live Socrates/sidecars and refresh `scientia_evidence` → optional `publication-discovery-scan` / `publication-discovery-explain` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
+**Lifecycle (happy path):** `draft` manifest → `publication-prepare` (optional `--discovery-intake-gate` for scientia-only gating; optional `preflight_profile=arxiv-assist` when arXiv handoff is the target) → optional `publication-discovery-refresh-evidence` (or MCP `vox_scientia_publication_discovery_refresh_evidence`) -> merge live Socrates/sidecars and refresh `scientia_evidence` → optional `publication-discovery-scan` / `publication-discovery-explain` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
 
 ## 2. Canonical status vocabulary (T002)
 
@@ -211,13 +211,13 @@ The rollup includes `"metrics_schema_version": <integer>` at the top level. Incr
 1. Export Zenodo staging: `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo`.
 2. Point **`VOX_ZENODO_STAGING_DIR`** at that directory before `publication-submit-local` / pipeline / external job (adapter `zenodo`).
 3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission_package.rs) plan that exists on disk.
-4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) to match bytes before each bucket `PUT`.
+4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) -> match bytes before each bucket `PUT`.
 5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`** { fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
 6. **`VOX_ZENODO_DRAFT_ONLY`** / **`VOX_ZENODO_PUBLISH_NOW`** compose with attach + staging per [`scholarly/flags`](../../../crates/vox-publisher/src/scholarly/flags.rs).
 
 ## 14. OpenReview submit profile export (T094)
 
-Use **`vox scientia publication-openreview-profile --publication-id <id>`** (or `vox db publication-openreview-profile`) to print merged **invitation**, **signature**, **readers**, and resolved **api_base** — same merge as live submit (`VOX_OPENREVIEW_*` / `OPENREVIEW_*` plus `metadata_json.openreview.*`). No HTTP; safe in CI to verify manifest overlays before enabling **`VOX_SCHOLARLY_DISABLE_LIVE=0`**.
+Use **`vox scientia publication-openreview-profile --publication-id <id>`** (or `vox db publication-openreview-profile`) -> print merged **invitation**, **signature**, **readers**, and resolved **api_base** — same merge as live submit (`VOX_OPENREVIEW_*` / `OPENREVIEW_*` plus `metadata_json.openreview.*`). No HTTP; safe in CI to verify manifest overlays before enabling **`VOX_SCHOLARLY_DISABLE_LIVE=0`**.
 
 ## 15. Scholarly pipeline machine output (T095)
 

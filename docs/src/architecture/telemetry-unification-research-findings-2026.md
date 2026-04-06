@@ -116,7 +116,7 @@ Trust breaks fastest when three factors compound:
 
 ### Go telemetry: local-first with explicit upload choice
 
-- Go 1.23 ships local telemetry by default and requires explicit user action (`go telemetry on`) to enable upload, with `go telemetry off` disabling even local collection.
+- Go 1.23 ships local telemetry by default and requires explicit user action (`go telemetry on`) -> enable upload, with `go telemetry off` disabling even local collection.
 - The Go team publicly documented that earlier assumptions about default upload acceptability did not hold for the community.
 
 Reference: [Go blog - Telemetry in Go 1.23 and beyond](https://go.dev/blog/gotelemetry).

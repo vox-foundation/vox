@@ -1,0 +1,10 @@
+# Mix configuration for research domain
+lanes:
+  research_pairs:
+    path: target/dogfood/research_pairs.validated.jsonl
+    weight: 4
+    optional: true
+  socrates_knowledge:
+    path: target/dogfood/socrates_knowledge.jsonl
+    weight: 3
+    optional: true

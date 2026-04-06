@@ -125,7 +125,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 ## Phase 1 cleanups (done)
 
 - Removed empty `crates/vox-compiler/src/typeck/checker.py` (doc inventory regenerated).
-- Fix [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1) to use **`vox mens train`** (not `vox populi train`).
+- Fix [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1) -> use **`vox mens train`** (not `vox populi train`).
 - Align [`infra/containers/entrypoints/populi-entrypoint.sh`](../../../infra/containers/entrypoints/populi-entrypoint.sh) **train** branch to **`vox mens train`**; document **serve/agent** limitations in this doc.
 - Mark **`vox_continuous_trainer.ps1`** as deprecated in-script; prefer **`vox mens corpus`** + **`vox mens pipeline`**.
 - Correct **[`scripts/README.md`](../../../scripts/README.md)** canonical train line to match **`vox mens train`** (matches `run_qwen25_qlora_real_4080.ps1`).

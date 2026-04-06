@@ -120,7 +120,7 @@ impl Printer {
             Decl::ServerFn(s) => self.print_fn(&s.func, "@server "),
             Decl::Query(q) => self.print_fn(&q.func, "@query "),
             Decl::Mutation(m) => self.print_fn(&m.func, "@mutation "),
-            Decl::Action(a) => self.print_fn(&a.func, "@action "),
+
             Decl::Skill(s) => self.print_fn(&s.func, "@skill "),
             Decl::AgentDef(a) => self.print_fn(&a.func, "@agent_def "),
             Decl::Scheduled(s) => {

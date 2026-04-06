@@ -12,7 +12,7 @@ training_eligible: true
 ### Actor
 A stateful, autonomous unit of computation that communicates via asynchronous messages. In Vox, actors can persist state across restarts using `state_load` and `state_save`.
 ```vox
-// Skip-Test
+// vox:skip
 actor Counter {
     on inc(amount: int) -> int { return 1 }
 }
@@ -21,7 +21,7 @@ actor Counter {
 ### ADT (Algebraic Data Type)
 A composite type formed by combining other types. In Vox, this primarily refers to **Structs** (product types) and **Enums** (sum types/tagged unions).
 ```vox
-// Skip-Test
+// vox:skip
 type Status = | Pending | Active(user: str)
 ```
 
@@ -38,7 +38,7 @@ The unified data and knowledge store in Vox (the logical database environment), 
 The Vox orchestrator responsible for task dispatch, agent lifecycle management, file affinity, and runtime telemetry.
 
 ### Durable Execution
-The ability of a program (specifically a **Workflow**) to persist its state and progress so that it can resume exactly where it left off after an interruption or crash using an interpreted journal.
+The ability of a program (specifically a **Workflow**) -> persist its state and progress so that it can resume exactly where it left off after an interruption or crash using an interpreted journal.
 
 ### HIR (High-level Intermediate Representation)
 The semantic representation of Vox source code used for type checking and initial lowering phases.
@@ -46,14 +46,14 @@ The semantic representation of Vox source code used for type checking and initia
 ### Island
 A reactive UI component (compiled to React) that can be embedded in a server-rendered page. Defined using the `@island` decorator.
 ```vox
-// Skip-Test
-@island fn UserProfile(user: str) -> Element { <div>{user}</div> }
+// vox:skip
+@island UserProfile { user: str }
 ```
 
 ### MCP (Model Context Protocol)
 An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via `@mcp.tool`.
 ```vox
-// Skip-Test
+// vox:skip
 @mcp.tool "Search KB"
 fn search_kb(topic: str) -> str { return "ok" }
 ```
@@ -78,6 +78,6 @@ The empty type, equivalent to `void` in C/TS or `()` in Rust.
 ### Workflow
 A durable, long-running process defined with the bare `workflow` keyword, supporting orchestrated activities, retries, timeouts, and state persistence.
 ```vox
-// Skip-Test
+// vox:skip
 workflow onboard(user: str) -> Result[bool] { return Ok(true) }
 ```

@@ -63,7 +63,7 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::Impl(_) => "impl",
             Decl::Query(_) => "query",
             Decl::Mutation(_) => "mutation",
-            Decl::Action(_) => "action",
+
             Decl::Skill(_) => "skill",
             Decl::AgentDef(_) => "agent_def",
             Decl::Agent(_) => "agent",

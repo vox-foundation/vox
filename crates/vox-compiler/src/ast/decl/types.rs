@@ -130,8 +130,7 @@ pub enum Decl {
     Query(QueryDecl),
     /// Transactional write function.
     Mutation(MutationDecl),
-    /// Orchestrated server action.
-    Action(ActionDecl),
+
     /// Packaged LLM / tool skill.
     Skill(SkillDecl),
     /// Agent definition (capabilities + handlers).
@@ -203,7 +202,7 @@ impl Decl {
             Decl::Impl(i) => i.span,
             Decl::Query(q) => q.func.span,
             Decl::Mutation(m) => m.func.span,
-            Decl::Action(a) => a.func.span,
+
             Decl::Skill(s) => s.func.span,
             Decl::AgentDef(ad) => ad.func.span,
             Decl::Agent(a) => a.span,

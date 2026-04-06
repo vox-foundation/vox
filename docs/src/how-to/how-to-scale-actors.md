@@ -16,7 +16,7 @@ As your application grows beyond a single executable, Vox Actors must scale hori
 By default, an initialized Actor runs in memory on the node where `spawn` was invoked. In a distributed environment, you rely on the **Codex** to synchronize and persist state securely.
 
 ```vox
-// Skip-Test
+// vox:skip
 actor SessionManager {
     on Login(user: str) -> Result[str] {
         let current_sessions = state_load("active_users")
@@ -39,8 +39,32 @@ When scaling the inference compute or orchestration logic via Populi Meshes, Vox
 To dispatch an orchestration task externally, the framework determines placement inherently via the resource requests. 
 
 > [!WARNING]
-> Manual remote procedure calls (RPC) to force specific Actor placement remains in active development. As of v0.3, horizontal scaling predominantly operates seamlessly behind standard `routes { }` load-balancing and Turso replicated databases, rather than direct point-to-point remote actor message passing.
+> Manual remote procedure calls (RPC) -> force specific Actor placement remains in active development. As of v0.3, horizontal scaling predominantly operates seamlessly behind standard `routes { }` load-balancing and Turso replicated databases, rather than direct point-to-point remote actor message passing.
 
-## Designing Stateless Workers
+## Actor Naming and Discovery
 
-Where possible, convert stateful actor workloads into durable `workflow` execution graphs. Because a `workflow` relies entirely on journaled steps in the persistence layer, if the parent node dies midway, any healthy node observing the mesh queue will implicitly pick up the workflow and continue from the exact boundary checkpoint boundary of the last successful `activity`!
+By default, `spawn` produces a random anonymous identity. For singleton services or discoverable workers, you can provide a stable name. 
+
+Stable names allow the system to route messages to the correct instance across a cluster and ensure that only one instance of that specific actor exists.
+
+```vox
+// vox:skip
+let session_ref = spawn SessionManager() with { name: "user_session_" + user_id }
+```
+
+## Lifecycle and Restart Behavior
+
+Actors in Vox are designed for "Let it Crash" reliability. If an actor panics or its host node fails:
+
+1. **Detection**: The Process Registry (Codex) detects the heartbeat failure.
+2. **Re-hydration**: The actor is re-spawned on a healthy node.
+3. **Recovery**: The new instance calls `state_load`. Since `state_save` was persistent, no data is lost.
+4. **Resumption**: Message ordering is guaranteed; pending messages in the durable mailbox are redelivered to the new instance.
+
+---
+
+## Best Practices for Scale
+
+- **Prefer Workflows**: For long-running business logic, `workflow` is safer than a long-lived actor because and provides step-level journaling.
+- **Stateless handlers**: Keep actor handlers as pure as possible between `state_load` and `state_save`.
+- **Avoid Large State**: Keep actor state small (under 1MB) to ensure rapid re-hydration across nodes.

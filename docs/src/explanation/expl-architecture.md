@@ -218,7 +218,7 @@ The full checklist for adding a new language construct:
 
 ## Next Steps
 
-- [Language Guide](../reference/ref-language.md) — Full syntax and feature reference
+- [Language Reference](../reference/ref-syntax.md) — Full syntax and feature reference
 - [Actors & Workflows](expl-actors-workflows.md) — Workflow durability and actor persistence
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
 - [Web IR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map

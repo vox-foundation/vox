@@ -15,7 +15,7 @@ Learn how to write and run automated tests for your Vox application using the bu
 Use the `@test` decorator to mark functions as test cases. These functions can be run with the `vox test` command.
 
 ```vox
-// Skip-Test
+// vox:skip
 @test 
 fn test_addition() -> Unit {
     assert(1 + 1 == 2)
@@ -27,7 +27,7 @@ fn test_addition() -> Unit {
 Rather than language-level magic, Vox encourages simple, plain functions for setup logic that can be reused across test cases.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn setup_mock_db() -> Database {
     return spawn MockDatabase()
 }
@@ -43,17 +43,51 @@ fn test_query() -> Unit {
 > [!WARNING]
 > Historical decorators `@fixture` and `@mock` are considered aspirational. Use standard helper functions for state-setup instead.
 
-## 3. Integration Testing
+## 3. Property Writing with `@forall`
 
-Test your full-stack logic by running the compiler and checking the generated output or simulating HTTP requests.
+Vox supports property-based testing. The test runner will generate random inputs for your function to find edge cases where your assertions fail.
+
+```vox
+// vox:skip
+@forall
+fn test_addition_commutative(a: int, b: int) -> Unit {
+    assert(a + b == b + a)
+}
+```
+
+## 4. Fuzzing with `@fuzz`
+
+For deeper security and stability testing, the `@fuzz` decorator uses the project's native LLVM-based fuzzer to explore illegal execution paths.
+
+```vox
+// vox:skip
+@fuzz
+fn fuzz_parser(input: str) -> Unit {
+    let _ = parse_json(input) // Fuzzer tries to crash this
+}
+```
+
+## 5. Running Tests and Output Format
+
+Use the `vox test` command to execute your suite.
 
 ```bash
-# Run all tests in the project
 vox test src/
 ```
 
+**Output Example**:
+```text
+[PASS] tests::test_addition (1.2ms)
+[PASS] tests::test_addition_commutative (100 iterations)
+[FAIL] tests::fuzz_parser
+       > Reason: Panic at core.vox:120 (division by zero)
+       > Input: "{"a": 0}"
+```
+
 ## Summary
-- Use `@test` to label individual test cases to be picked up by the compiler harness.
+- Use `@test` for standard unit tests.
+- Use `@forall` for property-based data validation.
+- Use `@fuzz` for security and crash-resilience testing.
 - Write standard functions that serve as setups, fixtures, and mocks explicitly.
 - Run `vox test <path>` to execute blocks tagged with `@test`.
 

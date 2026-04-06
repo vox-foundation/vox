@@ -12,7 +12,7 @@
 }
 // ANCHOR_END: data_model
 
-@server fn health() to Result[str] {
+@server fn health() -> Result[str] {
     ret Ok("ok")
 }
 
@@ -29,16 +29,16 @@ routes {
 
 // ANCHOR: concepts
 // ANCHOR: logic
-@query fn get_notes() to List[Note] {
+@query fn get_notes() -> List[Note] {
     ret db.Note.all()
 }
 
-@mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
+@mutation fn create_note(title: str, content: str) -> Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
     ret Ok(id)
 }
 
-workflow order(id: str) to Result[Unit] {
+workflow order(id: str) -> Result[Unit] {
     let status = activity check_inventory(id)
     ret Ok(())
 }

@@ -215,7 +215,7 @@ PlanBridge step     -> mcp_pre_emit_validate("vox")
 48. Wire Observer shutdown into `Orchestrator::retire_agent`
 49. Emit `VisualizerEventKind::ObservationRecorded` from `viz_sink`
 50. Implement `Observer::compute_action(report, policy) -> ObserverAction`
-51. Add `observation_history: VecDeque<ObservationReport>` (cap 20) to `AgentTask`
+51. Add `observation_history: VecDeque<ObservationReport>` (cap 20) -> `AgentTask`
 52. Feed `ObservationReport` into Arca `observer_events`
 53. Implement `Observer::summarize(task_id) -> ObservationSummary`
 54. Add `observation_summary: Option<ObservationSummary>` to `CompletionAttestation`

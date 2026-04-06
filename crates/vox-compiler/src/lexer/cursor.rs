@@ -108,15 +108,6 @@ mod tests {
     }
 
     #[test]
-    fn test_single_quote_strings() {
-        let tokens = lex_tokens("'user'");
-        assert_eq!(
-            tokens,
-            vec![Token::SingleQuoteStringLit("user".into()), Token::Eof]
-        );
-    }
-
-    #[test]
     fn test_numeric_literals() {
         let tokens = lex_tokens("42 2.75");
         assert_eq!(
@@ -149,7 +140,7 @@ mod tests {
                 Token::AtComponent,
                 Token::AtMcpTool,
                 Token::AtMcpResource,
-                Token::AtExternal,
+
                 Token::AtIsland,
                 Token::Eof
             ]

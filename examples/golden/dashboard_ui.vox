@@ -19,7 +19,7 @@ type DashboardStatus =
     data: list[int]
 }
 
-@component fn DashboardView() to Element {
+@component fn DashboardView() -> Element {
     ret <div className="dashboard">
         <h1>Dashboard</h1>
         <DataChart data=[1, 2, 3] />

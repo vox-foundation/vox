@@ -16,7 +16,7 @@ Testing in Vox focuses on unit tests and bounded integration tests using the `@t
 Any function annotated with `@test` will be executed during a `vox test` invocation. The `assert` global built-in is used to evaluate conditions.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn calculate_total(subtotal: int, tax: int) -> int {
     return subtotal + tax
 }
@@ -33,7 +33,7 @@ fn test_calculate_total() -> Unit {
 When testing functions that return `Result[T, E]`, you typically use `match` to assert the correct execution branch.
 
 ```vox
-// Skip-Test
+// vox:skip
 @test
 fn test_database_insert_validation() -> Unit {
     let invalid_data = { title: "", owner: "alice" }
@@ -51,7 +51,7 @@ fn test_database_insert_validation() -> Unit {
 Workflows and Activities evaluate sequentially and synchronously from the tester's perspective because the execution context blocks until the workflow concludes or hits a checkpoint limit.
 
 ```vox
-// Skip-Test
+// vox:skip
 @test
 fn test_order_workflow() -> Unit {
     // Run the workflow natively

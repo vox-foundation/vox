@@ -1,6 +1,6 @@
 ---
 title: "Vox Documentation Style Guide"
-description: "Official documentation for Vox Documentation Style Guide for the Vox language. Detailed technical reference, architecture guides, and imp"
+description: "Official documentation style guide for the Vox language, covering tone, syntax formatting, and documentation structure."
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true

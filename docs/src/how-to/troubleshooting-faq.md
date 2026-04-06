@@ -110,3 +110,43 @@ vox completions powershell >> $PROFILE
 **Cause**: The orchestrator has no active agents. Agents are only spawned when tasks are submitted.
 
 **Fix**: Submit a task via an AI session or run `vox orchestrator spawn` to create a dev agent, then reload the dashboard.
+---
+
+## Compiler Diagnostics & Error Codes
+
+The Vox compiler provides structured diagnostic codes to help you (and AI agents) fix code rapidly.
+
+### `E0001`: Argument count mismatch
+**Message**: `Argument count mismatch: expected X arguments, found Y`
+**Cause**: You called a function with the wrong number of parameters.
+**Fix**: Match the function signature. If you want optional arguments, use `Option[T]`.
+
+### `E0002`: Tuple size mismatch
+**Message**: `Tuple size mismatch: expected X, found Y`
+**Cause**: Attempting to destructure or assign a tuple of different lengths.
+
+### `E0003`: Function arity mismatch
+**Message**: `Function arity mismatch: expected X, found Y`
+**Cause**: Occurs during higher-order function passing where the callback signature doesn't match the expected parameter count.
+
+### `E0063`: Missing record fields
+**Message**: `Missing record fields: [field_name]`
+**Cause**: You instantiated a struct or table without providing all required non-Option fields.
+**Fix**: Provide the missing fields or update the type definition to use `Option[T]`.
+
+### `E0101`: Immutable assignment
+**Message**: `Cannot assign to immutable variable X`
+**Cause**: Attempting to mutate a variable not declared with `mut`.
+**Fix**: Change `let x = ...` to `let mut x = ...`.
+
+### `E0404`: Module search failure
+**Message**: `Failed to resolve module X`
+**Cause**: The imported file or crate is missing from the search path.
+**Fix**: Check your `import` paths and ensure the dependency is in your project or listed in `vox.lock`.
+
+---
+
+## Further Operations
+- [Vox FAQ](../explanation/faq.md) — Architectural and conceptual Q&A.
+- [`vox doctor`](../reference/cli.md#doctor) — Automates environment verification.
+- [Contributor Hub](../contributors/contributor-hub.md) — If you've found a compiler bug.

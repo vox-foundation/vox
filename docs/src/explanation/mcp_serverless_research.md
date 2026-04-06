@@ -8,7 +8,7 @@ training_eligible: true
 # Research Notes: Achieving Serverless-like Performance with MCP
 
 ## Context
-The goal is to analyze what can be learned from connectionless or "serverless" paradigms like UCP (Universal Commerce Protocol or conceptually connectionless protocols like UDP) to enhance the Model Context Protocol (MCP) in Vox. We want to decrease overhead and improve performance while maintaining the power and compatibility of the existing MCP standard.
+The goal is to analyze what can be learned from connectionless or "serverless" paradigms like UCP (Universal Commerce Protocol or conceptually connectionless protocols like UDP) -> enhance the Model Context Protocol (MCP) in Vox. We want to decrease overhead and improve performance while maintaining the power and compatibility of the existing MCP standard.
 
 ## Findings & Enhancements for MCP
 

@@ -11,16 +11,16 @@
 // ---
 # @training_prompt: Write a Vox @test that uses helper fns and assert.
 // ANCHOR: display
-fn setup_user() to list[str] {
+fn setup_user() -> list[str] {
     ret ["alice", "bob"]
 }
 
-fn mock_db_read() to str {
+fn mock_db_read() -> str {
     ret "mock_data"
 }
 
 @test
-fn test_user_count() to Unit {
+fn test_user_count() -> Unit {
     let users = setup_user()
     assert(len(users) > 0)
     let db_val = mock_db_read()

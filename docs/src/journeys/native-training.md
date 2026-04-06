@@ -24,7 +24,7 @@ You can extract your `@table` records, instruct Vox to assemble training pairs d
 To orchestrate a training pipeline, you specify the data source, the checkpoint strategy, and the hyperparameters straight from Vox constructs.
 
 ```vox
-// Skip-Test
+// vox:skip
 // Import the native tensor functions and MENS integration logic
 import vox.mens.training
 import vox.mens.qlora

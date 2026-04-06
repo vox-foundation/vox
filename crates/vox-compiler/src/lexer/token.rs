@@ -100,8 +100,6 @@ pub enum Token {
     AtMcpTool,
     #[token("@mcp.resource")]
     AtMcpResource,
-    #[token("@external")]
-    AtExternal,
     #[token("@test")]
     AtTest,
     #[token("@server")]
@@ -260,7 +258,6 @@ pub enum Token {
         }
         Some(out)
     })]
-    SingleQuoteStringLit(String),
 
     // ── Identifiers ───────────────────────────────────────────
     /// Lower-case identifiers (variables, functions).
@@ -272,7 +269,6 @@ pub enum Token {
     TypeIdent(String),
 
     // ── Comments ──────────────────────────────────────────────
-    #[regex(r"#[^\r\n]*", allow_greedy = true)]
     #[regex(r"//[^\r\n]*", allow_greedy = true, priority = 3)]
     Comment,
 
@@ -329,7 +325,6 @@ impl std::fmt::Display for Token {
             Token::AtComponent => write!(f, "@component"),
             Token::AtMcpTool => write!(f, "@mcp.tool"),
             Token::AtMcpResource => write!(f, "@mcp.resource"),
-            Token::AtExternal => write!(f, "@external"),
             Token::AtTest => write!(f, "@test"),
             Token::AtServer => write!(f, "@server"),
             Token::AtQuery => write!(f, "@query"),
@@ -380,7 +375,6 @@ impl std::fmt::Display for Token {
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),
-            Token::SingleQuoteStringLit(s) => write!(f, "'{s}'"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),
             Token::Comment => write!(f, "<comment>"),

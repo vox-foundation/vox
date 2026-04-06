@@ -71,7 +71,21 @@ actor Worker {
 }
 ```
 
-## 5. Summary Checklist
+## 5. Behind the Scenes: How Actors Compile
+
+When you run `vox build`, the compiler lowers actor constructs directly into high-performance Rust primitives:
+
+| Vox Construct | Compiled Rust Equivalent |
+| :--- | :--- |
+| `actor X` | `struct X` + `enum XMessage` + `async fn run(mailbox)` |
+| `state count: int` | Struct field in the actor's private state struct |
+| `spawn X()` | `tokio::spawn` + `mpsc::channel` creation |
+| `ref.send msg()` | `mpsc::Sender::send` (fire and forget) |
+| `await ref.get()` | `oneshot::channel` + `mpsc::send` (request/reply) |
+| `state_load(key)` | `Codex::get_actor_state(actor_id, key)` |
+| `state_save(key, v)` | `Codex::put_actor_state(actor_id, key, v)` |
+
+## 6. Summary Checklist
 
 - [x] **Isolation**: State is never shared; only messages pass between actors.
 - [x] **Persistence**: Use `state_load`/`state_save` for durable state.

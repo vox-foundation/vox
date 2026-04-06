@@ -123,17 +123,11 @@ pub fn generate_with_options(
         let v0 = &hir_v0.0;
         let filename = format!("{}.tsx", v0.name);
 
-        let prompt_comment = if !v0.prompt.is_empty() {
-            format!("Prompt: {}", v0.prompt)
-        } else if let Some(ref img) = v0.image_path {
-            format!("From image: {}", img)
-        } else {
-            "No prompt provided".to_string()
-        };
+        let comment = format!("v0 integration ID: {}", v0.v0_id);
 
         let content = format!(
-            "// @v0 generated component\n// {}\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* AI component definition pending API integration */}}</div>;\n}}\n",
-            prompt_comment, v0.name
+            "// @v0 generated component\n// {}\n// Note: This file will be overwritten by `npx v0 add` sidecar during build.\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* @v0 component pending v0 CLI download */}}</div>;\n}}\n",
+            comment, v0.name
         );
         files.push((filename, content));
     }

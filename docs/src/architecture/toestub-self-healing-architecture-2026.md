@@ -167,7 +167,7 @@ This architecture should persist detector and remediation outcomes in VoxDB by r
   - `record_toestub_run_summary`
   - `record_toestub_rule_quality`
   - `record_toestub_remediation_outcome`
-- Keep payload schema versioned in JSON (`schema_version`) to avoid brittle readers.
+- Keep payload schema versioned in JSON (`schema_version`) -> avoid brittle readers.
 - Enforce retention/cleanup policy for noisy run telemetry (avoid unbounded growth).
 - Never store raw secrets or full file contents in telemetry payloads.
 

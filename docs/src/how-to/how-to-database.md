@@ -19,15 +19,26 @@ Any type struct adorned with the `@table` decorator becomes a persistent databas
 {{#include ../../../examples/golden/getting_started.vox:data_model}}
 ```
 
-### Adding Index Declarations
+### Indexing for Performance
 
-To speed up lookups, use the `@index` syntax. The compiler will generate the necessary DB metadata for you.
+To speed up lookups on large datasets, use the `@index` syntax. Vox determines the optimal storage engine (B-Tree or Hash) and generates the SQL automatically.
 
 ```vox
 // vox:skip
-// Creates a fast lookup tree for 'owner'
-@index Task.by_owner on (owner)
+@table type User {
+    email: str
+    team_id: Id[Team]
+}
+
+// Unique index: prevents duplicate emails
+@index User.unique_email on (email) unique
+
+// Composite index: speeds up filtered team lookups
+@index User.by_team on (team_id, email)
 ```
+
+> [!TIP]
+> Always index foreign keys (like `Id[T]`) if you plan to filter or join on them frequently.
 
 ## Basic CRUD Accessors
 
@@ -97,9 +108,29 @@ For security, you should rarely expose `db.*` calls directly to UI islands or ag
 
 The compiler verifies that a `@query` function does not contain `.insert`, `.update`, or `.delete` operations.
 
+### Transactional Integrity with `@mutation`
+
+Every function marked with `@mutation` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
+
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:logic}}
+// vox:skip
+@mutation
+fn transfer_funds(from: Id[Account], to: Id[Account], amount: int) -> Result[Unit] {
+    let mut sender = db.Account.find(from)?
+    let mut receiver = db.Account.find(to)?
+    
+    sender.balance -= amount
+    receiver.balance += amount
+    
+    db.Account.update(from, sender)
+    db.Account.update(to, receiver)
+    
+    return Ok(())
+}
 ```
+
+Under the hood, this uses `Codex::transaction` to ensure ACID compliance across the local SQLite or distributed Turso mesh.
+
 
 ## The Escape Hatch: Raw SQL
 

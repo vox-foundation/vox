@@ -35,10 +35,10 @@ Canonical parser and output truth sources:
 | --- | --- | --- |
 | Reactive component (Path C) | `component Name(params) { state ... derived ... mount: ... view: <div /> }` | `crates/vox-compiler/src/parser/descent/decl/tail.rs` |
 | Reactive via decorator | `@island Name(params) { ... }` (same reactive body) | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
-| Legacy component fn | `@island fn Name(...) to Element { ... }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| Legacy component fn | `@island fn Name(...) -> Element { ... }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
 | Island declaration | `@island Name { prop: Type prop2?: Type }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
 | Routes declaration | `routes { "/" to Home "/about" to About }` | `crates/vox-compiler/src/parser/descent/decl/tail.rs` |
-| Server fn declaration | `@server fn echo(x: str) to str { ret x }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| Server fn declaration | `@server fn echo(x: str) -> str { ret x }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
 | JSX attributes | `class=`, `on:click=`, `on_click=`, `data-*=` forms | `crates/vox-compiler/src/parser/descent/expr/pratt_jsx.rs` |
 | Component style block | `style { .class { prop: "value" } }` (string literal values) | `crates/vox-compiler/src/parser/descent/expr/style.rs` |
 
@@ -64,7 +64,7 @@ Canonical parser and output truth sources:
 ### 1) `.vox` source today (parser-valid, island + CSS + routes + HTTP + server)
 
 ```vox
-// Skip-Test
+// vox:skip
 import react.use_state
 
 @island DataChart {
@@ -110,7 +110,7 @@ Why this shape is canonical:
 ### 2) `.vox` low-k translation today (parser-valid Path C form)
 
 ```vox
-// Skip-Test
+// vox:skip
 @island DataChart {
     title: str
     data: str

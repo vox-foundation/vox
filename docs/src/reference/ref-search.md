@@ -11,7 +11,7 @@ Vox provides multiple ways to search and navigate the documentation to find exac
 
 ## Full-Text Search
 
-Click the **Search** icon at the top of the sidebar (or press `S` on your keyboard) to open the full-text search overlay.
+Click the **Search** icon at the top of the sidebar (or press `S` on your keyboard) -> open the full-text search overlay.
 
 - Responses update instantly as you type.
 - Matches are highlighted in the search results and on the target page.

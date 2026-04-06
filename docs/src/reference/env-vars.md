@@ -93,7 +93,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config/mod.rs)). |
 | `VOX_A2A_CONSUMER_ID` | Override the **claim owner** string for [`VoxDb::poll_a2a_inbox`](../../../crates/vox-db/src/store/ops_ludus/gamify_extended.rs) (default `pid:<process_id>`). |
 | `VOX_ORCH_LINEAGE_OFF` | When `1` / `true` / `yes`, skips append-only `orchestration_lineage_events` writes from the orchestrator (rollback toggle). |
-| `VOX_ORCH_CAMPAIGN_ID` | Optional opaque string (trimmed) stored in select lineage payloads (`plan_session_created`, workflow handoff, replan, etc.) to group runs across `plan_session_id` values. |
+| `VOX_ORCH_CAMPAIGN_ID` | Optional opaque string (trimmed) stored in select lineage payloads (`plan_session_created`, workflow handoff, replan, etc.) -> group runs across `plan_session_id` values. |
 | `VOX_WORKFLOW_JOURNAL_CODEX_OFF` | When `1` / `true` / `yes`, skips Codex persistence for interpreted workflow journals after `vox mens workflow run` (see [`workflow_journal_codex`](../../../crates/vox-cli/src/workflow_journal_codex.rs)). |
 | `VOX_DB_CIRCUIT_BREAKER` | When enabled in [`DbCircuitBreaker::from_env`](../../../crates/vox-db/src/circuit_breaker.rs), gates selected Turso writes (locks, heartbeats, lineage, CAS, sessions, LLM logs, `agent_events`, Codex skills + **`chat_*`** user chat / usage / topics, generic `actor_state`, registry preference wipe, research ingest + capability map, `populi_training_run`, legacy JSONL data rows + `legacy_import_extras`, TOESTUB persistence, schemaless `Collection` document writes, agent memory/knowledge/search/embeddings, publication + scholarly/external jobs + planning + news + mens cloud + questioning, Ludus `gamify_*` / A2A / oplog / Ludus `actor_state`, learning + workflow journal + retention deletes + MCP chat transcripts, build observability + `components` — see `circuit_breaker.rs`). |
 | `VOX_DB_SYNC_INTEGRATION` | Set to `1` with remote URL+token to enable the opt-in [`sync_for(ReplicaLatest)`](../../../crates/vox-db/src/store/open.rs) integration test (`vox-db` `sync_remote_integration.rs`). |
@@ -106,7 +106,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE` | When `1` / `true` **and** reconcile is enabled, after each bad-holder diagnosis MCP calls **`POST /v1/populi/admin/exec-lease/revoke`** for that **`lease_id`** (requires mesh/admin bearer on the HTTP client — same token path as lease list). **Dangerous** when holders are only briefly stale or in cooperative maintenance; prefer manual revoke unless you accept freeing **`scope_key`** aggressively. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS` | Poll interval for consuming `remote_task_envelope` rows in remote worker mode (`0` disables). |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
-| `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) to reduce expensive training placements under budget pressure. |
+| `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) -> reduce expensive training placements under budget pressure. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL` | When `1`/`true`, enables [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) relay over populi A2A. Without lease gating, relay runs **after** local enqueue (local execution can still run in parallel — legacy path). |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED` | When `1`/`true` with **`VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES`**, matching tasks use **single-owner** semantics: awaited relay, then **remote-hold** (no local dequeue) or **local-only** fallback if relay fails. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES` | Comma-separated execution roles: `planner`, `builder`, `verifier`, `reproducer`, `researcher`. |
@@ -277,7 +277,7 @@ Full table: [mens SSOT](populi.md). Common entries:
 | `VOX_MESH_CONTROL_ADDR` | This process’s control plane URL (publish/join target). |
 | `VOX_MESH_TOKEN` / `VOX_MESH_WORKER_TOKEN` / `VOX_MESH_SUBMITTER_TOKEN` / `VOX_MESH_ADMIN_TOKEN` | Populi control-plane bearer roles (Clavis SSOT); legacy single-token mode uses `VOX_MESH_TOKEN` only. See [mens SSOT](populi.md). |
 | `VOX_MESH_JWT_HMAC_SECRET` | Optional HS256 secret so clients can use `Authorization: Bearer <jwt>` with claims `role`, `jti`, `exp` (Clavis SSOT). |
-| `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Optional Ed25519 public key (hex or Standard base64) to verify signed `job_result` / `job_fail` deliveries (worker signs raw BLAKE3 digest). |
+| `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Optional Ed25519 public key (hex or Standard base64) -> verify signed `job_result` / `job_fail` deliveries (worker signs raw BLAKE3 digest). |
 | `VOX_MESH_SCOPE_ID` | Tenancy for join/heartbeat when enforced server-side. |
 | `VOX_MESH_A2A_LEASE_MS` | Inbox claim lease duration (default 120s, clamped). |
 | `VOX_MESH_MAX_STALE_MS` | Client-side staleness filter for mens snapshots (MCP). |

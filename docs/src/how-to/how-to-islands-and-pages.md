@@ -23,7 +23,7 @@ Vox relies on a server-first web architecture. Rather than building massive clie
 Let's stick with the `Task` domain. Suppose you want a UI component to render a list of tasks.
 
 ```vox
-// Skip-Test
+// vox:skip
 import react.use_state
 
 @island
@@ -53,7 +53,7 @@ Within an `@island` body, the compiler supports standard JSX syntax.
 The power of Vox is that your frontend and backend are co-located in the same file. You can call an `@server` function directly from a client-side button click without writing manual `fetch()` bindings!
 
 ```tsx
-// Skip-Test
+// vox:skip
 @server fn complete_task(id: Id[Task]) -> Result[Unit] {
     db.Task.update(id, { done: true })
     return Ok(())
@@ -79,7 +79,7 @@ The Vox compiler automatically generates the TypeScript client, handles the asyn
 To get your database state into the `TaskList`, you map an endpoint directly to the UI component via the `routes` block. The system will automatically resolve queries to fulfill the `tasks` prop of `TaskList`.
 
 ```vox
-// Skip-Test
+// vox:skip
 @query
 fn get_active_tasks() -> list[Task] {
     return db.Task.where({ done: false }).all()
@@ -97,7 +97,7 @@ routes {
 The `routes` block maps URL paths directly to server responses or UI.
 
 ```vox
-// Skip-Test
+// vox:skip
 routes {
     "/"              -> HomeIsland     # Render an Island 
     "/tasks"         -> TaskList       # Render the TaskList
@@ -108,12 +108,12 @@ routes {
 ## AI-Generated Islands
 
 > [!TIP]
-> Vox supports a special `@v0` decorator for rapid prototyping.
+> Vox supports a special `@v0` decorator for pulling down interface prototypes.
 > ```vox
-> @v0 "A sleek dark-mode pricing table with 3 tiers"
-> fn PricingTable() to Element
+> @v0 "yM1xXq6"
+> fn PricingTable() -> Element
 > ```
-> The orchestrator will dynamically synthesize this implementation at build time. Use this pattern for visual placeholders while focusing on backend business logic.
+> The orchestrator will dynamically download the requested implementation into `target/generated/` at build time by calling Vercel's CLI. Use this pattern to integrate high-fidelity layouts without context switching.
 
 ---
 

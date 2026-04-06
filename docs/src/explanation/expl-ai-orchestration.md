@@ -13,7 +13,7 @@ Vox was built from the ground up to blur the lines between traditional applicati
 
 ## The MCP Bridge
 
-The Model Context Protocol establishes a standard way for AI assistants (like Claude Desktop, Cursor, or your own models) to safely discover and interact with local data sources and tools.
+The Model Context Protocol establishes a standard way for AI assistants (like Claude Desktop, Cursor, or your own models) -> safely discover and interact with local data sources and tools.
 
 Vox seamlessly generates MCP servers natively from the logic you've already written.
 
@@ -22,7 +22,7 @@ Vox seamlessly generates MCP servers natively from the logic you've already writ
 The `@mcp.tool` decorator tells the Vox compiler to expose a function to any connected LLM. 
 
 ```vox
-// Skip-Test
+// vox:skip
 @mcp.tool "Calculate the shipping cost including surge pricing"
 fn calculate_shipping(weight: float, zip_code: str) -> float {
     // Logic here
@@ -39,7 +39,7 @@ Behind the scenes, Vox:
 While tools are functions the LLM can call, resources are data the LLM can read. 
 
 ```vox
-// Skip-Test
+// vox:skip
 @mcp.resource("vox://user/config", "The current user's profile configuration")
 fn get_user_profile() -> str {
     return db.query("SELECT context FROM config")

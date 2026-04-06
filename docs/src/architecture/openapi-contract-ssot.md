@@ -25,7 +25,7 @@ training_eligible: true
 **When to adopt `progenitor` (or similar):**
 
 - After path stability and auth middleware story are clear.
-- Start with **read-only** or **internal** crates (e.g. `PopuliHttpClient` shape in `crates/vox-populi/src/http_client.rs`) to shrink repetitive `reqwest` calls.
+- Start with **read-only** or **internal** crates (e.g. `PopuliHttpClient` shape in `crates/vox-populi/src/http_client.rs`) -> shrink repetitive `reqwest` calls.
 
 **Risks:** naming of types, feature flags (`transport`, `mens`), and hand-written auth headers must stay in thin wrappers.
 

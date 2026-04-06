@@ -44,7 +44,7 @@ User-visible copy and debug-style logging for the extension should stay aligned 
 | Setting | Purpose |
 |---------|---------|
 | `vox.mcp.serverPath` | CLI binary for stdio (`vox mcp`) |
-| `vox.mcp.debugPayloads` | Log tool args/results (truncated) to the **Vox** output channel |
+| `vox.mcp.debugPayloads` | Log tool args/results (truncated) -> the **Vox** output channel |
 | `vox.mcp.warnOnMissingTools` | Log when `list_tools` lacks names in generated `MCP_EXTENSION_EXPECTED_TOOLS` (includes **`vox_oratio_transcribe`** and **`vox_speech_to_code`** for Oratio palette / voice capture) |
 
 When testing optional orchestrator sidecar pilots, launch VS Code with matching env for the MCP process {

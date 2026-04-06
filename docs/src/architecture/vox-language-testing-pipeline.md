@@ -69,7 +69,7 @@ This means **the parser and AST nodes already exist** for `@test`, `@fixture`, `
 Here is the complete proposed surface — showing what Vox code looks like when fully annotated for testing. Everything here maps to an AST node or a trivial extension of one.
 
 ```vox
-// Skip-Test
+// vox:skip
 /// Parse and validate a user email address.
 /// Returns the normalized address or an error.
 @require(email.len() > 0)
@@ -125,7 +125,7 @@ These implement **Design by Contract** — the gold standard established by Eiff
 **Key design decision — runtime modes (like Eiffel):**
 
 ```vox
-// Skip-Test
+// vox:skip
 // In vox.config or via CLI flag:
 // test-mode = "full"     -> all @require, @ensure, @invariant checked
 // test-mode = "precond"  -> only @require checked (production-safe default)  
@@ -137,7 +137,7 @@ This means the annotations cost nothing in production unless the user opts in. T
 2. **Runtime safety net** — in debug/test mode, violations terminate early with a precise error
 3. **AI oracle** — the test synthesis skill reads `@ensure` as the ground truth for what to assert in generated test cases
 
-**Critical insight from research (AIware 2025):** Providing the full function context (including `@require`/`@ensure`) to the LLM when generating test oracles produces significantly better assertions than providing only the function signature. The annotations *are* the oracle.
+**Critical insight from research (AIware 2025):** Providing the full function context (including `@require`/`@ensure`) -> the LLM when generating test oracles produces significantly better assertions than providing only the function signature. The annotations *are* the oracle.
 
 ### 3.3 The `@test` and `@fixture` Blocks
 
@@ -150,7 +150,7 @@ This means the annotations cost nothing in production unless the user opts in. T
 
 **Naming convention (like Rust):**
 ```vox
-// Skip-Test
+// vox:skip
 @test("description drives the name")
 fn test_anything() { 
     // Logic here
@@ -169,7 +169,7 @@ This is the Vox-native version of QuickCheck / proptest / Hypothesis. The compil
 5. Reports the failing case in diagnostics
 
 ```vox
-// Skip-Test
+// vox:skip
 @forall(x: int, y: int)
 fn prop_addition_commutative(x: int, y: int) {
     assert_eq(x + y, y + x);
@@ -184,7 +184,7 @@ fn prop_trim_idempotent(s: str) {
 The strategy for each type is defined in `vox-runtime` and is automatically inferred from the type annotation. Custom strategies can be specified:
 
 ```vox
-// Skip-Test
+// vox:skip
 @forall(email: str using email_strategy())
 fn prop_parse_valid_email(email: str) {
     assert_ok(parse_email(email));
@@ -196,7 +196,7 @@ fn prop_parse_valid_email(email: str) {
 For security-critical and parser-facing functions, `@fuzz` creates an entry point for coverage-guided fuzzing:
 
 ```vox
-// Skip-Test
+// vox:skip
 @fuzz
 fn fuzz_parse_vox_module(data: Bytes) {
     let src = str.from_utf8_lossy(data);
@@ -269,7 +269,7 @@ The gate runs in three contexts:
 
 **Context 1: Inline LLM function (`is_llm: true`)**
 ```vox
-// Skip-Test
+// vox:skip
 @llm(model = "claude-sonnet")
 @require(items.len() > 0)
 @ensure(result.total > 0)
@@ -352,7 +352,7 @@ The most novel surface in the Vox AST is `is_llm: bool` and `llm_model: Option<S
 Extended design for the `@llm` annotation:
 
 ```vox
-// Skip-Test
+// vox:skip
 @llm(
     model = "claude-sonnet",      
     verify = "strict",            
@@ -401,7 +401,7 @@ The key question: should users be able to run their Vox programs in a mode where
 - Useful for high-stakes functions where you want runtime safety without crashes
 
 ```vox
-// Skip-Test
+// vox:skip
 // vox.config
 [build]
 mode = "dev"          // or "build" or "verify"
@@ -586,7 +586,7 @@ For functions with `is_llm: true` that have NOT been validated yet: emit a warni
 The most powerful combination is the `@llm` annotation working with the contract system. This enables:
 
 ```vox
-// Skip-Test
+// vox:skip
 /// Sort a list of products by price.
 @llm(verify = "strict", cache = true)
 @require(products.len() >= 0)
@@ -656,7 +656,7 @@ From a user's perspective, the experience should feel like this:
 
 **Writing code (human author):**
 ```vox
-// Skip-Test
+// vox:skip
 @require(x > 0)
 @ensure(result > x)
 fn grow(x: int) -> int { return x * 2; }
@@ -672,7 +672,7 @@ fn test_grow() {
 
 **Delegating to the LLM:**
 ```vox
-// Skip-Test
+// vox:skip
 @llm
 @require(name.len() > 0 && name.len() < 100)
 @ensure(result.starts_with("Dear "))

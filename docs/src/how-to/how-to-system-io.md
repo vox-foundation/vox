@@ -19,7 +19,7 @@ Vox code natively compiles into isolated WASI execution bounded containers or st
 The `std.fs` package treats operations as inherently failable (returning `Result`).
 
 ```vox
-// Skip-Test
+// vox:skip
 import std.fs
 
 fn process_log() -> Result[Unit] {
@@ -39,7 +39,7 @@ fn process_log() -> Result[Unit] {
 Vox uses `std.http` to generate outbound JSON API requests, translating directly to `reqwest` instances under the hood.
 
 ```vox
-// Skip-Test
+// vox:skip
 import std.http
 import rust:serde_json as json
 
@@ -53,7 +53,7 @@ fn query_weather(city: str) -> Result[str] {
 If you are posting complex ADT models, serialize them safely across the JSON integration boundary.
 
 ```vox
-// Skip-Test
+// vox:skip
 fn publish_event(topic: str, payload: str) -> Result[Unit] {
     let body = json.encode({ topic: topic, message: payload })
     let res = http.post_json("https://webhook.site/abc", body)?

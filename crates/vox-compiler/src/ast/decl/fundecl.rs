@@ -36,19 +36,13 @@ pub struct FnDecl {
     /// Whether the function is subject to observability tracing.
     pub is_traced: bool,
     /// Whether the function body is implemented via an LLM.
-    pub is_llm: bool,
     /// Optional specific LLM model to use for implementation.
-    pub llm_model: Option<String>,
     /// Whether the function serves as a page layout.
-    pub is_layout: bool,
     /// Whether the function is public.
     pub is_pub: bool,
     /// Whether the function records custom metrics.
-    pub is_metric: bool,
     /// The name of the recorded metric.
-    pub metric_name: Option<String>,
     /// Whether the function is a health check endpoint.
-    pub is_health: bool,
     /// Optional authentication provider name.
     pub auth_provider: Option<String>,
     /// List of roles required to access the function.
@@ -129,13 +123,6 @@ pub struct QueryDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutationDecl {
     /// The underlying function implementing the mutation.
-    pub func: FnDecl,
-}
-
-/// Action declaration: server-side logic that can call queries and mutations.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ActionDecl {
-    /// The underlying function implementing the action.
     pub func: FnDecl,
 }
 

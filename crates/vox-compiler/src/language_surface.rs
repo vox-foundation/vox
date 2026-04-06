@@ -73,10 +73,11 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
     ),
     ("@test", "Marks a function as a test case."),
     ("@v0", "Placeholder for v0.dev-generated UI hook."),
-    (
-        "@external",
-        "External binding marker (see parser / web stack docs).",
-    ),
+    ("@require", "Adds a runtime validation guard (precondition)."),
+    ("@ensure", "Adds a runtime validation guard (postcondition)."),
+    ("@invariant", "Adds a runtime validation guard evaluated on both bounds."),
+    ("@forall", "Marks a test for property-based generation."),
+    ("@fuzz", "Marks a test for fuzzing iteration bounds."),
 ];
 
 /// Keywords that have dedicated single-word lexer tokens (speech / strict introspection).
@@ -131,7 +132,11 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@component",
     "@mcp.tool",
     "@mcp.resource",
-    "@external",
+    "@require",
+    "@ensure",
+    "@invariant",
+    "@forall",
+    "@fuzz",
     "@test",
     "@server",
     "@query",

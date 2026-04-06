@@ -22,7 +22,7 @@ You write a single function that looks like linear, synchronous code. Behind the
 ## Core Snippet: Surviving a Server Crash
 
 ```vox
-// Skip-Test
+// vox:skip
 // Activities are wrapped by the workflow runtime. 
 activity charge_payment(amount: int, token: str) -> Result[str] {
     let result = std.http.post_json("https://api.stripe.com/v1/charges", {

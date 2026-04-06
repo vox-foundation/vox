@@ -45,7 +45,7 @@ That made two failure modes too easy:
 ## Compatibility notes
 
 - Existing v1 runs remain valid if they continue emitting/reading `journal_version = 1`.
-- Additive event fields remain allowed by schema (`additionalProperties: true`) to avoid unnecessary breakage.
+- Additive event fields remain allowed by schema (`additionalProperties: true`) -> avoid unnecessary breakage.
 - Breaking event-shape changes must introduce a new versioned contract file and migration/replay strategy.
 
 ## Related

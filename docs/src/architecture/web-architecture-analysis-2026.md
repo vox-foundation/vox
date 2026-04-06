@@ -206,7 +206,7 @@ Implementation leverage: `vox_corpus::training::preflight` already supports `con
 Replace React hook embedding in `.vox` with a **compiler-native reactivity model**:
 
 ```vox
-// Skip-Test
+// vox:skip
 component Counter {
   state count: int = 0
   derived doubled: int = count * 2
@@ -249,7 +249,7 @@ The compiler translates `state` to fine-grained reactive signals, `derived` to c
 **Keep `.vox` syntax clean** with a Vox-native component/view model, but emit to **whatever framework the user chooses** through a pluggable codegen backend. The key insight: **Vox defines intent, the compiler targets an ecosystem**.
 
 ```vox
-// Skip-Test
+// vox:skip
 component TaskList {
   state tasks: list[Task] = []
   state filter: str = "all"
@@ -352,7 +352,7 @@ graph TD
 For complex React ecosystem needs (shadcn, v0.dev, third-party libraries), the `@island` declaration remains unchanged:
 
 ```vox
-// Skip-Test
+// vox:skip
 @island("DatePicker", props: { value: str, on_change: fn(str) })
 ```
 

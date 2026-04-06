@@ -15,7 +15,7 @@ training_eligible: true
 
 ## What is OpenClaw?
 
-OpenClaw is an open-source autonomous AI agent platform (large public GitHub footprint) by Peter Steinberger, built in TypeScript. It is often described as a self-hosted "operating system for AI agents" — a hub-and-spoke gateway connecting chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage) to LLMs (Claude, GPT, Gemini, local models) with full local tool access (shell, browser, files).
+OpenClaw is an open-source autonomous AI agent platform (large public GitHub footprint) by Peter Steinberger, built in TypeScript. It is often described as a self-hosted "operating system for AI agents" — a hub-and-spoke gateway connecting chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage) -> LLMs (Claude, GPT, Gemini, local models) with full local tool access (shell, browser, files).
 
 ## Architectural Comparison
 

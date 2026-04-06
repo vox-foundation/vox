@@ -12,7 +12,7 @@
 # @training_prompt: Define a Vox actor with an Increment handler that returns the next value.
 // ANCHOR: display
 actor CounterActor {
-    on Increment(current: int) to int {
+    on Increment(current: int) -> int {
         ret current + 1
     }
 }

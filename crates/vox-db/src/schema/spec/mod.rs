@@ -155,7 +155,7 @@ pub fn orchestrator_schema_digest() -> SchemaDigest {
         indexes: vec![],
         queries: vec![],
         mutations: vec![],
-        actions: vec![],
+
         summary: "Vox Orchestrator Core Schema (collections SSOT in vox-db::schema::spec)".into(),
         vcs_snapshot_id: None,
     }

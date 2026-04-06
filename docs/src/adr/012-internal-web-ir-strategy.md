@@ -94,7 +94,7 @@ then validate_web_ir(...) before target emit
 
 This ADR is constrained by syntax currently accepted by the parser and verified in tests:
 
-- Component forms: `component Name(...) { ... }`, `@island Name(...) { ... }`, and `@island fn Name(...) to Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
+- Component forms: `component Name(...) { ... }`, `@island Name(...) { ... }`, and `@island fn Name(...) -> Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
 - Routes form: `routes { "path" to Component }` (`crates/vox-compiler/src/parser/descent/decl/tail.rs`).
 - Island form: `@island Name { prop: Type prop2?: Type }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`).
 - Style form: `style { .class { prop: "value" } }` via `parse_style_blocks()` (`crates/vox-compiler/src/parser/descent/expr/style.rs`).

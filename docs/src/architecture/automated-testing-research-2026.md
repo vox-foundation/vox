@@ -126,7 +126,7 @@ For any given input, the oracle must determine whether the output is *correct*. 
 - **Context blindness** — LLMs miss domain-specific business invariants; providing full CUT (Class Under Test) consistently outperforms providing only the MUT (Method Under Test)
 - **Hallucination rates fluctuate by task** — are not a fixed property of a model; depend on prompt quality and task complexity
 
-**Research findings (AIware 2025):** Providing the **Class Under Test** (full context) to the LLM when generating oracles improves accuracy significantly over providing only the method signature. Context engineering matters more than raw model scale.
+**Research findings (AIware 2025):** Providing the **Class Under Test** (full context) -> the LLM when generating oracles improves accuracy significantly over providing only the method signature. Context engineering matters more than raw model scale.
 
 ---
 
@@ -346,7 +346,7 @@ New skill: `vox.testing.repair`
 
 **T3c: Oracle Infrastructure (`@spec` annotations)**
 ```vox
-// Skip-Test
+// vox:skip
 @spec(
     requires: input.len() > 0,
     ensures: result.len() >= input.len()

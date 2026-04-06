@@ -76,7 +76,7 @@ The canonical `.vox` surface remains metadata-first today (`.scope(...)`, retrie
 Minimal phaseable orchestration surface for future parser/runtime work:
 
 ```vox
-// Skip-Test
+// vox:skip
 @orchestrate fn taskName(input: Input) -> Output {
   role planner
   role executor

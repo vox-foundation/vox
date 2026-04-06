@@ -15,7 +15,7 @@ type AppResult =
     | Success(value: int)
     | Failure(err: str)
 
-fn serialize_app_result(r: AppResult) to str {
+fn serialize_app_result(r: AppResult) -> str {
     match r {
         Success(val) -> "num:" + str(val)
         Failure(err) -> "err:" + err

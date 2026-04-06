@@ -30,13 +30,7 @@ impl Parser {
                     span: start,
                 }
             }
-            Token::SingleQuoteStringLit(s) => {
-                self.advance();
-                Expr::StringLit {
-                    value: s,
-                    span: start,
-                }
-            }
+
             Token::True => {
                 self.advance();
                 Expr::BoolLit {
@@ -435,7 +429,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
+        let return_type = if self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None

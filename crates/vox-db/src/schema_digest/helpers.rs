@@ -244,7 +244,6 @@ pub(crate) fn generate_summary(
     indexes: &[IndexInfo],
     queries: &[FunctionInfo],
     mutations: &[FunctionInfo],
-    actions: &[FunctionInfo],
 ) -> String {
     let mut parts = Vec::new();
     if !tables.is_empty() {
@@ -260,9 +259,7 @@ pub(crate) fn generate_summary(
     if !mutations.is_empty() {
         parts.push(format!("{} mutation(s)", mutations.len()));
     }
-    if !actions.is_empty() {
-        parts.push(format!("{} action(s)", actions.len()));
-    }
+
     if parts.is_empty() {
         "No database declarations found.".to_string()
     } else {

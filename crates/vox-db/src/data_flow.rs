@@ -14,8 +14,7 @@ pub struct DataFlowMap {
     pub query_reads: Vec<DataFlowEntry>,
     /// Mutation → tables it writes to.
     pub mutation_writes: Vec<DataFlowEntry>,
-    /// Action → mutations/queries it calls (when detectable).
-    pub action_calls: Vec<DataFlowEntry>,
+
     /// Tables that are read but never written (potential stale data).
     pub read_only_tables: Vec<String>,
     /// Tables that are written but never read (potential dead data).
@@ -56,15 +55,7 @@ pub fn build_data_flow(digest: &SchemaDigest) -> DataFlowMap {
         })
         .collect();
 
-    let action_calls: Vec<DataFlowEntry> = digest
-        .actions
-        .iter()
-        .filter(|a| !a.affected_tables.is_empty())
-        .map(|a| DataFlowEntry {
-            function_name: a.name.clone(),
-            tables: a.affected_tables.clone(),
-        })
-        .collect();
+
 
     // Find tables that are read but never written
     let all_table_names: Vec<&str> = digest.tables.iter().map(|t| t.name.as_str()).collect();
@@ -92,7 +83,7 @@ pub fn build_data_flow(digest: &SchemaDigest) -> DataFlowMap {
     DataFlowMap {
         query_reads,
         mutation_writes,
-        action_calls,
+
         read_only_tables,
         write_only_tables,
     }
@@ -191,7 +182,7 @@ mod tests {
                 return_type: None,
                 affected_tables: vec!["Task".to_string()],
             }],
-            actions: Vec::new(),
+
             summary: String::new(),
             vcs_snapshot_id: None,
         }

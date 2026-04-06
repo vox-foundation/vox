@@ -40,9 +40,8 @@ Yes. Use `import rust:<crate>` (for example `import rust:serde_json as json`) fo
 
 ## Architecture & Runtime
 
-### What are Actors and Workflows?
 - **Actor** — a stateful unit of concurrency with a private mailbox. Processes one message at a time; no shared-state races.
-- **Workflow** — a long-running orchestration construct. Today, the interpreted workflow runtime provides the repo's durable step-replay path, while generated Rust workflows are not yet full durable state machines.
+- **Workflow** — a long-running orchestration construct. Today, the interpreted workflow runtime provides the repo's durable step-replay path, while generated Rust workflows are not yet full durable state machines (see [ADR-021](../adr/021-generated-workflow-durability-parity.md)).
 
 ### What is the Mens?
 In current repo language, **Mens** refers to the model-training lane and local model generation pipeline, while **Populi / mesh** refers to coordination, inference serving, and distributed execution surfaces. Older docs sometimes used the terms loosely; newer docs keep those lanes separate.
@@ -76,7 +75,7 @@ vox mens train --backend qlora
 See [Mens native training SSOT](../reference/mens-training.md), [Mens training data contract](../reference/mens-training-data-contract.md), and [How To: Train Mens Models](../how-to/how-to-train-mens-4080.md).
 
 ### What is the Socrates Protocol?
-An anti-hallucination layer built into the orchestrator. Before generating or approving code, Vox asks the underlying LLM to self-evaluate confidence and structure its reasoning — reducing spurious output.
+An orchestration-layer reasoning protocol (SOP). Before generating or approving code, Vox uses structural prompts to force the underlying LLM to evaluate confidence and structure its reasoning via the MCP control plane.
 
 ## Deployment & Community
 

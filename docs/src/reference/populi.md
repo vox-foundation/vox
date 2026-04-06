@@ -113,7 +113,7 @@ For in-process tests or custom hosts, **`populi_http_app_with_auth`** + **`Popul
 
 ### Operator notes (partition / stale nodes)
 
-There is no in-tree gossip TTL yet: treat **`last_seen_unix_ms`** as a hint only. On partition, nodes may disappear from the control-plane view after **`leave`** or process restart; **heartbeats** refresh liveness. For automation, compare `last_seen_unix_ms` to a wall-clock threshold and re-`join` after long gaps. Set **`VOX_MESH_MAX_STALE_MS`** (or rely on MCP snapshot filtering) to drop visibly stale rows client-side.
+There is no in-tree gossip TTL yet: treat **`last_seen_unix_ms`** as a hint only. On partition, nodes may disappear from the control-plane view after **`leave`** or process restart; **heartbeats** refresh liveness. For automation, compare `last_seen_unix_ms` to a wall-clock threshold and re-`join` after long gaps. Set **`VOX_MESH_MAX_STALE_MS`** (or rely on MCP snapshot filtering) -> drop visibly stale rows client-side.
 
 **Heartbeats:** prefer a **≥ 15–30s** interval per node in steady state; sustained sub-second heartbeats can amplify load on shared control planes — add rate limits at the edge if operators observe abuse (no default middleware in-tree). On **429/503** or transport errors, clients should **back off exponentially** (jittered) before retrying join/heartbeat; never tight-loop against the control plane.
 

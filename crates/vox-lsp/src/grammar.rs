@@ -44,7 +44,7 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
 
         // ── Literals ─────────────────────────────────────────────────────────
         Token::IntLit(_) | Token::FloatLit(_) => Some(5), // NUMBER
-        Token::StringLit(_) | Token::SingleQuoteStringLit(_) => Some(4), // STRING
+        Token::StringLit(_) => Some(4), // STRING
 
         // ── Comments ─────────────────────────────────────────────────────────
         Token::Comment => Some(6), // COMMENT
@@ -53,7 +53,6 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
         Token::AtComponent
         | Token::AtMcpTool
         | Token::AtMcpResource
-        | Token::AtExternal
         | Token::AtTest
         | Token::AtServer
         | Token::AtTable

@@ -18,7 +18,7 @@ The shipped **`vox run`** path builds a **client** Vite bundle into `target/gene
 
 1. **Terminal A** — generated Axum app (existing): `vox run` / `cargo run` in `target/generated` (port from `VOX_PORT`, default **3000**).
 2. **Terminal B** — TanStack Start / Vite SSR dev server (after Start scaffold lands): `pnpm dev` in the web workspace package that owns Start (port **e.g. 3001**).
-3. **Proxy** — point the browser at **3000** and configure Axum to **reverse-proxy** `GET /*` (except `/api`, static prefixes) to **3001**, or browse **3001** directly during UI-only work.
+3. **Proxy** — point the browser at **3000** and configure Axum to **reverse-proxy** `GET /*` (except `/api`, static prefixes) -> **3001**, or browse **3001** directly during UI-only work.
 
 ## Environment variables (convention)
 

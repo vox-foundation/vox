@@ -21,7 +21,7 @@ This page provides the canonical structural layout for Vox v0.3 features. All co
 | `bool` | `true`, `false` | Boolean value |
 | `Unit` | `()` | Equivalent to `void` |
 
-Variable assignments are immutable by default in Vox. Prefix with `mutable` for mutability.
+Variable assignments are immutable by default in Vox. Prefix with `mut` for mutability.
 
 ```vox
 {{#include ../../../examples/golden/ref_syntax.vox:variables}}
@@ -60,6 +60,31 @@ Lexical constraints and properties can be modeled strictly using Abstract Data T
 ### Pattern Matching (`match`)
 ```vox
 {{#include ../../../examples/golden/ref_types.vox:matching}}
+```
+
+### Pipe Operator (`|>`)
+The `|>` operator passes the expression on the left as the first argument to the function on the right. Works with any function.
+```vox
+// vox:skip
+let value = " 123 " |> trim |> parse_int |> double
+// Compiles to: double(parse_int(trim(" 123 ")))
+```
+
+### Loops
+```vox
+// vox:skip
+loop {
+    if should_exit() { break }
+    continue
+}
+```
+
+### Comments
+Comments use `//`. Block comments and `#` comments are not supported.
+```vox
+// vox:skip
+// This is a comment
+let x = 1
 ```
 
 ### Error Propagation (`?`)
@@ -103,27 +128,22 @@ The `@island` directive dictates interactive DOM components.
 
 ```tsx
 // vox:skip
-import react.use_state
-
-@island
-fn TaskList(tasks: list[Task]) -> Element {
-    let (items, set_items) = use_state(tasks)
-
-    <div class="task-list">
-        {items.map(fn(task) {
-            <label>
-                <input type="checkbox" checked={task.done} /> 
-                {task.title}
-            </label>
-        })}
-    </div>
-}
+@island TaskList { tasks: list[Task] }
 
 // Web Routing Layout Mapping
 routes {
     "/"         -> TaskList
     "/about"    -> AboutPage
 }
+```
+
+### Return Keyword aliasing
+`ret` is a short-form alias for `return`; both are valid and produce identical behavior. Use `ret` for one-liners and `return` for complex logic.
+
+```vox
+// vox:skip
+fn double(x: int) -> int { ret x * 2 }
+fn square(x: int) -> int { return x * x }
 ```
 
 Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.

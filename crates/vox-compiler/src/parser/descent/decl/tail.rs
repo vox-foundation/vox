@@ -77,40 +77,21 @@ impl Parser {
         }))
     }
 
-    /// Parse `@v0 "prompt" fn Name() to Element` or `@v0 from "path" fn Name() to Element`
+    /// Parse `@v0 "chat-id" fn Name() -> Element` integration via `npx v0 add`
     pub(crate) fn parse_v0_component(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @v0
-        // Determine if this is a prompt string or `from "image.png"`
-        let (prompt, image_path) = match self.peek().clone() {
+        
+        let v0_id = match self.peek().clone() {
             Token::StringLit(s) => {
                 self.advance();
-                (s, None)
-            }
-            Token::Ident(kw) if kw == "from" => {
-                self.advance(); // eat 'from'
-                match self.peek().clone() {
-                    Token::StringLit(s) => {
-                        self.advance();
-                        (String::new(), Some(s))
-                    }
-                    _ => {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            "Expected image path string after 'from'",
-                            vec!["\"path\"".into()],
-                            Some(self.peek().to_string()),
-                            ParseErrorClass::Declaration,
-                        ));
-                        return Err(());
-                    }
-                }
+                s
             }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Expected prompt string or 'from' after @v0",
-                    vec!["\"prompt\"".into(), "from".into()],
+                    "Expected v0 chat ID string after @v0",
+                    vec!["\"chat-id\"".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
                 ));
@@ -121,14 +102,13 @@ impl Parser {
         let name = self.parse_ident_name()?;
         self.expect(&Token::LParen)?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) || self.eat(&Token::Arrow) {
+        let return_type = if self.eat(&Token::Arrow) {
             Some(self.parse_type_expr()?)
         } else {
             None
         };
         Ok(Decl::V0Component(V0ComponentDecl {
-            prompt,
-            image_path,
+            v0_id,
             name,
             return_type,
             span: start.merge(self.span()),

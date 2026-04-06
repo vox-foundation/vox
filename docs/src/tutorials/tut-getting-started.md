@@ -25,7 +25,10 @@ Before you begin, make sure you have:
 curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash -s -- --install
 ```
 
-*(For Windows or source installation, see the [Installation Reference](../reference/ref-installation.md)).*
+```powershell
+# Windows (PowerShell) install
+irm https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps1 | iex
+```
 
 ## Step 2: Create a New Project
 
@@ -72,7 +75,7 @@ Run the generated binary directly:
 vox run src/main.vox
 ```
 
-Open `http://localhost:3000` in your browser. You should see your app!
+Open `http://localhost:3000` in your browser to view the application.
 
 ## Key Concepts
 
@@ -80,7 +83,7 @@ Open `http://localhost:3000` in your browser. You should see your app!
 |-----------|-------------|------------------|
 | `@table` | Defines a database table | Rust types + Codex migrations |
 | `@server fn` | Defines an API endpoint | Axum handler + TS service |
-| `@island fn` | Creates an interactive UI | React component (Vite) |
+| `@island` | Creates an interactive UI | React component (Vite) |
 | `@query fn` | Read-only db operation | Optimized SQL query fn |
 | `@mutation fn`| Write-enabled db operation | SQL insert/update fn |
 | `@mcp.tool` | Exposes logic to agents | MCP Tool Definition |
@@ -89,9 +92,9 @@ Open `http://localhost:3000` in your browser. You should see your app!
 
 ## What's Next?
 
-- **[Hello Vox Example](../../../examples/reactive_counter.vox)** — A complete note-taking app
-- **[Language Guide](../reference/ref-language.md)** — Full syntax reference
-- **[AI Agents Guide](../how-to/how-to-ai-agents.md)** — Use built-in AI agents with Vox
-- **[Deployment Guide](../how-to/how-to-deploy.md)** — Ship to production
+- **[Golden Examples](../../examples/golden.md)** — Strictly verified code snippets
+- **[Language Reference](../reference/ref-syntax.md)** — Full syntax reference
+- **[Building Agents](../how-to/how-to-ai-agents.md)** — Build MCP tools and agents
+- **[Deployment Guide](../how-to/how-to-deploy.md)** — Production rollout
 
 

@@ -18,7 +18,7 @@ Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator.
 {{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 ```
 
-### Why this beats Python/TypeScript:
+### Comparison to other approaches:
 - **Type Safety**: If your function returns a `Result[T, E]`, Vox handles the MCP error response mapping for you.
 - **Zero Configuration**: No and manifests to maintain. The `@mcp.tool` decorator is the manifest.
 - **Auto-Discovery**: Tools are automatically discovered by the `vox-orchestrator` during development.

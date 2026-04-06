@@ -404,24 +404,11 @@ fn test_parse_index() {
     }
 }
 #[test]
-fn test_parse_v0_prompt() {
-    let m = parse_str("@v0 \"A dashboard with charts\" fn Dashboard() to Element");
+fn test_parse_v0_component() {
+    let m = parse_str("@v0 \"yM1xXq6\" fn Dashboard() -> Element");
     if let Decl::V0Component(v) = &m.declarations[0] {
         assert_eq!(v.name, "Dashboard");
-        assert_eq!(v.prompt, "A dashboard with charts");
-        assert!(v.image_path.is_none());
-    } else {
-        panic!("Expected V0Component, got {:?}", m.declarations[0]);
-    }
-}
-
-#[test]
-fn test_parse_v0_from_image() {
-    let m = parse_str("@v0 from \"design.png\" fn Dashboard() to Element");
-    if let Decl::V0Component(v) = &m.declarations[0] {
-        assert_eq!(v.name, "Dashboard");
-        assert!(v.prompt.is_empty());
-        assert_eq!(v.image_path.as_deref(), Some("design.png"));
+        assert_eq!(v.v0_id, "yM1xXq6");
     } else {
         panic!("Expected V0Component, got {:?}", m.declarations[0]);
     }
