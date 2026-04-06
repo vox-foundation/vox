@@ -4,7 +4,7 @@ Welcome. This file is the **short golden path**; deeper policy lives in [`docs/a
 
 ## Quick start
 
-1. Install **Rust** (see root `README.md` and [`docs/src/how-to/how-to-setup.md`](docs/src/how-to/how-to-setup.md)).
+1. Install **Rust** (see root `README.md` and [`docs/src/how-to/how-to-cli-ecosystem.md#installation`](docs/src/how-to/how-to-cli-ecosystem.md#installation)).
 2. From the repo root:  
    `cargo check --workspace`
 3. Before pushing:  

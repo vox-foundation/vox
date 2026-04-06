@@ -273,7 +273,7 @@ vox populi serve --model mens/runs/latest/model_final.bin --port 8080
 | **Decorators** | [Full decorator registry](docs/src/reference/ref-decorators.md) |
 | **VS Code & voice** | [LSP, MCP sidebar, Oratio speech](vox-vscode/README.md) |
 | **Contributing** | [Contributor hub](docs/src/contributors/contributor-hub.md) |
-| **ADRs** | [Architecture decisions](docs/src/adr/README.md) |
+| **ADRs** | [Architecture decisions](docs/src/adr/index.md) |
 | **Syntax guide** | [Examples & style](examples/STYLE.md) |
 
 ---
