@@ -141,7 +141,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 
 ### `vox mens watch-telemetry` (alias `watch`)
 
-- Default paths: `target/dogfood/train.err.log`, `target/dogfood/telemetry.jsonl`; `--interval-ms` (default 3000).
+- Default paths { `target/dogfood/train.err.log`, `target/dogfood/telemetry.jsonl`; `--interval-ms` (default 3000).
 - See [`watch_telemetry.rs`](../../../crates/vox-cli/src/commands/mens/watch_telemetry.rs).
 
 ### `vox ci cuda-release-build`

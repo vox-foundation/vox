@@ -12,108 +12,61 @@ This guide takes you from zero to a running full-stack app in under 5 minutes.
 
 Before you begin, make sure you have:
 
-- **Rust** (1.75+) — [Install](https://rustup.rs/)
-- **Node.js** (18+) — [Install](https://nodejs.org/)
-- **pnpm** — `npm install -g pnpm`
+- **Rust** (1.81+) — [Install](https://rustup.rs/)
+- **Node.js** (20+) — [Install](https://nodejs.org/)
+- **pnpm** (9+) — `npm install -g pnpm`
 
-> **Tip**: Run `vox doctor` to check all dependencies are installed correctly.
+> **Tip**: Run `vox doctor` to check all dependencies and environment variables are configured correctly.
 
 ## Step 1: Install Vox
 
 ```bash
-# Clone and build from source
-git clone https://github.com/vox-foundation/vox.git
-cd vox
-cargo build --release
-
-# Add to your PATH
-export PATH="$PWD/target/release:$PATH"
+# Mac/Linux unified install
+curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash -s -- --install
 ```
+
+*(For Windows or source installation, see the [Installation Reference](../reference/ref-installation.md)).*
 
 ## Step 2: Create a New Project
 
+Use the Vox CLI to scaffold a new application:
+
 ```bash
-mkdir my-app && cd my-app
-mkdir src
+vox init my-app
+cd my-app
 ```
 
-Create `src/main.vox` with this starter content:
-
-```vox
-@table type Note {
-    title: str
-    content: str
-}
-
-@server fn health() to Result[str] {
-    ret Ok("ok")
-}
-
-@island
-fn App() to Element {
-    <div>"Hello Vox"</div>
-}
-
-routes {
-    "/" to App
-}
-```
-
-This creates:
-```
-my-app/
-├── src/
-│   └── main.vox      # Your app source (full-stack in one file!)
-```
+This scaffolds a complete project structure containing a `src/main.vox` entrypoint.
 
 ## Step 3: Explore the Generated Code
 
-Open `src/main.vox`. You'll see a starter app with:
+Open `src/main.vox`. You'll see a starter app that includes a database table, a server endpoint, an interactive UI component, and a routing block. 
 
 ```vox
-# Skip-Test
-# Data layer — creates a database table
-@table type Note:
-    title: str
-    content: str
-    created_at: str
-
-# API layer — creates backend endpoints
-@server fn add_note(title: str, content: str) to Result[str]:
-    ret Ok("Added: " + title)
-
-# UI layer — creates React components
-@island fn App() to Element:
-    <div class="app">
-        <h1>"My Vox App"</h1>
-        <p>"Edit src/main.vox to get started"</p>
-    </div>
-
-# Routing — maps URLs to components
-routes:
-    "/" to App
+{{#include ../examples/golden/getting_started.vox:start}}
 ```
 
-## Step 4: Build
+## Step 4: Type Check
+
+Run a fast static analysis and type check:
+
+```bash
+vox check src/main.vox
+```
+
+## Step 5: Build
+
+Compile the application to its backend Rust crate and frontend TypeScript components:
 
 ```bash
 vox build src/main.vox -o dist
 ```
 
-You'll see step-by-step progress:
+You'll see step-by-step progress indicating lexical analysis and code generation.
 
-```
-  [1/6] Lexing... ✓ (42 tokens, 1ms)
-  [2/6] Parsing... ✓ (5 declarations, 2ms)
-  [3/6] Type checking... ✓ (1ms)
-  [4/6] Lowering to HIR... ✓ (0ms)
-  [5/6] Generating TypeScript... ✓ (2 files, 1ms)
-  [6/6] Generating Rust... ✓ (3 files, 2ms)
+## Step 6: Run
 
-✓ Built in 7ms — 2 TS file(s), 3 Rust file(s) generated
-```
-
-## Step 5: Run
+Run the generated binary directly:
 
 ```bash
 vox run src/main.vox
@@ -121,32 +74,18 @@ vox run src/main.vox
 
 Open `http://localhost:3000` in your browser. You should see your app!
 
-## Step 6: Edit and Rebuild
-
-Make a change to `src/main.vox` — maybe add a new server function:
-
-```vox
-@server fn greet(name: str) to Result[str]:
-    ret Ok("Hello, " + name + "!")
-```
-
-Then rebuild and re-run:
-
-```bash
-vox build src/main.vox -o dist && vox run src/main.vox
-```
-
 ## Key Concepts
 
-| Decorator | What it does | Compiles to |
-|-----------|-------------|-------------|
-| `@table` | Defines a database table | Rust migration + query types |
-| `@server fn` | Creates an API endpoint | Rust Axum handler + TS client |
-| `@island fn` | Creates a UI component | React TSX component |
-| `@query fn` | Read-only database query | Rust query function |
-| `@mutation fn` | Write database operation | Rust mutation function |
-| `workflow` | Durable async process | Rust async with journal |
-| `activity` | Retryable workflow step | Rust async with retry config |
+| Decorator | What it does | Resulting Output |
+|-----------|-------------|------------------|
+| `@table` | Defines a database table | Rust types + Codex migrations |
+| `@server fn` | Defines an API endpoint | Axum handler + TS service |
+| `@island fn` | Creates an interactive UI | React component (Vite) |
+| `@query fn` | Read-only db operation | Optimized SQL query fn |
+| `@mutation fn`| Write-enabled db operation | SQL insert/update fn |
+| `@mcp.tool` | Exposes logic to agents | MCP Tool Definition |
+| `workflow` | Durable async process | Logged process (Populi) |
+| `activity` | Retriable workflow step | Bound worker (Vox-Dei) |
 
 ## What's Next?
 

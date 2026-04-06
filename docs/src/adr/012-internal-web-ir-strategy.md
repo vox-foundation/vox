@@ -27,7 +27,7 @@ Emitted TS/React identifiers should follow **English-first** naming where practi
 Vox frontend generation is currently split across mixed representations:
 
 - Path C reactive components emit from HIR (`reactive.rs`, `hir_emit/mod.rs`).
-- `@component` legacy path still retains AST-shaped data (`HirComponent(pub ComponentDecl)`) in `hir/nodes/decl.rs`.
+- `@island` legacy path still retains AST-shaped data (`HirComponent(pub ComponentDecl)`) in `hir/nodes/decl.rs`.
 - JSX/island rewriting lives in multiple emitters (`codegen_ts/jsx.rs` and `codegen_ts/hir_emit/mod.rs`).
 - Islands hydration contract is tied to generated mount attributes and client template behavior (`data-vox-island`, `data-prop-*`, `island-mount.tsx`).
 
@@ -94,7 +94,7 @@ then validate_web_ir(...) before target emit
 
 This ADR is constrained by syntax currently accepted by the parser and verified in tests:
 
-- Component forms: `component Name(...) { ... }`, `@component Name(...) { ... }`, and `@component fn Name(...) to Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
+- Component forms: `component Name(...) { ... }`, `@island Name(...) { ... }`, and `@island fn Name(...) to Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
 - Routes form: `routes { "path" to Component }` (`crates/vox-compiler/src/parser/descent/decl/tail.rs`).
 - Island form: `@island Name { prop: Type prop2?: Type }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`).
 - Style form: `style { .class { prop: "value" } }` via `parse_style_blocks()` (`crates/vox-compiler/src/parser/descent/expr/style.rs`).

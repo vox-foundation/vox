@@ -34,7 +34,7 @@ Use with:
 
 ## What should not be generated
 
-Never auto-generate without explicit human authorship/verification:
+Never auto-generate without explicit human authorship/verification {
 
 - novelty/significance assertions in the final narrative,
 - claims of causal mechanism unsupported by evidence,

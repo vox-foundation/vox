@@ -135,7 +135,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `POPULI_TEMPERATURE` / `POPULI_MAX_TOKENS` | Generation configuration overrides for mens inference. |
 | `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Clavis** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
-| `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter: `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
+| `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter { `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
 | `VOX_SCHOLARLY_DISABLE` | When truthy (`1`, `true`, `yes`, `y`, `on`), blocks all scholarly submit/status paths. |
 | `VOX_SCHOLARLY_DISABLE_LIVE` | When truthy, blocks **live** adapters (Zenodo/OpenReview); local/echo ledgers still allowed. |
 | `VOX_SCHOLARLY_DISABLE_ZENODO` | Per-adapter kill-switch for Zenodo when truthy. |
@@ -153,7 +153,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ZENODO_VERIFY_STAGING_CHECKSUMS` | When truthy, requires `staging_checksums.json` and verifies SHA3-256 per file before bucket `PUT`. |
 | `VOX_ZENODO_REQUIRE_METADATA_PARITY` | When truthy, requires `zenodo.json` metadata title to match manifest title (trim / ASCII space normalization). |
 | `VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS` | Max attempts per OpenReview HTTP call (`notes`, `notes/edits`) for retryable errors. Integer **1–10**, default **3**. |
-| `VOX_SCHOLARLY_JOB_LOCK_OWNER` | Optional lock-owner string for `external_submission_jobs` lease ticks (default `vox:<pid>`). |
+| `VOX_SCHOLARLY_JOB_LOCK_OWNER` | Optional lock-owner string for `external_submission_jobs` lease ticks (default `vox {<pid>`). |
 | `VOX_NEWS_SITE_BASE_URL` | Public site base URL for RSS links (overrides `[orchestrator.news].site_base_url`). |
 | `VOX_NEWS_RSS_FEED_PATH` | Repo-relative path to `feed.xml` (overrides `[orchestrator.news].rss_feed_path`). |
 | `VOX_NEWS_SCAN_RECURSIVE` | `0`/`1`: whether `NewsService` walks `news_dir` recursively (default `1`). |
@@ -247,7 +247,7 @@ Calibration note: channel gain offsets / backlog penalty / trust-adjustment scal
 | `VOX_OPENCLAW_SIDECAR_START_MAX_ATTEMPTS` | Optional bounded retry count for `vox openclaw doctor --auto-start` WS readiness checks after spawn/state restore (default `3`). |
 | `VOX_OPENCLAW_SIDECAR_START_BACKOFF_MS` | Optional initial retry backoff in milliseconds for sidecar readiness checks (default `500`, exponential up to cap). |
 
-See also: [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-ssot.md).
+See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-ssot.md).
 
 **MCP tools (VoxDb required for persistence):** `vox_questioning_pending` (unanswered assistant questions + structured `question_options` and session `belief_state_json`), `vox_questioning_submit_answer`, `vox_questioning_sync_ssot`. Canonical names: [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml). Protocol SSOT: [Information-theoretic questioning](information-theoretic-questioning.md).
 
@@ -331,14 +331,14 @@ Full table: [mens SSOT](populi.md). Common entries:
 
 | Variable | Role |
 |----------|------|
-| `VOX_WEB_TANSTACK_START` | When `1` / `true`, enables TanStack **Start** scaffold + TS codegen path (`VoxTanStackRouter` / `voxRouteTree` when `routes:` is present). Must stay aligned with **`Vox.toml`** `[web] tanstack_start` for **`vox build`**. See [`VoxConfig::merge_env_overrides`](../../../crates/vox-config/src/), [TanStack how-to](../how-to/tanstack-ssr-with-axum.md). |
+| `VOX_WEB_TANSTACK_START` | When `1` / `true`, enables TanStack **Start** scaffold + TS codegen path (`VoxTanStackRouter` / `voxRouteTree` when `routes {` is present). Must stay aligned with **`Vox.toml`** `[web] tanstack_start` for **`vox build`**. See [`VoxConfig::merge_env_overrides`](../../../crates/vox-config/src/), [TanStack how-to](../how-to/tanstack-ssr-with-axum.md). |
 | `VOX_EMIT_EXPRESS_SERVER` | Opt-in: emit legacy **`server.ts`** (Express-style) from `vox-codegen-ts`; default product is **Axum** + **`api.ts`**. See [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md). |
 | `VOX_ORCHESTRATE_VITE` | If `1`, **`vox run`** spawns **`pnpm run dev:ssr-upstream`** in `dist/.../app` (Vite on **3001**). See [`OrchestratedViteGuard`](../../../crates/vox-cli/src/frontend.rs). |
 | `VOX_SSR_DEV_URL` | Origin (e.g. `http://127.0.0.1:3001`) for generated Axum to proxy non-`/api` **GET** document requests before `rust_embed`. Often injected when **`VOX_ORCHESTRATE_VITE=1`**. |
 | `VOX_WEB_VITE_SMOKE` | Opt-in: set to **`1`** when running **`cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored`** (full **`pnpm install`** + **`vite build`** on a golden `.vox` fixture). |
-| `VOX_WEB_TS_OUT` | Optional: absolute or relative directory where **`vox build`** writes generated **`*.tsx`** (same path as the build output). When set, **`vox doctor`** scans **`*.vox`** under the current tree for **`@v0`** declarations and verifies each **`{Name}.tsx`** in this directory uses a **named** export suitable for TanStack **`routes:`** (`export function Name`, etc.). See [`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs). |
+| `VOX_WEB_TS_OUT` | Optional: absolute or relative directory where **`vox build`** writes generated **`*.tsx`** (same path as the build output). When set, **`vox doctor`** scans **`*.vox`** under the current tree for **`@v0`** declarations and verifies each **`{Name}.tsx`** in this directory uses a **named** export suitable for TanStack **`routes {`** (`export function Name`, etc.). See [`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs). |
 | `VOX_EXAMPLES_STRICT_PARSE` | When **`1`**, **`cargo test -p vox-parser --test parity_test`** fails if any `examples/**/*.vox` fails to parse (default CI only requires the **`MUST_PARSE`** golden set). See [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). |
-| `VOX_SUPPRESS_LEGACY_HOOK_LINTS` | When **`1`** / **`true`**, suppresses compiler **warnings** for direct Vox `use_*` hook calls inside classic **`@component fn …`** bodies (Path C reactive syntax is still preferred). Implemented in [`react_bridge::legacy_hook_lint_suppressed`](../../../crates/vox-compiler/src/react_bridge.rs) + [`lint_ast_declarations`](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs). |
+| `VOX_SUPPRESS_LEGACY_HOOK_LINTS` | When **`1`** / **`true`**, suppresses compiler **warnings** for direct Vox `use_*` hook calls inside classic **`@island fn …`** bodies (Path C reactive syntax is still preferred). Implemented in [`react_bridge::legacy_hook_lint_suppressed`](../../../crates/vox-compiler/src/react_bridge.rs) + [`lint_ast_declarations`](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs). |
 | `VOX_WEBIR_VALIDATE` | When **`1`** / **`true`**, **`vox_compiler::codegen_ts::generate`** runs Web IR lower + [`validate_web_ir`](../../../crates/vox-compiler/src/web_ir/validate.rs) after HIR and **fails codegen** if validation returns diagnostics (opt-in hard gate). See [`maybe_web_ir_validate`](../../../crates/vox-compiler/src/codegen_ts/emitter.rs). |
 | `VOX_WEBIR_EMIT_REACTIVE_VIEWS` | When **`1`** / **`true`**, Path C reactive **`view:`** may use Web IR preview TSX **only when** validation is clean **and** whitespace-normalized TSX matches legacy `emit_hir_expr` (parity guard). See [`codegen_ts::reactive`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |
 | `VOX_WEBIR_REACTIVE_TRACE` | When **`1`** / **`true`**, logs one **`eprintln!`** line per reactive view decision (`component=…` + `pathway=…`). Pairs with aggregate counters via [`reactive_view_bridge_stats`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |

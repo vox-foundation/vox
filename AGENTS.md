@@ -65,6 +65,7 @@ Agents and contributors must strictly adhere to these invariants. These take pre
 - **Sprawl Limit:** Maximum 20 files per directory. Create sub-modules if you exceed this.
 - **Frozen Modules:** Do not expose new `pub` items in modules marked as FROZEN.
 - **Scripting Restraint:** Do not write new `.py` files in the `scripts/` directory; prefer Rust tooling.
+- **Documentation Hygiene:** All `.vox` or `.tsx` code blocks in `docs/src/` must use the `{{#include}}` directive (pulling from `examples/golden/`) or be marked with `// Skip-Test` to ensure examples are machine-verified.
 - **Completion Policy:** Understand `contracts/operations/completion-policy.v1.yaml` (Tier A, Tier B, Tier C detectors).
 
 ## Related Operational Surfaces

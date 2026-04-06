@@ -291,6 +291,8 @@ pub async fn run(
                             1.15,  // trajectory_failure_category_boost
                             None,  // trajectory_quality_floor
                             1.05,  // trajectory_quality_boost
+                            None,  // curriculum_schedule
+                            Default::default(), // chatml_config
                         )
                         .await?;
                     }

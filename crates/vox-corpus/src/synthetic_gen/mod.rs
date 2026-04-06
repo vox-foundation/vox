@@ -18,29 +18,24 @@ pub use vox_mcp_meta::{ORCHESTRATOR_TOOLS, SKILL_TOOLS};
 
 include!(concat!(env!("OUT_DIR"), "/dynamic_registry.rs"));
 
-/// Example agent ID pairs for A2A training pair diversification.
-const EXAMPLE_AGENT_PAIRS: &[(&str, &str)] = &[
-    ("agent_1", "agent_2"),
-    ("compiler_agent", "review_agent"),
-    ("orchestrator", "worker_1"),
-    ("planner", "executor"),
-    ("frontend_agent", "backend_agent"),
-];
+pub(crate) fn example_agent_pairs() -> Vec<(String, String)> {
+    vec![
+        ("agent_1".into(), "agent_2".into()),
+        ("compiler_agent".into(), "review_agent".into()),
+        ("orchestrator".into(), "worker_1".into()),
+        ("planner".into(), "executor".into()),
+        ("frontend_agent".into(), "backend_agent".into()),
+    ]
+}
 
-/// Example task descriptions for orchestrator SFT pairs.
-const EXAMPLE_TASKS: &[&str] = &[
-    "implement the login page component",
-    "add a database index for the users table",
-    "write unit tests for the authentication module",
-    "refactor the workflow actor to use the new message type",
-    "update the MCP tool schema for vox_validate_file",
-    "generate the TypeScript bindings for the Vox runtime",
-    "rank model reliability using hallucination EWMA scores",
-    "check for unreliable endpoints in the OpenRouter registry",
-    "audit the agent fleet for recurring task failures",
-    "fix the parser error recovery for malformed actor declarations",
-    "implement the durable checkout workflow with retry semantics",
-];
+/// Dynamically generated example tasks from the live orchestrator registry.
+pub(crate) fn example_tasks() -> Vec<String> {
+    vox_mcp_meta::TOOL_REGISTRY
+        .iter()
+        .filter(|t| vox_mcp_meta::ORCHESTRATOR_TOOLS.contains(&t.name))
+        .map(|t| format!("use the {} tool to {}", t.name, t.description.to_lowercase()))
+        .collect()
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 

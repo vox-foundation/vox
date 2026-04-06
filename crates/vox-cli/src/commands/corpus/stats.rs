@@ -274,6 +274,56 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
         100.0 * coverage as f64 / taxonomy.len().max(1) as f64
     );
     println!("\n✓ Results written to {}", output.display());
+    Ok(())
+}
+
+pub(super) async fn run_stats(input: &Path) -> Result<()> {
+    if tokio::fs::metadata(input).await.is_err() {
+        anyhow::bail!("Input file not found: {}", input.display());
+    }
+
+    let content = read_utf8_path_capped_async(input).await?;
+    let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
+    let total = lines.len();
+
+    let mut source_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut category_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+
+    for line in &lines {
+        if let Ok(record) = serde_json::from_str::<serde_json::Value>(line) {
+            if let Some(src) = record.get("source").and_then(|v| v.as_str()) {
+                *source_counts.entry(src.to_string()).or_insert(0) += 1;
+            }
+            if let Some(cat) = record.get("category").and_then(|v| v.as_str()) {
+                *category_counts.entry(cat.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    use owo_colors::OwoColorize;
+    println!("\n{}", "Vox Training Corpus Stats".bold().cyan());
+    println!("  Total records: {}\n", total);
+
+    if !source_counts.is_empty() {
+        println!("{}", "  By Source:".bold().white());
+        let mut sources: Vec<_> = source_counts.iter().collect();
+        sources.sort_by(|a, b| b.1.cmp(a.1));
+        for (src, count) in sources {
+            let pct = 100.0 * (*count as f64) / (total as f64);
+            println!("    - {:<24} {:>8} ({:.1}%)", src, count, pct);
+        }
+        println!();
+    }
+
+    if !category_counts.is_empty() {
+        println!("{}", "  By Category:".bold().white());
+        let mut cats: Vec<_> = category_counts.iter().collect();
+        cats.sort_by(|a, b| b.1.cmp(a.1));
+        for (cat, count) in cats {
+            let pct = 100.0 * (*count as f64) / (total as f64);
+            println!("    - {:<24} {:>8} ({:.1}%)", cat, count, pct);
+        }
+    }
 
     Ok(())
 }

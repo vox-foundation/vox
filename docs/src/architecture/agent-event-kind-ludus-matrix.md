@@ -61,6 +61,6 @@ Orchestrator events serialize with `#[serde(tag = "type", rename_all = "snake_ca
 | `orchestrator_idle` | 0 / 0 | policy-only |
 | `task_expired` | 0 / 0 | policy-only |
 
-**Note:** CLI/MCP-only event types (e.g. `check_completed`, `mcp_tool_called`) are documented in [`ludus-integration-contract`](ludus-integration-contract.md) and [`reward_policy`](../../../crates/vox-ludus/src/reward_policy.rs).
+**Note {** CLI/MCP-only event types (e.g. `check_completed`, `mcp_tool_called`) are documented in [`ludus-integration-contract`](ludus-integration-contract.md) and [`reward_policy`](../../../crates/vox-ludus/src/reward_policy.rs).
 
 **Grind taper:** High-frequency bus types (`task_submitted`, `lock_*`, `snapshot_captured`, `message_sent`, `mcp_tool_called`, …) use the faster anti-grind window in [`apply_policy`](../../../crates/vox-ludus/src/reward_policy.rs).

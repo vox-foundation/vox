@@ -18,6 +18,7 @@ impl Rng {
         self.0
     }
 
+    #[allow(dead_code)]
     pub(crate) fn pick<'a, T>(&mut self, slice: &'a [T]) -> &'a T {
         &slice[self.next() as usize % slice.len()]
     }

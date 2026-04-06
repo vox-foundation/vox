@@ -102,6 +102,9 @@ pub enum PopuliAction {
         /// O029: Preset: tiny, safe, 4080 / qwen_4080_16g, a100, mobile_edge (implies `--deployment-target mobile_edge`), or auto.
         #[arg(long)]
         preset: Option<String>,
+        /// Domain profile name to apply (loads from mens/config/domain-profiles.yaml)
+        #[arg(long)]
+        domain: Option<String>,
         /// Train for workstation (default) or mobile edge export (requires `--device cpu`; see mobile-edge-ai SSOT).
         #[arg(long, value_enum, default_value_t = TrainingDeploymentTargetCli::Workstation)]
         deployment_target: TrainingDeploymentTargetCli,

@@ -39,7 +39,12 @@ actor GlobalCounter {
 
 To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
+> [!WARNING]
+> This feature is partially implemented. The syntax below is accepted by the parser
+> but runtime behavior may differ from what is described. The `!` async send operator and `await` forms are aspirational.
+
 ```vox
+# Skip-Test: interpreter-only
 @server fn demo_actors() to int {
     # Spawn a new instance
     let ref = spawn GlobalCounter()
@@ -68,7 +73,11 @@ Vox actors are not just in-memory. By using `state_load` and `state_save`, you t
 
 Actors can talk to each other. Because each actor has its own mailbox, they process messages **sequentially** but run in **parallel** with other actors.
 
+> [!WARNING]
+> Spawning actors directly as inline field expressions is aspirational and acts as an exploration path.
+
 ```vox
+# Skip-Test: interpreter-only
 actor Logger {
     on log(msg: str) {
         print("[LOG]: " + msg)

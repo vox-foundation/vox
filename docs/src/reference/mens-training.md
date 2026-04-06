@@ -164,7 +164,7 @@ Documentation extraction exists, but keep the current boundaries explicit:
 
 ## Training objective mismatch (Burn vs Candle)
 
-- **Burn (`--backend lora`)**: full-graph **f32** causal LM on wgpu (or NdArray in tests). Objective = standard next-token CE over the whole decoder graph you enabled.
+- **Burn (`--backend lora`)** { full-graph **f32** causal LM on wgpu (or NdArray in tests). Objective = standard next-token CE over the whole decoder graph you enabled.
 - **Candle (`--backend qlora`)**: **NF4** frozen bases via qlora-rs with a full-forward training graph over loaded decoder blocks; loss is masked next-token CE on supervised suffix positions (`--qlora-ce-last-k`).
 - **Operator impact**: do **not** expect loss / perplexity curves to match Burn. Use `training_manifest.json` **`candle_qlora_graph_id`**, **`candle_qlora_ce_last_k`**, **`training_objective_note`**, telemetry, and tiered **parity tests** (`candle_burn_*`) for **shared f32 primitives** only — not end-to-end NF4-vs-Burn LM identity.
 
@@ -172,7 +172,7 @@ Documentation extraction exists, but keep the current boundaries explicit:
 
 ### Burn R&D charter (bounded)
 
-Burn remains an explicit R&D lane, not production train dispatch. Keep experiments bounded and comparable:
+Burn remains an explicit R&D lane, not production train dispatch. Keep experiments bounded and comparable {
 
 1. strict code-only adapter behavior experiment,
 2. tokenizer/format sensitivity experiment,

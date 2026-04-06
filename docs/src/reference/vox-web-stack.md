@@ -9,7 +9,7 @@ training_eligible: true
 # Vox full-stack web UI — single source of truth
 
 > [!NOTE]
-> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }` or **`@component Name(...) { ... }`** (same body as bare `component`). Classic **`@component fn Name() ...`** remains for backward compatibility; the compiler warns on direct **`use_*`** hook calls in those bodies — prefer reactive members or **`@island`** TS for React-only logic. Suppress warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)). See [Web Architecture Analysis 2026](../architecture/web-architecture-analysis-2026.md).
+> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }` or **`@island Name(...) { ... }`** (same body as bare `component`). Classic **`@island fn Name() ...`** remains for backward compatibility; the compiler warns on direct **`use_*`** hook calls in those bodies — prefer reactive members or **`@island`** TS for React-only logic. Suppress warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)). See [Web Architecture Analysis 2026](../architecture/web-architecture-analysis-2026.md).
 
 ## Language boundary
 
@@ -20,12 +20,12 @@ training_eligible: true
 
 | Layer | Role |
 | ----- | ---- |
-| `vox-compiler` / `codegen_ts` | `@component` (fn + reactive), `component`, `@island` (meta), `routes:`, tables, activities → `.tsx` / `.ts` |
+| `vox-compiler` / `codegen_ts` | `@island` (fn + reactive), `component`, `@island` (meta), `routes {`, tables, activities → `.tsx` / `.ts` |
 | `vox-compiler` / `codegen_rust` | `http`, server fns, actors → Axum + `rust_embed` of `public/` |
 | Vite + React 19 | Main app under `dist/app` (scaffolded by `vox run` / `vox bundle`) |
-| `@tanstack/react-router` | Client routing for `routes:` (see [ADR 010](../adr/010-tanstack-web-spine.md)) |
+| `@tanstack/react-router` | Client routing for `routes {` (see [ADR 010](../adr/010-tanstack-web-spine.md)) |
 | Optional **`islands/`** | Second Vite bundle; copied to `target/generated/public/islands/` when present |
-| **v0.dev** | `V0_API_KEY`; TSX normalized to **named** `export function Name` for `routes:` imports |
+| **v0.dev** | `V0_API_KEY`; TSX normalized to **named** `export function Name` for `routes {` imports |
 
 ## Canonical Frontend
 
@@ -59,10 +59,10 @@ For mobile support, this web stack is the primary delivery surface for Vox appli
 - Templates: `crates/vox-cli/src/templates/` (`spa.rs`, `tanstack.rs`, `islands.rs`; `package.json`, Vite config, islands bootstrap).
 - Frontend build: `crates/vox-cli/src/frontend.rs` (`build_islands_if_present`).
 - v0: `crates/vox-cli/src/v0.rs`, `crates/vox-cli/src/v0_tsx_normalize.rs`.
-- React hook mapping / `@component fn` emission: `crates/vox-compiler/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-compiler/src/codegen_ts/reactive.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). TanStack Start literals: `codegen_ts/tanstack_start.rs`. Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
+- React hook mapping / `@island fn` emission: `crates/vox-compiler/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-compiler/src/codegen_ts/reactive.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). TanStack Start literals: `codegen_ts/tanstack_start.rs`. Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
 - **`vox run` auto mode**: `crates/vox-cli/src/commands/run.rs` + `commands/runtime/run/run.rs` — default is an `@page` scan in the first 8 KiB; override with **`[web] run_mode`** in `Vox.toml` (`auto` \| `app` \| `script`) or env **`VOX_WEB_RUN_MODE`** (same values; parsed in `vox-config`).
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
-- **`@island`**: lexer/parser → `Decl::Island`; codegen emits **`vox-islands-meta.ts`** and rewrites matching JSX tags to **`<div data-vox-island=\"Name\" data-prop-*={...} />`** for `islands/src/island-mount.tsx` hydration (implementations under `islands/`). SSG HTML shells still come from **`vox-ssg`** + `routes:`.
+- **`@island`**: lexer/parser → `Decl::Island`; codegen emits **`vox-islands-meta.ts`** and rewrites matching JSX tags to **`<div data-vox-island=\"Name\" data-prop-*={...} />`** for `islands/src/island-mount.tsx` hydration (implementations under `islands/`). SSG HTML shells still come from **`vox-ssg`** + `routes {`.
 
 **Web IR gate matrix (OP-S068, OP-S129, OP-S152, OP-S209):** parity and validate thresholds are enumerated under [acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) with tests in `web_ir_lower_emit.rs`, `reactive_smoke.rs`, `pipeline.rs`, and `full_stack_minimal_build.rs`.
 

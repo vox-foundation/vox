@@ -24,8 +24,8 @@ From `codegen_ts/emitter.rs` (342 lines) and `codegen_ts/component.rs` (414 line
 
 | Artifact | Source | Complexity |
 |---|---|---|
-| `App.tsx` or `VoxTanStackRouter.tsx` | `routes:` declarations | TanStack `createRootRoute`/`createRoute`/`createRouter` |
-| `{Name}.tsx` | `@component` declarations | Full React components with hook mapping, props interfaces, JSX |
+| `App.tsx` or `VoxTanStackRouter.tsx` | `routes {` declarations | TanStack `createRootRoute`/`createRoute`/`createRouter` |
+| `{Name}.tsx` | `@island` declarations | Full React components with hook mapping, props interfaces, JSX |
 | `{Name}.css` | `style:` blocks in components | Scoped CSS with camelCase→kebab conversion |
 | `types.ts` | ADT definitions | TypeScript interfaces and union types |
 | `activities.ts` | `@activity` declarations | Async activity runners |
@@ -42,7 +42,7 @@ From `codegen_ts/emitter.rs` (342 lines) and `codegen_ts/component.rs` (414 line
 
 2. **JSX-in-Vox**: Full JSX syntax (`<div>`, `<Component>`, `<SelfClosing />`) is parsed as `Expr::Jsx`/`Expr::JsxSelfClosing` in the AST. This embeds an entire secondary syntax (HTML/JSX) inside Vox.
 
-3. **Dual Router Knowledge**: `routes:` generates TanStack Router boilerplate (SPA mode) **or** TanStack Start route trees (SSR mode) based on `CodegenOptions.tanstack_start`. The developer must understand which mode they're targeting.
+3. **Dual Router Knowledge**: `routes {` generates TanStack Router boilerplate (SPA mode) **or** TanStack Start route trees (SSR mode) based on `CodegenOptions.tanstack_start`. The developer must understand which mode they're targeting.
 
 4. **Framework-Specific Idioms**: `.append()` calls are transformed to `[...arr, item]` spread syntax. `Match` on HTTP results becomes `try/catch`. `Speech.transcribe` throws a "backend-only" error. These are React/TS ecosystem translations baked into the compiler.
 
@@ -150,7 +150,7 @@ Leptos (0.6) and Dioxus reaching production readiness for Rust→WASM UI, but:
 |---|---|---|
 | React hooks in `.vox` | **Critical** | `let (count, set_count) = use_state(0)` |
 | JSX embedded in `.vox` | **Critical** | `<div className="...">{count}</div>` |
-| TanStack route shapes | **Medium** | `routes: "/" => Home, "/about" => About` |
+| TanStack route shapes | **Medium** | `routes { "/" => Home, "/about" => About` |
 | CSS property names | **Low** | `style: .x { backgroundColor: "red" }` |
 
 ### 3.2 The Clean Boundary Principle
@@ -409,7 +409,7 @@ Result:
 
 ## 6. Implementation Roadmap
 
-### Phase 0: Hygiene (1-2 weeks)
+### Phase 0 { Hygiene (1-2 weeks)
 - [ ] Mark HTMX/Pico.css KI artifacts as **superseded** in metadata
 - [ ] Audit `vox-corpus` codegen to ensure TS artifacts use `codegen_output` category
 - [ ] Add `context_filter: "vox_source"` guard to `training_contract.yaml`

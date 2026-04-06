@@ -74,7 +74,7 @@ The **basename** for `latest` must match the **actual** filename on the latest r
 
 ## Smoke checks
 
-Before artifacts are uploaded from a matrix build, each platform job extracts the produced archives and runs:
+Before artifacts are uploaded from a matrix build, each platform job extracts the produced archives and runs {
 
 - `vox --version` / `vox.exe --version`
 - `vox-bootstrap --help` / `vox-bootstrap.exe --help`

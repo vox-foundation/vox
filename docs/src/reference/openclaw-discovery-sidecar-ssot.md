@@ -79,7 +79,7 @@ Runtime supervision SSOT:
 
 ## Contract fixtures
 
-OpenClaw contract CI validates both protocol and discovery fixtures:
+OpenClaw contract CI validates both protocol and discovery fixtures {
 
 - `contracts/openclaw/protocol/*`
 - `contracts/openclaw/discovery/*`

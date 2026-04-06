@@ -105,7 +105,7 @@ Canonical side-by-side representation mapping:
 | `crates/vox-compiler/src/codegen_ts/emitter.rs` | output orchestrator and file assembly | `legacy-wrap` | WebIR lower/validate/emit adapters |
 | `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs` | HIR expr/stmt to TS/JSX strings | `legacy-replace` | `crates/vox-compiler/src/web_ir/emit_tsx.rs` + future target emitters |
 | `crates/vox-compiler/src/codegen_ts/jsx.rs` | AST JSX render path | `legacy-replace` | `crates/vox-compiler/src/web_ir/lower.rs` + emitters |
-| `crates/vox-compiler/src/codegen_ts/component.rs` | `@component` generation from AST-retained path | `legacy-shrink` | WebIR lowering adapters + thin wrapper |
+| `crates/vox-compiler/src/codegen_ts/component.rs` | `@island` generation from AST-retained path | `legacy-shrink` | WebIR lowering adapters + thin wrapper |
 | `crates/vox-compiler/src/codegen_ts/reactive.rs` | reactive component generation | `legacy-shrink` | WebIR view roots + emitter |
 | `crates/vox-compiler/src/codegen_ts/routes.rs` | route-specific TS generation | `legacy-replace` | `RouteNode` contracts + target printer |
 | `crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs` | TanStack route tree strings | `legacy-shrink` | target formatter over `RouteNode` |
@@ -199,7 +199,7 @@ Where risk multiplier is in `[1.0, 1.8]`.
 - [ ] CP-009 Add migration status flagging policy to docs.
 - [ ] CP-010 Define WebIR acceptance gate checklist.
 - [ ] CP-011 Define rollback criteria for each migration phase.
-- [ ] CP-012 Define deprecation policy for legacy `@component fn` hooks.
+- [ ] CP-012 Define deprecation policy for legacy `@island fn` hooks.
 - [ ] CP-013 Add source-of-truth file list for WebIR ownership.
 - [ ] CP-014 Define lint/test ownership for WebIR modules.
 - [ ] CP-015 Define release-note template for WebIR milestones.
@@ -251,7 +251,7 @@ Where risk multiplier is in `[1.0, 1.8]`.
 - [ ] CP-055 Lower island tags to `DomNode::IslandMount`.
 - [ ] CP-056 Preserve island `data-prop-*` mapping semantics in node fields.
 - [ ] CP-057 Add adapter for AST-retained `HirComponent`.
-- [ ] CP-058 Add shim lowering for legacy `@component fn` path.
+- [ ] CP-058 Add shim lowering for legacy `@island fn` path.
 - [ ] CP-059 Attach source spans to all lowered nodes.
 - [ ] CP-060 Emit lowering diagnostics for unsupported edge expressions.
 - [ ] CP-061 Add lowering unit tests for each node family.
@@ -352,7 +352,7 @@ Where risk multiplier is in `[1.0, 1.8]`.
 - [ ] CP-141 Add diff reporter for generated artifact mismatches.
 - [ ] CP-142 Add warning docs for legacy syntax deprecations.
 - [ ] CP-143 Add CLI command to audit WebIR readiness of project.
-- [ ] CP-144 Add migration guide from legacy `@component fn`.
+- [ ] CP-144 Add migration guide from legacy `@island fn`.
 - [ ] CP-145 Add migration guide for islands compatibility.
 - [ ] CP-146 Promote WebIR path to default in preview channel.
 - [ ] CP-147 Define cutover gate requiring parity pass rate threshold.
@@ -383,9 +383,9 @@ Task volume note:
 - [x] OP-0007 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0006 | `crates/vox-compiler/src/parser/descent/tests.rs` | assert island prop parse rejects malformed optionality token order. **Done:** `test_parse_island_prop_requires_colon` (missing `:` between name and type).
 - [x] OP-0008 | update | C1 | 1.0 | 1.0 | 120 | OP-0007 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: `VOX_PARSER_DEBUG` + `Parser::maybe_parser_trace`; island prop `eprintln` on each line.
 - [x] OP-0009 | update | C2 | 1.1 | 1.0 | 180 | OP-0008 | `crates/vox-compiler/src/parser/descent/decl/tail.rs` | align parse notes with `routes { ... }` canonical syntax. **Done:** `parse_routes` rustdoc (canonical `routes { ... }` form).
-- [x] OP-0010 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0009 | `crates/vox-compiler/src/parser/descent/tests.rs` | add test for `@component Name(...) { ... }` reactive decorated form. **Done:** pre-existing `test_parse_at_component_reactive_path_c`.
+- [x] OP-0010 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0009 | `crates/vox-compiler/src/parser/descent/tests.rs` | add test for `@island Name(...) { ... }` reactive decorated form. **Done:** pre-existing `test_parse_at_component_reactive_path_c`.
 - [x] OP-0011 | update | C2 | 1.1 | 1.1 | 200 | OP-0010 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: `ParseErrorClass::ReactiveComponentMember`.
-- [x] OP-0012 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0011 | `crates/vox-compiler/src/parser/descent/tests.rs` | validate `@component fn ... to Element { ... }` remains accepted. **Done:** pre-existing `test_parse_component`.
+- [x] OP-0012 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0011 | `crates/vox-compiler/src/parser/descent/tests.rs` | validate `@island fn ... to Element { ... }` remains accepted. **Done:** pre-existing `test_parse_component`.
 - [x] OP-0013 | update | C1 | 1.0 | 1.0 | 120 | OP-0012 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: `parse_island` rustdoc — braces authoritative, no speculative forms.
 - [x] OP-0014 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0013 | `crates/vox-compiler/src/parser/descent/tests.rs` | Done: `test_island_optional_prop_token_shape` (token stream reflects `?` / `:` around optional island props).
 - [x] OP-0015 | update | C2 | 1.1 | 1.1 | 200 | OP-0014 | `crates/vox-compiler/src/parser/mod.rs` | Done: `WEB_SURFACE_SYNTAX_INVENTORY` + `test_web_surface_syntax_inventory_non_empty`.
@@ -760,7 +760,7 @@ Classic Web IR **integration** evidence lives in `crates/vox-integration-tests/t
 
 One checklist line per operation (fixed from packed rows).
 
-- [x] OP-S001 | update | C2 | 1.1 | 1.1 | 210 | OP-0320 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: import path + `@component` head wording pass (SSOT messages).
+- [x] OP-S001 | update | C2 | 1.1 | 1.1 | 210 | OP-0320 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: import path + `@island` head wording pass (SSOT messages).
 - [x] OP-S002 | add-test | C2 | 1.2 | 1.2 | 230 | OP-S001 | `crates/vox-compiler/tests/reactive_smoke.rs` | Done: `k_metric_branch_registry_parser_micro_gate`.
 - [x] OP-S003 | update | C2 | 1.1 | 1.0 | 180 | OP-S002 | `crates/vox-compiler/src/parser/descent/decl/tail.rs` | Done: `parse_routes` rustdoc → `RoutesDecl::parse_summary` + `WEB_SURFACE_SYNTAX_INVENTORY`.
 - [x] OP-S004 | gate-test | C2 | 1.2 | 1.3 | 250 | OP-S003 | `crates/vox-compiler/tests/reactive_smoke.rs` | Done: same test as OP-S002 (micro-gate on K-metric fixture).
@@ -1086,7 +1086,7 @@ Lane execution policy:
 
 ## Progress checkpoints
 
-- 10%: appendix + OP scaffold complete (`OP-0001`..`OP-0032`).
+- 10% { appendix + OP scaffold complete (`OP-0001`..`OP-0032`).
 - 35%: schema + lowering blocks complete (`OP-0033`..`OP-0080`).
 - 60%: validator + emitter bridge core complete (`OP-0081`..`OP-0192`).
 - 85%: compatibility/runtime + parity fixtures complete (`OP-0193`..`OP-0312`).

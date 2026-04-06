@@ -77,6 +77,8 @@ pub struct DocTrainingPair {
     pub response: String,
     /// Quality rating.
     pub rating: u8,
+    /// Estimated difficulty (3-10).
+    pub difficulty: u8,
     /// Data lane (codegen vs docs qa).
     pub lane: String,
     /// Expected response surface for this row.
@@ -96,6 +98,7 @@ impl DocTrainingPair {
             "response": self.response,
             "category": self.category,
             "rating": self.rating,
+            "difficulty": self.difficulty,
             "source": self.source_path.display().to_string(),
             "format": "documentation",
             "lane": self.lane,
@@ -261,6 +264,7 @@ fn extract_code_blocks(
                     prompt,
                     response: code,
                     rating: 4u8.saturating_sub(staleness_penalty).max(1),
+                    difficulty: 7, // Code blocks are higher difficulty than prose
                     lane: "vox_codegen".to_string(),
                     response_mode: "code_only".to_string(),
                     task_family: "docs_code".to_string(),
@@ -330,6 +334,7 @@ fn extract_qa_sections(
                     prompt,
                     response,
                     rating: 3u8.saturating_sub(staleness_penalty).max(1),
+                    difficulty: 5, // Q&A prose is mid-difficulty
                     lane: "vox_docs_qa".to_string(),
                     response_mode: "prose_only".to_string(),
                     task_family: "docs_qa".to_string(),
@@ -382,6 +387,7 @@ fn extract_qa_sections(
             prompt,
             response,
             rating: 3u8.saturating_sub(staleness_penalty).max(1),
+            difficulty: 5,
             lane: "vox_docs_qa".to_string(),
             response_mode: "prose_only".to_string(),
             task_family: "docs_qa".to_string(),
@@ -433,9 +439,43 @@ fn slugify_heading(s: &str) -> String {
 }
 
 /// Walk a directory tree and extract pairs from all `.md` files.
+///
+/// Task 3.3: Automate dynamic inclusion of internal workspace crate documentation.
 pub fn walk_and_extract_docs(config: &ExtractDocsConfig) -> anyhow::Result<Vec<DocTrainingPair>> {
     let mut all = Vec::new();
     walk_docs_dir(&config.root, config, &mut all)?;
+
+    // Automated workspace discovery: find READMEs and /docs in sibling `crates/`
+    if let Some(parent) = config.root.parent()
+        && (parent.ends_with("docs") || parent.join("crates").is_dir())
+    {
+        let crates_dir = if parent.ends_with("docs") {
+            parent.parent().unwrap_or(Path::new(".")).join("crates")
+        } else {
+            parent.join("crates")
+        };
+
+        if let Ok(entries) = std::fs::read_dir(&crates_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    // Try README.md
+                    let readme = p.join("README.md");
+                    if readme.is_file() {
+                        if let Ok(pairs) = extract_from_md_file(&readme, config) {
+                            all.extend(pairs);
+                        }
+                    }
+                    // Try docs/ directory inside crate
+                    let crate_docs = p.join("docs");
+                    if crate_docs.is_dir() {
+                        walk_docs_dir(&crate_docs, config, &mut all)?;
+                    }
+                }
+            }
+        }
+    }
+
     Ok(all)
 }
 

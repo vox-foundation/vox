@@ -34,8 +34,8 @@ Canonical parser and output truth sources:
 | Surface | Parser-accepted form (today) | Source anchor |
 | --- | --- | --- |
 | Reactive component (Path C) | `component Name(params) { state ... derived ... mount: ... view: <div /> }` | `crates/vox-compiler/src/parser/descent/decl/tail.rs` |
-| Reactive via decorator | `@component Name(params) { ... }` (same reactive body) | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
-| Legacy component fn | `@component fn Name(...) to Element { ... }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| Reactive via decorator | `@island Name(params) { ... }` (same reactive body) | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| Legacy component fn | `@island fn Name(...) to Element { ... }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
 | Island declaration | `@island Name { prop: Type prop2?: Type }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
 | Routes declaration | `routes { "/" to Home "/about" to About }` | `crates/vox-compiler/src/parser/descent/decl/tail.rs` |
 | Server fn declaration | `@server fn echo(x: str) to str { ret x }` | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
@@ -44,8 +44,8 @@ Canonical parser and output truth sources:
 
 ### Parser boundaries (non-speculative)
 
-- `routes { ... }` is implemented; `routes:` is not the parser shape in current descent code.
-- `style { ... }` parsing is wired through `parse_style_blocks()` on the `@component fn` path.
+- `routes { ... }` is implemented; `routes {` is not the parser shape in current descent code.
+- `style { ... }` parsing is wired through `parse_style_blocks()` on the `@island fn` path.
 - `@island` props are parsed in a brace block with explicit `?` optional marker.
 
 ## Current Output Evidence Map (tests + code)
@@ -72,7 +72,7 @@ import react.use_state
     width?: int
 }
 
-@component fn Dashboard() to Element {
+@island fn Dashboard() to Element {
     let (title, _set_title) = use_state("Ops")
     let payload = "[1,2,3]"
     <div class="dashboard">
@@ -188,7 +188,7 @@ This appendix is the machine-recomputable form of the K-complexity calculation f
 
 | Class ID | Class name | Count rule |
 | --- | --- | --- |
-| T01 | Decorator markers | `@component`, `@island`, `@server`, decorator punctuation |
+| T01 | Decorator markers | `@island`, `@island`, `@server`, decorator punctuation |
 | T02 | Structural keywords | `component`, `routes`, `http`, `ret`, `state`, `view`, etc. |
 | T03 | Type markers | `to`, `str`, type identifiers, optional marker `?` in prop declarations |
 | T04 | Delimiters | `{`, `}`, `(`, `)`, `<`, `>`, `</`, `/>`, `:`, `,` |

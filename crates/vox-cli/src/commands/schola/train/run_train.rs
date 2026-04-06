@@ -29,7 +29,7 @@ pub async fn run_train(
     process_priority: String,
     vram_limit_fraction: Option<f32>,
     adapter_tag: Option<String>,
-    context_filter: Option<String>,
+    context_filter: Option<vox_populi::mens::tensor::training_config::ContextFilter>,
     validation_split_ratio: Option<f64>,
     tokenizer_mode: vox_populi::mens::MensTokenizerMode,
     qlora_no_double_quant: bool,
@@ -54,6 +54,8 @@ pub async fn run_train(
     trajectory_failure_category_boost: f32,
     trajectory_quality_floor: Option<u8>,
     trajectory_quality_boost: f32,
+    curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
+    chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -181,9 +183,10 @@ pub async fn run_train(
         attribution_required,
         trajectory_weighting_enabled,
         trajectory_tool_trace_boost,
-        trajectory_failure_category_boost,
+        ?trajectory_failure_category_boost,
         ?trajectory_quality_floor,
         trajectory_quality_boost,
+        ?context_filter,
         "Training parser payload"
     );
 
@@ -313,6 +316,8 @@ pub async fn run_train(
             context_filter,
             validation_split_ratio,
             seed,
+            curriculum_schedule,
+            chatml,
         )
         .await;
     }

@@ -9,6 +9,9 @@ training_eligible: true
 
 Understand the current durability boundary in Vox. Today, durable execution is a workflow feature of the interpreted runtime used by `vox mens workflow ...`, not a blanket guarantee for every compiled Vox program.
 
+> [!NOTE]
+> **Interpreted Durability vs Compiled Async**: The durable path today specifically relies on the interpreted `vox mens workflow` runner to track execution steps in the journal. Workflows compiled to Rust under standard operation (`vox build`) currently execute as standard `async fn` constructs without the automatic state machine generation built in.
+
 ## 1. The Journal System
 
 In the interpreted workflow runtime, Vox records workflow progress as activity steps complete. The durable truth today is step-oriented: the runtime tracks which `activity_id` values have already completed for a workflow run and stores the completed step result payload so it can replay that result after a restart.

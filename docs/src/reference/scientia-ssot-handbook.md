@@ -184,7 +184,7 @@ After registry changes: in **`vox-vscode`**, `pnpm run compile` regenerates the 
 
 ## 10. SLOs and KPIs (T019)
 
-**SLO (targets for ops, not enforced in code):**
+**SLO (targets for ops, not enforced in code) {**
 
 - **P95** manifest-ready → first successful external job `succeeded` under profile-specific minutes (staging vs prod).
 - **Error budget**: retryable ratio < threshold per adapter/week.
@@ -212,7 +212,7 @@ The rollup includes `"metrics_schema_version": <integer>` at the top level. Incr
 2. Point **`VOX_ZENODO_STAGING_DIR`** at that directory before `publication-submit-local` / pipeline / external job (adapter `zenodo`).
 3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission_package.rs) plan that exists on disk.
 4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) to match bytes before each bucket `PUT`.
-5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`**: fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
+5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`** { fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
 6. **`VOX_ZENODO_DRAFT_ONLY`** / **`VOX_ZENODO_PUBLISH_NOW`** compose with attach + staging per [`scholarly/flags`](../../../crates/vox-publisher/src/scholarly/flags.rs).
 
 ## 14. OpenReview submit profile export (T094)

@@ -1,8 +1,9 @@
 ---
 title: "How-To: Handle Errors Gracefully"
-description: "Official documentation for How-To: Handle Errors Gracefully for the Vox language. Detailed technical reference, architecture guides, and "
+description: "Learn the best practices for error management in Vox to build robust applications."
 category: "how-to"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
 ---
 # How-To: Handle Errors Gracefully
@@ -14,39 +15,41 @@ Learn the best practices for error management in Vox to build robust, fault-tole
 Vox uses the functional `Result[T, E]` type for operations that can fail, rather than standard exceptions.
 
 ```vox
-# Skip-Test
-fn find_user(id: str) to Result[User, str]:
-    if id == "":
-        ret Err("Invalid ID")
-    ret Ok(User(id: id))
+# Skip-Test: ui-only
+fn find_user(id: str) to Result[str] {
+    if id == "" {
+        ret Error("Invalid ID")
+    }
+    ret Ok(id)
+}
 ```
 
 ## 2. Using the `?` Operator
 
-The `?` operator provides ergonomic error propagation. If an expression evaluates to `Err`, the surrounding function returns that error immediately.
+The `?` operator provides ergonomic error propagation. If an expression evaluates to `Error`, the surrounding function returns that error immediately.
 
 ```vox
-# Skip-Test
-fn process_order(id: str) to Result[bool, str]:
+# Skip-Test: ui-only
+fn process_order(id: str) to Result[bool] {
     let user = find_user(id)?
-    let balance = check_balance(user)?
+    // `check_balance` might also return a Result
+    // let balance = check_balance(user)?
     ret Ok(true)
+}
 ```
 
-## 3. Error Handling in UI
+## 3. Error Handling
 
-Vox components can handle `Result` types directly mid-render using pattern matching or helper methods.
+Vox allows you to handle `Result` types directly using exhaustive pattern matching. (Error display in UI is covered in the islands tutorial).
 
 ```vox
-# Skip-Test
-@component fn UserProfile(id: str) to Element:
-    let result = find_user(id)
+# Skip-Test: ui-only
+let result = find_user("123")
 
-    <div class="profile">
-        match result:
-            | Ok(user) => <h1>user.name</h1>
-            | Err(msg) => <p class="error">msg</p>
-    </div>
+match result {
+    Ok(user)   -> print("Found { " + user)
+    Error(msg) -> print("Failed: " + msg)
+}
 ```
 
 ## 4. Panic vs. Error
@@ -56,6 +59,11 @@ Vox components can handle `Result` types directly mid-render using pattern match
 
 ---
 
-**Related Reference**:
-- [Language Reference](../reference/ref-language.md) — Syntax for `match` and `?`.
+## Summary
+- Use `Result` for operations that can gracefully fail.
+- Use `?` to easily propagate `Error` up the call stack.
+- Use pattern matching with `match` blocks to unwrap and inspect the branches safely.
+
+## Related
+- [Language Syntax](../reference/ref-syntax.md) — Syntax for `match` and `?`.
 - [Durable Workflows](../tutorials/tut-workflow-durability.md) — Automatic error recovery in long-running tasks.

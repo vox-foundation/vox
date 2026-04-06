@@ -26,6 +26,7 @@ pub async fn run_train(
     seed: u64,
     min_rating: Option<u8>,
     preset: Option<String>,
+    domain: Option<String>,
     deployment_target: TrainingDeploymentTargetCli,
     process_priority: String,
     vram_limit_fraction: Option<f32>,
@@ -152,7 +153,67 @@ pub async fn run_train(
         }
     }
 
-    let context_filter = context_filter.or_else(|| adapter_tag.clone());
+    let mut effective_min_rating = min_rating;
+    let mut effective_ce_last_k = qlora_ce_last_k;
+    let mut effective_validation_split_ratio = validation_split_ratio;
+    let mut _effective_max_grad_norm = None; // pass down if needed
+    let mut effective_curriculum = curriculum;
+    let mut effective_trajectory_weighting_enabled = trajectory_weighting_enabled;
+    let mut effective_trajectory_tool_trace_boost = trajectory_tool_trace_boost;
+    let mut effective_context_filter = None;
+    let mut effective_adapter_tag = adapter_tag.clone();
+    let mut effective_curriculum_schedule = None;
+    let mut effective_chatml = vox_populi::mens::tensor::training_config::ChatmlConfig::default();
+
+    if let Some(domain_name) = &domain {
+        match vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(domain_name, workspace_root.as_deref()) {
+            Ok(profile) => {
+                use owo_colors::OwoColorize;
+                eprintln!("  {} Applied domain profile: {}", "✓".green(), domain_name.cyan());
+                
+                if let Some(desc) = &profile.description {
+                    eprintln!("    Description: {}", desc.dimmed());
+                }
+                
+                effective_min_rating = profile.min_rating.or(min_rating);
+                effective_ce_last_k = profile.ce_last_k.unwrap_or(qlora_ce_last_k);
+                effective_validation_split_ratio = profile.validation_split_ratio.unwrap_or(validation_split_ratio);
+                _effective_max_grad_norm = profile.max_grad_norm;
+                effective_curriculum = profile.curriculum.unwrap_or(curriculum);
+                effective_trajectory_weighting_enabled = profile.trajectory_weighting.unwrap_or(trajectory_weighting_enabled);
+                if let Some(boost) = profile.trajectory_tool_trace_boost {
+                    effective_trajectory_tool_trace_boost = boost;
+                }
+                effective_context_filter = profile.context_filter.clone();
+                if effective_adapter_tag.is_none() {
+                    effective_adapter_tag = Some(domain_name.clone());
+                }
+                effective_curriculum_schedule = profile.curriculum_schedule.clone();
+                effective_chatml = profile.chatml.clone();
+                
+                if let Some(ref mix_path) = profile.mix_config {
+                    // Update env var to point mix to this one if `vox mens corpus mix` called?
+                    // Actually simply inform.
+                    eprintln!("    Mix config: {}", mix_path.display());
+                }
+            }
+            Err(e) => {
+                anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
+            }
+        }
+    }
+
+    let parsed_filter = if let Some(cf) = effective_context_filter {
+        Some(cf)
+    } else {
+        context_filter
+            .or_else(|| effective_adapter_tag.clone())
+            .map(|s| vox_populi::mens::tensor::training_config::ContextFilter {
+                categories: Some(vec![s]),
+                ..Default::default()
+            })
+    };
+
     let spawn_log_dir = if background {
         Some(log_dir.clone().unwrap_or_else(|| {
             workspace_root
@@ -171,7 +232,7 @@ pub async fn run_train(
     } else {
         deployment_target.into()
     };
-    train::run_train(
+    let train_res = train::run_train(
         backend.into(),
         model,
         device,
@@ -187,14 +248,14 @@ pub async fn run_train(
         lr,
         warmup,
         seed,
-        min_rating,
+        effective_min_rating,
         preset,
         deployment_target,
         process_priority,
         vram_limit_fraction,
-        adapter_tag,
-        context_filter,
-        Some(validation_split_ratio),
+        effective_adapter_tag,
+        parsed_filter,
+        Some(effective_validation_split_ratio),
         tokenizer.into(),
         qlora_no_double_quant,
         qlora_require_full_proxy_stack,
@@ -202,10 +263,10 @@ pub async fn run_train(
         qlora_max_skip_rate,
         qlora_lm_head_only,
         qlora_proxy_max_layers,
-        qlora_ce_last_k,
+        effective_ce_last_k,
         checkpoint_every,
         force_restart,
-        curriculum,
+        effective_curriculum,
         optimizer_experiment_mode,
         require_gpu,
         allow_cpu_fallback,
@@ -213,13 +274,36 @@ pub async fn run_train(
         upstream_model_id,
         license_class,
         attribution_required,
-        trajectory_weighting_enabled,
-        trajectory_tool_trace_boost,
+        effective_trajectory_weighting_enabled,
+        effective_trajectory_tool_trace_boost,
         trajectory_failure_category_boost,
         trajectory_quality_floor,
         trajectory_quality_boost,
+        effective_curriculum_schedule,
+        effective_chatml,
     )
-    .await
+    .await;
+    
+    if train_res.is_ok() {
+        if let Some(ref r) = workspace_root {
+            let mixed = r.join("target/dogfood/train_mixed.jsonl");
+            let backup = r.join("mens/data/train_full_backup.jsonl");
+            if mixed.exists() {
+                if let Some(parent) = backup.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                if let Err(e) = std::fs::copy(&mixed, &backup) {
+                    use owo_colors::OwoColorize;
+                    eprintln!("  {} Failed to copy train_mixed.jsonl to backup: {e}", "⚠️".yellow());
+                } else {
+                    use owo_colors::OwoColorize;
+                    eprintln!("  {} Backed up running corpus to {}", "✓".green(), backup.display());
+                }
+            }
+        }
+    }
+    
+    train_res
 }
 
 /// Regenerate synthetic data, run `vox mens pipeline` with `skip_train`, optionally copy mix → `train.jsonl`,

@@ -114,6 +114,16 @@ Activities must always return a `Result` type, since they represent operations t
 
 ---
 
+## Quick Comparison
+
+| Concept | Keyword | Survival | State |
+|---|---|---|---|
+| Actor | `actor` | Lives in memory; revive with same ID | `state_load`/`state_save` |
+| Workflow | `workflow` | Interpreted runtime can replay completed steps | Journal in Codex |
+| Activity | `activity` | Individual retryable step within a workflow | None (idempotent) |
+
+---
+
 ## Workflows
 
 Workflows orchestrate activities with retry and journaling intent.
@@ -209,3 +219,14 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
 - [Language Guide](../reference/ref-language.md) — Full syntax and type system reference
 - [Compiler Architecture](expl-architecture.md) — How actors and workflows compile
 - [Examples](../how-to/examples-corpus.md) — All example programs with annotations
+
+## Durability Taxonomy
+
+Understanding the types of durability is crucial when reasoning about failure recovery in Vox:
+
+1. **Persistent Actors** (state_load / state_save):
+   State survives restarts because the logic explicitly reads from and writes to the Codex under specific keys. When the actor respawns, it resumes with the last saved state.
+2. **Workflow Durability** (Interpreted Runtime):
+   When running via ox run or ox mens workflow, the engine tracks execution steps natively in the database. If the process dies and restarts, completed activities are short-circuited.
+3. **Compiled Rust Workflows** (Future Parity):
+   Workflows that are compiled strictly down to standard Rust async equivalents do not automatically benefit from step-level replayable durability yet. This remains an active implementation target for parity with the interpreted path (see ADR-021).

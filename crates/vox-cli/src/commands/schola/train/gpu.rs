@@ -42,9 +42,11 @@ pub(super) async fn run_gpu_training(
     trajectory_quality_boost: f32,
     vram_limit_fraction: Option<f32>,
     adapter_tag: Option<String>,
-    context_filter: Option<String>,
+    context_filter: Option<vox_populi::mens::tensor::training_config::ContextFilter>,
     validation_split_ratio: Option<f64>,
     seed: u64,
+    curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
+    chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -287,6 +289,8 @@ pub(super) async fn run_gpu_training(
         trajectory_quality_boost,
         require_gpu,
         allow_cpu_fallback,
+        curriculum_schedule,
+        chatml,
     };
     let model_name_for_stats = config
         .base_model

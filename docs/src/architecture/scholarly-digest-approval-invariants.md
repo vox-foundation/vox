@@ -20,7 +20,7 @@ These rules apply to **CLI** (`vox db publication-submit-local`, `publication-ex
 
 ## Adapter routes
 
-- New HTTP-backed adapters must:
+- New HTTP-backed adapters must {
   - Respect [`VOX_SCHOLARLY_DISABLE*`](../reference/env-vars.md) (see [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs)).
   - Return failures as [`ScholarlyError`](../../../crates/vox-publisher/src/scholarly/error.rs) so `error_class`, `retryable`, and `scholarly_http_status_code` populate `external_submission_attempts` consistently.
   - Use [`classify_scholarly_http`](../../../crates/vox-publisher/src/scholarly/error.rs) for HTTP error mapping unless the adapter needs venue-specific classification (then extend the shared helper rather than forking logic).

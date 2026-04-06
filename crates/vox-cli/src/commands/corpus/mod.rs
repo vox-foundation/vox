@@ -135,6 +135,12 @@ pub enum CorpusAction {
         #[arg(long)]
         allow_missing_sources: bool,
     },
+    /// Show corpus statistics (domain mixture, category counts)
+    Stats {
+        /// Input JSONL file (defaults to `target/dogfood/train.jsonl`)
+        #[arg(short, long, default_value = "target/dogfood/train.jsonl")]
+        input: std::path::PathBuf,
+    },
 }
 
 /// Execute the native training data extraction or validation logic.
@@ -244,5 +250,6 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             }
             Ok(())
         }
+        CorpusAction::Stats { input } => stats::run_stats(&input).await,
     }
 }

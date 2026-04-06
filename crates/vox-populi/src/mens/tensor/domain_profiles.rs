@@ -1,0 +1,118 @@
+use crate::mens::tensor::training_config::{ContextFilter, CurriculumSchedule};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DomainProfile {
+    pub description: Option<String>,
+    pub context_filter: Option<ContextFilter>,
+    pub mix_config: Option<String>,
+    pub system_prompt: Option<String>,
+    pub min_rating: Option<u8>,
+    pub ce_last_k: Option<usize>,
+    pub max_grad_norm: Option<f32>,
+    pub trajectory_weighting: Option<bool>,
+    pub trajectory_tool_trace_boost: Option<f32>,
+    pub curriculum_schedule: Option<CurriculumSchedule>,
+    pub chatml: Option<crate::mens::tensor::training_config::ChatmlConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DomainProfileDefaults {
+    pub min_rating: Option<u8>,
+    pub ce_last_k: Option<usize>,
+    pub validation_split_ratio: Option<f64>,
+    pub weight_decay: Option<f32>,
+    pub max_grad_norm: Option<f32>,
+    pub curriculum: Option<bool>,
+    pub trajectory_weighting: Option<bool>,
+    pub curriculum_schedule: Option<CurriculumSchedule>,
+    pub chatml: Option<crate::mens::tensor::training_config::ChatmlConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DomainProfilesFile {
+    pub defaults: Option<DomainProfileDefaults>,
+    pub profiles: HashMap<String, DomainProfile>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EffectiveDomainProfile {
+    pub name: String,
+    pub description: Option<String>,
+    pub context_filter: Option<ContextFilter>,
+    pub mix_config: Option<PathBuf>,
+    pub system_prompt: Option<PathBuf>,
+    
+    // Overrides over LoraTrainingConfig defaults
+    pub min_rating: Option<u8>,
+    pub ce_last_k: Option<usize>,
+    pub validation_split_ratio: Option<f64>,
+    pub weight_decay: Option<f32>,
+    pub max_grad_norm: Option<f32>,
+    pub curriculum: Option<bool>,
+    pub trajectory_weighting: Option<bool>,
+    pub trajectory_tool_trace_boost: Option<f32>,
+    pub curriculum_schedule: Option<CurriculumSchedule>,
+    pub chatml: crate::mens::tensor::training_config::ChatmlConfig,
+}
+
+impl EffectiveDomainProfile {
+    pub fn load_domain_profile(name: &str, workspace_root: Option<&Path>) -> anyhow::Result<Self> {
+        let root = workspace_root.unwrap_or_else(|| Path::new("."));
+        let profiles_path = root.join("mens/config/domain-profiles.yaml");
+        let content = std::fs::read_to_string(&profiles_path)
+            .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", profiles_path.display(), e))?;
+        
+        let file: DomainProfilesFile = serde_yaml::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse domain profiles: {}", e))?;
+            
+        let profile = file.profiles.get(name)
+            .ok_or_else(|| anyhow::anyhow!("Domain profile '{}' not found in {}", name, profiles_path.display()))?;
+            
+        let def = file.defaults.unwrap_or_else(|| DomainProfileDefaults {
+            min_rating: None,
+            ce_last_k: None,
+            validation_split_ratio: None,
+            weight_decay: None,
+            max_grad_norm: None,
+            curriculum: None,
+            trajectory_weighting: None,
+            curriculum_schedule: None,
+            chatml: None,
+        });
+
+        // Merge curriculum schedule
+        let cur_sched = match (&profile.curriculum_schedule, &def.curriculum_schedule) {
+            (Some(p), Some(d)) => Some(CurriculumSchedule {
+                epoch_1_max_difficulty: p.epoch_1_max_difficulty.or(d.epoch_1_max_difficulty),
+                epoch_2_max_difficulty: p.epoch_2_max_difficulty.or(d.epoch_2_max_difficulty),
+                epoch_3_max_difficulty: p.epoch_3_max_difficulty.or(d.epoch_3_max_difficulty),
+                curriculum_phases: p.curriculum_phases.clone().or_else(|| d.curriculum_phases.clone()),
+            }),
+            (Some(p), None) => Some(p.clone()),
+            (None, Some(d)) => Some(d.clone()),
+            (None, None) => None,
+        };
+
+        Ok(EffectiveDomainProfile {
+            name: name.to_string(),
+            description: profile.description.clone(),
+            context_filter: profile.context_filter.clone(),
+            mix_config: profile.mix_config.as_ref().map(|p| root.join(p)),
+            system_prompt: profile.system_prompt.as_ref().map(|p| root.join(p)),
+            
+            min_rating: profile.min_rating.or(def.min_rating),
+            ce_last_k: profile.ce_last_k.or(def.ce_last_k),
+            validation_split_ratio: def.validation_split_ratio,
+            weight_decay: def.weight_decay,
+            max_grad_norm: profile.max_grad_norm.or(def.max_grad_norm),
+            curriculum: def.curriculum,
+            trajectory_weighting: profile.trajectory_weighting.or(def.trajectory_weighting),
+            trajectory_tool_trace_boost: profile.trajectory_tool_trace_boost,
+            curriculum_schedule: cur_sched,
+            chatml: profile.chatml.clone().or_else(|| def.chatml.clone()).unwrap_or_default(),
+        })
+    }
+}

@@ -15,7 +15,7 @@ This document is the **baseline** for the package and maintainability rollout. U
 |------|----------|
 | Bounded file reads | Same cap source (`vox_scaling_policy::ScalingPolicy::embedded().thresholds.max_file_bytes_hint`); same error messages for stat/over-cap/read/UTF-8 where `anyhow` is used |
 | JSON Schema (CI/MCP) | Generated or shared validators match existing contract tests; MCP `input_schema` stays draft-07-compatible for strict clients |
-| SSE / LLM streaming | Golden tests cover `data:` lines split across arbitrary byte chunks; no regression on `[DONE]` and delta content extraction |
+| SSE / LLM streaming | Golden tests cover `data {` lines split across arbitrary byte chunks; no regression on `[DONE]` and delta content extraction |
 | Retry / backoff | Documented caps and multipliers; activity codegen `ActivityOptions` unchanged unless accompanied by compiler+fixture updates |
 | Process supervision | Managed binary resolution order unchanged; sidecar state file format unchanged |
 | DB row mapping | `turso`/`StoreError` semantics preserved; one module at a time |

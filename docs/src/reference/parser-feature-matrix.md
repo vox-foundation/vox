@@ -16,7 +16,7 @@ training_eligible: true
 - `fn`, `pub fn`
 - `type`, `pub type`
 - `import`
-- `@component`
+- `@island`
 - `@loading`
 - `@island`
 - `@table`, `@index`

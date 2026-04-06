@@ -47,7 +47,7 @@ User-visible copy and debug-style logging for the extension should stay aligned 
 | `vox.mcp.debugPayloads` | Log tool args/results (truncated) to the **Vox** output channel |
 | `vox.mcp.warnOnMissingTools` | Log when `list_tools` lacks names in generated `MCP_EXTENSION_EXPECTED_TOOLS` (includes **`vox_oratio_transcribe`** and **`vox_speech_to_code`** for Oratio palette / voice capture) |
 
-When testing optional orchestrator sidecar pilots, launch VS Code with matching env for the MCP process:
+When testing optional orchestrator sidecar pilots, launch VS Code with matching env for the MCP process {
 
 - `VOX_ORCHESTRATOR_DAEMON_SOCKET=<tcp-host:port>`
 - optional `VOX_MCP_ORCHESTRATOR_RPC_READS=1` and/or `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1`
@@ -59,7 +59,7 @@ MCP currently probes TCP peers only (stdio transport is valid for the daemon pro
 
 1. Bump `vox-vscode` `package.json` version with the MCP/server bundle you test against.
 2. `cd vox-vscode && npm run compile && npm run lint` (`compile` runs MCP + activation parity checks after registry generation)
-3. Manual smoke: connect MCP, open **Vox Workspace** (or **Vox: Open Chat** from the palette in a folder without `*.vox`), confirm the status strip shows `execution_mode` and tool count; test **Explorer** right-click on an audio file plus **Vox: Oratio —** transcribe / speech-to-code when `vox_oratio_transcribe` / `vox_speech_to_code` are advertised.
+3. Manual smoke { connect MCP, open **Vox Workspace** (or **Vox: Open Chat** from the palette in a folder without `*.vox`), confirm the status strip shows `execution_mode` and tool count; test **Explorer** right-click on an audio file plus **Vox: Oratio —** transcribe / speech-to-code when `vox_oratio_transcribe` / `vox_speech_to_code` are advertised.
 
 ## Compatibility matrix (manual)
 

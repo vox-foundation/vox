@@ -4,6 +4,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
+use owo_colors::OwoColorize;
 use candle_core::Device;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
@@ -19,7 +20,6 @@ use super::{
 use crate::mens::tensor::{
     backend, checkpoint_state::CheckpointState, manifest, qlora_preflight::QloraEmbedBundle,
     telemetry, telemetry_schema, train_log, training_config::LoraTrainingConfig,
-    training_text::plain_system_prompt_response,
 };
 
 #[derive(Debug, Clone)]
@@ -112,6 +112,17 @@ fn max_difficulty_for_epoch(epoch: usize, config: &LoraTrainingConfig) -> u8 {
     if !config.curriculum {
         return 10;
     }
+    if let Some(ref sched) = config.curriculum_schedule {
+        let val = match epoch {
+            1 => sched.epoch_1_max_difficulty,
+            2 => sched.epoch_2_max_difficulty,
+            3 => sched.epoch_3_max_difficulty,
+            _ => None,
+        };
+        if let Some(v) = val {
+            return v;
+        }
+    }
     if config.epochs > 1 {
         let progress = (epoch - 1) as f32 / (config.epochs - 1) as f32;
         (3.0 + progress * 7.0).ceil() as u8
@@ -144,8 +155,20 @@ fn try_encode_training_step(
     if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
         return Ok(TryEncodeOutcome::SkipCurriculum);
     }
-    let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
-    let prefix_text = plain_system_prompt_response(system_prompt, &pair.prompt, "");
+    let text = if let Some(ref turns) = pair.turns {
+        crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
+    } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+        crate::mens::tensor::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
+    } else {
+        return Ok(TryEncodeOutcome::SkipShortSeq); // Skip if no data
+    };
+    let prefix_text = if let Some(ref turns) = pair.turns {
+        crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
+    } else if let Some(ref p) = pair.prompt {
+        crate::mens::tensor::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
+    } else {
+        return Ok(TryEncodeOutcome::SkipShortSeq);
+    };
     let prefix_enc = tokenizer
         .encode(prefix_text, true)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -505,23 +528,25 @@ pub(super) fn run_training_loop(
         let shuffled_indices: Vec<usize> = build_epoch_shuffled_indices(
             epoch,
             start_epoch,
-            pairs.len(),
+            &pairs,
             &resume_shuffled_indices,
             &mut rng,
+            config.curriculum,
         );
 
         trainer.start_epoch();
 
         if config.curriculum {
-            let max_difficulty = if config.epochs > 1 {
-                let progress = (epoch - 1) as f32 / (config.epochs - 1) as f32;
-                (3.0 + progress * 7.0).ceil() as u8
-            } else {
-                10
-            };
+            let max_difficulty = max_difficulty_for_epoch(epoch, config);
+            let phase_label = config.curriculum_schedule.as_ref()
+                .and_then(|s| s.curriculum_phases.as_ref())
+                .and_then(|p| p.get(epoch - 1))
+                .cloned()
+                .unwrap_or_else(|| "auto".to_string());
+
             train_log::info(&format!(
-                "Epoch {}/{} curriculum threshold: diff <= {}",
-                epoch, config.epochs, max_difficulty
+                "Epoch {}/{} [phase: {}] curriculum threshold: diff <= {}",
+                epoch, config.epochs, phase_label.cyan(), max_difficulty
             ));
         }
 
@@ -886,9 +911,10 @@ pub(super) fn run_training_loop(
 fn build_epoch_shuffled_indices(
     epoch: usize,
     start_epoch: usize,
-    pair_count: usize,
+    pairs: &[TrainingPair],
     resume_shuffled_indices: &Option<Vec<usize>>,
     rng: &mut rand::rngs::StdRng,
+    monotonic_difficulty: bool,
 ) -> Vec<usize> {
     if epoch == start_epoch
         && let Some(idx) = resume_shuffled_indices
@@ -896,8 +922,14 @@ fn build_epoch_shuffled_indices(
     {
         return idx.clone();
     }
-    let mut idx: Vec<usize> = (0..pair_count).collect();
-    idx.shuffle(rng);
+    let mut idx: Vec<usize> = (0..pairs.len()).collect();
+    if monotonic_difficulty {
+        // Task 2.2: Sort monotonically by difficulty_level across multiple training epochs automatically.
+        // We stable-sort to maintain some deterministic relative order for same-difficulty items.
+        idx.sort_by_key(|&v| pairs[v].difficulty.unwrap_or(5));
+    } else {
+        idx.shuffle(rng);
+    }
     idx
 }
 
@@ -1032,7 +1064,8 @@ mod tests {
     #[test]
     fn uses_resume_indices_when_present_and_nonempty() {
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-        let got = build_epoch_shuffled_indices(3, 3, 5, &Some(vec![4, 2, 1, 3, 0]), &mut rng);
+        let pairs = vec![TrainingPair::default(); 5];
+        let got = build_epoch_shuffled_indices(3, 3, &pairs, &Some(vec![4, 2, 1, 3, 0]), &mut rng, false);
         assert_eq!(got, vec![4, 2, 1, 3, 0]);
     }
 
@@ -1040,8 +1073,9 @@ mod tests {
     fn reshuffles_when_resume_indices_are_empty() {
         let mut rng_a = rand::rngs::StdRng::seed_from_u64(42);
         let mut rng_b = rand::rngs::StdRng::seed_from_u64(42);
-        let got = build_epoch_shuffled_indices(2, 2, 6, &Some(vec![]), &mut rng_a);
-        let expect = build_epoch_shuffled_indices(2, 1, 6, &None, &mut rng_b);
+        let pairs = vec![TrainingPair::default(); 6];
+        let got = build_epoch_shuffled_indices(2, 2, &pairs, &Some(vec![]), &mut rng_a, false);
+        let expect = build_epoch_shuffled_indices(2, 1, &pairs, &None, &mut rng_b, false);
         assert_eq!(got, expect);
         assert!(!got.is_empty());
     }
@@ -1056,8 +1090,9 @@ mod tests {
     #[test]
     fn trajectory_weighting_defaults_to_identity_when_disabled() {
         let pair = TrainingPair {
-            prompt: "p".into(),
-            response: "r".into(),
+            prompt: Some("p".into()),
+            response: Some("r".into()),
+            turns: None,
             rating: Some(5),
             category: Some("tool_trace".into()),
             difficulty: None,
@@ -1072,8 +1107,9 @@ mod tests {
     #[test]
     fn trajectory_weighting_applies_category_and_quality_boosts() {
         let pair = TrainingPair {
-            prompt: "p".into(),
-            response: "r".into(),
+            prompt: Some("p".into()),
+            response: Some("r".into()),
+            turns: None,
             rating: Some(5),
             category: Some("tool_trace_failure".into()),
             difficulty: None,

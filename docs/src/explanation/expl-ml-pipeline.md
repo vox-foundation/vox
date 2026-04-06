@@ -67,7 +67,7 @@ Vox "dogfoods" itself: the language, compiler, and documentation all feed a nati
 
 ## Data Schema
 
-All training pairs follow this JSONL schema (must match across all tools):
+All training pairs follow this JSONL schema (must match across all tools) {
 
 ```json
 {
@@ -94,13 +94,13 @@ All training pairs follow this JSONL schema (must match across all tools):
 `vox-tensor` includes a **deterministic, dependency-free character-level tokenizer** (`VoxTokenizer`):
 
 - **95 printable ASCII characters** (IDs 3-97)
-- **35 Vox compound tokens** (workflow, actor, fn , @component, etc.)
+- **35 Vox compound tokens** (workflow, actor, fn , @island, etc.)
 - **3 control tokens**: `[PAD]=0`, `[UNK]=1`, `[EOS]=2`
 - **Total vocab**: 133 tokens
 
 ```vox
 // Vox example — tokenized natively using VoxTokenizer
-fn greet(name: str) to str:
+fn greet(name: str) to str {
     "Hello, " + name
 ```
 
@@ -110,7 +110,7 @@ Encoding uses greedy longest-match on compound tokens before falling back to sin
 
 ## VoxTransformer Architecture
 
-The native Burn-backed model (`crates/vox-tensor/src/vox_nn.rs`, `gpu` feature):
+The native Burn-backed model (`crates/vox-tensor/src/vox_nn.rs`, `gpu` feature) {
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|

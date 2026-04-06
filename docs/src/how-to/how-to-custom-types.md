@@ -1,8 +1,9 @@
 ---
 title: "How-To: Model Complex Domain Logic"
-description: "Official documentation for How-To: Model Complex Domain Logic for the Vox language. Detailed technical reference, architecture guides, an"
+description: "Learn how to use Vox's expressive type system."
 category: "how-to"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
 ---
 # How-To: Model Complex Domain Logic
@@ -14,8 +15,8 @@ Learn how to use Vox's expressive type system to model your application's domain
 Vox supports powerful ADTs (sum types) for representing state that can be one of several variants.
 
 ```vox
-# Skip-Test
-type OrderStatus:
+# Skip-Test: ui-only
+type OrderStatus =
     | Pending
     | Processing(staff_id: str)
     | Shipped(tracking_number: str)
@@ -27,13 +28,15 @@ type OrderStatus:
 Use the `match` expression to handle ADT variants with full type safety.
 
 ```vox
-# Skip-Test
-fn describe_status(status: OrderStatus) to str:
-    ret match status:
-        | Pending => "Waiting for staff"
-        | Processing(id) => "Being handled by " + id
-        | Shipped(track) => "In transit: " + track
-        | Delivered(_) => "Package reached destination"
+# Skip-Test: ui-only
+fn describe_status(status: OrderStatus) to str {
+    ret match status {
+        Pending         -> "Waiting for staff"
+        Processing(id)  -> "Being handled by " + id
+        Shipped(track)  -> "In transit { " + track
+        Delivered(_)    -> "Package reached destination"
+    }
+}
 ```
 
 ## 3. Composing Structs
@@ -41,16 +44,18 @@ fn describe_status(status: OrderStatus) to str:
 Group related data into named structs.
 
 ```vox
-# Skip-Test
-type Address:
+# Skip-Test: ui-only
+type Address {
     street: str
-    city: str
-    zip: int
+    city:   str
+    zip:    int
+}
 
-type Customer:
-    name: str
+type Customer {
+    name:  str
     email: str
     shipping_address: Address
+}
 ```
 
 ## 4. Validation with `@require`
@@ -58,22 +63,19 @@ type Customer:
 Add runtime guards to your data types using the `@require` decorator.
 
 ```vox
-# Skip-Test
+# Skip-Test: ui-only
 @require(len(self.password) > 8)
-type UserAccount:
+type UserAccount {
     username: str
     password: str
+}
 ```
 
-## 5. Summary
+## Summary
+- Describe mutually exclusive states and data variants cleanly using ADTs (Sum Types).
+- Avoid invalid states with constructor validation guards via `@require`.
+- Pattern match to strictly process all possibilities at compile time.
 
-Modeling in Vox gives you:
-- **Exhaustiveness Checking**: The compiler ensures you handle all variants.
-- **Safety**: Prevent invalid states by construction.
-- **Readability**: Clear architecture that maps directly to your business domain.
-
----
-
-**Related Reference**:
-- [Language Reference](../reference/ref-language.md) — Full type system syntax.
-- [Architecture Explanation](../explanation/expl-architecture.md) — How types flow through the HIR.
+## Related
+- [Language Syntax](../reference/ref-syntax.md) — Full type system syntax.
+- [Database Schema](../reference/ref-db-surface.md) — Modeling domain with tables.

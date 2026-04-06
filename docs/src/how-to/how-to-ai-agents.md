@@ -15,7 +15,7 @@ Vox is an AI-native language, meaning it bridges the gap between high-level busi
 Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator. 
 
 ```vox
-@mcp.tool("Search for user documentation by topic")
+@mcp.tool "Search for user documentation by topic"
 @query fn search_docs(query: str) to list[str] {
     # The compiler automatically derives the JSON schema for 'query'
     # and registers it as an MCP tool named 'search_docs'.
@@ -36,6 +36,9 @@ Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator.
 Agents in Vox are not just prompts; they are scoped types that bundle specific tools and instructions. Use the `@agent` decorator to define an agent's identity.
 
 ```vox
+# Skip-Test
+> [!WARNING]
+> The `@agent` type decorator remains aspirational in the current syntax parser.
 @agent type Documenter {
     instructions: "You are a technical writer specializing in Vox architecture. Always use the search_docs tool before answering architectural questions."
     tools: [search_docs, vox_ast_reference]
@@ -54,7 +57,7 @@ To expose your tools to a local AI assistant (like Claude Desktop or Cursor):
 
 1. **Run the MCP server**:
    ```bash
-   vox mcp run src/main.vox
+   vox run src/main.vox
    ```
 2. **Observe Logs**: The orchestrator will list all registered tools and resources.
 3. **Connect**: Add the generated endpoint to your `claude_desktop_config.json`.
@@ -63,14 +66,12 @@ To expose your tools to a local AI assistant (like Claude Desktop or Cursor):
 
 ## 4. Testing Your Tools
 
-Never guess if a tool works. Use the `vox test-mcp` CLI to simulate an agent's call.
+Never guess if a tool works. You can test your tool directly against the generated server. (Note: A dedicated `vox test-mcp` CLI is an aspirational future feature).
 
 ```bash
-# Test the 'search_docs' tool with a JSON payload
-vox test-mcp --call search_docs '{"query": "actors"}'
+# Test the 'search_docs' endpoint manually using standard tools
+curl -X POST http://localhost:8080/api/tools/search_docs -d '{"query": "actors"}'
 ```
-
-The output will show the raw JSON-RPC exchange, including the content blocks sent back to the model.
 
 ---
 
@@ -79,7 +80,7 @@ The output will show the raw JSON-RPC exchange, including the content blocks sen
 By default, an `@mcp.tool` has the same permissions as your compiled Vox binary. Use the `@require` decorator to add runtime guardrails:
 
 ```vox
-@mcp.tool("Delete user data")
+@mcp.tool "Delete user data"
 @require(auth.is_admin(caller))
 @mutation fn delete_data(id: int) to Result[Unit] {
     db.delete(id)

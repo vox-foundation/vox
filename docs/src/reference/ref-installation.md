@@ -38,7 +38,7 @@ git clone https://github.com/vox-foundation/vox && cd vox
 .\scripts\install.ps1
 ```
 
-Scripts prefer local `cargo run --locked -p vox-bootstrap` when run inside a repo checkout with Cargo available (best for debugging and contribution flows). Outside that path, scripts fetch and run a standalone `vox-bootstrap` release binary. When `--install` is used, bootstrap attempts a **binary-first** install from GitHub Releases (SHA-256 via `checksums.txt`; latest tag from the GitHub API so asset names match `vox-<tag>-<triple>.*`), then falls back to **`cargo install --locked --path crates/vox-cli`** from the resolved repo root (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`). Source fallback therefore requires a repo checkout plus Cargo. Artifact layout and targets: [binary release contract](../ci/binary-release-contract.md). See `crates/vox-bootstrap/README.md`.
+Scripts prefer local `cargo run --locked -p vox-bootstrap` when run inside a repo checkout with Cargo available (best for debugging and contribution flows). Outside that path, scripts fetch and run a standalone `vox-bootstrap` release binary. When `--install` is used, bootstrap attempts a **binary-first** install from GitHub Releases (SHA-256 via `checksums.txt`; latest tag from the GitHub API so asset names match `vox-<tag>-<triple>.*`), then falls back to **`cargo install --locked --path crates/vox-cli`** from the resolved repo root (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`). Source fallback therefore requires a repo checkout plus Cargo. Artifact layout and targets { [binary release contract](../ci/binary-release-contract.md). See `crates/vox-bootstrap/README.md`.
 
 | Flag / args | Effect |
 |-------------|--------|

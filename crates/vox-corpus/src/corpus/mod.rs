@@ -8,6 +8,7 @@ pub mod extract_rs;
 pub mod extract_vox;
 pub mod mix;
 pub mod preflight;
+pub mod prompt_gen;
 pub mod structured_eval;
 
 pub use mix::{

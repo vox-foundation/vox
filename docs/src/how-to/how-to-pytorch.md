@@ -8,6 +8,7 @@ training_eligible: true
 # @py.import – Python Library Integration (`torch`, `numpy`, etc.)
 
 > **2026 stance:** **`vox container init` is retired** (hard error — use Rust/PM flows). **`@py.import` / uv-backed setup is not a supported product path.** Native ML stacks live under **`vox mens`** / Candle; treat the material below as historical reference only.
+> For integration with external libraries via FFI going forward, see [Rust FFI & Migration Guide](../architecture/vox-rust-ffi-ssot.md).
 
 Vox historically documented importing Python libraries from `.vox` via `@py.import` with **[uv](https://docs.astral.sh/uv/)** for wheels. That workflow is **not** maintained as a supported package-management lane.
 
@@ -17,7 +18,7 @@ Vox historically documented importing Python libraries from `.vox` via `@py.impo
 @py.import torch
 @py.import torch.nn as nn
 
-fn run_inference(input: list[float]) to list[float]:
+fn run_inference(input: list[float]) to list[float] {
     let t = torch.tensor(input)
     let model = nn.Linear(4, 1)
     ret model.forward(t).tolist()
@@ -85,7 +86,7 @@ Return values come back as their string representation. Use helper utilities lik
 @py.import torch.nn.functional as F
 
 # Build and run a 2-layer MLP
-fn mlp_forward(x: list[float]) to list[float]:
+fn mlp_forward(x: list[float]) to list[float] {
     let t       = torch.tensor(x)
     let linear1 = nn.Linear(4, 8)
     let linear2 = nn.Linear(8, 2)
@@ -103,7 +104,7 @@ fn main():
 ```vox
 @py.import numpy as np
 
-fn moving_average(data: list[float], window: int) to list[float]:
+fn moving_average(data: list[float], window: int) to list[float] {
     let arr = np.array(data)
     let weights = np.ones(window) / window
     ret np.convolve(arr, weights, "valid").tolist()

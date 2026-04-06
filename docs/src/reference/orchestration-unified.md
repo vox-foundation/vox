@@ -158,7 +158,7 @@ Canonical descriptions for **`VOX_BENCHMARK_TELEMETRY`** / **`VOX_SYNTAX_K_TELEM
 | `VOX_MCP_LLM_COST_EVENTS` | Optional override for MCP LLM [`CostIncurred`](../../../crates/vox-orchestrator/src/events.rs) bus events vs Codex-only accounting; see [`vox-mcp.md`](../api/vox-mcp.md#llm-model-routing-modelstoml). |
 | `VOX_REPOSITORY_ROOT` | Optional directory for `repository_id` discovery in benchmark telemetry (and other CLI paths that adopt the same pattern); align with MCP’s discovered repo root when subprocess CWD differs. |
 
-**TOML:** under `[orchestrator]`, set `orchestration_migration = { orchestration_v2_enabled = true, … }` (field names match `OrchestrationMigrationFlags` in `crates/vox-orchestrator/src/contract.rs`). When v2 is enabled, MCP `vox_submit_task` success JSON may include **`orchestration_contract`: `"v2"`** as a client hint.
+**TOML:** under `[orchestrator]`, set `orchestration_migration = { orchestration_v2_enabled = true, … }` (field names match `OrchestrationMigrationFlags` in `crates/vox-orchestrator/src/contract.rs`). When v2 is enabled, MCP `vox_submit_task` success JSON may include **`orchestration_contract` { `"v2"`** as a client hint.
 
 Optional **`[mens]`** in `Vox.toml` merges mens scope/URL/labels for CLI and MCP (see [mens SSOT](populi.md)); **env wins** per field when set.
 

@@ -11,7 +11,10 @@ Learn how to package and deploy your Vox application using declarative environme
 
 ## 0. Declarative Environment (Optional)
 
-You can define your deployment environment directly in your `.vox` files using `@environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more, similar to a NixOS-like declarative specification.
+> [!WARNING]
+> The `@environment` declarative blocks are currently aspirational logic. Use `vox deploy` configuration options (`Vox.toml` -> `[deploy]`) to select environments.
+
+You can theoretically define your deployment environment directly in your `.vox` files using `@environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more, similar to a NixOS-like declarative specification.
 
 ```vox
 @environment production:

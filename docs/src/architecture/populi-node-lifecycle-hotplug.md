@@ -26,7 +26,7 @@ This document captures the **lifecycle model** implied by today’s control plan
 
 1. **Voluntary subtract (GPU or node)**  
    - Operator sets `maintenance=true` on the node (or uses a future CLI) **before** retire.  
-   - In-flight tasks: **exec lease renew** stops once maintenance is set (403); holder should **release** to free the scope or let the lease expire. **No new** exec grants for that node while maintenance is on.  
+   - In-flight tasks { **exec lease renew** stops once maintenance is set (403); holder should **release** to free the scope or let the lease expire. **No new** exec grants for that node while maintenance is on.  
    - `leave` or stopped heartbeat removes the node from the fresh view after stale threshold.
 
 2. **Involuntary subtract (crash, cable pull)**  

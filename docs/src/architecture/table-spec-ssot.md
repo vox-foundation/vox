@@ -18,7 +18,7 @@ It is **not** the full live SSOT yet; shared relational DDL still spans a few Ru
 
 ## Near-term (current)
 
-- Pin **explicit** parity fixtures: see `crates/vox-db/tests/arca_compiler_table_parity.rs` (column signatures + `_id`/`id` mapping where `@table` and Arca both use integer surrogate PK).
+- Pin **explicit** parity fixtures { see `crates/vox-db/tests/arca_compiler_table_parity.rs` (column signatures + `_id`/`id` mapping where `@table` and Arca both use integer surrogate PK).
 - Wire guards: `crates/vox-db/tests/spec_baseline_wiring.rs` asserts spec DDL is embedded in `baseline_sql()` and orchestrator digest invariants.
 - Tables with **natural TEXT PK** (e.g. `populi_training_run.run_id`) stay Arca/spec-only until the compiler supports declarative PK shapes in parity tests.
 - Normalize comparisons: strip benign `DEFAULT` clauses, compare logical nullability + SQLite affinity, not raw formatting.

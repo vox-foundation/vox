@@ -80,7 +80,7 @@ Run transport integration tests with **`cargo test -p vox-populi --features tran
 - `POST /v1/populi/exec/lease/renew` — extend that lease (`204`). Same **403** gate as grant (renew stops once a node is in **maintenance**).
 - `POST /v1/populi/exec/lease/release` — drop the lease early (`204`). Holder must match the lease row and the node must still be **joined**; **release is allowed under maintenance/quarantine** so operators can clear `scope_key` during drain.
 - `GET /v1/populi/exec/leases` — list active leases after server-side expiry sweep (mesh or admin bearer). MCP can correlate rows with node heartbeats when **`VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE`** is enabled, and optionally **`POST /v1/populi/admin/exec-lease/revoke`** per bad holder when **`VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE`** is set (see [env SSOT](env-vars.md)).
-- `POST /v1/populi/admin/exec-lease/revoke` — delete a lease row by `lease_id` without holder cooperation (mesh or admin bearer). **404** if unknown or already swept. CLI: **`vox populi admin exec-lease-revoke --lease-id <id>`** (feature **`populi`**).
+- `POST /v1/populi/admin/exec-lease/revoke` — delete a lease row by `lease_id` without holder cooperation (mesh or admin bearer). **404** if unknown or already swept. CLI { **`vox populi admin exec-lease-revoke --lease-id <id>`** (feature **`populi`**).
 - `POST /v1/populi/admin/maintenance` — set `NodeRecord.maintenance` and optional **`maintenance_until_unix_ms`** / **`maintenance_for_ms`** (timed auto-clear of drain; mesh or admin bearer). CLI: **`vox populi admin maintenance --node <id> --state on|off [--until-unix-ms … | --for-minutes …]`** (feature **`populi`**; `--control-url` or orchestrator / mesh control env).
 - `POST /v1/populi/admin/quarantine` — set `NodeRecord.quarantined` (mesh or admin bearer only; workers cannot clear). CLI: **`vox populi admin quarantine --node <id> --state on|off`**.
 
@@ -203,7 +203,7 @@ Machine-readable contract: [`contracts/populi/control-plane.openapi.yaml`](../..
 | 410 | bootstrap | Bootstrap token consumed or expired |
 | 413 | any POST | Body over `VOX_MESH_HTTP_MAX_BODY_BYTES` |
 
-Client note: `PopuliHttpClient` surfaces route failures as `PopuliRegistryError::HttpStatus { status, context, .. }`, so callers can branch on numeric status codes (`403` / `404` / `409`) instead of parsing strings.
+Client note { `PopuliHttpClient` surfaces route failures as `PopuliRegistryError::HttpStatus { status, context, .. }`, so callers can branch on numeric status codes (`403` / `404` / `409`) instead of parsing strings.
 
 ## A2A job lifecycle (informal)
 

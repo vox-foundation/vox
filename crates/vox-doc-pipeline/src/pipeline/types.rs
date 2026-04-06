@@ -28,4 +28,5 @@ pub(crate) enum LintKind {
     MissingCategory,
     UnknownCategory { value: String },
     UnknownStatus { value: String },
+    RawVoxCodeBlock,
 }

@@ -1,15 +1,16 @@
 ---
 title: "Explanation: The Vox Runtime"
-description: "Official documentation for Explanation: The Vox Runtime for the Vox language. Detailed technical reference, architecture guides, and impl"
+description: "Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications."
 category: "explanation"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
 ---
 # Explanation: The Vox Runtime
 
 Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications.
 
-## Implementation map (current)
+## Implementation map
 
 The runtime-facing story in today’s codebase is split across:
 
@@ -18,38 +19,36 @@ The runtime-facing story in today’s codebase is split across:
 - `crates/vox-compiler/src/codegen_rust/emit/http.rs`: generated Axum app host for routes/server/query/mutation handlers.
 - `crates/vox-compiler/src/app_contract.rs`: app-surface contract projection used to keep route/RPC/server config mapping centralized.
 
-## 1. Actor-Based Concurrency
+## 1. Actor-Based Concurrency and Tokio
 
 At its core, Vox is an actor-based system. Unlike traditional shared-memory concurrency (threads + locks), Vox processes communicate via message passing.
 
-- **Isolation**: Each actor has its own private stack and heap.
+- **Isolation**: Each actor has its own private state.
 - **Mailbox**: Messages are queued and processed sequentially, eliminating race conditions by design.
-- **Mailbox Backpressure**: Mailboxes have bounded capacities to prevent memory exhaustion during spikes.
+- **Tokio Foundation**: The Vox runtime is built natively on top of the Tokio async runtime, allowing it to take full advantage of Rust's modern asynchronous ecosystem for IO and task scheduling.
 
-## 2. The Cooperative Scheduler
+## 2. Process Registry and Channels
 
-Vox uses a custom cooperative scheduler built on top of the Tokio runtime.
+When Vox code spans actors and sends messages, the compiler lowers these operations to specific Rust primitives:
 
-- **Fibers/Processes**: Vox "processes" are lightweight tasks managed by the scheduler.
-- **Reduction Counting**: To ensure fairness, each process has a "reduction budget." When it performs operations (like I/O or computations), the budget decreases. Once empty, the process yields control to other pending tasks.
-- **Work Stealing**: The scheduler automatically moves processes between CPU cores to optimize throughput.
+- **Processes**: Vox actors compile to Tokio tasks running independently.
+- **ProcessRegistry**: The runtime tracks running actors using a `ProcessRegistry`, which associates a typed `ProcessHandle` with the underlying Tokio task.
+- **mpsc Channels**: Actor mailboxes are implemented using bounded `mpsc::channel` structures. Backpressure is naturally handled by the channel bounds.
+- **Replies**: When an actor expects a return value (like `.send()`), an inner `oneshot` channel is used to cleanly route the response back to the caller.
 
 ## 3. Technical Unification
 
 Vox achieves "Technical Unification" by abstracting the boundary between frontend and backend.
 
-- **RPC-as-Function**: Calling a `@server fn` from the UI looks like a local function call but is actually a type-safe RPC.
-- **State Synchronization**: Actors can bridge state between the server and the UI using persistent subscriptions.
+- **RPC-as-Function**: Calling a `@server fn` from an `@island` looks like a local function call but is actually a type-safe API call generated into the UI layer.
+- **State Synchronization**: Backend state updates interact directly with the client code through standard HTTP routes built on top of Axum, managed under the hood by the compiler's output.
 
-## 4. Error Recovery & Supervision
+## 4. Workflows and Journaling
 
-Superior reliability is achieved through hierarchies of supervisors.
-
-- **Let It Crash**: If an actor fails, its supervisor detects the death and determines whether to restart it based on a strategy (e.g., `OneForOne`).
-- **State Restoration**: Actors can be configured to restore their state from the `vox.db` upon restart.
+While actors handle live state and passing messages, **Workflows** provide durability for orchestration tasks. The runtime provides a secondary interpreted path for `vox mens workflow ...` executions that allows for persistent step journaling. In standard compiled operation, workflows act as normal async functions coordinating `Result`-returning activities.
 
 ---
 
 **Related Reference**:
-- [Actor Basics Tutorial](../tutorials/tut-actor-basics.md) — Learn how to use actors in practice.
-- [Scheduler API](../api/vox-runtime.md) — Technical details of the `Scheduler` struct.
+- [Actors & Workflows Explanation](expl-actors-workflows.md) — Dive deeper into the runtime behavior of actors and workflows.
+- [Language Reference](../reference/ref-syntax.md) — The core syntax for actors and state.

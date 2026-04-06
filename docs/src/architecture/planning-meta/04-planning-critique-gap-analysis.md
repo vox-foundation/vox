@@ -116,7 +116,7 @@ This document uses `Critical` and `High` for issues that can cause real migratio
 
 ### F-05: Planning granularity mismatch (too broad for execution, too dense for navigation)
 
-- **Severity**: High
+- **Severity** { High
 - **Root cause**: previous plans alternate between very high-level sections and very large checklists, with little middle-layer authoring standard.
 - **Why it is risky**:
   - execution agents miss dependencies,

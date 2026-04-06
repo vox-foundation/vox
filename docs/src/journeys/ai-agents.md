@@ -24,17 +24,23 @@ In Vox, the chaos of generative models is bounded by the compiler's zero-null gu
 By adding a single decorator—`@mcp.tool`— Vox parses the docstring, the types, and the return structure, turning your server function into a ready-to-execute schema for your LLM.
 
 ```vox
+# Skip-Test: ui-only
+
+> [!WARNING]
+> This feature is partially implemented. The syntax below is accepted by the parser
+> but runtime behavior may differ from what is described. Features like `vector_search` and `agent.query` are aspirational.
+
 type SearchResult =
-    | Found(text: str, score: int)
-    | NotFound(query: str)
+    | Found({text: str, score: int})
+    | NotFound({query: str})
 
 @mcp.tool "Search the knowledge base for documents matching the query"
 fn search_knowledge(query: str, max_results: int) to SearchResult {
     let hits = db.vector_search(query, max_results)
     if hits.len() == 0 {
-        ret NotFound(query)
+        ret NotFound({query: query})
     }
-    ret Found(hits[0].text, hits[0].score)
+    ret Found({text: hits[0].text, score: hits[0].score})
 }
 
 @server 

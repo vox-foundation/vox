@@ -58,7 +58,7 @@ This document is the **design SSOT** for how relational tables are grouped after
 - **Tables:** `codex_change_log`, `codex_subscriptions`, `codex_query_snapshots`, `codex_projection_versions` (fragment `v8`).
 - **Writes:** Mutations append to `codex_change_log` in the same transaction as domain rows (via `CodeStore::append_codex_change` / `VoxDb::append_codex_change`).
 - **Delivery:** SSE or WebSocket endpoints (future `vox-codex-api` or generated app) poll or tail `codex_change_log` by `topic` and match `codex_subscriptions`.
-- **Public HTTP sketch:** `GET /api/codex/subscribe/:topic`, `POST /api/codex/mutate/:name`, `GET /api/codex/query/:name` — implement behind one auth/tenant boundary.
+- **Public HTTP sketch {** `GET /api/codex/subscribe/:topic`, `POST /api/codex/mutate/:name`, `GET /api/codex/query/:name` — implement behind one auth/tenant boundary.
 - **Language IR hooks:** `.vox` query chains can now carry plan capabilities (`.live("topic")`, `.using("fts|vector|hybrid")`, `.sync()`, `.scope("populi|orchestrator")`) so compiler/codegen keep reactivity, retrieval, replica-sync, and orchestration hints together in one DB plan.
 
 See [ADR 004: Codex over Arca over Turso](../adr/004-codex-arca-turso-ssot.md).

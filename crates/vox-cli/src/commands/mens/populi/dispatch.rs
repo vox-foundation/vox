@@ -98,7 +98,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 "normal".into(),                   // process_priority
                 None,                              // vram_limit_fraction
                 Some("vox_dogfood_gpu_v1".into()), // adapter_tag
-                Some("vox".into()),                // context_filter
+                Some(vox_populi::mens::tensor::training_config::ContextFilter {
+                    categories: Some(vec!["vox".to_string()]),
+                    ..Default::default()
+                }), // context_filter
                 Some(0.05),                        // validation_split_ratio
                 MensTokenizerCli::Hf.into(),
                 false, // qlora_no_double_quant
@@ -123,6 +126,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 1.15,  // trajectory_failure_category_boost
                 None,  // trajectory_quality_floor
                 1.05,  // trajectory_quality_boost
+                None,  // curriculum_schedule
+                Default::default(), // chatml_config
             )
             .await?;
             Ok(())
@@ -146,6 +151,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             seed,
             min_rating,
             preset,
+            domain,
             deployment_target,
             process_priority,
             vram_limit_fraction,
@@ -202,6 +208,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 seed,
                 min_rating,
                 preset,
+                domain,
                 deployment_target,
                 process_priority,
                 vram_limit_fraction,

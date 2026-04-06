@@ -121,3 +121,13 @@ Use this lightweight review matrix for high-drift surfaces:
 - [Doc-to-code acceptance checklist](../architecture/doc-to-code-acceptance-checklist.md)
 - [Architectural governance (TOESTUB)](../../agents/governance.md)
 - [Doc inventory verifier](../reference/doc-inventory.md)
+
+## Documentation Update Checklist
+
+Before committing documentation to the repository, you must verify the following constraints:
+
+1. **Syntax Correctness**: Code snippets must parse cleanly under v0.3 validation. Confirm syntax matches the xamples/golden/ ground truths.
+2. **Status Marker**: Every page's frontmatter must specify its status (current, partial, spirational, deprecated, or contributor-only). 
+3. **Preamble Warnings**: Any aspirational syntax must be prefixed with > [!WARNING] blocks explicitly noting execution caveats.
+4. **Terminology**: Use established nomenclature (Codex vs. Arca, Mens vs. Populi, Islands vs. Components). See the Glossary.
+5. **Navigational Integrity**: If creating a new user-facing document, verify SUMMARY.md is updated and matches the intended Diátaxis domain path.

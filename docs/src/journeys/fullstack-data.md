@@ -27,7 +27,7 @@ You avoid writing boilerplate. State synchronization and type-checking happen sa
 
 Below is a complete, working React frontend and Rust backend in a single `.vox` file.
 
-```vox
+```tsx
 import react.use_state
 
 // 1. DDL & Struct defined once entirely.
@@ -39,7 +39,7 @@ import react.use_state
 
 // 2. Server mutation automatically generated. Typed args enforce contract.
 @server fn complete_task(id: Id[Task]) to Result[Unit] {
-    db.patch(id, { done: true })
+    db.Task.update(id, { done: true })
     ret Ok(())
 }
 

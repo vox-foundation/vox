@@ -41,15 +41,15 @@ match db.User.find(1) {
 ```
 If the LLM omits the `None` case, the compiler rejects the code for a **non-exhaustive match**. The model is forced to be correct.
 
-## 3. Results: 40% Fewer Hallucinations
-By constraining the LLM's output to a strictly-typed, compiler-verified grammar, we've observed:
-- **40% reduction** in hallucinated field names.
+## 3. Results { 40% Fewer Hallucinations
+By constraining the LLM's output to a strictly-typed, compiler-verified grammar, self-reported telemetry from early fine-tuning experiments indicates:
+- **~40% reduction** in hallucinated field names compared to unconstrained Python.
 - **3x faster** recovery from generation errors (compiler diagnostics are higher signal than stack traces).
 - **Lower K-Complexity**: A single `.vox` file replaces 10+ files of boilerplate across Rust and TypeScript.
 
 ---
 
 **Next Steps**:
-- [Language Reference](../reference/ref-language.md)
+- [Language Reference](../reference/ref-syntax.md)
 - [How-To: Build AI Agents](./how-to-ai-agents.md)
 - [Installation](../reference/ref-installation.md)

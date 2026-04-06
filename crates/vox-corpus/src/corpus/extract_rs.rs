@@ -60,6 +60,8 @@ pub struct RsTrainingPair {
     pub response: String,
     /// Quality rating.
     pub rating: u8,
+    /// Estimated difficulty (3-10).
+    pub difficulty: u8,
 }
 
 impl RsTrainingPair {
@@ -71,6 +73,7 @@ impl RsTrainingPair {
             "response": self.response,
             "category": self.category,
             "rating": self.rating,
+            "difficulty": self.difficulty,
             "source": self.source_path.display().to_string(),
         });
         v.to_string()
@@ -176,8 +179,21 @@ pub fn extract_from_source(
             || trimmed.starts_with("fn ")
             || trimmed.starts_with("pub async fn ")
             || trimmed.starts_with("async fn ");
+        
+        let is_type_def = trimmed.starts_with("pub struct ")
+            || trimmed.starts_with("pub(crate) struct ")
+            || trimmed.starts_with("struct ")
+            || trimmed.starts_with("pub enum ")
+            || trimmed.starts_with("pub(crate) enum ")
+            || trimmed.starts_with("enum ")
+            || trimmed.starts_with("pub type ")
+            || trimmed.starts_with("pub(crate) type ")
+            || trimmed.starts_with("type ")
+            || trimmed.starts_with("pub trait ")
+            || trimmed.starts_with("pub(crate) trait ")
+            || trimmed.starts_with("trait ");
 
-        if is_fn_line {
+        if is_fn_line || is_type_def {
             if pending_is_test && config.skip_tests {
                 pending_doc.clear();
                 pending_is_test = false;
@@ -185,15 +201,22 @@ pub fn extract_from_source(
                 continue;
             }
 
-            // Collect the full function block by tracking brace depth
-            let fn_start = i;
+            // Collect the full block by tracking brace depth
+            let block_start = i;
             let mut depth: i32 = 0;
-            let mut fn_lines: Vec<&str> = Vec::new();
+            let mut block_lines: Vec<&str> = Vec::new();
             let mut found_open = false;
 
             while i < lines.len() {
                 let fl = lines[i];
-                fn_lines.push(fl);
+                block_lines.push(fl);
+
+                // Handle type alias or simple struct with semicolon
+                if !found_open && fl.trim().ends_with(';') {
+                    i += 1;
+                    break;
+                }
+
                 for c in fl.chars() {
                     if c == '{' {
                         depth += 1;
@@ -208,23 +231,29 @@ pub fn extract_from_source(
                 }
             }
 
-            // Count non-empty body lines (skip the signature line + braces)
-            let body_lines: Vec<&&str> = fn_lines
-                .iter()
-                .skip(1)
-                .filter(|l| !l.trim().is_empty() && l.trim() != "{" && l.trim() != "}")
-                .collect();
+            // For functions, enforce min_body_lines. For types, take them all.
+            let mut eligible = true;
+            if is_fn_line {
+                let body_lines: Vec<&&str> = block_lines
+                    .iter()
+                    .skip(1)
+                    .filter(|l| !l.trim().is_empty() && l.trim() != "{" && l.trim() != "}")
+                    .collect();
+                eligible = body_lines.len() >= config.min_body_lines;
+            }
 
-            if body_lines.len() >= config.min_body_lines {
-                let response = fn_lines.join("\n");
+            if eligible {
+                let response = block_lines.join("\n");
+                let kind = if is_fn_line { "function" } else if trimmed.contains("struct ") { "struct" } else if trimmed.contains("enum ") { "enum" } else if trimmed.contains("trait ") { "trait" } else { "type" };
 
                 // Build prompt from doc or generate imperative
                 let prompt = if pending_doc.is_empty() {
-                    // Extract function name for a generic template
-                    let name = extract_fn_name(lines[fn_start]);
+                    // Extract name for a generic template
+                    let name = extract_block_name(lines[block_start], kind);
                     format!(
-                        "Implement the `{name}` function in Rust (Vox crate: `{category}`)",
+                        "Implement the `{name}` {kind} in Rust (Vox crate: `{category}`)",
                         name = name,
+                        kind = kind,
                         category = category
                     )
                 } else {
@@ -233,10 +262,15 @@ pub fn extract_from_source(
 
                 pairs.push(RsTrainingPair {
                     source_path: path.to_path_buf(),
-                    category: format!("rust_{category}"),
+                    category: format!("rust_{category}_{kind}"),
                     prompt,
                     response,
                     rating: config.default_rating,
+                    difficulty: match block_lines.len() {
+                        0..=10 => 3,
+                        11..=30 => 5,
+                        _ => 8,
+                    },
                 });
 
                 if config.limit > 0 && pairs.len() >= config.limit {
@@ -264,13 +298,22 @@ pub fn extract_from_source(
     Ok(pairs)
 }
 
-/// Extract the bare function name from a `fn foo(…` line.
-fn extract_fn_name(line: &str) -> &str {
-    // Find the `fn ` marker and take the identifier after it
-    let after = if let Some(p) = line.find("fn ") {
-        &line[p + 3..]
+/// Extract the bare identifier name from a definition line.
+fn extract_block_name<'a>(line: &'a str, kind: &'a str) -> &'a str {
+    let marker = match kind {
+        "function" => "fn ",
+        "struct" => "struct ",
+        "enum" => "enum ",
+        "trait" => "trait ",
+        "type" => "type ",
+        _ => "fn ",
+    };
+    
+    // Find the marker and take the identifier after it
+    let after = if let Some(p) = line.find(marker) {
+        &line[p + marker.len()..]
     } else {
-        return "function";
+        return kind;
     };
     let end = after
         .find(|c: char| !c.is_alphanumeric() && c != '_')

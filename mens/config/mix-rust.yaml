@@ -1,0 +1,10 @@
+# Mix configuration for rust-expert domain
+lanes:
+  rust_pairs:
+    path: target/dogfood/rust_pairs.validated.jsonl
+    weight: 4
+    optional: true
+  rust_doc:
+    path: target/dogfood/rust_doc.jsonl
+    weight: 3
+    optional: true

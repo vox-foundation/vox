@@ -2,19 +2,27 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-/// A single prompt→response training pair (matches dogfood JSONL schema).
-#[derive(Debug, Deserialize, Clone)]
+/// One turn in a ChatML conversation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatmlTurn {
+    /// Role: "system", "user", or "assistant".
+    pub role: String,
+    /// Message content.
+    pub content: String,
+}
+
+/// A single prompt→response training pair or multi-turn sequence (matches dogfood JSONL schema).
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TrainingPair {
-    /// User-side prompt text as loaded from dogfood JSONL (typically the instruction or prior context).
-    ///
-    /// Paired with [`TrainingPair::response`] for supervised fine-tuning or evaluation.
     #[serde(alias = "instruction")]
-    pub prompt: String,
+    pub prompt: Option<String>,
     /// Target assistant completion for the same record (what the model should emit for `prompt`).
     #[serde(alias = "output")]
-    pub response: String,
+    pub response: Option<String>,
+    /// Optional multi-turn turns. If present, typically preferred over single-turn prompt/response.
+    pub turns: Option<Vec<ChatmlTurn>>,
     /// Optional quality rating (1-5). Absent means unrated.
     pub rating: Option<u8>,
     /// Optional category tag (construct type).
@@ -159,6 +167,19 @@ impl VoxTokenizer {
         Self::encode(&text)
     }
 
+    /// Format multi-turn sequence in ChatML and encode.
+    pub fn encode_chatml_turns(turns: &[ChatmlTurn]) -> Vec<u32> {
+        let mut text = String::new();
+        for turn in turns {
+            text.push_str(&format!(
+                "<|im_start|>{role}\n{content}<|im_end|>\n",
+                role = turn.role,
+                content = turn.content
+            ));
+        }
+        Self::encode(text.trim_end())
+    }
+
     /// ChatML prefix through user turn (open assistant slot) — for native inference with `VoxTokenizer`.
     pub fn encode_chatml_inference_prefix(system: &str, user: &str) -> Vec<u32> {
         let text = format!(
@@ -171,8 +192,7 @@ impl VoxTokenizer {
 
     /// Tokenize and pad/truncate to exactly `max_len` tokens.
     ///
-    /// Returns `(input_ids, labels)` where labels mask the prompt with -100 so
-    /// the model only learns to reproduce the assistant response.
+    /// Labels mask the prompt with -100 so the model only learns to reproduce the assistant response.
     pub fn tokenize_for_training(
         system: &str,
         user: &str,
@@ -189,6 +209,31 @@ impl VoxTokenizer {
         );
         let prompt_len = Self::encode(&prompt_text).len();
 
+        Self::mask_and_pad(&full_ids, prompt_len, max_len)
+    }
+
+    /// Tokenize multi-turn turns for training.
+    pub fn tokenize_turns_for_training(turns: &[ChatmlTurn], max_len: usize) -> (Vec<i64>, Vec<i64>) {
+        let full_ids = Self::encode_chatml_turns(turns);
+
+        // Find the boundary of the last user turn
+        let mut last_assistant_start = 0usize;
+        let mut text = String::new();
+        for (i, turn) in turns.iter().enumerate() {
+            if i == turns.len() - 1 && turn.role == "assistant" {
+                last_assistant_start = Self::encode(&text).len() + Self::encode(&format!("<|im_start|>assistant\n")).len();
+            }
+            text.push_str(&format!(
+                "<|im_start|>{role}\n{content}<|im_end|>\n",
+                role = turn.role,
+                content = turn.content
+            ));
+        }
+
+        Self::mask_and_pad(&full_ids, last_assistant_start, max_len)
+    }
+
+    fn mask_and_pad(full_ids: &[u32], prompt_len: usize, max_len: usize) -> (Vec<i64>, Vec<i64>) {
         // Truncate if needed, leaving room for EOS
         let truncated: Vec<i64> = full_ids
             .iter()
@@ -293,12 +338,18 @@ impl Iterator for JsonlDataLoader {
                     continue;
                 }
             }
-            let (input_ids, labels) = VoxTokenizer::tokenize_for_training(
-                &self.system_prompt,
-                &pair.prompt,
-                &pair.response,
-                self.max_len,
-            );
+            let (input_ids, labels) = if let Some(ref turns) = pair.turns {
+                VoxTokenizer::tokenize_turns_for_training(turns, self.max_len)
+            } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+                VoxTokenizer::tokenize_for_training(
+                    &self.system_prompt,
+                    p,
+                    r,
+                    self.max_len,
+                )
+            } else {
+                continue; // skip if no training data
+            };
             return Some((input_ids, labels, pair));
         }
     }

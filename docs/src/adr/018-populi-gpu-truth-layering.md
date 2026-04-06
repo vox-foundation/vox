@@ -18,7 +18,7 @@ Scheduling and routing need **trustworthy** signals: today, many GPU/NPU hints a
 
 ## Decision
 
-1. **Layer A — Verified hardware facts (probe-backed):** driver-visible devices, stable device ids where available, health signals derived from probes (or trusted agents), and **observed** memory / compute attributes. This layer is **best-effort** per platform but is the **preferred source of truth** when present.
+1. **Layer A — Verified hardware facts (probe-backed) {** driver-visible devices, stable device ids where available, health signals derived from probes (or trusted agents), and **observed** memory / compute attributes. This layer is **best-effort** per platform but is the **preferred source of truth** when present.
 2. **Layer B — Allocatable capacity:** what the node **offers** to remote or local schedulers after reservations, MIG/partitioning, thermal throttling, or local workloads. May differ from raw Layer A totals.
 3. **Layer C — Operator policy labels:** non-authoritative tags for affinity, pools, regions, compliance classes, and cost tiers. Schedulers **must not** treat these as hardware guarantees.
 4. **Precedence:** for **correctness-critical** placement (for example authoritative lease acquisition for GPU tasks), **Layer A/B** outrank **Layer C** when in conflict. **Layer C** may **restrict** or **prefer** candidates but must not **invent** capacity.

@@ -94,7 +94,7 @@ If any answer is missing, the section is incomplete.
 
 ## Red flag patterns
 
-These phrases or patterns are not acceptable without refinement:
+These phrases or patterns are not acceptable without refinement {
 
 - “handle later” without deferral metadata,
 - “safe enough” without evidence criteria,

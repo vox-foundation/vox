@@ -80,6 +80,13 @@ pub fn run() {
                         value
                     );
                 }
+                LintKind::RawVoxCodeBlock => {
+                    eprintln!(
+                        "  ERROR  {}:{} — raw vox/tsx code block detected; replace with `{{{{#include ...}}}}` from `examples/golden/` or add `// Skip-Test`",
+                        rel.display(),
+                        e.line
+                    );
+                }
             }
         }
 
@@ -93,6 +100,7 @@ pub fn run() {
                         | LintKind::GenericDescription
                         | LintKind::UnknownCategory { .. }
                         | LintKind::UnknownStatus { .. }
+                        | LintKind::RawVoxCodeBlock
                 )
             })
             .count();

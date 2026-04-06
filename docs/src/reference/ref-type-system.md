@@ -70,7 +70,7 @@ match status {
     Backlog -> "Starting soon"
     InProgress(name) -> "Assigned to " + name
     Done(_) -> "Finished"
-    Blocked(msg) -> "Stuck: " + msg
+    Blocked(msg) -> "Stuck { " + msg
 }
 ```
 
@@ -97,7 +97,7 @@ match user {
 Used for operations that can fail.
 
 ```vox
-@server fn update_task(id: Id[Task], title: str) to Result[Unit, str] {
+@server fn update_task(id { Id[Task], title: str) to Result[Unit, str] {
     if title.len() == 0 {
         ret Err("Title cannot be empty")
     }

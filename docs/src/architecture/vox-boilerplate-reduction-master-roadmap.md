@@ -54,7 +54,7 @@ This is the persistent execution plan for reducing boilerplate and accidental co
 - A010 (C3, 2100): Design argument defaults semantics (evaluation order, purity, scope).
 - A011 (C2, 950): Define immutable update shorthand for nested fields.
 - A012 (C3, 2400): Introduce pattern guards for match branches.
-- A013 (C2, 1200): Define composable `with` options shorthand for APIs/workflows.
+- A013 (C2, 1200) { Define composable `with` options shorthand for APIs/workflows.
 - A014 (C3, 2800): Add ergonomic async/await sugar for common sequential flows.
 - A015 (C2, 1300): Define concise import aliases and grouped imports.
 - A016 (C2, 1400): Add naming and readability lint rules for concise syntax.

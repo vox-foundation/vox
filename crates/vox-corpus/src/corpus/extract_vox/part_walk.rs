@@ -103,6 +103,11 @@ pub fn extract_from_vox_file(
 /// Walk a directory tree and extract pairs from all `.vox` files.
 pub fn walk_and_extract_vox(config: &ExtractVoxConfig) -> anyhow::Result<Vec<VoxTrainingPair>> {
     let mut all = Vec::new();
+    
+    if let Ok(mut golden) = extract_golden_examples(&config.root) {
+        all.append(&mut golden);
+    }
+    
     walk_vox_dir(&config.root, config, &mut all)?;
     Ok(all)
 }
@@ -142,6 +147,72 @@ fn walk_vox_dir(
                 Err(e) => {
                     eprintln!("  [vox extract] skip {}: {e}", path.display());
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn extract_golden_examples(dir: &Path) -> anyhow::Result<Vec<VoxTrainingPair>> {
+    let mut pairs = Vec::new();
+    let golden_dir = dir.join("examples/golden");
+    if !golden_dir.exists() {
+        return Ok(pairs);
+    }
+    walk_golden_dir(&golden_dir, &mut pairs)?;
+    Ok(pairs)
+}
+
+fn walk_golden_dir(dir: &Path, out: &mut Vec<VoxTrainingPair>) -> anyhow::Result<()> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_golden_dir(&path, out)?;
+        } else if path.extension().is_some_and(|e| e == "vox") {
+            if let Ok(source) = std::fs::read_to_string(&path) {
+                let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("example");
+                let first_comment = source.lines()
+                    .find(|l| l.trim().starts_with("//"))
+                    .map(|l| l.trim().trim_start_matches("//").trim())
+                    .unwrap_or("the given specification");
+                let prompt = format!("Write a complete Vox program for {name} that implements {first_comment}");
+                
+                out.push(VoxTrainingPair {
+                    source_path: path.to_path_buf(),
+                    category: "golden".into(),
+                    prompt,
+                    response: source.clone(),
+                    rating: 5,
+                });
+                
+                let tags = extract_construct_blocks(&source)
+                    .iter()
+                    .map(|(t, _, _)| t.to_string())
+                    .collect::<std::collections::HashSet<_>>();
+                
+                let mut tag_list: Vec<_> = tags.into_iter().collect();
+                tag_list.sort();
+                let tags_str = if tag_list.is_empty() {
+                    "standard logic".to_string()
+                } else {
+                    tag_list.join(", ")
+                };
+                
+                let explanation = format!(
+                    "This Vox program implements {first_comment}.\nIt uses the following constructs: {tags_str}."
+                );
+                
+                out.push(VoxTrainingPair {
+                    source_path: path.to_path_buf(),
+                    category: "golden_explain".into(),
+                    prompt: format!("Explain what this Vox program does:\n\n```vox\n{source}\n```"),
+                    response: explanation,
+                    rating: 5,
+                });
             }
         }
     }

@@ -324,7 +324,7 @@ If only a small first wave can ship immediately, do these first:
 
 ### SLO candidates
 
-1. **SLO-context-bleed:** zero deterministic bleed regressions on main.
+1. **SLO-context-bleed {** zero deterministic bleed regressions on main.
 2. **SLO-high-risk-grounding:** no enforced high-risk path ships with unsupported-claim rate above agreed budget.
 3. **SLO-handoff-lineage:** remote and local handoff lineage integrity remains above 99% in gated suites.
 4. **SLO-observability:** every enforced policy decision emits a correlated trace or event.

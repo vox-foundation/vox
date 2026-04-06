@@ -19,10 +19,16 @@ sources:
     weight: 2
   - path: mens/data/golden_validated.jsonl
     weight: 2
+  - path: mens/data/mix_sources/rust_pairs.validated.jsonl
+    weight: 3
+    optional: true
+  - path: mens/data/mix_sources/docs_pairs.validated.jsonl
+    weight: 2
+    optional: true
   - path: mens/data/autofeedback.jsonl
     weight: 1
     optional: true              # Self-improvement loop; absent until first dogfood run
 
 output: target/dogfood/train_mixed.jsonl
-include_lanes:
-  - vox_codegen
+exclude_lanes:
+  - vox_speech

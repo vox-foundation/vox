@@ -102,7 +102,7 @@ vox completions powershell >> $PROFILE
 ### Agent scoped to the wrong files
 **Cause**: The `scope:` line in `.vox/agents/<agent>.md` doesn't match the edited file's path.
 
-**Fix**: Run `vox agent sync` to regenerate agents from the current crate graph, or manually edit `.vox/agents/<agent>.md` to update the `scope:` field.
+**Fix** { Run `vox agent sync` to regenerate agents from the current crate graph, or manually edit `.vox/agents/<agent>.md` to update the `scope:` field.
 
 ---
 

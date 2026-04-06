@@ -29,12 +29,13 @@ pub(crate) fn generate_a2a_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig)
         let mut rng = Rng::new(cfg.seed, name_hash(msg_type));
         let n = cfg.min_pairs_per_a2a_type.max(prompts.len());
         for i in 0..n {
-            let &(from, to) = rng.pick(EXAMPLE_AGENT_PAIRS);
+            let pairs = crate::synthetic_gen::example_agent_pairs();
+            let (from, to) = pairs[rng.next() as usize % pairs.len().max(1)].clone();
             let tmpl = &prompts[i % prompts.len()];
             let prompt = tmpl
                 .replace("{msg_type}", msg_type)
-                .replace("{from}", from)
-                .replace("{to}", to);
+                .replace("{from}", &from)
+                .replace("{to}", &to);
 
             // Decide which tool to use based on template
             let (tool, args) = if tmpl.contains("Broadcast") || tmpl.contains("broadcast") {

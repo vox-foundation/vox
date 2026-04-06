@@ -36,7 +36,7 @@ Integration tests and scripts must not assume subcommands that are absent from t
 
 ## Script migration exceptions
 
-- **Allowed in GitHub workflows without Rust rewrite:** paths under `scripts/` that are **data artifacts** or **explicitly allowlisted** in `docs/agents/workflow-script-allowlist.txt`. CI enforces this via `vox ci workflow-scripts`.
+- **Allowed in GitHub workflows without Rust rewrite {** paths under `scripts/` that are **data artifacts** or **explicitly allowlisted** in `docs/agents/workflow-script-allowlist.txt`. CI enforces this via `vox ci workflow-scripts`.
 - **Thin shell / PowerShell shims** (`scripts/check_*.sh`, `scripts/populi/*_gate.*`, legacy `scripts/mens/release_training_gate.*`, …) are **delegates** to `vox ci …` or `cargo run -p vox-cli -- ci …` — keep them one-liners to avoid drift.
 - **Host-only tooling** (GPU installers, external marketplace actions, third-party ML stacks) may stay outside `vox ci`; record them in [`docs/agents/script-registry.json`](../../agents/script-registry.json) with `status: "external"` when added.
 

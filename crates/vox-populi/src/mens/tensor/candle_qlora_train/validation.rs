@@ -5,7 +5,7 @@ use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
 use crate::mens::tensor::{
-    train_log, training_config::LoraTrainingConfig, training_text::plain_system_prompt_response,
+    train_log, training_config::LoraTrainingConfig,
 };
 
 /// Returns `(val_loss_sum, val_steps)` where loss is **negative** log-prob summed for averaging.
@@ -27,8 +27,20 @@ pub(super) fn run_validation_pass(
         eval_pairs.len()
     ));
     for pair in eval_pairs {
-        let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
-        let prefix_text = plain_system_prompt_response(system_prompt, &pair.prompt, "");
+        let text = if let Some(ref turns) = pair.turns {
+            crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
+        } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+            crate::mens::tensor::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
+        } else {
+            continue;
+        };
+        let prefix_text = if let Some(ref turns) = pair.turns {
+            crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
+        } else if let Some(ref p) = pair.prompt {
+            crate::mens::tensor::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
+        } else {
+            continue;
+        };
         if let Ok(enc) = tokenizer.encode(text, true) {
             let prefix_len = tokenizer
                 .encode(prefix_text, true)

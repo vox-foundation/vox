@@ -1,0 +1,14 @@
+# Mix configuration for agents domain
+lanes:
+  tool_traces:
+    path: target/dogfood/tool_traces.example.jsonl
+    weight: 5
+    optional: true
+  autofeedback:
+    path: target/dogfood/autofeedback.jsonl
+    weight: 3
+    optional: true
+  multi_turn:
+    path: target/dogfood/multi_turn.jsonl
+    weight: 3
+    optional: true

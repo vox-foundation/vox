@@ -139,7 +139,7 @@ These are ordered by **value / effort**:
    If `Vox.toml` or a sibling `Cargo.toml` / lockfile already pins `serde_json`, allow `import rust:serde_json` **without** repeating `version: "…"`, by resolving from the project graph when building from a workspace package. **Compatibility:** When no pin exists, keep today’s behavior (`*` or diagnostic). **K win:** One-line imports match user expectation of “like Cargo.”
 
 2. **`vox check` / `cargo check` parity messaging (low)**  
-   When script codegen fails, surface Cargo’s error with a hint: “dependency X declared via `import rust:X` at line L.” Ties the mental model to the line they wrote.
+   When script codegen fails, surface Cargo’s error with a hint { “dependency X declared via `import rust:X` at line L.” Ties the mental model to the line they wrote.
 
 3. **Curated `vox-*` or shims for 5–10 hot crates (medium)**  
    Instead of full `rustdoc` typing, expose **`std`-style namespaces** for e.g. JSON, time, UUID (wrappers in `vox-runtime` or a small `vox-shims` crate). **K win:** Users learn one Vox API; compiler stays small. **Big win:** Works today under the existing builtin pattern.

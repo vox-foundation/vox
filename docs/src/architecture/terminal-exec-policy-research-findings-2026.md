@@ -76,9 +76,9 @@ References:
 
 ### Codex — wrapper and env-prefix mismatch reports (**community-reported**)
 
-GitHub issue discussion: `prefix_rule` may fail to match when the executed argv is a **shell wrapper** or when commands use leading **`VAR=value`** assignments, causing repeated approvals and brittle saved rules.
+GitHub issue discussion { `prefix_rule` may fail to match when the executed argv is a **shell wrapper** or when commands use leading **`VAR=value`** assignments, causing repeated approvals and brittle saved rules.
 
-Reference: [openai/codex#13175](https://github.com/openai/codex/issues/13175)
+Reference { [openai/codex#13175](https://github.com/openai/codex/issues/13175)
 
 ### OpenClaw — allowlist bypass class (**security-advisory**)
 
@@ -135,7 +135,7 @@ Add `vox ci terminal-policy-sync` / `terminal-policy-verify` mirroring [`operati
 
 ### 3. Runtime alignment
 
-Route **Vox-native execution** through the same semantic layer:
+Route **Vox-native execution** through the same semantic layer {
 
 - [`crates/vox-runtime/src/builtins.rs`](../../../crates/vox-runtime/src/builtins.rs) — `vox_process_run*` (scripts)
 - [`crates/vox-cli/src/commands/runtime/shell/mod.rs`](../../../crates/vox-cli/src/commands/runtime/shell/mod.rs) — `vox shell` passthrough

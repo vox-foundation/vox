@@ -1,77 +1,94 @@
 ---
-title: "Tutorial: Building a Collaborative Todo List"
-description: "Official documentation for Tutorial: Building a Collaborative Todo List for the Vox language. Detailed technical reference, architecture "
-category: "tutorial"
-last_updated: 2026-03-24
+title: "Tutorial: Building a Collaborative Task List"
+description: "Build a full-stack Task app end to end with Vox."
+category: "tutorials"
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
 ---
-# Tutorial: Building a Collaborative Todo List
+# Tutorial: Building a Collaborative Task List
 
-Learn how to build a full-stack, collaborative todo list app with Vox. This tutorial covers data modeling, server-side logic, and UI integration.
+Learn how to build a full-stack, collaborative task list app with Vox. This tutorial covers data modeling, server-side logic, and UI integration using a single `.vox` file.
 
 ## 1. Project Initialization
 
 Create a new directory and initialize a Vox application:
 
 ```bash
-mkdir vox-todo && cd vox-todo
+mkdir vox-task-list && cd vox-task-list
 vox init --kind application
 ```
 
 ## 2. Define the Data Model
 
-Open `src/main.vox`. We'll start by defining what a "Todo" is. Using the `@table` decorator, we create a persistent database table.
+Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `@table` decorator, we create a persistent database table. We use `@require` to ensure titles are not empty.
 
 ```vox
-@table type Todo:
-    title: str
-    completed: bool
-    created_at: int
+# Skip-Test: ui-only
+@require(len(self.title) > 0)
+@table type Task {
+    title:    str
+    done:     bool
+    priority: int
+    owner:    str
+}
 ```
 
 ## 3. Implement Server Logic
 
-Next, we add `@server` functions to create and update todos. These functions automatically generate the necessary Rust handlers and TypeScript clients.
+Next, we add `@mutation` and `@query` functions to interact with the database.
 
 ```vox
-@server fn add_todo(title: str) to Result[str]:
-    # In a real app, you'd perform a db.insert here
-    ret Ok("Created: " + title)
+# Skip-Test: ui-only
+@mutation
+fn add_task(title: str, owner: str) to Id[Task] {
+    ret db.Task.insert({ title: title, done: false, priority: 1, owner: owner })
+}
 
-@server fn toggle_todo(id: str) to Result[bool]:
-    # Flip the completed state
-    ret Ok(true)
+@query
+fn open_tasks() to List[Task] {
+    ret db.Task.where({ done: false }).order_by("priority", "desc").limit(10)
+}
+
+@mutation
+fn complete_task(id: Id[Task]) to Unit {
+    db.Task.update(id, { done: true })
+}
 ```
 
 ## 4. Build the UI
 
-Now, we'll create the frontend using the `@component` decorator. Vox components use a JSX-like syntax that compiles to high-performance React code.
+Now, we'll create the frontend using the `@island` decorator. Vox islands use a JSX-like syntax that compiles to high-performance hydrated React components.
 
-```vox
-# Skip-Test
-@component fn TodoList() to Element:
-    <div class="p-4 max-w-md mx-auto">
-        <h1 class="text-2xl font-bold mb-4">"Vox Todos"</h1>
-        <div class="flex gap-2 mb-4">
-            <input type="text" placeholder="New task..." class="border p-2 flex-grow" />
-            <button class="bg-blue-500 text-white p-2">"Add"</button>
-        </div>
-        <ul>
-            <li class="flex items-center gap-2 py-2">
-                <input type="checkbox" />
-                <span>"Learn Vox Architecture"</span>
-            </li>
-        </ul>
+```tsx
+# Skip-Test: ui-only
+import react.use_state
+
+@island
+fn TaskList(tasks: List[Task]) to Element {
+    let (items, _set_items) = use_state(tasks)
+    <div class="task-list">
+        <h1>"Vox Tasks"</h1>
+        {items.map(fn(task) {
+            <label>
+                <input type="checkbox" checked={task.done}
+                       onChange={fn(_e) complete_task(task.id)} />
+                {task.title}
+            </label>
+        })}
     </div>
+}
 ```
 
 ## 5. Wiring It Together
 
-Finally, we map a route to our `TodoList` component.
+Finally, we map a route to our `TaskList` component.
 
 ```vox
-routes:
-    "/" to TodoList
+# Skip-Test: ui-only
+routes {
+    "/" to TaskList
+}
 ```
 
 ## 6. Build and Run
@@ -79,11 +96,12 @@ routes:
 Compile your app and start the development server:
 
 ```bash
-vox build src/main.vox -o dist
+vox check src/main.vox
+vox build src/main.vox
 vox run src/main.vox
 ```
 
-Visit `http://localhost:3000` to see your collaborative todo list in action!
+Visit `http://localhost:3000` to see your collaborative task list in action!
 
 ---
 

@@ -1,8 +1,9 @@
 ---
 title: "How-To: Test Your Logic"
-description: "Official documentation for How-To: Test Your Logic for the Vox language. Detailed technical reference, architecture guides, and implement"
+description: "Write automated test cases using Vox."
 category: "how-to"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
 ---
 # How-To: Test Your Logic
@@ -14,40 +15,35 @@ Learn how to write and run automated tests for your Vox application using the bu
 Use the `@test` decorator to mark functions as test cases. These functions can be run with the `vox test` command.
 
 ```vox
-# Skip-Test
-@test fn test_addition():
+# Skip-Test: ui-only
+@test 
+fn test_addition() to Unit {
     assert(1 + 1 == 2)
+}
 ```
 
-## 2. Using Fixtures
+## 2. Hand-Rolled Setup Helpers (Fixtures)
 
-Fixtures provide set-up logic that can be reused across multiple tests. Use the `@fixture` decorator.
+Rather than language-level magic, Vox encourages simple, plain functions for setup logic that can be reused across test cases.
 
 ```vox
-# Skip-Test
-@fixture fn mock_db() to Database:
+# Skip-Test: ui-only
+fn setup_mock_db() to Database {
     ret spawn MockDatabase()
+}
 
-@test fn test_query(db = mock_db):
+@test 
+fn test_query() to Unit {
+    let db = setup_mock_db()
     let result = db.call(query("SELECT 1"))
     assert(result == [1])
+}
 ```
 
-## 3. Mocking Dependencies
+> [!WARNING]
+> Historical decorators `@fixture` and `@mock` are considered aspirational. Use standard helper functions for state-setup instead.
 
-Use the `@mock` decorator to intercept calls to external services or server functions during testing.
-
-```vox
-# Skip-Test
-@mock fn mock_email_service(to: str, msg: str):
-    print("Mock sent: " + msg)
-
-@test fn test_signup():
-    with mock_email_service:
-        signup("test@example.com")
-```
-
-## 4. Integration Testing
+## 3. Integration Testing
 
 Test your full-stack logic by running the compiler and checking the generated output or simulating HTTP requests.
 
@@ -56,8 +52,11 @@ Test your full-stack logic by running the compiler and checking the generated ou
 vox test src/
 ```
 
----
+## Summary
+- Use `@test` to label individual test cases to be picked up by the compiler harness.
+- Write standard functions that serve as setups, fixtures, and mocks explicitly.
+- Run `vox test <path>` to execute blocks tagged with `@test`.
 
-**Related Reference**:
+## Related
 - [CLI Reference](../reference/cli.md) — `vox test` flags and configuration.
-- [Tutorial: First App](../tutorials/tut-first-app.md) — Example of testing a todo list.
+- [Durable Workflows](../tutorials/tut-workflow-durability.md) — Understanding testable workflows.

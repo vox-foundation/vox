@@ -1,6 +1,7 @@
 //! `vox bundle` — production-style packaging: codegen, React/Vite app, npm build, embed static files, ship one binary.
 
 use crate::commands::build;
+#[cfg(feature = "script-execution")]
 use crate::commands::runtime::run::script;
 use crate::frontend;
 use crate::cli_args::BundleMode;
@@ -16,10 +17,20 @@ use tokio::process::Command;
 pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: bool, mode: BundleMode) -> Result<()> {
     match mode {
         BundleMode::App => run_app_bundle(file, out_dir, target, release).await,
-        BundleMode::Script => run_script_bundle(file, out_dir, target).await,
+        BundleMode::Script => {
+            #[cfg(feature = "script-execution")]
+            {
+                run_script_bundle(file, out_dir, target).await
+            }
+            #[cfg(not(feature = "script-execution"))]
+            {
+                anyhow::bail!("Script bundling requires the `script-execution` feature. Rebuild with --features script-execution")
+            }
+        }
     }
 }
 
+#[cfg(feature = "script-execution")]
 async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) -> Result<()> {
     println!("=== Bundling Script: {} ===", file.display());
     

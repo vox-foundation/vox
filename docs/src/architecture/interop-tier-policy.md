@@ -30,7 +30,7 @@ Vox should keep interop predictable by treating foreign capability as a tiered s
 
 ## Curated package categories (bell curve)
 
-When growing **tier2** surface area, prefer packages that match repetitive app lanes:
+When growing **tier2** surface area, prefer packages that match repetitive app lanes {
 
 | Category | Typical capability | Notes |
 |----------|-------------------|--------|

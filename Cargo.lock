@@ -10913,6 +10913,7 @@ name = "vox-integration-tests"
 version = "0.1.0"
 dependencies = [
  "jsonschema",
+ "pulldown-cmark",
  "serde",
  "serde_json",
  "serial_test",
@@ -10933,6 +10934,7 @@ dependencies = [
  "vox-scaling-policy",
  "vox-skills",
  "vox-workflow-runtime",
+ "walkdir",
 ]
 
 [[package]]
@@ -11206,6 +11208,7 @@ dependencies = [
  "jsonschema",
  "jsonwebtoken",
  "openapiv3",
+ "owo-colors",
  "peft-rs",
  "qlora-rs",
  "rand 0.8.5",

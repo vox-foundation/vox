@@ -16,8 +16,8 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 | ----- | -------- | ---- |
 | HTTP API | `target/generated/src/main.rs` (+ `lib.rs`, …) | **Axum** listens on `VOX_PORT` (default 3000). |
 | Browser client for `@server fn` | `dist/api.ts` (or `out_dir/api.ts` from `-o`) | **`fetch` POST** to `/api/<name>`; `API_BASE` is `''`; Vite dev proxy forwards `/api` to Axum. |
-| UI | `out_dir/*.tsx`, `out_dir/*.ts` | React components + TanStack Router `App.tsx` when `routes:` exists. |
-| Static HTML shells | `target/generated/public/ssg-shells/**` | From [`vox-ssg`](../../../crates/vox-ssg/src/lib.rs): minimal shells for `routes:` / `@page` (hydration anchor, not a second UI runtime). |
+| UI | `out_dir/*.tsx`, `out_dir/*.ts` | React components + TanStack Router `App.tsx` when `routes {` exists. |
+| Static HTML shells | `target/generated/public/ssg-shells/**` | From [`vox-ssg`](../../../crates/vox-ssg/src/lib.rs): minimal shells for `routes {` / `@page` (hydration anchor, not a second UI runtime). |
 | Embedded static (after frontend build) | `target/generated/public/**` | Vite `dist/` copied here for `rust_embed` in release flows. |
 
 **`vox run`** (app mode): builds TS to `dist/`, runs **`cargo run` in `target/generated`** — the **Rust binary** is the primary server.
@@ -36,7 +36,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 ## Optional: islands and v0
 
 - **`islands/`** — separate Vite app; built by `vox run` / bundle when `islands/package.json` exists ([`frontend.rs`](../../../crates/vox-cli/src/frontend.rs)).
-- **`@v0`** — TSX on disk under `out_dir`; named `export function` required for `routes:` imports ([`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs)).
+- **`@v0`** — TSX on disk under `out_dir`; named `export function` required for `routes {` imports ([`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs)).
 
 ## Related
 

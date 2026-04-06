@@ -1,0 +1,22 @@
+# Mix configuration for vox-lang domain
+lanes:
+  golden:
+    path: target/dogfood/vox_corpus_extract.jsonl
+    weight: 6
+    optional: true
+  organic:
+    path: target/dogfood/organic_vox.jsonl
+    weight: 3
+    optional: true
+  docs:
+    path: target/dogfood/docs.jsonl
+    weight: 2
+    optional: true
+  synthetic:
+    path: target/dogfood/synthetic.jsonl
+    weight: 1
+    optional: true
+  distillation:
+    path: target/dogfood/distillation_traces.jsonl
+    weight: 2
+    optional: true

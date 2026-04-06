@@ -45,7 +45,16 @@ Yes. Use `import rust:<crate>` (for example `import rust:serde_json as json`) fo
 - **Workflow** — a long-running orchestration construct. Today, the interpreted workflow runtime provides the repo's durable step-replay path, while generated Rust workflows are not yet full durable state machines.
 
 ### What is the Mens?
-In current repo language, **Mens** refers to the model-training lane, while **Populi / mesh** refers to coordination and distributed execution surfaces. Older docs sometimes used the terms loosely; newer docs keep those lanes separate.
+In current repo language, **Mens** refers to the model-training lane and local model generation pipeline, while **Populi / mesh** refers to coordination, inference serving, and distributed execution surfaces. Older docs sometimes used the terms loosely; newer docs keep those lanes separate.
+
+### What is the difference between `activity` and `workflow`?
+A **workflow** is an overarching orchestrator that tracks progress durably across steps, whereas an **activity** is an individual, retryable unit of work that performs side effects (like an API call). Workflows run activities but are not meant to contain side effects directly.
+
+### What is `@island` and how does it differ from `@island`?
+`@island` is the single mechanism for creating client-side UI explicitly using React. `@island` was an older, deprecated concept removed completely in v0.3 and will result in a hard parser error.
+
+### What is `Codex` and how does it relate to SQLite?
+**Codex** is the logical data environment — the unified data and knowledge store in Vox that application code interacts with. It acts as a high-level facade over **Arca**, which handles the actual physical storage (SQLite/Turso layer under the hood).
 
 ### How is Vox different from Go or Erlang/Elixir?
 Vox is opinionated about generated outputs, durable workflows, and keeping more application structure in one language. Its design language overlaps with actor and workflow systems, but the repo also includes code generation, contracts, and web-facing lanes that are not trying to be a drop-in clone of Go or Erlang/Elixir.

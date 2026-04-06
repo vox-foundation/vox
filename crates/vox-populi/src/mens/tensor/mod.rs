@@ -94,6 +94,8 @@ pub mod train_backend;
 pub mod train_jsonl_preflight;
 #[cfg(feature = "mens-train")]
 pub mod training_config;
+#[cfg(feature = "mens-train")]
+pub mod domain_profiles;
 
 // Private QLoRA modules are referenced from sibling `.rs` files; anchor for unwired-module scans.
 #[cfg(feature = "mens-train")]

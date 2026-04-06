@@ -62,6 +62,8 @@ pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
 fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
     let mut fence_open = false;
     let mut fence_start_line = 0_usize;
+    let mut fence_is_vox = false;
+    let mut fence_has_include = false;
 
     if !content.trim_start().starts_with("---") {
         errors.push(LintError {
@@ -115,11 +117,25 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
                 }
             } else if backtick_count >= 3 {
                 if fence_open {
+                    if fence_is_vox && !fence_has_include {
+                        errors.push(LintError {
+                            file: path.to_owned(),
+                            line: fence_start_line,
+                            kind: LintKind::RawVoxCodeBlock,
+                        });
+                    }
                     fence_open = false;
                 } else {
                     fence_open = true;
                     fence_start_line = line_no;
+                    let lang = trimmed[backtick_count..].trim();
+                    fence_is_vox = lang == "vox" || lang == "tsx";
+                    fence_has_include = false;
                 }
+            }
+        } else if fence_open && fence_is_vox {
+            if trimmed.contains("{{#include") || trimmed.contains("// Skip-Test") {
+                fence_has_include = true;
             }
         }
     }

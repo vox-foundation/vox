@@ -8,7 +8,7 @@ training_eligible: true
 
 # Orphan surface inventory
 
-Classification for code and docs that do not match the **minimal shipped `vox` CLI** or workspace membership. Goal: no ambiguous SSOT. See [forward migration charter](forward-migration-charter.md) (forward-only; no restore-based workflows).
+Classification for code and docs that do not match the **minimal shipped `vox` CLI** or workspace membership. Goal { no ambiguous SSOT. See [forward migration charter](forward-migration-charter.md) (forward-only; no restore-based workflows).
 
 ## Policy buckets
 

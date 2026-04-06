@@ -70,7 +70,7 @@ Rather than specifying exact input/output pairs, PBT generates thousands of rand
 
 ### 2.3 Mutation Testing
 
-Mutation testing asks: *"Do my tests actually catch bugs?"* It works by:
+Mutation testing asks { *"Do my tests actually catch bugs?"* It works by:
 1. Introducing synthetic bugs ("mutants") — swapping `+` for `-`, changing `if` conditions, removing return values
 2. Running the full test suite against each mutant
 3. Reporting "surviving mutants" (mutants the tests didn't detect) as quality gaps
@@ -258,7 +258,7 @@ For *user-written Vox code*, the oracle is relatively tractable — the user spe
 
 Option 3 — semantic correctness of codegen — is where Verus (formal verification for Rust) becomes relevant for the Vox compiler codebase itself, not for user programs. LLM-assisted annotation of Verus specs for `vox-compiler` functions is a viable long-term path, enabled by the "vericoding" trend.
 
-**Practical near-term oracle strategy:**
+**Practical near-term oracle strategy {**
 - Use **metamorphic testing** for stable properties (parsing is idempotent, lowering is monotone)
 - Use **snapshot testing** for regression prevention
 - Use **`@spec` annotations** on Vox functions as generation hints for the AI synthesis skill

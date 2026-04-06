@@ -95,7 +95,9 @@ This phase systematically verified and extended the `catalog.v1.schema.json` and
 This phase executed the hard-merges of orphaned Latin crates into their canonical English counterparts to reduce structural fragmentation.
 
 ### T067-T080: DEI and ARS Hard-Merges
-- Moved all source modules from ox-dei (oute_telemetry, gent_frontmatter, esearch, selection) into ox-orchestrator::dei_shim.
+- Moved all source modules from ox-dei (
+oute_telemetry, gent_frontmatter, 
+esearch, selection) into ox-orchestrator::dei_shim.
 - Moved all source modules from ox-ars (openclaw_adapter, manifest, xecutor, etc.) into ox-skills::ars_shim.
 - Converted ox-dei and ox-ars into short-lived forwarding shims (exporting pub use vox_orchestrator::dei_shim::*; and pub use vox_skills::ars_shim::*;).
 - Resolved all type inference and import conflicts caused by the boundary shifts.
@@ -120,7 +122,7 @@ This phase neutralized lingering references to archaic ox-dei and ox-ars strin
 - Transitioned reference surfaces inside .github/workflows/ci.yml strictly ensuring workflow script guards accurately match the English-canonical structural footprint.
 - Phase locked and green.
 
-## Phase 7: Physical Deprecation and Deletion (Completed)
+## Phase 7 { Physical Deprecation and Deletion (Completed)
 
 This final phase concluded the architectural migration by cleanly erasing the deprecated ox-dei and ox-ars structures from the codebase, confirming the workspace is entirely reliant on the English Core equivalents.
 
