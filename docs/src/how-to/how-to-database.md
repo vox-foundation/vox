@@ -15,7 +15,7 @@ Vox utilizes a unified storage paradigm known as Codex, which compiles into type
 
 Any type struct adorned with the `@table` decorator becomes a persistent database entity.
 
-{{#include ../../examples/golden/getting_started.vox:data_model}}
+{{#include ../../../examples/golden/getting_started.vox:data_model}}
 
 ### Adding Index Declarations
 
@@ -95,7 +95,7 @@ For security, you should rarely expose `db.*` calls directly to UI islands or ag
 
 The compiler verifies that a `@query` function does not contain `.insert`, `.update`, or `.delete` operations.
 
-{{#include ../../examples/golden/getting_started.vox:logic}}
+{{#include ../../../examples/golden/getting_started.vox:logic}}
 
 ## The Escape Hatch: Raw SQL
 

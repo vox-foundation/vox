@@ -66,7 +66,7 @@ fn UserList(users: list[str]) -> Element {
 
 The true power of Vox lies in its technical unification. You can call `@mutation` or `@server fn` functions directly from your UI event handlers. Use standard React-like `onChange` or `onClick` attributes.
 
-{{#include ../../examples/golden/getting_started.vox:ui}}
+{{#include ../../../examples/golden/getting_started.vox:ui}}
 
 ## 5. Routing
 

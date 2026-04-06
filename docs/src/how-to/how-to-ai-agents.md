@@ -14,7 +14,7 @@ Vox is an AI-native language, meaning it bridges the gap between high-level busi
 
 Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator. 
 
-{{#include ../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 
 ### Why this beats Python/TypeScript:
 - **Type Safety**: If your function returns a `Result[T, E]`, Vox handles the MCP error response mapping for you.
@@ -30,7 +30,7 @@ Agents in Vox are not just prompts; they are scoped types that bundle specific t
 > [!NOTE]
 > The `agent` declaration is now a first-class HIR element in Vox v0.3, enabling static validation of toolsets and instructions.
 
-{{#include ../../examples/golden/ref_agents.vox:basic_agent}}
+{{#include ../../../examples/golden/ref_agents.vox:basic_agent}}
 
 ### Agent Handoffs
 Agents can call other agents if you grant them the tool to do so. In Vox, an agent's `tools` list can include other agent identifiers.

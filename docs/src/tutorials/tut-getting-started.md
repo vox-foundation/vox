@@ -43,7 +43,7 @@ This scaffolds a complete project structure containing a `src/main.vox` entrypoi
 Open `src/main.vox`. You'll see a starter app that includes a database table, a server endpoint, an interactive UI component, and a routing block. 
 
 ```vox
-{{#include ../examples/golden/getting_started.vox:start}}
+{{#include ../../../examples/golden/getting_started.vox:start}}
 ```
 
 ## Step 4: Type Check

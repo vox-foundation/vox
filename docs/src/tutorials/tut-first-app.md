@@ -24,19 +24,19 @@ vox init --kind application
 
 Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `@table` decorator, we create a persistent database table.
 
-{{#include ../../examples/golden/getting_started.vox:data_model}}
+{{#include ../../../examples/golden/getting_started.vox:data_model}}
 
 ## 3. Implement Server Logic
 
 Next, we add `@mutation` and `@query` functions to interact with the database.
 
-{{#include ../../examples/golden/getting_started.vox:logic}}
+{{#include ../../../examples/golden/getting_started.vox:logic}}
 
 ## 4. Build the UI
 
 Now, we'll create the frontend using the `@island` decorator. Vox islands use a JSX-like syntax that compiles to high-performance hydrated React components.
 
-{{#include ../../examples/golden/getting_started.vox:ui}}
+{{#include ../../../examples/golden/getting_started.vox:ui}}
 
 ## 5. Wiring It Together
 

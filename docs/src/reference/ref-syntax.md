@@ -23,17 +23,17 @@ This page provides the canonical structural layout for Vox v0.3 features. All co
 
 Variable assignments are immutable by default in Vox. Prefix with `mutable` for mutability.
 
-{{#include ../../examples/golden/ref_syntax.vox:variables}}
+{{#include ../../../examples/golden/ref_syntax.vox:variables}}
 
 Functions mapping natively to networking, storage, or internal agentic constraints.
 
-{{#include ../../examples/golden/ref_syntax.vox:functions}}
+{{#include ../../../examples/golden/ref_syntax.vox:functions}}
 
-{{#include ../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 
 Lexical constraints and properties can be modeled strictly using Abstract Data Types (ADTs) and Table definitions.
 
-{{#include ../../examples/golden/ref_types.vox:adt}}
+{{#include ../../../examples/golden/ref_types.vox:adt}}
 
 ```vox
 // Skip-Test
@@ -45,10 +45,10 @@ Lexical constraints and properties can be modeled strictly using Abstract Data T
 ```
 
 ### Branching
-{{#include ../../examples/golden/ref_syntax.vox:control_flow}}
+{{#include ../../../examples/golden/ref_syntax.vox:control_flow}}
 
 ### Pattern Matching (`match`)
-{{#include ../../examples/golden/ref_types.vox:matching}}
+{{#include ../../../examples/golden/ref_types.vox:matching}}
 
 ### Error Propagation (`?`)
 The `?` suffix unpacks an `Ok` result, returning early if the result is an `Error(e)`.
@@ -63,19 +63,19 @@ fn build_report() -> Result[str] {
 
 Actors operate isolated asynchronous loops responding to discrete event handler payloads via `on`. 
 
-{{#include ../../examples/golden/ref_actors.vox:basic_actor}}
+{{#include ../../../examples/golden/ref_actors.vox:basic_actor}}
 
-{{#include ../../examples/golden/ref_actors.vox:spawn_and_send}}
+{{#include ../../../examples/golden/ref_actors.vox:spawn_and_send}}
 
 ## Agents
 
 Agents define LLM-backed roles with systematic instructions and toolsets.
 
-{{#include ../../examples/golden/ref_agents.vox:basic_agent}}
+{{#include ../../../examples/golden/ref_agents.vox:basic_agent}}
 
 Use `workflow` to group state machine processes that survive process restarts. Use `activity` to dictate atomic, retry-able execution sequences.
 
-{{#include ../../examples/golden/getting_started.vox:logic}}
+{{#include ../../../examples/golden/getting_started.vox:logic}}
 
 ## Island and UI Syntax
 

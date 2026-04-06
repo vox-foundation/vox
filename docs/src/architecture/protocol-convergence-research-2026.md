@@ -118,7 +118,7 @@ The **Model Context Protocol** defines **stdio** and **Streamable HTTP** as stan
 - **Envelope and metadata:** Multiple stacks repeat JSON shapes and correlation concepts without a single cross-plane “message context” SSOT (see §4).
 - **Client duplicates:** Extension MCP client paths (e.g. legacy vs preferred client) increase maintenance; convergence is **TypeScript surface**, not wire protocol.
 - **Catalog vs product:** Some families (e.g. webhooks) may be `experimental` in the catalog while crates exist—keep catalog status honest to avoid governance drift.
-- **Research vs shipped MCP optimizations:** Docs such as [MCP optimization strategy](../explanation/expl-mcp-optimizations.md) describe aspirational paths; keep a clear boundary in planning so experiments do not fork production semantics silently.
+- **Research vs shipped MCP optimizations:** Docs such as [MCP optimization strategy](../explanation/mcp_serverless_research.md) describe aspirational paths; keep a clear boundary in planning so experiments do not fork production semantics silently.
 
 ### 3.3 Mesh / Populi
 

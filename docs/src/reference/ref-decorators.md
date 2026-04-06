@@ -136,10 +136,10 @@ fn Spinner() -> Element {
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
 
-{{#include ../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 
 ### `@mcp.resource`
 - **Goal**: Exposes dynamic readable content to MCP.
 - **Effect**: Registers a resource URI endpoint via `getResources`.
 
-{{#include ../../examples/golden/ref_orchestrator.vox:mcp_resource}}
+{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_resource}}

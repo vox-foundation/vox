@@ -17,6 +17,7 @@ pub mod candle_inference_serve;
 pub mod candle_model_qwen;
 pub mod populi_train;
 pub mod train_log;
+#[cfg(feature = "mens-train")]
 pub mod training_text;
 
 pub mod lora;

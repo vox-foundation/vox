@@ -8,7 +8,7 @@ training_eligible: true
 # @py.import – Python Library Integration (`torch`, `numpy`, etc.)
 
 > **2026 stance:** **`vox container init` is retired** (hard error — use Rust/PM flows). **`@py.import` / uv-backed setup is not a supported product path.** Native ML stacks live under **`vox mens`** / Candle; treat the material below as historical reference only.
-> For integration with external libraries via FFI going forward, see [Rust FFI & Migration Guide](../architecture/vox-rust-ffi-ssot.md).
+> For integration with external libraries via FFI going forward, see [Rust FFI & Migration Guide](../architecture/rust-ecosystem-support-ssot.md).
 
 Vox historically documented importing Python libraries from `.vox` via `@py.import` with **[uv](https://docs.astral.sh/uv/)** for wheels. That workflow is **not** maintained as a supported package-management lane.
 

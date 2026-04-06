@@ -5,119 +5,55 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 05 Apr 2026 23:08:44 GMT</lastBuildDate>
+  <lastBuildDate>Mon, 06 Apr 2026 04:20:39 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
-    <title>Redirect</title>
-    <link>https://vox-lang.org/api/vox-dei-sandbox.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-dei-sandbox.html</guid>
-    <description>Redirect</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Internal Architecture Repository</title>
+    <link>https://vox-lang.org/architecture/INDEX.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/INDEX.html</guid>
+    <description>Entry point for Vox internal architecture SSOTs, research findings, and planning documents.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Redirect: vox-gamify</title>
-    <link>https://vox-lang.org/api/vox-gamify.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-gamify.html</guid>
-    <description>Redirect: vox-gamify</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Actors &amp; Workflows</title>
+    <link>https://vox-lang.org/explanation/expl-actors-workflows.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-actors-workflows.html</guid>
+    <description>Deep dive into Vox&apos;s primary concurrency primitives: Persistent Actors for stateful messaging and Durable Workflows for reliable orchestration.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Vox Developer User Journeys: Intent vs. Actualization</title>
-    <link>https://vox-lang.org/architecture/agentic-user-journeys.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-user-journeys.html</guid>
-    <description>Baseline target workflows mapping how real human developers interface with the Vox orchestrator system.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>AI Agent Orchestration</title>
+    <link>https://vox-lang.org/explanation/expl-ai-orchestration.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-ai-orchestration.html</guid>
+    <description>How Vox natively integrates LLMs, agents, and local logic via the Model Context Protocol (MCP) and Distributed Execution Intelligence (DEI) orchestrator.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Completion policy SSOT (LLM premature-completion)</title>
-    <link>https://vox-lang.org/architecture/completion-policy-ssot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/completion-policy-ssot.html</guid>
-    <description>Single source of truth for LLM completion policy enforcement, TOESTUB integration, and CI gating.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Explanation: Capabilities</title>
+    <link>https://vox-lang.org/explanation/expl-capabilities.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-capabilities.html</guid>
+    <description>Understanding the Capability-Gated Execution limits applied to workflows and agents.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>English-Core + Latin Alias Migration Ledger</title>
-    <link>https://vox-lang.org/architecture/english_core_migration_ledger.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/english_core_migration_ledger.html</guid>
-    <description>Complete migration tracking for nomenclature transition from Latin aliases (vox-dei, vox-ars) to English canonical names.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Explanation: The Vox Runtime</title>
+    <link>https://vox-lang.org/explanation/expl-runtime.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-runtime.html</guid>
+    <description>Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Vox Memory System</title>
-    <link>https://vox-lang.org/architecture/memory_system.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/memory_system.html</guid>
-    <description>Persistent, searchable long-term storage architecture for agent knowledge with three-layer design.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>News syndication: incident patterns and mitigations</title>
-    <link>https://vox-lang.org/architecture/news_syndication_incident_patterns.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/news_syndication_incident_patterns.html</guid>
-    <description>Searchable SSOT for automated outbound publishing failure modes and Vox-specific safety controls.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Unified News Syndication Security &amp; Safety</title>
-    <link>https://vox-lang.org/architecture/news_syndication_security.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/news_syndication_security.html</guid>
-    <description>Safety mechanisms and architectural constraints preventing accidental automated social media posts.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>2026 State-of-the-Art: Dynamic Agentic Planning &amp; Orchestration</title>
-    <link>https://vox-lang.org/architecture/res_dynamic_agentic_planning_2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/res_dynamic_agentic_planning_2026.html</guid>
-    <description>Research synthesis on LLM agent planning, context management, workflow orchestration, and state persistence.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Vox Security Model</title>
-    <link>https://vox-lang.org/architecture/security_model.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/security_model.html</guid>
-    <description>Multi-layer protection against prompt injection, scope violations, and unauthorized access via SecurityPolicy and SecurityGuard.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Vox Session Management</title>
-    <link>https://vox-lang.org/architecture/session_management.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/session_management.html</guid>
-    <description>Persistent conversation history, metadata, and state management across agent interactions.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Vox Architectural Organization &amp; Governance</title>
-    <link>https://vox-lang.org/architecture/vox-organization.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-organization.html</guid>
-    <description>Strict organizational principles enforced via vox architect command and TOESTUB reasoning engine.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint</title>
-    <link>https://vox-lang.org/architecture/vox_agentic_loop_and_mens_plan.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox_agentic_loop_and_mens_plan.html</guid>
-    <description>254-task implementation blueprint covering OOPAV agent loop, MENS grammar-aware training, and GRPO reinforcement learning.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Vox VS Code Extension — Frontend Redesign Research (2026)</title>
-    <link>https://vox-lang.org/architecture/vscode-extension-redesign-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vscode-extension-redesign-research-2026.html</guid>
-    <description>Research substrate for Industrial Cyber-Renaissance reskin using v0.dev workflow and React-based webview architecture.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Explanation: Security Model</title>
+    <link>https://vox-lang.org/explanation/expl-security.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-security.html</guid>
+    <description>Understand the security constructs, permissions, and sandbox boundaries in the Vox ecosystem.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
@@ -125,47 +61,111 @@
     <link>https://vox-lang.org/explanation/glossary.html</link>
     <guid isPermaLink="true">https://vox-lang.org/explanation/glossary.html</guid>
     <description>Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>The Why: Zero-Hallucination Design</title>
-    <link>https://vox-lang.org/explanation/why-vox-for-ai.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/why-vox-for-ai.html</guid>
-    <description>Why Python and TypeScript fail for LLM code generation, and how the Vox compiler solves the hallucination boundary.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>How-To: Model Complex Domain Logic</title>
+    <link>https://vox-lang.org/how-to/how-to-custom-types.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-custom-types.html</guid>
+    <description>Learn how to use Vox&apos;s expressive type system.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Build AI Agents and MCP Tools</title>
-    <link>https://vox-lang.org/how-to/how-to-ai-agents.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-ai-agents.html</guid>
-    <description>Expand your Vox logic into reusable tools for AI assistants and define specialized agents using the Model Context Protocol (MCP).</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>How-To: The Database Layer</title>
+    <link>https://vox-lang.org/how-to/how-to-database.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-database.html</guid>
+    <description>How to perform CRUD operations, type-safe queries, and indexing using Vox&apos;s integrated database layer.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Vox: The AI-Native Programming Language</title>
-    <link>https://vox-lang.org/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/index.html</guid>
-    <description>Vox is an AI-native full-stack language that eliminates hallucinations via compiler-enforced reality. Compiles to Rust and TypeScript with zero-null discipline.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>How-To: Deploy to Production</title>
+    <link>https://vox-lang.org/how-to/how-to-deploy.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-deploy.html</guid>
+    <description>Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Installation Reference</title>
-    <link>https://vox-lang.org/reference/ref-installation.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ref-installation.html</guid>
-    <description>Authoritative guide for installing the Vox CLI, toolchain, and AI provider backends across Windows, macOS, and Linux.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>How-To: Handle Errors Gracefully</title>
+    <link>https://vox-lang.org/how-to/how-to-error-handling.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-error-handling.html</guid>
+    <description>Learn the best practices for error management in Vox to build robust applications.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Reference: Type System</title>
-    <link>https://vox-lang.org/reference/ref-type-system.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ref-type-system.html</guid>
-    <description>Deep dive into the Vox type system: ADTs, generics, zero-null discipline, and bidirectional inference.</description>
-    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
+    <title>How-To: Islands and Pages</title>
+    <link>https://vox-lang.org/how-to/how-to-islands-and-pages.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-islands-and-pages.html</guid>
+    <description>How to build and route full-stack web UIs using islands in Vox.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>How-To: Scale Actors</title>
+    <link>https://vox-lang.org/how-to/how-to-scale-actors.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-scale-actors.html</guid>
+    <description>Strategies for distributing and managing Vox actor lifecycles across a cluster.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>How-To: System I/O and Capabilities</title>
+    <link>https://vox-lang.org/how-to/how-to-system-io.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-system-io.html</guid>
+    <description>How to safely interact with filesystems and network endpoints.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>How-To: Testing Integration</title>
+    <link>https://vox-lang.org/how-to/how-to-testing-integration.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-testing-integration.html</guid>
+    <description>How to structure tests for Vox functions, workflows, and UI using the built-in testing framework.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>How-To: Test Your Logic</title>
+    <link>https://vox-lang.org/how-to/how-to-unit-test.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-unit-test.html</guid>
+    <description>Write automated test cases using Vox.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Database Query Reference</title>
+    <link>https://vox-lang.org/reference/ref-db-surface.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-db-surface.html</guid>
+    <description>Complete syntactic reference for Vox db.* accessors and complex filtering criteria.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Reference: Decorator Registry</title>
+    <link>https://vox-lang.org/reference/ref-decorators.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-decorators.html</guid>
+    <description>All available decorators and their technical effects.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Standard Library Reference</title>
+    <link>https://vox-lang.org/reference/ref-stdlib.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-stdlib.html</guid>
+    <description>Core execution environment capabilities exposed in Vox (std.* and built-ins).</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Language Syntax Reference</title>
+    <link>https://vox-lang.org/reference/ref-syntax.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-syntax.html</guid>
+    <description>A comprehensive, scannable syntax quick-reference page.</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>

@@ -31,7 +31,7 @@ Do **not** depend on git history to recover the root `Cargo.toml`. SSOT and repa
 
 ## Canonical `vox ci` vs shell scripts
 
-Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scripts under `scripts/` are **optional thin delegates** for local POSIX ergonomics; **prefer `vox ci …`** when the `vox` binary is on `PATH`. Mapping table: [scripts/README.md](../adr/README.md). Machine-readable registry: [`docs/agents/script-registry.json`](../../agents/script-registry.json).
+Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scripts under `scripts/` are **optional thin delegates** for local POSIX ergonomics; **prefer `vox ci …`** when the `vox` binary is on `PATH`. Mapping table: [scripts/README.md](../adr/index.md). Machine-readable registry: [`docs/agents/script-registry.json`](../../agents/script-registry.json).
 
 ## Line endings (cross-platform)
 

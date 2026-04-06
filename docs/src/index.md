@@ -22,17 +22,17 @@ Vox unites the whole stack through a safe, declarative compiler.
 
 ### 1. Data and Logic
 ```vox
-{{#include ../examples/golden/index_showcase.vox:data}}
+{{#include ../../examples/golden/index_showcase.vox:data}}
 ```
 
 ### 2. User Interfaces
 ```tsx
-{{#include ../examples/golden/index_showcase.vox:ui}}
+{{#include ../../examples/golden/index_showcase.vox:ui}}
 ```
 
 ### 3. AI Agents & MCP
 ```vox
-{{#include ../examples/golden/index_showcase.vox:mcp}}
+{{#include ../../examples/golden/index_showcase.vox:mcp}}
 ```
 
 ## Why Vox?

@@ -19,7 +19,7 @@ training_eligible: true
 | **Codex API (BaaS template)** | Self-hosted Codex-style HTTP API on Turso (placeholder service name) | [`infra/coolify/docker-compose.yml`](../../../infra/coolify/docker-compose.yml) | **`VOX_CODEX_IMAGE`** (you build/push); not the default `vox` MCP image unless you retag/repurpose | **8080** (template) |
 | **Generated app stack** | `vox deploy` / `vox-container` sample (Node + nginx + optional mens env) | Emitted by [`generate_compose_file`](../../../crates/vox-container/src/generate.rs) | Project `Dockerfile` from `@environment` / package flow | **3000** + **80/443** |
 
-**Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../architecture/codex-baas.md) and [infra/coolify/README.md](../adr/README.md).
+**Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../architecture/codex-baas.md) and [infra/coolify/README.md](../adr/index.md).
 
 Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` and set `VOX_ORCHESTRATOR_DAEMON_SOCKET` on MCP to the daemon TCP endpoint. Use `VOX_MCP_ORCHESTRATOR_RPC_READS=1` / `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1` only when both services share the same repo/db context and startup probe confirms matching `repository_id`.
 

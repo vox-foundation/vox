@@ -41,7 +41,7 @@ Use this when agents or humans touch **`vox-populi`** **Mens** training (`mens-t
 ## Vox web / training corpus
 
 - [ ] **Express / `server.ts`:** treat **`VOX_EMIT_EXPRESS_SERVER=1`** as **legacy / opt-in** in training text; default story is **Axum + `api.ts`** (see [`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md)).
-- [ ] **Examples:** prefer **golden** `examples/*.vox` from [`examples/README.md`](../adr/README.md); avoid ingesting `examples/archive/**` unless the pipeline explicitly opts in.
+- [ ] **Examples:** prefer **golden** `examples/*.vox` from [`examples/README.md`](../adr/index.md); avoid ingesting `examples/archive/**` unless the pipeline explicitly opts in.
 
 ## Merge / attention
 

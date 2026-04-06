@@ -14,7 +14,7 @@ In Vox, **Actors** are the primary unit of stateful concurrency. Unlike standard
 
 An actor is defined with the `actor` keyword. Its internal state is private and only accessible via message handlers.
 
-{{#include ../../examples/golden/ref_actors.vox:basic_actor}}
+{{#include ../../../examples/golden/ref_actors.vox:basic_actor}}
 
 ## 2. Spawning and Identity
 

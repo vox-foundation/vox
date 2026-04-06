@@ -52,13 +52,13 @@ A named collection of fields.
 ### Enums (Sum Types / Tagged Unions)
 Types that can be one of several variants, potentially carrying extra data.
 
-{{#include ../../examples/golden/ref_types.vox:adt}}
+{{#include ../../../examples/golden/ref_types.vox:adt}}
 
 ---
 
 Vox uses the `match` keyword for exhaustive destructuring of ADTs. The compiler will reject a match expression that does not cover every possible variant.
 
-{{#include ../../examples/golden/ref_types.vox:matching}}
+{{#include ../../../examples/golden/ref_types.vox:matching}}
 
 ---
 

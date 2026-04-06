@@ -23,7 +23,7 @@ Vox is designed so that the **compiler** acts as the guardrail for the LLM.
 
 ### @table: The Database is the Source of Truth
 In Vox, you don't write SQL strings or use a loose ORM. You define your schema with `@table`.
-{{#include ../../examples/golden/ref_types.vox:scalar}}
+{{#include ../../../examples/golden/ref_types.vox:scalar}}
 
 ```vox
 // Skip-Test
@@ -36,7 +36,7 @@ If an LLM attempts to generate code that accesses `user.score` instead of `user.
 
 ### Zero-Null Discipline
 LLMs frequently forget to check for `null`. In Vox, `null` does not exist. You must handle `Option[T]` using `match`.
-{{#include ../../examples/golden/ref_types.vox:matching}}
+{{#include ../../../examples/golden/ref_types.vox:matching}}
 If the LLM omits the `None` case, the compiler rejects the code for a **non-exhaustive match**. The model is forced to be correct.
 
 ## 3. Results: 40% Fewer Hallucinations

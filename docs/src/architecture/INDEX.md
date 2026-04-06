@@ -33,7 +33,7 @@ The files in the `/architecture` directory serve as single sources of truth (SSO
 
 - [Agentic Loop & MENS Pipeline Blueprint](vox_agentic_loop_and_mens_plan.md)
 - [Completion Policy SSOT (Anticipatory Stopping)](completion-policy-ssot.md)
-- [Socrates Anti-Hallucination Protocol](adr/005-socrates-anti-hallucination-ssot.md)
+- [Socrates Anti-Hallucination Protocol](../adr/005-socrates-anti-hallucination-ssot.md)
 - [MCP Exposure SSOT](mcp-vox-language-exposure.md)
 
 ## MENS Training Research

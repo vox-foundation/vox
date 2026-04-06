@@ -12,7 +12,7 @@ Learn how to package and deploy your Vox application using declarative environme
 
 You can define your deployment environment directly in your `.vox` files using `environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more.
 
-{{#include ../../examples/golden/ref_orchestrator.vox:orchestrator_config}}
+{{#include ../../../examples/golden/ref_orchestrator.vox:orchestrator_config}}
 
 > [!NOTE]
 > The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@server fn`. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
