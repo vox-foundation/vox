@@ -24,6 +24,18 @@ pub struct BenchmarkListParams {
     /// Metric type selector: `benchmark_event` (default) or `syntax_k_event`.
     #[serde(default)]
     pub metric_type: Option<String>,
+    /// Data source/view selector.
+    ///
+    /// - `research_metrics` (default): benchmark rows from `research_metrics`.
+    /// - `build_health`: latest build summary from `build_*` tables.
+    /// - `build_regressions`: latest-run regressions from `build_*` tables.
+    /// - `build_warnings`: warning hotspots from `build_*` tables.
+    /// - `dependency_shape`: latest dependency-shape snapshot from `build_run_dependency_shape`.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Optional run id for `build_regressions`; defaults to latest run.
+    #[serde(default)]
+    pub run_id: Option<i64>,
 }
 
 fn default_limit() -> i64 {
@@ -40,6 +52,63 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
         .to_json();
     };
     let rid = state.repository.repository_id.clone();
+    let source = params.source.as_deref().unwrap_or("research_metrics");
+    if source != "research_metrics" {
+        let payload = match source {
+            "build_health" => match db.query_build_health(&rid).await {
+                Ok(v) => ToolResult::ok(v).to_json(),
+                Err(e) => {
+                    ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB)
+                        .to_json()
+                }
+            },
+            "build_regressions" => {
+                let run_id = if let Some(id) = params.run_id {
+                    id
+                } else {
+                    match db.query_latest_build_run_id(&rid).await {
+                        Ok(Some(id)) => id,
+                        Ok(None) => return ToolResult::ok(Vec::<serde_json::Value>::new()).to_json(),
+                        Err(e) => {
+                            return ToolResult::<String>::err_with_remediation(
+                                format!("{e}"),
+                                REM_BENCHMARK_DB,
+                            )
+                            .to_json();
+                        }
+                    }
+                };
+                match db.query_build_regressions(&rid, run_id).await {
+                    Ok(v) => ToolResult::ok(v).to_json(),
+                    Err(e) => {
+                        ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB)
+                            .to_json()
+                    }
+                }
+            }
+            "build_warnings" => match db.query_build_warnings(&rid, params.limit).await {
+                Ok(v) => ToolResult::ok(v).to_json(),
+                Err(e) => {
+                    ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB)
+                        .to_json()
+                }
+            },
+            "dependency_shape" => match db.query_latest_build_dependency_shape(&rid).await {
+                Ok(v) => ToolResult::ok(v).to_json(),
+                Err(e) => {
+                    ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB)
+                        .to_json()
+                }
+            },
+            _ => ToolResult::<String>::err_with_remediation(
+                "Invalid source. Use research_metrics, build_health, build_regressions, build_warnings, or dependency_shape.",
+                REM_BENCHMARK_DB,
+            )
+            .to_json(),
+        };
+        return payload;
+    }
+
     let metric_type = params
         .metric_type
         .as_deref()

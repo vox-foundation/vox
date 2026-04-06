@@ -37,6 +37,12 @@ tables:
     kind: days
     days: 365
     time_column: created_at
+  # Build telemetry baseline (`vox ci build-timings --deep`): prune parent runs; child rows cascade
+  # (`build_crate_sample`, `build_warning`, `build_run_dependency_shape`).
+  build_run:
+    kind: days
+    days: 365
+    time_column: recorded_at
   # CI completion audit (ingest: vox ci completion-ingest). S2 workspace-adjacent; see
   # docs/src/architecture/telemetry-retention-sensitivity-ssot.md and completion-policy-ssot.md.
   # Child rows (finding, detector_snapshot) use ON DELETE CASCADE — no separate prune rows.

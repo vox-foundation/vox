@@ -69,6 +69,11 @@ CREATE TABLE IF NOT EXISTS build_warning (
     message    TEXT    NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS build_run_dependency_shape (
+    run_id           INTEGER PRIMARY KEY REFERENCES build_run(id) ON DELETE CASCADE,
+    dependency_json  TEXT    NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_build_run_repo       ON build_run(repository_id, recorded_at);
 CREATE INDEX IF NOT EXISTS idx_build_crate_run      ON build_crate_sample(run_id, name);
 CREATE INDEX IF NOT EXISTS idx_build_warning_run    ON build_warning(run_id, crate_name);

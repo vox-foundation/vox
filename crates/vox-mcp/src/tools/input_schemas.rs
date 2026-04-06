@@ -429,11 +429,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_plan_status" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048}},"required":["session_id"],"additionalProperties":false}"#,
         ),
+        "vox_attention_summary" => {
+            derived_tool_schema!(crate::dei_tools::params::AttentionSummaryParams)
+        },
+        "vox_handoff_lineage" => {
+            derived_tool_schema!(crate::dei_tools::params::HandoffLineageParams)
+        },
         "vox_benchmark_list" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500}},"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500},"metric_type":{"type":"string","enum":["benchmark_event","syntax_k_event"]},"source":{"type":"string","enum":["research_metrics","build_health","build_regressions","build_warnings","dependency_shape"]},"run_id":{"type":"integer","minimum":1}},"additionalProperties":false}"#,
         ),
         "vox_benchmark_record" => parse_obj(
-            r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":512,"description":"Benchmark name (e.g. build_time, eval_p95)"},"value":{"type":"number","description":"Optional metric value"},"details":{"description":"Optional structured JSON details"}},"required":["name"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":512,"description":"Benchmark name (e.g. build_time, eval_p95)"},"fixture_id":{"type":"string","maxLength":512},"metric_type":{"type":"string","enum":["benchmark_event","syntax_k_event"]},"value":{"type":"number","description":"Optional metric value"},"details":{"description":"Optional structured JSON details"}},"required":["name"],"additionalProperties":false}"#,
         ),
         "vox_toestub_findings_upsert" => parse_obj(
             r#"{"type":"object","properties":{"findings":{"type":"array","minItems":1,"items":{"type":"object","properties":{"rule_id":{"type":"string","minLength":1},"rule_name":{"type":"string","minLength":1},"severity":{"type":"string","enum":["Info","Warning","Error","Critical"]},"file":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"column":{"type":"integer","minimum":0},"message":{"type":"string","minLength":1},"suggestion":{"type":"string"},"context":{"type":"string"}},"required":["rule_id","rule_name","severity","file","line","column","message"],"additionalProperties":false}},"session_id":{"type":"string","maxLength":2048}},"required":["findings"],"additionalProperties":false}"#,

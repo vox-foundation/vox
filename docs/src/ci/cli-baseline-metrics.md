@@ -14,6 +14,9 @@ Use this checklist when changing `vox-cli` command surface, registry, or compile
 2. **Workspace guard:** `vox ci build-timings` (budgets in `docs/ci/build-timings/budgets.json`).
 3. **Dependency graph:** `cargo tree -p vox-cli -e normal,build` — spot unexpected always-on crates after edits.
 4. **Command surface:** `cargo run -p vox-cli -- commands --format json --include-nested` — diff against the prior output, or rely on `cargo test -p vox-cli --test command_catalog_paths_baseline` (sorted path fixture under `crates/vox-cli/tests/fixtures/`) plus `vox ci command-compliance` (embed + catalog vs registry).
+5. **Build analytics (VoxDB):** query `build_*` projections via MCP (`vox_benchmark_list` with
+   `source=build_health|build_regressions|build_warnings|dependency_shape`) and compare with prior
+   runs before deciding module refactor vs feature-gate vs crate split.
 
 ## Single source of truth
 

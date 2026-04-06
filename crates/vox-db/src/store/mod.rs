@@ -36,7 +36,7 @@ pub use types::{
     ObservationReport, ObserverAction, TestDecision, TestDecisionPolicy, VictoryVerdict, TierResult,
 };
 
-pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};
+pub use ops_build::{BuildDependencyShape, BuildHealthSummary, CrateSample, RegressionRow};
 pub use ops_mens_cloud::CloudCostSummary;
 pub use ops_mens_intelligence::{CorpusQualitySummary, GrpoStepRow};
 

@@ -73,6 +73,18 @@ Rollups written to `eval_runs` include JSON with both raw counts and **explicit 
 - `metric_value_unit`: when `metric_value` is set, unit SSOT (`seconds`, `milliseconds`, `ratio`, …).
 - `details`: free-form JSON (per-crate timings, pass/fail flags).
 
+### Build timing producers (current)
+
+- `vox ci build-timings` (shallow lanes) writes `benchmark_event` name `ci_build_timings` with:
+  - `metric_value`: total wall time in `seconds`,
+  - `metric_value_unit`: `seconds`,
+  - `details`: lane rows (`lane`, `ok`, `ms`) plus `total_ms`.
+- `vox ci build-timings --deep` writes structured rows to `build_run` / `build_crate_sample` /
+  `build_warning`; on structured-write fallback it writes `benchmark_event` name
+  `cargo_build_metrics` with `metric_value_unit = seconds`.
+- `VOX_BENCHMARK_TELEMETRY=1` controls `benchmark_event` writes; structured `build_*` writes follow
+  command persistence settings and VoxDB availability.
+
 For cross-repo querying via MCP, `benchmark_event` may use `name = "cross_repo_query"` with `metric_value_unit = "milliseconds"` and `details` such as:
 
 - `query_kind`

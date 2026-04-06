@@ -143,6 +143,8 @@ jobs:
           cargo check -p vox-cli --features mesh,workflow-runtime
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
+        env:
+          VOX_BENCHMARK_TELEMETRY: "1"
         run: cargo run -p vox-cli --quiet -- ci build-timings --crates
 
       - name: vox-cli feature matrix + no vox_orchestrator imports

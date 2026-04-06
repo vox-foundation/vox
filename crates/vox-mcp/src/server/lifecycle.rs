@@ -822,7 +822,7 @@ impl ServerState {
             transient_events: Arc::new(Mutex::new(Vec::new())),
             workspace_root,
             mcp_chat_model_override: Arc::new(RwLock::new(None)),
-            budget_manager: Arc::new(BudgetManager::new()),
+            budget_manager: Arc::new(BudgetManager::new(None)),
             http_client: reqwest::Client::new(),
             mention_path_cache: Arc::new(SyncMutex::new(None)),
             event_log_sink_join: Arc::new(SyncMutex::new(None)),

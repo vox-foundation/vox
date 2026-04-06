@@ -84,6 +84,19 @@ pub async fn record_opt_with_unit(
         return;
     };
     let rid = repository_id_for_telemetry();
+    let details_bytes = details
+        .as_ref()
+        .and_then(|d| serde_json::to_vec(d).ok())
+        .map(|v| v.len())
+        .unwrap_or(0usize);
+    tracing::debug!(
+        target: "vox.benchmark_telemetry",
+        metric_name = name,
+        metric_value = metric_value,
+        metric_value_unit = metric_value_unit.unwrap_or(""),
+        details_bytes,
+        "record_opt_with_unit attempt"
+    );
     match VoxDb::connect(cfg).await {
         Ok(db) => {
             if let Err(e) = db
@@ -147,6 +160,16 @@ pub fn record_opt_blocking(
     metric_value: Option<f64>,
     details: Option<serde_json::Value>,
 ) {
+    record_opt_with_unit_blocking(name, metric_value, None, details);
+}
+
+/// Blocking variant for sync CLI paths that includes a metric unit.
+pub fn record_opt_with_unit_blocking(
+    name: &str,
+    metric_value: Option<f64>,
+    metric_value_unit: Option<&str>,
+    details: Option<serde_json::Value>,
+) {
     if !telemetry_enabled() {
         return;
     }
@@ -155,11 +178,24 @@ pub fn record_opt_blocking(
         return;
     };
     let rid = repository_id_for_telemetry();
+    let details_bytes = details
+        .as_ref()
+        .and_then(|d| serde_json::to_vec(d).ok())
+        .map(|v| v.len())
+        .unwrap_or(0usize);
+    tracing::debug!(
+        target: "vox.benchmark_telemetry",
+        metric_name = name,
+        metric_value = metric_value,
+        metric_value_unit = metric_value_unit.unwrap_or(""),
+        details_bytes,
+        "record_opt_with_unit_blocking attempt"
+    );
     telemetry_runtime().block_on(async {
         match VoxDb::connect(cfg).await {
             Ok(db) => {
                 if let Err(e) = db
-                    .record_benchmark_event(&rid, name, metric_value, None, details)
+                    .record_benchmark_event(&rid, name, metric_value, metric_value_unit, details)
                     .await
                 {
                     tracing::debug!(

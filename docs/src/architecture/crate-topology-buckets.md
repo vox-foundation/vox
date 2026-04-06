@@ -30,6 +30,17 @@ training_eligible: true
 - Duplicating `repository_id` / repo-root logic outside **`vox-repository`**.
 - Docs or scripts referring to removed package names **`vox-mens`** / **`vox-codex-api`** — use **`vox-populi`** and **`vox-db`** (see [nomenclature migration map](nomenclature-migration-map.md)).
 
+## Telemetry-driven topology policy
+
+Use `vox ci build-timings` / `--deep` telemetry as the decision gate for crate-organization changes:
+
+- **Module refactor first** when compile regression is localized and dependency-shape metrics remain stable.
+- **Feature-gate next** when an optional domain inflates default build lanes but ownership stays cohesive.
+- **Split crate last** when both are true over a stable window:
+  - sustained lane regression (median and p95 trend, not one noisy run),
+  - sustained coupling pressure (fan-in/fan-out hotspot remains in the top set).
+- **Fail gate only on sustained regressions** (multi-run corroboration), not single-run spikes.
+
 ## See also
 
 - [crate-build-lanes-migration.md](crate-build-lanes-migration.md)

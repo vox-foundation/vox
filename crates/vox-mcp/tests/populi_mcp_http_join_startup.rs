@@ -97,7 +97,7 @@ async fn populi_startup_registers_on_http_control_plane() {
         std::env::remove_var("VOX_MESH_CONTROL_ADDR");
         unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base) };
         unsafe { std::env::set_var("VOX_MESH_NODE_ID", "mcp-join-integration") };
-        unsafe { std::env::set_var("VOX_MESH_REGISTRY_PATH", registry_path.to_str() }.unwrap());
+        unsafe { std::env::set_var("VOX_MESH_REGISTRY_PATH", registry_path.to_str().unwrap()) };
         unsafe { std::env::set_var("VOX_MESH_HTTP_HEARTBEAT_SECS", "0") };
         std::env::remove_var("VOX_MESH_HTTP_JOIN");
     }

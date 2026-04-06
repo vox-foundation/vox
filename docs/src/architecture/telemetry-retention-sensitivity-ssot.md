@@ -30,6 +30,17 @@ training_eligible: true
 
 [retention-policy.yaml](../../../contracts/db/retention-policy.yaml) lists `research_metrics` with **365 days** (`days` relative to `created_at`). Prune is operator-driven via `vox db prune-plan` / `prune-apply`.
 
+### Today: `build_run*` telemetry tables
+
+`vox ci build-timings --deep` persists structured build telemetry in `build_run` plus child tables
+(`build_crate_sample`, `build_warning`, `build_run_dependency_shape`). Retention follows
+[retention-policy.yaml](../../../contracts/db/retention-policy.yaml):
+
+| Table | Prune rule | Notes |
+| --- | --- | --- |
+| `build_run` | `days` / **365** / `recorded_at` | Parent run cadence aligned with benchmark retention horizon. |
+| `build_crate_sample`, `build_warning`, `build_run_dependency_shape` | *(via FK)* | `ON DELETE CASCADE` from `build_run`; no separate policy rows needed. |
+
 ### Today: `ci_completion_*`
 
 Completion ingest persists workspace-adjacent rows ([`ci_completion.rs`](../../../crates/vox-db/src/schema/domains/ci_completion.rs)), classified **S2** (paths, fingerprints). [retention-policy.yaml](../../../contracts/db/retention-policy.yaml) defines:

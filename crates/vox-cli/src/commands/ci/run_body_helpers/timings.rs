@@ -210,15 +210,25 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
     }
     apply_build_timing_budgets(&records, root)?;
     let total_ms: u128 = records.iter().filter(|r| r.ok).map(|r| r.duration_ms).sum();
-    crate::benchmark_telemetry::record_opt_blocking(
+    let total_seconds = (total_ms as f64) / 1000.0;
+    let details = serde_json::json!({
+        "crates": crates,
+        "total_ms": total_ms,
+        "lanes": records.iter().map(|r| {
+            serde_json::json!({"lane": r.lane, "ok": r.ok, "ms": r.duration_ms})
+        }).collect::<Vec<_>>(),
+    });
+    tracing::debug!(
+        target: "vox.ci.build_timings",
+        lane_count = records.len(),
+        total_ms = total_ms,
+        "recording ci_build_timings benchmark_event"
+    );
+    crate::benchmark_telemetry::record_opt_with_unit_blocking(
         "ci_build_timings",
-        Some(total_ms as f64),
-        Some(serde_json::json!({
-            "crates": crates,
-            "lanes": records.iter().map(|r| {
-                serde_json::json!({"lane": r.lane, "ok": r.ok, "ms": r.duration_ms})
-            }).collect::<Vec<_>>(),
-        })),
+        Some(total_seconds),
+        Some("seconds"),
+        Some(details),
     );
     Ok(())
 }
