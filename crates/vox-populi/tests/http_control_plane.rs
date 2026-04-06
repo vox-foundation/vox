@@ -461,6 +461,7 @@ async fn quarantine_blocks_claim_until_cleared() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .unwrap();
@@ -531,6 +532,7 @@ async fn maintenance_blocks_claim_and_lease_renew() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .unwrap();
@@ -630,6 +632,7 @@ async fn maintenance_deadline_expires_and_claims_resume() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .unwrap();
@@ -692,6 +695,7 @@ async fn a2a_lease_renew_requires_holder() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .unwrap();
@@ -1068,6 +1072,7 @@ async fn a2a_inbox_non_claimer_honors_max_messages() {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .unwrap();
@@ -1118,6 +1123,7 @@ async fn a2a_inbox_non_claimer_honors_before_message_cursor() {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .unwrap();
@@ -1163,6 +1169,7 @@ async fn a2a_inbox_all_paged_collects_full_inbox() {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .unwrap();
@@ -1200,6 +1207,7 @@ async fn a2a_inbox_pager_next_page_walks_until_empty() {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .unwrap();
@@ -1383,6 +1391,7 @@ async fn job_result_attestation_requires_full_key_when_fields_present() {
             worker_ed25519_sig_b64: Some(
                 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
             ),
+            jwe_payload: None,
         })
         .await
         .unwrap_err();
@@ -1432,6 +1441,7 @@ async fn job_result_attestation_accepts_valid_signature() {
         privacy_class: None,
         payload_blake3_hex: Some(digest_hex),
         worker_ed25519_sig_b64: Some(sig_b64),
+        jwe_payload: None,
     })
     .await
     .unwrap();

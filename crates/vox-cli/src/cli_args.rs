@@ -1,6 +1,7 @@
 //! Shared [`clap::Args`] structs for top-level `vox` commands and Latin namespace groups.
 
 use clap::{Args, ValueEnum};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// `vox build` / `vox fabrica build`
@@ -72,6 +73,9 @@ pub struct ScriptArgs {
     pub isolation: Option<String>,
     #[arg(long)]
     pub trust_class: Option<String>,
+    /// Optional target triple for cross-compilation (Wave 4).
+    #[arg(long)]
+    pub target_triple: Option<String>,
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }
@@ -89,11 +93,24 @@ pub struct DevArgs {
     pub open: bool,
 }
 
+/// Bundling mode: `app` (web + backend) or `script` (binary only).
+#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize)]
+pub enum BundleMode {
+    /// Web application with React frontend and Axum backend.
+    #[default]
+    App,
+    /// Native binary script for mesh/CLI execution.
+    Script,
+}
+
 /// `vox bundle` / `vox fabrica bundle`
 #[derive(Args, Clone, Debug)]
 pub struct BundleArgs {
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Bundling mode.
+    #[arg(long, value_enum, default_value_t = BundleMode::App)]
+    pub mode: BundleMode,
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
     #[arg(long)]

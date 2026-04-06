@@ -278,6 +278,61 @@ pub struct BootstrapExchangeRequest {
     pub bootstrap_token: String,
 }
 
+/// Request to dispatch a .vox script for remote execution.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DispatchRequest {
+    /// Base64-encoded .vox source code or compiled bundle.
+    pub source: String,
+    /// Optional target node id for affinity; if unset, control plane picks a node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node_id: Option<String>,
+    /// Execution timeout in seconds.
+    #[serde(default = "default_dispatch_timeout")]
+    pub timeout_secs: u64,
+    /// When true, source is treated as a .vox.bundle (compiled binary + manifest).
+    #[serde(default)]
+    pub is_bundle: bool,
+    /// Optional BLAKE3 hash of the source bytes for integrity verification (Wave 4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_blake3_hex: Option<String>,
+    /// Required capability labels for Wave 5 routing (e.g. ["gpu", "region=us-east"]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_labels: Option<Vec<String>>,
+    /// When true, dispatch returns immediately and results are stored in the mesh state (Wave 5).
+    #[serde(default)]
+    pub is_detached: bool,
+}
+
+fn default_dispatch_timeout() -> u64 {
+    30
+}
+
+/// Response from a dispatch request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DispatchResponse {
+    /// Whether the dispatch was successfully routed and executed.
+    pub success: bool,
+    /// Combined stdout/stderr from the remote execution.
+    pub output: String,
+    /// Whether the output was truncated due to length limits (Wave 4).
+    #[serde(default)]
+    pub is_truncated: bool,
+    /// Execution duration in milliseconds (Wave 4).
+    #[serde(default)]
+    pub duration_ms: u64,
+    /// Process exit code if available (Wave 4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    /// Optional error message if execution failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// Node id where the execution happened.
+    pub node_id: String,
+    /// Optional expiration timestamp for the result (GC/TTL compaction loop).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_unix_ms: Option<u64>,
+}
+
 /// Response payload for bootstrap exchange.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootstrapExchangeResponse {
@@ -306,6 +361,11 @@ pub struct PopuliTransportState {
     pub required_scope: Option<Arc<str>>,
     /// Optional Ed25519 verify key from **`VOX_MESH_WORKER_RESULT_VERIFY_KEY`** for signed job results.
     pub(super) worker_result_verify_key: Option<[u8; 32]>,
+    /// Wave 5: Async dispatch result storage for detached execution.
+    #[cfg(feature = "transport")]
+    pub(crate) dispatch_results: Arc<dashmap::DashMap<String, DispatchResponse>>,
+    #[cfg(feature = "transport")]
+    pub(crate) dispatch_results_store_path: Option<PathBuf>,
 }
 
 impl PopuliTransportState {
@@ -346,6 +406,10 @@ impl PopuliTransportState {
             bootstrap_used: Arc::new(AtomicBool::new(false)),
             required_scope,
             worker_result_verify_key: None,
+            #[cfg(feature = "transport")]
+            dispatch_results: Arc::new(dashmap::DashMap::new()),
+            #[cfg(feature = "transport")]
+            dispatch_results_store_path: None,
         }
     }
 
@@ -355,6 +419,7 @@ impl PopuliTransportState {
         let mut s = Self::with_required_scope(crate::populi_scope_id_from_env());
         let store_path = store::a2a_store_path_from_env();
         let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
+        let dispatch_results_store_path = store::dispatch_results_store_path_from_env(store_path.as_ref());
         if let Some(path) = &store_path
             && let Ok(existing) = store::load_a2a_store(path)
         {
@@ -379,8 +444,20 @@ impl PopuliTransportState {
             s.exec_leases = Arc::new(RwLock::new(existing));
             s.exec_lease_id_gen = Arc::new(AtomicU64::new(next_lease_id));
         }
+
+        #[cfg(feature = "transport")]
+        if let Some(path) = &dispatch_results_store_path
+            && let Ok(existing) = store::load_dispatch_results_store(path)
+        {
+            s.dispatch_results = Arc::new(dashmap::DashMap::from_iter(existing.into_iter()));
+        }
+
         s.a2a_store_path = store_path;
         s.exec_lease_store_path = exec_lease_store_path;
+        #[cfg(feature = "transport")]
+        {
+            s.dispatch_results_store_path = dispatch_results_store_path;
+        }
         s.bootstrap_token = std::env::var("VOX_MESH_BOOTSTRAP_TOKEN")
             .ok()
             .map(|v| v.trim().to_string())
@@ -407,6 +484,7 @@ impl PopuliTransportState {
         };
         let store_path = store::a2a_store_path_from_env();
         let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
+        let dispatch_results_store_path = store::dispatch_results_store_path_from_env(store_path.as_ref());
         let rows = if let Some(sp) = &store_path {
             store::load_a2a_store(sp).unwrap_or_default()
         } else {
@@ -446,6 +524,16 @@ impl PopuliTransportState {
             required_scope: crate::populi_scope_id_from_env()
                 .map(|s| Arc::from(s.into_boxed_str())),
             worker_result_verify_key: worker_result_verify_key_resolved(),
+            #[cfg(feature = "transport")]
+            dispatch_results: if let Some(path) = &dispatch_results_store_path 
+                && let Ok(existing) = store::load_dispatch_results_store(path) 
+            {
+                Arc::new(dashmap::DashMap::from_iter(existing.into_iter()))
+            } else {
+                Arc::new(dashmap::DashMap::new())
+            },
+            #[cfg(feature = "transport")]
+            dispatch_results_store_path,
         })
     }
 }
@@ -509,6 +597,25 @@ pub(super) fn a2a_sweep_expired_leases(messages: &mut [A2AStoredMessage], now_ms
 /// Drop expired remote execution leases (same wall clock as inbox leases).
 pub(super) fn exec_lease_sweep(rows: &mut Vec<RemoteExecLeaseRow>, now_ms: u64) {
     rows.retain(|r| r.expires_unix_ms > now_ms);
+}
+
+/// Sweep expired dispatch results from the DashMap.
+#[cfg(feature = "transport")]
+pub(super) fn dispatch_results_sweep(
+    map: &dashmap::DashMap<String, DispatchResponse>,
+    now_ms: u64,
+) {
+    let mut to_remove = Vec::new();
+    for entry in map.iter() {
+        if let Some(exp) = entry.value().expires_unix_ms {
+            if exp <= now_ms {
+                to_remove.push(entry.key().clone());
+            }
+        }
+    }
+    for k in to_remove {
+        map.remove(&k);
+    }
 }
 
 /// Inbox lease duration in milliseconds (claimer flows). Override with **`VOX_MESH_A2A_LEASE_MS`**.

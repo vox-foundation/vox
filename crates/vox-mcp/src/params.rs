@@ -249,6 +249,12 @@ pub struct SubmitTaskParams {
     /// Optional research intent hints (e.g. [[research:vector]]).
     #[serde(default)]
     pub research_hints: Vec<String>,
+    /// Optional mesh routing labels for agent-driven capability dispatch.
+    #[serde(default)]
+    pub required_labels: Option<Vec<String>>,
+    /// Optional flag for async detached mesh task execution.
+    #[serde(default)]
+    pub is_detached: Option<bool>,
 }
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.

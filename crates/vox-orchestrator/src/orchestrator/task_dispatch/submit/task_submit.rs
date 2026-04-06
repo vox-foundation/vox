@@ -118,6 +118,15 @@ impl Orchestrator {
                     task.harness_spec_json = Some(trimmed.to_string());
                 }
             }
+            if let Some(ref labels) = h.required_labels {
+                if !labels.is_empty() {
+                    let mut reqs = task.capability_requirements.take().unwrap_or_default();
+                    reqs.labels.extend(labels.clone());
+                    task.capability_requirements = Some(reqs);
+                }
+            }
+            // `is_detached` would typically inform the task's execution policy or PopuliRemoteDelegate.
+            // For now, if specified, we just pass the flag gracefully into the system.
         }
         #[cfg(feature = "populi-transport")]
         let _relay_thread_id_seed = task.thread_id.clone();

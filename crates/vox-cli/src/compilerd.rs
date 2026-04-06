@@ -36,6 +36,8 @@ struct BundleParams {
     target: Option<String>,
     #[serde(default = "default_release")]
     release: bool,
+    #[serde(default)]
+    mode: crate::cli_args::BundleMode,
 }
 
 fn default_release() -> bool {
@@ -216,7 +218,7 @@ async fn handle_check(req: &DispatchRequest) -> anyhow::Result<()> {
 async fn handle_bundle(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: BundleParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\", \"out_dir\", \"target\"?, \"release\"? }}")?;
-    crate::commands::bundle::run(&p.file, &p.out_dir, p.target.as_deref(), p.release)
+    crate::commands::bundle::run(&p.file, &p.out_dir, p.target.as_deref(), p.release, p.mode)
         .await
         .context("bundle failed")?;
     finish_ok(&req.id, Value::Null).await

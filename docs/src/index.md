@@ -1,11 +1,11 @@
 ---
 title: "Vox: The AI-Native Programming Language"
-description: "Vox is a full-stack language and toolchain with Rust and TypeScript outputs, explicit contracts, and a growing AI-native workflow."
+description: "Vox is an AI-native full-stack language that eliminates hallucinations via compiler-enforced reality. Compiles to Rust and TypeScript with zero-null discipline."
 category: "getting-started"
 status: "current"
 sort_order: 0
-keywords: ["Vox programming language", "AI-native language", "Rust compiler", "full-stack language"]
-last_updated: 2026-03-28
+keywords: ["Vox programming language", "AI-native language", "Zero-hallucination", "Rust compiler", "MCP tools", "Durable workflows"]
+last_updated: 2026-04-05
 training_eligible: true
 difficulty: "beginner"
 ---
@@ -13,12 +13,33 @@ difficulty: "beginner"
 <div class="vox-hero">
   <img src="assets/logo.png" alt="Vox Logo" class="logo" />
   <h1>Vox Programming Language</h1>
-  <p class="subtitle">One language for application structure, with Rust and TypeScript outputs and explicit repository contracts.</p>
+  <p class="subtitle">The AI-native language that enforces reality. One source for data, server, and UI with Rust and TypeScript outputs.</p>
   <div class="vox-cta-container">
     <a href="tutorials/tut-getting-started.md" class="vox-cta primary">Get Started</a>
-    <a href="explanation/faq.md" class="vox-cta secondary">Read the FAQ</a>
-    <a href="https://github.com/vox-foundation/vox" class="vox-cta secondary">GitHub</a>
+    <a href="explanation/why-vox-for-ai.md" class="vox-cta secondary">Why Vox?</a>
+    <a href="explanation/faq.md" class="vox-cta secondary">FAQ</a>
   </div>
+</div>
+
+<div class="hero-code-preview">
+  <div class="hero-code-header">
+    <span>src/main.vox</span>
+    <span>AI-Native & Durable</span>
+  </div>
+  <pre><code class="language-vox">@table type Task { title: str, done: bool }
+
+@server fn complete(id: Id[Task]) to Result[Unit] {
+    db.patch(id, { done: true })?
+    ret Ok(())
+}
+
+@island fn App(tasks: list[Task]) to Element {
+    &lt;div&gt;
+        for t in tasks {
+            &lt;Card title={t.title} onDone={fn() complete(t.id)} /&gt;
+        }
+    &lt;/div&gt;
+}</code></pre>
 </div>
 
 **What is Vox?** 
@@ -37,6 +58,7 @@ The repo is trying to make several hard things feel more coherent:
 ## Read this site by intent
 
 - Start with [Getting Started](tutorials/tut-getting-started.md) if you want a guided path.
+- Read [Why Vox?](explanation/why-vox-for-ai.md) to understand the zero-hallucination design.
 - Use the [FAQ](explanation/faq.md) if you want current answers about language, runtime, MCP, or Mens.
 - Use [Reference](reference/cli.md) when you need exact behavior.
 - Use the [Contributor hub](contributors/contributor-hub.md) if you are changing this repository.
@@ -46,9 +68,10 @@ The repo is trying to make several hard things feel more coherent:
 Use this flow to understand the current toolchain:
 
 ### 1. Install the CLI
-Ensure you have Rust installed, then install the Vox compiler CLI directly:
+Ensure you have Rust installed, then follow the [Installation Reference](reference/ref-installation.md):
 ```bash
-cargo install --locked --path crates/vox-cli
+# Quick install
+curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash -s -- --install
 ```
 
 ### 2. Initialize a Project
@@ -56,7 +79,7 @@ Use the CLI to scaffold a new project with the default TanStack template:
 ```bash
 vox init my-app
 cd my-app
-vox commands --recommended
+vox doctor
 ```
 
 ### 3. Run Your Application
@@ -262,6 +285,7 @@ Goal-oriented recipes for common tasks.
 
 ### 📚 Reference (Information)
 Technical descriptions of language machinery and syntax.
+- [Installation Guide](reference/ref-installation.md)
 - [Language Syntax Guide](reference/ref-language.md)
 - [Type System Reference](reference/ref-type-system.md)
 - [CLI Commands Reference](reference/cli.md)

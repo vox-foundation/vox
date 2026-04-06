@@ -13,7 +13,6 @@ on:
 # When porting to GitLab/Gitea, remove this block entirely —
 # those platforms use separate deploy keys or CI variables.
 permissions:
-  contents: write
   pages: write
   id-token: write
 

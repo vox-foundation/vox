@@ -160,6 +160,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         && harness_spec_json.is_none()
         && params.tool_hints.is_empty()
         && params.research_hints.is_empty()
+        && params.required_labels.is_none()
+        && params.is_detached.is_none()
     {
         return None;
     }
@@ -175,6 +177,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         harness_spec_json,
         tool_hints: params.tool_hints.clone(),
         research_hints: params.research_hints.clone(),
+        required_labels: params.required_labels.clone(),
+        is_detached: params.is_detached,
     })
 }
 
@@ -206,6 +210,10 @@ mod tests {
             benchmark_tier: None,
             trace_id: None,
             correlation_id: None,
+            tool_hints: vec![],
+            research_hints: vec![],
+            required_labels: None,
+            is_detached: None,
         }
     }
 

@@ -83,7 +83,7 @@ Open `src/main.vox`. You'll see a starter app with:
     ret Ok("Added: " + title)
 
 # UI layer — creates React components
-@component fn App() to Element:
+@island fn App() to Element:
     <div class="app">
         <h1>"My Vox App"</h1>
         <p>"Edit src/main.vox to get started"</p>
@@ -142,7 +142,7 @@ vox build src/main.vox -o dist && vox run src/main.vox
 |-----------|-------------|-------------|
 | `@table` | Defines a database table | Rust migration + query types |
 | `@server fn` | Creates an API endpoint | Rust Axum handler + TS client |
-| `@component fn` | Creates a UI component | React TSX component |
+| `@island fn` | Creates a UI component | React TSX component |
 | `@query fn` | Read-only database query | Rust query function |
 | `@mutation fn` | Write database operation | Rust mutation function |
 | `workflow` | Durable async process | Rust async with journal |

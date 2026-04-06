@@ -3,6 +3,41 @@
 <meta name="author" content="The Vox Core Team">
 <meta name="robots" content="index, follow">
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const meta = document.querySelector('meta[name="last_updated"]');
+    if (!meta) return;
+    
+    const lastUpdated = new Date(meta.content);
+    const now = new Date();
+    const diffDays = Math.floor((now - lastUpdated) / (1000 * 60 * 60 * 24));
+    
+    let statusClass = 'current';
+    let statusText = 'Verified: ' + meta.content;
+    
+    if (diffDays > 180) {
+        statusClass = 'critically-stale';
+        statusText = 'Archival: ' + meta.content;
+    } else if (diffDays > 90) {
+        statusClass = 'stale';
+        statusText = 'Review Needed: ' + meta.content;
+    }
+    
+    const badge = document.createElement('div');
+    badge.className = 'freshness-badge ' + statusClass;
+    badge.innerText = statusText;
+    
+    const h1 = document.querySelector('h1');
+    if (h1) {
+        h1.parentNode.insertBefore(badge, h1.nextSibling);
+    }
+});
+</script>
+
 <!-- Open Graph (Facebook, LinkedIn, Discord) -->
 <meta property="og:title" content="{{title}} — Vox Language">
 <meta property="og:description" content="Official documentation for Vox, the AI-native full-stack programming language.">

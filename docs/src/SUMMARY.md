@@ -12,8 +12,8 @@
 
 # Tutorials
 
-- [Tutorial: Actor Basics](tutorials/tut-actor-basics.md)
 - [Tutorial: Building a Collaborative Todo List](tutorials/tut-first-app.md)
+- [Tutorial: Persistent Actors & State](tutorials/tut-actor-basics.md)
 - [Tutorial: UI Integration](tutorials/tut-ui-integration.md)
 - [Tutorial: Workflow Durability](tutorials/tut-workflow-durability.md)
 - [Tutorial: first .vox app (checkpoints)](tutorials/tut-first-vox-app-checkpoints.md)
@@ -25,7 +25,6 @@
 - [Contributing — Populi control plane](how-to/how-to-contribute-populi.md)
 - [Contributing — parser and HIR](how-to/how-to-contribute-parser-hir.md)
 - [Ecosystem & Tooling](how-to/how-to-cli-ecosystem.md)
-- [Glossary: Vox Terminology](explanation/glossary.md)
 - [How To: Train Mens on RTX 4080 Super](how-to/how-to-train-mens-4080.md)
 - [How to use the canonical VoxDB / Codex store](how-to/how-to-voxdb-canonical-store.md)
 - [How-To: Build AI Agents and MCP Tools](how-to/how-to-ai-agents.md)
@@ -37,7 +36,6 @@
 - [How-To: Test Your Logic](how-to/how-to-unit-test.md)
 - [Model Routing & Provider Cascade](how-to/how-to-model-routing.md)
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
-- [Setup & Installation](how-to/how-to-setup.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
 
 # Examples
@@ -52,9 +50,11 @@
 - [Explanation: Durable Execution](explanation/expl-durable-execution.md)
 - [Explanation: Security Model](explanation/expl-security.md)
 - [Explanation: The Vox Runtime](explanation/expl-runtime.md)
+- [Glossary: Vox Terminology](explanation/glossary.md)
 - [MCP Optimization Strategy](explanation/expl-mcp-optimizations.md)
 - [Native ML Training Pipeline](explanation/expl-ml-pipeline.md)
 - [OpenClaw Competitive Analysis](explanation/expl-openclaw-analysis.md)
+- [The Why: Zero-Hallucination Design](explanation/why-vox-for-ai.md)
 - [Vox FAQ: Frequently Asked Questions](explanation/faq.md)
 
 # Architecture Decisions (ADRs)
@@ -309,6 +309,7 @@
 - [HIR legacy AST wrappers (inventory)](reference/hir-legacy-inventory.md)
 - [Hashing & Identity Builtins](reference/ref-builtins-hashing.md)
 - [Information-theoretic questioning protocol](reference/information-theoretic-questioning.md)
+- [Installation Reference](reference/ref-installation.md)
 - [Language ergonomics principles](reference/language-ergonomics-principles.md)
 - [MCP HTTP gateway contract](reference/mcp-http-gateway-contract.md)
 - [MCP HTTP read-role governance contract](reference/mcp-http-read-role-governance-contract.md)

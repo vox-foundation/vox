@@ -1,51 +1,97 @@
 ---
 title: "How-To: Build AI Agents and MCP Tools"
-description: "Official documentation for How-To: Build AI Agents and MCP Tools for the Vox language. Detailed technical reference, architecture guides,"
+description: "Expand your Vox logic into reusable tools for AI assistants and define specialized agents using the Model Context Protocol (MCP)."
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: 2026-04-05
 training_eligible: true
 ---
+
 # How-To: Build AI Agents and MCP Tools
 
-Learn how to export your Vox logic as tools for AI assistants and define specialized agents using the Model Context Protocol (MCP).
+Vox is an AI-native language, meaning it bridges the gap between high-level business logic and the Model Context Protocol (MCP) without glue code. Any Vox function can become an MCP tool with a single decorator.
 
 ## 1. Creating MCP Tools
 
-Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator. This makes it available to native AI agents and standard MCP clients.
+Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator. 
 
 ```vox
-# Skip-Test
 @mcp.tool("Search for user documentation by topic")
-@query fn search_docs(query: str) to list[str]:
-    # Search implementation
-    ret ["Result 1", "Result 2"]
+@query fn search_docs(query: str) to list[str] {
+    # The compiler automatically derives the JSON schema for 'query'
+    # and registers it as an MCP tool named 'search_docs'.
+    let results = db.query("SELECT content FROM Docs WHERE content LIKE ?", ["%" + query + "%"])
+    ret results
+}
 ```
+
+### Why this beats Python/TypeScript:
+- **Type Safety**: If your function returns a `Result[T, E]`, Vox handles the MCP error response mapping for you.
+- **Zero Configuration**: No and manifests to maintain. The `@mcp.tool` decorator is the manifest.
+- **Auto-Discovery**: Tools are automatically discovered by the `vox-orchestrator` during development.
+
+---
 
 ## 2. Defining Agent Roles
 
-Define specialized agent behaviors using the `@agent` decorator. You can specify the agent's instructions and the tools it has access to.
+Agents in Vox are not just prompts; they are scoped types that bundle specific tools and instructions. Use the `@agent` decorator to define an agent's identity.
 
 ```vox
-# Skip-Test
-@agent type Documenter:
-    instructions: "You are a technical writer specializing in Vox architecture."
+@agent type Documenter {
+    instructions: "You are a technical writer specializing in Vox architecture. Always use the search_docs tool before answering architectural questions."
     tools: [search_docs, vox_ast_reference]
+    model: "claude-3-5-sonnet-20241022" # Optional: pin a specific model
+}
 ```
 
-## 3. Tool Discovery
+### Agent Handoffs
+Agents can call other agents if you grant them the tool to do so. In Vox, an agent's `tools` list can include other agent identifiers.
 
-Once your app is running with `vox mcp run`, tools are automatically registered with the host environment. AI agents can then discover and call them as needed.
+---
+
+## 3. Tool Discovery and Execution
+
+To expose your tools to a local AI assistant (like Claude Desktop or Cursor):
+
+1. **Run the MCP server**:
+   ```bash
+   vox mcp run src/main.vox
+   ```
+2. **Observe Logs**: The orchestrator will list all registered tools and resources.
+3. **Connect**: Add the generated endpoint to your `claude_desktop_config.json`.
+
+---
 
 ## 4. Testing Your Tools
 
-Use the `vox test-mcp` command to verify that your tools are correctly exposed and responding with the expected JSON format.
+Never guess if a tool works. Use the `vox test-mcp` CLI to simulate an agent's call.
 
 ```bash
+# Test the 'search_docs' tool with a JSON payload
 vox test-mcp --call search_docs '{"query": "actors"}'
 ```
+
+The output will show the raw JSON-RPC exchange, including the content blocks sent back to the model.
+
+---
+
+## 5. Security and Bounds
+
+By default, an `@mcp.tool` has the same permissions as your compiled Vox binary. Use the `@require` decorator to add runtime guardrails:
+
+```vox
+@mcp.tool("Delete user data")
+@require(auth.is_admin(caller))
+@mutation fn delete_data(id: int) to Result[Unit] {
+    db.delete(id)
+    ret Ok(())
+}
+```
+
+If the precondition fails, the MCP tool returns a "Tool execution failed" error to the model with the specific violation reason, preventing the LLM from attempting unauthorized actions.
 
 ---
 
 **Related Reference**:
-
-- [MCP Reference](../api/vox-mcp.md) — Low-level protocol details.
+- [MCP Protocol SSOT](../architecture/mcp-vox-language-exposure.md)
+- [Agentic Loop Blueprint](../architecture/vox_agentic_loop_and_mens_plan.md)
+- [CLI Reference: vox mcp](../reference/ref-cli.md#mcp)

@@ -227,6 +227,8 @@ async fn execute_step_once(step: &PlannedActivity, activity_id: &str) -> anyhow:
                 populi_op: step.populi_op,
                 timeout_ms: step.timeout_ms,
                 activity_id: activity_id.to_string(),
+                required_labels: step.required_labels.clone(),
+                is_detached: step.is_detached,
             };
             super::populi::execute_populi_step(&m).await
         }

@@ -127,6 +127,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
             isolation: None,
             trust_class: Some("trusted_dev".into()),
             wasi_dirs: Vec::new(),
+            target_triple: None,
         };
         return crate::commands::runtime::run::script::run(file, args, &opts).await;
     }

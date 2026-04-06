@@ -122,11 +122,8 @@ serve)
 
 # ── AGENT ─────────────────────────────────────────────────────────────────────
 agent)
-    log "Mode: AGENT"
-    log "ERROR: Cloud agent loop is not wired to a single in-container subcommand in current vox-cli."
-    log "Use cloud dispatch (JobKind::Agent), extend vox-cli, or run a custom command via VOX_JOB_KIND=serve + tooling."
-    log "See: docs/src/architecture/script-surface-audit.md"
-    exit 2
+    log "Mode: AGENT — forwarding to vox run --mode script"
+    exec vox run --mode script "${VOX_AGENT_SCRIPT:-/opt/vox/mesh-noop.vox}"
     ;;
 
 *)

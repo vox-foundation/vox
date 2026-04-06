@@ -142,7 +142,7 @@ impl ContainerRuntime for DockerRuntime {
         let mut cmd = Command::new("docker");
         cmd.arg("login");
         cmd.arg("-u").arg(username);
-        cmd.arg("-p-stdin"); // Use stdin for security
+        cmd.arg("--password-stdin");
         cmd.arg(registry);
 
         let mut child = cmd

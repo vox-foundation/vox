@@ -23,6 +23,7 @@ transport = [
     "dep:blake3",
     "dep:data-encoding",
     "dep:base64",
+    "dep:dashmap",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -85,6 +86,7 @@ ed25519-dalek = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 data-encoding = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
+dashmap = { workspace = true, optional = true }
 
 # Mens (optional)
 anyhow = { workspace = true, optional = true }

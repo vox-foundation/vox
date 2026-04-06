@@ -133,8 +133,8 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
                         hash,
                         source,
                         parse_valid,
-                        ast_depth,
-                        count,
+                        ast_depth as usize,
+                        count as usize,
                         0.0, // default reward
                         split,
                     )

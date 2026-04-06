@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 05 Apr 2026 22:52:23 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 05 Apr 2026 23:08:44 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -121,51 +121,51 @@
   </item>
 
   <item>
-    <title>Vox Skill Marketplace</title>
-    <link>https://vox-lang.org/reference/skill_marketplace.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/skill_marketplace.html</guid>
-    <description>Documentation for the Vox skills ecosystem including ARS runtime, skill registries, and workflows.</description>
+    <title>Glossary: Vox Terminology</title>
+    <link>https://vox-lang.org/explanation/glossary.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/glossary.html</guid>
+    <description>Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem.</description>
     <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Vox Webhook Integration</title>
-    <link>https://vox-lang.org/reference/webhook_integration.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/webhook_integration.html</guid>
-    <description>Lightweight HTTP gateway for receiving events from external services and routing into the orchestrator with HMAC verification.</description>
+    <title>The Why: Zero-Hallucination Design</title>
+    <link>https://vox-lang.org/explanation/why-vox-for-ai.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/why-vox-for-ai.html</guid>
+    <description>Why Python and TypeScript fail for LLM code generation, and how the Vox compiler solves the hallucination boundary.</description>
     <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Automated Testing Research for the Vox Language</title>
-    <link>https://vox-lang.org/architecture/automated-testing-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/automated-testing-research-2026.html</guid>
-    <description>State of the art, implications, and roadmap for automated test generation including PBT, mutation testing, and LLM-driven synthesis.</description>
-    <pubDate>Sat, 04 Apr 2026 00:00:00 GMT</pubDate>
+    <title>How-To: Build AI Agents and MCP Tools</title>
+    <link>https://vox-lang.org/how-to/how-to-ai-agents.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-ai-agents.html</guid>
+    <description>Expand your Vox logic into reusable tools for AI assistants and define specialized agents using the Model Context Protocol (MCP).</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Vox Language Testing Pipeline</title>
-    <link>https://vox-lang.org/architecture/vox-language-testing-pipeline.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-language-testing-pipeline.html</guid>
-    <description>Embedding tests into .vox format and LLM to Vox delivery pipeline with five-stage gate validation.</description>
-    <pubDate>Sat, 04 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Vox: The AI-Native Programming Language</title>
+    <link>https://vox-lang.org/index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/index.html</guid>
+    <description>Vox is an AI-native full-stack language that eliminates hallucinations via compiler-enforced reality. Compiles to Rust and TypeScript with zero-null discipline.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Contributor hub</title>
-    <link>https://vox-lang.org/contributors/contributor-hub.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/contributor-hub.html</guid>
-    <description>Start here for contributor-facing Vox documentation, governance, inventories, and review checklists.</description>
-    <pubDate>Fri, 03 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Installation Reference</title>
+    <link>https://vox-lang.org/reference/ref-installation.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-installation.html</guid>
+    <description>Authoritative guide for installing the Vox CLI, toolchain, and AI provider backends across Windows, macOS, and Linux.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>ADR 023: Optional telemetry remote upload</title>
-    <link>https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</guid>
-    <description>Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.</description>
-    <pubDate>Thu, 02 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Reference: Type System</title>
+    <link>https://vox-lang.org/reference/ref-type-system.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-type-system.html</guid>
+    <description>Deep dive into the Vox type system: ADTs, generics, zero-null discipline, and bidirectional inference.</description>
+    <pubDate>Sun, 05 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>

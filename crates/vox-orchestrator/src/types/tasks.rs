@@ -171,6 +171,12 @@ pub struct TaskEnqueueHints {
     /// Optional research intent hints (e.g. [[research:vector]]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub research_hints: Vec<String>,
+    /// Optional labels for mesh capability routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_labels: Option<Vec<String>>,
+    /// True if the mesh task should detach for asynchronous execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_detached: Option<bool>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.

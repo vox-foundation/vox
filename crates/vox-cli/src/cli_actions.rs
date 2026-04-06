@@ -57,6 +57,9 @@ pub enum WorkflowAction {
         /// If omitted, a new run id is generated.
         #[arg(long)]
         run_id: Option<String>,
+        /// Automatically join the local node to the mesh before starting execution.
+        #[arg(long, default_value_t = false)]
+        mesh: bool,
     },
 }
 

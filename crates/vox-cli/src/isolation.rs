@@ -106,6 +106,7 @@ impl IsolationCapabilities {
                         .output()
                         .is_ok()
                 {
+                    // NOTE: Container tier is detected for vox deploy; not available in vox run script path.
                     supported.push(IsolationPolicy::Container);
                 }
 

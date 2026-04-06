@@ -239,7 +239,10 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             #[cfg(feature = "dei")]
             crate::commands::dei::stop(reason).await?;
             #[cfg(not(feature = "dei"))]
-            eprintln!("Feature 'dei' is not enabled.");
+            {
+                let _ = reason;
+                eprintln!("Feature 'dei' is not enabled.");
+            }
         }
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         Cli::Mens { action } => {

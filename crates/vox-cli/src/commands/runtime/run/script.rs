@@ -32,6 +32,8 @@ pub struct ScriptOpts {
     /// P1.3: Preopened directories for WASI: (host_path, guest_path, mode)
     #[cfg(feature = "script-execution")]
     pub wasi_dirs: Vec<(PathBuf, String, crate::wasi_dir_mode::WasiDirMode)>,
+    /// Optional target triple for cross-compilation (Wave 4).
+    pub target_triple: Option<String>,
 }
 
 impl ScriptOpts {
@@ -67,19 +69,44 @@ impl ScriptOpts {
             .to_lowercase()
             .as_str()
         {
-            "untrusted" => "wasm",
-            "semi_trusted" | "semi-trusted" => "container",
+            // WASI (Wasmtime) is the correct sandbox for both untrusted and semi-trusted scripts.
+            // The former `container` mapping for semi_trusted silently fell through to NativeBackend
+            // because no ContainerBackend is implemented. Docker seccomp is shared-kernel and not
+            // meaningfully more secure than WASI anyway; WASI is the correct answer here.
+            "untrusted" | "semi_trusted" | "semi-trusted" => "wasm",
             _ => "permissive",
         }
     }
 
     /// P2: Select the appropriate backend for this execution.
-    pub fn backend(&self) -> Box<dyn RunBackend> {
+    pub fn backend(&self) -> anyhow::Result<Box<dyn RunBackend>> {
         if self.use_wasi() {
-            Box::new(WasiBackend)
-        } else {
-            Box::new(NativeBackend)
+            return Ok(Box::new(WasiBackend));
         }
+
+        // Gate: container/gvisor/microvm tiers are not yet implemented as backends.
+        // Callers who explicitly request them should get an error, not silent permissive.
+        if let Some(iso) = self.isolation.as_deref() {
+            use crate::isolation::IsolationPolicy;
+            let policy: IsolationPolicy = iso.parse().unwrap_or(IsolationPolicy::Permissive);
+            match policy {
+                IsolationPolicy::Container => anyhow::bail!(
+                    "--isolation container is not yet implemented.\n\
+                     Use --isolation wasm for portable sandboxing, or --isolation permissive\n\
+                     for trusted code. See docs/src/reference/isolation.md"
+                ),
+                IsolationPolicy::Gvisor => anyhow::bail!(
+                    "--isolation gvisor requires runsc on PATH and is not yet wired into vox run.\n\
+                     Use --isolation wasm instead."
+                ),
+                IsolationPolicy::MicroVM => anyhow::bail!(
+                    "--isolation microvm requires Firecracker/Hyper-V and is not yet wired into vox run."
+                ),
+                _ => {}
+            }
+        }
+
+        Ok(Box::new(NativeBackend))
     }
 }
 
@@ -103,6 +130,7 @@ pub fn print_execution_plan(
         trust_class: trust_class.map(str::to_string),
         #[cfg(feature = "script-execution")]
         wasi_dirs: Vec::new(),
+        target_triple: None,
     };
     let tier = opts.effective_isolation();
     let artifact = if opts.use_wasi() {
@@ -172,10 +200,13 @@ pub fn print_execution_plan(
 /// Uses content-hash caching to avoid redundant recompiles. Dispatches
 /// to [`NativeBackend`] or [`WasiBackend`] depending on `opts`.
 pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> {
-    // P3.2: Perform a light GC of old script entries only on cache-miss paths.
-    // We track whether we hit the cache to skip GC on warm runs.
-    let mut is_cache_hit = false;
+    let (artifact_path, backend) = compile(file, opts).await?;
+    execute_binary(&artifact_path, args, opts, &*backend).await
+}
 
+/// Compile a Vox script to an executable binary (native or WASI).
+/// Returns the path to the compiled artifact.
+pub(crate) async fn compile(file: &Path, opts: &ScriptOpts) -> Result<(PathBuf, Box<dyn RunBackend>)> {
     let result: crate::pipeline::FrontendResult =
         crate::pipeline::run_frontend(file, false).await?;
 
@@ -191,15 +222,10 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
         anyhow::bail!("Type checking failed");
     }
 
-    // Mens registry publish runs once at the start of `commands::run::run` (all `vox run` modes).
-
     let hir = &result.hir;
     let source = &result.source;
+    let backend = opts.backend()?;
 
-    let backend = opts.backend();
-
-    // Cache key: XXH3-64 over a version prefix + raw source bytes (stable across Rust versions;
-    // unlike std::collections::hash_map::DefaultHasher). Bump the prefix when the cache layout must invalidate.
     let hash = {
         use xxhash_rust::xxh3::xxh3_64;
         let mut key = Vec::with_capacity(b"vox-cache-v4".len() + 1 + source.len());
@@ -224,8 +250,6 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
     let stamp_path = cache_dir.join(".compiled");
 
     let artifact_path = if !opts.no_cache && stamp_path.exists() {
-        // Cache hit — skip GC, skip compile
-        is_cache_hit = true;
         let binary_name = if backend.cache_label().contains("wasi") {
             "vox-script.wasm"
         } else if cfg!(target_os = "windows") {
@@ -235,15 +259,11 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
         };
         cache_dir.join(binary_name)
     } else {
-        // Cache miss or force recompile
         std::fs::create_dir_all(&cache_dir)?;
         let path = backend.compile(hir, &cache_dir, &shared_target, opts)?;
         std::fs::write(&stamp_path, &hash).ok();
-        path
-    };
 
-    // GC only on fresh compiles, not warm cache hits (avoids slow I/O on every run)
-    if !is_cache_hit {
+        // Optional GC on miss
         let max_entries = std::env::var("VOX_SCRIPT_CACHE_MAX_ENTRIES")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -253,10 +273,21 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
             .and_then(|v| v.parse().ok())
             .unwrap_or(500u64);
         let _ = crate::fs_utils::gc_script_cache(max_entries, max_mb);
-    }
 
-    // Execute via backend
-    let status = backend.execute(&artifact_path, args, opts)?;
+        path
+    };
+
+    Ok((artifact_path, backend))
+}
+
+/// Execute a pre-compiled binary via the specified backend.
+pub(crate) async fn execute_binary(
+    artifact_path: &Path,
+    args: &[String],
+    opts: &ScriptOpts,
+    backend: &dyn RunBackend,
+) -> Result<()> {
+    let status = backend.execute(artifact_path, args, opts)?;
 
     if !status.success() {
         std::process::exit(status.code().unwrap_or(1));
@@ -264,6 +295,7 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
 
     Ok(())
 }
+
 
 /// Evaluate a Vox expression inline — wraps it in a synthetic `fn main`.
 pub async fn eval_inline(expr: &str, sandbox: bool) -> Result<()> {
@@ -285,6 +317,7 @@ pub async fn eval_inline(expr: &str, sandbox: bool) -> Result<()> {
         trust_class: None,
         #[cfg(feature = "script-execution")]
         wasi_dirs: Vec::new(),
+        target_triple: None,
     };
 
     run(&tmp_file, &[], &opts).await

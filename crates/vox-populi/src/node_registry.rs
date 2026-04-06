@@ -84,6 +84,15 @@ pub struct NodeRecord {
     /// When true, server rejects new A2A claims for this node (set via admin quarantine API only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quarantined: Option<bool>,
+    /// Host architecture triple (e.g. `x86_64-pc-windows-msvc`) for cross-compilation (Wave 4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_triple: Option<String>,
+    /// Real-time CPU usage percentage (0.0 - 100.0) for Wave 5 load balancing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_usage_pct: Option<f32>,
+    /// Available system memory in bytes for Wave 5 resource-aware scheduling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory_free_bytes: Option<u64>,
 }
 
 /// Serializable registry file (`.vox/cache/populi/local-registry.json`).

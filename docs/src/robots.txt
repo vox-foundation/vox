@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
 
+Disallow: /api/DOC_GAPS.html
+Disallow: /reference/doc-inventory.html
+
 Sitemap: https://vox-lang.org/sitemap.xml
 

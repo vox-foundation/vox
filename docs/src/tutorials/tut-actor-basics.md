@@ -1,67 +1,101 @@
 ---
-title: "Tutorial: Actor Basics"
-description: "Official documentation for Tutorial: Actor Basics for the Vox language. Detailed technical reference, architecture guides, and implementa"
+title: "Tutorial: Persistent Actors & State"
+description: "Master stateful concurrency in Vox. Learn to define, spawn, and persist actor state across system restarts."
 category: "tutorial"
-last_updated: 2026-03-29
+last_updated: 2026-04-05
 training_eligible: true
 ---
-# Tutorial: Actor Basics
 
-Learn how to manage stateful concurrency in Vox using the Actor model. This tutorial covers defining actors, handling messages, and using the `spawn()` function.
+# Tutorial: Persistent Actors & State
 
-## 1. What is an Actor?
+In Vox, **Actors** are the primary unit of stateful concurrency. Unlike standard functions, an actor has **identity** and **private state**. This tutorial walks through building a persistent counter that survives a system crash.
 
-In Vox, an **Actor** is a lightweight, stateful unit of concurrency. It has private state and a mailbox for receiving messages. Actors are the primary way to handle concurrent tasks without shared-memory locks.
+## 1. Defining the Actor
 
-## 2. Defining an Actor
-
-Use the `@actor` decorator to define an actor. You specify its state in a struct and its message handlers as functions.
+An actor is defined with the `actor` keyword. Its internal state is private and only accessible via message handlers.
 
 ```vox
-# Skip-Test
-@actor type Counter:
-    state:
-        count: int
+actor GlobalCounter {
+    # Message handler: increment
+    on increment(amount: int) to int {
+        # Load state from the durable 'Codex' store
+        let current = state_load("counter_val")
+        let next = current + amount
+        
+        # Save state back to disk
+        state_save("counter_val", next)
+        
+        ret next
+    }
 
-    @handler fn increment(amount: int):
-        self.state.count += amount
-        print("Count is now: " + self.state.count)
-
-    @handler fn get_count() to int:
-        ret self.state.count
+    # Message handler: get current value
+    on get() to int {
+        ret state_load("counter_val")
+    }
+}
 ```
 
-## 3. Spawning Actors
+## 2. Spawning and Identity
 
-Use the `spawn()` function to create an instance of an actor and get its handle.
+To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
 ```vox
-# Skip-Test
-@server fn main():
-    # Create the actor
-    let c = spawn Counter(count: 0)
-
-    # Send a message (non-blocking)
-    c.send(increment(5))
-
-    # Call a handler (awaits return value)
-    let final_count = c.call(get_count())
+@server fn demo_actors() to int {
+    # Spawn a new instance
+    let ref = spawn GlobalCounter()
+    
+    # Send an asynchronous message (fire-and-forget)
+    # The '!' operator is shorthand for an async message send
+    ref ! increment(5)
+    
+    # Await a response from a handler
+    let val = await ref.get()
+    
+    ret val
+}
 ```
 
-## 4. Message Semantics
+## 3. The Lifecycle: Persistence in Action
 
-- **`send()`**: Asynchronous, fire-and-forget. The sender does not wait for the actor to process the message.
-- **`call()`**: Synchronous request-response. The sender awaits the result of the handler.
+Vox actors are not just in-memory. By using `state_load` and `state_save`, you tie the actor's life to the **durable runtime**.
 
-## 5. Summary
+1. **Spawn**: The actor is created in the runtime's mailbox registry.
+2. **Handle**: A message arrives, `state_load` pulls the latest value from the local SQLite/Codex store.
+3. **Save**: `state_save` ensures that even if you `kill -9` the process, the value is safe.
+4. **Restart**: When the process resumes and the actor is re-spawned or addressed by its stable ID, it picks up exactly where it left off.
 
-Actors provide:
-- **Isolation**: State is private and only accessible via handlers.
-- **Concurrency**: Many actors can run in parallel.
-- **Reliability**: Errors in one actor don't necessarily crash the whole system.
+## 4. Patterns: Actor Communication
+
+Actors can talk to each other. Because each actor has its own mailbox, they process messages **sequentially** but run in **parallel** with other actors.
+
+```vox
+actor Logger {
+    on log(msg: str) {
+        print("[LOG]: " + msg)
+    }
+}
+
+actor Worker {
+    let logger = spawn Logger()
+
+    on do_work() {
+        # Delegate logging to another actor
+        logger ! log("Starting work...")
+    }
+}
+```
+
+## 5. Summary Checklist
+
+- [x] **Isolation**: State is never shared; only messages pass between actors.
+- [x] **Persistence**: Use `state_load`/`state_save` for durable state.
+- [x] **Concurrency**: Use `spawn` to create independent units of work.
+- [x] **Non-blocking**: Use `!` for asynchronous notification.
+- [x] **Request-Response**: Use `await ref.handler()` for synchronous calls.
 
 ---
 
 **Next Steps**:
-- [Workflow Durability](tut-workflow-durability.md) — Use workflows for **workflow-scoped** step replay in the interpreted runtime; actors use `state_load` / `state_save` for a different persistence model. See [Actors & Workflows](../explanation/expl-actors-workflows.md).
-- [UI Integration](tut-ui-integration.md) — Bind actor state to React components.
+- [Workflow Durability](tut-workflow-durability.md) — Orchestrate complex, multi-step long-running processes.
+- [Actors & Workflows Explanation](../explanation/expl-actors-workflows.md) — Deep dive into the theory.
+- [CLI Reference: vox run](../reference/cli.md#run) — Run your actor-based applications.

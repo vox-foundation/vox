@@ -151,7 +151,6 @@ services:
     ports:
       - "{default_port}:{default_port}"
     environment:
-      - NODE_ENV=production
       - VOX_API_KEY=${{VOX_API_KEY:-}}
       - VOX_BEARER_TOKEN=${{VOX_BEARER_TOKEN:-}}
 {mesh_env}    restart: unless-stopped

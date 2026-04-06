@@ -263,6 +263,9 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         gpu_readiness_reason: None,
         gpu_readiness_checked_unix_ms: None,
         quarantined: None,
+        host_triple: Some(current_target_triple().to_string()),
+        cpu_usage_pct: None,
+        memory_free_bytes: None,
     };
     // ADR 018 Layer A: optional NVML probe (`vox-repository/nvml-probe` via `vox-populi/nvml-gpu-probe`).
     if let Some(snap) = vox_repository::probe_nvidia_gpu_inventory_best_effort() {
@@ -346,4 +349,25 @@ mod normalize_http_control_base_tests {
             Some("http://127.0.0.1:9847")
         );
     }
+}
+
+/// Returns the current target triple (Wave 4 best-effort).
+pub fn current_target_triple() -> &'static str {
+    // Note: rustc-env is not portable across cross-compilation environments but as a worker
+    // id it's sufficient for self-identification on the host it's running on.
+    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+    return "x86_64-pc-windows-msvc";
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    return "x86_64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+    return "aarch64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    return "aarch64-apple-darwin";
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "macos")
+    )))]
+    return "unknown-unknown-unknown";
 }

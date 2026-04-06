@@ -17,10 +17,16 @@ renderer = ["html"]
 
 [output.html]
 additional-css = ["theme/custom.css"]
+additional-js = ["theme/highlight-vox.js", "theme/mermaid.min.js", "theme/mermaid-init.js"]
+copy-fonts = true
 mathjax-support = false
 git-repository-url = "https://github.com/vox-foundation/vox"
 git-repository-icon = "fab-github"
 edit-url-template = "https://github.com/vox-foundation/vox/edit/main/docs/{path}"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
 
 [output.html.search]
 enable = true

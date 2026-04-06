@@ -43,6 +43,7 @@ pub async fn run(id: &str, input_json: Option<&str>, workflow: bool) -> Result<(
         kind: vox_skills::ars_shim::manifest::SkillKind::Document,
         body: None,
         resource_limits: vox_skills::ars_shim::manifest::ResourceLimits::default(),
+        trust: vox_skills::ars_shim::manifest::TrustLevel::Trusted,
     };
 
     println!("🚀 Executing skill: {} v{}", skill.id, skill.version);

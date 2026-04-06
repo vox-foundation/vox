@@ -81,6 +81,53 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                     e
                 )),
             },
+            PopuliHttpOp::Dispatch => {
+                use base64::Engine as _;
+                // For an interpreted workflow, the dispatched source is a synthesized runner for the activity.
+                let shim = format!("workflow_durable_shim::execute_activity(\"{}\");\n", activity.name);
+                let b64_source = base64::engine::general_purpose::STANDARD.encode(shim);
+                let req = vox_populi::transport::DispatchRequest {
+                    source: b64_source,
+                    node_id: None, // Can be extended to pin to a specific agent id via properties
+                    timeout_secs: activity.timeout_ms.map(|t| (t / 1000).max(1)).unwrap_or(30),
+                    is_bundle: false,
+                    source_blake3_hex: None,
+                    required_labels: activity.required_labels.clone(),
+                    is_detached: activity.is_detached,
+                };
+                match client.dispatch(&req).await {
+                    Ok(res) => Ok(json!({
+                        "event": "MeshActivity",
+                        "activity": activity.name,
+                        "activity_id": activity.activity_id,
+                        "mesh_op": mesh_op,
+                        "control": "dispatch_ok",
+                        "dispatch_id": res.node_id, // If detached, this should hold the Job ID or dispatch_id
+                        "success": res.success,
+                        "result_output": res.output,
+                        "exit_code": res.exit_code,
+                    })),
+                    Err(e) => Err(anyhow!("mesh dispatch failed for activity `{}`: {}", activity.name, e)),
+                }
+            }
+            PopuliHttpOp::Wait => {
+                // The activity name is conventionally the tracking ID for the Wait operation
+                // Activity ID serves as uniqueness
+                let dispatch_id = &activity.name;
+                match client.dispatch_result_poll(dispatch_id).await {
+                    Ok(res) => Ok(json!({
+                        "event": "MeshActivity",
+                        "activity": activity.name,
+                        "activity_id": activity.activity_id,
+                        "mesh_op": mesh_op,
+                        "control": "wait_ok",
+                        "success": res.success,
+                        "result_output": res.output,
+                        "exit_code": res.exit_code,
+                    })),
+                    Err(e) => Err(anyhow!("mesh wait polling failed for activity `{}`: {}", activity.name, e)),
+                }
+            }
         }
     } else {
         Ok(json!({
@@ -100,6 +147,8 @@ fn populi_op_json(op: PopuliHttpOp) -> &'static str {
         PopuliHttpOp::Noop => "noop",
         PopuliHttpOp::Join => "join",
         PopuliHttpOp::Snapshot => "snapshot",
+        PopuliHttpOp::Dispatch => "dispatch",
+        PopuliHttpOp::Wait => "wait",
     }
 }
 

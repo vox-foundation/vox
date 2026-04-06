@@ -39,3 +39,15 @@ This log is required by `10-document-maintenance-protocol.md`.
   - run next consistency pass after subsequent Tier 1 changes
 - approver_role: planning architect
 
+### PM-0002
+
+- date: 2026-04-05
+- changed_docs:
+  - `docs/src/architecture/internal-web-ir-implementation-blueprint.md`
+- change_category: minor
+- rationale: Validating and hardening the WebIR and WASM pipeline, achieving stable script execution paths and reactive UI view emission.
+- impacted_docs:
+  - WebIR implementation blueprints
+- follow_ups:
+  - Roll out WebIR default paths to production environment
+- approver_role: system architect

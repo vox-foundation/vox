@@ -17,12 +17,14 @@ pub async fn run(action: WorkflowAction) -> Result<()> {
             name,
             args,
             run_id,
+            mesh,
         } => {
             run_workflow(
                 &file,
                 &name,
                 args.as_deref().unwrap_or("[]"),
                 run_id.as_deref(),
+                mesh,
             )
             .await
         }
@@ -187,7 +189,19 @@ pub async fn run_workflow(
     workflow_name: &str,
     args_json: &str,
     requested_run_id: Option<&str>,
+    mesh: bool,
 ) -> Result<()> {
+    if mesh {
+        #[cfg(feature = "populi")]
+        {
+            let _ = vox_populi::publish_local_registry_best_effort();
+            let _ = vox_populi::http_lifecycle::populi_http_join_best_effort(
+                vox_populi::populi_registration_record_for_process(),
+                "vox workflow run",
+            ).await;
+        }
+    }
+
     let result = crate::pipeline::run_frontend(file, false).await?;
     let _wf = result
         .hir

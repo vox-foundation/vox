@@ -1,11 +1,12 @@
 ---
-title: "Setup & Installation"
-description: "Official documentation for Setup & Installation for the Vox language. Detailed technical reference, architecture guides, and implementati"
-category: "how-to"
-last_updated: 2026-03-24
+title: "Installation Reference"
+description: "Authoritative guide for installing the Vox CLI, toolchain, and AI provider backends across Windows, macOS, and Linux."
+category: "reference"
+last_updated: 2026-04-05
 training_eligible: true
 ---
-# Setup & Installation
+
+# Installation Reference
 
 This guide covers everything you need to get Vox running on any platform.
 

@@ -62,7 +62,7 @@ COPY --from=builder /app/target/release/vox-schola /usr/local/bin/vox-schola
 COPY --from=builder /app/populi/config/gpu-specs.yaml /opt/vox/gpu-specs.yaml
 
 # Entrypoint handles train/serve/agent dispatch via VOX_JOB_KIND
-COPY docker/populi-entrypoint.sh /entrypoint.sh
+COPY infra/containers/entrypoints/populi-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 WORKDIR /workspace

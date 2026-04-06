@@ -51,6 +51,8 @@ struct ActivityWithOpts {
     mesh_key: Option<String>,
     retries: u32,
     initial_backoff_ms: Option<u64>,
+    required_labels: Option<Vec<String>>,
+    is_detached: bool,
 }
 
 impl ActivityWithOpts {
@@ -79,6 +81,22 @@ impl ActivityWithOpts {
                 }
                 "initial_backoff" => {
                     n.initial_backoff_ms = Some(parse_timeout_ms(v)?);
+                }
+                "labels" => {
+                    if let HirExpr::ListLit(items, _) = v {
+                        let mut labels = Vec::new();
+                        for it in items {
+                            if let HirExpr::StringLit(s, _) = it {
+                                labels.push(s.clone());
+                            }
+                        }
+                        n.required_labels = Some(labels);
+                    }
+                }
+                "detach" => {
+                    if let HirExpr::BoolLit(b, _) = v {
+                        n.is_detached = *b;
+                    }
                 }
                 _ => {}
             }
@@ -132,8 +150,10 @@ fn parse_populi_control_op(s: &str) -> anyhow::Result<PopuliHttpOp> {
         "join" => Ok(PopuliHttpOp::Join),
         "snapshot" => Ok(PopuliHttpOp::Snapshot),
         "heartbeat" => Ok(PopuliHttpOp::Heartbeat),
+        "dispatch" => Ok(PopuliHttpOp::Dispatch),
+        "wait" => Ok(PopuliHttpOp::Wait),
         other => anyhow::bail!(
-            "unknown workflow mens control {:?}; expected noop|join|snapshot|heartbeat",
+            "unknown workflow mens control {:?}; expected noop|join|snapshot|heartbeat|dispatch|wait",
             other
         ),
     }
@@ -147,6 +167,8 @@ fn resolve_populi_http_op(name: &str, mesh_key: Option<&str>) -> anyhow::Result<
         "mesh_noop" => Ok(PopuliHttpOp::Noop),
         "mesh_join" => Ok(PopuliHttpOp::Join),
         "mesh_snapshot" => Ok(PopuliHttpOp::Snapshot),
+        "mesh_dispatch" => Ok(PopuliHttpOp::Dispatch),
+        "mesh_wait" => Ok(PopuliHttpOp::Wait),
         _ if name.starts_with("mesh_") => Ok(PopuliHttpOp::Heartbeat),
         _ => Ok(PopuliHttpOp::Heartbeat),
     }
@@ -214,6 +236,8 @@ fn collect_from_expr(
                         retries: 0,
                         initial_backoff_ms: None,
                         populi_op: PopuliHttpOp::Noop,
+                        required_labels: None,
+                        is_detached: false,
                     });
                     return Ok(());
                 }
@@ -227,6 +251,8 @@ fn collect_from_expr(
                         retries: ctx.retries,
                         initial_backoff_ms: ctx.initial_backoff_ms,
                         populi_op: PopuliHttpOp::Noop,
+                        required_labels: None,
+                        is_detached: false,
                     });
                     return Ok(());
                 }
@@ -245,6 +271,8 @@ fn collect_from_expr(
                     retries: ctx.retries,
                     initial_backoff_ms: ctx.initial_backoff_ms,
                     populi_op,
+                    required_labels: ctx.required_labels.clone(),
+                    is_detached: ctx.is_detached,
                 });
             } else {
                 collect_from_expr(workflow_name, callee, ctx, out, branch_counter)?;
@@ -270,6 +298,8 @@ fn collect_from_expr(
                 retries: 0,
                 initial_backoff_ms: None,
                 populi_op: PopuliHttpOp::Noop,
+                required_labels: None,
+                is_detached: false,
             });
             if take_then {
                 collect_activity_calls_from_stmts(
