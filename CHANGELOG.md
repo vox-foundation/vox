@@ -93,6 +93,9 @@ All notable changes to the Vox project are documented here.
 
 
 ### Fixed
+- **Codex / CI SSOT:** Restore `scripts/check_codex_ssot.sh` (bash delegate to `vox ci check-codex-ssot`); align `contracts/db/baseline-version-policy.yaml` with `BASELINE_VERSION` **45** and the current baseline SQL Keccak digest; refresh `contracts/capability/model-manifest.generated.json` so `vox ci ssot-drift` stays green.
+- **Telemetry trust SSOT:** `docs/src/architecture/telemetry-trust-ssot.md` maps build timing / `build_*` observability, `VOX_BENCHMARK_TELEMETRY`, and MCP `vox_benchmark_list` `source` selectors.
+- **Tests:** `vox-test-harness` `hir_fn` initializer matches `HirFn::is_mobile_native`; `vox-db` `local_tests` fixes `VOX_DATA_DIR` `set_var` delimiter typo.
 - **Docs SSOT:** `orphan-surface-inventory.md` workspace crate list includes **`vox-dei`** so `vox ci check-docs-ssot` matches filesystem inventory.
 - **`vox ci build-timings`:** Soft budgets load only from **`docs/ci/build-timings/budgets.json`** (no duplicate Rust const); `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` works without `BUDGET_WARN`; `--json` serialization errors surface with context; `nvcc` probe uses **`CUDA_PATH`** / **`CUDA_HOME`** when `PATH` is stripped.
 - **`vox ci command-compliance`:** `TOOL_REGISTRY` slice uses stable **anchor** before `pub fn tool_registry` so `]` inside description strings cannot break parsing.

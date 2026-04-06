@@ -3,7 +3,7 @@ title: "Telemetry trust boundary and SSOT map"
 description: "Single map of telemetry-related surfaces, trust boundaries, documentation authority, and corrections to earlier research-only plans."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-02
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
@@ -28,6 +28,7 @@ The first telemetry-trust **research** pass was correct to defer code and schema
 3. **`ci_completion_*` is workspace-adjacent:** Tables defined in [`crates/vox-db/src/schema/domains/ci_completion.rs`](../../../crates/vox-db/src/schema/domains/ci_completion.rs) carry paths and metadata. They are **not** interchangeable with coarse product telemetry without a separate sensitivity class (see [Telemetry retention and sensitivity SSOT](telemetry-retention-sensitivity-ssot.md)).
 4. **VS Code and debug surfaces:** The extension webview uses a **`telemetry` tab id** for local dashboards; that naming can collide with user expectations about “phone-home” telemetry. [vscode-mcp-compat](../reference/vscode-mcp-compat.md) documents `vox.mcp.debugPayloads` — high sensitivity and must sit inside the same trust framework as Ludus MCP arg modes.
 5. **Governance hooks:** New operations and drift checks must stay aligned with [operations catalog](../../../contracts/operations/catalog.v1.yaml), [data-ssot-guards](../../../crates/vox-cli/src/commands/ci/run_body_helpers/data_ssot_guards.rs), and [CHANGELOG](../../../CHANGELOG.md).
+6. **Build timing telemetry:** Shallow `vox ci build-timings` and deep `--deep` paths write **UsageTelemetry**-class signals (coarse timings, crate names, dependency-shape summaries). Canonical structured rows live in `build_run` / `build_crate_sample` / `build_warning` / `build_run_dependency_shape`; summarized `benchmark_event` rows use `VOX_BENCHMARK_TELEMETRY` (see [telemetry-metric-contract](../reference/telemetry-metric-contract.md) “Build timing producers”). Query via MCP `vox_benchmark_list` with `source=build_health|build_regressions|build_warnings|dependency_shape`. Retention aligns with [retention-policy.yaml](../../../contracts/db/retention-policy.yaml) and [telemetry-retention-sensitivity-ssot](telemetry-retention-sensitivity-ssot.md).
 
 ## Authoritative SSOT set (no duplicate primaries)
 
@@ -40,6 +41,7 @@ The first telemetry-trust **research** pass was correct to defer code and schema
 | Context lifecycle tracing fields | [context-lifecycle-telemetry.schema.json](../../../contracts/orchestration/context-lifecycle-telemetry.schema.json) | [`context_lifecycle.rs`](../../../crates/vox-orchestrator/src/context_lifecycle.rs) |
 | Taxonomy and event families (rollout) | [telemetry-taxonomy-contracts-ssot](telemetry-taxonomy-contracts-ssot.md) | contracts under `contracts/telemetry/` |
 | Client disclosure and debug | [telemetry-client-disclosure-ssot](telemetry-client-disclosure-ssot.md) | vox-vscode README |
+| Build timing + `build_*` observability | [telemetry-metric-contract](../reference/telemetry-metric-contract.md), [crate-build-lanes-migration](crate-build-lanes-migration.md), [`ops_build.rs`](../../../crates/vox-db/src/store/ops_build.rs) | `vox ci build-timings`; MCP `vox_benchmark_list` (`source` for `build_*`); CI may set `VOX_BENCHMARK_TELEMETRY` |
 | Secrets for any future upload endpoint | [AGENTS.md](../../../AGENTS.md), Clavis | — |
 
 ## Trust planes (normative vocabulary)

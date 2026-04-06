@@ -122,6 +122,14 @@
       "title": "Ask Agent"
     },
     {
+      "capability_id": "mcp.vox_attention_summary",
+      "curated": true,
+      "description_model": "Returns a summary of agent attention allocation and focus shifts over a time window.",
+      "implicit": false,
+      "mcp_tool": "vox_attention_summary",
+      "title": "Attention Summary"
+    },
+    {
       "capability_id": "mcp.vox_behavior_record",
       "curated": true,
       "description_model": "Record a user behavior event and receive pattern suggestions.",
@@ -578,6 +586,14 @@
       "title": "Drain Agent"
     },
     {
+      "capability_id": "mcp.vox_emergency_stop",
+      "curated": true,
+      "description_model": "Trigger a global emergency stop across the orchestrator, cancelling all active tasks.",
+      "implicit": false,
+      "mcp_tool": "vox_emergency_stop",
+      "title": "Emergency Stop"
+    },
+    {
       "capability_id": "mcp.vox_fail_task",
       "curated": true,
       "description_model": "Mark a task as failed with a reason string.",
@@ -668,6 +684,14 @@
       "implicit": false,
       "mcp_tool": "vox_handoff_context",
       "title": "Handoff Context"
+    },
+    {
+      "capability_id": "mcp.vox_handoff_lineage",
+      "curated": true,
+      "description_model": "Returns the historical lineage of agent-to-agent task delegations and context handoffs.",
+      "implicit": false,
+      "mcp_tool": "vox_handoff_lineage",
+      "title": "Handoff Lineage"
     },
     {
       "capability_id": "mcp.vox_heartbeat",
@@ -1716,6 +1740,14 @@
       "implicit": false,
       "mcp_tool": "vox_set_active_model",
       "title": "Set Active Model"
+    },
+    {
+      "capability_id": "mcp.vox_set_agent_budget",
+      "curated": true,
+      "description_model": "Set custom VoxDB-powered budget limits for an agent.",
+      "implicit": false,
+      "mcp_tool": "vox_set_agent_budget",
+      "title": "Set Agent Budget"
     },
     {
       "capability_id": "mcp.vox_set_context",

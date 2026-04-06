@@ -17,7 +17,7 @@ pub fn minimal_hir_module() -> HirModule {
 
 /// Build a minimal [`HirFn`] with the given name and no body.
 ///
-/// Defaults: sync, not pub, not deprecated, no params, no return type.
+/// Defaults: sync, not pub, not `@mobile.native`, no params, no return type.
 pub fn hir_fn(name: impl Into<String>) -> HirFn {
     use vox_compiler::hir::DefId;
     HirFn {
@@ -30,7 +30,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_component: false,
         is_async: false,
         is_pub: false,
-        is_deprecated: false,
+        is_mobile_native: false,
         span: dummy_span(),
     }
 }
