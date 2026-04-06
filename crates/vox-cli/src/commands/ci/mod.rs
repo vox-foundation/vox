@@ -2,6 +2,7 @@
 
 pub(crate) mod bounded_read;
 pub mod build_timings;
+mod canonical_docs;
 mod capability_sync;
 mod check_links;
 mod command_compliance;

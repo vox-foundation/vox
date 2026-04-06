@@ -1256,7 +1256,7 @@ async fn scholarly_staging_mcp_written_matches_submission_package_zenodo() {
             orcid: None,
             affiliation: None,
         }],
-        license_spdx: Some("MIT".to_string()),
+        license_spdx: Some("Apache-2.0".to_string()),
         ..Default::default()
     };
     let meta = vox_publisher::scientific_metadata::build_scientia_metadata_json(

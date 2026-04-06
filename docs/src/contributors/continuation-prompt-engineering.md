@@ -3,7 +3,7 @@ title: "Continuation Prompt Engineering"
 description: "SSOT for the Vox continuation prompt, its design rationale, and the layered anti-skeleton defense model."
 category: "contributors"
 status: "current"
-last_updated: 2026-04-02
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
@@ -168,6 +168,7 @@ This document is the SSOT for continuation prompt design. When modifying:
 - [Completion policy SSOT](../architecture/completion-policy-ssot.md)
 - [Governance / TOESTUB](../../agents/governance.md)
 - [Doc-to-code acceptance checklist](../architecture/doc-to-code-acceptance-checklist.md)
+- [Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)](../architecture/prompt-engineering-document-skills-scientia-research-2026.md)
 - AGENTS.md (repo root) — system-level rules
 - Attention decay / "lost in the middle" research (Liu et al., 2024; extended 2025)
 - SycEval / RLHF sycophancy persistence benchmarks (2025)

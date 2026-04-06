@@ -10,6 +10,9 @@ training_eligible: true
 
 `vox-clavis` is the canonical source of truth for managed secret metadata and resolution precedence.
 
+Research and forward-looking analysis live in [Clavis secrets, env vars, and API key strategy research 2026](../architecture/clavis-secrets-env-research-2026.md).
+Threat and policy controls are documented in [Clavis Cloudless Threat Model V1](../architecture/clavis-cloudless-threat-model-v1.md), with execution steps in [Clavis Cloudless Implementation Catalog](../architecture/clavis-cloudless-implementation-catalog.md).
+
 ## Naming Convention
 
 - `VOX_*`: Vox-owned platform contracts (mesh, runtime auth, DB, cloud orchestration, internal boundaries).

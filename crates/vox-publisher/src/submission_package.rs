@@ -730,7 +730,7 @@ mod tests {
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -761,7 +761,7 @@ mod tests {
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =

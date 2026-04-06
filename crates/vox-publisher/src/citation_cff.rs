@@ -131,7 +131,7 @@ mod tests {
                 orcid: Some("0000-0002-1825-0097".to_string()),
                 affiliation: Some("Example Univ".to_string()),
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             funding_statement: None,
             competing_interests_statement: None,
             reproducibility: None,
@@ -155,7 +155,7 @@ mod tests {
         assert!(y.contains("cff-version: 1.2.0"));
         assert!(y.contains("title: On Examples"));
         assert!(y.contains("name: A. Person"));
-        assert!(y.contains("MIT"));
+        assert!(y.contains("Apache-2.0"));
         assert!(y.contains("Short abstract."));
     }
 }

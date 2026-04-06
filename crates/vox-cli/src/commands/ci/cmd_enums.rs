@@ -241,7 +241,7 @@ pub enum CiCmd {
         #[arg(long, default_value = ".config/coverage-gates.toml")]
         config: PathBuf,
     },
-    /// Regenerate or verify `docs/src/reference/cli-command-surface.generated.md` from the registry.
+    /// Regenerate or verify generated CLI/reference docs from registry + code constants.
     #[command(name = "command-sync")]
     CommandSync {
         /// Write generated Markdown; without this flag, verify it matches the registry.

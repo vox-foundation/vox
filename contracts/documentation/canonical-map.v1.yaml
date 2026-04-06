@@ -1,0 +1,103 @@
+schema_version: 1
+
+domains:
+  - id: mens-training
+    title: Mens native training
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/mens/training-presets.v1.yaml
+      - contracts/mens/training-preflight.schema.json
+    canon_doc: docs/src/reference/mens-training.md
+    generated_docs:
+      - docs/src/reference/mens-train-defaults.generated.md
+    aliases:
+      - docs/src/architecture/mens-training-ssot.md
+    owning_crate_globs:
+      - crates/vox-populi/src/mens/**/*.rs
+      - crates/vox-cli/src/commands/mens/**/*.rs
+      - crates/vox-cli/src/commands/ai/train.rs
+    notes: Canonical operator behavior is vox mens train (Candle QLoRA dispatch).
+
+  - id: cli-surface
+    title: Vox CLI command surface
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/operations/catalog.v1.yaml
+      - contracts/cli/command-registry.yaml
+      - contracts/cli/command-registry.schema.json
+    canon_doc: docs/src/reference/cli.md
+    generated_docs:
+      - docs/src/reference/cli-command-surface.generated.md
+    aliases:
+      - docs/src/ref-cli.md
+    owning_crate_globs:
+      - crates/vox-cli/src/**/*.rs
+
+  - id: env-vars
+    title: Environment variables
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/db/baseline-version-policy.yaml
+      - contracts/terminal/exec-policy.v1.yaml
+    canon_doc: docs/src/reference/env-vars.md
+    generated_docs: []
+    aliases:
+      - docs/src/ref/env-vars-ssot.md
+      - docs/src/ref/env-vars.md
+    owning_crate_globs:
+      - crates/vox-clavis/src/**/*.rs
+      - crates/vox-db/src/**/*.rs
+      - crates/vox-orchestrator/src/**/*.rs
+      - crates/vox-mcp/src/**/*.rs
+
+  - id: doc-inventory
+    title: Documentation inventory
+    tier: B-canon
+    status: current
+    spec_paths:
+      - docs/agents/doc-inventory.json
+    canon_doc: docs/src/reference/doc-inventory.md
+    generated_docs: []
+    aliases:
+      - docs/src/ci/documentation-pointers.md
+      - docs/src/ci/doc-inventory-ssot.md
+    owning_crate_globs:
+      - crates/vox-doc-inventory/src/**/*.rs
+      - crates/vox-cli/src/commands/ci/**/*.rs
+
+  - id: command-compliance
+    title: Command compliance and operation parity
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/operations/catalog.v1.yaml
+      - contracts/cli/command-registry.yaml
+      - contracts/capability/capability-registry.yaml
+      - contracts/mcp/tool-registry.canonical.yaml
+    canon_doc: docs/src/reference/command-compliance.md
+    generated_docs:
+      - docs/src/reference/cli-command-surface.generated.md
+    aliases:
+      - docs/src/ci/documentation-pointers.md
+      - docs/src/ci/command-compliance-ssot.md
+    owning_crate_globs:
+      - crates/vox-cli/src/commands/ci/command_compliance/**/*.rs
+      - crates/vox-mcp/src/tools/**/*.rs
+
+  - id: telemetry-trust
+    title: Telemetry trust boundary
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/orchestration/context-lifecycle-telemetry.schema.json
+      - contracts/telemetry/completion-run.v1.schema.json
+      - contracts/telemetry/completion-finding.v1.schema.json
+    canon_doc: docs/src/architecture/telemetry-trust-ssot.md
+    generated_docs: []
+    aliases: []
+    owning_crate_globs:
+      - crates/vox-orchestrator/src/**/*.rs
+      - crates/vox-cli/src/commands/ci/**/*.rs

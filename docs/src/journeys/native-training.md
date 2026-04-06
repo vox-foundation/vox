@@ -15,17 +15,17 @@ You have to pull the data directly from production, dump it into JSONL files, tr
 
 ## The Vox Paradigm: Zero-Python Native Fine-tuning
 
-The Vox toolchain resolves this tension by providing native hardware-accelerated LLM QLoRA training right from your ecosystem via **MENS** (the Vox ML Subsystem) powered by `vox-tensor` (built atop Candle).
+The Vox toolchain resolves this tension by providing native hardware-accelerated **QLoRA** fine-tuning via **MENS**: **`vox mens train`** dispatches **Candle + qlora-rs** in **`vox-populi`** (HF weights through **Rust `hf-hub`**). **`vox-tensor`** supplies **`VoxTokenizer`**, JSONL loading, and the **Burn** scratch path — a different lane from HF QLoRA.
 
-You can extract your `@table` records, instruct Vox to assemble training pairs directly from your canonical data, and launch a full forward/backward training pass executing entirely within Rust. It bridges the data layer and ML architecture without needing any Python binding layers.
+You can extract corpus pairs, assemble **`train.jsonl`**, and run training **without a Python training loop**. The operator surface is the **CLI** and corpus commands today; in-language orchestration remains a product direction.
 
-## Core Snippet: Triggering QLoRA Training
+## Illustrative snippet (not the shipped CLI)
 
-To orchestrate a training pipeline, you specify the data source, the checkpoint strategy, and the hyperparameters straight from Vox constructs.
+The following **Vox-shaped pseudocode** sketches how training might be expressed in source; the **supported path today** is **`vox mens train`** (see [mens-training.md](../reference/mens-training.md)).
 
 ```vox
 // vox:skip
-// Import the native tensor functions and MENS integration logic
+// Illustrative imports — operator workflow uses: vox mens train …
 import vox.mens.training
 import vox.mens.qlora
 
@@ -62,21 +62,20 @@ fn finetune_from_telemetry() -> Result[str] {
 }
 ```
 
-## Running the Process
+## Running the process (operator)
 
-NVIDIA GPU training directly off Rust requires specific compilation features so the compiler binds to CUDA efficiently.
-
-Instead of the standard run, use the CLI's native ML capabilities:
+On NVIDIA hardware, build **`vox-cli`** with **`mens-candle-cuda`** (see [mens-training.md](../reference/mens-training.md) and workspace build notes in `AGENTS.md`). Then:
 
 ```bash
-# This fetches the model base components and leverages PyTorch/Candle-compatible GPU bindings
-vox run server.vox --mens-training-enabled
+vox mens corpus pairs …   # produce target/dogfood/train.jsonl (see expl-ml-pipeline)
+vox mens train --device cuda --data-dir target/dogfood --output-dir mens/runs/latest
 ```
+
+`--backend qlora` and `--tokenizer hf` are **defaults**: weights are fetched natively; **no PyTorch** training stack.
 
 ## Deep Dives
 
-To evaluate how Vox bypassed Python boundaries and the performance implications:
-
-- **[ADR 003 — Native Rust Training Over Python](../adr/003-native-training-over-python.md)**: The technical motivation explaining why Vox transitioned away from `PyO3` architectures towards pure Rust.
-- **[Native ML Training Pipeline](../explanation/expl-ml-pipeline.md)**: End-to-end overview showing data staging and tokenization processes prior to QLoRA execution.
-- **[Mens native training SSOT (Candle QLoRA)](../reference/mens-training.md)**: Highly specific architectural guarantees, limits, and configurations for `vox-tensor` training capabilities.
+- **[ADR 003 — Native Rust Training Over Python](../adr/003-native-training-over-python.md)**: Why the project left Python/Unsloth for the pipeline, and how **native Candle QLoRA** superseded the “Python for QLoRA” assumption.
+- **[ADR 006 — Mens full-graph Candle QLoRA with qlora-rs](../adr/006-mens-full-graph-qlora-qlora-rs.md)**: qlora-rs integration and scope.
+- **[Native ML Training Pipeline](../explanation/expl-ml-pipeline.md)**: Corpus → **`vox mens train`** → eval gates.
+- **[Mens native training SSOT (Candle QLoRA)](../reference/mens-training.md)**: Contract, preflight, merge/serve matrix, and CLI truth table.

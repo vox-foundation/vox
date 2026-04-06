@@ -54,6 +54,22 @@ contracts:
     enforced_by:
       - vox ci operations-verify
 
+  - id: documentation-canonical-map
+    path: contracts/documentation/canonical-map.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Canonical documentation authority mapping (spec paths, single canon page, generated docs, alias stubs).
+    enforced_by:
+      - vox ci check-docs-ssot
+
+  - id: documentation-canonical-map-schema
+    path: contracts/documentation/canonical-map.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for documentation canonical-map v1.
+    enforced_by:
+      - vox ci check-docs-ssot
+
   - id: completion-policy-v1
     path: contracts/operations/completion-policy.v1.yaml
     owner: platform-ci

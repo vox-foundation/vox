@@ -1138,7 +1138,7 @@ mod tests {
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -1158,7 +1158,7 @@ mod tests {
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -1237,7 +1237,7 @@ mod tests {
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -1256,7 +1256,7 @@ mod tests {
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ethics_and_impact: Some(crate::scientific_metadata::EthicsAndImpactAttestation {
                 broader_impact_statement: Some("Low risk.".to_string()),
                 irb_or_human_subjects_note: None,

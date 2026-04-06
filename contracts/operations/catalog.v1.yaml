@@ -405,6 +405,25 @@ operations:
     name: vox_ask_agent
     http_read_role_eligible: false
   cli: null
+- id: attention.summary
+  title: Attention Summary
+  description: Returns a summary of agent attention allocation and focus shifts over a time window.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_attention_summary
+    http_read_role_eligible: true
+  cli: null
 - id: behavior.record
   title: Behavior Record
   description: Record a user behavior event and receive pattern suggestions.
@@ -1110,33 +1129,6 @@ operations:
     status: active
     latin_ns: null
     handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: false
-- id: ci.nomenclature-guard
-  title: Ci Nomenclature-guard
-  description: Fail when new Latin-only structural crate directories appear outside the canonical English naming allowlist (T189-T196).
-  description_human: "Enforces the English-first crate naming policy. Scans `crates/` and fails if any `vox-<latin>` directory exists outside the historical allowlist."
-  product_lane: platform
-  intent_tags: [ci, naming, governance]
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: true
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - nomenclature-guard
-    status: active
-    latin_ns: ci
-    handler_rust: nomenclature_guard::run
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -2089,6 +2081,36 @@ operations:
     status: active
     latin_ns: null
     handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.nomenclature-guard
+  title: Ci Nomenclature-guard
+  description: CLI operation `vox ci nomenclature-guard`
+  description_human: Enforces the English-first crate naming policy. Scans `crates/` and fails if any `vox-<latin>` directory exists outside the historical allowlist.
+  product_lane: platform
+  intent_tags:
+  - ci
+  - naming
+  - governance
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: true
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - nomenclature-guard
+    status: active
+    latin_ns: ci
+    handler_rust: nomenclature_guard::run
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -3234,25 +3256,6 @@ operations:
     name: vox_context_budget
     http_read_role_eligible: false
   cli: null
-- id: set.agent.budget
-  title: Set Agent Budget
-  description: Set custom VoxDB-powered budget limits for an agent.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_set_agent_budget
-    http_read_role_eligible: false
-  cli: null
 - id: cost.history
   title: Cost History
   description: Get a time-series cost breakdown of operations.
@@ -4290,6 +4293,25 @@ operations:
     name: vox_drain_agent
     http_read_role_eligible: false
   cli: null
+- id: emergency.stop
+  title: Emergency Stop
+  description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_emergency_stop
+    http_read_role_eligible: false
+  cli: null
 - id: fabrica
   title: Fabrica
   description: CLI operation `vox fabrica`
@@ -4534,6 +4556,25 @@ operations:
   mcp:
     name: vox_handoff_context
     http_read_role_eligible: false
+  cli: null
+- id: handoff.lineage
+  title: Handoff Lineage
+  description: Returns the historical lineage of agent-to-agent task delegations and context handoffs.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_handoff_lineage
+    http_read_role_eligible: true
   cli: null
 - id: heartbeat
   title: Heartbeat
@@ -9573,6 +9614,25 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_set_active_model
+    http_read_role_eligible: false
+  cli: null
+- id: set.agent.budget
+  title: Set Agent Budget
+  description: Set custom VoxDB-powered budget limits for an agent.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_set_agent_budget
     http_read_role_eligible: false
   cli: null
 - id: set.context

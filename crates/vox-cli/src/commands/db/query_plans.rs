@@ -137,6 +137,7 @@ fn collect_query_plans_expr(
         HirExpr::Try(t) => collect_query_plans_expr(t.target.as_ref(), out),
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
+        | HirExpr::DecimalLit(_, _)
         | HirExpr::StringLit(_, _)
         | HirExpr::BoolLit(_, _)
         | HirExpr::Ident(_, _) => {}

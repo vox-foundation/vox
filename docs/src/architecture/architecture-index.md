@@ -4,7 +4,7 @@ description: "Guide to the current architecture, SSOT, research, and roadmap doc
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-02
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
@@ -12,27 +12,27 @@ training_eligible: true
 
 The `docs/src/architecture/` section contains several different kinds of documents. This page is the map.
 
-## Current architecture and SSOT
+## Current architecture and authority docs
 
-Use these when you need the current shape of the system or the active policy:
+Use these when you need current policy and behavior. The canonical cross-domain map is [`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml); this page is navigation, not the source of behavioral truth.
 
 - [Feature growth boundaries](feature-growth-boundaries.md)
 - [Interop tier policy](interop-tier-policy.md)
-- [MCP exposure from the Vox language (SSOT)](mcp-vox-language-exposure.md)
-- [Capability registry SSOT](capability-registry-ssot.md) — `contracts/capability`, `vox ci capability-sync`, model manifest
+- [MCP exposure from the Vox language](mcp-vox-language-exposure.md)
+- [Capability registry authority](capability-registry-ssot.md) — `contracts/capability`, `vox ci capability-sync`, model manifest
 - [Vox bell-curve strategy](vox-bell-curve-strategy.md)
 - [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
 - [Orphan surface inventory](orphan-surface-inventory.md)
-- [Language surface SSOT](language-surface-ssot.md) — keywords / decorators / manifests
-- [OpenAPI contract SSOT](openapi-contract-ssot.md) — committed YAML, validation, optional codegen
+- [Language surface authority](language-surface-ssot.md) — keywords / decorators / manifests
+- [OpenAPI contract authority](openapi-contract-ssot.md) — committed YAML, validation, optional codegen
 - [Outbound HTTP policy](outbound-http-policy.md) — `vox-reqwest-defaults` and migration order
 - [Compiler diagnostics ergonomics](compiler-diagnostics-ergonomics.md) — `miette` vs custom errors, `quote` pilot
 - [Vox shell operations boundaries](vox-shell-operations-boundaries.md) — host `pwsh` vs `vox shell` vs `.vox` `std.*` (no shell emulator product)
 - [Plan adequacy (thin plans & telemetry)](plan-adequacy.md) — external limits, shared heuristics, expansion policy
-- [Telemetry trust boundary and SSOT map](telemetry-trust-ssot.md) — telemetry surfaces, SSOT primaries, trust planes
-- [Telemetry taxonomy and contracts SSOT](telemetry-taxonomy-contracts-ssot.md) — roadmap event taxonomy and contracts
-- [Telemetry retention and sensitivity SSOT](telemetry-retention-sensitivity-ssot.md) — roadmap retention and S0–S3 classes
-- [Telemetry client disclosure SSOT](telemetry-client-disclosure-ssot.md) — VS Code / MCP host disclosure
+- [Telemetry trust boundary map](telemetry-trust-ssot.md) — telemetry surfaces, trust planes, and canonical links
+- [Telemetry taxonomy and contracts](telemetry-taxonomy-contracts-ssot.md) — roadmap event taxonomy and contracts
+- [Telemetry retention and sensitivity](telemetry-retention-sensitivity-ssot.md) — roadmap retention and S0–S3 classes
+- [Telemetry client disclosure](telemetry-client-disclosure-ssot.md) — VS Code / MCP host disclosure
 - [Telemetry implementation blueprint 2026](telemetry-implementation-blueprint-2026.md) — phased rollout plan
 - [Telemetry implementation backlog 2026](telemetry-implementation-backlog-2026.md) — executable checklist
 - [Telemetry remote sink specification](telemetry-remote-sink-spec.md) — optional `vox telemetry upload` wire contract
@@ -70,5 +70,5 @@ Use these when a page describes intended implementation rather than current beha
 ## How to read this section
 
 - If you need shipped behavior, prefer pages labeled `status: current` or pages that mirror code and contract surfaces.
-- If you need rationale, open the matching ADR or architecture SSOT page.
+- If you need rationale, open the matching ADR or architecture authority page.
 - If you need future direction, read roadmap and planning documents as plans, not as claims of current capability.

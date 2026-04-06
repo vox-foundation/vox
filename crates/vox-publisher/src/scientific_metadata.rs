@@ -128,7 +128,7 @@ mod tests {
                 orcid: Some("0000-0001-2345-6789".to_string()),
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             funding_statement: None,
             competing_interests_statement: None,
             reproducibility: None,

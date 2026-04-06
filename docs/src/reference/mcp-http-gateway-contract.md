@@ -14,7 +14,7 @@ This surface is emitted by `vox-mcp` only when `VOX_MCP_HTTP_ENABLED=1` and is i
 
 ## Guardrails
 
-- Auth: bearer token unless explicitly bypassed for local testing (`Write` via `VOX_MCP_HTTP_BEARER_TOKEN`, optional `Read` via `VOX_MCP_HTTP_READ_BEARER_TOKEN`)
+- Auth: bearer token unless explicitly bypassed for local testing (`Write` via `VOX_MCP_HTTP_BEARER_TOKEN`, optional `Read` via `VOX_MCP_HTTP_READ_BEARER_TOKEN`). Cloudless hard-cut target is Clavis-managed token resolution with env retained only for compatibility in non-strict profiles.
 - Tool calls: allowlisted (`VOX_MCP_HTTP_ALLOWED_TOOLS`)
 - Read-role tool scope: canonical MCP registry metadata (`http_read_role_eligible`) intersected with `VOX_MCP_HTTP_ALLOWED_TOOLS`; optional `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS` narrows further
 - Policy observability: `GET /v1/info` includes `allowed_tools` and effective `read_role_allowed_tools`

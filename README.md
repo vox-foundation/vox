@@ -174,6 +174,10 @@ For a side-by-side, same-scenario comparison across C++23, Rust, Python, and Vox
 
 ---
 
+## The CLI
+
+Run `vox commands --recommended` to see curated starter commands. The full command surface lives in [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
+
 ## Quick Start
 
 **macOS / Linux:**
@@ -282,4 +286,4 @@ vox populi serve --model mens/runs/latest/model_final.bin --port 8080
 
 ## License
 
-Apache-2.0. Source: [github.com/vox-foundation/vox](https://github.com/vox-foundation/vox).
+Apache-2.0. Full text: [`LICENSE`](LICENSE). Source: [github.com/vox-foundation/vox](https://github.com/vox-foundation/vox).

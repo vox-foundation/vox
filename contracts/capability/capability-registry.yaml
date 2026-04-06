@@ -4020,6 +4020,21 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ask_agent
   cli_path: null
+- id: mcp.vox_attention_summary
+  title: Attention Summary
+  description_human: null
+  description_model: Returns a summary of agent attention allocation and focus shifts over a time window.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_attention_summary
+  cli_path: null
 - id: mcp.vox_behavior_record
   title: Behavior Record
   description_human: null
@@ -4875,6 +4890,21 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_drain_agent
   cli_path: null
+- id: mcp.vox_emergency_stop
+  title: Emergency Stop
+  description_human: null
+  description_model: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_emergency_stop
+  cli_path: null
 - id: mcp.vox_fail_task
   title: Fail Task
   description_human: null
@@ -5027,6 +5057,21 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_handoff_context
+  cli_path: null
+- id: mcp.vox_handoff_lineage
+  title: Handoff Lineage
+  description_human: null
+  description_model: Returns the historical lineage of agent-to-agent task delegations and context handoffs.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_handoff_lineage
   cli_path: null
 - id: mcp.vox_heartbeat
   title: Heartbeat
@@ -6875,6 +6920,21 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_set_active_model
+  cli_path: null
+- id: mcp.vox_set_agent_budget
+  title: Set Agent Budget
+  description_human: null
+  description_model: Set custom VoxDB-powered budget limits for an agent.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_set_agent_budget
   cli_path: null
 - id: mcp.vox_set_context
   title: Set Context

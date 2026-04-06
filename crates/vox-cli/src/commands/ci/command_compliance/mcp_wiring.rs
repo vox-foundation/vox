@@ -110,6 +110,10 @@ pub(crate) fn check_mcp_tool_wiring(
             ));
         }
     }
+    let mut handler_allowed: HashSet<String> = reg_set.clone();
+    for (alias, _) in &alias_pairs {
+        handler_allowed.insert(alias.clone());
+    }
     let han_tools = extract_mcp_handler_tools(mcp_dispatch)?;
     for t in &reg_tools {
         if !han_tools.contains(t) {
@@ -119,9 +123,9 @@ pub(crate) fn check_mcp_tool_wiring(
         }
     }
     for t in &han_tools {
-        if !reg_tools.contains(t) {
+        if !handler_allowed.contains(t) {
             return Err(anyhow!(
-                "vox-mcp: `handle_tool_call` matches `{t}` but it is not listed in TOOL_REGISTRY"
+                "vox-mcp: `handle_tool_call` matches `{t}` but it is not listed in TOOL_REGISTRY (or `tool_aliases` wire alias)"
             ));
         }
     }

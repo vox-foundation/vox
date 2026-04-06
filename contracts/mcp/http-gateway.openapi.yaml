@@ -9,6 +9,8 @@ info:
     (`VOX_MCP_HTTP_READ_BEARER_TOKEN`) where read role visibility comes from MCP registry
     metadata (`http_read_role_eligible`) intersected with `VOX_MCP_HTTP_ALLOWED_TOOLS`, plus
     optional narrowing via `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS`.
+    Cloudless hard-cut target is Clavis-managed token resolution, with direct env token reads
+    retained only as compatibility inputs in non-strict profiles during cutover.
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:3921

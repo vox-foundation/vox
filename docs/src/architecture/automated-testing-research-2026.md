@@ -11,7 +11,7 @@ training_eligible: true
 ## State of the Art, Implications, and Roadmap (2026)
 
 > **Status:** Research Document — April 2026  
-> **Authors:** Antigravity (AI), prompted by Vox owner  
+> **Author:** Bert Brainerd
 > **Related:** `vox-test-harness`, `vox-eval`, `vox-integration-tests`, `vox-ars`, `vox-compiler`, `vox-lsp`  
 > **Canonical path:** `docs/src/architecture/automated-testing-research-2026.md`
 

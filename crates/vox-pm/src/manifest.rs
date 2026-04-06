@@ -314,7 +314,7 @@ impl VoxManifest {
                 version: "0.1.0".to_string(),
                 kind: kind.to_string(),
                 description: Some(format!("A Vox {kind}")),
-                license: Some("MIT".to_string()),
+                license: Some("Apache-2.0".to_string()),
                 authors: Vec::new(),
                 repository: None,
                 homepage: None,
@@ -389,7 +389,7 @@ name = "my-app"
 version = "1.2.3"
 kind = "application"
 description = "My cool app"
-license = "MIT"
+license = "Apache-2.0"
 authors = ["alice", "bob"]
 keywords = ["web", "ai"]
 
@@ -443,6 +443,7 @@ auth = ["auth-utils"]
         assert_eq!(manifest.package.kind, "application");
         let toml_str = manifest.to_toml_string().unwrap();
         assert!(toml_str.contains("hello-world"));
+        assert!(toml_str.contains("Apache-2.0"));
     }
 
     #[test]

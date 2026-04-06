@@ -8,6 +8,17 @@ category: "architecture"
 
 This document tracks the **Rev C** convergence program: contracts, VoxDb persistence ownership, MCP/CLI parity, and CI gates (`vox ci ssot-drift`).
 
+## Canonical authority registry
+
+Use [`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml) as the single registry for:
+
+- machine spec paths (`A-spec`)
+- one canonical human page (`B-canon`)
+- generated docs (`C-generated`)
+- aliases/pointer stubs (`D-index`)
+
+`vox ci check-docs-ssot` now includes canonical-map validation (uniqueness of `id`/`canon_doc`, alias link/legacy rules, and path existence).
+
 ## Authoritative artifacts (current)
 
 - CLI surface — `contracts/cli/command-registry.yaml` + `vox ci command-compliance`

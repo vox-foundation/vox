@@ -1,18 +1,20 @@
 ---
 title: "Native ML Training Pipeline"
-description: "Official documentation for Native ML Training Pipeline for the Vox language. Detailed technical reference, architecture guides, and imple"
+description: "End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy."
 category: "explanation"
-last_updated: 2026-03-24
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
 # Native ML Training Pipeline
 
-Vox "dogfoods" itself: the language, compiler, and documentation all feed a native machine learning loop that trains the **Mens** code assistant model. The **default** native path is [Burn](https://burn.dev) + **wgpu** (Vulkan / DX12 / Metal) — **no Python** and **no CUDA required** for that path.
+Vox "dogfoods" itself: the language, compiler, and documentation all feed a native machine learning loop that trains the **Mens** code assistant model.
 
-**Two first-class trainers** share **`vox mens train`**: **Burn LoRA** (above) and optional **Candle + qlora-rs QLoRA** on **Hugging Face** weights (**CUDA/Metal optional**, **`--backend qlora`**). They are **not** interchangeable objectives or artifacts — see [Mens training SSOT — Burn vs QLoRA](../reference/mens-training.md#burn-lora-vs-candle-qlora--which-path-when-4080-super-and-beyond).
+**Canonical operator fine-tuning:** **`vox mens train`** with **Candle + qlora-rs** on **Hugging Face** weights. **`--backend qlora`** and **`--tokenizer hf`** are the **defaults**; no Python training loop. SSOT: [Mens native training](../reference/mens-training.md). **`PopuliTrainBackend::BurnLora` is rejected at runtime** in this dispatch — the supported trainer is **`CandleQlora`**.
 
-**Default GPU acceleration** for **`--backend lora`** uses **wgpu**, not NVIDIA CUDA. For **QLoRA on an RTX-class workstation**, build **`mens-candle-cuda`** and use **`--device cuda`**. Use CPU-only training when drivers or CI forbid GPU.
+**Legacy / side paths:** A **Burn + wgpu** scratch **LoRA** stack still lives in **`vox-tensor`** (`vox training native`, small `VoxTokenizer` model) — **no Python**, optional **CUDA** only if you build GPU features for other subsystems. Use it for experimentation, **not** as a substitute for Mens HF QLoRA. **Burn** also matters for **`vox mens merge-weights`** and **`vox mens serve`** on merged `.bin` checkpoints. Objectives and artifacts differ from Candle QLoRA — see [Burn vs QLoRA](../reference/mens-training.md#burn-lora-vs-candle-qlora--which-path-when-4080-super-and-beyond).
+
+**GPUs:** For **QLoRA** on an NVIDIA workstation, build **`mens-candle-cuda`** and use **`vox mens train --device cuda`**. For **Burn scratch** training, **wgpu** (Vulkan / DX12 / Metal) is the default GPU path. Use CPU when drivers or CI forbid GPU.
 
 ---
 
@@ -39,19 +41,16 @@ Vox "dogfoods" itself: the language, compiler, and documentation all feed a nati
 └─────────────────────────────────────│───────────────────────┘
                                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  TRAINING                                                  │
+│  TRAINING (Mens — canonical)                                │
 │                                                             │
-│  Default: Native Burn LoRA (Rust) — GPU, no CUDA, no Python │
-│  **`vox mens train`** (canonical CLI; `train.jsonl`)       │
-│  → `LoraVoxTransformer` + wgpu (Vulkan/DX12/Metal)          │
+│  **`vox mens train`** — Candle + **qlora-rs** QLoRA (default) │
+│  `--backend qlora` + `--tokenizer hf` + HF safetensors      │
+│  Optional **CUDA** (`mens-candle-cuda`) / **Metal**          │
+│  SSOT: `reference/mens-training.md`                         │
 │                                                             │
-│  **`--backend qlora`**: Candle + **qlora-rs** (NF4 LM head + │
-│  LoRA; mmap `f32` HF embeds). Optional CUDA/Metal features.  │
-│  SSOT: `reference/mens-training.md`.                │
-│                                                             │
-│  Legacy: `vox train` (when `mens-dei` + `gpu`) — local     │
-│  bails to **`vox mens train --backend qlora`**; Together  │
-│  remote; **`--native`** Burn scratch (not Candle QLoRA).      │
+│  Legacy / other: `vox training native` — Burn scratch LoRA  │
+│  (`VoxTokenizer` JSONL, wgpu/CPU). Not `vox mens` dispatch.   │
+│  `vox train` (mens-dei): local bails → `vox mens train …`   │
 └─────────────────────────────────────────────────────────────┘
                                       ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -67,7 +66,7 @@ Vox "dogfoods" itself: the language, compiler, and documentation all feed a nati
 
 ## Data Schema
 
-All training pairs follow this JSONL schema (must match across all tools) {
+All training pairs follow this JSONL schema (must match across all tools):
 
 ```json
 {
@@ -110,9 +109,9 @@ Encoding uses greedy longest-match on compound tokens before falling back to sin
 
 ---
 
-## VoxTransformer Architecture
+## VoxTransformer Architecture (Burn scratch path)
 
-The native Burn-backed model (`crates/vox-tensor/src/vox_nn.rs`, `gpu` feature) {
+The **Burn**-backed scratch transformer (`crates/vox-tensor/src/vox_nn.rs`, `gpu` feature) used with **`VoxTokenizer`** JSONL — distinct from **HF QLoRA** weights:
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
@@ -137,20 +136,26 @@ vox generate-data --limit 500 --output mens/data/train.jsonl
 ### 2. Extract corpus from real Vox files (canonical flow, PowerShell)
 
 ```powershell
-.\target\release\vox.exe corpus extract examples/ -o mens/data/validated.jsonl
-.\target\release\vox.exe corpus extract docs/ -o mens/data/validated.jsonl 2>$null
-.\target\release\vox.exe corpus validate mens/data/validated.jsonl --no-recheck -o mens/data/validated.jsonl
-.\target\release\vox.exe corpus pairs mens/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/
+.\target\release\vox.exe mens corpus extract examples/ -o mens/data/validated.jsonl
+.\target\release\vox.exe mens corpus extract docs/ -o mens/data/validated.jsonl 2>$null
+.\target\release\vox.exe mens corpus validate mens/data/validated.jsonl --no-recheck -o mens/data/validated.jsonl
+.\target\release\vox.exe mens corpus pairs mens/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/
 # Rustdoc merge skipped: response is Rust prose, not Vox code
 ```
 
-### 3. Start local training (native Rust — GPU by default, no CUDA/Python)
+### 3. Start Mens fine-tuning (canonical — Candle QLoRA, native Rust)
 
 ```powershell
-# Uses wgpu (Vulkan/DX12/Metal); no CUDA or Python required
-.\target\release\vox.exe train --data-dir target/dogfood --output-dir mens/runs/v1
-# For CI or CPU-only:
+# Build with CUDA for RTX-class GPUs (see mens-training SSOT / AGENTS.md)
+# Then minimal path:
+.\target\release\vox.exe mens train --device cuda --data-dir target/dogfood --output-dir target/dogfood/run
+```
+
+**Legacy Burn scratch** (small `VoxTokenizer` model, wgpu — not HF QLoRA):
+
+```powershell
 $env:VOX_BACKEND="cpu"; .\target\release\vox.exe train --data-dir target/dogfood --output-dir mens/runs/v1
+# GPU: omit VOX_BACKEND=cpu when wgpu is available
 ```
 
 ### 4. Check eval gate
@@ -225,10 +230,11 @@ Use **`vox mens corpus mix`** with `mens/config/mix.yaml`, or merge JSONL with y
 
 | Mode | Command | When to use |
 |------|---------|-------------|
-| Native Mens (Burn) | `vox mens train …` (`--backend lora`; `--tokenizer vox` default or `--tokenizer hf` for GPT-2-shaped HF) | Burn LoRA + wgpu; Vox ChatML or HF tokenizer + optional embed warm-start |
-| Native Mens (Candle QLoRA) | `vox mens train --device cuda` (optional `--model <hf_repo>`; SSOT default when omitted) | Candle + **qlora-rs NF4** proxy stack + mmap `f32` embeds; CUDA/Metal optional |
-| Qwen3.5-4B (4080 16GB) | `cargo build -p vox-cli --release --features gpu,mens-candle-cuda` then `vox mens train --preset qwen_4080_16g --device cuda …` | Production-oriented QLoRA preset; on CUDA, full proxy stack defaults **on**; `--qlora-allow-partial-proxy-stack` to opt out |
-| Legacy `vox train` | `vox train …` (build `--features mens-dei`) | **`--provider local`** → bail + **`vox mens train --backend qlora`** copy-paste; Together remote; **`--native`** Burn scratch |
+| **Mens Candle QLoRA (primary)** | `vox mens train --device cuda` (defaults: `--backend qlora`, `--tokenizer hf`; optional `--model <hf_repo>`) | Native **qlora-rs** + HF weights; CUDA/Metal feature builds; see [mens-training.md](../reference/mens-training.md) |
+| Qwen3.5-4B (4080 16GB) | `cargo build -p vox-cli --release --features gpu,mens-candle-cuda` then `vox mens train --preset qwen_4080_16g --device cuda …` | Preset path; full proxy stack defaults on CUDA unless `--qlora-allow-partial-proxy-stack` |
+| Burn scratch LoRA | `vox train --data-dir …` / `VOX_BACKEND=cpu` … | **Not** `vox mens` QLoRA — small **VoxTokenizer** model + wgpu/CPU in `vox-tensor` |
+| **`vox mens train --backend lora`** | Rejected at runtime | Use **`--backend qlora`** for Mens dispatch (SSOT) |
+| Legacy `vox train` (mens-dei) | `vox train …` | **`--provider local`** → bail message → **`vox mens train --backend qlora`**; Together remote; **`--native`** Burn-only scratch |
 | CI strict | `VOX_EVAL_STRICT=1` | Fail promotion on eval gate failure |
 | CI benchmark | `VOX_BENCHMARK=1` | Run held-out benchmark before promotion |
 
@@ -238,6 +244,9 @@ Artifact layout: `target/dogfood/train.jsonl` (canonical input), `target/dogfood
 
 ## Next Steps
 
+- [ADR 003 — Native training over Python](../adr/003-native-training-over-python.md) — History vs current Candle QLoRA
+- [ADR 006 — Mens full-graph Candle QLoRA](../adr/006-mens-full-graph-qlora-qlora-rs.md)
+- [Mens native training SSOT](../reference/mens-training.md)
 - [Actors & Workflows](expl-actors-workflows.md) — Build durable constructs for the training pipeline
-- [CLI Reference](../reference/cli.md) — Implemented `vox` subcommands (`mens`, optional `train`)
+- [CLI Reference](../reference/cli.md) — `vox mens`, `vox train`
 - [Architecture Overview](expl-architecture.md) — How the compiler pipeline works

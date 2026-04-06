@@ -2,15 +2,15 @@
 title: "ADR 001 — Burn Backend Selection for vox-tensor"
 description: "Official documentation for ADR 001 — Burn Backend Selection for vox-tensor for the Vox language. Detailed technical reference, architectu"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
 # ADR 001 — Burn Backend Selection for vox-tensor
 
-**Status**: Accepted
-**Date**: 2026-03-02
-**Author**: Vox Core Team
+**Status**: Accepted (note 2026-04-06: Mens **QLoRA** on HF weights uses **Candle + qlora-rs** in `vox-populi`, not this Burn stack — see [ADR 003](003-native-training-over-python.md), [ADR 006](006-mens-full-graph-qlora-qlora-rs.md), [mens-training.md](../reference/mens-training.md))  
+**Date**: 2026-03-02  
+**Author**: Bert Brainerd
 
 ---
 
@@ -52,22 +52,24 @@ The `gpu` feature gates all Burn code, keeping `cargo check --workspace` fast (n
 
 **Negative:**
 - Burn 0.19 API breaks frequently between minor releases (must pin exact versions)
-- No pre-trained model loading yet (can't download Qwen2.5 weights into Burn)
+- The **Burn `VoxTransformer` scratch path** does not load full HF base weights the way the Candle QLoRA pipeline does (HF hub + safetensors for Mens is **`vox mens train --backend qlora`**, not Burn)
 - First cold build takes 10-15 min due to Wgpu and SPIR-V compilation
-- For large-model fine-tuning (QLoRA), we still fall back to Python/Unsloth
 
 **Mitigations:**
 - Pin `burn = "0.19"` everywhere; add `[workspace.dependencies]` entry
-- Use Python QLoRA path for large-model fine-tuning; native Burn for smaller architecture iterations
+- **Large-model QLoRA:** use native **Candle + qlora-rs** via **`vox mens train`** ([ADR 006](006-mens-full-graph-qlora-qlora-rs.md), [mens-training.md](../reference/mens-training.md)); use **Burn** for smaller scratch LoRA / legacy merge-weights + `vox mens serve` flows where still applicable
 - Move Wgpu to feature flag so CI check builds skip it
 
 ---
 
 ## Alternatives Considered
 
-### Candle
-- Pro: HuggingFace maintained, CUDA optimized
-- Con: Windows support poor, no Wgpu, requires CUDA at compile time
+### Candle (evaluation at the time of picking **Burn for vox-tensor**)
+
+We chose Burn for the **small scratch transformer + wgpu** loop in `vox-tensor`. Candle was not selected for that slice.
+
+- **Then:** Pro — Hugging Face–maintained, strong CUDA story; Con — we prioritized **wgpu** portability and kept Candle out of the initial `vox-tensor` trainer.
+- **Now:** Candle is the **Mens HF QLoRA** execution kernel (`vox-populi`, qlora-rs, optional **`mens-candle-cuda`** / **`mens-candle-metal`**). MSVC/CUDA build notes live in workspace build policy (`.cursor/rules`, `AGENTS.md`). This ADR’s “alternatives” section records the **original** decision, not the full 2026 Mens stack.
 
 ### PyTorch via tch-rs
 - Pro: Mature ecosystem, full model zoo access

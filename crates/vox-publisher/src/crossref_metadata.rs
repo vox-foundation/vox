@@ -122,14 +122,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn crossref_export_includes_title_and_mit_license_url() {
+    fn crossref_export_includes_title_and_apache_license_url() {
         let sci = crate::scientific_metadata::ScientificPublicationMetadata {
             authors: vec![crate::scientific_metadata::ScientificAuthor {
                 name: "A. Person".to_string(),
                 orcid: None,
                 affiliation: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -149,7 +149,18 @@ mod tests {
         let v = crossref_work_export_json(&m);
         assert_eq!(v["schema"], "vox.crossref_work_metadata.v1");
         assert_eq!(v["title"], "Paper");
-        assert_eq!(v["license"]["url"], "https://opensource.org/licenses/MIT");
+        assert_eq!(
+            v["license"]["url"],
+            "https://www.apache.org/licenses/LICENSE-2.0"
+        );
         assert_eq!(v["contributors"][0]["name"], "A. Person");
+    }
+
+    #[test]
+    fn spdx_license_url_still_maps_mit_for_external_metadata() {
+        assert_eq!(
+            spdx_license_url("MIT"),
+            Some("https://opensource.org/licenses/MIT")
+        );
     }
 }

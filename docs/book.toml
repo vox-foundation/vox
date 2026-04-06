@@ -2,7 +2,7 @@
 # Newer mdBook releases may break `mdbook-metadata` / preprocessor stdin compatibility — align locally before debugging build failures.
 [book]
 title = "Vox: The AI-Native Programming Language"
-authors = ["The Vox Core Team"]
+authors = ["Bert Brainerd"]
 description = "Official documentation for Vox, the AI-native full-stack programming language that compiles to Rust and TypeScript. Tutorials, API reference, architecture guides, and examples."
 src = "src"
 

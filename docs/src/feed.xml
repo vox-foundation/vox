@@ -5,8 +5,24 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Mon, 06 Apr 2026 17:36:40 GMT</lastBuildDate>
+  <lastBuildDate>Mon, 06 Apr 2026 18:10:56 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR 001 — Burn Backend Selection for vox-tensor</title>
+    <link>https://vox-lang.org/adr/001-burn-backend-selection.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/001-burn-backend-selection.html</guid>
+    <description>Official documentation for ADR 001 — Burn Backend Selection for vox-tensor for the Vox language. Detailed technical reference, architectu</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>ADR 003 — Native Rust Training Over Python</title>
+    <link>https://vox-lang.org/adr/003-native-training-over-python.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/003-native-training-over-python.html</guid>
+    <description>Historical move off Python/Unsloth; current Mens training is native Candle + qlora-rs QLoRA via vox mens train (see mens-training SSOT).</description>
+    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+  </item>
 
   <item>
     <title>Action</title>
@@ -149,22 +165,6 @@
     <link>https://vox-lang.org/api/example_actor.html</link>
     <guid isPermaLink="true">https://vox-lang.org/api/example_actor.html</guid>
     <description>Worked example: Vox actor with messages and state patterns for the internal API docs.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Example: agent.vox</title>
-    <link>https://vox-lang.org/api/example_agent.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/example_agent.html</guid>
-    <description>Worked example: agent-shaped Vox module for orchestration and tool wiring demos.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
-  </item>
-
-  <item>
-    <title>Example: Vox Chatbot Demo</title>
-    <link>https://vox-lang.org/api/example_chatbot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/example_chatbot.html</guid>
-    <description>Worked example: conversational UI and server integration for chatbot-style apps.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 

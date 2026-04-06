@@ -171,6 +171,9 @@
 - [Capability registry SSOT](architecture/capability-registry-ssot.md)
 - [SCIENTIA impact, readership, and citation-adjacent signals (research seed)](architecture/scientia-impact-readership-research-2026.md)
 - [Capability visualization views](architecture/capability-visualization-views.md)
+- [Clavis secrets, env vars, and API key strategy research 2026](architecture/clavis-secrets-env-research-2026.md)
+- [Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)](architecture/prompt-engineering-document-skills-scientia-research-2026.md)
+- [SCIENTIA publication-worthiness and SSOT unification (research 2026)](architecture/scientia-publication-worthiness-ssot-unification-research-2026.md)
 - [MCP exposure from the Vox language (SSOT)](architecture/mcp-vox-language-exposure.md)
 - [2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration](architecture/res_dynamic_agentic_planning_2026.md)
 - [AI IDE feature research findings 2026](architecture/ai-ide-feature-research-findings-2026.md)
@@ -278,6 +281,7 @@
 - [CLI baseline metrics](ci/cli-baseline-metrics.md)
 - [Command compliance SSOT](ci/command-compliance-ssot.md)
 - [Doc inventory SSOT](ci/doc-inventory-ssot.md)
+- [Documentation authority pointers](ci/documentation-pointers.md)
 
 # Operations
 
@@ -372,6 +376,7 @@
 - [Mens measurement gap analysis](reference/mens-measurement-gap-analysis.md)
 - [Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)](reference/mens-training.md)
 - [Mens strategy inputs checklist](reference/mens-strategy-inputs-checklist.md)
+- [Mens train defaults (generated)](reference/mens-train-defaults.generated.md)
 - [Mens training data (JSONL) contract](reference/mens-training-data-contract.md)
 - [Mesh / Populi SSOT (CPU-first)](reference/populi.md)
 - [Migration metrics (script → `vox ci`)](architecture/migration-script-dashboard.md)

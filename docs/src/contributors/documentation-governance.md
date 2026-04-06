@@ -4,7 +4,7 @@ description: "Authority map, taxonomy, status vocabulary, and maintenance rules 
 category: "contributor"
 status: "current"
 sort_order: 10
-last_updated: 2026-03-28
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
@@ -22,10 +22,10 @@ This page defines how Vox documentation is organized and how to keep it from dri
 | [`docs/src/how-to/troubleshooting-faq.md`](../how-to/troubleshooting-faq.md) | operators and contributors | operational fixes and environment troubleshooting | the main public FAQ |
 | [`AGENTS.md`](../../../AGENTS.md) | contributors and agents | required cross-tool contributor policy, secret-management entry point, short architecture pointers | the general table of contents for the whole repo or a tool-specific troubleshooting log |
 | `docs/src/reference/` | readers and contributors | lookup material, contracts mirrored in prose, stable operational references | speculative planning or marketing copy |
-| `docs/src/architecture/` | contributors | current architecture, SSOT notes, rationale, research, roadmaps | quick-start or beginner onboarding |
+| `docs/src/architecture/` | contributors | current architecture, authority maps, research, and roadmaps | quick-start or beginner onboarding |
 | `docs/src/contributors/` | contributors | contributor hub, documentation governance, contributor-facing process guidance | public product marketing |
 | [`docs/agents/`](../../agents/) | contributors and automation | inventories, governance, machine-oriented support docs | duplicated public documentation |
-| [`contracts/`](../../../contracts/) | code and CI | machine-readable SSOT | long-form human explanation |
+| [`contracts/`](../../../contracts/) | code and CI | machine-readable specs and schemas | long-form human explanation |
 
 ## Taxonomy
 
@@ -43,7 +43,7 @@ Use one of these `category` values in frontmatter:
 | `explanation` | conceptual understanding |
 | `reference` | stable lookup information |
 | `adr` | architecture decisions |
-| `architecture` | current architecture, SSOTs, research indexes, roadmaps |
+| `architecture` | current architecture, authority maps, research indexes, roadmaps |
 | `ci` | CI and quality-specific references |
 | `contributor` | contributor-facing governance and process docs |
 
@@ -64,16 +64,34 @@ Use `status` when the distinction matters to readers:
 
 Do not use `status` to make aspirational pages sound shipped.
 
+## Authority tiers (A-D)
+
+Use one authority tier per documentation domain. The canonical registry is
+[`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml).
+
+| Tier | Meaning | Typical location | CI expectation |
+| --- | --- | --- | --- |
+| `A-spec` | normative machine-readable contract | `contracts/`, schema-backed registries | contract validator must pass |
+| `B-canon` | one canonical human page for the domain | usually `docs/src/reference/` (or one ADR) | no second canon for same domain id |
+| `C-generated` | code-derived docs | `*.generated.md` and include fragments | generation verify command must pass |
+| `D-index` | navigation, index, compatibility stubs, research maps | `architecture`/`ci` pointers and index pages | must link to canon, not restate canonical behavior |
+
+Rules:
+
+- Do not label a page as "SSOT" unless it is the sole `B-canon` page for its domain id in the canonical map.
+- `D-index` pages should summarize links only. If behavior text duplicates a `B-canon` page, remove it.
+
 ## Placement guide
 
 When adding or moving a page:
 
 1. If the source of truth is machine-readable, put the contract in `contracts/` and link to it from `docs/src/reference/`.
-2. If the subject is a communication protocol or transport boundary, make the machine-readable artifact discoverable from `contracts/index.yaml` and mirror it from one canonical `docs/src/reference/` page.
-3. If the page teaches or explains the user-facing language, keep it in `docs/src/`.
-4. If the page is mainly for contributors or automation, prefer `docs/src/contributors/` or `docs/agents/`.
-5. If the page is research or planning, keep it under `docs/src/architecture/` and label it clearly with `status: research` or `status: roadmap`.
-6. If a page exists only as a compatibility stub, make it a short redirect and avoid duplicating the canonical content.
+2. Register the domain in [`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml) with `spec_paths`, one `canon_doc`, and any alias stubs.
+3. If the subject is a communication protocol or transport boundary, make the machine-readable artifact discoverable from `contracts/index.yaml` and mirror it from one canonical `docs/src/reference/` page.
+4. If the page teaches or explains the user-facing language, keep it in `docs/src/`.
+5. If the page is mainly for contributors or automation, prefer `docs/src/contributors/` or `docs/agents/`.
+6. If the page is research or planning, keep it under `docs/src/architecture/` and label it clearly with `status: research` or `status: roadmap`.
+7. If a page exists only as a compatibility stub, make it a short redirect and avoid duplicating the canonical content.
 
 ## Claim policy
 
@@ -89,7 +107,7 @@ Avoid:
 
 - "Vox already does everything in this section automatically" unless the code path is current and documented.
 - "Mens answers architecture questions" unless that retrieval or QA path is explicitly wired and tested.
-- "SSOT" in titles when the page is only a convenience summary or index.
+- "SSOT" in titles when the page is only a convenience summary, pointer, or index.
 
 ## Maintenance protocol
 
@@ -97,6 +115,7 @@ Use this lightweight review matrix for high-drift surfaces:
 
 | If you change | Also review |
 | --- | --- |
+| authority ownership, stubs, or canonical pathing | [`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml), `vox ci check-docs-ssot`, and affected alias pages |
 | `crates/vox-cli/src/**` command surface | [`docs/src/reference/cli.md`](../reference/cli.md), command-compliance docs, contributor references that mention the command |
 | secret or env handling | [`AGENTS.md`](../../../AGENTS.md), [Clavis SSOT](../reference/clavis-ssot.md) |
 | agent instruction layering or shell-discipline policy | [`AGENTS.md`](../../../AGENTS.md), [Agent instruction architecture](agent-instruction-architecture.md), and relevant tool-specific overlays such as `GEMINI.md` |
@@ -106,7 +125,7 @@ Use this lightweight review matrix for high-drift surfaces:
 | communication protocols, transport routes, or streaming semantics | [`contracts/communication/protocol-catalog.yaml`](../../../contracts/communication/protocol-catalog.yaml), [Communication protocols reference](../reference/communication-protocols.md), and the owning protocol page such as MCP / Populi / runtime docs |
 | Mens training or corpus behavior | [Mens native training SSOT](../reference/mens-training.md), [Mens training data contract](../reference/mens-training-data-contract.md) |
 | Codex `research_metrics`, mesh/cost telemetry env knobs, or telemetry trust boundaries | [Telemetry and research_metrics contract](../reference/telemetry-metric-contract.md), [env-vars](../reference/env-vars.md), [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md) |
-| **`vox-vscode/`** (extension host, webview UI, Oratio/MCP wiring) | [`vox-vscode/README.md`](../../../vox-vscode/README.md), [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md); speech capture / Oratio pages when capture or tool surfaces change |
+| **`vox-vscode/`** (extension host, webview UI, Oratio/MCP wiring) | [`vox-vscode/README.md`](../../../vox-vscode/README.md), [VS Code to MCP compatibility](../reference/vscode-mcp-compat.md); speech capture / Oratio pages when capture or tool surfaces change |
 
 ## Review cadence
 
@@ -124,10 +143,10 @@ Use this lightweight review matrix for high-drift surfaces:
 
 ## Documentation Update Checklist
 
-Before committing documentation to the repository, you must verify the following constraints:
+Before committing documentation to the repository, verify the following constraints:
 
-1. **Syntax Correctness**: Code snippets must parse cleanly under v0.3 validation. Confirm syntax matches the xamples/golden/ ground truths.
-2. **Status Marker**: Every page's frontmatter must specify its status (current, partial, spirational, deprecated, or contributor-only). 
-3. **Preamble Warnings**: Any aspirational syntax must be prefixed with > [!WARNING] blocks explicitly noting execution caveats.
-4. **Terminology**: Use established nomenclature (Codex vs. Arca, Mens vs. Populi, Islands vs. Components). See the Glossary.
-5. **Navigational Integrity**: If creating a new user-facing document, verify SUMMARY.md is updated and matches the intended Diátaxis domain path.
+1. **Syntax correctness**: Code snippets must parse cleanly under current validation. Prefer `{{#include}}` from `examples/golden/` where policy requires it.
+2. **Authority registration**: New canonical pages must be reflected in `contracts/documentation/canonical-map.v1.yaml`; aliases must remain link-only.
+3. **Status marker**: Use `status` only when needed (`current`, `experimental`, `legacy`, `research`, `roadmap`, `deprecated`).
+4. **Terminology**: Use established nomenclature (Codex vs Arca, Mens vs Populi, Islands vs Components).
+5. **Navigation integrity**: If creating a user-facing document, verify `SUMMARY.md` is updated and passes `vox-doc-pipeline --check`.

@@ -1,11 +1,16 @@
 ---
 title: "Doc inventory SSOT"
-description: "CI-side stub linking to reference/doc-inventory.md for vox ci doc-inventory tooling and the doc-inventory.json contract; satisfies SSOT path lists while the reference page holds behavior details."
+description: "Legacy filename. Canonical pointer hub is docs/src/ci/documentation-pointers.md; doc inventory behavior lives in reference/doc-inventory.md."
 category: "ci"
+status: "legacy"
+last_updated: 2026-04-06
 ---
 
 # Doc inventory SSOT
 
-Doc inventory tooling and `doc-inventory.json` contract are described in **[`reference/doc-inventory.md`](../reference/doc-inventory.md)** (`vox ci doc-inventory …`).
+Legacy path retained for stable links.
 
-This `docs/src/ci/` stub satisfies SSOT path lists; update the reference page when behavior changes.
+Use:
+
+- **Authority pointers:** [`documentation-pointers.md`](documentation-pointers.md)
+- **Canonical behavior:** [`reference/doc-inventory.md`](../reference/doc-inventory.md)

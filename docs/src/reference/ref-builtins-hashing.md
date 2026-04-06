@@ -147,6 +147,8 @@ let ts: u64 = vox_now_ms();          // milliseconds since UNIX epoch
 
 ### Crate Dependencies
 
+The **Vox language and workspace crates** are **Apache-2.0**. The SPDX identifiers below describe **bundled third-party Rust crates** used by `vox-runtime`, not the license of Vox itself.
+
 | Crate | Version | License |
 |---|---|---|
 | `xxhash-rust` | `0.8` (`xxh3` feature) | MIT |

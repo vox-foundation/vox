@@ -4,7 +4,7 @@ description: "Guide to the research, findings, and roadmap-heavy documentation i
 category: "architecture"
 status: "research"
 sort_order: 5
-last_updated: 2026-04-02
+last_updated: 2026-04-06
 training_eligible: true
 ---
 
@@ -40,6 +40,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 ### Language and architecture direction
 
 - [AI IDE feature research findings 2026](ai-ide-feature-research-findings-2026.md)
+- [Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)](prompt-engineering-document-skills-scientia-research-2026.md)
 - [Terminal execution policy research findings 2026](terminal-exec-policy-research-findings-2026.md) — PowerShell-first shells, IDE allow/deny limits, future unified contract
 - [Telemetry unification research findings 2026](telemetry-unification-research-findings-2026.md)
 - [Telemetry implementation blueprint 2026](telemetry-implementation-blueprint-2026.md) — roadmap implementation plan
@@ -55,6 +56,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 
 - Finding-candidate and novelty-evidence v1 JSON Schemas live under `contracts/scientia/` (`finding-candidate.v1.schema.json`, `novelty-evidence-bundle.v1.schema.json`); example fixtures under `contracts/reports/scientia-*.example.v1.json`. CI: `vox ci scientia-novelty-ledger-contracts` (also nested in `vox ci ssot-drift`). CLI spot-check: `vox scientia finding-candidate-validate`, `vox scientia novelty-evidence-bundle-validate`.
 - **Impact / readership / citation-adjacent signals (research seed):** [scientia-impact-readership-research-2026.md](scientia-impact-readership-research-2026.md) and tunable weights in [`contracts/scientia/impact-readership-projection.seed.v1.yaml`](../../../contracts/scientia/impact-readership-projection.seed.v1.yaml) (orthogonal to novelty; no default publish gate).
+- **Publication-worthiness + SSOT unification research plan:** [scientia-publication-worthiness-ssot-unification-research-2026.md](scientia-publication-worthiness-ssot-unification-research-2026.md) (standards-to-signals matrix, canonical metadata graph proposal, detection calibration protocol, Codex research snapshot persistence blueprint, automation boundary ledger).
 
 ## Labeling rule
 

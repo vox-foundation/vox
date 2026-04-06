@@ -17,6 +17,8 @@ vox mens train --device cuda
 
 `--backend qlora` and `--tokenizer hf` are already the CLI defaults. When `--model` is omitted on the Candle QLoRA path, the base model defaults to the SSOT id `Qwen/Qwen3.5-4B` (`vox_populi::mens::DEFAULT_MODEL_ID`, mirrored in `contracts/mens/training-presets.v1.yaml` as `default_base_model`). Add `--output-dir <dir>` to place run artifacts. On CUDA, the full QLoRA proxy stack is required by default; use `--qlora-allow-partial-proxy-stack` only when you accept partial-stack semantics. For multi-model fine-tuning, pass an explicit `--model <hf/repo>`.
 
+Generated defaults snapshot: [Mens train defaults (generated)](mens-train-defaults.generated.md).
+
 > **Code SSOT:** `vox mens train` dispatches through `vox_populi::mens::tensor::run_mens_training` ([`lora_train.rs`](../../../crates/vox-populi/src/mens/tensor/lora_train.rs)). **`PopuliTrainBackend::BurnLora` is rejected at runtime** with an explicit error; the **supported** native trainer is **`CandleQlora`** (`--backend qlora`, `--tokenizer hf` for HF-shaped models). Docs below still describe Burn for **merge-weights / `vox mens serve`** and historical parity—treat **Burn training** as legacy/optional tooling, not an active `schola train` backend.
 
 ## Truth tables (train → merge → serve)

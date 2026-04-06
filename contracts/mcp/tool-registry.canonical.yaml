@@ -47,10 +47,6 @@ tools:
   description: Returns current agent state, activity, mood, queue depth.
   product_lane: ai
   http_read_role_eligible: false
-- name: vox_attention_summary
-  description: Returns a summary of agent attention allocation and focus shifts over a time window.
-  product_lane: ai
-  http_read_role_eligible: true
 - name: vox_answer_question
   description: Answer a pending question from another agent.
   product_lane: ai
@@ -63,6 +59,10 @@ tools:
   description: Ask another agent a question.
   product_lane: ai
   http_read_role_eligible: false
+- name: vox_attention_summary
+  description: Returns a summary of agent attention allocation and focus shifts over a time window.
+  product_lane: ai
+  http_read_role_eligible: true
 - name: vox_behavior_record
   description: Record a user behavior event and receive pattern suggestions.
   product_lane: ai
@@ -283,16 +283,16 @@ tools:
   description: Aggregate trust_rollups by dimension, domain, entity_type, or combined keys (mean/min/max score, counts, sample mass).
   product_lane: data
   http_read_role_eligible: false
-- name: vox_emergency_stop
-  description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
-  product_lane: ai
-  http_read_role_eligible: false
 - name: vox_decorator_registry
   description: Return detailed metadata for all @decorators in the Vox language.
   product_lane: app
   http_read_role_eligible: false
 - name: vox_drain_agent
   description: Remove all queued tasks from an agent without retiring it.
+  product_lane: ai
+  http_read_role_eligible: false
+- name: vox_emergency_stop
+  description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
   product_lane: ai
   http_read_role_eligible: false
 - name: vox_fail_task

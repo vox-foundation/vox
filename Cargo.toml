@@ -6,8 +6,8 @@ default-members = ["crates/vox-cli"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-license = "MIT OR Apache-2.0"
-authors = ["Vox Contributors"]
+license = "Apache-2.0"
+authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
 rust-version = "1.92"
 keywords = ["vox", "language", "compilers"]
