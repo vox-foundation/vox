@@ -87,6 +87,8 @@ impl LowerCtx {
             loadings: Vec::new(),
             not_founds: Vec::new(),
             reactive_components: Vec::new(),
+            agents: Vec::new(),
+            environments: Vec::new(),
             legacy_ast_nodes: Vec::new(),
             lowering_migration: crate::hir::HirLoweringMigrationFlags::default(),
         };
@@ -291,6 +293,12 @@ impl LowerCtx {
                     hir.lowering_migration.used_reactive_component_path = true;
                     hir.reactive_components
                         .push(self.lower_reactive_component(decl));
+                }
+                Decl::Agent(a) => {
+                    hir.agents.push(self.lower_agent(a));
+                }
+                Decl::Environment(e) => {
+                    hir.environments.push(self.lower_environment(e));
                 }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());

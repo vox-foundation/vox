@@ -21,25 +21,9 @@ Traditional async functions lose their state if the server restarts or a network
 
 Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
 
-```vox
-# Skip-Test: interpreter-only
-activity charge_payment(amount: int, token: str) to Result[str] {
-    ret Ok("tx-" + token)
-}
+Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
 
-workflow process_order(customer: str, amount: int) to Result[str] {
-    let payment = charge_payment(amount, "tok-abc")
-        with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
-        
-    match payment {
-        Ok(tx)    -> {
-            print("Order for " + customer + " fulfilled { " + tx)
-            ret Ok(tx)
-        }
-        Error(e)  -> ret Error(e)
-    }
-}
-```
+{{#include ../../examples/golden/getting_started.vox:logic}}
 
 The `with` block provides execution options for the activity:
 - `retries`: Number of attempts before failing the workflow step

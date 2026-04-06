@@ -1,5 +1,5 @@
 use crate::hir::{
-    HirActivity, HirActor, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
+    HirActivity, HirActor, HirAgent, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
 };
 use crate::rust_interop_support::{
     RustInteropSemanticsState, RustInteropSupportClass, classify_rust_crate,
@@ -7,7 +7,7 @@ use crate::rust_interop_support::{
 };
 use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::{
-    ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
+    ActorHandlerSig, AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
 };
 use crate::typeck::ty::Ty;
 use std::collections::HashMap;
@@ -208,6 +208,9 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnos
     }
     for t in &module.tables {
         register_hir_table(env, t);
+    }
+    for a in &module.agents {
+        register_hir_agent(env, a);
     }
     diags
 }
@@ -441,7 +444,6 @@ pub fn register_hir_activity(env: &mut TypeEnv, a: &HirActivity) {
         ),
     );
 }
-
 pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
     let fields: Vec<(String, Ty)> = t
         .fields
@@ -457,4 +459,31 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
             is_deprecated: t.is_deprecated,
         },
     );
+}
+
+pub fn register_hir_agent(env: &mut TypeEnv, a: &HirAgent) {
+    let handlers: Vec<AgentHandlerSig> = a
+        .handlers
+        .iter()
+        .map(|h| AgentHandlerSig {
+            event_name: h.event_name.clone(),
+            params: h
+                .params
+                .iter()
+                .map(|p| {
+                    (
+                        p.name.clone(),
+                        p.type_ann
+                            .as_ref()
+                            .map_or(Ty::TypeVar(0), |t| resolve_hir_type(t, env)),
+                    )
+                })
+                .collect(),
+            return_type: h
+                .return_type
+                .as_ref()
+                .map_or(Ty::Unit, |t| resolve_hir_type(t, env)),
+        })
+        .collect();
+    env.register_agent(a.name.clone(), handlers);
 }

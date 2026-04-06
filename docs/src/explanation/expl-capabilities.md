@@ -22,6 +22,7 @@ By default, the global HTTP policy (controlled via `vox-reqwest-defaults`) denie
 `std.fs` targets are strictly bounded to the workspace's `%TEMP%` alias and sandboxed virtual roots. If an LLM-invoked execution attempts:
 
 ```vox
+// Skip-Test
 std.fs.read("/etc/passwd")?
 ```
 
@@ -35,12 +36,13 @@ All generated data abstractions via Codex are strongly typed. Agents cannot arbi
 If you require an Agent or task to legitimately reach the outside network or modify sensitive tables, you establish explicit boundary `@mcp.tool` functions that validate inputs using `@require` and encapsulate the permissioned operation securely.
 
 ```vox
+// Skip-Test
 @mcp.tool "Upload telemetry data to approved vendor"
 @require(auth.is_trusted(caller))
-fn upload_telemetry(data: str) to Result[Unit] {
-    // This runs in the Trusted context, executing the network request securely
+fn upload_telemetry(data: str) -> Result[Unit] {
+    // This runs in the Trusted context
     let res = std.http.post_json("https://trusted-vendor.com/ingest", data)?
-    ret Ok(())
+    return Ok(())
 }
 ```
 

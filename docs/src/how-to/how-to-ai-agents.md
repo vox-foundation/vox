@@ -14,15 +14,7 @@ Vox is an AI-native language, meaning it bridges the gap between high-level busi
 
 Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator. 
 
-```vox
-@mcp.tool "Search for user documentation by topic"
-@query fn search_docs(query: str) to list[str] {
-    # The compiler automatically derives the JSON schema for 'query'
-    # and registers it as an MCP tool named 'search_docs'.
-    let results = db.query("SELECT content FROM Docs WHERE content LIKE ?", ["%" + query + "%"])
-    ret results
-}
-```
+{{#include ../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 
 ### Why this beats Python/TypeScript:
 - **Type Safety**: If your function returns a `Result[T, E]`, Vox handles the MCP error response mapping for you.
@@ -35,16 +27,10 @@ Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator.
 
 Agents in Vox are not just prompts; they are scoped types that bundle specific tools and instructions. Use the `@agent` decorator to define an agent's identity.
 
-```vox
-# Skip-Test
-> [!WARNING]
-> The `@agent` type decorator remains aspirational in the current syntax parser.
-@agent type Documenter {
-    instructions: "You are a technical writer specializing in Vox architecture. Always use the search_docs tool before answering architectural questions."
-    tools: [search_docs, vox_ast_reference]
-    model: "claude-3-5-sonnet-20241022" # Optional: pin a specific model
-}
-```
+> [!NOTE]
+> The `agent` declaration is now a first-class HIR element in Vox v0.3, enabling static validation of toolsets and instructions.
+
+{{#include ../../examples/golden/ref_agents.vox:basic_agent}}
 
 ### Agent Handoffs
 Agents can call other agents if you grant them the tool to do so. In Vox, an agent's `tools` list can include other agent identifiers.
@@ -80,11 +66,12 @@ curl -X POST http://localhost:8080/api/tools/search_docs -d '{"query": "actors"}
 By default, an `@mcp.tool` has the same permissions as your compiled Vox binary. Use the `@require` decorator to add runtime guardrails:
 
 ```vox
+// Skip-Test
 @mcp.tool "Delete user data"
 @require(auth.is_admin(caller))
-@mutation fn delete_data(id: int) to Result[Unit] {
+@mutation fn delete_data(id: int) -> Result[Unit] {
     db.delete(id)
-    ret Ok(())
+    return Ok(())
 }
 ```
 
@@ -93,6 +80,6 @@ If the precondition fails, the MCP tool returns a "Tool execution failed" error 
 ---
 
 **Related Reference**:
-- [MCP Protocol SSOT](../architecture/mcp-vox-language-exposure.md)
-- [Agentic Loop Blueprint](../architecture/vox_agentic_loop_and_mens_plan.md)
-- [CLI Reference: vox mcp](../reference/ref-cli.md#mcp)
+- [MCP Protocol SSOT](../reference/clavis-ssot.md)
+- [Agentic Loop Blueprint](../explanation/why-vox-for-ai.md)
+- [CLI Reference: vox mcp](../reference/cli.md)

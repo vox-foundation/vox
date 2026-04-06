@@ -12,16 +12,16 @@ training_eligible: true
 ### Actor
 A stateful, autonomous unit of computation that communicates via asynchronous messages. In Vox, actors can persist state across restarts using `state_load` and `state_save`.
 ```vox
-# Skip-Test: example form
+// Skip-Test
 actor Counter {
-    on inc(amount: int) to int { ret 1 }
+    on inc(amount: int) -> int { return 1 }
 }
 ```
 
 ### ADT (Algebraic Data Type)
 A composite type formed by combining other types. In Vox, this primarily refers to **Structs** (product types) and **Enums** (sum types/tagged unions).
 ```vox
-# Skip-Test: example form
+// Skip-Test
 type Status = | Pending | Active(user: str)
 ```
 
@@ -46,16 +46,16 @@ The semantic representation of Vox source code used for type checking and initia
 ### Island
 A reactive UI component (compiled to React) that can be embedded in a server-rendered page. Defined using the `@island` decorator.
 ```vox
-# Skip-Test: example form
-@island fn UserProfile(user: str) to Element { <div>{user}</div> }
+// Skip-Test
+@island fn UserProfile(user: str) -> Element { <div>{user}</div> }
 ```
 
 ### MCP (Model Context Protocol)
 An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via `@mcp.tool`.
 ```vox
-# Skip-Test: example form
+// Skip-Test
 @mcp.tool "Search KB"
-fn search_kb(topic: str) to str { ret "ok" }
+fn search_kb(topic: str) -> str { return "ok" }
 ```
 
 ### Mens
@@ -78,6 +78,6 @@ The empty type, equivalent to `void` in C/TS or `()` in Rust.
 ### Workflow
 A durable, long-running process defined with the bare `workflow` keyword, supporting orchestrated activities, retries, timeouts, and state persistence.
 ```vox
-# Skip-Test: example form
-workflow onboard(user: str) to Result[bool] { ret Ok(true) }
+// Skip-Test
+workflow onboard(user: str) -> Result[bool] { return Ok(true) }
 ```

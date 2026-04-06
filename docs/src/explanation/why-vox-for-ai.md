@@ -23,7 +23,10 @@ Vox is designed so that the **compiler** acts as the guardrail for the LLM.
 
 ### @table: The Database is the Source of Truth
 In Vox, you don't write SQL strings or use a loose ORM. You define your schema with `@table`.
+{{#include ../../examples/golden/ref_types.vox:scalar}}
+
 ```vox
+// Skip-Test
 @table type User {
     email: str
     points: int
@@ -33,15 +36,10 @@ If an LLM attempts to generate code that accesses `user.score` instead of `user.
 
 ### Zero-Null Discipline
 LLMs frequently forget to check for `null`. In Vox, `null` does not exist. You must handle `Option[T]` using `match`.
-```vox
-match db.User.find(1) {
-    Some(u) -> u.email
-    None    -> "Guest"
-}
-```
+{{#include ../../examples/golden/ref_types.vox:matching}}
 If the LLM omits the `None` case, the compiler rejects the code for a **non-exhaustive match**. The model is forced to be correct.
 
-## 3. Results { 40% Fewer Hallucinations
+## 3. Results: 40% Fewer Hallucinations
 By constraining the LLM's output to a strictly-typed, compiler-verified grammar, self-reported telemetry from early fine-tuning experiments indicates:
 - **~40% reduction** in hallucinated field names compared to unconstrained Python.
 - **3x faster** recovery from generation errors (compiler diagnostics are higher signal than stack traces).
@@ -51,5 +49,5 @@ By constraining the LLM's output to a strictly-typed, compiler-verified grammar,
 
 **Next Steps**:
 - [Language Reference](../reference/ref-syntax.md)
-- [How-To: Build AI Agents](./how-to-ai-agents.md)
+- [How-To: Build AI Agents](../how-to/how-to-ai-agents.md)
 - [Installation](../reference/ref-installation.md)

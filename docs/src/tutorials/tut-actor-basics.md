@@ -14,49 +14,27 @@ In Vox, **Actors** are the primary unit of stateful concurrency. Unlike standard
 
 An actor is defined with the `actor` keyword. Its internal state is private and only accessible via message handlers.
 
-```vox
-actor GlobalCounter {
-    # Message handler: increment
-    on increment(amount: int) to int {
-        # Load state from the durable 'Codex' store
-        let current = state_load("counter_val")
-        let next = current + amount
-        
-        # Save state back to disk
-        state_save("counter_val", next)
-        
-        ret next
-    }
-
-    # Message handler: get current value
-    on get() to int {
-        ret state_load("counter_val")
-    }
-}
-```
+{{#include ../../examples/golden/ref_actors.vox:basic_actor}}
 
 ## 2. Spawning and Identity
 
 To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
-> [!WARNING]
-> This feature is partially implemented. The syntax below is accepted by the parser
-> but runtime behavior may differ from what is described. The `!` async send operator and `await` forms are aspirational.
+To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
 ```vox
-# Skip-Test: interpreter-only
-@server fn demo_actors() to int {
-    # Spawn a new instance
+// Skip-Test
+@server fn demo_actors() -> int {
+    // Spawn a new instance
     let ref = spawn GlobalCounter()
     
-    # Send an asynchronous message (fire-and-forget)
-    # The '!' operator is shorthand for an async message send
-    ref ! increment(5)
+    // Send an asynchronous message
+    ref.send increment(5)
     
-    # Await a response from a handler
+    // Await a response from a handler
     let val = await ref.get()
     
-    ret val
+    return val
 }
 ```
 
@@ -73,11 +51,8 @@ Vox actors are not just in-memory. By using `state_load` and `state_save`, you t
 
 Actors can talk to each other. Because each actor has its own mailbox, they process messages **sequentially** but run in **parallel** with other actors.
 
-> [!WARNING]
-> Spawning actors directly as inline field expressions is aspirational and acts as an exploration path.
-
 ```vox
-# Skip-Test: interpreter-only
+// Skip-Test
 actor Logger {
     on log(msg: str) {
         print("[LOG]: " + msg)
@@ -88,8 +63,8 @@ actor Worker {
     let logger = spawn Logger()
 
     on do_work() {
-        # Delegate logging to another actor
-        logger ! log("Starting work...")
+        // Delegate logging to another actor
+        logger.send log("Starting work...")
     }
 }
 ```
@@ -99,7 +74,7 @@ actor Worker {
 - [x] **Isolation**: State is never shared; only messages pass between actors.
 - [x] **Persistence**: Use `state_load`/`state_save` for durable state.
 - [x] **Concurrency**: Use `spawn` to create independent units of work.
-- [x] **Non-blocking**: Use `!` for asynchronous notification.
+- [x] **Non-blocking**: Use `send` for asynchronous notification.
 - [x] **Request-Response**: Use `await ref.handler()` for synchronous calls.
 
 ---

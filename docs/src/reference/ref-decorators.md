@@ -20,27 +20,29 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 ### `@query`
 - **Goal**: Read-only database operation.
 - **Effect**: Optimized for concurrent reads; cannot perform mutations.
-- **Usage**: `@query fn get_data() to List[Item] { ... }`
+- **Usage**: `@query fn get_data() -> List[Item] { ... }`
 
 ### `@mutation`
 - **Goal**: Write database operation.
 - **Effect**: Wraps execution in a database transaction.
-- **Usage**: `@mutation fn save_data() to bool { ... }`
+- **Usage**: `@mutation fn save_data() -> bool { ... }`
 
 ### `@scheduled`
 - **Goal**: Run a background task periodically.
 - **Effect**: Compiles to a Tokio timer loop or cron job scheduling block.
 - **Usage**:
-  ```vox
-  # Skip-Test: interpreter-only
-  @scheduled("0 * * * *")
-  fn hourly_task() { ... }
-  ```
+```vox
+// Skip-Test
+@scheduled("0 * * * *")
+fn hourly_task() { 
+    // Logic here
+}
+```
 
 ### `@pure`
 - **Goal**: Designates a function as side-effect free.
 - **Effect**: Allows the compiler to aggressively optimize and caching the output.
-- **Usage**: `@pure fn compute_hash(data: str) to str { ... }`
+- **Usage**: `@pure fn compute_hash(data: str) -> str { ... }`
 
 ### `@deprecated`
 - **Goal**: Marks a function or type as pending removal.
@@ -53,12 +55,12 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Goal**: Defines a persistent database table.
 - **Effect**: Generates Rust migrations and typed query interfaces.
 - **Usage**:
-  ```vox
-  # Skip-Test: ui-only
-  @table type MyRecord {
-      id: str
-  }
-  ```
+```vox
+// Skip-Test
+@table type MyRecord {
+    id: str
+}
+```
 
 ### `@index`
 - **Goal**: Creates a database index.
@@ -69,13 +71,13 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Goal**: Adds runtime validation guards.
 - **Effect**: Injects validation checks before assignment/constructor.
 - **Usage**:
-  ```vox
-  # Skip-Test: ui-only
-  @require(len(self.pwd) > 8)
-  type User {
-      pwd: str
-  }
-  ```
+```vox
+// Skip-Test
+@require(len(self.pwd) > 8)
+type User {
+    pwd: str
+}
+```
 
 ## UI & Frontend
 
@@ -84,32 +86,27 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Effect**: Parser emits `HirIsland`. Writes `vox-islands-meta.ts`. Mounts onto the client.
 - **Usage**:
   ```vox
-  # Skip-Test: ui-only
+  // Skip-Test
   @island
-  fn Counter(initial: Option[int]) to Element { ... }
+  fn Counter(initial: Option[int]) -> Element { ... }
   ```
-
-### `@island`
-
-> [!CAUTION]
-> `@island` was removed in v0.3 and causes a hard parser error. Migrate to `@island`.
 
 ### `@loading`
 - **Goal**: Suspense / transition UI for TanStack Router while a lazy route or data boundary resolves.
 - **Effect**: Emits `{Name}.tsx`. When `routes { }` produces the router shim, this becomes the `pendingComponent`.
 - **Usage**:
-  ```vox
-  # Skip-Test: ui-only
-  @loading
-  fn Spinner() to Element { 
-      <div class="spinner">"…"</div>
-  }
-  ```
+```vox
+// Skip-Test
+@loading
+fn Spinner() -> Element { 
+    <div class="spinner">"…"</div>
+}
+```
 
 ### `@v0`
 - **Goal**: AI-generated React component via v0.dev.
 - **Effect**: Stubs `.tsx` implementation from prompt.
-- **Usage**: `@v0 "prompt" fn Dashboard() to Element { }`
+- **Usage**: `@v0 "prompt" fn Dashboard() -> Element { }`
 
 ## Testing & Tooling
 
@@ -127,25 +124,22 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 > This feature is partially implemented (aspirational). Use standard helper functions for fixtures instead.
 
 ### `@agent`
-> [!WARNING]
-> This feature is partially implemented (aspirational). Use standard `@mcp.tool` for AI agent configurations.
+- **Goal**: Defines a native AI agent identity.
+- **Effect**: Validates handler signatures and tool requirements in the HIR.
+- **Usage**:
+  ```vox
+  // Skip-Test
+  agent Assistant { on greet() { ... } }
+  ```
 
 ### `@mcp.tool`
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
-- **Usage**:
-  ```vox
-  # Skip-Test: ui-only
-  @mcp.tool "Perform a calculation"
-  fn calc() { ... }
-  ```
+
+{{#include ../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 
 ### `@mcp.resource`
 - **Goal**: Exposes dynamic readable content to MCP.
-- **Effect**: Registers a resource URI endpoint.
-- **Usage**:
-  ```vox
-  # Skip-Test: ui-only
-  @mcp.resource("vox://status", "Get server status")
-  fn get_status() to str { ret "ok" }
-  ```
+- **Effect**: Registers a resource URI endpoint via `getResources`.
+
+{{#include ../../examples/golden/ref_orchestrator.vox:mcp_resource}}

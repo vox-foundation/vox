@@ -22,40 +22,33 @@ You write a single function that looks like linear, synchronous code. Behind the
 ## Core Snippet: Surviving a Server Crash
 
 ```vox
-// Activities are wrapped by the workflow runtime. If they succeed, their
-// results are persisted. If the workflow dies and restarts, these results
-// are injected back without actually executing the activity again.
-activity charge_payment(amount: int, token: str) to Result[str] {
+// Skip-Test
+// Activities are wrapped by the workflow runtime. 
+activity charge_payment(amount: int, token: str) -> Result[str] {
     let result = std.http.post_json("https://api.stripe.com/v1/charges", {
         amount: amount,
         source: token
     })
-    ret Ok(result.json().id)
+    return Ok(result.json().id)
 }
 
-activity send_email(user: str, message: str) to Result[Unit] {
+activity send_email(user: str, message: str) -> Result[Unit] {
     std.http.post_json("https://api.sendgrid.com/v3/mail/send", {
         to: user,
         text: message
     })
-    ret Ok(())
+    return Ok(())
 }
 
-workflow process_order(customer: str, amount: int, card_tok: str) to Result[str] {
+workflow process_order(customer: str, amount: int, card_tok: str) -> Result[str] {
     // 1. Charge via retryable activity. 
-    //    If this succeeds, the workflow journal marks it permanent.
     let payment_id = charge_payment(amount, card_tok)
         with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
 
-    // -> [SIMULATED CRASH HAPPENS HERE] <-
-    // On restart, the orchestrator jumps past charge_payment, pulls 
-    // payment_id from the journal, and continues executing right here.
-
     // 2. Send email
-    // Assuming payment_id is unwrapped successfully in real code
     let _ = send_email(customer, "Receipt for " + payment_id)
 
-    ret Ok(payment_id)
+    return Ok(payment_id)
 }
 ```
 

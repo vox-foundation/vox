@@ -15,7 +15,7 @@ Learn how to use Vox's expressive type system to model your application's domain
 Vox supports powerful ADTs (sum types) for representing state that can be one of several variants.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 type OrderStatus =
     | Pending
     | Processing(staff_id: str)
@@ -28,9 +28,9 @@ type OrderStatus =
 Use the `match` expression to handle ADT variants with full type safety.
 
 ```vox
-# Skip-Test: ui-only
-fn describe_status(status: OrderStatus) to str {
-    ret match status {
+// Skip-Test
+fn describe_status(status: OrderStatus) -> str {
+    return match status {
         Pending         -> "Waiting for staff"
         Processing(id)  -> "Being handled by " + id
         Shipped(track)  -> "In transit { " + track
@@ -44,7 +44,7 @@ fn describe_status(status: OrderStatus) to str {
 Group related data into named structs.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 type Address {
     street: str
     city:   str
@@ -63,7 +63,7 @@ type Customer {
 Add runtime guards to your data types using the `@require` decorator.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 @require(len(self.password) > 8)
 type UserAccount {
     username: str

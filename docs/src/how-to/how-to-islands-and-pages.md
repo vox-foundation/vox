@@ -23,10 +23,11 @@ Vox relies on a server-first web architecture. Rather than building massive clie
 Let's stick with the `Task` domain. Suppose you want a UI component to render a list of tasks.
 
 ```vox
+// Skip-Test
 import react.use_state
 
 @island
-fn TaskList(tasks: List[Task]) to Element {
+fn TaskList(tasks: list[Task]) -> Element {
     let (items, set_items) = use_state(tasks)
 
     <div class="task-list">
@@ -52,13 +53,14 @@ Within an `@island` body, the compiler supports standard JSX syntax.
 The power of Vox is that your frontend and backend are co-located in the same file. You can call an `@server` function directly from a client-side button click without writing manual `fetch()` bindings!
 
 ```tsx
-@server fn complete_task(id: Id[Task]) to Result[Unit] {
+// Skip-Test
+@server fn complete_task(id: Id[Task]) -> Result[Unit] {
     db.Task.update(id, { done: true })
-    ret Ok(())
+    return Ok(())
 }
 
 @island
-fn TaskRow(task: Task) to Element {
+fn TaskRow(task: Task) -> Element {
     <div class="task-row">
         <input 
             type="checkbox" 
@@ -77,15 +79,16 @@ The Vox compiler automatically generates the TypeScript client, handles the asyn
 To get your database state into the `TaskList`, you map an endpoint directly to the UI component via the `routes` block. The system will automatically resolve queries to fulfill the `tasks` prop of `TaskList`.
 
 ```vox
+// Skip-Test
 @query
-fn get_active_tasks() to List[Task] {
-    ret db.Task.where({ done: false }).all()
+fn get_active_tasks() -> list[Task] {
+    return db.Task.where({ done: false }).all()
 }
 
 routes {
     // The framework will fetch `get_active_tasks` and inject the data
     // into the `TaskList` component as props, then render to HTML.
-    "/" to TaskList(tasks: get_active_tasks())
+    "/" -> TaskList(tasks: get_active_tasks())
 }
 ```
 
@@ -94,10 +97,11 @@ routes {
 The `routes` block maps URL paths directly to server responses or UI.
 
 ```vox
+// Skip-Test
 routes {
-    "/"              to HomeIsland     # Render an Island 
-    "/tasks"         to TaskList       # Render the TaskList
-    "/dashboard"     to Dashboard      # Render a complex page
+    "/"              -> HomeIsland     # Render an Island 
+    "/tasks"         -> TaskList       # Render the TaskList
+    "/dashboard"     -> Dashboard      # Render a complex page
 }
 ```
 

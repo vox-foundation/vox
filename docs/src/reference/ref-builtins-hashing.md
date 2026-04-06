@@ -28,25 +28,27 @@ direct Rust calls — there is no FFI overhead.
 ## Vox Syntax
 
 ```vox
-# Fast non-cryptographic hash (XXH3-128)
+// Skip-Test
+// Fast non-cryptographic hash (XXH3-128)
 let cache_key = std.hash_fast(content)
 
-# Cryptographic content-addressable hash (BLAKE3-256)
+// Cryptographic content-addressable hash (BLAKE3-256)
 let input_hash = std.crypto.hash_secure(message)
 
-# Unique monotonic ID (timestamp + counter, never repeats)
+// Unique monotonic ID (timestamp + counter, never repeats)
 let request_id = std.uuid()
 
-# Current UNIX timestamp in milliseconds
+// Current UNIX timestamp in milliseconds
 let ts = std.now_ms()
 ```
 
 Also available via namespaced syntax:
 
 ```vox
-let h1 = std.crypto.hash_fast(text)   # same as std.hash_fast
-let h2 = std.crypto.uuid()            # same as std.uuid
-let t  = std.time.now_ms()            # same as std.now_ms
+// Skip-Test
+let h1 = std.crypto.hash_fast(text)   // same as std.hash_fast
+let h2 = std.crypto.uuid()            // same as std.uuid
+let t  = std.time.now_ms()            // same as std.now_ms
 ```
 
 ---

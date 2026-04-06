@@ -15,12 +15,12 @@ Learn the best practices for error management in Vox to build robust, fault-tole
 Vox uses the functional `Result[T, E]` type for operations that can fail, rather than standard exceptions.
 
 ```vox
-# Skip-Test: ui-only
-fn find_user(id: str) to Result[str] {
+// Skip-Test
+fn find_user(id: str) -> Result[str] {
     if id == "" {
-        ret Error("Invalid ID")
+        return Error("Invalid ID")
     }
-    ret Ok(id)
+    return Ok(id)
 }
 ```
 
@@ -29,12 +29,12 @@ fn find_user(id: str) to Result[str] {
 The `?` operator provides ergonomic error propagation. If an expression evaluates to `Error`, the surrounding function returns that error immediately.
 
 ```vox
-# Skip-Test: ui-only
-fn process_order(id: str) to Result[bool] {
+// Skip-Test
+fn process_order(id: str) -> Result[bool] {
     let user = find_user(id)?
     // `check_balance` might also return a Result
     // let balance = check_balance(user)?
-    ret Ok(true)
+    return Ok(true)
 }
 ```
 
@@ -43,12 +43,12 @@ fn process_order(id: str) to Result[bool] {
 Vox allows you to handle `Result` types directly using exhaustive pattern matching. (Error display in UI is covered in the islands tutorial).
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 let result = find_user("123")
 
 match result {
-    Ok(user)   -> print("Found { " + user)
-    Error(msg) -> print("Failed: " + msg)
+    Ok(user)   -> println("Found { " + user)
+    Error(msg) -> println("Failed: " + msg)
 }
 ```
 

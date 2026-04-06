@@ -1,0 +1,27 @@
+// [REGION:basic_agent]
+agent Assistant {
+    version "1.0.0"
+
+    on greet(name: str) -> str {
+        return "Hello " + name + ", how can I assist you today?";
+    }
+
+    migrate from "0.9.0" {
+        print("Migrating data...");
+    }
+}
+// [END:basic_agent]
+
+// [REGION:stateful_agent]
+agent MemoryBank {
+    let entries: List[str] = [];
+
+    on add(item: str) {
+        entries.push(item);
+    }
+
+    on recall() -> List[str] {
+        return entries;
+    }
+}
+// [END:stateful_agent]

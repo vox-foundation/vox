@@ -1,0 +1,40 @@
+// [REGION:comments]
+// Single line comment
+/* Multi-line
+   comment */
+// [END:comments]
+
+// [REGION:variables]
+let x = 10;
+let mutable y = 20;
+y = 30;
+// [END:variables]
+
+// [REGION:control_flow]
+fn demo_flow(val: int) {
+    if val > 10 {
+        print("large");
+    } else {
+        print("small");
+    }
+
+    for i in [1, 2, 3] {
+        print(i);
+    }
+
+    while false {
+        break;
+    }
+}
+// [END:control_flow]
+
+// [REGION:functions]
+fn add(a: int, b: int) -> int {
+    return a + b;
+}
+
+@component
+fn Button(label: str) {
+    <button>{label}</button>
+}
+// [END:functions]

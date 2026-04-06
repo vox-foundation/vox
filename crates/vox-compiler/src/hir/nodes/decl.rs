@@ -75,6 +75,10 @@ pub struct HirModule {
     pub mcp_tools: Vec<HirMcpTool>,
     /// MCP read-only resource handlers (`@mcp.resource`).
     pub mcp_resources: Vec<HirMcpResource>,
+    /// Native agent definitions.
+    pub agents: Vec<HirAgent>,
+    /// Container environment specifications.
+    pub environments: Vec<HirEnvironment>,
 
     // UI & TanStack specific structures (AST-retained for TS codegen migration)
     /// UI Components.
@@ -136,6 +140,8 @@ pub struct SemanticHirModule {
     pub search_indexes: Vec<HirSearchIndex>,
     pub mcp_tools: Vec<HirMcpTool>,
     pub mcp_resources: Vec<HirMcpResource>,
+    pub agents: Vec<HirAgent>,
+    pub environments: Vec<HirEnvironment>,
     pub reactive_components: Vec<HirReactiveComponent>,
 }
 
@@ -163,6 +169,8 @@ impl HirModule {
             ("search_indexes", HirFieldOwnership::SemanticCore),
             ("mcp_tools", HirFieldOwnership::SemanticCore),
             ("mcp_resources", HirFieldOwnership::SemanticCore),
+            ("agents", HirFieldOwnership::SemanticCore),
+            ("environments", HirFieldOwnership::SemanticCore),
             ("components", HirFieldOwnership::MigrationOnly),
             ("v0_components", HirFieldOwnership::MigrationOnly),
             ("client_routes", HirFieldOwnership::AppContract),
@@ -203,6 +211,8 @@ impl HirModule {
             search_indexes: self.search_indexes.clone(),
             mcp_tools: self.mcp_tools.clone(),
             mcp_resources: self.mcp_resources.clone(),
+            agents: self.agents.clone(),
+            environments: self.environments.clone(),
             reactive_components: self.reactive_components.clone(),
         }
     }
@@ -565,6 +575,69 @@ pub struct HirReactiveComponent {
     pub params: Vec<HirParam>,
     pub members: Vec<HirReactiveMember>,
     pub view: Option<HirExpr>,
+    pub span: Span,
+}
+
+/// Native agent definition in HIR.
+#[derive(Debug, Clone)]
+pub struct HirAgent {
+    /// Agent id.
+    pub id: DefId,
+    /// Agent name.
+    pub name: String,
+    /// Optional version tag.
+    pub version: Option<String>,
+    /// Internal state fields.
+    pub state_fields: Vec<HirTableField>,
+    /// Event handlers.
+    pub handlers: Vec<HirAgentHandler>,
+    /// Version migration rules.
+    pub migrations: Vec<HirMigrationRule>,
+    /// `@deprecated` agent.
+    pub is_deprecated: bool,
+    /// Span covering the agent.
+    pub span: Span,
+}
+
+/// Single agent handler.
+#[derive(Debug, Clone)]
+pub struct HirAgentHandler {
+    /// Event name.
+    pub event_name: String,
+    /// Parameters.
+    pub params: Vec<HirParam>,
+    /// Return type.
+    pub return_type: Option<HirType>,
+    /// Handler body.
+    pub body: Vec<HirStmt>,
+    /// Tracing enabled.
+    pub is_traced: bool,
+    /// Span covering the handler.
+    pub span: Span,
+}
+
+/// Agent migration rule.
+#[derive(Debug, Clone)]
+pub struct HirMigrationRule {
+    pub from_version: String,
+    pub body: Vec<HirStmt>,
+    pub span: Span,
+}
+
+/// Container environment specification in HIR.
+#[derive(Debug, Clone)]
+pub struct HirEnvironment {
+    pub name: String,
+    pub base_image: Option<String>,
+    pub packages: Vec<String>,
+    pub env_vars: Vec<(String, String)>,
+    pub exposed_ports: Vec<u16>,
+    pub volumes: Vec<String>,
+    pub workdir: Option<String>,
+    pub cmd: Vec<String>,
+    pub copy_instructions: Vec<(String, String)>,
+    pub run_commands: Vec<String>,
+    pub is_deprecated: bool,
     pub span: Span,
 }
 

@@ -206,18 +206,22 @@ Implementation leverage: `vox_corpus::training::preflight` already supports `con
 Replace React hook embedding in `.vox` with a **compiler-native reactivity model**:
 
 ```vox
-component Counter:
-  state count: Int = 0
-  derived doubled: Int = count * 2
+// Skip-Test
+component Counter {
+  state count: int = 0
+  derived doubled: int = count * 2
   
-  effect:
+  effect {
     log("Count changed to {count}")
+  }
   
-  view:
+  view {
     <div>
       <p>"Count: {count}, Doubled: {doubled}"</p>
       <button on:click={count = count + 1}>"Increment"</button>
     </div>
+  }
+}
 ```
 
 The compiler translates `state` to fine-grained reactive signals, `derived` to computed values, and `effect` to side-effect subscriptions. **No React hooks appear in `.vox` source.** The codegen backend can emit:
@@ -245,23 +249,28 @@ The compiler translates `state` to fine-grained reactive signals, `derived` to c
 **Keep `.vox` syntax clean** with a Vox-native component/view model, but emit to **whatever framework the user chooses** through a pluggable codegen backend. The key insight: **Vox defines intent, the compiler targets an ecosystem**.
 
 ```vox
-component TaskList:
+// Skip-Test
+component TaskList {
   state tasks: list[Task] = []
-  state filter: Str = "all"
+  state filter: str = "all"
   
   derived visible: list[Task] = tasks |> filter_by(filter)
   
-  on mount:
+  on mount {
     tasks = fetch("/api/tasks") |> await
+  }
   
-  view:
+  view {
     <section>
       <FilterBar value={filter} on:change={set filter}/>
-      for task in visible:
+      for task in visible {
         <TaskRow task={task} on:delete={tasks = tasks |> remove(task)}/>
+      }
     </section>
+  }
+}
 
-route "/tasks" => TaskList
+route "/tasks" -> TaskList
 ```
 
 Codegen backends:
@@ -343,7 +352,8 @@ graph TD
 For complex React ecosystem needs (shadcn, v0.dev, third-party libraries), the `@island` declaration remains unchanged:
 
 ```vox
-@island("DatePicker", props: { value: Str, on_change: Fn(Str) })
+// Skip-Test
+@island("DatePicker", props: { value: str, on_change: fn(str) })
 ```
 
 Islands are:

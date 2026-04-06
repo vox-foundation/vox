@@ -69,17 +69,17 @@ This means **the parser and AST nodes already exist** for `@test`, `@fixture`, `
 Here is the complete proposed surface — showing what Vox code looks like when fully annotated for testing. Everything here maps to an AST node or a trivial extension of one.
 
 ```vox
+// Skip-Test
 /// Parse and validate a user email address.
 /// Returns the normalized address or an error.
 @require(email.len() > 0)
 @require(!email.contains(" "))
 @ensure(result.is_ok() implies result.unwrap().contains("@"))
 @pure
-fn parse_email(email: String) -> Result[String, String] {
-    // ...
+fn parse_email(email: str) -> Result[str, str] {
+    // Logic here
 }
 
-// Companion test block — always compiled but stripped from production
 @test("empty string is rejected")
 fn test_parse_email_empty() {
     let r = parse_email("");
@@ -93,25 +93,21 @@ fn test_parse_email_valid() {
     assert_eq(r.unwrap(), "user@example.com");
 }
 
-// Property-based test — run against 1000 generated inputs
-@forall(email: String)
-fn prop_parse_email_no_spaces(email: String) {
+@forall(email: str)
+fn prop_parse_email_no_spaces(email: str) {
     let clean = email.replace(" ", "");
-    // If we strip spaces, the result should be the same as parsing the clean version
     assert_eq(parse_email(clean), parse_email(email.trim()));
 }
 
-// Fixture: reusable setup data
 @fixture
-fn sample_emails() -> List[String] {
+fn sample_emails() -> list[str] {
     ["user@example.com", "admin@vox.dev", "test+tag@mail.co"]
 }
 
-// Fuzz target: given arbitrary bytes, the parser must never panic
 @fuzz
 fn fuzz_parse_email(data: Bytes) {
-    let s = String.from_utf8_lossy(data);
-    let _ = parse_email(s); // must not panic; error results are fine
+    let s = str.from_utf8_lossy(data);
+    let _ = parse_email(s); 
 }
 ```
 
@@ -129,10 +125,11 @@ These implement **Design by Contract** — the gold standard established by Eiff
 **Key design decision — runtime modes (like Eiffel):**
 
 ```vox
+// Skip-Test
 // In vox.config or via CLI flag:
-// test-mode = "full"     → all @require, @ensure, @invariant checked
-// test-mode = "precond"  → only @require checked (production-safe default)  
-// test-mode = "off"      → all annotations stripped (maximum performance)
+// test-mode = "full"     -> all @require, @ensure, @invariant checked
+// test-mode = "precond"  -> only @require checked (production-safe default)  
+// test-mode = "off"      -> all annotations stripped (maximum performance)
 ```
 
 This means the annotations cost nothing in production unless the user opts in. They serve three simultaneous purposes:
@@ -153,8 +150,11 @@ This means the annotations cost nothing in production unless the user opts in. T
 
 **Naming convention (like Rust):**
 ```vox
+// Skip-Test
 @test("description drives the name")
-fn test_anything() { ... }   // names scoped to module
+fn test_anything() { 
+    // Logic here
+}
 ```
 
 **Discovery model:** `vox test` walks all `.vox` files in the project, collects every `TestDecl`, and runs them as a flat list (with optional filter by name pattern: `vox test --filter="email"`).
@@ -169,13 +169,14 @@ This is the Vox-native version of QuickCheck / proptest / Hypothesis. The compil
 5. Reports the failing case in diagnostics
 
 ```vox
-@forall(x: Int, y: Int)
-fn prop_addition_commutative(x: Int, y: Int) {
+// Skip-Test
+@forall(x: int, y: int)
+fn prop_addition_commutative(x: int, y: int) {
     assert_eq(x + y, y + x);
 }
 
-@forall(s: String)
-fn prop_trim_idempotent(s: String) {
+@forall(s: str)
+fn prop_trim_idempotent(s: str) {
     assert_eq(s.trim().trim(), s.trim());
 }
 ```
@@ -183,8 +184,9 @@ fn prop_trim_idempotent(s: String) {
 The strategy for each type is defined in `vox-runtime` and is automatically inferred from the type annotation. Custom strategies can be specified:
 
 ```vox
-@forall(email: String using email_strategy())
-fn prop_parse_valid_email(email: String) {
+// Skip-Test
+@forall(email: str using email_strategy())
+fn prop_parse_valid_email(email: str) {
     assert_ok(parse_email(email));
 }
 ```
@@ -194,10 +196,11 @@ fn prop_parse_valid_email(email: String) {
 For security-critical and parser-facing functions, `@fuzz` creates an entry point for coverage-guided fuzzing:
 
 ```vox
+// Skip-Test
 @fuzz
 fn fuzz_parse_vox_module(data: Bytes) {
-    let src = String.from_utf8_lossy(data);
-    let _ = Parser.parse(src); // must not panic
+    let src = str.from_utf8_lossy(data);
+    let _ = Parser.parse(src); 
 }
 ```
 
@@ -266,10 +269,11 @@ The gate runs in three contexts:
 
 **Context 1: Inline LLM function (`is_llm: true`)**
 ```vox
+// Skip-Test
 @llm(model = "claude-sonnet")
 @require(items.len() > 0)
 @ensure(result.total > 0)
-fn calculate_order_total(items: List[LineItem]) -> OrderTotal {
+fn calculate_order_total(items: list[LineItem]) -> OrderTotal {
     // body generated at runtime by the LLM
 }
 ```
@@ -348,16 +352,17 @@ The most novel surface in the Vox AST is `is_llm: bool` and `llm_model: Option<S
 Extended design for the `@llm` annotation:
 
 ```vox
+// Skip-Test
 @llm(
-    model = "claude-sonnet",      // optional; uses orchestrator default if absent
-    verify = "strict",            // "strict" = full 5-stage gate; "fast" = parse+type only
-    cache = true,                 // memoize result for same inputs
-    on_fail = "raise"             // "raise" | "fallback" | "log"
+    model = "claude-sonnet",      
+    verify = "strict",            
+    cache = true,                 
+    on_fail = "raise"             
 )
 @require(query.len() > 0)
 @ensure(result.items.len() >= 0)
-fn search_products(query: String, filters: SearchFilters) -> SearchResult {
-    // body is generated by the LLM at first call, then optionally cached
+fn search_products(query: str, filters: SearchFilters) -> SearchResult {
+    // body generated at runtime
 }
 ```
 
@@ -396,10 +401,11 @@ The key question: should users be able to run their Vox programs in a mode where
 - Useful for high-stakes functions where you want runtime safety without crashes
 
 ```vox
+// Skip-Test
 // vox.config
 [build]
 mode = "dev"          // or "build" or "verify"
-contract-level = "require"  // "off" | "require" | "full" (require+ensure+invariant)
+contract-level = "require"  // "off" | "require" | "full"
 ```
 
 This three-mode model directly addresses your question about whether testing is "optional" — yes, by default it is (mode = `build` in production), but it is trivially opt-in for development and testing scenarios.
@@ -580,16 +586,14 @@ For functions with `is_llm: true` that have NOT been validated yet: emit a warni
 The most powerful combination is the `@llm` annotation working with the contract system. This enables:
 
 ```vox
-/// Sort a list of products by price, respecting locale-specific formatting.
+// Skip-Test
+/// Sort a list of products by price.
 @llm(verify = "strict", cache = true)
 @require(products.len() >= 0)
 @ensure(result.len() == products.len())
 @ensure(result.is_sorted_by(|a, b| a.price <= b.price))
-fn sort_products_by_price(products: List[Product]) -> List[Product] {
-    // This body is written by the LLM at first call.
-    // The @ensure annotations are the oracle.
-    // The delivery gate verifies them before execution.
-    // The result is cached in Arca for subsequent calls.
+fn sort_products_by_price(products: list[Product]) -> list[Product] {
+    // logic here
 }
 ```
 
@@ -652,9 +656,10 @@ From a user's perspective, the experience should feel like this:
 
 **Writing code (human author):**
 ```vox
+// Skip-Test
 @require(x > 0)
 @ensure(result > x)
-fn grow(x: Int) -> Int { x * 2 }
+fn grow(x: int) -> int { return x * 2; }
 
 @test("doubles positive numbers")
 fn test_grow() {
@@ -667,10 +672,11 @@ fn test_grow() {
 
 **Delegating to the LLM:**
 ```vox
+// Skip-Test
 @llm
 @require(name.len() > 0 && name.len() < 100)
 @ensure(result.starts_with("Dear "))
-fn format_greeting(name: String) -> String { }
+fn format_greeting(name: str) -> str { }
 ```
 → At runtime, the LLM writes a body  
 → Five-stage gate validates it silently  

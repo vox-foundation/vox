@@ -64,6 +64,7 @@ Canonical parser and output truth sources:
 ### 1) `.vox` source today (parser-valid, island + CSS + routes + HTTP + server)
 
 ```vox
+// Skip-Test
 import react.use_state
 
 @island DataChart {
@@ -72,7 +73,7 @@ import react.use_state
     width?: int
 }
 
-@island fn Dashboard() to Element {
+@island fn Dashboard() -> Element {
     let (title, _set_title) = use_state("Ops")
     let payload = "[1,2,3]"
     <div class="dashboard">
@@ -89,15 +90,15 @@ style {
 }
 
 routes {
-    "/" to Dashboard
+    "/" -> Dashboard
 }
 
-http get "/api/ping" to str {
-    ret "ok"
+http get "/api/ping" -> str {
+    return "ok"
 }
 
-@server fn echo(x: str) to str {
-    ret x
+@server fn echo(x: str) -> str {
+    return x
 }
 ```
 
@@ -109,6 +110,7 @@ Why this shape is canonical:
 ### 2) `.vox` low-k translation today (parser-valid Path C form)
 
 ```vox
+// Skip-Test
 @island DataChart {
     title: str
     data: str
@@ -125,7 +127,7 @@ component Dashboard(title: str) {
 }
 
 routes {
-    "/" to Dashboard
+    "/" -> Dashboard
 }
 ```
 

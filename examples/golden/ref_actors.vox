@@ -1,0 +1,17 @@
+// [REGION:basic_actor]
+actor Counter {
+    let mutable count = 0;
+
+    on increment() {
+        count = count + 1;
+        print("Count is " + count);
+    }
+}
+// [END:basic_actor]
+
+// [REGION:spawn_and_send]
+fn run() {
+    let c = spawn Counter();
+    c.send increment();
+}
+// [END:spawn_and_send]

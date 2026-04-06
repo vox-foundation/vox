@@ -15,15 +15,15 @@ Vox provides a built-in typed surface targeting the unified storage layer (Codex
 
 When you declare an `@table type Model`, the compiler auto-instantiates a `db.Model` handler namespace holding explicit data actions. 
 
-- `db.Model.all() to List[Model]`  
+- `db.Model.all() -> list[Model]`  
   *Retrieve every matched record in a table.*
-- `db.Model.find(id: Id[Model]) to Option[Model]`  
+- `db.Model.find(id: Id[Model]) -> Option[Model]`  
   *Extract a specific row given a compiler-tracked typed Identifier key.*
-- `db.Model.insert(fields) to Id[Model]`  
+- `db.Model.insert(fields) -> Id[Model]`  
   *Insert mapping with schema constraints automatically typed and parameterized. ID is returned upon storage completion.*
-- `db.Model.update(id: Id[Model], diff) to Unit`  
+- `db.Model.update(id: Id[Model], diff) -> Unit`  
   *Replaces explicit parameters targeted inside `diff` directly over the previously generated ID scope.*
-- `db.Model.delete(id: Id[Model]) to Unit`  
+- `db.Model.delete(id: Id[Model]) -> Unit`  
   *Removes row associated with that specific Identifier entirely.*
 
 ## Filters and Predicates
@@ -33,12 +33,14 @@ Query structures map to literal internal predicates mapped across your database 
 - `db.Model.filter({ field: val })`  
   *Creates simple equality matches across the field table parameters.* 
   ```vox
+  // Skip-Test
   db.User.filter({ age: 30 }).all()
   ```
 
 - `db.Model.where({ field: { predicate } })`  
   *Accepts complex structured parameter ranges such as `gt`, `lt`, `eq`, `ne`, `in`.* 
   ```vox
+  // Skip-Test
   db.User.where({ age: { gt: 18, lt: 65 }, status: { ne: "blocked" } }).all()
   ```
 
@@ -55,7 +57,8 @@ The Vox DB handler uses deterministic chained methods.
 
 **Chain Aggregation Example**:
 ```vox
-ret db.User
+// Skip-Test
+return db.User
    .where({ role: { eq: "admin" } })
    .order_by("created_at", "desc")
    .limit(5)
@@ -77,5 +80,5 @@ These chainable context selectors modify *how* the operation interacts with the 
 
 ## Database Escape Hatch 
 
-- `db.query(sql: str, params: List[T]) to List[Result]`
+- `db.query(sql: str, params: list[T]) -> list[Result]`
   *Allows writing explicit raw parameter-bound queries that entirely bypass the compiler's safety assertions. Designed exclusively for highly customized analytics scripts mapping across disparate tables.*

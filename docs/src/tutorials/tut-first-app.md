@@ -15,79 +15,37 @@ Learn how to build a full-stack, collaborative task list app with Vox. This tuto
 Create a new directory and initialize a Vox application:
 
 ```bash
-mkdir vox-task-list && cd vox-task-list
+mkdir vox-task-list
+cd vox-task-list
 vox init --kind application
 ```
 
 ## 2. Define the Data Model
 
-Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `@table` decorator, we create a persistent database table. We use `@require` to ensure titles are not empty.
+Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `@table` decorator, we create a persistent database table.
 
-```vox
-# Skip-Test: ui-only
-@require(len(self.title) > 0)
-@table type Task {
-    title:    str
-    done:     bool
-    priority: int
-    owner:    str
-}
-```
+{{#include ../../examples/golden/getting_started.vox:data_model}}
 
 ## 3. Implement Server Logic
 
 Next, we add `@mutation` and `@query` functions to interact with the database.
 
-```vox
-# Skip-Test: ui-only
-@mutation
-fn add_task(title: str, owner: str) to Id[Task] {
-    ret db.Task.insert({ title: title, done: false, priority: 1, owner: owner })
-}
-
-@query
-fn open_tasks() to List[Task] {
-    ret db.Task.where({ done: false }).order_by("priority", "desc").limit(10)
-}
-
-@mutation
-fn complete_task(id: Id[Task]) to Unit {
-    db.Task.update(id, { done: true })
-}
-```
+{{#include ../../examples/golden/getting_started.vox:logic}}
 
 ## 4. Build the UI
 
 Now, we'll create the frontend using the `@island` decorator. Vox islands use a JSX-like syntax that compiles to high-performance hydrated React components.
 
-```tsx
-# Skip-Test: ui-only
-import react.use_state
-
-@island
-fn TaskList(tasks: List[Task]) to Element {
-    let (items, _set_items) = use_state(tasks)
-    <div class="task-list">
-        <h1>"Vox Tasks"</h1>
-        {items.map(fn(task) {
-            <label>
-                <input type="checkbox" checked={task.done}
-                       onChange={fn(_e) complete_task(task.id)} />
-                {task.title}
-            </label>
-        })}
-    </div>
-}
-```
+{{#include ../../examples/golden/getting_started.vox:ui}}
 
 ## 5. Wiring It Together
 
 Finally, we map a route to our `TaskList` component.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 routes {
-    "/" to TaskList
+    "/" -> TaskList
 }
 ```
 

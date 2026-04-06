@@ -24,31 +24,26 @@ In Vox, the chaos of generative models is bounded by the compiler's zero-null gu
 By adding a single decorator—`@mcp.tool`— Vox parses the docstring, the types, and the return structure, turning your server function into a ready-to-execute schema for your LLM.
 
 ```vox
-# Skip-Test: ui-only
-
-> [!WARNING]
-> This feature is partially implemented. The syntax below is accepted by the parser
-> but runtime behavior may differ from what is described. Features like `vector_search` and `agent.query` are aspirational.
-
-type SearchResult =
-    | Found({text: str, score: int})
-    | NotFound({query: str})
+// Skip-Test
+// This feature is partially implemented.
+type SearchResult {
+    Found { text: str, score: int }
+    NotFound { query: str }
+}
 
 @mcp.tool "Search the knowledge base for documents matching the query"
-fn search_knowledge(query: str, max_results: int) to SearchResult {
+fn search_knowledge(query: str, max_results: int) -> SearchResult {
     let hits = db.vector_search(query, max_results)
     if hits.len() == 0 {
-        ret NotFound({query: query})
+        return NotFound { query: query }
     }
-    ret Found({text: hits[0].text, score: hits[0].score})
+    return Found { text: hits[0].text, score: hits[0].score }
 }
 
 @server 
-fn get_answer(user_question: str) to Result[str] {
-    // Vox triggers the AI provider, gives it access to `search_knowledge`,
-    // and returns a strongly-typed string result or an explicitly handled error.
+fn get_answer(user_question: str) -> Result[str] {
     let answer = agent.query(user_question, { tools: [search_knowledge] })
-    ret Ok(answer)
+    return Ok(answer)
 }
 ```
 

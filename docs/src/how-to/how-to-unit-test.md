@@ -15,9 +15,9 @@ Learn how to write and run automated tests for your Vox application using the bu
 Use the `@test` decorator to mark functions as test cases. These functions can be run with the `vox test` command.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 @test 
-fn test_addition() to Unit {
+fn test_addition() -> Unit {
     assert(1 + 1 == 2)
 }
 ```
@@ -27,13 +27,13 @@ fn test_addition() to Unit {
 Rather than language-level magic, Vox encourages simple, plain functions for setup logic that can be reused across test cases.
 
 ```vox
-# Skip-Test: ui-only
-fn setup_mock_db() to Database {
-    ret spawn MockDatabase()
+// Skip-Test
+fn setup_mock_db() -> Database {
+    return spawn MockDatabase()
 }
 
 @test 
-fn test_query() to Unit {
+fn test_query() -> Unit {
     let db = setup_mock_db()
     let result = db.call(query("SELECT 1"))
     assert(result == [1])

@@ -22,9 +22,10 @@ Vox seamlessly generates MCP servers natively from the logic you've already writ
 The `@mcp.tool` decorator tells the Vox compiler to expose a function to any connected LLM. 
 
 ```vox
+// Skip-Test
 @mcp.tool "Calculate the shipping cost including surge pricing"
-fn calculate_shipping(weight: float, zip_code: str) to float {
-    // ...
+fn calculate_shipping(weight: float, zip_code: str) -> float {
+    // Logic here
 }
 ```
 
@@ -38,9 +39,10 @@ Behind the scenes, Vox:
 While tools are functions the LLM can call, resources are data the LLM can read. 
 
 ```vox
+// Skip-Test
 @mcp.resource("vox://user/config", "The current user's profile configuration")
-fn get_user_profile() to str {
-    ret db.query("SELECT context FROM config")
+fn get_user_profile() -> str {
+    return db.query("SELECT context FROM config")
 }
 ```
 

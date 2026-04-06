@@ -15,13 +15,15 @@ Vox historically documented importing Python libraries from `.vox` via `@py.impo
 ## Quick Start
 
 ```vox
+// Skip-Test
 @py.import torch
 @py.import torch.nn as nn
 
-fn run_inference(input: list[float]) to list[float] {
+fn run_inference(input: list[float]) -> list[float] {
     let t = torch.tensor(input)
     let model = nn.Linear(4, 1)
-    ret model.forward(t).tolist()
+    return model.forward(t).tolist()
+}
 ```
 
 Legacy documentation previously recommended:
@@ -81,33 +83,37 @@ Return values come back as their string representation. Use helper utilities lik
 ## PyTorch Example
 
 ```vox
+// Skip-Test
 @py.import torch
 @py.import torch.nn as nn
 @py.import torch.nn.functional as F
 
-# Build and run a 2-layer MLP
-fn mlp_forward(x: list[float]) to list[float] {
+fn mlp_forward(x: list[float]) -> list[float] {
     let t       = torch.tensor(x)
     let linear1 = nn.Linear(4, 8)
     let linear2 = nn.Linear(8, 2)
     let h       = F.relu(linear1.forward(t))
     let out     = linear2.forward(h)
-    ret out.tolist()
+    return out.tolist()
+}
 
-fn main():
+fn main() {
     let result = mlp_forward([1.0, 2.0, 3.0, 4.0])
-    print(result)
+    println(result)
+}
 ```
 
 ## NumPy Example
 
 ```vox
+// Skip-Test
 @py.import numpy as np
 
-fn moving_average(data: list[float], window: int) to list[float] {
+fn moving_average(data: list[float], window: int) -> list[float] {
     let arr = np.array(data)
     let weights = np.ones(window) / window
-    ret np.convolve(arr, weights, "valid").tolist()
+    return np.convolve(arr, weights, "valid").tolist()
+}
 ```
 
 ## Runtime Environment *(historical)*
@@ -250,17 +256,20 @@ nn::Sequential::new(vec![
 ### Example: MLP inference without Python
 
 ```vox
+// Skip-Test
 import tensor as t
 import nn
 
-let model = nn.Sequential([
-    nn.Module::linear(4, 8, true),
-    nn.Module::linear(8, 2, true),
-])
+fn infer_mlp() -> list[float] {
+    let model = nn.Sequential([
+        nn.Module::linear(4, 8, true),
+        nn.Module::linear(8, 2, true),
+    ])
 
-let input = t.Tensor::from_vec_2d([1.0, 2.0, 3.0, 4.0], 1, 4)
-let out = model.forward(input)
-ret out.to_vec()
+    let input = t.Tensor::from_vec_2d([1.0, 2.0, 3.0, 4.0], 1, 4)
+    let out = model.forward(input)
+    return out.to_vec()
+}
 ```
 
 This ensures **Low K-Complexity** (no shell dependencies), native type-checked operations, and deployment via the built-in HTTP server — all in a single, self-contained binary.

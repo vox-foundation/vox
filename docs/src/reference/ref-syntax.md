@@ -21,178 +21,72 @@ This page provides the canonical structural layout for Vox v0.3 features. All co
 | `bool` | `true`, `false` | Boolean value |
 | `Unit` | `()` | Equivalent to `void` |
 
-## Variable Binding
+Variable assignments are immutable by default in Vox. Prefix with `mutable` for mutability.
 
-Variable assignments are immutable by default in Vox. Prefix with `mut` for mutability.
+{{#include ../../examples/golden/ref_syntax.vox:variables}}
 
-```vox
-// Immutable binding
-let name = "Alice"
+Functions mapping natively to networking, storage, or internal agentic constraints.
 
-// Mutable binding
-let mut count = 0
-count = count + 1
-```
+{{#include ../../examples/golden/ref_syntax.vox:functions}}
 
-## Function Syntax
+{{#include ../../examples/golden/ref_orchestrator.vox:mcp_tool}}
 
-Functions map natively to specific networking, runtime, or internal constraints.
+Lexical constraints and properties can be modeled strictly using Abstract Data Types (ADTs) and Table definitions.
+
+{{#include ../../examples/golden/ref_types.vox:adt}}
 
 ```vox
-// Plain function execution
-fn hello(name: str) to str {
-    ret "Hello " + name + "!"
-}
-
-// Server endpoint (generates Axum handler & TypeScript client)
-@server
-fn add_task(title: str, owner: str) to Id[Task] {
-    ret db.Task.insert({ title: title, done: false, priority: 1, owner: owner })
-}
-
-// Read-only logic guard
-@query
-fn current_temp() to int {
-    ret 72
-}
-
-// Database-write logic guard
-@mutation
-fn switch_toggle() to Result[Unit] {
-    ret Ok(())
-}
-
-// Inline raw HTTP handling (skips RPC mappings)
-http get "/api/health" to str {
-    ret "ok"
-}
-
-// Model Context Protocol API hook
-@mcp.tool "Get the weather"
-fn get_weather(location: str) to str {
-    ret "Sunny in " + location
-}
-```
-
-## Type Declarations
-
-Lexical constraints and properties can be modeled strictly using Abstract Data Types (ADTs).
-
-```vox
-// Algebraic Data Type
-type Status = 
-    | Pending
-    | Active(assigned_to: str)
-    | Completed(at: int)
-
-// Generic ADT
-type Result[T] =
-    | Ok(value: T)
-    | Error(message: str)
-
-// Persistent Data Structural Representation
-@require(len(self.title) > 0)
+// Skip-Test
 @table type Task {
     title: str
     done: bool
     owner: str
 }
-
-// Database Index
-@index Task.by_owner on (owner)
 ```
-
-## Control Flow
 
 ### Branching
-```vox
-let greeting = if hour < 12 {
-    "Morning"
-} else {
-    "Day"
-}
-```
+{{#include ../../examples/golden/ref_syntax.vox:control_flow}}
 
 ### Pattern Matching (`match`)
-```vox
-match status {
-    Pending             -> "Waiting"
-    Active(person)      -> "Assigned to " + person
-    Completed(_)        -> "Done"
-}
-```
-
-### Loop Constructs
-```vox
-for item in items {
-    print(item)
-}
-
-while count < 10 {
-    count = count + 1
-}
-```
+{{#include ../../examples/golden/ref_types.vox:matching}}
 
 ### Error Propagation (`?`)
 The `?` suffix unpacks an `Ok` result, returning early if the result is an `Error(e)`.
+
 ```vox
-fn build_report() to Result[str] {
+// Skip-Test
+fn build_report() -> Result[str] {
     let raw_data = get_data()?
-    ret Ok("Report { " + raw_data)
+    return Ok("Report { " + raw_data)
 }
 ```
 
-## Actors & State
+Actors operate isolated asynchronous loops responding to discrete event handler payloads via `on`. 
 
-Actors operate isolated asynchronous loops responding to discrete event handler payloads via `on`. Use `state_load` and `state_save` for durability within an actor.
+{{#include ../../examples/golden/ref_actors.vox:basic_actor}}
 
-```vox
-actor TaskCounter {
-    on Increment(amount: int) to int {
-        let current = state_load("count")
-        let next    = current + amount
-        state_save("count", next)
-        ret next
-    }
+{{#include ../../examples/golden/ref_actors.vox:spawn_and_send}}
 
-    on Get() to int {
-        ret state_load("count")
-    }
-}
+## Agents
 
-// Spawning the actor instance
-let counter = spawn TaskCounter()
-```
+Agents define LLM-backed roles with systematic instructions and toolsets.
 
-## Workflows and Activities
+{{#include ../../examples/golden/ref_agents.vox:basic_agent}}
 
 Use `workflow` to group state machine processes that survive process restarts. Use `activity` to dictate atomic, retry-able execution sequences.
 
-```vox
-activity charge_payment(amount: int, token: str) to Result[str] {
-    ret Ok("tx-" + token)
-}
-
-workflow process_order(customer: str, amount: int) to Result[str] {
-    let payment = charge_payment(amount, "tok-abc")
-        with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
-
-    match payment {
-        Ok(tx)    -> ret Ok("Order for " + customer + " { " + tx)
-        Error(e)  -> ret Error(e)
-    }
-}
-```
+{{#include ../../examples/golden/getting_started.vox:logic}}
 
 ## Island and UI Syntax
 
 The `@island` directive dictates interactive DOM components. 
 
 ```tsx
+// Skip-Test
 import react.use_state
 
 @island
-fn TaskList(tasks: List[Task]) to Element {
+fn TaskList(tasks: list[Task]) -> Element {
     let (items, set_items) = use_state(tasks)
 
     <div class="task-list">
@@ -207,21 +101,15 @@ fn TaskList(tasks: List[Task]) to Element {
 
 // Web Routing Layout Mapping
 routes {
-    "/"         to TaskList
-    "/about"    to AboutPage
+    "/"         -> TaskList
+    "/about"    -> AboutPage
 }
 ```
 
-## Import Declarations
-
-Vox imports use fully qualified paths. To interoperate natively with compiled Rust workspaces, prefix with `rust:`. 
+Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.
 
 ```vox
-// Frontend Framework specific imports
+// Skip-Test
 import react.use_state
-import react.use_effect
-
-// Native system FFI integrations 
 import rust:serde_json as json
-import rust:std::collections::HashMap
 ```

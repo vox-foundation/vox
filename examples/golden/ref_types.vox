@@ -1,0 +1,31 @@
+// [REGION:scalar]
+let i: int = 42;
+let f: float = 3.14;
+let s: str = "hello";
+let b: bool = true;
+let c: char = 'x';
+// [END:scalar]
+
+// [REGION:collections]
+let nums: List[int] = [1, 2, 3];
+let mapping: Map[str, int] = {"a": 1, "b": 2};
+let tags: Set[str] = {"rust", "vox"};
+// [END:collections]
+
+// [REGION:adt]
+type NetworkState {
+    Disconnected
+    Connecting
+    Connected { address: str, port: int }
+}
+// [END:adt]
+
+// [REGION:matching]
+fn handle_state(state: NetworkState) {
+    match state {
+        NetworkState::Disconnected => print("offline")
+        NetworkState::Connecting => print("connecting...")
+        NetworkState::Connected { address, .. } => print("connected to " + address)
+    }
+}
+// [END:matching]

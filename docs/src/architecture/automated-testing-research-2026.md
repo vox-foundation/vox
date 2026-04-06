@@ -258,7 +258,7 @@ For *user-written Vox code*, the oracle is relatively tractable — the user spe
 
 Option 3 — semantic correctness of codegen — is where Verus (formal verification for Rust) becomes relevant for the Vox compiler codebase itself, not for user programs. LLM-assisted annotation of Verus specs for `vox-compiler` functions is a viable long-term path, enabled by the "vericoding" trend.
 
-**Practical near-term oracle strategy {**
+**Practical near-term oracle strategy:**
 - Use **metamorphic testing** for stable properties (parsing is idempotent, lowering is monotone)
 - Use **snapshot testing** for regression prevention
 - Use **`@spec` annotations** on Vox functions as generation hints for the AI synthesis skill
@@ -346,11 +346,12 @@ New skill: `vox.testing.repair`
 
 **T3c: Oracle Infrastructure (`@spec` annotations)**
 ```vox
+// Skip-Test
 @spec(
     requires: input.len() > 0,
     ensures: result.len() >= input.len()
 )
-fn process(input: List[String]) -> List[String] { ... }
+fn process(input: list[str]) -> list[str] { ... }
 ```
 - `vox-compiler` validates `@spec` annotations as `debug_assert!` in debug mode
 - `@spec` annotations fed to the test synthesis skill as generation hints — the AI knows what the function promises

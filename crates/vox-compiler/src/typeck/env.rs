@@ -60,6 +60,8 @@ pub enum BindingKind {
     Activity,
     /// A table definition (persistent record type)
     Table,
+    /// An agent name
+    Agent,
 }
 
 /// Registered ADT (Algebraic Data Type) with its variants.
@@ -92,6 +94,8 @@ pub struct TypeEnv {
     actors: HashMap<String, Vec<ActorHandlerSig>>,
     /// Workflow names → (params, return_type)
     workflows: HashMap<String, WorkflowSig>,
+    /// Agent names → handler signatures
+    agents: HashMap<String, Vec<AgentHandlerSig>>,
     /// Stack of expected return types for currently checked functions
     return_types: Vec<Ty>,
 }
@@ -112,6 +116,14 @@ pub struct WorkflowSig {
     pub return_type: Ty,
 }
 
+/// Signature of an agent handler.
+#[derive(Debug, Clone)]
+pub struct AgentHandlerSig {
+    pub event_name: String,
+    pub params: Vec<(String, Ty)>,
+    pub return_type: Ty,
+}
+
 impl TypeEnv {
     /// Create a new type environment with a single global scope.
     pub fn new() -> Self {
@@ -120,6 +132,7 @@ impl TypeEnv {
             types: HashMap::new(),
             actors: HashMap::new(),
             workflows: HashMap::new(),
+            agents: HashMap::new(),
             return_types: Vec::new(),
         }
     }
@@ -284,6 +297,25 @@ impl TypeEnv {
     /// Look up a workflow signature.
     pub fn lookup_workflow(&self, name: &str) -> Option<&WorkflowSig> {
         self.workflows.get(name)
+    }
+
+    /// Register an agent and its handler signatures.
+    pub fn register_agent(&mut self, name: String, handlers: Vec<AgentHandlerSig>) {
+        self.scopes[0].bindings.insert(
+            name.clone(),
+            Binding {
+                ty: Ty::Named(name.clone()),
+                mutable: false,
+                kind: BindingKind::Agent,
+                is_deprecated: false,
+            },
+        );
+        self.agents.insert(name, handlers);
+    }
+
+    /// Look up an agent's handler signatures.
+    pub fn lookup_agent(&self, name: &str) -> Option<&Vec<AgentHandlerSig>> {
+        self.agents.get(name)
     }
 
     /// Field types for an ADT constructor name (e.g. `Some`, `Ok`, or a user variant).

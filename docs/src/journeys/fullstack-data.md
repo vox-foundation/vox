@@ -28,6 +28,7 @@ You avoid writing boilerplate. State synchronization and type-checking happen sa
 Below is a complete, working React frontend and Rust backend in a single `.vox` file.
 
 ```tsx
+// Skip-Test
 import react.use_state
 
 // 1. DDL & Struct defined once entirely.
@@ -38,15 +39,14 @@ import react.use_state
 }
 
 // 2. Server mutation automatically generated. Typed args enforce contract.
-@server fn complete_task(id: Id[Task]) to Result[Unit] {
+@server fn complete_task(id: Id[Task]) -> Result[Unit] {
     db.Task.update(id, { done: true })
-    ret Ok(())
+    return Ok(())
 }
 
-// 3. UI logic generated as React component. Wait for compilation — the 
-// `complete_task` call gets automatically routed to the server HTTP endpoint.
+// 3. UI logic generated as React component. 
 @island
-fn TaskList(tasks: List[Task]) to Element {
+fn TaskList(tasks: list[Task]) -> Element {
     let (items, _set_items) = use_state(tasks)
 
     <div class="task-list">
@@ -65,7 +65,7 @@ fn TaskList(tasks: List[Task]) to Element {
 
 // Server Side Routing mapped directly to the UI elements.
 routes {
-    "/" to TaskList
+    "/" -> TaskList
 }
 ```
 

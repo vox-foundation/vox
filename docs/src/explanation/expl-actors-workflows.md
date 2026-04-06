@@ -1,10 +1,11 @@
 ---
 title: "Actors & Workflows"
-description: "Official documentation for Actors & Workflows for the Vox language. Detailed technical reference, architecture guides, and implementation"
+description: "Deep dive into Vox's primary concurrency primitives: Persistent Actors for stateful messaging and Durable Workflows for reliable orchestration."
 category: "explanation"
-last_updated: 2026-03-24
+last_updated: 2026-04-06
+status: "current"
 training_eligible: true
----
+ ---
 # Actors & Workflows
 
 Vox provides two first-class concurrency primitives: **Actors** for lightweight message-passing and **Workflows** for orchestrating activities. Actor behavior is materially implemented today. Workflow durability is currently a mix of language intent, generated async code, and a separate interpreted runtime.
@@ -18,19 +19,23 @@ Actors are isolated processes with their own state and a mailbox for receiving m
 ### Defining an Actor
 
 ```vox
-# Skip-Test
-actor Counter:
-    state count: int = 0
+// Skip-Test
+actor Counter {
+    let mutable count: int = 0;
 
-    on increment(amount: int) to int:
-        count = count + amount
-        count
+    on increment(amount: int) -> int {
+        count = count + amount;
+        return count;
+    }
 
-    on get_count() to int:
-        count
+    on get_count() -> int {
+        return count;
+    }
 
-    on reset() to Unit:
-        count = 0
+    on reset() {
+        count = 0;
+    }
+}
 ```
 
 Key concepts:
@@ -41,19 +46,20 @@ Key concepts:
 ### Spawning and Messaging
 
 ```vox
-# Skip-Test
-fn main():
-    # spawn() creates a new actor instance, returns a handle (Pid)
-    let counter = spawn(Counter)
-    let greeter = spawn(Greeter)
+// Skip-Test
+fn main() {
+    // spawn() creates a new actor instance, returns a handle (ActorRef)
+    let counter = spawn Counter();
+    let greeter = spawn Greeter();
 
-    # .send() dispatches a message to the actor's mailbox
-    let new_count = counter.send(increment(5))
-    let greeting  = greeter.send(greet("Alice"))
+    // .send() dispatches a message to the actor's mailbox
+    counter.send increment(5);
+    greeter.send greet("Alice");
 
-    # Actors can receive multiple messages
-    let _ = counter.send(increment(3))
-    let total = counter.send(get_count())   # returns 8
+    // Actors can receive multiple messages
+    counter.send increment(3);
+    let total = await counter.get_count(); 
+}
 ```
 
 ### Messages
@@ -61,10 +67,11 @@ fn main():
 Define typed messages for inter-actor communication:
 
 ```vox
-# Skip-Test
-message Greeting:
-    from_name: str
-    text: str
+// Skip-Test
+type Greeting {
+    from_name: str,
+    text: str,
+}
 ```
 
 ### Durable Actors
@@ -72,13 +79,15 @@ message Greeting:
 Actors can persist state across restarts using `state_load` and `state_save`:
 
 ```vox
-# Skip-Test
-actor PersistentCounter:
-    on increment() to int:
-        let current = state_load("counter")
-        let next = current + 1
-        state_save("counter", next)
-        ret next
+// Skip-Test
+actor PersistentCounter {
+    on increment() -> int {
+        let current = state_load("counter");
+        let next = current + 1;
+        state_save("counter", next);
+        return next;
+    }
+}
 ```
 
 This compiles to database-backed state management — the actor's count survives process restarts.
@@ -100,14 +109,16 @@ This compiles to database-backed state management — the actor's count survives
 Activities are retryable units of work that may fail. They are the **only** place for side effects within workflows.
 
 ```vox
-# Skip-Test
-activity fetch_user_data(user_id: str) to Result[str]:
-    # Would call an external API in production
-    ret Ok("User data for " + user_id)
+// Skip-Test
+activity fetch_user_data(user_id: str) -> Result[str] {
+    // Would call an external API in production
+    return Ok("User data for " + user_id);
+}
 
-activity send_notification(email: str, body: str) to Result[bool]:
-    # External email service call
-    ret Ok(true)
+activity send_notification(email: str, body: str) -> Result[bool] {
+    // External email service call
+    return Ok(true);
+}
 ```
 
 Activities must always return a `Result` type, since they represent operations that can fail.
@@ -135,16 +146,17 @@ Current state:
 - **Escape hatch / current durable path:** the interpreted workflow runtime used by `vox mens workflow ...`.
 
 ```vox
-# Skip-Test
-workflow onboard_user(user_id: str, email: str) to Result[str]:
-    # Step 1: Fetch user profile
-    let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" }
+// Skip-Test
+workflow onboard_user(user_id: str, email: str) -> Result[str] {
+    // Step 1: Fetch user profile
+    let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" };
 
-    # Step 2: Send welcome email
-    let _ = send_notification(email, "Welcome! " + profile) with { retries: 5, timeout: "60s" }
+    // Step 2: Send welcome email
+    let _ = send_notification(email, "Welcome! " + profile) with { retries: 5, timeout: "60s" };
 
-    # Step 3: Return success
-    ret Ok("Onboarding complete for " + user_id)
+    // Step 3: Return success
+    return Ok("Onboarding complete for " + user_id);
+}
 ```
 
 ### The `with` Expression
@@ -182,43 +194,49 @@ The interpreted workflow runtime can skip previously completed activities when r
 A complete workflow combining activities with different retry policies:
 
 ```vox
-# Skip-Test
-type OrderResult =
-    | Ok(order_id: str)
-    | Error(message: str)
+// Skip-Test
+type OrderResult {
+    Ok { order_id: str }
+    Error { message: str }
+}
 
-activity validate_order(order_data: str) to Result[str]:
-    let validated = "validated-" + order_data
-    ret Ok(validated)
+activity validate_order(order_data: str) -> Result[str] {
+    let validated = "validated-" + order_data;
+    return Ok(validated);
+}
 
-activity charge_payment(amount: int, card_token: str) to Result[str]:
-    let tx = "tx-" + card_token
-    ret Ok(tx)
+activity charge_payment(amount: int, card_token: str) -> Result[str] {
+    let tx = "tx-" + card_token;
+    return Ok(tx);
+}
 
-activity send_confirmation(recipient: str, order_id: str) to Result[str]:
-    let msg = "Order " + order_id + " confirmed for " + recipient
-    ret Ok(msg)
+activity send_confirmation(recipient: str, order_id: str) -> Result[str] {
+    let msg = "Order " + order_id + " confirmed for " + recipient;
+    return Ok(msg);
+}
 
-workflow process_order(customer: str, order_data: str, amount: int) to Result[str]:
-    # Validate with a short timeout and no retries
-    let validated = validate_order(order_data) with { timeout: "5s" }
+workflow process_order(customer: str, order_data: str, amount: int) -> Result[str] {
+    // Validate with a short timeout and no retries
+    let validated = validate_order(order_data) with { timeout: "5s" };
 
-    # Charge payment with retries and backoff
-    let payment = charge_payment(amount, "card-123") with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
+    // Charge payment with retries and backoff
+    let payment = charge_payment(amount, "card-123") 
+        with { retries: 3, timeout: "30s", initial_backoff: "500ms" };
 
-    # Send confirmation with basic retry
-    let confirmation = send_confirmation(customer, "order-001") with { retries: 2, activity_id: "confirm-order-001" }
+    // Send confirmation with basic retry
+    let confirmation = send_confirmation(customer, "order-001") 
+        with { retries: 2, activity_id: "confirm-order-001" };
 
-    ret confirmation
+    return confirmation;
+}
 ```
 
 ---
 
 ## Next Steps
 
-- [Language Guide](../reference/ref-language.md) — Full syntax and type system reference
+- [Language Reference](../reference/ref-syntax.md) — Full syntax and type system reference
 - [Compiler Architecture](expl-architecture.md) — How actors and workflows compile
-- [Examples](../how-to/examples-corpus.md) — All example programs with annotations
 
 ## Durability Taxonomy
 
@@ -227,6 +245,6 @@ Understanding the types of durability is crucial when reasoning about failure re
 1. **Persistent Actors** (state_load / state_save):
    State survives restarts because the logic explicitly reads from and writes to the Codex under specific keys. When the actor respawns, it resumes with the last saved state.
 2. **Workflow Durability** (Interpreted Runtime):
-   When running via ox run or ox mens workflow, the engine tracks execution steps natively in the database. If the process dies and restarts, completed activities are short-circuited.
+   When running via `vox run` or `vox mens` workflow, the engine tracks execution steps natively in the database. If the process dies and restarts, completed activities are short-circuited.
 3. **Compiled Rust Workflows** (Future Parity):
    Workflows that are compiled strictly down to standard Rust async equivalents do not automatically benefit from step-level replayable durability yet. This remains an active implementation target for parity with the interpreted path (see ADR-021).

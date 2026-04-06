@@ -2,7 +2,7 @@
 title: "Internal Architecture Repository"
 description: "Entry point for Vox internal architecture SSOTs, research findings, and planning documents."
 category: "architecture"
-status: "contributor-only"
+status: "research"
 last_updated: "2026-04-06"
 training_eligible: false
 ---

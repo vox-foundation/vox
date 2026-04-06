@@ -72,7 +72,7 @@ All training pairs follow this JSONL schema (must match across all tools) {
 ```json
 {
   "prompt": "Write a Vox actor that tracks a counter",
-  "response": "actor Counter:\n    state count: int = 0\n    on increment() to int:\n        count = count + 1\n        count",
+  "response": "actor Counter {\n    state count: int = 0\n    on increment() -> int {\n        count = count + 1\n        return count\n    }\n}",
   "category": "actor",
   "rating": 5,
   "schema_version": "vox_dogfood_v1"
@@ -99,9 +99,11 @@ All training pairs follow this JSONL schema (must match across all tools) {
 - **Total vocab**: 133 tokens
 
 ```vox
+// Skip-Test
 // Vox example — tokenized natively using VoxTokenizer
-fn greet(name: str) to str {
-    "Hello, " + name
+fn greet(name: str) -> str {
+    return "Hello, " + name
+}
 ```
 
 Encoding uses greedy longest-match on compound tokens before falling back to single chars.

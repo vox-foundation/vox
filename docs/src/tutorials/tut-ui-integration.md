@@ -10,17 +10,17 @@ training_eligible: true
 
 Learn how to build modern, reactive user interfaces with Vox. This tutorial covers the `@island` decorator, JSX-like syntax, and binding UI state to backend logic.
 
-> [!CAUTION]
-> The `@island` decorator and generic `layout fn` blocks were removed in v0.3. Migrating to `@island` and `http get` handler responses is required.
+> [!NOTE]
+> The `@island` decorator was updated in v0.3 to use standard brace syntax and return arrows (`->`). 
 
 ## 1. The `@island` Decorator
 
 Vox interactive UI components are defined with the `@island` decorator. They look and feel like React components but are compiled and hydrated for maximum performance.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 @island
-fn Profile(name: str, bio: str) to Element {
+fn Profile(name: str, bio: str) -> Element {
     <div class="p-6 bg-white shadow rounded-lg">
         <h2 class="text-xl font-bold">{name}</h2>
         <p class="text-gray-600">{bio}</p>
@@ -33,8 +33,8 @@ fn Profile(name: str, bio: str) to Element {
 You can mix lightweight server-rendered HTML routes with rich client-side islands. 
 
 ```vox
-# Skip-Test: ui-only
-http get "/profile" to Element {
+// Skip-Test
+http get "/profile" -> Element {
     // This renders purely on the server
     <html>
         <body>
@@ -51,9 +51,9 @@ http get "/profile" to Element {
 Vox supports a JSX-like syntax directly in `.vox` files. You can embed variables using braces, map over collections, and conditionally render elements.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 @island
-fn UserList(users: List[str]) to Element {
+fn UserList(users: list[str]) -> Element {
     <ul class="divide-y">
         {users.map(fn(user) {
             <li class="py-2">{user}</li>
@@ -66,38 +66,16 @@ fn UserList(users: List[str]) to Element {
 
 The true power of Vox lies in its technical unification. You can call `@mutation` or `@server fn` functions directly from your UI event handlers. Use standard React-like `onChange` or `onClick` attributes.
 
-```vox
-# Skip-Test: ui-only
-import react.use_state
-
-@mutation
-fn subscribe(email: str) to Unit {
-    db.Subscriber.insert({ email: email })
-}
-
-@island
-fn NewsletterForm() to Element {
-    let (email, set_email) = use_state("")
-    
-    <div class="newsletter">
-        <input 
-            type="email" 
-            value={email}
-            onChange={fn(e) set_email(e.target.value)} 
-        />
-        <button onClick={fn(_e) subscribe(email)}>"Join"</button>
-    </div>
-}
-```
+{{#include ../../examples/golden/getting_started.vox:ui}}
 
 ## 5. Routing
 
 You map a route to your island or server handler through the global `routes { }` block.
 
 ```vox
-# Skip-Test: ui-only
+// Skip-Test
 routes {
-    "/" to NewsletterForm
+    "/" -> NewsletterForm
 }
 ```
 

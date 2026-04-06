@@ -24,6 +24,7 @@ You can extract your `@table` records, instruct Vox to assemble training pairs d
 To orchestrate a training pipeline, you specify the data source, the checkpoint strategy, and the hyperparameters straight from Vox constructs.
 
 ```vox
+// Skip-Test
 // Import the native tensor functions and MENS integration logic
 import vox.mens.training
 import vox.mens.qlora
@@ -35,7 +36,7 @@ import vox.mens.qlora
 }
 
 @action
-fn finetune_from_telemetry() to Result[str] {
+fn finetune_from_telemetry() -> Result[str] {
     // 1. Fetch training subset directly from your database
     let records = db.query(AgentTelemetry).take(5000);
     
@@ -57,7 +58,7 @@ fn finetune_from_telemetry() to Result[str] {
         }
     )?
     
-    ret Ok("Trained adapter saved to: " + session.adapter_path)
+    return Ok("Trained adapter saved to: " + session.adapter_path)
 }
 ```
 

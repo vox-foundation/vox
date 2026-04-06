@@ -1,0 +1,22 @@
+// [REGION:mcp_tool]
+@mcp.tool("Calculate the sum of two integers")
+fn sum(a: int, b: int) -> int {
+    return a + b;
+}
+// [END:mcp_tool]
+
+// [REGION:mcp_resource]
+@mcp.resource("notes://recent", "Recent system notes")
+fn get_recent_notes() -> str {
+    return "This is a note from the system.";
+}
+// [END:mcp_resource]
+
+// [REGION:orchestrator_config]
+environment staging {
+    base "node:22-alpine"
+    packages ["curl"]
+    env STAGE = "staging"
+    expose [8080]
+}
+// [END:orchestrator_config]

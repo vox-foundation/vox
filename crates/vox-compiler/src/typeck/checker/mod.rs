@@ -109,6 +109,12 @@ impl<'a> Checker<'a> {
         for rc in &module.reactive_components {
             self.check_reactive_component(rc);
         }
+        for a in &module.agents {
+            self.check_agent(a);
+        }
+        for e in &module.environments {
+            self.check_environment(e);
+        }
     }
 
     fn check_reactive_component(&mut self, rc: &HirReactiveComponent) {
@@ -390,6 +396,67 @@ impl<'a> Checker<'a> {
         }
         self.env.pop_return_type();
         self.env.pop_scope();
+    }
+
+    fn check_agent(&mut self, a: &HirAgent) {
+        for h in &a.handlers {
+            self.check_agent_handler(h);
+        }
+        for m in &a.migrations {
+            self.check_migration_rule(m);
+        }
+    }
+
+    fn check_agent_handler(&mut self, h: &HirAgentHandler) {
+        let ret_ty = h
+            .return_type
+            .as_ref()
+            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+        self.env.push_scope();
+        self.env.push_return_type(ret_ty.clone());
+
+        self.env.define(
+            "db".into(),
+            Binding::new(Ty::Database, false, BindingKind::Variable),
+        );
+
+        for p in &h.params {
+            let p_ty = p
+                .type_ann
+                .as_ref()
+                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+            self.env.define(
+                p.name.clone(),
+                Binding::new(p_ty, false, BindingKind::Parameter),
+            );
+        }
+        for stmt in &h.body {
+            let _ = self.check_stmt(stmt);
+        }
+        self.env.pop_return_type();
+        self.env.pop_scope();
+    }
+
+    fn check_migration_rule(&mut self, m: &HirMigrationRule) {
+        self.env.push_scope();
+        self.env.define(
+            "db".into(),
+            Binding::new(Ty::Database, false, BindingKind::Variable),
+        );
+        for stmt in &m.body {
+            let _ = self.check_stmt(stmt);
+        }
+        self.env.pop_scope();
+    }
+
+    fn check_environment(&mut self, e: &HirEnvironment) {
+        if e.name.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "Environment name cannot be empty".into(),
+                e.span,
+                self.source,
+            ));
+        }
     }
 
     fn enforce_query_read_only(&mut self, sf: &HirServerFn) {

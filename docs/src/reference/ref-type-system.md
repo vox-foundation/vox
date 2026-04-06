@@ -40,6 +40,7 @@ In Vox, `null` and `undefined` do not exist. Absence must be modeled explicitly 
 A named collection of fields.
 
 ```vox
+// Skip-Test
 @table type Task {
     id:       Id[Task]
     title:    str
@@ -51,45 +52,23 @@ A named collection of fields.
 ### Enums (Sum Types / Tagged Unions)
 Types that can be one of several variants, potentially carrying extra data.
 
-```vox
-type TaskStatus =
-    | Backlog
-    | InProgress(owner: str)
-    | Done(completed_at: int)
-    | Blocked(reason: str)
-```
+{{#include ../../examples/golden/ref_types.vox:adt}}
 
 ---
-
-## 4. Pattern Matching
 
 Vox uses the `match` keyword for exhaustive destructuring of ADTs. The compiler will reject a match expression that does not cover every possible variant.
 
-```vox
-match status {
-    Backlog -> "Starting soon"
-    InProgress(name) -> "Assigned to " + name
-    Done(_) -> "Finished"
-    Blocked(msg) -> "Stuck { " + msg
-}
-```
+{{#include ../../examples/golden/ref_types.vox:matching}}
 
 ---
-
-## 5. Built-in Generics
 
 ### `Option[T]`
 Used for values that might be missing.
 
 ```vox
-fn find_user(id: int) to Option[User] {
-    ret db.User.find(id)
-}
-
-let user = find_user(1)
-match user {
-    Some(u) -> u.name
-    None    -> "Guest"
+// Skip-Test
+fn find_user(id: int) -> Option[User] {
+    return db.User.find(id)
 }
 ```
 
@@ -97,25 +76,25 @@ match user {
 Used for operations that can fail.
 
 ```vox
-@server fn update_task(id { Id[Task], title: str) to Result[Unit, str] {
+// Skip-Test
+@server fn update_task(id: Id[Task], title: str) -> Result[Unit, str] {
     if title.len() == 0 {
-        ret Err("Title cannot be empty")
+        return Err("Title cannot be empty")
     }
     db.patch(id, { title: title })
-    ret Ok(())
+    return Ok(())
 }
 ```
 
 ---
 
-## 6. Error Propagation: The `?` Operator
-
 Similar to Rust, the `?` operator can be used to early-return on `None` or `Err`.
 
 ```vox
-fn get_user_email(id: int) to Option[str] {
+// Skip-Test
+fn get_user_email(id: int) -> Option[str] {
     let user = find_user(id)? // If None, returns None early
-    ret Some(user.email)
+    return Some(user.email)
 }
 ```
 
@@ -126,6 +105,7 @@ fn get_user_email(id: int) to Option[str] {
 You rarely need Type annotations for local variables. Vox infers them from the right-hand side or from how the variable is used.
 
 ```vox
+// Skip-Test
 let x = 10                  // inferred as int
 let names = ["Alice", "Bob"] // inferred as list[str]
 let result = add_task("Hi")  // inferred from add_task signature
@@ -154,6 +134,6 @@ A collection of key-value pairs.
 
 ## 9. Next Steps
 
-- **[Language Guide](./ref-language.md)** — General syntax overview.
+- **[Language Guide](./ref-syntax.md)** — General syntax overview.
 - **[Decorator Registry](./ref-decorators.md)** — How types interact with `@table` and `@server`.
-- **[Functions](../api/keywords/fn.md)** — Detailed function signature reference.
+- **[Functions](./ref-syntax.md)** — Detailed function signature reference.

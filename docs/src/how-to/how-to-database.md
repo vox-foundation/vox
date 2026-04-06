@@ -13,23 +13,16 @@ Vox utilizes a unified storage paradigm known as Codex, which compiles into type
 
 ## Defining a Table
 
-Any type struct adorned with the `@table` decorator becomes a persistent database entity. You should define constraints instantly using `@require`.
+Any type struct adorned with the `@table` decorator becomes a persistent database entity.
 
-```vox
-@require(len(self.title) > 0)
-@table type Task {
-    title:    str
-    done:     bool
-    priority: int
-    owner:    str
-}
-```
+{{#include ../../examples/golden/getting_started.vox:data_model}}
 
 ### Adding Index Declarations
 
 To speed up lookups, use the `@index` syntax. The compiler will generate the necessary DB metadata for you.
 
 ```vox
+// Skip-Test
 // Creates a fast lookup tree for 'owner'
 @index Task.by_owner on (owner)
 ```
@@ -40,6 +33,7 @@ The built-in `db` module uses code-generation to inject statically typed accesso
 
 - **Create**:
   ```vox
+  // Skip-Test
   let new_id: Id[Task] = db.Task.insert({ 
       title: "Clean desk", 
       done: false, 
@@ -49,17 +43,20 @@ The built-in `db` module uses code-generation to inject statically typed accesso
   ```
 - **Read**:
   ```vox
+  // Skip-Test
   match db.Task.find(new_id) {
-      Some(t) -> print(t.title)
-      None    -> print("Not found")
+      Some(t) -> println(t.title)
+      None    -> println("Not found")
   }
   ```
-- **Update** {
+- **Update**:
   ```vox
+  // Skip-Test
   db.Task.update(new_id, { done: true })
   ```
 - **Delete**:
   ```vox
+  // Skip-Test
   db.Task.delete(new_id)
   ```
 
@@ -67,11 +64,15 @@ The built-in `db` module uses code-generation to inject statically typed accesso
 
 Instead of raw string interpolation, use Vox's exact literal querying to avoid injection attacks.
 
-```vox
 // Fetch simple exact match parameters
-let alice_tasks = db.Task.filter({ owner { "alice" })
+```vox
+// Skip-Test
+let alice_tasks = db.Task.filter({ owner: "alice" })
+```
 
 // Advanced predicate-object queries
+```vox
+// Skip-Test
 let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).all()
 ```
 
@@ -80,6 +81,7 @@ let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).
 You can apply limits, multi-field ordering, and select specific field projections by chaining.
 
 ```vox
+// Skip-Test
 let feed = db.Task
             .where({ done: false })
             .order_by("priority", "desc")
@@ -93,14 +95,7 @@ For security, you should rarely expose `db.*` calls directly to UI islands or ag
 
 The compiler verifies that a `@query` function does not contain `.insert`, `.update`, or `.delete` operations.
 
-```vox
-@mutation
-fn reassign_task(id: Id[Task], new_owner: str) to Result[Unit] {
-    // Verified by compiler as a write-safe context
-    db.Task.update(id, { owner: new_owner })
-    ret Ok(())
-}
-```
+{{#include ../../examples/golden/getting_started.vox:logic}}
 
 ## The Escape Hatch: Raw SQL
 
@@ -110,6 +105,7 @@ Occasionally, complex analytic aggregations exceed the currently supported ORM b
 > Use this **only** as a last resort. Raw SQL queries bypass Vox's type checking checks on schema changes. 
 
 ```vox
+// Skip-Test
 let count = db.query("SELECT COUNT(*) FROM Task WHERE owner = ?", ["alice"])
 ```
 

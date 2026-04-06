@@ -1,35 +1,18 @@
 ---
 title: "How-To: Deploy to Production"
-description: "Official documentation for How-To: Deploy to Production for the Vox language. Detailed technical reference, architecture guides, and impl"
+description: "Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization."
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: 2026-04-06
+status: "current"
 training_eligible: true
----
+ ---
 # How-To: Deploy to Production
 
 Learn how to package and deploy your Vox application using declarative environments and the `vox deploy` command.
 
-## 0. Declarative Environment (Optional)
+You can define your deployment environment directly in your `.vox` files using `environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more.
 
-> [!WARNING]
-> The `@environment` declarative blocks are currently aspirational logic. Use `vox deploy` configuration options (`Vox.toml` -> `[deploy]`) to select environments.
-
-You can theoretically define your deployment environment directly in your `.vox` files using `@environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more, similar to a NixOS-like declarative specification.
-
-```vox
-@environment production:
-    base: "node:22-alpine"
-    packages: ["curl", "git", "imagemagick"]
-    env:
-        PORT: "8080"
-        NODE_ENV: "production"
-    expose: [8080, 443]
-    volumes: ["/data"]
-    copy:
-        "nginx.conf" to "/etc/nginx/nginx.conf"
-    run: ["echo 'Building...'"]
-    cmd: ["npx", "tsx", "server.ts"]
-```
+{{#include ../../examples/golden/ref_orchestrator.vox:orchestrator_config}}
 
 > [!NOTE]
 > The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@server fn`. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
@@ -39,12 +22,13 @@ You can theoretically define your deployment environment directly in your `.vox`
 For applications that run directly on Linux servers without Docker, set `base` to `"bare-metal"` and Vox will generate a systemd `.service` file instead of a Dockerfile:
 
 ```vox
-@environment server:
-    base: "bare-metal"
-    workdir: "/opt/my-app"
-    env:
-        PORT: "8080"
-    cmd: ["./my-app", "--port", "8080"]
+// Skip-Test
+environment server {
+    base "bare-metal"
+    workdir "/opt/my-app"
+    env PORT = "8080"
+    cmd ["./my-app", "--port", "8080"]
+}
 ```
 
 Running `vox build` will emit a `server.service` file ready for deployment with `systemctl enable` and `systemctl start`.
@@ -122,7 +106,6 @@ Since Vox uses SQLite for the data layer and durability journal, ensure you moun
 ---
 
 **Related Reference**:
-- [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md) — Rust-first containers vs Express `server.ts`.
-- [Deployment compose SSOT](../reference/deployment-compose.md) — Docker / Compose / Coolify / CI profiles and env SSOT.
+- [Fullstack Artifacts](../reference/ref-syntax.md) — Rust-first containers vs Express `server.ts`.
 - [CLI Reference](../reference/cli.md) — All `vox package` and `vox deploy` options.
-- [Runtime Explanation](../explanation/expl-architecture.md) — Understanding the runtime environment.
+- [Runtime Explanation](../explanation/expl-actors-workflows.md) — Understanding the runtime environment.
