@@ -56,6 +56,8 @@ impl Parser {
             })
         } else if self.eat(&Token::Underscore) {
             Ok(TypeExpr::Infer { span: start })
+        } else if self.eat(&Token::Dec) {
+            Ok(TypeExpr::Decimal { span: start })
         } else {
             Ok(TypeExpr::Named {
                 name,

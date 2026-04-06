@@ -16,6 +16,7 @@ sha3 = { workspace = true }
 flate2 = "1.1.9"
 bzip2 = "0.6.1"
 zstd = "0.13.3"
+rust_decimal = { workspace = true }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }

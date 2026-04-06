@@ -172,6 +172,18 @@ pub fn generate_component(
         out.push_str(&format!("import \"./{name}.css\";\n\n"));
     }
 
+    // Mobile bridge import
+    let mut uses_mobile = false;
+    for stmt in &func.body {
+        if uses_mobile_ident_in_stmt(stmt) {
+            uses_mobile = true;
+            break;
+        }
+    }
+    if uses_mobile {
+        out.push_str("import * as mobile from \"./mobile-bridge\";\n\n");
+    }
+
     // Props interface
     if !func.params.is_empty() {
         out.push_str(&format!("export interface {name}Props {{\n"));
@@ -399,5 +411,56 @@ pub fn map_vox_type_to_ts(ty: &crate::ast::types::TypeExpr) -> String {
         }
         crate::ast::types::TypeExpr::Unit { .. } => "void".to_string(),
         crate::ast::types::TypeExpr::Infer { .. } => "any".to_string(),
+        crate::ast::types::TypeExpr::Decimal { .. } => "string".to_string(),
+    }
+}
+
+fn uses_mobile_ident_in_stmt(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Let { value, .. } => uses_mobile_ident_in_expr(value),
+        Stmt::Assign { target, value, .. } => {
+            uses_mobile_ident_in_expr(target) || uses_mobile_ident_in_expr(value)
+        }
+        Stmt::Return { value, .. } => value.as_ref().map_or(false, uses_mobile_ident_in_expr),
+        Stmt::Expr { expr, .. } => uses_mobile_ident_in_expr(expr),
+        Stmt::While {
+            condition, body, ..
+        } => uses_mobile_ident_in_expr(condition) || body.iter().any(uses_mobile_ident_in_stmt),
+        Stmt::Loop { body, .. } => body.iter().any(uses_mobile_ident_in_stmt),
+        _ => false,
+    }
+}
+
+fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
+    match expr {
+        Expr::Ident { name, .. } => name == "mobile",
+        Expr::Call { callee, args, .. } => {
+            uses_mobile_ident_in_expr(callee) || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
+        }
+        Expr::MethodCall { object, args, .. } => {
+            uses_mobile_ident_in_expr(object) || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
+        }
+        Expr::FieldAccess { object, .. } => uses_mobile_ident_in_expr(object),
+        Expr::Binary { left, right, .. } => {
+            uses_mobile_ident_in_expr(left) || uses_mobile_ident_in_expr(right)
+        }
+        Expr::Unary { operand, .. } => uses_mobile_ident_in_expr(operand),
+        Expr::Block { stmts, .. } => stmts.iter().any(uses_mobile_ident_in_stmt),
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
+            uses_mobile_ident_in_expr(condition)
+                || then_body.iter().any(uses_mobile_ident_in_stmt)
+                || else_body.as_ref().map_or(false, |b| b.iter().any(uses_mobile_ident_in_stmt))
+        }
+        Expr::ObjectLit { fields, .. } => fields.iter().any(|(_, v)| uses_mobile_ident_in_expr(v)),
+        Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {
+            elements.iter().any(uses_mobile_ident_in_expr)
+        }
+        Expr::Try { target, .. } | Expr::Spawn { target, .. } => uses_mobile_ident_in_expr(target),
+        _ => false,
     }
 }

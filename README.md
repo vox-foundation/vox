@@ -170,6 +170,8 @@ fn test_search_returns_result() to Unit {
 
 More examples: [`examples/golden/`](examples/golden/).
 
+For a side-by-side, same-scenario comparison across C++23, Rust, Python, and Vox with a progressive Vox finale, see [`docs/src/explanation/expl-rosetta-inventory.md`](docs/src/explanation/expl-rosetta-inventory.md).
+
 ---
 
 ## Quick Start

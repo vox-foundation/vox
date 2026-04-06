@@ -131,6 +131,7 @@ tantivy            = "0.22"
 nvml-wrapper       = { version = "0.11", default-features = false }
 # Wave 5: Async mesh results
 dashmap            = "6"
+rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"] }
 
 # Turso / libsql pulls `aegis`; patch uses **pure-rust** defaults so MSVC builds skip the C backend (no clang-cl).
 [patch.crates-io]

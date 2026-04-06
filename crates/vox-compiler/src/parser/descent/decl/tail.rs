@@ -102,7 +102,7 @@ impl Parser {
         let name = self.parse_ident_name()?;
         self.expect(&Token::LParen)?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::Arrow) {
+        let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
             Some(self.parse_type_expr()?)
         } else {
             None

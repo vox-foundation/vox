@@ -48,6 +48,7 @@ pub(super) fn hir_type_to_voxdb_validator(ty: &HirType) -> String {
         }
         HirType::Function(..) => "v.any() /* Function */".to_string(),
         HirType::Unit => "v.null()".to_string(),
+        HirType::Decimal => "v.string()".to_string(),
     }
 }
 
@@ -96,6 +97,7 @@ pub(super) fn hir_type_to_ts(ty: &HirType) -> String {
             format!("[{}]", elems.join(", "))
         }
         HirType::Unit => "void".to_string(),
+        HirType::Decimal => "string".to_string(),
     }
 }
 
@@ -149,6 +151,7 @@ pub fn type_to_voxdb_validator(ty: &TypeExpr) -> String {
         TypeExpr::Function { .. } => "v.any() /* Function */".to_string(),
         TypeExpr::Unit { .. } => "v.null()".to_string(),
         TypeExpr::Infer { .. } => "v.any()".to_string(),
+        TypeExpr::Decimal { .. } => "v.string()".to_string(),
     }
 }
 
@@ -201,6 +204,7 @@ pub(super) fn type_to_ts(ty: &TypeExpr) -> String {
         }
         TypeExpr::Unit { .. } => "void".to_string(),
         TypeExpr::Infer { .. } => "any".to_string(),
+        TypeExpr::Decimal { .. } => "string".to_string(),
     }
 }
 

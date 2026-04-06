@@ -200,6 +200,7 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
         | Expr::FloatLit { .. }
         | Expr::BoolLit { .. }
         | Expr::StringLit { .. }
-        | Expr::Ident { .. } => {}
+        | Expr::Ident { .. }
+        | Expr::DecimalLit { .. } => {}
     }
 }

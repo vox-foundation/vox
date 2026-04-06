@@ -205,6 +205,7 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::FloatLit { value, .. } => value.to_string(),
         Expr::StringLit { value, .. } => format!("\"{value}\""),
         Expr::BoolLit { value, .. } => value.to_string(),
+        Expr::DecimalLit { value, .. } => format!("\"{value}\""),
         Expr::Ident { name, .. } => name.clone(),
         Expr::ObjectLit { fields, .. } => {
             let pairs: Vec<String> = fields

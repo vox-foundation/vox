@@ -29,8 +29,8 @@ impl<'a> Checker<'a> {
             HirUnOp::Neg => {
                 if ty == Ty::Int {
                     Ty::Int
-                } else if ty == Ty::Float {
-                    Ty::Float
+                } else if ty == Ty::Float || ty == Ty::Decimal {
+                    ty
                 } else {
                     Ty::Error
                 }
@@ -47,6 +47,8 @@ impl<'a> Checker<'a> {
                     Ty::Str
                 } else if l == Ty::Int && r == Ty::Int {
                     Ty::Int
+                } else if l == Ty::Decimal && r == Ty::Decimal {
+                    Ty::Decimal
                 } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
                     Ty::Float
                 } else {
@@ -61,6 +63,8 @@ impl<'a> Checker<'a> {
             HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
                 if l == Ty::Int && r == Ty::Int {
                     Ty::Int
+                } else if l == Ty::Decimal && r == Ty::Decimal {
+                    Ty::Decimal
                 } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
                     Ty::Float
                 } else {

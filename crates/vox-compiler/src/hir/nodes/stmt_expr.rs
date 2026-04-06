@@ -98,6 +98,8 @@ pub enum HirType {
     Tuple(Vec<HirType>),
     /// Unit / void.
     Unit,
+    /// Fixed-point decimal.
+    Decimal,
 }
 
 /// Try expression (`x?`).
@@ -121,6 +123,8 @@ pub enum HirExpr {
     StringLit(String, Span),
     /// Boolean literal.
     BoolLit(bool, Span),
+    /// Fixed-point decimal literal.
+    DecimalLit(String, Span),
     /// Local or global identifier.
     Ident(String, Span),
     /// Object literal `{ k: v }`.

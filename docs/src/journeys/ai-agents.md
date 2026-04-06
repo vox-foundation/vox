@@ -1,7 +1,7 @@
 ---
 title: "Journey: Building Resilient AI Agents"
 description: "How to use Vox's native MCP integration, vector memory, and type safety to build reliable, stateful AI agents without ductile LLM orchestration layers."
-category: "getting-started"
+category: "journey"
 sort_order: 1
 ---
 
@@ -9,7 +9,7 @@ sort_order: 1
 
 ## The Broken Reality of Orchestrating LLMs
 
-Building an intelligent AI agent generally involves duct-taping language models to your application state. This requires writing brittle Python scripts or complex TypeScript orchestrators like Langchain. 
+Building an intelligent AI agent generally involves duct-taping language models to your application state. This requires writing brittle Python scripts or complex TypeScript orchestrators like Langchain.
 
 As soon as your agent needs to execute a tool reliably, parse JSON tool-call responses, retry failures, and maintain a stateful memory of the interaction, the infrastructure complexity explodes. LLMs hallucinate arguments, drop nested fields, and break your application logic.
 
@@ -51,10 +51,12 @@ fn get_answer(user_question: str) -> Result[str] {
 
 1. Save the above snippet into an entrypoint like `src/agent.vox`.
 2. Compile and run:
+
    ```bash
    vox build src/agent.vox
    vox run src/agent.vox
    ```
+
 3. Vox will start the development server. The endpoints become immediately queryable, and if running in MCP mode, your agent tools are automatically broadcasted for discovery.
 
 ## Deep Dives

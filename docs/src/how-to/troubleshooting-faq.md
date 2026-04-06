@@ -148,5 +148,5 @@ The Vox compiler provides structured diagnostic codes to help you (and AI agents
 
 ## Further Operations
 - [Vox FAQ](../explanation/faq.md) — Architectural and conceptual Q&A.
-- [`vox doctor`](../reference/cli.md#doctor) — Automates environment verification.
+- [`vox doctor`](../reference/cli.md#vox-doctor) — Automates environment verification.
 - [Contributor Hub](../contributors/contributor-hub.md) — If you've found a compiler bug.

@@ -280,7 +280,17 @@ pub fn emit_hir_expr(
             // A common TS code pattern is to just emit the target since actual error bubbling requires explicit branching. For basic TS compat we'll emit the unwrapped expression.
             emit_hir_expr(h.target.as_ref(), state_names, island_names)
         }
-        _ => "null".to_string(),
+        HirExpr::DecimalLit(v, _) => format!("\"{v}\""),
+        HirExpr::Pipe(l, r, _) => {
+            let left = emit_hir_expr(l, state_names, island_names);
+            let right = emit_hir_expr(r, state_names, island_names);
+            format!("{right}({left})")
+        }
+        HirExpr::Spawn(target, _) => {
+            let t = emit_hir_expr(target, state_names, island_names);
+            format!("new {t}()")
+        }
+        HirExpr::With(base, _, _) => emit_hir_expr(base, state_names, island_names),
     }
 }
 
@@ -403,6 +413,14 @@ pub(crate) fn emit_hir_stmt(
             )
         }
         HirStmt::Expr { expr, .. } => {
+            // Check for mobile native call at the statement level (e.g. `notification.send(...)`)
+            if let HirExpr::Call(callee, _args, _, _) = expr {
+                if let HirExpr::Ident(_name, _) = callee.as_ref() {
+                    // This logic depends on having access to HirFn metadata or a bridge registry.
+                    // For now, @mobile.native in HIR doesn't have an easy "is_mobile" lookup in emit_hir_stmt
+                    // unless we pass the module or a set of native fn names.
+                }
+            }
             format!("{pad}{};\n", emit_hir_expr(expr, state_names, island_names))
         }
         HirStmt::Return { value, .. } => {
@@ -458,4 +476,26 @@ pub(crate) fn emit_hir_pattern(pattern: &HirPattern) -> String {
         HirPattern::Wildcard(_) => "_".to_string(),
         _ => "_".to_string(),
     }
+}
+
+/// Emit a mobile native bridge function as a Capacitor invoke call.
+///
+/// **Phase:** mobile-integration (OP-M042).
+#[must_use]
+pub fn emit_mobile_bridge_fn(f: &HirFn) -> String {
+    let mut out = String::new();
+    let name = &f.name;
+    let params: Vec<String> = f.params.iter().map(|p| {
+        let ty = p.type_ann.as_ref().map_or("any".to_string(), map_hir_type_to_ts);
+        format!("{}: {}", p.name, ty)
+    }).collect();
+    let ret_ty = f.return_type.as_ref().map_or("Promise<void>".to_string(), |ty| {
+        format!("Promise<{}>", map_hir_type_to_ts(ty))
+    });
+
+    out.push_str(&format!("export async function {name}({}): {ret_ty} {{\n", params.join(", ")));
+    let args_obj: Vec<String> = f.params.iter().map(|p| format!("{}: {}", p.name, p.name)).collect();
+    out.push_str(&format!("  return await Capacitor.Plugins.VoxNative.invoke({{ name: '{name}', args: {{ {} }} }});\n", args_obj.join(", ")));
+    out.push_str("}\n");
+    out
 }

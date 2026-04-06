@@ -150,6 +150,7 @@ impl<'a> Checker<'a> {
             HirExpr::FloatLit(_, _) => Ty::Float,
             HirExpr::StringLit(_, _) => Ty::Str,
             HirExpr::BoolLit(_, _) => Ty::Bool,
+            HirExpr::DecimalLit(_, _) => Ty::Decimal,
             HirExpr::TupleLit(exprs, _) => {
                 let tys = exprs.iter().map(|e| self.check_expr(e)).collect();
                 Ty::Tuple(tys)

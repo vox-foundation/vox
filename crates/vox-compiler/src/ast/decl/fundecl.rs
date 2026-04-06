@@ -59,8 +59,8 @@ pub struct FnDecl {
     pub verify_mode: VerifyMode,
     /// Optional strategy override for property testing.
     pub test_strategy: Option<String>,
-    /// Whether this function is a fuzzing target.
-    pub is_fuzz: bool,
+    /// Whether this function is a mobile native implementation bridge.
+    pub is_mobile_native: bool,
     /// Source location.
     pub span: Span,
 }

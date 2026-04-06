@@ -230,6 +230,7 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
                 "char" => Ty::Char,
                 "never" => Ty::Never,
                 "Unit" => Ty::Unit,
+                "dec" => Ty::Decimal,
                 "Element" => Ty::Element,
                 other => Ty::Named(other.to_string()),
             }
@@ -270,6 +271,7 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
             Ty::Tuple(elements.iter().map(|e| resolve_hir_type(e, env)).collect())
         }
         HirType::Unit => Ty::Unit,
+        HirType::Decimal => Ty::Decimal,
     }
 }
 
@@ -342,7 +344,7 @@ pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn) {
             ty: Ty::Fn(param_tys, Box::new(ret_ty)),
             mutable: false,
             kind: BindingKind::Function,
-            is_deprecated: f.is_deprecated,
+            is_deprecated: false,
         },
     );
 }

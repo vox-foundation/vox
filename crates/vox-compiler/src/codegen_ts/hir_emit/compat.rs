@@ -10,7 +10,7 @@ pub fn map_hir_type_to_ts(ty: &HirType) -> String {
     match ty {
         HirType::Named(name) => match name.as_str() {
             "int" | "float" => "number".to_string(),
-            "str" => "string".to_string(),
+            "str" | "dec" => "string".to_string(),
             "bool" => "boolean".to_string(),
             other => other.to_string(),
         },
@@ -18,6 +18,7 @@ pub fn map_hir_type_to_ts(ty: &HirType) -> String {
             let args_str: Vec<String> = args.iter().map(map_hir_type_to_ts).collect();
             format!("{}<{}>", name, args_str.join(", "))
         }
+        HirType::Decimal => "string".to_string(),
         _ => "any".to_string(),
     }
 }

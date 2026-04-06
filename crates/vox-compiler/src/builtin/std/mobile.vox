@@ -1,0 +1,14 @@
+/// Hardware and native mobile integration.
+/// Maps to Capacitor.Plugins on Vox Mobile.
+
+@mobile.native
+pub fn notify(title: str, body: str) -> Result[unit] { }
+
+@mobile.native
+pub fn get_location() -> Result[str] { }
+
+@mobile.native
+pub fn vibrate() -> Result[unit] { }
+
+@mobile.native
+pub fn take_photo() -> Result[str] { }

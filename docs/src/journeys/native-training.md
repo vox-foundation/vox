@@ -1,7 +1,7 @@
 ---
 title: "Journey: Native Rust LLM Training"
 description: "How to use Vox's native ML toolchain to fine-tune open weights directly from your application data without diving into Python environments."
-category: "getting-started"
+category: "journey"
 sort_order: 4
 ---
 
@@ -11,11 +11,11 @@ sort_order: 4
 
 When you have domain-specific application data housed in a Rust or typical structured backend and want to use it to fine-tune a model, you hit a massive tooling disconnect.
 
-You have to pull the data directly from production, dump it into JSONL files, transfer them, spin up complex Virtual Environments (venv/Conda), manage nested CUDA PyTorch dependencies, and fight Python multi-threading environments in Jupyter notebooks. Your application logic effectively divorces the ML operations layer. 
+You have to pull the data directly from production, dump it into JSONL files, transfer them, spin up complex Virtual Environments (venv/Conda), manage nested CUDA PyTorch dependencies, and fight Python multi-threading environments in Jupyter notebooks. Your application logic effectively divorces the ML operations layer.
 
 ## The Vox Paradigm: Zero-Python Native Fine-tuning
 
-The Vox toolchain resolves this tension by providing native hardware-accelerated LLM QLoRA training right from your ecosystem via **MENS** (the Vox ML Subsystem) powered by `vox-tensor` (built atop Candle). 
+The Vox toolchain resolves this tension by providing native hardware-accelerated LLM QLoRA training right from your ecosystem via **MENS** (the Vox ML Subsystem) powered by `vox-tensor` (built atop Candle).
 
 You can extract your `@table` records, instruct Vox to assemble training pairs directly from your canonical data, and launch a full forward/backward training pass executing entirely within Rust. It bridges the data layer and ML architecture without needing any Python binding layers.
 
@@ -67,6 +67,7 @@ fn finetune_from_telemetry() -> Result[str] {
 NVIDIA GPU training directly off Rust requires specific compilation features so the compiler binds to CUDA efficiently.
 
 Instead of the standard run, use the CLI's native ML capabilities:
+
 ```bash
 # This fetches the model base components and leverages PyTorch/Candle-compatible GPU bindings
 vox run server.vox --mens-training-enabled
@@ -78,4 +79,4 @@ To evaluate how Vox bypassed Python boundaries and the performance implications:
 
 - **[ADR 003 — Native Rust Training Over Python](../adr/003-native-training-over-python.md)**: The technical motivation explaining why Vox transitioned away from `PyO3` architectures towards pure Rust.
 - **[Native ML Training Pipeline](../explanation/expl-ml-pipeline.md)**: End-to-end overview showing data staging and tokenization processes prior to QLoRA execution.
-- **[Mens native training SSOT (Candle QLoRA) ](../reference/mens-training.md)**: Highly specific architectural guarantees, limits, and configurations for `vox-tensor` training capabilities.
+- **[Mens native training SSOT (Candle QLoRA)](../reference/mens-training.md)**: Highly specific architectural guarantees, limits, and configurations for `vox-tensor` training capabilities.

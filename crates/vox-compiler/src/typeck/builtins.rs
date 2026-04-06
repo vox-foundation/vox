@@ -324,6 +324,17 @@ impl BuiltinTypes {
             },
         );
 
+        // Mobile native bridge (std.mobile).
+        env.define(
+            "mobile".into(),
+            Binding {
+                ty: Ty::Named("StdMobileNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // ── Method registrations ──────────────────────────────
 
         // List methods
@@ -440,6 +451,22 @@ impl BuiltinTypes {
             );
         }
         methods.insert("BrowserModule".into(), browser_methods);
+
+        let mut mobile_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "std.mobile")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            mobile_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("StdMobileNs".into(), mobile_methods);
 
         // Request methods
         let mut req_methods = std::collections::HashMap::new();

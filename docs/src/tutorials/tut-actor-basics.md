@@ -98,4 +98,4 @@ When you run `vox build`, the compiler lowers actor constructs directly into hig
 **Next Steps**:
 - [Workflow Durability](tut-workflow-durability.md) — Orchestrate complex, multi-step long-running processes.
 - [Actors & Workflows Explanation](../explanation/expl-actors-workflows.md) — Deep dive into the theory.
-- [CLI Reference: vox run](../reference/cli.md#run) — Run your actor-based applications.
+- [CLI Reference: vox run](../reference/cli.md#vox-run-file----args) — Run your actor-based applications.

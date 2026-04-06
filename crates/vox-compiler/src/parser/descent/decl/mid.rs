@@ -115,7 +115,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let ret = if self.eat(&Token::Arrow) {
+        let ret = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -140,7 +140,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let ret = if self.eat(&Token::Arrow) {
+        let ret = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -207,7 +207,7 @@ impl Parser {
                 return Err(());
             }
         };
-        let ret = if self.eat(&Token::Arrow) {
+        let ret = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
             Some(self.parse_type_expr()?)
         } else {
             None

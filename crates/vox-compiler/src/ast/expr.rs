@@ -162,6 +162,13 @@ pub enum Expr {
         /// Span covering the keyword literal.
         span: Span,
     },
+    /// Fixed-point decimal literal: `1.23dec`
+    DecimalLit {
+        /// Raw decimal string.
+        value: String,
+        /// Span covering the literal.
+        span: Span,
+    },
     /// Identifier reference: `x`, `foo`
     Ident {
         /// Resolved textual name as written in source.
@@ -344,6 +351,7 @@ impl Expr {
             | Expr::FloatLit { span, .. }
             | Expr::StringLit { span, .. }
             | Expr::BoolLit { span, .. }
+            | Expr::DecimalLit { span, .. }
             | Expr::Ident { span, .. }
             | Expr::ObjectLit { span, .. }
             | Expr::ListLit { span, .. }

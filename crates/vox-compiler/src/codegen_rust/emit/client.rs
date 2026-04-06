@@ -97,6 +97,7 @@ fn hir_type_to_ts(ty: &HirType) -> String {
             format!("[{}]", elems_str.join(", "))
         }
         HirType::Unit => "void".to_string(),
+        HirType::Decimal => "string".to_string(),
     }
 }
 
@@ -140,6 +141,7 @@ fn hir_type_json_schema_property(type_ann: Option<&HirType>) -> String {
             )
         }
         Some(HirType::Unit) => r#"{ "type": "null" }"#.to_string(),
+        Some(HirType::Decimal) => r#"{ "type": "string" }"#.to_string(),
         Some(HirType::Function(_, _)) => r#"{ "type": "string" }"#.to_string(),
         Some(HirType::Named(_)) => r#"{ "type": "string" }"#.to_string(),
         Some(HirType::Generic(_, _)) => r#"{ "type": "string" }"#.to_string(),
@@ -196,6 +198,12 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
                     }
                     Some(HirType::Named(t)) if t == "bool" => {
                         format!("{name}.as_bool().unwrap_or(false)")
+                    }
+                    Some(HirType::Named(t)) if t == "dec" => {
+                        format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+                    }
+                    Some(HirType::Decimal) => {
+                        format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
                     }
                     _ => name.to_string(),
                 }

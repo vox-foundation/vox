@@ -24,7 +24,7 @@ impl LowerCtx {
             is_component,
             is_async: false,
             is_pub: f.is_pub,
-            is_deprecated: f.is_deprecated,
+            is_mobile_native: f.is_mobile_native,
             span: f.span,
         }
     }
@@ -66,6 +66,7 @@ impl LowerCtx {
             }
             TypeExpr::Unit { .. } => HirType::Unit,
             TypeExpr::Infer { .. } => HirType::Named("_".to_string()),
+            TypeExpr::Decimal { .. } => HirType::Decimal,
         }
     }
     pub(crate) fn lower_typedef(&mut self, t: &TypeDefDecl) -> HirTypeDef {

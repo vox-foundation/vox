@@ -10,6 +10,7 @@ impl LowerCtx {
             Expr::FloatLit { value, span } => HirExpr::FloatLit(*value, *span),
             Expr::StringLit { value, span } => HirExpr::StringLit(value.clone(), *span),
             Expr::BoolLit { value, span } => HirExpr::BoolLit(*value, *span),
+            Expr::DecimalLit { value, span } => HirExpr::DecimalLit(value.clone(), *span),
             Expr::Ident { name, span } => HirExpr::Ident(name.clone(), *span),
             Expr::ObjectLit { fields, span } => HirExpr::ObjectLit(
                 fields

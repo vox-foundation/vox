@@ -1,0 +1,62 @@
+// ---
+// title: "Inventory Rosetta Core"
+// description: "Inventory merge core: ADT errors, pure merge logic, and @table persistence primitives for Rosetta comparison demos."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [type, match, fn, @table, @query, @mutation, db]
+// last_validated: 2026-04-06
+// training_eligible: true
+// training_weight: 1.0
+// ---
+# @training_prompt: Show pure inventory merge logic and minimal persistence for a Rosetta-style language comparison.
+
+// ANCHOR: types_and_merge
+type MergeError =
+    | WrongKind(left: str, right: str)
+    | InvalidCap(cap: int)
+
+type MergeOutcome =
+    | Applied(primary: int, overflow: int)
+    | Rejected(err: MergeError)
+
+fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int) -> MergeOutcome {
+    if max_stack <= 0 {
+        ret Rejected(InvalidCap(max_stack))
+    }
+    if kind_a != kind_b {
+        ret Rejected(WrongKind(kind_a, kind_b))
+    }
+
+    let total = qty_a + qty_b
+    if total <= max_stack {
+        ret Applied(total, 0)
+    }
+    ret Applied(max_stack, total - max_stack)
+}
+// ANCHOR_END: types_and_merge
+
+// ANCHOR: table_layer
+@table type InventoryStack {
+    kind: str
+    qty: int
+    max_stack: int
+}
+
+@query
+fn stack_count(kind: str) -> int {
+    ret len(db.InventoryStack.filter({ kind: kind }))
+}
+
+@mutation
+fn seed_stack(kind: str, qty: int, max_stack: int) -> Result[str] {
+    if qty < 0 {
+        ret Error("invalid stack shape")
+    }
+    if max_stack <= 0 {
+        ret Error("invalid stack shape")
+    }
+    db.InventoryStack.insert({ kind: kind, qty: qty, max_stack: max_stack })
+    ret Ok("seeded")
+}
+// ANCHOR_END: table_layer

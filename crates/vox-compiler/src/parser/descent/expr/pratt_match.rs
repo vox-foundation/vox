@@ -30,6 +30,13 @@ impl Parser {
                     span: start,
                 }
             }
+            Token::DecLit(s) => {
+                self.advance();
+                Expr::DecimalLit {
+                    value: s,
+                    span: start,
+                }
+            }
 
             Token::True => {
                 self.advance();

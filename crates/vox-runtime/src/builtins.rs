@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use vox_skills::ars_shim::{
     DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
 };
+use rust_decimal::prelude::FromStr;
 
 /// Fast, non-cryptographic hash using XXH3-128 (128-bit output).
 ///
@@ -795,6 +796,39 @@ pub fn vox_fs_glob(pattern: &str) -> Result<Vec<String>, String> {
     }
     paths.sort();
     Ok(paths)
+}
+
+/// Convert a `dec` value to a string (`std.dec.to_string`).
+pub fn vox_dec_to_str(d: rust_decimal::Decimal) -> String {
+    d.to_string()
+}
+
+/// Parse a string into a `dec` value (`std.dec.from_str`).
+pub fn vox_str_to_dec(s: &str) -> Result<rust_decimal::Decimal, String> {
+    rust_decimal::Decimal::from_str(s).map_err(|e| e.to_string())
+}
+
+/// Return JSON list of runtime capabilities (`std.meta.capabilities`).
+pub fn vox_meta_capabilities() -> String {
+    let mut caps = vec!["hashing", "fs", "process", "http"];
+    #[cfg(feature = "database")]
+    caps.push("database");
+
+    if std::env::var("VOX_CHROME_EXECUTABLE").is_ok()
+        || which::which("google-chrome").is_ok()
+        || which::which("chromium").is_ok()
+    {
+        caps.push("browser");
+    }
+
+    serde_json::to_string(&caps).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Return JSON list of registered tools (`std.meta.tools`).
+pub fn vox_meta_tools() -> String {
+    // Note: To avoid circular dependency on vox-mcp-registry, this currently returns an empty list
+    // until the registry is flattened or moved to a core crate.
+    "[]".to_string()
 }
 
 #[cfg(test)]

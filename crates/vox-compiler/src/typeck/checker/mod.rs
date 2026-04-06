@@ -41,9 +41,10 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s) => *s,
-        HirExpr::Try(t) => t.span,
-        HirExpr::Jsx(el) => el.span,
         HirExpr::JsxSelfClosing(el) => el.span,
+        HirExpr::Jsx(el) => el.span,
+        HirExpr::Try(t) => t.span,
+        HirExpr::DecimalLit(_, s) => *s,
     }
 }
 
@@ -583,9 +584,10 @@ impl<'a> Checker<'a> {
             HirExpr::Try(t) => Self::contains_db_write_or_unsafe_in_expr(t.target.as_ref()),
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
-            | HirExpr::StringLit(_, _)
             | HirExpr::BoolLit(_, _)
-            | HirExpr::Ident(_, _) => false,
+            | HirExpr::StringLit(_, _)
+            | HirExpr::Ident(_, _)
+            | HirExpr::DecimalLit(_, _) => false,
         }
     }
 

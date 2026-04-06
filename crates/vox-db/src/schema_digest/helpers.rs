@@ -135,6 +135,7 @@ fn type_expr_to_string(ty: &TypeExpr) -> String {
         }
         TypeExpr::Unit { .. } => "Unit".to_string(),
         TypeExpr::Infer { .. } => "_".to_string(),
+        TypeExpr::Decimal { .. } => "dec".to_string(),
     }
 }
 

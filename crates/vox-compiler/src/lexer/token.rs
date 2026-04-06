@@ -44,6 +44,8 @@ pub enum Token {
     Return,
     #[token("type")]
     TypeKw,
+    #[token("dec")]
+    Dec,
     #[token("import")]
     Import,
     #[token("actor")]
@@ -114,6 +116,8 @@ pub enum Token {
     AtIndex,
     #[token("@v0")]
     AtV0,
+    #[token("@mobile.native")]
+    AtMobileNative,
     #[token("@island")]
     AtIsland,
     #[token("@loading")]
@@ -202,8 +206,21 @@ pub enum Token {
     JsxSelfClose,
 
     // ── Literals ──────────────────────────────────────────────
-    #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse::<f64>().ok())]
+    #[regex(r"[0-9]+\.[0-9]+(dec)?", |lex| {
+        let s = lex.slice();
+        if s.ends_with("dec") {
+            None // Handled by DecLit
+        } else {
+            s.parse::<f64>().ok()
+        }
+    })]
     FloatLit(f64),
+
+    #[regex(r"[0-9]+(\.[0-9]+)?dec", |lex| {
+        let s = lex.slice();
+        Some(s[..s.len()-3].to_string())
+    })]
+    DecLit(String),
 
     #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     IntLit(i64),
@@ -299,6 +316,7 @@ impl std::fmt::Display for Token {
             Token::Ret => write!(f, "ret"),
             Token::Return => write!(f, "return"),
             Token::TypeKw => write!(f, "type"),
+            Token::Dec => write!(f, "dec"),
             Token::Import => write!(f, "import"),
             Token::Actor => write!(f, "actor"),
             Token::Workflow => write!(f, "workflow"),
@@ -332,6 +350,7 @@ impl std::fmt::Display for Token {
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtV0 => write!(f, "@v0"),
+            Token::AtMobileNative => write!(f, "@mobile.native"),
             Token::AtIsland => write!(f, "@island"),
             Token::AtLoading => write!(f, "@loading"),
             Token::AtRequire => write!(f, "@require"),
@@ -375,6 +394,7 @@ impl std::fmt::Display for Token {
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),
+            Token::DecLit(s) => write!(f, "{s}dec"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),
             Token::Comment => write!(f, "<comment>"),

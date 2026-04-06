@@ -155,6 +155,7 @@ impl Decl {
         is_deprecated: bool,
         is_pure: bool,
         is_traced: bool,
+        is_mobile_native: bool,
     ) {
         match self {
             Decl::Function(f) => {
@@ -166,6 +167,9 @@ impl Decl {
                 }
                 if is_traced {
                     f.is_traced = true;
+                }
+                if is_mobile_native {
+                    f.is_mobile_native = true;
                 }
             }
             Decl::Component(c) => {

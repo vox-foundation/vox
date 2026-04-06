@@ -130,6 +130,7 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             let _opt_ty = infer_expr(options, ctx, builtins);
             op_ty
         }
+        Expr::DecimalLit { .. } => Ty::Decimal,
     }
 }
 

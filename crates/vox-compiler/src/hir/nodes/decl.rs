@@ -313,8 +313,8 @@ pub struct HirFn {
     pub is_async: bool,
     /// Exported from module.
     pub is_pub: bool,
-    /// `@deprecated` on the source declaration.
-    pub is_deprecated: bool,
+    /// Whether this is a `@mobile.native` bridge.
+    pub is_mobile_native: bool,
     /// Span covering the declaration.
     pub span: Span,
 }

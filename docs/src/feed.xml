@@ -5,166 +5,166 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Mon, 06 Apr 2026 14:30:43 GMT</lastBuildDate>
+  <lastBuildDate>Mon, 06 Apr 2026 17:36:40 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
-    <title>Internal Architecture Repository</title>
-    <link>https://vox-lang.org/architecture/INDEX.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/INDEX.html</guid>
-    <description>Entry point for Vox internal architecture SSOTs, research findings, and planning documents.</description>
+    <title>Action</title>
+    <link>https://vox-lang.org/api/decorators/action.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/action.html</guid>
+    <description>Vox @action decorator: marks imperative handlers and codegen entrypoints for side-effectful operations.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Actors &amp; Workflows</title>
-    <link>https://vox-lang.org/explanation/expl-actors-workflows.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-actors-workflows.html</guid>
-    <description>Deep dive into Vox&apos;s primary concurrency primitives: Persistent Actors for stateful messaging and Durable Workflows for reliable orchestration.</description>
+    <title>@island</title>
+    <link>https://vox-lang.org/api/decorators/component.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/component.html</guid>
+    <description>Vox @island decorator (documented here as @island): React island components and client hydration boundaries.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>AI Agent Orchestration</title>
-    <link>https://vox-lang.org/explanation/expl-ai-orchestration.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-ai-orchestration.html</guid>
-    <description>How Vox natively integrates LLMs, agents, and local logic via the Model Context Protocol (MCP) and Distributed Execution Intelligence (DEI) orchestrator.</description>
+    <title>@deprecated</title>
+    <link>https://vox-lang.org/api/decorators/deprecated.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/deprecated.html</guid>
+    <description>Vox @deprecated decorator: marks APIs slated for removal and surfaces compiler or doc warnings.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Explanation: Capabilities</title>
-    <link>https://vox-lang.org/explanation/expl-capabilities.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-capabilities.html</guid>
-    <description>Understanding the Capability-Gated Execution limits applied to workflows and agents.</description>
+    <title>@index</title>
+    <link>https://vox-lang.org/api/decorators/index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/index.html</guid>
+    <description>Vox @index decorator: database index declarations emitted with @table migrations.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Explanation: The Vox Runtime</title>
-    <link>https://vox-lang.org/explanation/expl-runtime.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-runtime.html</guid>
-    <description>Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications.</description>
+    <title>@mcp.resource</title>
+    <link>https://vox-lang.org/api/decorators/mcp_resource.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/mcp_resource.html</guid>
+    <description>Vox @mcp.resource decorator: exposes read-only MCP resources with stable URIs for agents.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Explanation: Security Model</title>
-    <link>https://vox-lang.org/explanation/expl-security.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-security.html</guid>
-    <description>Understand the security constructs, permissions, and sandbox boundaries in the Vox ecosystem.</description>
+    <title>@mcp.tool</title>
+    <link>https://vox-lang.org/api/decorators/mcp_tool.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/mcp_tool.html</guid>
+    <description>Vox @mcp.tool decorator: exposes typed functions as MCP tools with derived JSON Schema for LLM callers.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Glossary: Vox Terminology</title>
-    <link>https://vox-lang.org/explanation/glossary.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/glossary.html</guid>
-    <description>Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem.</description>
+    <title>@mutation</title>
+    <link>https://vox-lang.org/api/decorators/mutation.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/mutation.html</guid>
+    <description>Vox @mutation decorator: transactional write paths against VoxDB with compiler-checked schema use.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Model Complex Domain Logic</title>
-    <link>https://vox-lang.org/how-to/how-to-custom-types.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-custom-types.html</guid>
-    <description>Learn how to use Vox&apos;s expressive type system.</description>
+    <title>@pure</title>
+    <link>https://vox-lang.org/api/decorators/pure.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/pure.html</guid>
+    <description>Vox @pure decorator: marks side-effect-free functions for optimization and tooling contracts.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: The Database Layer</title>
-    <link>https://vox-lang.org/how-to/how-to-database.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-database.html</guid>
-    <description>How to perform CRUD operations, type-safe queries, and indexing using Vox&apos;s integrated database layer.</description>
+    <title>@query</title>
+    <link>https://vox-lang.org/api/decorators/query.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/query.html</guid>
+    <description>Vox @query decorator: read-only database queries validated against @table types at compile time.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Deploy to Production</title>
-    <link>https://vox-lang.org/how-to/how-to-deploy.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-deploy.html</guid>
-    <description>Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization.</description>
+    <title>@require</title>
+    <link>https://vox-lang.org/api/decorators/require.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/require.html</guid>
+    <description>Vox @require decorator: compile-time preconditions on types and records enforced on writes.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Handle Errors Gracefully</title>
-    <link>https://vox-lang.org/how-to/how-to-error-handling.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-error-handling.html</guid>
-    <description>Learn the best practices for error management in Vox to build robust applications.</description>
+    <title>@scheduled</title>
+    <link>https://vox-lang.org/api/decorators/scheduled.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/scheduled.html</guid>
+    <description>Vox @scheduled decorator: planned periodic tasks and cron-style scheduling metadata.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Islands and Pages</title>
-    <link>https://vox-lang.org/how-to/how-to-islands-and-pages.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-islands-and-pages.html</guid>
-    <description>How to build and route full-stack web UIs using islands in Vox.</description>
+    <title>@server</title>
+    <link>https://vox-lang.org/api/decorators/server.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/server.html</guid>
+    <description>Vox @server decorator: RPC and HTTP handler surfaces with cross-language client codegen.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Scale Actors</title>
-    <link>https://vox-lang.org/how-to/how-to-scale-actors.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-scale-actors.html</guid>
-    <description>Strategies for distributing and managing Vox actor lifecycles across a cluster.</description>
+    <title>@table</title>
+    <link>https://vox-lang.org/api/decorators/table.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/table.html</guid>
+    <description>Vox @table decorator: canonical schema DDL, Rust types, and Codex migration emission from one declaration.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: System I/O and Capabilities</title>
-    <link>https://vox-lang.org/how-to/how-to-system-io.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-system-io.html</guid>
-    <description>How to safely interact with filesystems and network endpoints.</description>
+    <title>@test</title>
+    <link>https://vox-lang.org/api/decorators/test.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/test.html</guid>
+    <description>Vox @test decorator: declares unit tests executed by vox test and the doc example pipeline.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Testing Integration</title>
-    <link>https://vox-lang.org/how-to/how-to-testing-integration.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-testing-integration.html</guid>
-    <description>How to structure tests for Vox functions, workflows, and UI using the built-in testing framework.</description>
+    <title>@v0</title>
+    <link>https://vox-lang.org/api/decorators/v0.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators/v0.html</guid>
+    <description>Imports and generates a React component directly from a Vercel v0.dev generation.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>How-To: Test Your Logic</title>
-    <link>https://vox-lang.org/how-to/how-to-unit-test.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-unit-test.html</guid>
-    <description>Write automated test cases using Vox.</description>
+    <title>Decorators</title>
+    <link>https://vox-lang.org/api/decorators.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/decorators.html</guid>
+    <description>Index of Vox decorators with links to per-decorator API reference pages under docs/src/api/decorators.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Database Query Reference</title>
-    <link>https://vox-lang.org/reference/ref-db-surface.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ref-db-surface.html</guid>
-    <description>Complete syntactic reference for Vox db.* accessors and complex filtering criteria.</description>
+    <title>Known Documentation Gaps &amp; Backlog</title>
+    <link>https://vox-lang.org/api/DOC_GAPS.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/DOC_GAPS.html</guid>
+    <description>Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Reference: Decorator Registry</title>
-    <link>https://vox-lang.org/reference/ref-decorators.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ref-decorators.html</guid>
-    <description>All available decorators and their technical effects.</description>
+    <title>Example: Vox Actor Example</title>
+    <link>https://vox-lang.org/api/example_actor.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/example_actor.html</guid>
+    <description>Worked example: Vox actor with messages and state patterns for the internal API docs.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Standard Library Reference</title>
-    <link>https://vox-lang.org/reference/ref-stdlib.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ref-stdlib.html</guid>
-    <description>Core execution environment capabilities exposed in Vox (std.* and built-ins).</description>
+    <title>Example: agent.vox</title>
+    <link>https://vox-lang.org/api/example_agent.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/example_agent.html</guid>
+    <description>Worked example: agent-shaped Vox module for orchestration and tool wiring demos.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>Language Syntax Reference</title>
-    <link>https://vox-lang.org/reference/ref-syntax.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ref-syntax.html</guid>
-    <description>A comprehensive, scannable syntax quick-reference page.</description>
+    <title>Example: Vox Chatbot Demo</title>
+    <link>https://vox-lang.org/api/example_chatbot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/example_chatbot.html</guid>
+    <description>Worked example: conversational UI and server integration for chatbot-style apps.</description>
     <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
   </item>
 

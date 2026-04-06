@@ -32,6 +32,7 @@ glob = { workspace = true }
 which = "8"
 xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
+rust_decimal = { workspace = true }
 
 [lints]
 workspace = true

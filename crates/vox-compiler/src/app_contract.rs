@@ -154,6 +154,7 @@ fn type_expr_signature(te: &TypeExpr) -> String {
         }
         TypeExpr::Unit { .. } => "Unit".to_string(),
         TypeExpr::Infer { .. } => "any".to_string(),
+        TypeExpr::Decimal { .. } => "dec".to_string(),
     }
 }
 

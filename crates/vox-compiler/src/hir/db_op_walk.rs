@@ -247,11 +247,12 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
         }
         HirExpr::Block(stmts, _) => walk_stmts(stmts, f),
         HirExpr::Try(t) => walk_expr(t.target.as_ref(), f),
-        HirExpr::IntLit(_, _)
-        | HirExpr::FloatLit(_, _)
-        | HirExpr::StringLit(_, _)
-        | HirExpr::BoolLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        HirExpr::IntLit(..)
+        | HirExpr::FloatLit(..)
+        | HirExpr::StringLit(..)
+        | HirExpr::BoolLit(..)
+        | HirExpr::Ident(..)
+        | HirExpr::DecimalLit(..) => {}
     }
 }
 
@@ -370,11 +371,12 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
         }
         HirExpr::Block(stmts, _) => walk_stmts_mut(stmts, f),
         HirExpr::Try(t) => walk_expr_mut(t.target.as_mut(), f),
-        HirExpr::IntLit(_, _)
-        | HirExpr::FloatLit(_, _)
-        | HirExpr::StringLit(_, _)
-        | HirExpr::BoolLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        HirExpr::IntLit(..)
+        | HirExpr::FloatLit(..)
+        | HirExpr::StringLit(..)
+        | HirExpr::BoolLit(..)
+        | HirExpr::Ident(..)
+        | HirExpr::DecimalLit(..) => {}
     }
 }
 

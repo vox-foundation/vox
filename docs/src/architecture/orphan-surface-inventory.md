@@ -78,6 +78,7 @@ vox-doc-pipeline
 vox-eval
 vox-forge
 vox-git
+vox-grammar-export
 vox-install-policy
 vox-integration-tests
 vox-jsonschema-util

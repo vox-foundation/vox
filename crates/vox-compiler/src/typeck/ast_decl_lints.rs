@@ -52,6 +52,7 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
         }
         TypeExpr::Unit { .. } => Ty::Unit,
         TypeExpr::Infer { .. } => Ty::Error,
+        TypeExpr::Decimal { .. } => Ty::Decimal,
     }
 }
 

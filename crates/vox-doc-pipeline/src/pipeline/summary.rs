@@ -9,6 +9,7 @@ use anyhow::Context;
 
 pub(crate) const SECTION_ORDER: &[&str] = &[
     "Getting Started",
+    "Journeys",
     "Tutorials",
     "How-To Guides",
     "Language Reference",
@@ -100,6 +101,7 @@ fn parse_frontmatter(
     let mut sort_order = 100i32;
     let mut description: Option<String> = None;
     let mut last_updated: Option<String> = None;
+    let mut saw_title = false;
 
     if let Some(after_dash) = content.strip_prefix("---") {
         if let Some(end) = after_dash.find("---") {
@@ -108,6 +110,7 @@ fn parse_frontmatter(
                 let line = line.trim();
                 if let Some(t) = line.strip_prefix("title:") {
                     title = t.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
+                    saw_title = true;
                 } else if let Some(d) = line.strip_prefix("description:") {
                     let raw = d.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
                     if !raw.is_empty() {
@@ -133,12 +136,19 @@ fn parse_frontmatter(
         title = title_case(&title);
     }
 
+    if !saw_title {
+        if let Some(h1) = first_h1(content) {
+            title = h1;
+        }
+    }
+
     Ok((title, category, sort_order, description, last_updated))
 }
 
 fn normalize_category(cat: &str) -> anyhow::Result<String> {
     let normalized = match cat {
         "getting-started" => "Getting Started",
+        "journey" | "journeys" => "Journeys",
         "tutorial" | "tutorials" => "Tutorials",
         "how-to" => "How-To Guides",
         "ref" | "reference" => "Reference",
@@ -164,6 +174,8 @@ fn normalize_category(cat: &str) -> anyhow::Result<String> {
 fn infer_category_from_path(rel_path: &str) -> Option<String> {
     let category = if rel_path == "index.md" {
         "Getting Started"
+    } else if rel_path.starts_with("journeys/") {
+        "Journeys"
     } else if rel_path.starts_with("tutorials/") {
         "Tutorials"
     } else if rel_path.starts_with("how-to/") {
@@ -194,6 +206,13 @@ fn infer_category_from_path(rel_path: &str) -> Option<String> {
         return None;
     };
     Some(category.to_string())
+}
+
+fn first_h1(content: &str) -> Option<String> {
+    content
+        .lines()
+        .find_map(|line| line.strip_prefix("# ").map(|s| s.trim().to_string()))
+        .filter(|s| !s.is_empty())
 }
 
 /// Fail fast when mdBook would error: each `](path)` may appear at most once in `SUMMARY.md`.
@@ -246,7 +265,7 @@ fn title_case(s: &str) -> String {
 
 #[cfg(test)]
 mod summary_path_tests {
-    use super::assert_summary_link_targets_unique;
+    use super::{assert_summary_link_targets_unique, first_h1};
 
     #[test]
     fn duplicate_targets_error() {
@@ -271,5 +290,11 @@ mod summary_path_tests {
         let s = "`x` ok";
         // Smoke: parser does not treat as summary links
         assert_summary_link_targets_unique(s).unwrap();
+    }
+
+    #[test]
+    fn extracts_first_h1_when_present() {
+        let s = "---\ncategory: \"reference\"\n---\n\n# Crate API: `vox-cli`\n";
+        assert_eq!(first_h1(s).as_deref(), Some("Crate API: `vox-cli`"));
     }
 }

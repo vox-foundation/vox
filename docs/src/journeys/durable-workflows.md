@@ -1,7 +1,7 @@
 ---
 title: "Journey: Reliable Background Workflows"
 description: "How to escape brittle external job queues using Vox's native Durable Execution for microservice reliability."
-category: "getting-started"
+category: "journey"
 sort_order: 2
 ---
 
@@ -9,7 +9,7 @@ sort_order: 2
 
 ## The Brittle Reality of Job Queues
 
-When a user submits an order, your system might need to charge a credit card, reserve inventory, and send an email out. What happens when the server crashes midway between reserving the inventory and sending the email? 
+When a user submits an order, your system might need to charge a credit card, reserve inventory, and send an email out. What happens when the server crashes midway between reserving the inventory and sending the email?
 
 Microservice developers typically reach for complex infrastructure like Celery, Sidekiq, Temporal, AWS Step Functions, or Kafka. You write convoluted compensation logic, manual retry loops, and separate out small chunks of code across different services just to ensure task reliability. It fragments your business logic.
 
@@ -23,7 +23,7 @@ You write a single function that looks like linear, synchronous code. Behind the
 
 ```vox
 // vox:skip
-// Activities are wrapped by the workflow runtime. 
+// Activities are wrapped by the workflow runtime.
 activity charge_payment(amount: int, token: str) -> Result[str] {
     let result = std.http.post_json("https://api.stripe.com/v1/charges", {
         amount: amount,
@@ -41,7 +41,7 @@ activity send_email(user: str, message: str) -> Result[Unit] {
 }
 
 workflow process_order(customer: str, amount: int, card_tok: str) -> Result[str] {
-    // 1. Charge via retryable activity. 
+    // 1. Charge via retryable activity.
     let payment_id = charge_payment(amount, card_tok)
         with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
 
@@ -56,9 +56,11 @@ workflow process_order(customer: str, amount: int, card_tok: str) -> Result[str]
 
 1. Save the snippet into your project.
 2. The orchestrator runtime requires a local state store to persist workflow states. Running:
+
    ```bash
    vox run server.vox
    ```
+
    Will automatically start the journal layer mapped to your local storage.
 
 ## Deep Dives

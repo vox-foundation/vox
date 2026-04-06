@@ -9,6 +9,7 @@ pub enum Ty {
     Bool,
     Char,
     Unit,
+    Decimal,
     /// Bottom type for early return / break.
     Never,
     List(Box<Ty>),
@@ -46,6 +47,7 @@ impl Ty {
             Ty::Bool => "bool".to_string(),
             Ty::Char => "char".to_string(),
             Ty::Unit => "Unit".to_string(),
+            Ty::Decimal => "dec".to_string(),
             Ty::Never => "never".to_string(),
             Ty::List(inner) => format!("List[{}]", inner.signature()),
             Ty::Option(inner) => format!("Option[{}]", inner.signature()),

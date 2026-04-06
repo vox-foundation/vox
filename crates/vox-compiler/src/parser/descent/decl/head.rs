@@ -533,7 +533,7 @@ impl Parser {
         let mut preconditions = Vec::new();
         let mut postconditions = Vec::new();
         let mut invariants = Vec::new();
-        let mut is_fuzz = false;
+        let mut is_mobile_native = false;
 
         loop {
             self.skip_newlines();
@@ -556,9 +556,9 @@ impl Parser {
                     invariants.push(self.parse_expr()?);
                     self.expect(&Token::RParen)?;
                 }
-                Token::AtFuzz => {
+                Token::AtFuzz | Token::AtMobileNative => {
                     self.advance();
-                    is_fuzz = true;
+                    is_mobile_native = true;
                 }
                 _ => break,
             }
@@ -584,7 +584,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::Arrow) {
+        let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
             Some(self.parse_type_expr()?)
         } else {
             None
@@ -610,7 +610,7 @@ impl Parser {
             invariants,
             verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
             test_strategy: None,
-            is_fuzz,
+            is_mobile_native,
             span: start.merge(self.span()),
         })
     }

@@ -192,6 +192,7 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
         HirExpr::FloatLit(v, _) => v.to_string(),
         HirExpr::StringLit(v, _) => format!("\"{}\".to_string()", v),
         HirExpr::BoolLit(v, _) => v.to_string(),
+        HirExpr::DecimalLit(v, _) => format!("rust_decimal::Decimal::from_str_exact(\"{v}\").unwrap()"),
         HirExpr::ListLit(elements, _) => format!(
             "vec![{}]",
             elements.iter().map(emit).collect::<Vec<_>>().join(", ")

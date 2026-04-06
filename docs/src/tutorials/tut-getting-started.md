@@ -92,7 +92,7 @@ Open `http://localhost:3000` in your browser to view the application.
 
 ## What's Next?
 
-- **[Golden Examples](../../examples/golden.md)** — Strictly verified code snippets
+- **[Golden Examples](../examples/golden.md)** — Strictly verified code snippets
 - **[Language Reference](../reference/ref-syntax.md)** — Full syntax reference
 - **[Building Agents](../how-to/how-to-ai-agents.md)** — Build MCP tools and agents
 - **[Deployment Guide](../how-to/how-to-deploy.md)** — Production rollout

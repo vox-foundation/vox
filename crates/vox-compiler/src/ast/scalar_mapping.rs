@@ -14,6 +14,8 @@ pub enum VoxScalar {
     Str,
     /// Boolean (`bool`, stored as `INTEGER` 0/1 in SQLite).
     Bool,
+    /// Fixed-point decimal (`rust_decimal::Decimal`, `TEXT`).
+    Decimal,
 }
 
 impl VoxScalar {
@@ -25,6 +27,7 @@ impl VoxScalar {
             "float" => Some(Self::Float),
             "str" => Some(Self::Str),
             "bool" => Some(Self::Bool),
+            "dec" => Some(Self::Decimal),
             _ => None,
         }
     }
@@ -37,6 +40,7 @@ impl VoxScalar {
             Self::Float => "f64",
             Self::Str => "String",
             Self::Bool => "bool",
+            Self::Decimal => "rust_decimal::Decimal",
         }
     }
 
@@ -47,6 +51,7 @@ impl VoxScalar {
             Self::Int | Self::Float => "number",
             Self::Str => "string",
             Self::Bool => "boolean",
+            Self::Decimal => "string",
         }
     }
 
@@ -58,6 +63,7 @@ impl VoxScalar {
             Self::Float => "REAL",
             Self::Bool => "INTEGER",
             Self::Str => "TEXT",
+            Self::Decimal => "TEXT",
         }
     }
 }

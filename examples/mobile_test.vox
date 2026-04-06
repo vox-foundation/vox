@@ -1,0 +1,8 @@
+import std.mobile
+
+@component App() {
+  fn on_click() {
+    mobile.notify("Hello", "From Vox!")
+  }
+  view: <button onclick={on_click}>Notify Me</button>
+}

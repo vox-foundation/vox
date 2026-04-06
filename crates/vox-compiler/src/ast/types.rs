@@ -23,6 +23,8 @@ pub enum TypeExpr {
     Unit { span: Span },
     /// Infer: `_` in type position; triggers type inference.
     Infer { span: Span },
+    /// Fixed-point decimal type: `dec`
+    Decimal { span: Span },
 }
 
 impl TypeExpr {
@@ -33,7 +35,8 @@ impl TypeExpr {
             | TypeExpr::Function { span, .. }
             | TypeExpr::Tuple { span, .. }
             | TypeExpr::Unit { span }
-            | TypeExpr::Infer { span } => *span,
+            | TypeExpr::Infer { span }
+            | TypeExpr::Decimal { span } => *span,
         }
     }
 }

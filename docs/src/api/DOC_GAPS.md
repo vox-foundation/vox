@@ -1,3 +1,11 @@
+---
+title: "Known Documentation Gaps & Backlog"
+description: "Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors."
+category: "api-crate"
+status: current
+last_updated: 2026-04-06
+---
+
 # Known Documentation Gaps & Backlog
 
 This is a living checklist for the Vox open source community and core contributors to track undocumented or under-documented language features.

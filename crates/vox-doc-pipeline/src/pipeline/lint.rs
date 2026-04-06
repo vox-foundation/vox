@@ -7,6 +7,8 @@ use super::types::{LintError, LintKind};
 
 const VALID_CATEGORIES: &[&str] = &[
     "getting-started",
+    "journey",
+    "journeys",
     "tutorial",
     "tutorials",
     "how-to",

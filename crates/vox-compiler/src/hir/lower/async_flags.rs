@@ -26,6 +26,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
         | HirExpr::Spawn(..)
+        | HirExpr::DecimalLit(..)
         | HirExpr::Jsx(..)
         | HirExpr::JsxSelfClosing(..) => false,
         HirExpr::ListLit(elements, _) | HirExpr::TupleLit(elements, _) => {
