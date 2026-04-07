@@ -56,8 +56,21 @@ mod tests {
     fn is_ignored_root_scratch_files() {
         assert!(SemanticPlanner::is_ignored("build_error.log"));
         assert!(SemanticPlanner::is_ignored("check_all.txt"));
-        // Files with slashes are NOT root files — should not be ignored by txt rule
-        assert!(!SemanticPlanner::is_ignored("docs/src/quickstart.txt"));
+        assert!(SemanticPlanner::is_ignored("docs/src/quickstart.txt"));
+    }
+
+    #[test]
+    fn allow_markdown_prefix_rescues_md_and_txt() {
+        let allow = vec!["docs/src/quickstart.txt".to_string(), "AGENTS.md".to_string()];
+        assert!(!SemanticPlanner::is_ignored_with(
+            "docs/src/quickstart.txt",
+            &allow
+        ));
+        assert!(!SemanticPlanner::is_ignored_with("AGENTS.md", &allow));
+        assert!(SemanticPlanner::is_ignored_with(
+            "docs/src/other.txt",
+            &allow
+        ));
     }
 
     #[test]
@@ -70,11 +83,9 @@ mod tests {
     #[test]
     fn is_ignored_real_files() {
         assert!(!SemanticPlanner::is_ignored("crates/vox-cli/src/main.rs"));
-        assert!(!SemanticPlanner::is_ignored("AGENTS.md"));
+        assert!(SemanticPlanner::is_ignored("AGENTS.md"));
         assert!(!SemanticPlanner::is_ignored("Vox.toml"));
-        assert!(!SemanticPlanner::is_ignored(
-            "docs/src/reference/lexicon.md"
-        ));
+        assert!(SemanticPlanner::is_ignored("docs/src/reference/lexicon.md"));
         assert!(!SemanticPlanner::is_ignored(".github/workflows/ci.yml"));
     }
 

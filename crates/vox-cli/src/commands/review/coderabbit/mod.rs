@@ -68,10 +68,17 @@ pub enum CodeRabbitAction {
         #[arg(long)]
         group_filter: Option<String>,
         /// Review the **entire codebase** (`git ls-files`) instead of just changed files.
-        /// Creates a fresh baseline at current `origin/main` and opens PRs for every tracked file.
+        /// Publishes baseline from the host's **default branch** (`repo_info.default_branch`,
+        /// typically `main`): an empty-tree commit on top of `origin/<default>` for full-repo mode.
         /// Skips the drift check (N/A when reviewing the whole repo).
         #[arg(long, default_value_t = false)]
         full_repo: bool,
+        /// Extra path prefix to exclude (repeatable; merged after `[review.coderabbit] exclude_prefixes`).
+        #[arg(long = "extra-exclude-prefix", action = clap::ArgAction::Append)]
+        extra_exclude_prefix: Vec<String>,
+        /// Write ignored candidate paths as JSON (`[{ "path", "reason" }, …]`) after planning.
+        #[arg(long)]
+        write_ignored_paths: Option<PathBuf>,
     },
     /// Generate stacked PRs comparing a historical commit to the current local state safely.
     #[command(name = "historical-submit")]
@@ -254,6 +261,8 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             delay_secs,
             group_filter,
             full_repo,
+            extra_exclude_prefix,
+            write_ignored_paths,
         } => {
             let repo = resolve_repo(&path)?;
             let vox = config::load_from_dir(&repo);
@@ -287,6 +296,9 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             cfg.force_chunks = force_chunks;
             cfg.group_filter = group_filter;
             cfg.full_repo = full_repo;
+            cfg.extra_exclude_prefixes = extra_exclude_prefix;
+            cfg.write_ignored_paths = write_ignored_paths;
+            cfg.allow_markdown_prefixes = vox.allow_markdown_prefixes.clone();
             semantic_planner::run_semantic_submit(&repo, &cfg).await?;
         }
         CodeRabbitAction::HistoricalSubmit {

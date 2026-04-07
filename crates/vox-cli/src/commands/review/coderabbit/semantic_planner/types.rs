@@ -46,20 +46,45 @@ pub struct CoverageStats {
 /// Diff-based semantic PR planner.
 pub struct SemanticPlanner {
     max_files_per_pr: usize,
+    /// Paths (forward slashes) starting with one of these keep `*.md` / `*.txt` despite
+    /// [`IGNORED_EXTENSIONS`] — see `[review.coderabbit] allow_markdown_prefixes` in `Vox.toml`.
+    allow_markdown_prefixes: Vec<String>,
 }
 
 impl SemanticPlanner {
     pub fn new(max_files_per_pr: usize) -> Self {
-        Self { max_files_per_pr }
+        Self {
+            max_files_per_pr,
+            allow_markdown_prefixes: Vec::new(),
+        }
     }
 
-    /// Returns `true` if the file should be excluded from review PRs.
+    /// Override markdown/txt extension filtering (typically from `Vox.toml`).
+    pub fn with_allow_markdown_prefixes(mut self, prefixes: Vec<String>) -> Self {
+        self.allow_markdown_prefixes = prefixes;
+        self
+    }
+
+    /// Returns `true` if the file should be excluded from review PRs (no markdown allow-list).
     pub fn is_ignored(path: &str) -> bool {
-        Self::ignored_reason(path).is_some()
+        Self::is_ignored_with(path, &[])
+    }
+
+    /// Returns `true` if the file should be excluded, consulting `allow_markdown_prefixes`.
+    pub fn is_ignored_with(path: &str, allow_markdown_prefixes: &[String]) -> bool {
+        Self::ignored_reason_with(path, allow_markdown_prefixes).is_some()
     }
 
     /// Returns a stable reason when a path is excluded from semantic review chunks.
     pub fn ignored_reason(path: &str) -> Option<&'static str> {
+        Self::ignored_reason_with(path, &[])
+    }
+
+    /// [`ignored_reason`] with optional markdown/txt prefix rescue.
+    pub fn ignored_reason_with(
+        path: &str,
+        allow_markdown_prefixes: &[String],
+    ) -> Option<&'static str> {
         let p = path.replace('\\', "/");
 
         if path_policy::is_coderabbit_local_tool_path(&p) {
@@ -70,7 +95,11 @@ impl SemanticPlanner {
             return Some("ignored_dir");
         }
         if IGNORED_EXTENSIONS.iter().any(|e| p.ends_with(e)) {
-            return Some("ignored_extension");
+            if markdown_or_txt_allowed(&p, allow_markdown_prefixes) {
+                // Fall through — not excluded by extension rule.
+            } else {
+                return Some("ignored_extension");
+            }
         }
         // Root-level scratch patterns and exact names (no directory component)
         if !p.contains('/') {
@@ -82,6 +111,16 @@ impl SemanticPlanner {
             }
         }
         None
+    }
+
+    /// Returns `true` if the file should be excluded from review PRs (instance allow-list).
+    pub fn is_path_ignored(&self, path: &str) -> bool {
+        Self::ignored_reason_with(path, &self.allow_markdown_prefixes).is_some()
+    }
+
+    /// Returns a stable reason when a path is excluded (instance allow-list).
+    pub fn path_ignored_reason(&self, path: &str) -> Option<&'static str> {
+        Self::ignored_reason_with(path, &self.allow_markdown_prefixes)
     }
 
     /// Map a file path to its `(order, group_name)`.
@@ -107,7 +146,7 @@ impl SemanticPlanner {
         let mut included_files = 0usize;
 
         for f in files {
-            if Self::is_ignored(&f) {
+            if self.is_path_ignored(&f) {
                 continue;
             }
             included_files += 1;
@@ -152,6 +191,15 @@ impl SemanticPlanner {
     }
 }
 
+fn markdown_or_txt_allowed(p: &str, allow_markdown_prefixes: &[String]) -> bool {
+    if !p.ends_with(".md") && !p.ends_with(".txt") {
+        return false;
+    }
+    allow_markdown_prefixes
+        .iter()
+        .any(|pref| p.starts_with(&pref.replace('\\', "/")))
+}
+
 /// Configuration for a semantic-submit run.
 #[derive(Debug, Clone)]
 pub struct SemanticSubmitConfig {
@@ -176,6 +224,12 @@ pub struct SemanticSubmitConfig {
     /// Review the **entire tracked repository** from scratch (`git ls-files`) instead of
     /// only files that differ from HEAD. When true, the drift check is skipped (N/A).
     pub full_repo: bool,
+    /// Extra exclude prefixes merged after `Vox.toml` (CLI).
+    pub extra_exclude_prefixes: Vec<String>,
+    /// When set, write JSON array of `{ path, reason }` for candidate paths dropped by planner rules.
+    pub write_ignored_paths: Option<std::path::PathBuf>,
+    /// From `Vox.toml` `[review.coderabbit] allow_markdown_prefixes`.
+    pub allow_markdown_prefixes: Vec<String>,
 }
 
 impl Default for SemanticSubmitConfig {
@@ -193,6 +247,9 @@ impl Default for SemanticSubmitConfig {
             force_chunks: false,
             group_filter: None,
             full_repo: false,
+            extra_exclude_prefixes: Vec::new(),
+            write_ignored_paths: None,
+            allow_markdown_prefixes: Vec::new(),
         }
     }
 }

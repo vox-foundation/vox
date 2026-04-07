@@ -1,7 +1,7 @@
 import React from 'react';
-import { Terminal, Activity, Trophy, Server, Bell, Cpu, Layers, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Terminal, Activity, Trophy, Bell, Cpu, Layers, MessageSquare, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { getVsCodeApi } from '../utils/vscode';
-import { Panel } from './ui/Panel';
+// import { Panel } from './ui/Panel';
 import { StateChip } from './ui/StateChip';
 
 import { AttentionPanel } from './AttentionPanel';
@@ -23,7 +23,7 @@ export const UnifiedDashboard = ({
     pipeline = null,
     budgetHistory = [],
     ludusSnapshot = null,
-    meshTopology = null,
+    _meshTopology = null,
     attentionStatus = null,
     attentionAlert = null,
 }: {
@@ -32,7 +32,7 @@ export const UnifiedDashboard = ({
     pipeline: any;
     budgetHistory: any[];
     ludusSnapshot: Record<string, unknown> | null;
-    meshTopology: any;
+    _meshTopology: any;
     attentionStatus: any;
     attentionAlert: any;
 }) => {

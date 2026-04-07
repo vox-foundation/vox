@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import * as vscode from 'vscode';
-import { parseMcpToolResult, unwrapVoxToolEnvelope } from './core/mcpToolResult';
+// import { parseMcpToolResult, unwrapVoxToolEnvelope } from './core/mcpToolResult';
 
 /** Standalone stdio MCP client (legacy / tests); prefer {@link VoxMcpClient} for the extension. */
 export class McpAgentConnection {
@@ -91,7 +91,7 @@ export class McpAgentConnection {
             this._ws.onerror = () => {
                 this._ws?.close();
             };
-        } catch (e) {
+        } catch (_e) {
             this._scheduleWsReconnect();
         }
     }

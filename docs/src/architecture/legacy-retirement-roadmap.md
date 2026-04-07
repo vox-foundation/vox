@@ -127,4 +127,4 @@ The following surfaces are stable and canonical — new code should live here:
 - [Nomenclature migration map](nomenclature-migration-map.md) — Latin/English naming SSOT
 - [Script surface audit](script-surface-audit.md) — script lifecycle tracking
 - [Boilerplate reduction roadmap](vox-boilerplate-reduction-master-roadmap.md) — Stream H (CLI/MCP) and Stream C (HIR debt)
-- Research backing: [legacy-retirement-research.md](../../brain/f67ca92f-bfa1-441b-9c87-78d6d80d1ef4/legacy_retirement_research.md) (conversation artifact, April 2026)
+- Research backing: `legacy-retirement-research.md` (conversation artifact, April 2026)

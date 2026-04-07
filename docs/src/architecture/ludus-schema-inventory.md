@@ -13,7 +13,7 @@ category: "architecture"
 
 ## Post-baseline cutover (idempotent)
 
-Extended Ludus tables and column fixes live in [`crates/vox-db/src/ludus_schema_cutover.rs`](../../../crates/vox-db/src/ludus_schema_cutover.rs), invoked from [`crates/vox-db/src/schema_cutover.rs`](../../../crates/vox-db/src/schema_cutover.rs) after baseline migrate.
+Extended Ludus tables and column fixes live in [`crates/vox-db/src/ludus_schema_cutover.rs`](../../../crates/vox-db/src/ludus_schema_cutover.rs). (Note: `schema_cutover.rs` has been retired and its coordination logic moved to baseline).
 
 Covers, among others:
 

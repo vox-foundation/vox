@@ -66,7 +66,7 @@ export class AgentController {
             this._ws.onerror = () => {
                 this._ws?.close();
             };
-        } catch (e) {
+        } catch (_e) {
             this._scheduleWsReconnect();
         }
     }

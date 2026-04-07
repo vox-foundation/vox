@@ -71,7 +71,7 @@ pub async fn run_historical_submit(
         files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
     }
 
-    files.retain(|f| !SemanticPlanner::is_ignored(f));
+    files.retain(|f| !SemanticPlanner::is_ignored_with(f, &vox_cfg.allow_markdown_prefixes));
 
     if files.is_empty() {
         eprintln!("[historical-submit] No valid files found in diff. Restoring working tree.");
@@ -89,7 +89,8 @@ pub async fn run_historical_submit(
     let baseline_branch = format!("cr-histbase-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
     let tier_cap = cfg.tier.files_per_review() as usize;
     let max_per = cfg.max_files_per_pr.max(1).min(tier_cap);
-    let planner = SemanticPlanner::new(max_per);
+    let planner = SemanticPlanner::new(max_per)
+        .with_allow_markdown_prefixes(vox_cfg.allow_markdown_prefixes.clone());
     let mut manifest = planner.plan(files, &baseline_branch);
 
     if let Some(ref filter) = cfg.group_filter {

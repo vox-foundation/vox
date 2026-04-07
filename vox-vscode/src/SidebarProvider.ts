@@ -420,7 +420,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                                 });
                             }
                         }
-                    } catch {}
+                    } catch (e) {
+                        // ignore malformed JSON or non-vox event structures
+                    }
                 }
             };
             this._ws.onclose = () => {

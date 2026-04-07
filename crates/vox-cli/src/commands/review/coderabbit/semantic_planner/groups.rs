@@ -35,8 +35,8 @@ pub(crate) static IGNORED_EXTENSIONS: &[&str] = &[
     ".db", ".db-wal", ".db-shm", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so",
     ".dylib", ".bin", ".svg", ".woff", ".woff2",
     ".csv", // data export / error dumps (errors.csv etc.) — not source code
-    ".md",  // documentation — excluded from code review PRs
-    ".txt", // text files — excluded from code review PRs
+    ".md",  // documentation — excluded from code review PRs (overridable via allow_markdown_prefixes)
+    ".txt", // text — excluded from code review PRs (overridable via allow_markdown_prefixes)
     ".hbs", // handlebars templates — excluded from code review PRs
 ];
 

@@ -53,10 +53,12 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     );
 
     let vox_cfg = config::load_from_dir(repo);
-    if !vox_cfg.exclude_prefixes.is_empty() {
-        all_files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
+    let mut merged_exclude = vox_cfg.exclude_prefixes.clone();
+    merged_exclude.extend(cfg.extra_exclude_prefixes.iter().cloned());
+    if !merged_exclude.is_empty() {
+        all_files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &merged_exclude));
         eprintln!(
-            "[semantic-submit] After Vox.toml exclude_prefixes: {} paths",
+            "[semantic-submit] After merged exclude_prefixes (Vox.toml + CLI): {} paths",
             all_files.len()
         );
     }
@@ -73,11 +75,14 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     res
 }
 
-fn summarize_ignored_reasons(paths: &[String]) -> Vec<(String, usize)> {
+fn summarize_ignored_reasons(
+    paths: &[String],
+    planner: &SemanticPlanner,
+) -> Vec<(String, usize)> {
     let mut counts: std::collections::BTreeMap<&'static str, usize> =
         std::collections::BTreeMap::new();
     for path in paths {
-        if let Some(reason) = SemanticPlanner::ignored_reason(path) {
+        if let Some(reason) = planner.path_ignored_reason(path) {
             *counts.entry(reason).or_insert(0) += 1;
         }
     }
@@ -88,6 +93,37 @@ fn summarize_ignored_reasons(paths: &[String]) -> Vec<(String, usize)> {
         .collect();
     sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     sorted
+}
+
+fn maybe_write_ignored_paths_json(
+    out: &Path,
+    candidates: &[String],
+    planner: &SemanticPlanner,
+) -> Result<()> {
+    #[derive(serde::Serialize)]
+    struct IgnoredPathRow {
+        path: String,
+        reason: String,
+    }
+    let mut rows: Vec<IgnoredPathRow> = Vec::new();
+    for p in candidates {
+        if let Some(r) = planner.path_ignored_reason(p) {
+            rows.push(IgnoredPathRow {
+                path: p.clone(),
+                reason: r.to_string(),
+            });
+        }
+    }
+    rows.sort_by(|a, b| a.path.cmp(&b.path));
+    let json = serde_json::to_string_pretty(&rows).context("serialize ignored paths")?;
+    std::fs::write(out, json)
+        .with_context(|| format!("write {}", out.display()))?;
+    eprintln!(
+        "[semantic-submit] Wrote {} ignored path(s) to {}",
+        rows.len(),
+        out.display()
+    );
+    Ok(())
 }
 
 async fn run_semantic_submit_core(
@@ -135,9 +171,10 @@ async fn run_semantic_submit_core(
             cfg.tier, cfg.max_files_per_pr, max_per
         );
     }
-    let planner = SemanticPlanner::new(max_per);
+    let planner = SemanticPlanner::new(max_per)
+        .with_allow_markdown_prefixes(cfg.allow_markdown_prefixes.clone());
     let mut sem_manifest = planner.plan(all_files, &baseline_branch);
-    let ignored_reasons = summarize_ignored_reasons(&plan_snapshot);
+    let ignored_reasons = summarize_ignored_reasons(&plan_snapshot, &planner);
 
     // Apply group filter if requested
     if let Some(ref filter) = cfg.group_filter {
@@ -186,6 +223,9 @@ async fn run_semantic_submit_core(
 
     let manifest_path = write_semantic_manifest(repo, &sem_manifest)?;
     eprintln!("[manifest] Written to: {}", manifest_path.display());
+    if let Some(ref out) = cfg.write_ignored_paths {
+        maybe_write_ignored_paths_json(out, &plan_snapshot, &planner)?;
+    }
     if let Err(err) = persist_semantic_lineage_run(repo, &baseline_branch, &sem_manifest).await {
         eprintln!("[semantic-submit] warning: could not persist lineage run to VoxDB: {err}");
     }

@@ -4,7 +4,7 @@ import { AstView } from './AstView';
 import { IntentionMatrix } from './IntentionMatrix';
 import { WorkflowScrubber } from './WorkflowScrubber';
 import { ContextExplorer } from './ContextExplorer';
-import { Cpu, Activity, LayoutTemplate, Network, Wrench, ShieldAlert, Sparkles, BrainCircuit } from 'lucide-react';
+import { Activity, LayoutTemplate, Network, Wrench, ShieldAlert, Sparkles, BrainCircuit } from 'lucide-react';
 import { getVsCodeApi } from '../utils/vscode';
 
 const vscode = getVsCodeApi();

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, Zap, Activity, Clock, Settings2 } from 'lucide-react';
+import { Zap, Activity, Settings2 } from 'lucide-react';
 import { getVsCodeApi } from '../utils/vscode';
 import { AttentionAlert, AttentionStatusPayload } from '../../../src/types';
 
@@ -7,10 +7,10 @@ const vscode = getVsCodeApi();
 
 export const AttentionPanel = ({
     status,
-    alert,
+    _alert,
 }: {
     status: AttentionStatusPayload | null;
-    alert: AttentionAlert | null;
+    _alert: AttentionAlert | null;
 }) => {
     const [expanded, setExpanded] = useState(false);
     const [advanced, setAdvanced] = useState(false);

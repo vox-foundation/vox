@@ -39,7 +39,7 @@ last_updated: "2026-03-28"
 - **DDL SSOT:** `crates/vox-db/src/schema/domains/*.rs` — one fragment per domain, plus optional append-only DDL from [`schema/spec`](../../crates/vox-db/src/schema/spec/mod.rs) merged in `baseline_sql()`.
 - **Ordering / baseline:** `crates/vox-db/src/schema/manifest.rs` — `SCHEMA_FRAGMENTS`, `BASELINE_VERSION`, `baseline_sql()`.
 - **Greenfield migrate:** `VoxDb::migrate` (`store/open.rs`) applies baseline when `schema_version < BASELINE_VERSION`.
-- **Existing DB fixes:** `crates/vox-db/src/schema_cutover.rs` runs idempotent column/table alignment after migrate (e.g. `agent_events.payload_json`, `published_news.news_id`).
+- **Existing DB fixes:** Column/table alignment was previously handled in `schema_cutover.rs` (now deleted); core alignment is now part of the idempotent baseline fragments.
 - **Explicit legacy boundary:** `crates/vox-db/src/legacy/mod.rs` is the namespace for migration-era pathways (`legacy::codex`, `legacy::import_extras`, cutover wrappers). New call sites should use `legacy::*` for transitional operations rather than treating these paths as baseline peers.
 
 ### Where DDL/WAL actually runs (audit map)
@@ -48,20 +48,18 @@ last_updated: "2026-03-28"
 |-------|-----------|-------|
 | Baseline relational | `schema/domains/*.rs`, `schema/domains/sql/*.sql`, `schema/spec` strings appended in `manifest::baseline_sql` | Core SSOT for new DBs via `migrate`. |
 | Orchestrator / document collections | `orchestrator_schema_digest` → `sync_schema_from_digest`; `Collection::ensure_table` | `_id`/`_data` layout; not duplicated as flat SQL tables for `provider_usage`. |
-| Domain cutover | `schema_cutover.rs`, `ludus_schema_cutover.rs` | Idempotent alignment for DBs already at baseline integer (ALTER/rename/FTS); composite reporting indexes live in domain DDL, not cutover. |
+| Domain cutover | `ludus_schema_cutover.rs` | Idempotent alignment for DBs already at baseline integer (ALTER/rename/FTS); composite reporting indexes live in domain DDL, not cutover. |
 | Meta bootstrap | `store/open.rs`, `facade/migrations.rs` | `schema_version` and local object store tables where applicable. |
 | Legacy no-op hooks | `training_run::ensure_training_run_table`, `research::ensure_cap_table` | Baseline now creates tables; hooks remain for call-site stability. |
 
 To add a new table:
 
 1. Add `CREATE TABLE IF NOT EXISTS` (and indexes) to the appropriate **domain** module under `schema/domains/`.
-2. If needed, extend `schema_cutover.rs` for migrations baseline `IF NOT EXISTS` cannot perform.
+2. Use `ludus_schema_cutover.rs` or domain-specific idempotent SQL for migrations baseline `IF NOT EXISTS` cannot perform (e.g. renames).
 3. Add `VoxDb` methods in `store/ops_<domain>.rs`.
 4. Add tests under `crates/vox-db/tests/`.
 
-### Baseline vs cutover consolidation (backlog)
-
-When `schema_cutover.rs` grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” blocks that are **stable** for new databases, prefer promoting them into the matching domain fragment under `schema/domains/` so **greenfield `migrate`** and **digest** stay authoritative. Use cutover only for **ordering-sensitive** fixes on databases that already passed an older baseline (column type widens, backfills, index renames). Steps before moving DDL:
+When cutover logic grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” blocks that are **stable** for new databases, prefer promoting them into the matching domain fragment under `schema/domains/` so **greenfield `migrate`** and **digest** stay authoritative. Use cutover logic only for **ordering-sensitive** fixes on databases that already passed an older baseline (column type widens, backfills, index renames). Steps before moving DDL:
 
 1. Prove idempotence on an empty DB (`VoxDb::migrate` only) and on a snapshot from the prior `BASELINE_VERSION`.
 2. Extend `crates/vox-db/tests/migration_tests.rs` (or a domain smoke test) so both paths stay covered.
@@ -73,7 +71,7 @@ Legacy deletion criteria:
 2. `codex_legacy` JSONL import/export has no active operator dependency.
 3. Ludus/gamify cutover DDL is fully represented in baseline fragments and validated on upgrade snapshots.
 
-**Why some cutover DDL mirrors baseline:** [`VoxDb::migrate`](../../crates/vox-db/src/store/open.rs) runs the full [`baseline_sql`](../../crates/vox-db/src/schema/manifest.rs) only when `schema_version < BASELINE_VERSION`. Once a file is pinned at the baseline integer, **opening it again skips the baseline batch** and runs [`apply_schema_cutover`](../../crates/vox-db/src/schema_cutover.rs) only. Tables first introduced in a domain fragment during an era when many DBs were already at baseline therefore need an idempotent `CREATE TABLE IF NOT EXISTS` (or additive `ALTER`) in cutover until every replica can be assumed to have the table — not merely because greenfield installs already see the DDL in `schema/domains/`.
+**Why some cutover DDL mirrors baseline:** [`VoxDb::migrate`](../../crates/vox-db/src/store/open.rs) runs the full [`baseline_sql`](../../crates/vox-db/src/schema/manifest.rs) only when `schema_version < BASELINE_VERSION`. Once a file is pinned at the baseline integer, **opening it again skips the baseline batch** and runs cutover logic only. Tables first introduced in a domain fragment during an era when many DBs were already at baseline therefore need an idempotent `CREATE TABLE IF NOT EXISTS` (or additive `ALTER`) in cutover until every replica can be assumed to have the table — not merely because greenfield installs already see the DDL in `schema/domains/`.
 
 ## Naming Conventions
 

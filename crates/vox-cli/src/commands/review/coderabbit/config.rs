@@ -15,6 +15,9 @@ pub struct CodeRabbitConfig {
     pub max_files_per_pr: Option<u32>,
     /// Extra path prefixes to exclude from semantic batches (forward slashes).
     pub exclude_prefixes: Vec<String>,
+    /// Paths matching these prefixes keep `*.md` / `*.txt` in review payloads (otherwise excluded
+    /// by extension rules). Example: `["AGENTS.md", "docs/src/contributors/"]`.
+    pub allow_markdown_prefixes: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -29,6 +32,7 @@ struct CoderabbitTomlSection {
     max_files_per_pr: Option<u32>,
     /// Additional path prefixes to exclude (e.g. `"mens/data/"`).
     exclude_prefixes: Option<Vec<String>>,
+    allow_markdown_prefixes: Option<Vec<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -70,6 +74,7 @@ pub fn load_from_dir(path: &Path) -> CodeRabbitConfig {
         delay_between_prs_secs: delay,
         max_files_per_pr: max_files,
         exclude_prefixes: cr.exclude_prefixes.unwrap_or_default(),
+        allow_markdown_prefixes: cr.allow_markdown_prefixes.unwrap_or_default(),
     }
 }
 
@@ -102,5 +107,22 @@ exclude_prefixes = ["mens/data/", "tmp/"]
         let c = load_from_dir(dir.path());
         assert!(c.tier.is_none());
         assert!(c.exclude_prefixes.is_empty());
+        assert!(c.allow_markdown_prefixes.is_empty());
+    }
+
+    #[test]
+    fn load_allow_markdown_prefixes_from_vox_toml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        fs::write(
+            dir.path().join("Vox.toml"),
+            r#"
+[review.coderabbit]
+allow_markdown_prefixes = ["AGENTS.md", "docs/policies/"]
+"#,
+        )
+        .expect("write Vox.toml");
+        let c = load_from_dir(dir.path());
+        assert_eq!(c.allow_markdown_prefixes.len(), 2);
+        assert_eq!(c.allow_markdown_prefixes[0], "AGENTS.md");
     }
 }

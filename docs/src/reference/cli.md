@@ -491,7 +491,7 @@ With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** O
 
 Splits local changes into concern-based PRs with a **real baseline** (`origin/<default>` → `cr-baseline-*`) and **git worktrees** under **`.coderabbit/worktrees/`** so the main working tree is not checked out per chunk. **Plan-only** (default): writes **`.coderabbit-semantic-manifest.json`**. **Execute**: add **`--execute`** (pushes baseline, opens PRs into baseline, writes **`.coderabbit/run-state.json`** for resume). Before opening worktree PRs, **`semantic-submit --execute`** re-scans the dirty tree and **aborts with `[drift]`** if the changed-file set no longer matches the plan (replan without `--resume`). The drift check **ignores** paths the command itself creates as untracked files (**`.coderabbit-semantic-manifest.json`**, **`.coderabbit/run-state.json`**) so they do not false-trigger drift.
 
-For full-repo waves (`--full-repo`), the semantic manifest persists coverage counters (`candidate_files`, `included_files`, `ignored_files`) and plan output now prints ignored-rule buckets so operators can audit what was intentionally excluded from a “0-100%” run.
+For full-repo waves (`--full-repo`), the semantic manifest persists coverage counters (`candidate_files`, `included_files`, `ignored_files`) and plan output now prints ignored-rule buckets so operators can audit what was intentionally excluded from a “0-100%” run. **`semantic-submit`** can write a machine-readable ignore audit via **`--write-ignored-paths <file.json>`** and add one-off prefix exclusions with repeatable **`--extra-exclude-prefix`** (merged after `Vox.toml`).
 
 | Step | Command |
 |------|---------|
@@ -515,7 +515,7 @@ For full-repo waves (`--full-repo`), the semantic manifest persists coverage cou
 | `batch-submit` | console only | `.coderabbit-batch-manifest.json` |
 | `stack-submit` | `.coderabbit-stack-manifest.json` (always) | same + git/PR actions |
 
-**`Vox.toml`** — optional **`[review.coderabbit]`**: `tier`, `delay_between_prs_secs`, `max_files_per_pr`, **`exclude_prefixes`** (path prefixes, forward slashes) -> drop noise paths from semantic/batch/stack planning.
+**`Vox.toml`** — optional **`[review.coderabbit]`**: `tier`, `delay_between_prs_secs`, `max_files_per_pr`, **`exclude_prefixes`** (path prefixes, forward slashes) -> drop noise paths from semantic/batch/stack planning; **`allow_markdown_prefixes`** — paths starting with these prefixes keep `*.md` / `*.txt` in semantic payloads (otherwise extension rules drop them for code-first review).
 
 **Coverage SSOT:** [`architecture/coderabbit-review-coverage-ssot.md`](../architecture/coderabbit-review-coverage-ssot.md) defines the canonical scope and operational meaning of full-repository CodeRabbit coverage in Vox.
 
