@@ -163,10 +163,10 @@ impl crate::orchestrator::Orchestrator {
 
     /// Trigger a global emergency stop across the orchestrator.
     pub fn emergency_stop(&self, reason: Option<String>) {
-        self.stop_flag.store(true, std::sync::atomic::Ordering::SeqCst);
-        self.event_bus.emit(crate::events::AgentEventKind::EmergencyStop {
-            reason,
-        });
+        self.stop_flag
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.event_bus
+            .emit(crate::events::AgentEventKind::EmergencyStop { reason });
         tracing::warn!("Orchestrator emergency stop triggered.");
     }
 
@@ -346,7 +346,11 @@ impl crate::orchestrator::Orchestrator {
                     header_cost_usd,
                     Some(cost_usd),
                     header_cost_usd.or(Some(cost_usd)),
-                    Some(if header_cost_usd.is_some() { "openrouter_header" } else { "heuristic" }),
+                    Some(if header_cost_usd.is_some() {
+                        "openrouter_header"
+                    } else {
+                        "heuristic"
+                    }),
                     None,
                     Some(&agent_id.to_string()),
                 )

@@ -114,8 +114,6 @@ pub mod populi_registry_telemetry;
 /// Registry-scoped user preferences (stored as JSON in the local config directory).
 pub mod preferences;
 pub mod project_store;
-/// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
-pub mod workspace_journey_store;
 mod questioning_telemetry;
 mod research;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
@@ -135,14 +133,16 @@ mod trust_propagation;
 mod trust_telemetry;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
+/// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
+pub mod workspace_journey_store;
 
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
+pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
-pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use collection::Collection;
 pub use config::DbConfig;
 pub use connect_policy::{
@@ -156,11 +156,6 @@ pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use project_store::{open_project_db, open_project_db_at_root};
-pub use workspace_journey_store::{
-    WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
-    connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
-    workspace_journey_store_mode_from_env,
-};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,
@@ -180,10 +175,10 @@ pub use store::{
     AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary,
     BuildRunRow, BuilderSessionEntry, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry,
     CommandFrequencyEntry, ComponentEntry, CorpusQualitySummary, CrateSample, CrateSampleRow,
-    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, GrpoStepRow,
-    ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
-    ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
-    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
+    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, ExternalStatusSnapshotParams,
+    ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
+    ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
+    GamifyPolicySnapshotListRow, GrpoStepRow, KnowledgeNodeSummary, LearnedPatternEntry,
     LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
     PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
@@ -208,6 +203,11 @@ pub use toestub_store::{
 pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
 pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
 pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRollupGroupSummary};
+pub use workspace_journey_store::{
+    WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
+    connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
+    workspace_journey_store_mode_from_env,
+};
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
 ///

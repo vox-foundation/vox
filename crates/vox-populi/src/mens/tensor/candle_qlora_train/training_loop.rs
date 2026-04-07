@@ -4,8 +4,8 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use owo_colors::OwoColorize;
 use candle_core::Device;
+use owo_colors::OwoColorize;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
 use tokenizers::Tokenizer;
@@ -158,14 +158,26 @@ fn try_encode_training_step(
     let text = if let Some(ref turns) = pair.turns {
         crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
     } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
-        crate::mens::tensor::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
+        crate::mens::tensor::training_text::chatml_supervised_text(
+            system_prompt,
+            p,
+            r,
+            &config.chatml,
+        )
     } else {
         return Ok(TryEncodeOutcome::SkipShortSeq); // Skip if no data
     };
     let prefix_text = if let Some(ref turns) = pair.turns {
-        crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
+        crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(
+            turns,
+            &config.chatml,
+        )
     } else if let Some(ref p) = pair.prompt {
-        crate::mens::tensor::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
+        crate::mens::tensor::training_text::chatml_prefix_open_assistant(
+            system_prompt,
+            p,
+            &config.chatml,
+        )
     } else {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     };
@@ -538,7 +550,9 @@ pub(super) fn run_training_loop(
 
         if config.curriculum {
             let max_difficulty = max_difficulty_for_epoch(epoch, config);
-            let phase_label = config.curriculum_schedule.as_ref()
+            let phase_label = config
+                .curriculum_schedule
+                .as_ref()
                 .and_then(|s| s.curriculum_phases.as_ref())
                 .and_then(|p| p.get(epoch - 1))
                 .cloned()
@@ -546,7 +560,10 @@ pub(super) fn run_training_loop(
 
             train_log::info(&format!(
                 "Epoch {}/{} [phase: {}] curriculum threshold: diff <= {}",
-                epoch, config.epochs, phase_label.cyan(), max_difficulty
+                epoch,
+                config.epochs,
+                phase_label.cyan(),
+                max_difficulty
             ));
         }
 
@@ -1083,7 +1100,8 @@ mod tests {
     fn uses_resume_indices_when_present_and_nonempty() {
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
         let pairs = vec![TrainingPair::default(); 5];
-        let got = build_epoch_shuffled_indices(3, 3, &pairs, &Some(vec![4, 2, 1, 3, 0]), &mut rng, false);
+        let got =
+            build_epoch_shuffled_indices(3, 3, &pairs, &Some(vec![4, 2, 1, 3, 0]), &mut rng, false);
         assert_eq!(got, vec![4, 2, 1, 3, 0]);
     }
 

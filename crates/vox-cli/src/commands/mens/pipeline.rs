@@ -164,6 +164,8 @@ pub async fn run(
                                 input: validated.clone(),
                                 output: Some(validated.clone()),
                                 no_recheck: true,
+                                quarantine: None,
+                                report: None,
                             },
                         )
                         .await?;
@@ -207,9 +209,11 @@ pub async fn run(
             }
             PipelineStage::ReviewEvalPackBuild => {
                 if !dry_run {
-                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::ReviewStats {
-                        input: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
-                    })
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::ReviewStats {
+                            input: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                        },
+                    )
                     .await?;
                 }
             }

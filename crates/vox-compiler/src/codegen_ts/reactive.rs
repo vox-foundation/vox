@@ -21,9 +21,7 @@ use crate::codegen_ts::hir_emit::{
     emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps, map_hir_type_to_ts,
 };
 use crate::hir::*;
-use crate::react_bridge::react_exports::{
-    USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE,
-};
+use crate::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
 use crate::web_ir::WebIrModule;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -218,14 +216,42 @@ fn scan_hir_expr_for_react_imports(
             }
         }
         HirExpr::Binary(_, l, r, _) => {
-            scan_hir_expr_for_react_imports(l, need_state, need_effect, need_memo, need_ref, need_callback);
-            scan_hir_expr_for_react_imports(r, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                l,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            scan_hir_expr_for_react_imports(
+                r,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::Unary(_, x, _) => {
-            scan_hir_expr_for_react_imports(x, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                x,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::MethodCall(recv, _, args, _) => {
-            scan_hir_expr_for_react_imports(recv, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                recv,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
             for a in args {
                 scan_hir_expr_for_react_imports(
                     &a.value,
@@ -238,42 +264,112 @@ fn scan_hir_expr_for_react_imports(
             }
         }
         HirExpr::FieldAccess(b, _, _) => {
-            scan_hir_expr_for_react_imports(b, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                b,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
             for x in items {
-                scan_hir_expr_for_react_imports(x, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_expr_for_react_imports(
+                    x,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, x) in fields {
-                scan_hir_expr_for_react_imports(x, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_expr_for_react_imports(
+                    x,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
         HirExpr::Block(stmts, _) => {
             for s in stmts {
-                scan_hir_stmt_for_react_imports(s, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_stmt_for_react_imports(
+                    s,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
         HirExpr::Lambda(_, _, body, _) => {
-            scan_hir_expr_for_react_imports(body, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                body,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::If(cond, then_b, else_b, _) => {
-            scan_hir_expr_for_react_imports(cond, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                cond,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
             for s in then_b {
-                scan_hir_stmt_for_react_imports(s, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_stmt_for_react_imports(
+                    s,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
             if let Some(els) = else_b {
                 for s in els {
-                    scan_hir_stmt_for_react_imports(s, need_state, need_effect, need_memo, need_ref, need_callback);
+                    scan_hir_stmt_for_react_imports(
+                        s,
+                        need_state,
+                        need_effect,
+                        need_memo,
+                        need_ref,
+                        need_callback,
+                    );
                 }
             }
         }
         HirExpr::Match(scr, arms, _) => {
-            scan_hir_expr_for_react_imports(scr, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                scr,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
             for arm in arms {
                 if let Some(g) = &arm.guard {
-                    scan_hir_expr_for_react_imports(g, need_state, need_effect, need_memo, need_ref, need_callback);
+                    scan_hir_expr_for_react_imports(
+                        g,
+                        need_state,
+                        need_effect,
+                        need_memo,
+                        need_ref,
+                        need_callback,
+                    );
                 }
                 scan_hir_expr_for_react_imports(
                     arm.body.as_ref(),
@@ -286,15 +382,50 @@ fn scan_hir_expr_for_react_imports(
             }
         }
         HirExpr::For(_, it, body, _) => {
-            scan_hir_expr_for_react_imports(it, need_state, need_effect, need_memo, need_ref, need_callback);
-            scan_hir_expr_for_react_imports(body, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                it,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            scan_hir_expr_for_react_imports(
+                body,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::Pipe(a, b, _) | HirExpr::With(a, b, _) => {
-            scan_hir_expr_for_react_imports(a, need_state, need_effect, need_memo, need_ref, need_callback);
-            scan_hir_expr_for_react_imports(b, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                a,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            scan_hir_expr_for_react_imports(
+                b,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::Spawn(x, _) => {
-            scan_hir_expr_for_react_imports(x, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                x,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirExpr::DbTableOp { args, limit, .. } => {
             for a in args {
@@ -308,7 +439,14 @@ fn scan_hir_expr_for_react_imports(
                 );
             }
             if let Some(lim) = limit {
-                scan_hir_expr_for_react_imports(lim, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_expr_for_react_imports(
+                    lim,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
         HirExpr::Try(t) => {
@@ -342,29 +480,87 @@ fn scan_hir_stmt_for_react_imports(
 ) {
     match s {
         HirStmt::Let { value, .. } => {
-            scan_hir_expr_for_react_imports(value, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                value,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirStmt::Assign { target, value, .. } => {
-            scan_hir_expr_for_react_imports(target, need_state, need_effect, need_memo, need_ref, need_callback);
-            scan_hir_expr_for_react_imports(value, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                target,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            scan_hir_expr_for_react_imports(
+                value,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirStmt::Expr { expr, .. } => {
-            scan_hir_expr_for_react_imports(expr, need_state, need_effect, need_memo, need_ref, need_callback);
+            scan_hir_expr_for_react_imports(
+                expr,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
-                scan_hir_expr_for_react_imports(v, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_expr_for_react_imports(
+                    v,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
-        HirStmt::While { condition, body, .. } => {
-            scan_hir_expr_for_react_imports(condition, need_state, need_effect, need_memo, need_ref, need_callback);
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            scan_hir_expr_for_react_imports(
+                condition,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
             for x in body {
-                scan_hir_stmt_for_react_imports(x, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_stmt_for_react_imports(
+                    x,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
         HirStmt::Loop { body, .. } => {
             for x in body {
-                scan_hir_stmt_for_react_imports(x, need_state, need_effect, need_memo, need_ref, need_callback);
+                scan_hir_stmt_for_react_imports(
+                    x,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}

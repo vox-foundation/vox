@@ -210,8 +210,9 @@ impl crate::VoxDb {
         run_id: i64,
         dependency_json: &serde_json::Value,
     ) -> Result<(), StoreError> {
-        let payload = serde_json::to_string(dependency_json)
-            .map_err(|e| StoreError::Serialization(format!("serialize dependency shape JSON: {e}")))?;
+        let payload = serde_json::to_string(dependency_json).map_err(|e| {
+            StoreError::Serialization(format!("serialize dependency shape JSON: {e}"))
+        })?;
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker

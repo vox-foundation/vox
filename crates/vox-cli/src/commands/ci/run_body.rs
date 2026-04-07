@@ -31,10 +31,10 @@ mod run_body_helpers;
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
     run_build_timings, run_clavis_cutover_audit, run_clavis_cutover_gates, run_clavis_parity,
-    run_cuda_features, run_cuda_release_build,
-    run_data_ssot_guards, run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate,
-    run_repo_guards, run_secret_env_guard, run_sql_surface_guard, run_ssot_drift,
-    run_toestub_scoped, run_toestub_self_apply,
+    run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build, run_data_ssot_guards,
+    run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards,
+    run_secret_env_guard, run_sql_surface_guard, run_ssot_drift, run_toestub_scoped,
+    run_toestub_self_apply,
 };
 
 /// Run `vox ci` subcommand.
@@ -198,6 +198,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
+        CiCmd::CorpusDeclCoverage => run_corpus_decl_coverage(&root),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),

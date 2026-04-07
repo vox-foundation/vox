@@ -214,7 +214,9 @@ pub fn run() {
                 LintKind::WholeFileIncludeHasTrainingHeader { file } => {
                     eprintln!(
                         "  ERROR  {} — whole-file include pulls in `// ---` training metadata from {}. Use `{{{{#include {}:display}}}}`.",
-                        rel.display(), file, file
+                        rel.display(),
+                        file,
+                        file
                     );
                 }
             }

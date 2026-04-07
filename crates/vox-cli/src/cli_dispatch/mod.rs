@@ -224,7 +224,8 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                 cmd,
                 &std::env::current_dir().map_err(|e| anyhow::anyhow!("{}", e))?,
             )
-            .await.map_err(|e| anyhow::anyhow!("{}", e))?;
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         }
         Cli::Repo { cmd } => {
             let cmd = cmd.unwrap_or(crate::commands::repo::RepoCmd::Status { json: false });

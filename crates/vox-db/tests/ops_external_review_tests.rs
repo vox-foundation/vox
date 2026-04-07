@@ -1,9 +1,9 @@
 use vox_db::{
+    DbConfig, VoxDb,
     store::types::{
         ExternalReviewDeadletterParams, ExternalReviewFindingParams,
         ExternalReviewFindingStateParams, ExternalReviewRunParams, ExternalReviewThreadParams,
     },
-    DbConfig, VoxDb,
 };
 
 #[tokio::test]
@@ -132,4 +132,3 @@ async fn external_review_deadletter_retry_flow() {
         .expect("list after");
     assert_eq!(rows2[0].retry_state, "retried");
 }
-

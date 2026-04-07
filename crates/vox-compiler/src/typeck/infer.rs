@@ -29,7 +29,11 @@ fn lower_ast_ty(type_expr: &crate::ast::types::TypeExpr, ctx: &mut InferenceCont
                 Ty::Named(name.clone())
             }
         }
-        TypeExpr::Function { params, return_type, .. } => {
+        TypeExpr::Function {
+            params,
+            return_type,
+            ..
+        } => {
             let pts = params.iter().map(|p| lower_ast_ty(p, ctx)).collect();
             let ret = lower_ast_ty(return_type, ctx);
             Ty::Fn(pts, Box::new(ret))
@@ -44,7 +48,12 @@ fn lower_ast_ty(type_expr: &crate::ast::types::TypeExpr, ctx: &mut InferenceCont
 }
 
 /// Contextual bidirectional type checking for expressions.
-pub fn check_expr(expr: &Expr, expected: &Ty, ctx: &mut InferenceContext, builtins: &BuiltinTypes) -> Ty {
+pub fn check_expr(
+    expr: &Expr,
+    expected: &Ty,
+    ctx: &mut InferenceContext,
+    builtins: &BuiltinTypes,
+) -> Ty {
     let resolved_expected = ctx.resolve(expected);
     match expr {
         Expr::Lambda { params, body, .. } => {
@@ -74,7 +83,12 @@ pub fn check_expr(expr: &Expr, expected: &Ty, ctx: &mut InferenceContext, builti
                 return Ty::List(Box::new(elem_ty));
             }
         }
-        Expr::If { condition, then_body, else_body, .. } => {
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             check_expr(condition, &Ty::Bool, ctx, builtins);
             for stmt in then_body {
                 check_stmt(stmt, expected, ctx, builtins);
@@ -121,7 +135,7 @@ pub fn check_expr(expr: &Expr, expected: &Ty, ctx: &mut InferenceContext, builti
         }
         _ => {}
     }
-    
+
     // Fallback to infer
     let ty = infer_expr(expr, ctx, builtins);
     let _ = ctx.unify(&ty, expected);
@@ -129,22 +143,33 @@ pub fn check_expr(expr: &Expr, expected: &Ty, ctx: &mut InferenceContext, builti
 }
 
 /// Contextual bidirectional type checking for statements.
-pub fn check_stmt(stmt: &Stmt, expected: &Ty, ctx: &mut InferenceContext, builtins: &BuiltinTypes) -> Ty {
+pub fn check_stmt(
+    stmt: &Stmt,
+    expected: &Ty,
+    ctx: &mut InferenceContext,
+    builtins: &BuiltinTypes,
+) -> Ty {
     match stmt {
-        Stmt::Expr { expr, .. } => {
-            check_expr(expr, expected, ctx, builtins)
-        }
+        Stmt::Expr { expr, .. } => check_expr(expr, expected, ctx, builtins),
         Stmt::Return { value, .. } => {
             if let Some(v) = value {
-                let target = ctx.expected_return_ty.clone().unwrap_or_else(|| ctx.fresh_var());
+                let target = ctx
+                    .expected_return_ty
+                    .clone()
+                    .unwrap_or_else(|| ctx.fresh_var());
                 check_expr(v, &target, ctx, builtins);
             } else {
-                let target = ctx.expected_return_ty.clone().unwrap_or_else(|| ctx.fresh_var());
+                let target = ctx
+                    .expected_return_ty
+                    .clone()
+                    .unwrap_or_else(|| ctx.fresh_var());
                 let _ = ctx.unify(&Ty::Unit, &target);
             }
             Ty::Never
         }
-        Stmt::Let { value, type_ann, .. } => {
+        Stmt::Let {
+            value, type_ann, ..
+        } => {
             if let Some(ann) = type_ann {
                 let exp = lower_ast_ty(ann, ctx);
                 check_expr(value, &exp, ctx, builtins);
@@ -239,44 +264,44 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             ..
         } => {
             let obj_ty = infer_expr(object, ctx, builtins);
-            let method_ty = builtins
-                .lookup_method(&obj_ty, method)
-                .unwrap_or_else(|| {
-                    if let Ty::TypeVar(_) = ctx.resolve(&obj_ty) {
-                        let ret_var = ctx.fresh_var();
-                        ctx.pending_constraints.push(crate::typeck::unify::PendingConstraint::HasMethod {
+            let method_ty = builtins.lookup_method(&obj_ty, method).unwrap_or_else(|| {
+                if let Ty::TypeVar(_) = ctx.resolve(&obj_ty) {
+                    let ret_var = ctx.fresh_var();
+                    ctx.pending_constraints.push(
+                        crate::typeck::unify::PendingConstraint::HasMethod {
                             target: obj_ty.clone(),
                             method: method.clone(),
                             result: ret_var.clone(),
                             args: vec![], // we can refine to collect args types later if needed
                             span: *span,
-                        });
-                        ret_var
-                    } else {
-                        ctx.fresh_var()
-                    }
-                });
-            
+                        },
+                    );
+                    ret_var
+                } else {
+                    ctx.fresh_var()
+                }
+            });
+
             let method_ty_instantiated = ctx.instantiate(&method_ty);
             match (ctx.resolve(&obj_ty), ctx.resolve(&method_ty_instantiated)) {
                 (Ty::List(obj_inner), Ty::Fn(_params, ref ret)) => {
                     if let Ty::List(ret_inner) = &**ret {
-                         let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
+                        let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
                     }
                 }
                 (Ty::Option(obj_inner), Ty::Fn(_params, ref ret)) => {
                     if let Ty::Option(ret_inner) = &**ret {
-                         let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
+                        let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
                     }
                 }
                 (Ty::Result(obj_inner), Ty::Fn(_params, ref ret)) => {
                     if let Ty::Result(ret_inner) = &**ret {
-                         let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
+                        let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
                     }
                 }
                 _ => {}
             }
-            
+
             let method_resolved = ctx.resolve(&method_ty_instantiated);
             match method_resolved {
                 Ty::Fn(params, ret) => {

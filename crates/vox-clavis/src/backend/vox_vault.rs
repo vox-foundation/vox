@@ -186,7 +186,11 @@ impl VoxCloudBackend {
                 "checksum mismatch for account_id={account_id} secret_id={secret_id}"
             )));
         }
-        let dek = self.unwrap_dek(&existing.dek_wrapped, &existing.kek_ref, existing.kek_version)?;
+        let dek = self.unwrap_dek(
+            &existing.dek_wrapped,
+            &existing.kek_ref,
+            existing.kek_version,
+        )?;
         let new_wrapped = self.wrap_dek(&dek, new_kek_ref, new_kek_version)?;
         let checksum = compute_account_secret_checksum(
             &existing.account_id,
@@ -367,7 +371,12 @@ impl VoxCloudBackend {
         })
     }
 
-    fn wrap_dek(&self, dek: &[u8; 32], kek_ref: &str, kek_version: i64) -> Result<Vec<u8>, SecretError> {
+    fn wrap_dek(
+        &self,
+        dek: &[u8; 32],
+        kek_ref: &str,
+        kek_version: i64,
+    ) -> Result<Vec<u8>, SecretError> {
         let kek = derive_kek(&self.master_key, kek_ref, kek_version);
         let mut wrap_nonce = [0_u8; WRAP_NONCE_LEN];
         rand::thread_rng().fill_bytes(&mut wrap_nonce);
@@ -419,8 +428,8 @@ impl SecretBackend for VoxCloudBackend {
         }
         let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
         let plaintext = decrypt_aes_gcm(&dek, &row.nonce, &row.ciphertext)?;
-        let secret_str =
-            String::from_utf8(plaintext).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+        let secret_str = String::from_utf8(plaintext)
+            .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
         Ok(Some(SecretString::new(secret_str.into_boxed_str())))
     }
 }
@@ -609,7 +618,11 @@ fn derive_kek(master_key: &[u8; 32], kek_ref: &str, kek_version: i64) -> [u8; 32
     hasher.finalize().into()
 }
 
-fn encrypt_aes_gcm(key_bytes: &[u8; 32], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, SecretError> {
+fn encrypt_aes_gcm(
+    key_bytes: &[u8; 32],
+    nonce: &[u8],
+    plaintext: &[u8],
+) -> Result<Vec<u8>, SecretError> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key_bytes));
     let nonce = Nonce::from_slice(nonce);
     cipher

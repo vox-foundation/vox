@@ -202,13 +202,14 @@ mod tests {
                 .expect("read canonical schema"),
         )
         .expect("parse canonical schema");
-        let canonical_instance: Value = serde_json::from_str(
-            &vox_bounded_fs::read_utf8_path_capped(
-                &root.join("crates/vox-publisher/tests/fixtures/scientia_canonical_metadata.v1.json"),
+        let canonical_instance: Value =
+            serde_json::from_str(
+                &vox_bounded_fs::read_utf8_path_capped(&root.join(
+                    "crates/vox-publisher/tests/fixtures/scientia_canonical_metadata.v1.json",
+                ))
+                .expect("read canonical fixture"),
             )
-            .expect("read canonical fixture"),
-        )
-        .expect("parse canonical fixture");
+            .expect("parse canonical fixture");
         let validator = validator_for(&canonical_schema).expect("compile canonical schema");
         assert!(validator.validate(&canonical_instance).is_ok());
         let typed = parse_canonical_metadata_v1(
@@ -239,17 +240,21 @@ mod tests {
         assert_eq!(evidence.version, "v1");
         assert!(!evidence.replay_instructions.is_empty());
 
-        let route_raw = vox_bounded_fs::read_utf8_path_capped(&root.join(ROUTE_PROFILE_REQUIREMENTS_REL))
-            .expect("read route profile requirements");
-        let route = parse_route_profile_requirements_v1(&route_raw).expect("parse route profile requirements");
+        let route_raw =
+            vox_bounded_fs::read_utf8_path_capped(&root.join(ROUTE_PROFILE_REQUIREMENTS_REL))
+                .expect("read route profile requirements");
+        let route = parse_route_profile_requirements_v1(&route_raw)
+            .expect("parse route profile requirements");
         assert_eq!(route.version, "v1");
         assert!(route.profiles.contains_key("journal"));
-        assert!(route
-            .profiles
-            .get("journal")
-            .expect("journal profile")
-            .required_fields
-            .iter()
-            .any(|f| f == "identity.title"));
+        assert!(
+            route
+                .profiles
+                .get("journal")
+                .expect("journal profile")
+                .required_fields
+                .iter()
+                .any(|f| f == "identity.title")
+        );
     }
 }

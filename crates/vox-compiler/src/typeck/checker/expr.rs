@@ -190,7 +190,9 @@ impl<'a> Checker<'a> {
                 let mut expected_fields = std::collections::HashMap::new();
                 if let Some(exp) = expected {
                     match self.uf.resolve(exp) {
-                        Ty::Record(ref fds) | Ty::Table(_, ref fds) | Ty::Collection(_, ref fds) => {
+                        Ty::Record(ref fds)
+                        | Ty::Table(_, ref fds)
+                        | Ty::Collection(_, ref fds) => {
                             for (n, t) in fds {
                                 expected_fields.insert(n.clone(), t.clone());
                             }
@@ -220,7 +222,8 @@ impl<'a> Checker<'a> {
                 let elem_ty = if elements.is_empty() {
                     expected_elem_ty.unwrap_or_else(|| self.uf.fresh_var())
                 } else {
-                    let mut unified_ty = expected_elem_ty.unwrap_or_else(|| self.check_expr(&elements[0], None));
+                    let mut unified_ty =
+                        expected_elem_ty.unwrap_or_else(|| self.check_expr(&elements[0], None));
                     for e in elements.iter() {
                         let t = self.check_expr(e, Some(&unified_ty));
                         if let Ok(lub) = self.uf.least_upper_bound(unified_ty.clone(), t.clone()) {
@@ -281,14 +284,18 @@ impl<'a> Checker<'a> {
                 let obj_ty = self.uf.resolve(&obj_ty);
                 if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
                     let bindings = match &obj_ty {
-                        Ty::List(inner) | Ty::Option(inner) | Ty::Result(inner) | Ty::Stream(inner) | Ty::Set(inner) => {
+                        Ty::List(inner)
+                        | Ty::Option(inner)
+                        | Ty::Result(inner)
+                        | Ty::Stream(inner)
+                        | Ty::Set(inner) => {
                             vec![inner.as_ref().clone()]
                         }
                         Ty::Map(k, v) => vec![k.as_ref().clone(), v.as_ref().clone()],
                         _ => vec![],
                     };
                     let method_ty = self.uf.instantiate_with(&method_ty, &bindings);
-                    
+
                     if let Ty::Fn(params, ret) = method_ty {
                         self.check_arguments(&params, args, *span);
                         ret.as_ref().clone()
@@ -705,13 +712,17 @@ impl<'a> Checker<'a> {
                     .iter()
                     .enumerate()
                     .map(|(i, p)| {
-                        let p_ty = p.type_ann.as_ref().map(|t| resolve_hir_type(t, self.env)).unwrap_or_else(|| {
-                            expected_params
-                                .as_ref()
-                                .and_then(|ep| ep.get(i))
-                                .cloned()
-                                .unwrap_or_else(|| self.uf.fresh_var())
-                        });
+                        let p_ty = p
+                            .type_ann
+                            .as_ref()
+                            .map(|t| resolve_hir_type(t, self.env))
+                            .unwrap_or_else(|| {
+                                expected_params
+                                    .as_ref()
+                                    .and_then(|ep| ep.get(i))
+                                    .cloned()
+                                    .unwrap_or_else(|| self.uf.fresh_var())
+                            });
                         self.env.define(
                             p.name.clone(),
                             Binding::new(p_ty.clone(), false, BindingKind::Parameter),

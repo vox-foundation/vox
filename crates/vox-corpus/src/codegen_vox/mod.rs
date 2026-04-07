@@ -8,7 +8,7 @@
 //! - **Parser verification**: every emitted program runs through the parser
 //!
 //! ## Dynamic walking
-//! This module consumes `TAXONOMY_FROM_AST` (auto-derived from `vox-ast` Decl enum
+//! This module consumes `TAXONOMY_FROM_AST` (auto-derived from `vox-compiler` `Decl` variants
 //! at build time) so that when new language constructs are added, generators are
 //! automatically flagged as missing by coverage analysis.
 

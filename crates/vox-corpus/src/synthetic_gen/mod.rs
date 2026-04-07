@@ -33,7 +33,13 @@ pub(crate) fn example_tasks() -> Vec<String> {
     vox_mcp_meta::TOOL_REGISTRY
         .iter()
         .filter(|t| vox_mcp_meta::ORCHESTRATOR_TOOLS.contains(&t.name))
-        .map(|t| format!("use the {} tool to {}", t.name, t.description.to_lowercase()))
+        .map(|t| {
+            format!(
+                "use the {} tool to {}",
+                t.name,
+                t.description.to_lowercase()
+            )
+        })
         .collect()
 }
 

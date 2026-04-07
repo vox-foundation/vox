@@ -57,7 +57,10 @@ pub(crate) fn check_hir_match_exhaustiveness(
     if let Some(w_span) = wildcard_span {
         if missing.is_empty() {
             diags.push(Diagnostic::warning(
-                format!("Divergent wildcard: all variants of '{}' are already covered", type_name),
+                format!(
+                    "Divergent wildcard: all variants of '{}' are already covered",
+                    type_name
+                ),
                 w_span,
                 source,
             ));

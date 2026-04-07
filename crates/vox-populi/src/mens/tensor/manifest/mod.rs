@@ -241,7 +241,10 @@ impl InitialManifestRun {
             adapter_tag: c.adapter_tag.clone(),
             seed: c.seed,
             grad_accum: c.grad_accum.max(1),
-            context_filter: c.context_filter.as_ref().map(|cf| serde_json::to_string(cf).unwrap_or_default()),
+            context_filter: c
+                .context_filter
+                .as_ref()
+                .map(|cf| serde_json::to_string(cf).unwrap_or_default()),
             max_vram_fraction: c.max_vram_fraction,
             finetune_contract_digest: c.finetune_contract_digest.clone(),
             training_deployment_target: (c.deployment_target

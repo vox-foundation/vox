@@ -314,7 +314,9 @@ impl FreeAiClient {
         let cost_reporter = self.cost_reporter.clone();
 
         match route {
-            StreamRoute::Cascade => Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter),
+            StreamRoute::Cascade => {
+                Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter)
+            }
             StreamRoute::Registry {
                 backend: LudusStreamBackend::Ollama,
                 model,
@@ -337,7 +339,13 @@ impl FreeAiClient {
             } => {
                 let api_key = Self::gemini_key_from_providers(&providers);
                 if api_key.is_empty() {
-                    return Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter);
+                    return Self::cascade_stream(
+                        providers,
+                        http,
+                        prompt_owned,
+                        reporter,
+                        cost_reporter,
+                    );
                 }
                 let model = model.to_string();
                 Box::pin(async_stream::try_stream! {
@@ -357,7 +365,13 @@ impl FreeAiClient {
             } => {
                 let api_key = Self::openrouter_key_from_providers(&providers);
                 if api_key.is_empty() {
-                    return Self::cascade_stream(providers, http, prompt_owned, reporter, cost_reporter);
+                    return Self::cascade_stream(
+                        providers,
+                        http,
+                        prompt_owned,
+                        reporter,
+                        cost_reporter,
+                    );
                 }
                 let model = model.to_string();
                 Box::pin(async_stream::try_stream! {

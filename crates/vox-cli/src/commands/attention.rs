@@ -34,12 +34,8 @@ pub async fn handle_attention_command(
     workspace_root: &std::path::Path,
 ) -> Result<()> {
     match cmd {
-        AttentionCommand::Snapshot => {
-            snapshot_cmd(workspace_root).await
-        }
-        AttentionCommand::ListEvents { limit } => {
-            list_events_cmd(limit).await
-        }
+        AttentionCommand::Snapshot => snapshot_cmd(workspace_root).await,
+        AttentionCommand::ListEvents { limit } => list_events_cmd(limit).await,
         AttentionCommand::Overrides {
             enabled,
             budget_ms,
@@ -53,28 +49,38 @@ async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
     let repo = vox_repository::discover_repository_or_fallback(workspace_root);
     let mut config = vox_orchestrator::OrchestratorConfig::load_from_toml(&repo.root)
         .map_err(|e| miette::miette!("{}", e))?;
-    
+
     let db = crate::workspace_db::connect_cli_workspace_voxdb()
         .await
         .map_err(|e| miette::miette!("Failed to open DB: {}", e))?;
 
-    if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_enabled").await {
+    if let Ok(Some(val)) = db
+        .get_user_preference("local_user", "attention_enabled")
+        .await
+    {
         if let Ok(b) = val.parse::<bool>() {
             config.attention_enabled = b;
         }
     }
-    if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_budget_ms").await {
+    if let Ok(Some(val)) = db
+        .get_user_preference("local_user", "attention_budget_ms")
+        .await
+    {
         if let Ok(v) = val.parse::<u64>() {
             config.attention_budget_ms = v;
         }
     }
-    if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_alert_threshold").await {
+    if let Ok(Some(val)) = db
+        .get_user_preference("local_user", "attention_alert_threshold")
+        .await
+    {
         if let Ok(v) = val.parse::<f64>() {
             config.attention_alert_threshold = v;
         }
     }
 
-    let build = vox_orchestrator::build_repo_scoped_orchestrator_for_repository(config.clone(), &repo);
+    let build =
+        vox_orchestrator::build_repo_scoped_orchestrator_for_repository(config.clone(), &repo);
     let bm = build.orchestrator.budget_manager_handle();
     let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
 
@@ -83,15 +89,24 @@ async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
     println!("  Spent (ms):       {}", snap.spent_ms);
     println!("  Spent Ratio:      {:.2}%", snap.spent_ratio() * 100.0);
     println!("  Focus Depth:      {:?}", snap.focus_depth());
-    println!("  Interrupt Freq:   {:.2} / hr", snap.interrupt_freq_per_hour);
-    println!("  Requests/Auto:    {} / {}", snap.total_requests, snap.auto_approved);
+    println!(
+        "  Interrupt Freq:   {:.2} / hr",
+        snap.interrupt_freq_per_hour
+    );
+    println!(
+        "  Requests/Auto:    {} / {}",
+        snap.total_requests, snap.auto_approved
+    );
     println!("  Suppressed Inbox: {}", snap.inbox_suppressed_count);
-    
+
     println!("");
     println!("Policy Config (effective):");
     println!("  attention_enabled = {}", config.attention_enabled);
     println!("  attention_budget_ms = {}", config.attention_budget_ms);
-    println!("  attention_alert_threshold = {}", config.attention_alert_threshold);
+    println!(
+        "  attention_alert_threshold = {}",
+        config.attention_alert_threshold
+    );
 
     Ok(())
 }
@@ -108,15 +123,15 @@ async fn list_events_cmd(limit: usize) -> Result<()> {
                 println!("No recent attention events found for this repository.");
             } else {
                 for ev in events {
-                    println!("[{}] Agent {} | {:?} | Cost: {}ms | {:?}", 
-                        ev.timestamp_ms, ev.agent_id.0, ev.event_type, ev.cost_ms, ev.tier);
+                    println!(
+                        "[{}] Agent {} | {:?} | Cost: {}ms | {:?}",
+                        ev.timestamp_ms, ev.agent_id.0, ev.event_type, ev.cost_ms, ev.tier
+                    );
                 }
             }
             Ok(())
         }
-        Err(e) => {
-            Err(miette::miette!("Failed to list attention events: {}", e))
-        }
+        Err(e) => Err(miette::miette!("Failed to list attention events: {}", e)),
     }
 }
 

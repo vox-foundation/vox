@@ -492,7 +492,7 @@ mod tests {
     fn grind_cap_zeros_reward() {
         let base = BaseReward::new(10, 2);
         let mut session = SessionState::default();
-        for _ in 0..=GRIND_THRESHOLD {
+        for _ in 0..=GRIND_ZERO_THRESHOLD {
             let _ = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
         }
         let r = apply_policy(&base, 1.0, 0, "task_completed", &mut session);

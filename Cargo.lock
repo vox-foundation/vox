@@ -11615,9 +11615,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "bytes",
  "chrono",
  "clap",
  "ctrlc",
+ "futures-util",
  "serde",
  "serde_json",
  "tokio",

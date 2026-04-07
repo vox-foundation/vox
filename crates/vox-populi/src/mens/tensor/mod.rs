@@ -74,7 +74,12 @@ mod candle_qlora_train;
 #[cfg(feature = "mens-train")]
 mod candle_qlora_weights;
 #[cfg(feature = "mens-train")]
+pub mod domain_profiles;
+pub mod domain_router;
+#[cfg(feature = "mens-train")]
 pub mod execution_planner;
+#[cfg(feature = "mens-train")]
+pub mod external_serving_handoff;
 #[cfg(feature = "mens-train")]
 pub mod finetune_contract;
 #[cfg(feature = "mens-train")]
@@ -95,9 +100,6 @@ pub mod train_backend;
 pub mod train_jsonl_preflight;
 #[cfg(feature = "mens-train")]
 pub mod training_config;
-#[cfg(feature = "mens-train")]
-pub mod domain_profiles;
-pub mod domain_router;
 
 // Private QLoRA modules are referenced from sibling `.rs` files; anchor for unwired-module scans.
 #[cfg(feature = "mens-train")]

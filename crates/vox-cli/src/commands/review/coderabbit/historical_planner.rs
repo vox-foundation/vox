@@ -11,7 +11,7 @@ use vox_git::GitBridge;
 
 use super::{
     path_policy,
-    semantic_planner::{resolve_semantic_rule_set, SemanticPlanner, SemanticSubmitConfig},
+    semantic_planner::{SemanticPlanner, SemanticSubmitConfig, resolve_semantic_rule_set},
 };
 
 /// Run historical submit: stash local state in a WIP commit, get diff against `hist_sha`,
@@ -90,10 +90,7 @@ pub async fn run_historical_submit(
     let tier_cap = cfg.tier.files_per_review() as usize;
     let max_per = cfg.max_files_per_pr.max(1).min(tier_cap);
     let inject = vox_cfg.semantic_workspace_crates;
-    let groups = vox_cfg
-        .groups_config
-        .as_deref()
-        .map(std::path::Path::new);
+    let groups = vox_cfg.groups_config.as_deref().map(std::path::Path::new);
     let rule_set = resolve_semantic_rule_set(repo, groups, inject)
         .context("load semantic group rules for historical-submit")?;
     let planner = SemanticPlanner::new(max_per, rule_set, vox_cfg.legacy_chunk_split)

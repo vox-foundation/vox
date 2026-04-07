@@ -23,7 +23,6 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
     let mut queries = Vec::new();
     let mut mutations = Vec::new();
 
-
     // Collect all table names for relationship detection
     let table_names: Vec<String> = module
         .declarations
@@ -286,7 +285,6 @@ pub fn format_llm_context(digest: &SchemaDigest) -> String {
         }
         out.push('\n');
     }
-
 
     out
 }

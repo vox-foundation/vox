@@ -235,7 +235,11 @@ impl BudgetManager {
     }
 
     /// Save the custom dollar caps or budgets powered by VoxDB.
-    pub async fn set_and_persist_allocation(&self, agent_id: AgentId, allocation: AgentBudgetAllocation) {
+    pub async fn set_and_persist_allocation(
+        &self,
+        agent_id: AgentId,
+        allocation: AgentBudgetAllocation,
+    ) {
         self.set_allocation(agent_id, allocation.clone());
         if let Some(db) = &self.db {
             let key = format!("agent_budget.{}", agent_id.0);

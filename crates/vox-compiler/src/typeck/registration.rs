@@ -7,7 +7,8 @@ use crate::rust_interop_support::{
 };
 use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::{
-    ActorHandlerSig, AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
+    ActorHandlerSig, AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef,
+    WorkflowSig,
 };
 use crate::typeck::ty::Ty;
 use std::collections::HashMap;

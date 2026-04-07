@@ -69,6 +69,13 @@ Promotion guidance:
 
 Documentation-derived JSONL rows may carry extra metadata fields beyond the core `TrainingPair` shape. Those fields are for provenance and future retrieval or docs-QA workflows; current training loaders ignore unknown fields unless a stricter downstream consumer opts in.
 
+## `vox mens corpus validate-batch` (compiler gate)
+
+- With **recheck** enabled (default; use `--no-recheck` to skip), rows whose `response` / `code` / fenced Vox markdown bodies look like codegen are run through the same **`vox` frontend** as `vox check` (lex → parse → typecheck → HIR validation). Rows with `response_mode: prose_only` or docs-only lanes without Vox bodies are skipped.
+- **`--quarantine <path>`** — JSONL of rejected rows with reasons.
+- **`--report <path>`** — JSON summary (`rejected_malformed_json`, `rejected_compiler`, samples).
+- **`VOX_MENS_TRAIN_JSONL_STRICT=1`** — fail the command if any row is rejected (use in CI when promoting a golden mix).
+
 ## Related
 
 - `docs/src/reference/mens-training.md` — tooling overview.

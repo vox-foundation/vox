@@ -7,9 +7,9 @@
 //! `src/routes/**` to refresh `routeTree.gen.ts` via `tsr` from **`@tanstack/router-cli`**.
 
 mod islands;
+pub mod mobile_pwa;
 mod spa;
 mod tanstack;
-pub mod mobile_pwa;
 
 pub use islands::*;
 pub use spa::*;

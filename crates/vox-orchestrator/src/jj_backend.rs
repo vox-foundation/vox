@@ -259,14 +259,22 @@ pub mod jj {
 // JjBridge CLI Facade
 // ---------------------------------------------------------------------------
 
-/// CLI subprocess adapter that provides operations like snapshot flushes to 
+/// CLI subprocess adapter that provides operations like snapshot flushes to
 /// Jujutsu without requiring the full jj-lib to be statically linked.
 pub struct JjBridge;
 
 impl JjBridge {
     /// Flush a merged task/change snapshot to JJ as an anonymous branch.
-    pub async fn flush_snapshot_commit(task_id: impl std::fmt::Display, agent_id: impl std::fmt::Display, description: &str, cwd: Option<&str>) -> std::io::Result<()> {
-        let msg = format!("AgentTask {} (Agent {}) - {}", task_id, agent_id, description);
+    pub async fn flush_snapshot_commit(
+        task_id: impl std::fmt::Display,
+        agent_id: impl std::fmt::Display,
+        description: &str,
+        cwd: Option<&str>,
+    ) -> std::io::Result<()> {
+        let msg = format!(
+            "AgentTask {} (Agent {}) - {}",
+            task_id, agent_id, description
+        );
         let mut cmd = tokio::process::Command::new("jj");
         cmd.args(["commit", "-m", &msg]);
         if let Some(dir) = cwd {
@@ -274,7 +282,10 @@ impl JjBridge {
         }
         let out = cmd.output().await?;
         if !out.status.success() {
-            tracing::warn!("JjBridge: commit flush failed: {}", String::from_utf8_lossy(&out.stderr));
+            tracing::warn!(
+                "JjBridge: commit flush failed: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
         }
         Ok(())
     }
@@ -288,7 +299,10 @@ impl JjBridge {
         }
         let out = cmd.output().await?;
         if !out.status.success() {
-            tracing::warn!("JjBridge: abandon revert failed: {}", String::from_utf8_lossy(&out.stderr));
+            tracing::warn!(
+                "JjBridge: abandon revert failed: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
         }
         Ok(())
     }

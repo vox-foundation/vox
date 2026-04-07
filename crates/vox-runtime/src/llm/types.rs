@@ -97,27 +97,27 @@ impl LlmConfig {
             .get(alias)
             .ok_or_else(|| format!("Unknown model alias: {}", alias))?;
         let api_key = match entry.provider.as_str() {
-                "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
-                    .expose()
-                    .map(std::string::ToString::to_string),
-                "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
-                    .expose()
-                    .map(std::string::ToString::to_string),
-                "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
-                    .expose()
-                    .map(std::string::ToString::to_string),
-                "hf_router" | "huggingface" | "hf_endpoint" => {
-                    vox_config::inference::huggingface_hub_token()
-                }
-                _ => None,
+            "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+                .expose()
+                .map(std::string::ToString::to_string),
+            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+                .expose()
+                .map(std::string::ToString::to_string),
+            "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+                .expose()
+                .map(std::string::ToString::to_string),
+            "hf_router" | "huggingface" | "hf_endpoint" => {
+                vox_config::inference::huggingface_hub_token()
             }
-            .or_else(|| {
-                // Compatibility escape hatch for custom providers not yet mapped into Clavis `SecretId`.
-                entry
-                    .api_key_env
-                    .as_deref()
-                    .and_then(|env_name| std::env::var(env_name).ok())
-            });
+            _ => None,
+        }
+        .or_else(|| {
+            // Compatibility escape hatch for custom providers not yet mapped into Clavis `SecretId`.
+            entry
+                .api_key_env
+                .as_deref()
+                .and_then(|env_name| std::env::var(env_name).ok())
+        });
         let base_url = entry
             .base_url
             .clone()
@@ -251,10 +251,12 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())
                 .unwrap_or(0);
-            let tmp = std::env::temp_dir().join(format!(
-                "vox-clavis-runtime-strict-lenient-{unique}.db"
-            ));
-            std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", tmp.to_string_lossy().to_string());
+            let tmp =
+                std::env::temp_dir().join(format!("vox-clavis-runtime-strict-lenient-{unique}.db"));
+            std::env::set_var(
+                "VOX_CLAVIS_CLOUDLESS_DB_PATH",
+                tmp.to_string_lossy().to_string(),
+            );
             std::env::set_var("VOX_ACCOUNT_ID", "runtime-strict-lenient-test");
         }
         let lenient =

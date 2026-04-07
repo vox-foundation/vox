@@ -267,7 +267,10 @@ impl WorkspaceManager {
 
                 if status == ChangeStatus::Merged {
                     tokio::spawn(async move {
-                        let _ = crate::jj_backend::JjBridge::flush_snapshot_commit(task_id, agent_id, &desc, None).await;
+                        let _ = crate::jj_backend::JjBridge::flush_snapshot_commit(
+                            task_id, agent_id, &desc, None,
+                        )
+                        .await;
                     });
                 } else if status == ChangeStatus::Abandoned {
                     tokio::spawn(async move {

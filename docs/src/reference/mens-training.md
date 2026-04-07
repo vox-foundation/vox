@@ -17,24 +17,30 @@ vox mens train --device cuda
 
 `--backend qlora` and `--tokenizer hf` are already the CLI defaults. When `--model` is omitted on the Candle QLoRA path, the base model defaults to the SSOT id `Qwen/Qwen3.5-4B` (`vox_populi::mens::DEFAULT_MODEL_ID`, mirrored in `contracts/mens/training-presets.v1.yaml` as `default_base_model`). Add `--output-dir <dir>` to place run artifacts. On CUDA, the full QLoRA proxy stack is required by default; use `--qlora-allow-partial-proxy-stack` only when you accept partial-stack semantics. For multi-model fine-tuning, pass an explicit `--model <hf/repo>`.
 
+## Tokenization SSOT
+
+- **Candle QLoRA (`vox mens train --backend qlora`, default):** supervision strings are encoded with the **Hugging Face tokenizer** shipped for `--model` (see `vox_populi::mens::tensor::training_text::hf_tokenize_chatml_supervised` and `ChatmlConfig` im_start/im_end aliases). That vocabulary is **model-defined** (tens of thousands of BPE tokens), not the small constant in `vox-tensor`.
+- **`vox_tensor::data::VoxTokenizer`:** a deterministic **lab / legacy-Burn** harness: printable ASCII byte ids plus a minimal compound tier for ChatML delimiters and markdown code fences. It does **not** track the Vox lexer keyword set and must not be treated as a language mirror.
+- **Dogfood tiny transformers** (`VOCAB_SIZE` in manifests): use this lab vocab size only for in-repo scratch models — not for Qwen-class fine-tunes.
+
 Generated defaults snapshot: [Mens train defaults (generated)](mens-train-defaults.generated.md).
 
-> **Code SSOT:** `vox mens train` dispatches through `vox_populi::mens::tensor::run_mens_training` ([`lora_train.rs`](../../../crates/vox-populi/src/mens/tensor/lora_train.rs)). **`PopuliTrainBackend::BurnLora` is rejected at runtime** with an explicit error; the **supported** native trainer is **`CandleQlora`** (`--backend qlora`, `--tokenizer hf` for HF-shaped models). Docs below still describe Burn for **merge-weights / `vox mens serve`** and historical parity—treat **Burn training** as legacy/optional tooling, not an active `schola train` backend.
+> **Code SSOT:** `vox mens train` dispatches through `vox_populi::mens::tensor::run_mens_training` ([`lora_train.rs`](../../../crates/vox-populi/src/mens/tensor/lora_train.rs)). **`PopuliTrainBackend::BurnLora` is rejected at runtime** with an explicit error; the **supported** native trainer is **`CandleQlora`** (`--backend qlora`, `--tokenizer hf` for HF-shaped models). **`vox mens serve` (local, `cloud=local`)** delegates to **`vox-schola serve`** for QLoRA run directories — not the Burn `execution-api` binary. Treat **Burn `merge-weights` + `execution-api` serve** as a separate, legacy in-tree lane. See [Mens local serving SSOT (Schola + orchestrator)](mens-serving-ssot.md).
 
 ## Truth tables (train → merge → serve)
 
 | Path | Train (CLI) | Merge | Serve in-tree |
 |------|-------------|-------|----------------|
-| **Candle QLoRA** | `vox mens train --backend qlora --tokenizer hf …` | **`vox mens merge-qlora`** / **`vox schola merge-qlora`** (alias `merge-adapter`) → f32 subset shards | **No** — use vLLM/Ollama/HF (or external OpenAI-compatible stack); `vox mens serve` does not load QLoRA merge outputs |
-| **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — `vox mens serve` (`execution-api`) loads `*.bin` / merged Burn checkpoints |
+| **Candle QLoRA** | `vox mens train --backend qlora --tokenizer hf …` | **`vox mens merge-qlora`** / **`vox schola merge-qlora`** (alias `merge-adapter`) → f32 subset shards (optional external vLLM/Ollama/HF) | **Yes (local)** — **`vox-schola serve --model <run_dir>`** or **`vox mens serve --model <run_dir>`** (OpenAI + Ollama-shaped HTTP, including `/api/generate` for Ludus/orchestrator). Merged safetensors subset is **not** loaded by Schola. |
+| **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — **`vox mens serve`** with **`execution-api`** + **`gpu`**: Burn checkpoints (`*.bin` / merged). This is **not** the QLoRA `vox-schola` path above. |
 
 ## External serving is a supported lane
 
-For Candle QLoRA and other exported artifact paths, external serving is the supported deployment model rather than a fallback.
+For Candle QLoRA **merged** artifacts and multi-node deploys, external runtimes remain first-class.
 
-- Treat **vLLM**, **Ollama**, **HF Transformers**, and **OpenAI-compatible** runtimes as first-class deployment targets for merged/exported QLoRA artifacts.
-- Record handoff metadata with the contract at `contracts/eval/external-serving-handoff.schema.json` when wiring export/deploy automation.
-- Use `vox mens serve` only for the in-tree Burn serving lane today.
+- Treat **vLLM**, **Ollama.app**, **HF Transformers**, and **OpenAI-compatible** gateways as deployment targets for **merged** QLoRA outputs and for teams that do not run Schola.
+- Training and merge write **`external_serving_handoff_v1.json`** (schema: `contracts/eval/external-serving-handoff.schema.json`) next to artifacts for automation.
+- **Local dev default:** Schola on a chosen port + **`POPULI_URL`** / **`POPULI_MODEL`** — [Mens local serving SSOT](mens-serving-ssot.md).
 
 ## Why
 
@@ -84,7 +90,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 | Piece | Role |
 |--------|------|
 | **`vox-cli`** `vox mens train` | **Compile:** `cargo build -p vox-cli --features gpu` (default features are **`mens-base` only**). **Operational default:** `--backend qlora --tokenizer hf` (Candle QLoRA). Legacy `--backend lora` is deprecated and retained only for compatibility context. **Mobile edge export:** **`--deployment-target mobile_edge`** or **`--preset mobile_edge`** → planner gates + **`--device cpu`** required; see [mobile-edge-ai.md](mobile-edge-ai.md). |
-| **`vox-cli`** `vox mens serve` | **Requires `execution-api`** when building `vox-cli` (not in default features). Serves Burn **LoRA** checkpoints (`model_final.bin`, `checkpoint_*.bin`) and **merged** `model_merged.bin` from **`merge-weights`** (same HTTP surface). |
+| **`vox-cli`** `vox mens serve` | **`cloud=local`:** delegates to **`vox-schola serve`** (QLoRA **run directory**; **`gpu`**). **Burn HTTP** for **`*.bin` / `merge-weights`** is the separate **`execution-api`** Axum server when that feature is enabled. SSOT: [mens-serving-ssot.md](mens-serving-ssot.md). |
 | **`vox-populi`** `PopuliTrainBackend` | Enum + `FromStr` / serde in `crates/vox-populi/src/mens/tensor/train_backend.rs`. |
 | **`vox-populi`** `TrainingBackend` | Trait in `tensor/backend.rs`; Candle implementation in `tensor/backend_candle_qlora.rs` + `tensor/candle_qlora_train` modules. |
 | **`vox-populi`** `run_mens_training` | Dispatch in `tensor/lora_train.rs` with contract/planner/preflight gates. |
@@ -214,7 +220,7 @@ So: **QLoRA is “better” for large-model, VRAM-efficient fine-tuning on shipp
 | Strengths | Weaknesses |
 |-----------|------------|
 | **NF4 base + trainable LoRA** on **real** HF shards; **VRAM-efficient** vs full fine-tune; matches **operator expectations** for “train Qwen locally”. | Native qwen3_5 hybrid path is now enforced in Candle; keep eval-local quality checks in your promotion gate for each model tier. |
-| **NVIDIA CUDA** (and Metal) **first-class** when built with **`mens-candle-cuda`** / **`mens-candle-metal`**. | **`vox mens serve`** does **not** load **`merge-qlora`** outputs; use **vLLM / Ollama / HF** (or export pipeline TBD) for merged **f32** shards. |
+| **NVIDIA CUDA** (and Metal) **first-class** when built with **`mens-candle-cuda`** / **`mens-candle-metal`**. | **`vox-schola serve`** loads the **training run dir** (adapter + tokenizer), not standalone **`merge-qlora`** merged shards; use **vLLM / Ollama.app / HF** for those **f32** subset exports. |
 | Strong **preflight** (`qlora_preflight`) catches tokenizer / embedding width / shard key issues **before** long runs. | **`--qlora-require-full-proxy-stack`** is intentionally strict and can hard-fail when shard coverage is incomplete. |
 | **Preset family** (`qwen_4080_16g`, `4080`, etc.) tuned for **16G** cards. | **Patch + contract** coupling: in-tree **`qlora-rs`** patch for stable deep stacks; upgrade pins need care (`VOX_PATCH.md`). |
 
@@ -227,7 +233,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 3. **Training acceptance profile**: `cargo run -p vox-cli -- ci mesh-gate --profile training` (alias: `mens-gate`; see [mens-finetune-acceptance-runbook.md](../architecture/mens-finetune-acceptance-runbook.md)).
 4. **Language/tooling confidence** (orthogonal to trainer): `cargo check --workspace`, `cargo test` for areas you touched; MCP **`vox-mcp`** and orchestrator paths assume a healthy **`vox`** binary and repo root — see [AGENTS.md](../../../AGENTS.md) § orchestration / capability registry.
 5. **Data**: canonical **`train.jsonl`** under **`--data-dir`** (often **`target/dogfood`** after corpus mix). Operator mix (**`vox mens corpus mix --config mens/config/mix.yaml`**) is **strict by default**: every non-optional `mens/config/mix.yaml` source must exist and emit at least one row. Use **`--allow-missing-sources`** for the old warn-only behavior (automation / first-time trees). A JSON report is written next to the mix output (**`*.mix_report.json`**, same stem as the mixed JSONL) with per-source weights, line counts, and output share. Optional: **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the JSONL is already final.
-6. **Choose artifact + inference**: **Burn** → **`merge-weights`** → **`vox mens serve`**; **QLoRA** → **`merge-qlora`** → external **OpenAI-compatible** or HF runtime (not `serve` today).
+6. **Choose artifact + inference**: **Burn** → **`merge-weights`** → **`vox mens serve`** (**`execution-api`**); **QLoRA** → **`vox-schola serve`** / **`vox mens serve --model <run_dir>`** (local), or **`merge-qlora`** → external **vLLM / Ollama / HF** for merged shards.
 7. **Long runs (detached)**: **`--log-dir`** always re-invokes the current binary with logs redirected and the parent exiting immediately. **`--background`** alone does the same using the default log directory (**`<repo>/mens/runs/logs`** when the workspace root is known, else **`mens/runs/logs`** relative to the process cwd). On Windows, spawns use **`CREATE_BREAKAWAY_FROM_JOB`** so IDE/agent job objects are less likely to tear down the trainer when the parent exits. **`vox mens train`** behaves the same (**`--background`** defaults logs to **`mens/runs/logs`**). Monitor with **`Get-Content …\train_*.log -Wait -Tail 25`** or **`tail -f`**. Gate wrappers: **`scripts/populi/release_training_gate.ps1`** (training profile), **`scripts/mens_release_gate.ps1`** (m1m4) — isolated `target` + temp **`vox.exe`** copy to avoid Windows file locks during nested **`cargo`**.
 
 **“Full model build” in practice** means: (a) **data** corpus at quality gate, (b) **trainer** chosen and **manifest** recorded, (c) **merge/export** aligned with **where inference will run** (Vox HTTP vs external LLM), (d) **eval** (`vox mens corpus eval` / `eval-local` where applicable) before promoting artifacts.
@@ -333,7 +339,8 @@ Recommended rollout order: shadow (`routing_experimental`), then training scorin
 | **`vox mens merge-weights`** | Merges **Burn** LoRA checkpoints (`*.bin` from `--backend lora`) into `model_merged.bin`. Requires **`gpu`**. |
 | **`candle_qlora_adapter.safetensors`** | **LoRA A/B per logical layer** (`mid0`…`lm_head`); sidecar **`candle_qlora_adapter_meta.json`** format **`vox_mens_qlora_lora_only_v2`** (`QloraAdapterMetaV2`). |
 | **`vox schola merge-qlora`** (alias **`merge-adapter`**) | **Candle QLoRA path only:** merges v2 or **v3** adapter meta + LoRA tensors into **f32** base shards for keys in `base_key_map` (subset output safetensors). Distinct from **`merge-weights`** and from Burn **`*.bin`** checkpoints. There is **no** supported conversion from Burn **`*.bin`** LoRA checkpoints into Candle adapter safetensors for this command — use **`merge-weights`** for Burn → `model_merged.bin`. |
-| **`vox mens serve`** (HTTP, `execution-api`) | Loads **Burn** checkpoints: LoRA `*.bin` **or** merged **`VoxTransformer`** (`model_merged.bin` from **`merge-weights`**). Does **not** load Candle **`merge-qlora`** output safetensors; use HF/Ollama/vLLM or another stack for merged QLoRA f32 shards. |
+| **`vox mens serve` (`cloud=local`)** | Spawns **`vox-schola serve`**: QLoRA **run directory** (adapter + tokenizer). |
+| **`vox mens serve` (Burn, `execution-api`)** | Loads **Burn** checkpoints: LoRA `*.bin` **or** merged **`model_merged.bin`** from **`merge-weights`**. Does **not** apply to Candle **`merge-qlora`** output safetensors. |
 | **`populi_adapter_manifest_v3.json`** | Unified adapter manifest (method + quant + layer order + `base_key_map`); written beside v2 meta on Candle runs. |
 | **Full causal NF4 + PEFT parity** | Open work — deeper block coverage beyond o_proj proxy stack. |
 

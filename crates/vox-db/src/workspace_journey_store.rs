@@ -68,16 +68,14 @@ pub async fn connect_workspace_journey_optional_at(
     skip_log: bool,
 ) -> Option<VoxDb> {
     match workspace_journey_store_mode_from_env() {
-        WorkspaceJourneyStoreMode::Canonical => {
-            connect_canonical_optional(surface, skip_log).await
-        }
+        WorkspaceJourneyStoreMode::Canonical => connect_canonical_optional(surface, skip_log).await,
         WorkspaceJourneyStoreMode::Project => {
             let hint = start_dir
                 .map(std::path::Path::to_path_buf)
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| Path::new(".").to_path_buf());
-            let discover_hint = vox_repository::find_project_manifest_root(&hint)
-                .unwrap_or_else(|| hint.clone());
+            let discover_hint =
+                vox_repository::find_project_manifest_root(&hint).unwrap_or_else(|| hint.clone());
             let repo = vox_repository::discover_repository_or_fallback(&discover_hint);
             match open_project_db_at_root(&repo.root).await {
                 Ok(db) => Some(db),
@@ -111,7 +109,10 @@ pub async fn connect_workspace_journey_optional_at(
 
 /// Human-readable summary for diagnostics / `orch.workspace_journey`.
 #[must_use]
-pub fn workspace_journey_diagnostics_json(repo_root: &Path, repository_id: &str) -> serde_json::Value {
+pub fn workspace_journey_diagnostics_json(
+    repo_root: &Path,
+    repository_id: &str,
+) -> serde_json::Value {
     let mode = workspace_journey_store_mode_from_env();
     let store_path = repo_root.join(crate::store::DEFAULT_PROJECT_STORE_PATH);
     serde_json::json!({

@@ -566,6 +566,10 @@ mod tests {
             execution_role: Some(crate::reconstruction::AgentExecutionRole::Verifier),
             thread_id: Some("thread-123".to_string()),
             harness_spec_json: Some("{\"schema_version\":1}".to_string()),
+            tool_hints: vec![],
+            research_hints: vec![],
+            required_labels: None,
+            is_detached: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

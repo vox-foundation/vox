@@ -1,9 +1,9 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
+mod attention_ledger_parity;
+mod attention_parity;
 pub(crate) mod bounded_read;
 pub mod build_timings;
-mod attention_parity;
-mod attention_ledger_parity;
 mod canonical_docs;
 mod capability_sync;
 mod check_links;

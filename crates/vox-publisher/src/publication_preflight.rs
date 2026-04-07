@@ -1443,7 +1443,10 @@ mod tests {
             std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
             std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
             let tmp = std::env::temp_dir().join("vox-clavis-publisher-strict-lenient.db");
-            std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", tmp.to_string_lossy().to_string());
+            std::env::set_var(
+                "VOX_CLAVIS_CLOUDLESS_DB_PATH",
+                tmp.to_string_lossy().to_string(),
+            );
             std::env::set_var("VOX_ACCOUNT_ID", "publisher-strict-lenient-test");
         }
         let lenient = run_preflight(&sample_manifest(|_| {}), PreflightProfile::Default);
@@ -1507,7 +1510,11 @@ mod tests {
         }
         let manifest = sample_manifest(|_| {});
         let report = run_preflight(&manifest, PreflightProfile::Default);
-        let status = operator_status_surface_v1(&manifest.publication_id, PreflightProfile::Default, &report);
+        let status = operator_status_surface_v1(
+            &manifest.publication_id,
+            PreflightProfile::Default,
+            &report,
+        );
         let json = serde_json::to_string(&status).expect("serialize operator status");
         assert!(!json.contains("do-not-leak-me"));
         assert!(!json.contains("VOX_OPENREVIEW_ACCESS_TOKEN"));

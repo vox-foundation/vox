@@ -60,7 +60,9 @@ fn test_vox_vault_rewrap_and_backup_corruption_detection() {
     assert!(rewrapped, "rewrap should mutate existing row");
 
     let backup = backend
-        .export_account_backup(&std::env::var("VOX_ACCOUNT_ID").unwrap_or_else(|_| "default-account".to_string()))
+        .export_account_backup(
+            &std::env::var("VOX_ACCOUNT_ID").unwrap_or_else(|_| "default-account".to_string()),
+        )
         .expect("export backup");
     assert!(!backup.is_empty(), "backup should include seeded row");
     let mut corrupted = backup.clone();

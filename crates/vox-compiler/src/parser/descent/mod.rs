@@ -223,7 +223,12 @@ impl Parser {
                     }
                 }
             }
-            Token::Fn | Token::AtRequire | Token::AtEnsure | Token::AtInvariant | Token::AtFuzz | Token::AtMobileNative => {
+            Token::Fn
+            | Token::AtRequire
+            | Token::AtEnsure
+            | Token::AtInvariant
+            | Token::AtFuzz
+            | Token::AtMobileNative => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))
             }

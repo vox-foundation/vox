@@ -592,8 +592,9 @@ fn test_reactive_body_unknown_token_diagnostic_class() {
     let tokens = lex("@component Bad() {\n  view <div />\n}");
     let err = parse(tokens).expect_err("expected parse failure");
     assert!(
-        err.iter()
-            .any(|e| e.class == ParseErrorClass::ExpectToken || e.class == ParseErrorClass::TopLevel),
+        err.iter().any(
+            |e| e.class == ParseErrorClass::ExpectToken || e.class == ParseErrorClass::TopLevel
+        ),
         "{err:?}"
     );
 }
@@ -611,14 +612,16 @@ fn test_web_surface_syntax_inventory_non_empty() {
 
 #[test]
 fn test_parse_agent_and_environment() {
-    let m = parse_str(r#"
+    let m = parse_str(
+        r#"
 agent Assistant {
     version "1.0"
 }
 environment staging {
     base "node"
 }
-"#);
+"#,
+    );
     assert_eq!(2, m.declarations.len());
     assert!(matches!(m.declarations[0], Decl::Agent(_)));
     assert!(matches!(m.declarations[1], Decl::Environment(_)));

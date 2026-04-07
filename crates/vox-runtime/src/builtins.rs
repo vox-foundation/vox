@@ -6,13 +6,13 @@
 //! - `vox_uuid`        → monotonic unique ID (timestamp + atomic counter)
 //! - `vox_now_ms`      → current UNIX time in milliseconds
 
+use rust_decimal::prelude::FromStr;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use vox_skills::ars_shim::{
     DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
 };
-use rust_decimal::prelude::FromStr;
 
 /// Fast, non-cryptographic hash using XXH3-128 (128-bit output).
 ///

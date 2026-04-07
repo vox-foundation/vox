@@ -205,6 +205,9 @@ pub enum Cmd {
         /// GPU backend: best | cuda | cpu | metal.
         #[arg(long, default_value = "best")]
         device: String,
+        /// Override model id for `/api/tags` and Ollama clients (default: directory name). Match `POPULI_MODEL` / orchestrator registry.
+        #[arg(long)]
+        model_name: Option<String>,
     },
     /// Probe GPU capabilities and print recommended training profile.
     Probe,

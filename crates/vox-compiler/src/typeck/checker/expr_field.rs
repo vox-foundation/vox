@@ -177,12 +177,14 @@ impl<'a> Checker<'a> {
             }
             Ty::TypeVar(_) => {
                 let ret_var = self.uf.fresh_var();
-                self.uf.pending_constraints.push(crate::typeck::unify::PendingConstraint::HasField {
-                    target: obj_ty.clone(),
-                    field: field.to_string(),
-                    result: ret_var.clone(),
-                    span,
-                });
+                self.uf.pending_constraints.push(
+                    crate::typeck::unify::PendingConstraint::HasField {
+                        target: obj_ty.clone(),
+                        field: field.to_string(),
+                        result: ret_var.clone(),
+                        span,
+                    },
+                );
                 ret_var
             }
             Ty::Error => Ty::Error,

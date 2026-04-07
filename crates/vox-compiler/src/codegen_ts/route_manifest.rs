@@ -195,7 +195,9 @@ pub fn emit_route_manifest_from_web_ir(web: &WebIrModule, hir: &HirModule) -> Op
     if !loaders.is_empty() {
         let joined = loaders.iter().cloned().collect::<Vec<_>>().join(", ");
         s.push_str(&format!("import {{ {joined} }} from \"./vox-client\"\n"));
-        s.push_str("// TanStack Query: manifest `loader` fns call vox-client directly (no hooks here).\n");
+        s.push_str(
+            "// TanStack Query: manifest `loader` fns call vox-client directly (no hooks here).\n",
+        );
         s.push_str("// Inside route components, use `useVoxServerQuery` from `./vox-tanstack-query` for cache/dedup.\n");
     }
 
@@ -234,7 +236,9 @@ pub fn emit_route_manifest(hir: &HirModule) -> Result<Option<String>, String> {
 }
 
 fn meta_str(meta: &serde_json::Value, key: &str) -> Option<String> {
-    meta.get(key).and_then(|v| v.as_str()).map(ToString::to_string)
+    meta.get(key)
+        .and_then(|v| v.as_str())
+        .map(ToString::to_string)
 }
 
 fn collect_contract_component_names(e: &RouteContract, names: &mut BTreeSet<String>) {

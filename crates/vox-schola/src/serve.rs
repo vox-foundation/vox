@@ -4,18 +4,23 @@
 //!
 //! # Protocol
 //!
-//! `POST /v1/chat/completions` with an OpenAI-compatible request body.
-//! Response includes `choices[0].message.content` with the generated text.
+//! - `POST /v1/chat/completions` — OpenAI Chat Completions.
+//! - `POST /api/chat`, `GET /api/tags` — Ollama-shaped (MCP-friendly).
+//! - `POST /api/generate` — Ollama generate (`stream: true|false`) for [`vox_ludus`] and [`vox_runtime::mens::PopuliClient`].
+//! - `GET /api/version` — hints for [`vox_runtime::inference_env::probe_populi_capabilities`].
+//! - `POST /api/embeddings` — not implemented (501).
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use axum::extract::State;
-use axum::response::IntoResponse;
+use axum::http::{StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tokio::net::TcpListener;
 
 use crate::cli::{Args, Cmd};
@@ -54,6 +59,24 @@ struct OllamaChatRequest {
 struct OllamaOptions {
     temperature: Option<f64>,
     num_predict: Option<i32>,
+}
+
+/// Ollama `POST /api/generate` request.
+#[derive(Debug, Deserialize)]
+struct OllamaGenerateRequest {
+    #[serde(default)]
+    model: Option<String>,
+    prompt: String,
+    #[serde(default)]
+    stream: bool,
+    #[serde(default)]
+    options: OllamaGenerateOptions,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct OllamaGenerateOptions {
+    temperature: Option<f64>,
+    num_predict: Option<u32>,
 }
 
 /// Single conversation turn.
@@ -106,6 +129,18 @@ struct OllamaChatResponse {
     done: bool,
     prompt_eval_count: usize,
     eval_count: usize,
+}
+
+/// Ollama `POST /api/generate` non-streaming response (subset; extra fields ignored by clients).
+#[derive(Serialize)]
+struct OllamaGenerateResponse {
+    model: String,
+    response: String,
+    done: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_eval_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eval_count: Option<usize>,
 }
 
 // ── Engine ─────────────────────────────────────────────────────────────────────
@@ -207,6 +242,105 @@ async fn ollama_tags(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     })
 }
 
+async fn ollama_generate(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<OllamaGenerateRequest>,
+) -> Response {
+    let max_tokens = req
+        .options
+        .num_predict
+        .map(|v| v.max(1) as usize)
+        .unwrap_or(state.config.max_tokens);
+    let temperature = req.options.temperature.unwrap_or(state.config.temperature);
+
+    let result = tokio::task::spawn_blocking({
+        let mut model_dir = state.config.model_dir.clone();
+        if let Some(ref req_model) = req.model {
+            if let Some(router) = &state.config.domain_router {
+                if let Some(path) = router.route(req_model) {
+                    if let Some(parent) = path.parent() {
+                        model_dir = parent.to_path_buf();
+                    }
+                }
+            }
+        }
+        let device = state.config.device.clone();
+        let prompt = req.prompt.clone();
+        move || generate_response(&model_dir, &prompt, &device, max_tokens, temperature, None)
+    })
+    .await;
+
+    let model_name = state.config.model_name.clone();
+    let text = match result {
+        Ok(Ok(t)) => t,
+        Ok(Err(e)) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("inference error: {e}"),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("task error: {e}"),
+            )
+                .into_response();
+        }
+    };
+
+    let prompt_tokens = req.prompt.split_whitespace().count();
+    let completion_tokens = text.split_whitespace().count();
+
+    if req.stream {
+        let ndjson = ollama_generate_ndjson_body(&model_name, &text);
+
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/x-ndjson")
+            .body(axum::body::Body::from(ndjson))
+            .unwrap_or_else(|_| {
+                (StatusCode::INTERNAL_SERVER_ERROR, "body build error").into_response()
+            })
+    } else {
+        Json(OllamaGenerateResponse {
+            model: model_name,
+            response: text,
+            done: true,
+            prompt_eval_count: Some(prompt_tokens),
+            eval_count: Some(completion_tokens),
+        })
+        .into_response()
+    }
+}
+
+async fn ollama_embeddings() -> impl IntoResponse {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({
+            "error": "vox-schola local inference does not implement /api/embeddings; use Ollama.app or an embedding-capable endpoint"
+        })),
+    )
+}
+
+async fn ollama_version(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let device_lc = state.config.device.to_lowercase();
+    let notes = if device_lc.contains("cuda") {
+        "schola-candle-cuda"
+    } else if device_lc.contains("metal") {
+        "schola-candle-metal"
+    } else {
+        "schola-candle"
+    };
+    Json(json!({
+        "version": "vox-schola",
+        "ollama": "compat-subset",
+        "runtime": notes,
+        "cuda": device_lc.contains("cuda")
+    }))
+    .into_response()
+}
+
 async fn ollama_chat(
     State(state): State<Arc<AppState>>,
     Json(req): Json<OllamaChatRequest>,
@@ -299,6 +433,33 @@ fn build_prompt(messages: &[ChatMessage]) -> String {
 /// This function is the integration point. The actual Candle model graph is
 /// implemented in `vox_populi::mens::tensor::candle_model_qwen` and the serving
 /// infrastructure in `vox_populi::mens::tensor::candle_inference_serve`.
+/// Build Ollama-style NDJSON for `stream: true` (`/api/generate`), one JSON object per line.
+fn ollama_generate_ndjson_body(model_name: &str, text: &str) -> String {
+    let mut ndjson = String::new();
+    const CHUNK: usize = 24;
+    let mut start = 0usize;
+    while start < text.len() {
+        let end = (start + CHUNK).min(text.len());
+        let piece = &text[start..end];
+        let line = json!({
+            "model": model_name,
+            "response": piece,
+            "done": false
+        });
+        ndjson.push_str(&line.to_string());
+        ndjson.push('\n');
+        start = end;
+    }
+    let final_line = json!({
+        "model": model_name,
+        "response": "",
+        "done": true
+    });
+    ndjson.push_str(&final_line.to_string());
+    ndjson.push('\n');
+    ndjson
+}
+
 fn generate_response(
     model_dir: &std::path::Path,
     prompt: &str,
@@ -342,6 +503,7 @@ pub async fn run(args: Args) -> Result<()> {
         max_tokens,
         temperature,
         device,
+        model_name,
     } = args.cmd
     else {
         unreachable!()
@@ -354,25 +516,37 @@ pub async fn run(args: Args) -> Result<()> {
         );
     }
 
+    let default_name = model
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or("vox-schola-local")
+        .to_string();
+    let model_display_name = model_name
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty())
+        .unwrap_or(default_name);
+
     let state = Arc::new(AppState {
         config: ServeConfig {
-            domain_router: vox_populi::mens::tensor::domain_router::DomainRouter::discover(model.parent().unwrap_or(&model)).ok(),
+            domain_router: vox_populi::mens::tensor::domain_router::DomainRouter::discover(
+                model.parent().unwrap_or(&model),
+            )
+            .ok(),
             model_dir: model.clone(),
-            model_name: model
-                .file_name()
-                .and_then(|n| n.to_str())
-                .filter(|n| !n.trim().is_empty())
-                .unwrap_or("vox-schola-local")
-                .to_string(),
+            model_name: model_display_name.clone(),
             max_tokens,
             temperature,
-            device,
+            device: device.clone(),
         },
     });
 
     let router = Router::new()
         .route("/api/tags", get(ollama_tags))
+        .route("/api/version", get(ollama_version))
         .route("/api/chat", post(ollama_chat))
+        .route("/api/generate", post(ollama_generate))
+        .route("/api/embeddings", post(ollama_embeddings))
         .route("/v1/chat/completions", post(chat_completions))
         .with_state(state);
 
@@ -382,7 +556,10 @@ pub async fn run(args: Args) -> Result<()> {
     eprintln!("╚══════════════════════════════════════════╝");
     eprintln!("  Model:    {}", model.display());
     eprintln!("  Endpoint: http://{addr}/v1/chat/completions");
-    eprintln!("  Ollama:   http://{addr}/api/chat  (+ /api/tags)");
+    eprintln!(
+        "  Ollama:   http://{addr}/api/chat  /api/generate  /api/tags  /api/version  (embeddings -> 501)"
+    );
+    eprintln!("  Model id: {model_display_name}  (set --model-name to match POPULI_MODEL)");
     eprintln!("  Max tok:  {max_tokens}");
     eprintln!("  Temp:     {temperature}");
     eprintln!();
@@ -393,4 +570,28 @@ pub async fn run(args: Args) -> Result<()> {
         .with_context(|| format!("bind to {addr}"))?;
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ollama_generate_ndjson_body;
+
+    #[test]
+    fn ndjson_stream_ends_with_done_and_chunks_response() {
+        let body = ollama_generate_ndjson_body("test-model", "abcdefghijkl");
+        let lines: Vec<&str> = body.lines().filter(|l| !l.is_empty()).collect();
+        assert!(!lines.is_empty());
+        let last: serde_json::Value =
+            serde_json::from_str(lines.last().expect("last line")).unwrap();
+        assert_eq!(last["done"], true);
+        assert_eq!(last["model"], "test-model");
+        let mut joined = String::new();
+        for l in &lines {
+            let v: serde_json::Value = serde_json::from_str(l).unwrap();
+            if let Some(s) = v["response"].as_str() {
+                joined.push_str(s);
+            }
+        }
+        assert_eq!(joined, "abcdefghijkl");
+    }
 }

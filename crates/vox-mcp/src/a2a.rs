@@ -545,7 +545,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
             "category": "a2a_trace",
             "schema_version": "vox_dogfood_v1",
         });
-        
+
         tokio::spawn(async move {
             let path = std::path::PathBuf::from("target/dogfood/a2a_traces.jsonl");
             if let Some(parent) = path.parent() {
@@ -553,7 +553,12 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
             }
             if let Ok(line) = serde_json::to_string(&trace_data) {
                 use tokio::io::AsyncWriteExt;
-                if let Ok(mut f) = tokio::fs::OpenOptions::new().create(true).append(true).open(path).await {
+                if let Ok(mut f) = tokio::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .await
+                {
                     let _ = f.write_all(format!("{line}\n").as_bytes()).await;
                 }
             }
@@ -775,7 +780,7 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
 
         let mut backlog = pending_backlog_for_session(state, params.sender_session_id.as_deref());
         backlog = backlog.saturating_add(agent_count as u32);
-        
+
         let trust = trust_for_session(state, params.sender_session_id.as_deref());
         let signals = a2a_escalation_signals(
             &msg_type,
@@ -849,7 +854,11 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
                     policy_reason: Some(reason.clone()),
                 });
             }
-            vox_orchestrator::InterruptionDecision::InterruptNow { scaled_cost_ms, ref reason, .. } => {
+            vox_orchestrator::InterruptionDecision::InterruptNow {
+                scaled_cost_ms,
+                ref reason,
+                ..
+            } => {
                 let cost_ms = scaled_cost_ms.saturating_mul(agent_count as u64);
                 let ts = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)

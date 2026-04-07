@@ -152,7 +152,8 @@ pub async fn run(
         }
     }
 
-    verify_app_tsx_route_imports(out_dir).context("generated TS import graph (routes.manifest / App)")?;
+    verify_app_tsx_route_imports(out_dir)
+        .context("generated TS import graph (routes.manifest / App)")?;
 
     // Write API client for server functions (if any)
     if !rust_output.api_client_ts.is_empty() {

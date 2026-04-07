@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use regex::Regex;
 use serde::Serialize;
@@ -80,12 +80,10 @@ pub fn run(cmd: MigrateCmd) -> Result<()> {
 }
 
 fn run_web(args: WebMigrateArgs) -> Result<()> {
-    let root = args.path.canonicalize().with_context(|| {
-        format!(
-            "canonicalize migrate root {}",
-            args.path.display()
-        )
-    })?;
+    let root = args
+        .path
+        .canonicalize()
+        .with_context(|| format!("canonicalize migrate root {}", args.path.display()))?;
 
     let mut report = WebReport {
         files_scanned: 0,
@@ -161,8 +159,7 @@ fn run_web(args: WebMigrateArgs) -> Result<()> {
 
 /// Returns `(@component fixes, @hook fixes, new_source)` when anything changed.
 fn maybe_patch_vox_file(path: &Path) -> Result<Option<(usize, usize, String)>> {
-    let src =
-        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let src = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     static RE_COMP: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     static RE_HOOK: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let re_comp = RE_COMP.get_or_init(|| Regex::new(r"@component\s+fn\b").expect("regex"));
@@ -281,12 +278,7 @@ mod report_shape_tests {
         assert!(v.get("files_written").is_some());
         assert!(v.get("legacy_component_fn_replacements").is_some());
         assert!(v.get("legacy_hook_fn_replacements").is_some());
-        let mut keys: Vec<_> = v
-            .as_object()
-            .expect("object")
-            .keys()
-            .cloned()
-            .collect();
+        let mut keys: Vec<_> = v.as_object().expect("object").keys().cloned().collect();
         keys.sort();
         assert_eq!(
             keys,

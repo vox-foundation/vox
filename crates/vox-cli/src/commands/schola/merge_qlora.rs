@@ -50,5 +50,31 @@ pub fn run_merge_qlora(
         };
     merge_qlora_v2_into_base_subset(&base_shards, &adapter, &meta_v2, &output)?;
     eprintln!("Wrote merged tensors (subset) to {}", output.display());
+    let base = meta_v2
+        .base_model
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("unknown");
+    let handoff = vox_populi::mens::tensor::external_serving_handoff::ExternalServingHandoffV1::merged_qlora_subset(
+        &output,
+        base,
+        None,
+    );
+    let handoff_dir = output
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    if let Err(e) =
+        vox_populi::mens::tensor::external_serving_handoff::write_handoff(&handoff_dir, &handoff)
+    {
+        tracing::warn!("external_serving_handoff_v1.json not written: {e}");
+    } else {
+        eprintln!(
+            "Wrote {}",
+            handoff_dir
+                .join("external_serving_handoff_v1.json")
+                .display()
+        );
+    }
     Ok(())
 }

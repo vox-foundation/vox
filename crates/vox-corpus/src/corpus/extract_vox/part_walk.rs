@@ -51,46 +51,14 @@ pub fn extract_from_vox_file(
         if block.lines().count() < 2 {
             continue;
         }
-        let prompt = construct_prompt(construct_type, name, i);
+        let prompt = construct_prompt(construct_type.as_str(), name, i);
         pairs.push(VoxTrainingPair {
             source_path: path.to_path_buf(),
             category: format!("vox_{construct_type}"),
-            prompt: prompt.clone(),
+            prompt,
             response: block.clone(),
             rating: config.default_rating,
         });
-
-        // "explain-from-code" pair
-        if i % 2 == 0 {
-            let explain_prompt = format!(
-                "Explain the purpose and function of the following Vox {} snippet:\n```vox\n{}\n```",
-                construct_type, block
-            );
-            let explain_response = format!(
-                "This is a Vox {} named `{}`. It demonstrates standard Vox syntax, explicit typing, and safe state management.",
-                construct_type, name
-            );
-            pairs.push(VoxTrainingPair {
-                source_path: path.to_path_buf(),
-                category: format!("vox_{construct_type}_explain"),
-                prompt: explain_prompt,
-                response: explain_response,
-                rating: config.default_rating,
-            });
-        }
-
-        // Compact form pair
-        if i % 3 == 0 {
-            let compact_prompt = format!("{} (compact, no whitespace)", prompt);
-            let compact_response = crate::corpus::preflight::to_compact(block);
-            pairs.push(VoxTrainingPair {
-                source_path: path.to_path_buf(),
-                category: format!("vox_{construct_type}_compact"),
-                prompt: compact_prompt,
-                response: compact_response,
-                rating: config.default_rating,
-            });
-        }
     }
 
     if config.limit > 0 {
@@ -174,43 +142,23 @@ fn walk_golden_dir(dir: &Path, out: &mut Vec<VoxTrainingPair>) -> anyhow::Result
             walk_golden_dir(&path, out)?;
         } else if path.extension().is_some_and(|e| e == "vox") {
             if let Ok(source) = std::fs::read_to_string(&path) {
-                let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("example");
-                let first_comment = source.lines()
-                    .find(|l| l.trim().starts_with("//"))
-                    .map(|l| l.trim().trim_start_matches("//").trim())
-                    .unwrap_or("the given specification");
-                let prompt = format!("Write a complete Vox program for {name} that implements {first_comment}");
-                
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("example");
+                let summary = extract_golden_prompt_summary(&source).unwrap_or_else(|| {
+                    source
+                        .lines()
+                        .find(|l| l.trim().starts_with("//"))
+                        .map(|l| l.trim().trim_start_matches("//").trim().to_string())
+                        .unwrap_or_else(|| "the given specification".into())
+                });
+                let prompt = format!(
+                    "Write a complete Vox program for {stem} that implements {summary}"
+                );
+
                 out.push(VoxTrainingPair {
                     source_path: path.to_path_buf(),
                     category: "golden".into(),
                     prompt,
                     response: source.clone(),
-                    rating: 5,
-                });
-                
-                let tags = extract_construct_blocks(&source)
-                    .iter()
-                    .map(|(t, _, _)| t.to_string())
-                    .collect::<std::collections::HashSet<_>>();
-                
-                let mut tag_list: Vec<_> = tags.into_iter().collect();
-                tag_list.sort();
-                let tags_str = if tag_list.is_empty() {
-                    "standard logic".to_string()
-                } else {
-                    tag_list.join(", ")
-                };
-                
-                let explanation = format!(
-                    "This Vox program implements {first_comment}.\nIt uses the following constructs: {tags_str}."
-                );
-                
-                out.push(VoxTrainingPair {
-                    source_path: path.to_path_buf(),
-                    category: "golden_explain".into(),
-                    prompt: format!("Explain what this Vox program does:\n\n```vox\n{source}\n```"),
-                    response: explanation,
                     rating: 5,
                 });
             }

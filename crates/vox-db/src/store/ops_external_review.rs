@@ -473,4 +473,3 @@ impl crate::VoxDb {
             .await
     }
 }
-

@@ -301,29 +301,43 @@ pub fn run_candle_qlora_train(
         let before = pairs.len();
         pairs.retain(|p| {
             if let Some(r_min) = filter.rating_min {
-                if p.rating.unwrap_or(0) < r_min { return false; }
+                if p.rating.unwrap_or(0) < r_min {
+                    return false;
+                }
             }
             if let Some(d) = p.difficulty {
                 if let Some(d_min) = filter.difficulty_min {
-                    if d < d_min { return false; }
+                    if d < d_min {
+                        return false;
+                    }
                 }
                 if let Some(d_max) = filter.difficulty_max {
-                    if d > d_max { return false; }
+                    if d > d_max {
+                        return false;
+                    }
                 }
             }
             if let Some(cats) = &filter.categories {
-                if cats.is_empty() { return true; }
+                if cats.is_empty() {
+                    return true;
+                }
                 let mut matches = false;
                 if let Some(c) = &p.category {
                     let text = c.to_ascii_lowercase();
-                    if cats.iter().any(|cat| text.contains(&cat.to_ascii_lowercase())) {
+                    if cats
+                        .iter()
+                        .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                    {
                         matches = true;
                     }
                 }
                 if !matches {
                     if let Some(l) = &p.lane {
                         let text = l.to_ascii_lowercase();
-                        if cats.iter().any(|cat| text.contains(&cat.to_ascii_lowercase())) {
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
                             matches = true;
                         }
                     }
@@ -331,12 +345,17 @@ pub fn run_candle_qlora_train(
                 if !matches {
                     if let Some(tf) = &p.task_family {
                         let text = tf.to_ascii_lowercase();
-                        if cats.iter().any(|cat| text.contains(&cat.to_ascii_lowercase())) {
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
                             matches = true;
                         }
                     }
                 }
-                if !matches { return false; }
+                if !matches {
+                    return false;
+                }
             }
             true
         });

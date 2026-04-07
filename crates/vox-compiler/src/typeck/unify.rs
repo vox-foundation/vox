@@ -3,8 +3,19 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum PendingConstraint {
-    HasField { target: Ty, field: String, result: Ty, span: crate::ast::span::Span },
-    HasMethod { target: Ty, method: String, result: Ty, args: Vec<Ty>, span: crate::ast::span::Span },
+    HasField {
+        target: Ty,
+        field: String,
+        result: Ty,
+        span: crate::ast::span::Span,
+    },
+    HasMethod {
+        target: Ty,
+        method: String,
+        result: Ty,
+        args: Vec<Ty>,
+        span: crate::ast::span::Span,
+    },
 }
 
 /// Inference context with union-find based type variable substitution.
@@ -147,11 +158,19 @@ impl InferenceContext {
     fn occurs(&self, id: u32, ty: &Ty) -> bool {
         match self.resolve(ty) {
             Ty::TypeVar(other_id) => id == other_id,
-            Ty::List(inner) | Ty::Set(inner) | Ty::Stream(inner) | Ty::Option(inner) | Ty::Result(inner) => self.occurs(id, &inner),
+            Ty::List(inner)
+            | Ty::Set(inner)
+            | Ty::Stream(inner)
+            | Ty::Option(inner)
+            | Ty::Result(inner) => self.occurs(id, &inner),
             Ty::Map(k, v) => self.occurs(id, &k) || self.occurs(id, &v),
             Ty::Tuple(elems) => elems.iter().any(|e| self.occurs(id, e)),
-            Ty::Fn(params, ret) => params.iter().any(|p| self.occurs(id, p)) || self.occurs(id, &ret),
-            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => fields.iter().any(|(_, t)| self.occurs(id, t)),
+            Ty::Fn(params, ret) => {
+                params.iter().any(|p| self.occurs(id, p)) || self.occurs(id, &ret)
+            }
+            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => {
+                fields.iter().any(|(_, t)| self.occurs(id, t))
+            }
             _ => false,
         }
     }
@@ -159,7 +178,9 @@ impl InferenceContext {
     pub fn least_upper_bound(&mut self, a: Ty, b: Ty) -> Result<Ty, String> {
         let a = self.resolve(&a);
         let b = self.resolve(&b);
-        if a == b { return Ok(a); }
+        if a == b {
+            return Ok(a);
+        }
         match (&a, &b) {
             (Ty::Int, Ty::Float) | (Ty::Float, Ty::Int) => Ok(Ty::Float),
             (Ty::Int, Ty::Decimal) | (Ty::Decimal, Ty::Int) => Ok(Ty::Decimal),
@@ -188,14 +209,18 @@ impl InferenceContext {
             _ if a == b => Ok(()),
             (Ty::TypeVar(id), _) => {
                 if self.occurs(*id, &b) {
-                    return Err(format!("Recursive type unification (occurs check failed): TypeVar({id}) occurs in {b:?}"));
+                    return Err(format!(
+                        "Recursive type unification (occurs check failed): TypeVar({id}) occurs in {b:?}"
+                    ));
                 }
                 self.substitutions[*id as usize] = Some(b);
                 Ok(())
             }
             (_, Ty::TypeVar(id)) => {
                 if self.occurs(*id, &a) {
-                    return Err(format!("Recursive type unification (occurs check failed): TypeVar({id}) occurs in {a:?}"));
+                    return Err(format!(
+                        "Recursive type unification (occurs check failed): TypeVar({id}) occurs in {a:?}"
+                    ));
                 }
                 self.substitutions[*id as usize] = Some(a);
                 Ok(())

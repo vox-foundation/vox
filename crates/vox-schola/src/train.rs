@@ -218,7 +218,12 @@ pub async fn run(args: Args) -> Result<()> {
     });
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
     let explicit_mix_path = if let Some(tag) = adapter_tag.as_deref() {
-        if let Ok(domain) = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(tag, workspace_root.as_deref()) {
+        if let Ok(domain) =
+            vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(
+                tag,
+                workspace_root.as_deref(),
+            )
+        {
             domain.mix_config.clone()
         } else {
             None
@@ -374,7 +379,12 @@ pub async fn run(args: Args) -> Result<()> {
     };
 
     let parsed_reward_hook = if let Some(tag) = adapter_tag.as_deref() {
-        if let Ok(domain) = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(tag, workspace_root.as_deref()) {
+        if let Ok(domain) =
+            vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(
+                tag,
+                workspace_root.as_deref(),
+            )
+        {
             domain.reward_hook.clone()
         } else {
             None

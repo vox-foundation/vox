@@ -347,7 +347,10 @@ fn cutover_phase_compat_alias_is_honored() {
         std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE");
         std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", "enforce");
     }
-    assert_eq!(crate::CutoverPhase::from_env(), crate::CutoverPhase::Enforce);
+    assert_eq!(
+        crate::CutoverPhase::from_env(),
+        crate::CutoverPhase::Enforce
+    );
     unsafe {
         match prev_cutover {
             Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),

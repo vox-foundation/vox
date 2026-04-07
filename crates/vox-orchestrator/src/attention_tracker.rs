@@ -68,7 +68,7 @@ impl<'a> AttentionTracker<'a> {
         let col = self.db.collection("attention_events");
         col.ensure_table().await?;
         let all = col.find(&json!({})).await?;
-        
+
         let mut events = Vec::new();
         for (_id, doc) in all {
             if let Ok(ev) = serde_json::from_value::<AttentionEvent>(doc) {

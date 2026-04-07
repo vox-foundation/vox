@@ -229,6 +229,14 @@ impl OrchestratorConfig {
                 self.populi_control_url = Some(v.to_string());
             }
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL") {
+            let v = val.trim();
+            if v.is_empty() {
+                self.populi_inference_base_url = None;
+            } else {
+                self.populi_inference_base_url = Some(v.to_string());
+            }
+        }
         if let Ok(val) = std::env::var("VOX_MESH_SCOPE_ID") {
             let v = val.trim();
             if v.is_empty() {
@@ -522,31 +530,69 @@ impl OrchestratorConfig {
             );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_MENTAL") {
-            self.attention_tlx_weights.mental = parse_or_warn("VOX_ORCHESTRATOR_TLX_MENTAL", &v, self.attention_tlx_weights.mental);
+            self.attention_tlx_weights.mental = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_MENTAL",
+                &v,
+                self.attention_tlx_weights.mental,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_TEMPORAL") {
-            self.attention_tlx_weights.temporal = parse_or_warn("VOX_ORCHESTRATOR_TLX_TEMPORAL", &v, self.attention_tlx_weights.temporal);
+            self.attention_tlx_weights.temporal = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_TEMPORAL",
+                &v,
+                self.attention_tlx_weights.temporal,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_FRUSTRATION") {
-            self.attention_tlx_weights.frustration = parse_or_warn("VOX_ORCHESTRATOR_TLX_FRUSTRATION", &v, self.attention_tlx_weights.frustration);
+            self.attention_tlx_weights.frustration = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_FRUSTRATION",
+                &v,
+                self.attention_tlx_weights.frustration,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT") {
-            self.attention_tlx_weights.trust_discount = parse_or_warn("VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT", &v, self.attention_tlx_weights.trust_discount);
+            self.attention_tlx_weights.trust_discount = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT",
+                &v,
+                self.attention_tlx_weights.trust_discount,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD") {
-            self.tier_gate.entropy_auto_approve_threshold = parse_or_warn("VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD", &v, self.tier_gate.entropy_auto_approve_threshold);
+            self.tier_gate.entropy_auto_approve_threshold = parse_or_warn(
+                "VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD",
+                &v,
+                self.tier_gate.entropy_auto_approve_threshold,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS") {
-            self.tier_gate.auto_approve_min_observations = parse_or_warn("VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS", &v, self.tier_gate.auto_approve_min_observations);
+            self.tier_gate.auto_approve_min_observations = parse_or_warn(
+                "VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS",
+                &v,
+                self.tier_gate.auto_approve_min_observations,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN") {
-            self.interruption_calibration.plan_review_gain_offset_bits = parse_or_warn("VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN", &v, self.interruption_calibration.plan_review_gain_offset_bits);
+            self.interruption_calibration.plan_review_gain_offset_bits = parse_or_warn(
+                "VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN",
+                &v,
+                self.interruption_calibration.plan_review_gain_offset_bits,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN") {
-            self.interruption_calibration.a2a_escalation_gain_offset_bits = parse_or_warn("VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN", &v, self.interruption_calibration.a2a_escalation_gain_offset_bits);
+            self.interruption_calibration
+                .a2a_escalation_gain_offset_bits = parse_or_warn(
+                "VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN",
+                &v,
+                self.interruption_calibration
+                    .a2a_escalation_gain_offset_bits,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY") {
-            self.interruption_calibration.backlog_cost_penalty_per_item = parse_or_warn("VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY", &v, self.interruption_calibration.backlog_cost_penalty_per_item);
+            self.interruption_calibration.backlog_cost_penalty_per_item = parse_or_warn(
+                "VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY",
+                &v,
+                self.interruption_calibration.backlog_cost_penalty_per_item,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT") {
             self.attention_trust_routing_weight = parse_or_warn(
@@ -623,55 +669,48 @@ impl OrchestratorConfig {
                 self.news.twitter_truncation_suffix = Some(t.to_string());
             }
         }
-        self.news.reddit_client_id = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialRedditClientId,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-        self.news.reddit_client_secret = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialRedditClientSecret,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-        self.news.reddit_refresh_token = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialRedditRefreshToken,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-        self.news.reddit_user_agent = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialRedditUserAgent,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-        self.news.youtube_client_id = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialYoutubeClientId,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-        self.news.youtube_client_secret = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialYoutubeClientSecret,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-        self.news.youtube_refresh_token = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
-        )
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
+        self.news.reddit_client_id =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditClientId)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.reddit_client_secret =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditClientSecret)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.reddit_refresh_token =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditRefreshToken)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.reddit_user_agent =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditUserAgent)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.youtube_client_id =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialYoutubeClientId)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.youtube_client_secret =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialYoutubeClientSecret)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.youtube_refresh_token =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialYoutubeRefreshToken)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
         if let Ok(v) = std::env::var("VOX_SOCIAL_HN_MODE") {
             let t = v.trim();
             self.news.hacker_news_mode = if t.is_empty() {

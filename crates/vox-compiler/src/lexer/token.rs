@@ -281,7 +281,6 @@ pub enum Token {
         }
         Some(out)
     })]
-
     // ── Identifiers ───────────────────────────────────────────
     /// Lower-case identifiers (variables, functions).
     #[regex(r"[a-z_][a-zA-Z0-9_]*", priority = 1, callback = |lex| lex.slice().to_string())]

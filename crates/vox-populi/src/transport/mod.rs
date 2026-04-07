@@ -419,7 +419,8 @@ impl PopuliTransportState {
         let mut s = Self::with_required_scope(crate::populi_scope_id_from_env());
         let store_path = store::a2a_store_path_from_env();
         let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
-        let dispatch_results_store_path = store::dispatch_results_store_path_from_env(store_path.as_ref());
+        let dispatch_results_store_path =
+            store::dispatch_results_store_path_from_env(store_path.as_ref());
         if let Some(path) = &store_path
             && let Ok(existing) = store::load_a2a_store(path)
         {
@@ -484,7 +485,8 @@ impl PopuliTransportState {
         };
         let store_path = store::a2a_store_path_from_env();
         let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
-        let dispatch_results_store_path = store::dispatch_results_store_path_from_env(store_path.as_ref());
+        let dispatch_results_store_path =
+            store::dispatch_results_store_path_from_env(store_path.as_ref());
         let rows = if let Some(sp) = &store_path {
             store::load_a2a_store(sp).unwrap_or_default()
         } else {
@@ -525,8 +527,8 @@ impl PopuliTransportState {
                 .map(|s| Arc::from(s.into_boxed_str())),
             worker_result_verify_key: worker_result_verify_key_resolved(),
             #[cfg(feature = "transport")]
-            dispatch_results: if let Some(path) = &dispatch_results_store_path 
-                && let Ok(existing) = store::load_dispatch_results_store(path) 
+            dispatch_results: if let Some(path) = &dispatch_results_store_path
+                && let Ok(existing) = store::load_dispatch_results_store(path)
             {
                 Arc::new(dashmap::DashMap::from_iter(existing.into_iter()))
             } else {

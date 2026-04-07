@@ -55,9 +55,11 @@ export const voxRoutes: VoxRoute[] = [
         router1.contains("voxRoutes"),
         "manifest router should consume voxRoutes"
     );
-    let ad1 = fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter 1");
+    let ad1 =
+        fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter 1");
     frontend::scaffold_react_app(&app, &gen_dir, false).expect("scaffold 3");
-    let ad2 = fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter 2");
+    let ad2 =
+        fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter 2");
     assert_eq!(
         ad1, ad2,
         "second+ scaffolds should not rewrite vox-manifest-route-adapter.tsx"

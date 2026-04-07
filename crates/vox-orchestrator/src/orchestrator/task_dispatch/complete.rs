@@ -267,7 +267,7 @@ impl Orchestrator {
                                     );
                                     let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
                                     let raw = client.generate(&prompt).await.unwrap_or_default();
-                                    
+
                                     let mut cleaned = raw;
                                     if cleaned.starts_with("```vox") {
                                         cleaned = cleaned.trim_start_matches("```vox").trim_end_matches("```").trim().to_string();
@@ -284,12 +284,14 @@ impl Orchestrator {
                         loop_.heal(&desc, &original_source).await
                     {
                         let _ = std::fs::write(vox_file, &source);
-                        self.event_bus().emit(crate::events::AgentEventKind::AutoHealApplied {
-                            agent_id,
-                            path: vox_file.clone(),
-                            description: "Automated AST healing fixed compiler errors.".to_string(),
-                            new_source: source,
-                        });
+                        self.event_bus()
+                            .emit(crate::events::AgentEventKind::AutoHealApplied {
+                                agent_id,
+                                path: vox_file.clone(),
+                                description: "Automated AST healing fixed compiler errors."
+                                    .to_string(),
+                                new_source: source,
+                            });
                     }
                 }
             }
@@ -367,12 +369,15 @@ impl Orchestrator {
                     .map(|s| {
                         let mut text = s.trim();
                         if text.starts_with("```json") {
-                            text = text.trim_start_matches("```json").trim_end_matches("```").trim();
+                            text = text
+                                .trim_start_matches("```json")
+                                .trim_end_matches("```")
+                                .trim();
                         }
                         serde_json::from_str::<serde_json::Value>(text).is_ok()
                     })
                     .unwrap_or(false);
-                
+
                 if !is_json && task_clone.debug_iterations < max_debug_iterations {
                     task_clone.debug_iterations += 1;
                     task_clone.description.push_str(
@@ -386,7 +391,9 @@ impl Orchestrator {
                         0usize,
                     ));
                 } else if !is_json {
-                    return Err(OrchestratorError::TaskValidationFailed("Research tasks require a valid JSON completion summary.".to_string()));
+                    return Err(OrchestratorError::TaskValidationFailed(
+                        "Research tasks require a valid JSON completion summary.".to_string(),
+                    ));
                 }
             }
             if auto_debug_requeue.is_none()

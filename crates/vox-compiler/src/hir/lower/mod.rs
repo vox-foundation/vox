@@ -786,12 +786,14 @@ fn f() to Unit {
 
     #[test]
     fn test_hir_lowering_environment() {
-        let tokens = crate::lexer::lex(r#"
+        let tokens = crate::lexer::lex(
+            r#"
 environment staging {
     base "node:22-alpine"
     packages ["curl"]
 }
-"#);
+"#,
+        );
         let m = crate::parser::parse(tokens).unwrap();
         let hir = lower_module(&m);
         assert_eq!(1, hir.environments.len());

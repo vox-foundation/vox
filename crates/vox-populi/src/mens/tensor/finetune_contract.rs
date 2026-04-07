@@ -181,7 +181,10 @@ impl FineTuneContract {
                 train_file: config.train_file.clone(),
                 tokenizer_mode: config.tokenizer_mode,
                 min_rating: config.min_rating,
-                context_filter: config.context_filter.as_ref().map(|cf| serde_json::to_string(cf).unwrap_or_default()),
+                context_filter: config
+                    .context_filter
+                    .as_ref()
+                    .map(|cf| serde_json::to_string(cf).unwrap_or_default()),
             },
             adapter: AdapterSpec {
                 method,

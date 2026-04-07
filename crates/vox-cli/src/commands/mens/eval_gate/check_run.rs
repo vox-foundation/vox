@@ -556,9 +556,8 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
             });
         } else {
             let content = read_utf8_path_capped(&metrics_path)?;
-            let v: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
-                anyhow::anyhow!("{}: invalid JSON ({})", metrics_path.display(), e)
-            })?;
+            let v: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("{}: invalid JSON ({})", metrics_path.display(), e))?;
             let repeated = v
                 .get("repeated_finding_rate")
                 .and_then(|x| x.as_f64())

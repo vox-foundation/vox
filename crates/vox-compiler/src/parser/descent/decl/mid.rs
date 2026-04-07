@@ -233,24 +233,27 @@ impl Parser {
         let start = self.span();
         self.advance(); // eat 'agent'
         let name = self.parse_ident_name()?;
-        
+
         self.expect(&Token::LBrace)?;
         self.skip_newlines();
 
         let version = if matches!(self.peek(), Token::Ident(v) if v == "version") {
-            self.advance(); 
+            self.advance();
             match self.peek().clone() {
-                Token::StringLit(v) => { self.advance(); Some(v) }
+                Token::StringLit(v) => {
+                    self.advance();
+                    Some(v)
+                }
                 _ => None,
             }
         } else {
             None
         };
-        
+
         let mut state_fields = Vec::new();
         let mut handlers = Vec::new();
         let mut migrations = Vec::new();
-        
+
         loop {
             self.skip_newlines();
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
@@ -283,11 +286,16 @@ impl Parser {
                 Token::Migrate => {
                     self.advance();
                     match self.peek().clone() {
-                        Token::Ident(kw) if kw == "from" => { self.advance(); }
+                        Token::Ident(kw) if kw == "from" => {
+                            self.advance();
+                        }
                         _ => {}
                     }
                     let from_ver = match self.peek().clone() {
-                        Token::StringLit(v) => { self.advance(); v }
+                        Token::StringLit(v) => {
+                            self.advance();
+                            v
+                        }
                         _ => {
                             self.errors.push(ParseError::classified(
                                 self.span(),
@@ -394,11 +402,17 @@ impl Parser {
                         }
                         "copy" => {
                             let src = match self.peek().clone() {
-                                Token::StringLit(s) => { self.advance(); s }
+                                Token::StringLit(s) => {
+                                    self.advance();
+                                    s
+                                }
                                 _ => continue,
                             };
                             let dst = match self.peek().clone() {
-                                Token::StringLit(s) => { self.advance(); s }
+                                Token::StringLit(s) => {
+                                    self.advance();
+                                    s
+                                }
                                 _ => continue,
                             };
                             copy_instructions.push((src, dst));
@@ -437,12 +451,16 @@ impl Parser {
         let mut items = Vec::new();
         loop {
             self.skip_newlines();
-            if matches!(self.peek(), Token::RBracket | Token::Eof) { break; }
+            if matches!(self.peek(), Token::RBracket | Token::Eof) {
+                break;
+            }
             if let Token::StringLit(s) = self.peek().clone() {
                 self.advance();
                 items.push(s);
             }
-            if !self.eat(&Token::Comma) { break; }
+            if !self.eat(&Token::Comma) {
+                break;
+            }
         }
         self.expect(&Token::RBracket)?;
         Ok(items)
@@ -453,12 +471,16 @@ impl Parser {
         let mut items = Vec::new();
         loop {
             self.skip_newlines();
-            if matches!(self.peek(), Token::RBracket | Token::Eof) { break; }
+            if matches!(self.peek(), Token::RBracket | Token::Eof) {
+                break;
+            }
             if let Token::IntLit(n) = self.peek().clone() {
                 self.advance();
                 items.push(n as u16);
             }
-            if !self.eat(&Token::Comma) { break; }
+            if !self.eat(&Token::Comma) {
+                break;
+            }
         }
         self.expect(&Token::RBracket)?;
         Ok(items)

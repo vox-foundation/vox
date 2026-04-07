@@ -221,13 +221,19 @@ pub fn recover_train_input_path_after_prefetch(
                 if !p.exists() {
                     if src.path == "mens/data/mix_sources/docs.jsonl" {
                         eprintln!("  🔄 Generating missing components: docs.jsonl");
-                        let c = crate::corpus::extract_docs::ExtractDocsConfig { root: path_base.join("docs"), ..Default::default() };
+                        let c = crate::corpus::extract_docs::ExtractDocsConfig {
+                            root: path_base.join("docs"),
+                            ..Default::default()
+                        };
                         if let Ok(pairs) = crate::corpus::extract_docs::walk_and_extract_docs(&c) {
                             let _ = crate::corpus::extract_docs::write_docs_to_jsonl(&pairs, &p);
                         }
                     } else if src.path == "mens/data/mix_sources/rust_source.jsonl" {
                         eprintln!("  🔄 Generating missing components: rust_source.jsonl");
-                        let c = crate::corpus::extract_rs::ExtractRsConfig { root: path_base.join("crates"), ..Default::default() };
+                        let c = crate::corpus::extract_rs::ExtractRsConfig {
+                            root: path_base.join("crates"),
+                            ..Default::default()
+                        };
                         if let Ok(pairs) = crate::corpus::extract_rs::walk_and_extract(&c) {
                             let _ = crate::corpus::extract_rs::write_to_jsonl(&pairs, &p);
                         }
@@ -235,7 +241,13 @@ pub fn recover_train_input_path_after_prefetch(
                 }
             }
         }
-        match refresh_train_contract_override_from_mix(workspace_root, data_dir, false, true, Some(mix_yaml)) {
+        match refresh_train_contract_override_from_mix(
+            workspace_root,
+            data_dir,
+            false,
+            true,
+            Some(mix_yaml),
+        ) {
             Ok(Some(p)) if p.is_file() => return Ok(p),
             Ok(_) => {}
             Err(e) => tracing::warn!(error = %e, "recovery: corpus mix re-run failed"),

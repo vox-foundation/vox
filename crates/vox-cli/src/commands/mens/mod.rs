@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! vox mens train       — Fine-tune: Candle QLoRA (default) or Burn LoRA (`--backend lora` deprecated)
-//! vox mens serve      — HTTP inference (build `vox-cli` with `--features execution-api`)
+//! vox mens serve      — Local: delegates to `vox-schola serve` (QLoRA run dir). Burn HTTP needs `execution-api`.
 //! vox mens corpus     — Training data pipeline (extract, validate, mix, eval…)
 //! vox mens probe      — Detect GPU capabilities and print recommended LoRA training config
 //! vox mens status     — Show training run status from the latest telemetry log

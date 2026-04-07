@@ -1,7 +1,8 @@
-/// Maximum sequence length for positional embeddings (must match train/serve config).
+/// Maximum sequence length for positional embeddings (mirrors `mens/config/lora_scratch_arch.yaml`).
 pub const MAX_SEQ_LEN: usize = 512;
 
-/// Default model architecture (d_model, n_heads, n_layers) — must match training config.
+/// Default model architecture (d_model, n_heads, n_layers) for in-repo scratch / Burn LoRA tensors.
+/// QLoRA on Hugging Face models does not use these constants — see `docs/src/reference/mens-training.md`.
 pub const DEFAULT_D_MODEL: usize = 512;
 /// Default number of attention heads (must divide `DEFAULT_D_MODEL`).
 pub const DEFAULT_N_HEADS: usize = 8;

@@ -380,6 +380,7 @@
 - [Mens laziness and accuracy audit](reference/mens-laziness-accuracy-audit.md)
 - [Mens measurement gap analysis](reference/mens-measurement-gap-analysis.md)
 - [Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)](reference/mens-training.md)
+- [Mens local serving SSOT (Schola + orchestrator)](reference/mens-serving-ssot.md)
 - [Mens strategy inputs checklist](reference/mens-strategy-inputs-checklist.md)
 - [Mens train defaults (generated)](reference/mens-train-defaults.generated.md)
 - [Mens training data (JSONL) contract](reference/mens-training-data-contract.md)

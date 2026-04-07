@@ -46,7 +46,7 @@ pub struct EffectiveDomainProfile {
     pub context_filter: Option<ContextFilter>,
     pub mix_config: Option<PathBuf>,
     pub system_prompt: Option<PathBuf>,
-    
+
     // Overrides over LoraTrainingConfig defaults
     pub min_rating: Option<u8>,
     pub ce_last_k: Option<usize>,
@@ -67,13 +67,18 @@ impl EffectiveDomainProfile {
         let profiles_path = root.join("mens/config/domain-profiles.yaml");
         let content = std::fs::read_to_string(&profiles_path)
             .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", profiles_path.display(), e))?;
-        
+
         let file: DomainProfilesFile = serde_yaml::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Failed to parse domain profiles: {}", e))?;
-            
-        let profile = file.profiles.get(name)
-            .ok_or_else(|| anyhow::anyhow!("Domain profile '{}' not found in {}", name, profiles_path.display()))?;
-            
+
+        let profile = file.profiles.get(name).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Domain profile '{}' not found in {}",
+                name,
+                profiles_path.display()
+            )
+        })?;
+
         let def = file.defaults.unwrap_or_else(|| DomainProfileDefaults {
             min_rating: None,
             ce_last_k: None,
@@ -93,7 +98,10 @@ impl EffectiveDomainProfile {
                 epoch_1_max_difficulty: p.epoch_1_max_difficulty.or(d.epoch_1_max_difficulty),
                 epoch_2_max_difficulty: p.epoch_2_max_difficulty.or(d.epoch_2_max_difficulty),
                 epoch_3_max_difficulty: p.epoch_3_max_difficulty.or(d.epoch_3_max_difficulty),
-                curriculum_phases: p.curriculum_phases.clone().or_else(|| d.curriculum_phases.clone()),
+                curriculum_phases: p
+                    .curriculum_phases
+                    .clone()
+                    .or_else(|| d.curriculum_phases.clone()),
             }),
             (Some(p), None) => Some(p.clone()),
             (None, Some(d)) => Some(d.clone()),
@@ -106,7 +114,7 @@ impl EffectiveDomainProfile {
             context_filter: profile.context_filter.clone(),
             mix_config: profile.mix_config.as_ref().map(|p| root.join(p)),
             system_prompt: profile.system_prompt.as_ref().map(|p| root.join(p)),
-            
+
             min_rating: profile.min_rating.or(def.min_rating),
             ce_last_k: profile.ce_last_k.or(def.ce_last_k),
             validation_split_ratio: def.validation_split_ratio,
@@ -116,8 +124,15 @@ impl EffectiveDomainProfile {
             trajectory_weighting: profile.trajectory_weighting.or(def.trajectory_weighting),
             trajectory_tool_trace_boost: profile.trajectory_tool_trace_boost,
             curriculum_schedule: cur_sched,
-            chatml: profile.chatml.clone().or_else(|| def.chatml.clone()).unwrap_or_default(),
-            reward_hook: profile.reward_hook.clone().or_else(|| def.reward_hook.clone()),
+            chatml: profile
+                .chatml
+                .clone()
+                .or_else(|| def.chatml.clone())
+                .unwrap_or_default(),
+            reward_hook: profile
+                .reward_hook
+                .clone()
+                .or_else(|| def.reward_hook.clone()),
         })
     }
 }

@@ -162,6 +162,14 @@ pub struct OrchestratorConfig {
     /// Optional mens HTTP control plane base URL (`GET /v1/populi/nodes`) for read-only status federation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub populi_control_url: Option<String>,
+    /// Optional Ollama-shaped inference base (`POPULI_URL` target), e.g. `http://127.0.0.1:11434` for Schola or Ollama.app.
+    /// From `Vox.toml` `[mesh].inference_base_url` (env `VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL` overrides in `merge_env_overrides`).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "mesh_inference_base_url"
+    )]
+    pub populi_inference_base_url: Option<String>,
     /// Optional mens cluster / tenancy id from `Vox.toml` `[mens].scope_id` or `VOX_MESH_SCOPE_ID` (env wins).
     #[serde(
         default,

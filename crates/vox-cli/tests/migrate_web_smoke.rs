@@ -82,8 +82,5 @@ fn migrate_web_check_fails_on_findings() {
     ))
     .expect_err("check should fail");
 
-    assert!(
-        err.to_string().contains("migrate web --check"),
-        "{err:?}"
-    );
+    assert!(err.to_string().contains("migrate web --check"), "{err:?}");
 }

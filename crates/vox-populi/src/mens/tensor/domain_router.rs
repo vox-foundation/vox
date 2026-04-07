@@ -18,7 +18,8 @@ impl DomainRouter {
 
     /// Registers a domain with its compiled artifact path.
     pub fn register(&mut self, domain: &str, adapter_path: impl AsRef<Path>) {
-        self.adapters.insert(domain.to_string(), adapter_path.as_ref().to_path_buf());
+        self.adapters
+            .insert(domain.to_string(), adapter_path.as_ref().to_path_buf());
     }
 
     /// Returns the adapter path for the given domain, if registered.
@@ -31,7 +32,7 @@ impl DomainRouter {
     pub fn discover(artifacts_dir: impl AsRef<Path>) -> Result<Self> {
         let mut router = Self::new();
         let artifacts_dir = artifacts_dir.as_ref();
-        
+
         if !artifacts_dir.exists() {
             return Ok(router);
         }

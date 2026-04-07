@@ -2,8 +2,8 @@ use vox_corpus::external_review_replay::{
     ExternalReviewReplayRow, build_repeated_error_features, validate_external_review_rows,
 };
 use vox_db::{
-    store::types::{ExternalReviewFindingParams, ExternalReviewRunParams},
     DbConfig, VoxDb,
+    store::types::{ExternalReviewFindingParams, ExternalReviewRunParams},
 };
 
 #[tokio::test]
@@ -131,4 +131,3 @@ fn regression_harness_repeated_error_delta_smoke() {
         .unwrap_or_default();
     assert!(baseline_repeat > improved_repeat);
 }
-

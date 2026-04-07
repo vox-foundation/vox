@@ -318,7 +318,11 @@ impl TypeEnv {
         self.agents.get(name)
     }
 
-    pub fn lookup_adt_variant(&self, constructor_name: &str, expected_adt_name: Option<&str>) -> Option<Vec<(String, Ty)>> {
+    pub fn lookup_adt_variant(
+        &self,
+        constructor_name: &str,
+        expected_adt_name: Option<&str>,
+    ) -> Option<Vec<(String, Ty)>> {
         for adt in self.types.values() {
             if let Some(expected) = expected_adt_name {
                 if adt.name != expected {

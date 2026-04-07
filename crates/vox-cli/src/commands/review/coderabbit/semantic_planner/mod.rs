@@ -27,7 +27,7 @@ mod submit;
 mod types;
 
 pub use collector::{collect_all_files, collect_changed_files};
-pub use rules::{resolve_semantic_rule_set, unassigned_prefix_histogram, SemanticRuleSet};
+pub use rules::{SemanticRuleSet, resolve_semantic_rule_set, unassigned_prefix_histogram};
 pub use submit::run_semantic_submit;
 pub use types::{SemanticChunk, SemanticManifest, SemanticPlanner, SemanticSubmitConfig};
 
@@ -124,7 +124,10 @@ mod tests {
         assert_eq!(g("mens/data/sft_pairs.jsonl"), "12_populi_ml");
         assert_eq!(g("tests/fixtures/minimal.vox"), "13_tests");
         assert_eq!(g("crates/vox-compiler/src/lib.rs"), "crate_vox_compiler");
-        assert_eq!(g("crates/vox-primitives/src/lib.rs"), "crate_vox_primitives");
+        assert_eq!(
+            g("crates/vox-primitives/src/lib.rs"),
+            "crate_vox_primitives"
+        );
         assert_eq!(g("crates/vox-runtime/src/lib.rs"), "crate_vox_runtime");
         assert_eq!(g("crates/vox-lsp/src/lib.rs"), "crate_vox_lsp");
         assert_eq!(g("crates/vox-mcp/src/lib.rs"), "crate_vox_mcp");

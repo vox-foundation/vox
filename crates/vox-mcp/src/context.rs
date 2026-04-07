@@ -181,23 +181,38 @@ pub async fn emergency_stop(state: &ServerState, params: EmergencyStopParams) ->
 pub async fn set_agent_budget(state: &ServerState, params: SetAgentBudgetParams) -> String {
     let orch = &state.orchestrator;
     let agent_id = vox_orchestrator::AgentId(params.agent_id);
-    
-    let mut alloc = vox_orchestrator::budget::AgentBudgetAllocation::new(params.max_tokens, params.max_cost_usd);
-    if let (Some(token_al), Some(cost_al)) = (params.token_alert_threshold, params.cost_alert_threshold) {
+
+    let mut alloc = vox_orchestrator::budget::AgentBudgetAllocation::new(
+        params.max_tokens,
+        params.max_cost_usd,
+    );
+    if let (Some(token_al), Some(cost_al)) =
+        (params.token_alert_threshold, params.cost_alert_threshold)
+    {
         alloc = alloc.with_alert_thresholds(token_al, cost_al);
     }
     if let Some(rollover) = params.rollover_fraction {
         alloc = alloc.with_rollover(rollover);
     }
-    
-    let bm = match crate::sync_poison::poison_rw_read(orch.budget_handle().read(), "budget manager lock") {
+
+    let bm = match crate::sync_poison::poison_rw_read(
+        orch.budget_handle().read(),
+        "budget manager lock",
+    ) {
         Ok(guard) => guard.clone(),
-        Err(e) => return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
+                .to_json();
+        }
     };
-    
+
     bm.set_and_persist_allocation(agent_id, alloc).await;
-    
-    ToolResult::ok(format!("Budget cap set and persisted for agent {}", params.agent_id)).to_json()
+
+    ToolResult::ok(format!(
+        "Budget cap set and persisted for agent {}",
+        params.agent_id
+    ))
+    .to_json()
 }
 
 /// Handoff summarized context from one agent to another (async).

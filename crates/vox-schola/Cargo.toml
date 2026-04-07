@@ -36,6 +36,8 @@ which       = "8"
 # HTTP inference server
 axum        = { version = "0.8" }
 tokio-stream = { version = "0.1" }
+bytes       = { workspace = true }
+futures-util = { workspace = true }
 
 [lints]
 workspace = true

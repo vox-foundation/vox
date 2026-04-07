@@ -431,10 +431,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_attention_summary" => {
             derived_tool_schema!(crate::dei_tools::params::AttentionSummaryParams)
-        },
+        }
         "vox_handoff_lineage" => {
             derived_tool_schema!(crate::dei_tools::params::HandoffLineageParams)
-        },
+        }
         "vox_benchmark_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500},"metric_type":{"type":"string","enum":["benchmark_event","syntax_k_event"]},"source":{"type":"string","enum":["research_metrics","build_health","build_regressions","build_warnings","dependency_shape"]},"run_id":{"type":"integer","minimum":1}},"additionalProperties":false}"#,
         ),

@@ -819,15 +819,17 @@ impl SecretId {
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::PerIncident,
             },
-            SecretId::VoxMcpHttpBearerToken | SecretId::VoxMcpHttpReadBearerToken => SecretMetadata {
-                class: SecretClass::Transport,
-                material_kind: SecretMaterialKind::BearerToken,
-                persistable_account_secret: false,
-                device_local_only: false,
-                allow_env_in_strict: false,
-                allow_compat_sources_in_strict: false,
-                rotation_policy: RotationPolicy::PerIncident,
-            },
+            SecretId::VoxMcpHttpBearerToken | SecretId::VoxMcpHttpReadBearerToken => {
+                SecretMetadata {
+                    class: SecretClass::Transport,
+                    material_kind: SecretMaterialKind::BearerToken,
+                    persistable_account_secret: false,
+                    device_local_only: false,
+                    allow_env_in_strict: false,
+                    allow_compat_sources_in_strict: false,
+                    rotation_policy: RotationPolicy::PerIncident,
+                }
+            }
             SecretId::VoxMeshJwtHmacSecret | SecretId::WebhookSigningSecret => SecretMetadata {
                 class: SecretClass::Transport,
                 material_kind: SecretMaterialKind::HmacSecret,
@@ -1107,9 +1109,7 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         SecretId::WebhookIngressToken
         | SecretId::WebhookSigningSecret
         | SecretId::VoxMcpHttpBearerToken
-        | SecretId::VoxMcpHttpReadBearerToken => {
-            &[Capability::RuntimeIngress]
-        }
+        | SecretId::VoxMcpHttpReadBearerToken => &[Capability::RuntimeIngress],
     }
 }
 

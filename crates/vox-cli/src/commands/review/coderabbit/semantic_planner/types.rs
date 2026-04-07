@@ -8,7 +8,7 @@ use super::groups::{
     DEFAULT_MAX_FILES_PER_PR, IGNORED_DIRS, IGNORED_EXTENSIONS, IGNORED_ROOT_EXACT,
     IGNORED_ROOT_PATTERNS,
 };
-use super::rules::{pack_oversized_files, SemanticRuleSet};
+use super::rules::{SemanticRuleSet, pack_oversized_files};
 
 /// A single named semantic group of files (≤ max_files_per_pr).
 #[derive(Debug, Clone, Serialize, Deserialize)]

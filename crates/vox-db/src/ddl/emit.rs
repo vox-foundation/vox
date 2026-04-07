@@ -220,7 +220,7 @@ pub fn type_to_sqlite_type(ty: &TypeExpr) -> &'static str {
         TypeExpr::Function { .. } => "TEXT", // Should not appear in tables
         TypeExpr::Decimal { .. } => "TEXT",
         TypeExpr::Unit { .. } => "TEXT",
-        TypeExpr::Infer { .. } => "TEXT",    // Unknown/inferred — default to TEXT
+        TypeExpr::Infer { .. } => "TEXT", // Unknown/inferred — default to TEXT
     }
 }
 

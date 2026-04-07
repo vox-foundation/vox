@@ -75,7 +75,9 @@ fn collect_hir_stmt_binding_names(s: &HirStmt, out: &mut HashSet<String>) {
     }
 }
 
-fn reactive_component_name_set_for_web_ir(rc: &crate::hir::HirReactiveComponent) -> HashSet<String> {
+fn reactive_component_name_set_for_web_ir(
+    rc: &crate::hir::HirReactiveComponent,
+) -> HashSet<String> {
     let mut names = HashSet::new();
     for mem in &rc.members {
         match mem {
@@ -255,7 +257,11 @@ fn lower_jsx_attr_pair(
     vec![(name, val)]
 }
 
-fn lower_route_contract_entry(e: &crate::ast::decl::RouteEntry, parent_id: &str, idx: usize) -> RouteContract {
+fn lower_route_contract_entry(
+    e: &crate::ast::decl::RouteEntry,
+    parent_id: &str,
+    idx: usize,
+) -> RouteContract {
     let id = if parent_id.is_empty() {
         format!("route_{idx}")
     } else {
@@ -342,22 +348,23 @@ fn lower_styles_from_classic_components(
     m: &mut WebIrModule,
     summary: &mut WebIrLowerSummary,
 ) {
-    let push_blocks =
-        |blocks: &[crate::ast::decl::fundecl::StyleBlock], m: &mut WebIrModule, summary: &mut WebIrLowerSummary| {
-            for block in blocks {
-                let declarations: Vec<(String, StyleDeclarationValue)> = block
-                    .properties
-                    .iter()
-                    .map(|(prop, val)| (prop.clone(), StyleDeclarationValue::Raw(val.clone())))
-                    .collect();
-                m.style_nodes.push(StyleNode::Rule {
-                    selector: StyleSelector::Unparsed(block.selector.clone()),
-                    declarations,
-                    span: None,
-                });
-                summary.style_rules_lowered += 1;
-            }
-        };
+    let push_blocks = |blocks: &[crate::ast::decl::fundecl::StyleBlock],
+                       m: &mut WebIrModule,
+                       summary: &mut WebIrLowerSummary| {
+        for block in blocks {
+            let declarations: Vec<(String, StyleDeclarationValue)> = block
+                .properties
+                .iter()
+                .map(|(prop, val)| (prop.clone(), StyleDeclarationValue::Raw(val.clone())))
+                .collect();
+            m.style_nodes.push(StyleNode::Rule {
+                selector: StyleSelector::Unparsed(block.selector.clone()),
+                declarations,
+                span: None,
+            });
+            summary.style_rules_lowered += 1;
+        }
+    };
 
     for HirComponent(decl) in &hir.components {
         push_blocks(&decl.styles, m, summary);

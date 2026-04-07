@@ -16,9 +16,9 @@ use super::PopuliTransportState;
 use super::auth::{PopuliAuthContext, PopuliMeshAuthRuntime};
 use super::handlers::{
     a2a_ack, a2a_inbox, a2a_lease_renew, admin_exec_lease_revoke, admin_maintenance,
-    admin_quarantine, bootstrap_exchange, deliver_a2a, dispatch_results_poll, dispatch_script, execute_on_worker,
-    exec_lease_grant, exec_lease_list, exec_lease_release, exec_lease_renew, health, heartbeat,
-    join_node, leave_node, list_nodes,
+    admin_quarantine, bootstrap_exchange, deliver_a2a, dispatch_results_poll, dispatch_script,
+    exec_lease_grant, exec_lease_list, exec_lease_release, exec_lease_renew, execute_on_worker,
+    health, heartbeat, join_node, leave_node, list_nodes,
 };
 
 /// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
@@ -84,7 +84,10 @@ pub fn router(state: PopuliTransportState) -> Router {
         .route("/v1/populi/admin/quarantine", post(admin_quarantine))
         .route("/v1/populi/admin/maintenance", post(admin_maintenance))
         .route("/v1/populi/dispatch", post(dispatch_script))
-        .route("/v1/populi/dispatch/result/{dispatch_id}", get(dispatch_results_poll))
+        .route(
+            "/v1/populi/dispatch/result/{dispatch_id}",
+            get(dispatch_results_poll),
+        )
         .route("/v1/populi/worker/execute", post(execute_on_worker))
         .route(
             "/v1/populi/admin/exec-lease/revoke",

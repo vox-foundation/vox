@@ -69,9 +69,17 @@ fn infer_vox_category(path: &Path, source: &str) -> String {
     }
 }
 
-/// Extract individual construct blocks from Vox source.
-/// Returns (construct_type, name, source_block) triples.
-fn extract_construct_blocks(source: &str) -> Vec<(&'static str, String, String)> {
+/// Extract top-level declaration slices: AST path when `ast-extract` is enabled, else heuristics.
+fn extract_construct_blocks(source: &str) -> Vec<(String, String, String)> {
+    #[cfg(feature = "ast-extract")]
+    if let Some(v) = part_ast::extract_decl_blocks_ast(source) {
+        return v;
+    }
+    extract_construct_blocks_heuristic(source)
+}
+
+/// Legacy line scanner (brace-depth). Used when `ast-extract` is off or parse fails upstream.
+fn extract_construct_blocks_heuristic(source: &str) -> Vec<(String, String, String)> {
     let mut blocks = Vec::new();
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
@@ -80,7 +88,7 @@ fn extract_construct_blocks(source: &str) -> Vec<(&'static str, String, String)>
         let trimmed = lines[i].trim();
 
         // Detect construct starts
-        let (construct_type, name) = if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ")
+        let (construct_type, name): (&str, String) = if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ")
         {
             let n = extract_vox_name(trimmed, "fn ");
             ("fn", n)
@@ -149,7 +157,7 @@ fn extract_construct_blocks(source: &str) -> Vec<(&'static str, String, String)>
         }
 
         if block_lines.len() >= 2 {
-            blocks.push((construct_type, name, block_lines.join("\n")));
+            blocks.push((construct_type.to_string(), name, block_lines.join("\n")));
         }
     }
 
@@ -191,6 +199,41 @@ fn construct_prompt(construct_type: &str, name: &str, seed: usize) -> String {
         }
     }
     format!("Write a Vox {construct_type} called `{name}`")
+}
+
+/// Golden examples: `// @training_prompt:` wins; else `description:` inside `// ---` frontmatter.
+pub(super) fn extract_golden_prompt_summary(source: &str) -> Option<String> {
+    for line in source.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("//").map(str::trim) {
+            if let Some(p) = rest.strip_prefix("@training_prompt:") {
+                let p = p.trim();
+                if !p.is_empty() {
+                    return Some(p.to_string());
+                }
+            }
+        }
+    }
+    let mut in_fm = false;
+    let mut desc: Option<String> = None;
+    for line in source.lines() {
+        let t = line.trim();
+        if t == "// ---" {
+            in_fm = !in_fm;
+            continue;
+        }
+        if in_fm {
+            if let Some(rest) = t.strip_prefix("//").map(str::trim) {
+                if let Some(d) = rest.strip_prefix("description:") {
+                    let d = d.trim().trim_matches('"').trim_matches('\'').trim();
+                    if !d.is_empty() {
+                        desc = Some(d.to_string());
+                    }
+                }
+            }
+        }
+    }
+    desc
 }
 
 /// Check if content contains frontmatter indicating it should be excluded from training.

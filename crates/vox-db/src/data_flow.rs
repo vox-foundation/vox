@@ -55,8 +55,6 @@ pub fn build_data_flow(digest: &SchemaDigest) -> DataFlowMap {
         })
         .collect();
 
-
-
     // Find tables that are read but never written
     let all_table_names: Vec<&str> = digest.tables.iter().map(|t| t.name.as_str()).collect();
     let written_tables: std::collections::HashSet<&str> = mutation_writes

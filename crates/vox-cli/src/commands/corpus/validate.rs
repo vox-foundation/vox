@@ -1,40 +1,193 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
 
-pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> {
+/// Pick Vox source to run through `run_frontend_str`, or `None` to skip compiler recheck for this row.
+fn vox_source_for_compiler_recheck(record: &serde_json::Value) -> Option<String> {
+    let response_mode = record
+        .get("response_mode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if response_mode == "prose_only" {
+        return None;
+    }
+
+    let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
+    if !code.trim().is_empty() {
+        return Some(code.trim().to_string());
+    }
+
+    let response = record
+        .get("response")
+        .or_else(|| record.get("output"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if response.trim().is_empty() {
+        return None;
+    }
+
+    if let Some(inner) = extract_fenced_vox_block(response) {
+        return Some(inner);
+    }
+
+    let lane = record.get("lane").and_then(|v| v.as_str()).unwrap_or("");
+    let category = record
+        .get("category")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let format = record.get("format").and_then(|v| v.as_str()).unwrap_or("");
+
+    let codegen_like = format == "vox_source"
+        || lane == "vox_codegen"
+        || category.starts_with("vox_")
+        || category == "golden"
+        || category.starts_with("golden_");
+
+    if codegen_like && response_opens_with_vox_decl(response) {
+        return Some(response.trim().to_string());
+    }
+
+    if lane == "vox_docs_qa" {
+        return None;
+    }
+
+    None
+}
+
+/// True when the first substantive line looks like top-level Vox (avoids running prose through the compiler).
+fn response_opens_with_vox_decl(response: &str) -> bool {
+    for line in response.lines() {
+        let t = line.trim();
+        if t.is_empty() || t.starts_with('#') {
+            continue;
+        }
+        return t.starts_with("fn ")
+            || t.starts_with("pub fn ")
+            || t.starts_with("actor ")
+            || t.starts_with("workflow ")
+            || t.starts_with("activity ")
+            || t.starts_with("component ")
+            || t.starts_with("import ")
+            || t.starts_with("type ")
+            || t.starts_with("const ")
+            || t.starts_with("http ")
+            || t.starts_with('@');
+    }
+    false
+}
+
+fn extract_fenced_vox_block(response: &str) -> Option<String> {
+    let key = "```vox";
+    let idx = response.find(key)?;
+    let after = &response[idx + key.len()..];
+    let after = after.strip_prefix('\r').unwrap_or(after);
+    let after = after.strip_prefix('\n').unwrap_or(after);
+    let end = after.find("```")?;
+    let inner = after[..end].trim();
+    if inner.is_empty() {
+        None
+    } else {
+        Some(inner.to_string())
+    }
+}
+
+pub(super) async fn run_validate(
+    input: &Path,
+    output: &Path,
+    recheck: bool,
+    quarantine: Option<&Path>,
+    report: Option<&Path>,
+) -> Result<()> {
     if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
+
+    let strict = std::env::var("VOX_MENS_TRAIN_JSONL_STRICT")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
 
     let content = read_utf8_path_capped_async(input).await?;
     let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
     let total = lines.len();
     let mut valid: Vec<serde_json::Value> = Vec::new();
-    let mut rejected = 0u32;
+    let mut rejected_malformed = 0u32;
+    let mut rejected_compiler = 0u32;
     let mut construct_counts: HashMap<String, u32> = HashMap::new();
+    let mut quarantine_rows: Vec<serde_json::Value> = Vec::new();
+    let mut failure_samples: Vec<serde_json::Value> = Vec::new();
 
     for line in &lines {
         let record: serde_json::Value = match serde_json::from_str(line) {
             Ok(v) => v,
             Err(_) => {
-                rejected += 1;
+                rejected_malformed += 1;
+                if quarantine.is_some() {
+                    quarantine_rows.push(serde_json::json!({
+                        "reason": "malformed_json",
+                        "line": line,
+                    }));
+                }
                 continue;
             }
         };
 
-        let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
-
-        // Re-validate through compiler if requested
-        if recheck && !code.is_empty() {
-            let dummy_path = Path::new("__validate__.vox");
-            match crate::pipeline::run_frontend_str(code, dummy_path, false) {
-                Ok(result) if !result.has_errors() => {}
-                _ => {
-                    rejected += 1;
-                    continue;
+        if recheck {
+            if let Some(src) = vox_source_for_compiler_recheck(&record) {
+                let dummy_path = Path::new("__validate__.vox");
+                match crate::pipeline::run_frontend_str(&src, dummy_path, false) {
+                    Ok(result) if !result.has_errors() => {}
+                    Ok(result) => {
+                        rejected_compiler += 1;
+                        let detail = serde_json::json!({
+                            "reason": "type_or_hir_errors",
+                            "errors": result.error_count(),
+                            "source_preview": src.chars().take(200).collect::<String>(),
+                        });
+                        if failure_samples.len() < 32 {
+                            failure_samples.push(detail.clone());
+                        }
+                        if quarantine.is_some() {
+                            quarantine_rows.push(serde_json::json!({
+                                "reason": "compiler_errors",
+                                "detail": detail,
+                                "record": record,
+                            }));
+                        }
+                        continue;
+                    }
+                    Err(e) => {
+                        rejected_compiler += 1;
+                        let detail = serde_json::json!({
+                            "reason": "parse_or_frontend_failed",
+                            "message": e.to_string(),
+                            "source_preview": src.chars().take(200).collect::<String>(),
+                        });
+                        if failure_samples.len() < 32 {
+                            failure_samples.push(detail.clone());
+                        }
+                        if quarantine.is_some() {
+                            quarantine_rows.push(serde_json::json!({
+                                "reason": "compiler_rejected",
+                                "detail": detail,
+                                "record": record,
+                            }));
+                        }
+                        continue;
+                    }
+                }
+            }
+        } else {
+            let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
+            if !code.is_empty() {
+                let dummy_path = Path::new("__validate__.vox");
+                match crate::pipeline::run_frontend_str(code, dummy_path, false) {
+                    Ok(result) if !result.has_errors() => {}
+                    _ => {
+                        rejected_compiler += 1;
+                        continue;
+                    }
                 }
             }
         }
@@ -75,6 +228,8 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
         valid.push(record);
     }
 
+    let accepted_pre_dedup = valid.len();
+
     // Dedup by ast_hash
     let mut seen: HashSet<String> = HashSet::new();
     let mut deduped: Vec<serde_json::Value> = Vec::new();
@@ -103,6 +258,44 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
     }
     tokio::fs::write(output, body).await?;
 
+    if let Some(qpath) = quarantine {
+        if let Some(parent) = qpath.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        let mut qbody = String::new();
+        for row in &quarantine_rows {
+            qbody.push_str(&serde_json::to_string(row)?);
+            qbody.push('\n');
+        }
+        tokio::fs::write(qpath, qbody).await?;
+    }
+
+    let rejected_total = rejected_malformed + rejected_compiler;
+    let report_json = serde_json::json!({
+        "input": input.to_string_lossy(),
+        "output": output.to_string_lossy(),
+        "recheck": recheck,
+        "strict_env": strict,
+        "total_input_lines": total,
+        "accepted_after_dedup": deduped.len(),
+        "rejected_malformed_json": rejected_malformed,
+        "rejected_compiler": rejected_compiler,
+        "rejected_total": rejected_total,
+        "failure_samples": failure_samples,
+    });
+
+    if let Some(rpath) = report {
+        if let Some(parent) = rpath.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        tokio::fs::write(
+            rpath,
+            serde_json::to_string_pretty(&report_json).unwrap_or_default(),
+        )
+        .await
+        .with_context(|| format!("write report {}", rpath.display()))?;
+    }
+
     #[cfg(feature = "database")]
     {
         if let Ok(db) = vox_db::VoxDb::connect_default().await {
@@ -112,8 +305,6 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
                 let source = record.get("source").and_then(|v| v.as_str()).unwrap_or("");
-                // validate-batch implies successful compiler parse or generated.
-                // We map this into upsert_corpus_quality.
                 let parse_valid = true;
                 let ast_depth = record
                     .get("difficulty")
@@ -135,7 +326,7 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
                         parse_valid,
                         ast_depth as usize,
                         count as usize,
-                        0.0, // default reward
+                        0.0,
                         split,
                     )
                     .await;
@@ -161,12 +352,10 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
     println!("║       Vox Training Data Validation Report       ║");
     println!("╠══════════════════════════════════════════════════╣");
     println!("║  Input records:     {:<28}║", total);
-    println!(
-        "║  Valid (post-check):{:<28}║",
-        deduped.len() + rejected as usize
-    );
+    println!("║  Accepted (pre-dedup):{:<26}║", accepted_pre_dedup);
     println!("║  After dedup:       {:<28}║", deduped.len());
-    println!("║  Rejected:          {:<28}║", rejected);
+    println!("║  Rejected (json):   {:<28}║", rejected_malformed);
+    println!("║  Rejected (compiler):{:<26}║", rejected_compiler);
     let cov_text = format!(
         "{:.1}% ({}/{})",
         coverage_pct,
@@ -190,6 +379,15 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
         }
     }
     println!("╚══════════════════════════════════════════════════╝");
+
+    if strict && rejected_total > 0 {
+        anyhow::bail!(
+            "VOX_MENS_TRAIN_JSONL_STRICT: rejected {} rows (malformed {} compiler {}). See --quarantine / --report.",
+            rejected_total,
+            rejected_malformed,
+            rejected_compiler
+        );
+    }
 
     Ok(())
 }

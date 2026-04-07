@@ -44,7 +44,7 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
 
         // ── Literals ─────────────────────────────────────────────────────────
         Token::IntLit(_) | Token::FloatLit(_) => Some(5), // NUMBER
-        Token::StringLit(_) => Some(4), // STRING
+        Token::StringLit(_) => Some(4),                   // STRING
 
         // ── Comments ─────────────────────────────────────────────────────────
         Token::Comment => Some(6), // COMMENT

@@ -1,8 +1,8 @@
 //! Arca CRUD for MENS intelligence tables.
 
-use turso::params;
 use crate::store::types::StoreError;
 use crate::store::types::{ObservationReport, TestDecision, VictoryVerdict};
+use turso::params;
 
 /// Aggregated summary of corpus quality from the `mens_corpus_quality` table.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -44,10 +44,10 @@ impl crate::VoxDb {
         let action = format!("{:?}", report.recommended_action);
         let observed_at_ms = report.observed_at.timestamp_millis();
         let file_path = report.file_path.clone();
-        
+
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| {
             let session_id = session_id.clone();
             let task_id = task_id.clone();
@@ -87,10 +87,10 @@ impl crate::VoxDb {
         let task_id = task_id.to_string();
         let decision_str = format!("{:?}", decision);
         let rationale = rationale.map(|s| s.to_string());
-        
+
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| {
             let task_id = task_id.clone();
             let decision_str = decision_str.clone();
@@ -121,32 +121,35 @@ impl crate::VoxDb {
         let task_id = task_id.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         let first_failure = verdict.first_failure.clone();
         let report = verdict.report.clone();
         let passed = verdict.passed;
 
-        breaker.call(|| {
-            let task_id = task_id.clone();
-            let _first_failure = first_failure.clone();
-            let report = report.clone();
-            async move {
-                // Simplified insert for Wave 0: just log the roll-up.
-                // Future waves will expand into individual tier rows if needed.
-                conn.execute(
-                    "INSERT INTO victory_verdicts (task_id, tier, passed, error_count, report)
+        breaker
+            .call(|| {
+                let task_id = task_id.clone();
+                let _first_failure = first_failure.clone();
+                let report = report.clone();
+                async move {
+                    // Simplified insert for Wave 0: just log the roll-up.
+                    // Future waves will expand into individual tier rows if needed.
+                    conn.execute(
+                        "INSERT INTO victory_verdicts (task_id, tier, passed, error_count, report)
                      VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![
-                        task_id.as_str(),
-                        "Full",
-                        if passed { 1 } else { 0 },
-                        0i64, // simplified
-                        report.as_str()
-                    ]
-                ).await?;
-                Ok(())
-            }
-        }).await
+                        params![
+                            task_id.as_str(),
+                            "Full",
+                            if passed { 1 } else { 0 },
+                            0i64, // simplified
+                            report.as_str()
+                        ],
+                    )
+                    .await?;
+                    Ok(())
+                }
+            })
+            .await
     }
 
     /// Upsert corpus quality metrics for a training pair.
@@ -165,7 +168,7 @@ impl crate::VoxDb {
         let split = split.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| {
             let pair_hash = pair_hash.clone();
             let source = source.clone();
@@ -208,7 +211,7 @@ impl crate::VoxDb {
         let run_id = run_id.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| {
             let run_id = run_id.clone();
             async move {
@@ -233,37 +236,41 @@ impl crate::VoxDb {
     pub async fn query_corpus_quality_summary(&self) -> Result<CorpusQualitySummary, StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        breaker.call(|| async move {
-            let mut rows = conn.query(
-                "SELECT COUNT(*), \
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT COUNT(*), \
                         AVG(CAST(parse_valid AS REAL)), \
                         AVG(ast_depth), \
                         AVG(construct_count), \
                         AVG(reward_score) \
                  FROM mens_corpus_quality",
-                params![],
-            ).await?;
-            let mut total_pairs = 0u64;
-            let mut parse_rate = 0.0f64;
-            let mut avg_ast_depth = 0.0f64;
-            let mut avg_construct_count = 0.0f64;
-            let mut avg_reward_score = 0.0f64;
-            
-            if let Some(row) = rows.next().await? {
-                total_pairs = row.get::<i64>(0).unwrap_or(0) as u64;
-                parse_rate = row.get::<f64>(1).unwrap_or(0.0);
-                avg_ast_depth = row.get::<f64>(2).unwrap_or(0.0);
-                avg_construct_count = row.get::<f64>(3).unwrap_or(0.0);
-                avg_reward_score = row.get::<f64>(4).unwrap_or(0.0);
-            }
-            Ok(CorpusQualitySummary {
-                total_pairs,
-                parse_rate,
-                avg_ast_depth,
-                avg_construct_count,
-                avg_reward_score,
+                        params![],
+                    )
+                    .await?;
+                let mut total_pairs = 0u64;
+                let mut parse_rate = 0.0f64;
+                let mut avg_ast_depth = 0.0f64;
+                let mut avg_construct_count = 0.0f64;
+                let mut avg_reward_score = 0.0f64;
+
+                if let Some(row) = rows.next().await? {
+                    total_pairs = row.get::<i64>(0).unwrap_or(0) as u64;
+                    parse_rate = row.get::<f64>(1).unwrap_or(0.0);
+                    avg_ast_depth = row.get::<f64>(2).unwrap_or(0.0);
+                    avg_construct_count = row.get::<f64>(3).unwrap_or(0.0);
+                    avg_reward_score = row.get::<f64>(4).unwrap_or(0.0);
+                }
+                Ok(CorpusQualitySummary {
+                    total_pairs,
+                    parse_rate,
+                    avg_ast_depth,
+                    avg_construct_count,
+                    avg_reward_score,
+                })
             })
-        }).await
+            .await
     }
 
     /// Return the most recent `limit` GRPO training steps, newest first.
@@ -275,35 +282,37 @@ impl crate::VoxDb {
         let run_id = run_id.map(|s| s.to_string());
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        breaker.call(move || {
-            let run_id = run_id.clone();
-            async move {
-                let mut rows = if let Some(rid) = &run_id {
-                    conn.query(
+        breaker
+            .call(move || {
+                let run_id = run_id.clone();
+                async move {
+                    let mut rows = if let Some(rid) = &run_id {
+                        conn.query(
                         "SELECT run_id, step, mean_reward, policy_loss, clip_fraction, parse_rate \
                          FROM grpo_training_run WHERE run_id = ?1 ORDER BY step DESC LIMIT ?2",
                         params![rid.as_str(), limit as i64],
                     ).await?
-                } else {
-                    conn.query(
+                    } else {
+                        conn.query(
                         "SELECT run_id, step, mean_reward, policy_loss, clip_fraction, parse_rate \
                          FROM grpo_training_run ORDER BY step DESC LIMIT ?1",
                         params![limit as i64],
                     ).await?
-                };
-                let mut out = Vec::new();
-                while let Some(row) = rows.next().await? {
-                    out.push(GrpoStepRow {
-                        run_id: row.get::<String>(0).unwrap_or_default(),
-                        step: row.get::<i64>(1).unwrap_or(0) as u32,
-                        mean_reward: row.get::<f64>(2).unwrap_or(0.0) as f32,
-                        policy_loss: row.get::<f64>(3).unwrap_or(0.0) as f32,
-                        clip_fraction: row.get::<f64>(4).unwrap_or(0.0) as f32,
-                        parse_rate: row.get::<f64>(5).unwrap_or(0.0) as f32,
-                    });
+                    };
+                    let mut out = Vec::new();
+                    while let Some(row) = rows.next().await? {
+                        out.push(GrpoStepRow {
+                            run_id: row.get::<String>(0).unwrap_or_default(),
+                            step: row.get::<i64>(1).unwrap_or(0) as u32,
+                            mean_reward: row.get::<f64>(2).unwrap_or(0.0) as f32,
+                            policy_loss: row.get::<f64>(3).unwrap_or(0.0) as f32,
+                            clip_fraction: row.get::<f64>(4).unwrap_or(0.0) as f32,
+                            parse_rate: row.get::<f64>(5).unwrap_or(0.0) as f32,
+                        });
+                    }
+                    Ok(out)
                 }
-                Ok(out)
-            }
-        }).await
+            })
+            .await
     }
 }

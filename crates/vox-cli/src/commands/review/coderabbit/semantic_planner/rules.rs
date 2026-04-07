@@ -42,10 +42,7 @@ impl SemanticRuleSet {
                 return (r.order, r.name.clone());
             }
         }
-        (
-            self.unassigned_order,
-            self.unassigned_name.clone(),
-        )
+        (self.unassigned_order, self.unassigned_name.clone())
     }
 }
 
@@ -122,9 +119,13 @@ impl RuleEntryV1 {
 }
 
 fn parse_groups_yaml(text: &str) -> Result<GroupsFileV1> {
-    let g: GroupsFileV1 = serde_yaml::from_str(text).context("parse coderabbit semantic groups YAML")?;
+    let g: GroupsFileV1 =
+        serde_yaml::from_str(text).context("parse coderabbit semantic groups YAML")?;
     if g.version != 1 {
-        anyhow::bail!("unsupported coderabbit semantic groups version {}", g.version);
+        anyhow::bail!(
+            "unsupported coderabbit semantic groups version {}",
+            g.version
+        );
     }
     Ok(g)
 }
@@ -182,7 +183,10 @@ fn read_yaml_file(path: &Path) -> Result<String> {
 }
 
 /// Bundled defaults + workspace injection when enabled in YAML and `inject_workspace_crates`.
-pub fn load_bundled_rule_set(repo_root: &Path, inject_workspace_crates: bool) -> Result<SemanticRuleSet> {
+pub fn load_bundled_rule_set(
+    repo_root: &Path,
+    inject_workspace_crates: bool,
+) -> Result<SemanticRuleSet> {
     build_rule_set_from_yaml_text(BUNDLED_GROUPS_YAML, repo_root, inject_workspace_crates)
 }
 
@@ -275,14 +279,15 @@ pub fn resolve_semantic_rule_set(
 
 /// Pack oversized groups: prefix clusters (`crates/name` or first path segment), greedy bins,
 /// subdivide huge clusters by 3rd segment then alphabetical chunks.
-pub fn pack_oversized_files(files: Vec<String>, max_files: usize, legacy_alphabetical: bool) -> Vec<Vec<String>> {
+pub fn pack_oversized_files(
+    files: Vec<String>,
+    max_files: usize,
+    legacy_alphabetical: bool,
+) -> Vec<Vec<String>> {
     if legacy_alphabetical {
         let mut v = files;
         v.sort();
-        return v
-            .chunks(max_files.max(1))
-            .map(|c| c.to_vec())
-            .collect();
+        return v.chunks(max_files.max(1)).map(|c| c.to_vec()).collect();
     }
     prefix_cluster_pack(files, max_files.max(1))
 }
@@ -302,12 +307,7 @@ fn cluster_key_two(path: &str) -> String {
 fn cluster_key_three(path: &str) -> String {
     let p = path.replace('\\', "/");
     let parts: Vec<&str> = p.split('/').filter(|s| !s.is_empty()).collect();
-    parts
-        .iter()
-        .take(3)
-        .copied()
-        .collect::<Vec<_>>()
-        .join("/")
+    parts.iter().take(3).copied().collect::<Vec<_>>().join("/")
 }
 
 fn subdivide_large_cluster(files: Vec<String>, max: usize) -> Vec<Vec<String>> {
@@ -351,7 +351,11 @@ fn prefix_cluster_pack(files: Vec<String>, max: usize) -> Vec<Vec<String>> {
             cluster_groups.push(cfiles);
         }
     }
-    cluster_groups.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.first().cmp(&b.first())));
+    cluster_groups.sort_by(|a, b| {
+        b.len()
+            .cmp(&a.len())
+            .then_with(|| a.first().cmp(&b.first()))
+    });
     let mut bins: Vec<Vec<String>> = Vec::new();
     for chunk in cluster_groups {
         if chunk.is_empty() {
@@ -372,7 +376,10 @@ fn prefix_cluster_pack(files: Vec<String>, max: usize) -> Vec<Vec<String>> {
 }
 
 /// Top-level path prefixes for unassigned paths (first segment or `crates/name`).
-pub fn unassigned_prefix_histogram(paths: &[String], rule_set: &SemanticRuleSet) -> Vec<(String, usize)> {
+pub fn unassigned_prefix_histogram(
+    paths: &[String],
+    rule_set: &SemanticRuleSet,
+) -> Vec<(String, usize)> {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     for p in paths {
         if rule_set.group_for(p).1 != rule_set.unassigned_name {
@@ -416,6 +423,9 @@ mod tests {
             "crates/b/z.rs".to_string(),
         ];
         let bins = pack_oversized_files(files, 2, false);
-        assert!(bins.iter().any(|b| b.len() == 2 && b[0].starts_with("crates/a")));
+        assert!(
+            bins.iter()
+                .any(|b| b.len() == 2 && b[0].starts_with("crates/a"))
+        );
     }
 }

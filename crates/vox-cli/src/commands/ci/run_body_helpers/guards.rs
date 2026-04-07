@@ -108,20 +108,20 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
 }
 
 fn secret_guard_hard_cut_enabled() -> bool {
-    if std::env::var("VOX_CLAVIS_HARD_CUT")
-        .ok()
-        .is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
-    {
+    if std::env::var("VOX_CLAVIS_HARD_CUT").ok().is_some_and(|v| {
+        matches!(
+            v.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    }) {
         return true;
     }
-    let profile_strict = std::env::var("VOX_CLAVIS_PROFILE")
-        .ok()
-        .is_some_and(|v| {
-            matches!(
-                v.trim().to_ascii_lowercase().as_str(),
-                "ci" | "ci_strict" | "prod" | "prod_strict" | "hard_cut" | "hard_cut_strict"
-            )
-        });
+    let profile_strict = std::env::var("VOX_CLAVIS_PROFILE").ok().is_some_and(|v| {
+        matches!(
+            v.trim().to_ascii_lowercase().as_str(),
+            "ci" | "ci_strict" | "prod" | "prod_strict" | "hard_cut" | "hard_cut_strict"
+        )
+    });
     if profile_strict {
         return true;
     }
@@ -262,20 +262,18 @@ fn collect_clavis_cutover_audit(
 pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Vec<&'static str> {
     let lower = text.to_ascii_lowercase();
     let mut out = Vec::new();
-    let serialize_re = regex::Regex::new(
-        r#"serde_json::(?:to_string|to_value)|json!\s*\(|format!\s*\("#,
-    )
-    .expect("serialize regex");
+    let serialize_re =
+        regex::Regex::new(r#"serde_json::(?:to_string|to_value)|json!\s*\(|format!\s*\("#)
+            .expect("serialize regex");
     let log_re = regex::Regex::new(
         r#"tracing::(?:trace|debug|info|warn|error)!|log::(?:trace|debug|info|warn|error)!|e?println!\s*\("#,
     )
     .expect("log regex");
-    let context_re = regex::Regex::new(r#"(prompt|context|system|assistant|user)"#)
-        .expect("context regex");
-    let secret_word_re = regex::Regex::new(
-        r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization)"#,
-    )
-    .expect("secret word regex");
+    let context_re =
+        regex::Regex::new(r#"(prompt|context|system|assistant|user)"#).expect("context regex");
+    let secret_word_re =
+        regex::Regex::new(r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization)"#)
+            .expect("secret word regex");
 
     if serialize_re.is_match(&lower) && secret_word_re.is_match(&lower) {
         out.push("serialize-secret-material");
@@ -370,14 +368,22 @@ pub(crate) fn run_secret_env_guard(root: &Path, all: bool) -> Result<()> {
     if !env_offenders.is_empty() {
         return Err(anyhow!(
             "secret-env-guard{}: direct secret env reads found outside allowlist in changed files: {}",
-            if hard_cut_strict { " (hard-cut strict)" } else { "" },
+            if hard_cut_strict {
+                " (hard-cut strict)"
+            } else {
+                ""
+            },
             env_offenders.join(", ")
         ));
     }
     if !dataflow_offenders.is_empty() {
         return Err(anyhow!(
             "secret-env-guard{}: potential secret leakage patterns found (serialization/log/model context): {}",
-            if hard_cut_strict { " (hard-cut strict)" } else { "" },
+            if hard_cut_strict {
+                " (hard-cut strict)"
+            } else {
+                ""
+            },
             dataflow_offenders.join(", ")
         ));
     }
@@ -462,7 +468,12 @@ pub(crate) fn run_clavis_cutover_gates(root: &Path) -> Result<()> {
     }
     let require_sunset = std::env::var("VOX_CLAVIS_REQUIRE_COMPAT_SUNSET")
         .ok()
-        .is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"));
+        .is_some_and(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        });
     if require_sunset && !report.compatibility_surface_markers.is_empty() {
         return Err(anyhow!(
             "clavis-cutover-gates ({phase:?}): compatibility markers must be removed before decommission: {}",
@@ -689,8 +700,7 @@ mod sql_surface_tests {
             .join("guard_negative");
         let serialize = std::fs::read_to_string(root.join("serialize_secret_fixture.rs"))
             .expect("serialize fixture");
-        let log =
-            std::fs::read_to_string(root.join("log_secret_fixture.rs")).expect("log fixture");
+        let log = std::fs::read_to_string(root.join("log_secret_fixture.rs")).expect("log fixture");
         let context = std::fs::read_to_string(root.join("model_context_secret_fixture.rs"))
             .expect("context fixture");
 
@@ -757,7 +767,10 @@ mod sql_surface_tests {
         .expect("write fixture");
         let report = super::collect_clavis_cutover_audit(tmp.path(), true, true, true)
             .expect("collect audit");
-        assert_eq!(report.schema, "contracts/reports/clavis-cutover-audit.v1.json");
+        assert_eq!(
+            report.schema,
+            "contracts/reports/clavis-cutover-audit.v1.json"
+        );
         assert!(
             !report.direct_secret_env_reads.is_empty(),
             "expected direct env read detection"

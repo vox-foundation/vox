@@ -661,7 +661,9 @@ impl<'a> Checker<'a> {
                 Ty::Unit
             }
             HirStmt::Return { value, span } => {
-                let val_ty = value.as_ref().map_or(Ty::Unit, |v| self.check_expr(v, None));
+                let val_ty = value
+                    .as_ref()
+                    .map_or(Ty::Unit, |v| self.check_expr(v, None));
                 if let Some(expected) = self.env.current_return_type() {
                     if let Err(msg) = self.uf.unify(&val_ty, expected) {
                         self.diags.push(Diagnostic::error(
@@ -700,16 +702,30 @@ impl<'a> Checker<'a> {
         while progress && !queue.is_empty() {
             progress = false;
             let mut next_queue = Vec::new();
-            
+
             for constraint in queue {
                 match constraint {
-                    crate::typeck::unify::PendingConstraint::HasField { target, field, result, span } => {
+                    crate::typeck::unify::PendingConstraint::HasField {
+                        target,
+                        field,
+                        result,
+                        span,
+                    } => {
                         let obj_ty = self.uf.resolve(&target);
                         match &obj_ty {
                             Ty::TypeVar(_) => {
-                                next_queue.push(crate::typeck::unify::PendingConstraint::HasField { target: obj_ty, field, result, span });
+                                next_queue.push(
+                                    crate::typeck::unify::PendingConstraint::HasField {
+                                        target: obj_ty,
+                                        field,
+                                        result,
+                                        span,
+                                    },
+                                );
                             }
-                            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => {
+                            Ty::Record(fields)
+                            | Ty::Table(_, fields)
+                            | Ty::Collection(_, fields) => {
                                 if let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == &field) {
                                     let _ = self.uf.unify(&result, f_ty);
                                     progress = true;
@@ -721,7 +737,9 @@ impl<'a> Checker<'a> {
                                     ));
                                 }
                             }
-                            Ty::Error | Ty::Never => { progress = true; } // suppress cascades
+                            Ty::Error | Ty::Never => {
+                                progress = true;
+                            } // suppress cascades
                             other => {
                                 self.diags.push(Diagnostic::error(
                                     format!("Cannot access field '{field}' on {other:?}"),
@@ -731,15 +749,33 @@ impl<'a> Checker<'a> {
                             }
                         }
                     }
-                    crate::typeck::unify::PendingConstraint::HasMethod { target, method, result, span, .. } => {
+                    crate::typeck::unify::PendingConstraint::HasMethod {
+                        target,
+                        method,
+                        result,
+                        span,
+                        ..
+                    } => {
                         let obj_ty = self.uf.resolve(&target);
                         match &obj_ty {
                             Ty::TypeVar(_) => {
-                                next_queue.push(crate::typeck::unify::PendingConstraint::HasMethod { target: obj_ty, method, result, args: vec![], span });
+                                next_queue.push(
+                                    crate::typeck::unify::PendingConstraint::HasMethod {
+                                        target: obj_ty,
+                                        method,
+                                        result,
+                                        args: vec![],
+                                        span,
+                                    },
+                                );
                             }
-                            Ty::Error | Ty::Never => { progress = true; }
+                            Ty::Error | Ty::Never => {
+                                progress = true;
+                            }
                             other => {
-                                if let Some(method_ty) = self.builtins.lookup_method(&other, &method) {
+                                if let Some(method_ty) =
+                                    self.builtins.lookup_method(&other, &method)
+                                {
                                     let method_instantiated = self.uf.instantiate(&method_ty);
                                     if let Ty::Fn(_params, ret) = &method_instantiated {
                                         let _ = self.uf.unify(&result, ret.as_ref());
@@ -759,7 +795,7 @@ impl<'a> Checker<'a> {
             }
             queue = next_queue;
         }
-        
+
         for constraint in queue {
             let span = match constraint {
                 crate::typeck::unify::PendingConstraint::HasField { span, .. } => span,
@@ -784,9 +820,9 @@ pub fn typecheck_hir(
     let mut diags = Vec::new();
     let mut checker = Checker::new(env, builtins, &mut uf, &mut diags, source);
     checker.check_module(module);
-    
+
     // Category 3: evaluate deferred logic after top-down + bottom-up propagation concludes
     checker.solve_constraints();
-    
+
     diags
 }

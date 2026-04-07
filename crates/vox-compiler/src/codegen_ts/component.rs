@@ -436,10 +436,12 @@ fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
     match expr {
         Expr::Ident { name, .. } => name == "mobile",
         Expr::Call { callee, args, .. } => {
-            uses_mobile_ident_in_expr(callee) || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
+            uses_mobile_ident_in_expr(callee)
+                || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
         }
         Expr::MethodCall { object, args, .. } => {
-            uses_mobile_ident_in_expr(object) || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
+            uses_mobile_ident_in_expr(object)
+                || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
         }
         Expr::FieldAccess { object, .. } => uses_mobile_ident_in_expr(object),
         Expr::Binary { left, right, .. } => {
@@ -455,7 +457,9 @@ fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
         } => {
             uses_mobile_ident_in_expr(condition)
                 || then_body.iter().any(uses_mobile_ident_in_stmt)
-                || else_body.as_ref().map_or(false, |b| b.iter().any(uses_mobile_ident_in_stmt))
+                || else_body
+                    .as_ref()
+                    .map_or(false, |b| b.iter().any(uses_mobile_ident_in_stmt))
         }
         Expr::ObjectLit { fields, .. } => fields.iter().any(|(_, v)| uses_mobile_ident_in_expr(v)),
         Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {

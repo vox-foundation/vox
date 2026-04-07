@@ -256,8 +256,11 @@ pub fn scaffold_react_app(
                 templates::vox_spa_manifest_router_tsx(),
             )
             .context("Failed to write vox-manifest-router.tsx")?;
-            std::fs::write(src_dir.join("main.tsx"), templates::main_tsx_manifest_entry())
-                .context("Failed to write main.tsx (manifest router)")?;
+            std::fs::write(
+                src_dir.join("main.tsx"),
+                templates::main_tsx_manifest_entry(),
+            )
+            .context("Failed to write main.tsx (manifest router)")?;
         } else {
             let component_name = fs_utils::find_component_name(generated_ts_dir)?;
             std::fs::write(

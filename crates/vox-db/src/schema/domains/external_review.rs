@@ -138,4 +138,3 @@ CREATE TABLE IF NOT EXISTS external_review_kpi_snapshot (
 CREATE INDEX IF NOT EXISTS idx_external_review_kpi_repo_period
     ON external_review_kpi_snapshot(repository_id, period_end, id);
 ";
-

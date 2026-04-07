@@ -208,7 +208,10 @@ impl MemoryManager {
     }
 
     /// Retrieve a fact: **cache** → **MEMORY.md**. For Codex fallback use [`Self::recall_async`].
-    #[deprecated(since = "0.3.0", note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation.")]
+    #[deprecated(
+        since = "0.3.0",
+        note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation."
+    )]
     pub fn recall(&self, key: &str) -> Result<Option<String>, MemoryError> {
         tracing::warn!("Deprecated recall() called for key: {}", key);
         for fact in self.cache.iter().rev() {
@@ -220,7 +223,10 @@ impl MemoryManager {
     }
 
     /// Cache → **MEMORY.md** → Codex `memories` (agent `global`, type `fact`).
-    #[deprecated(since = "0.3.0", note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation.")]
+    #[deprecated(
+        since = "0.3.0",
+        note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation."
+    )]
     #[allow(deprecated)] // We call the deprecated synchronous recall() inside.
     pub async fn recall_async(&self, key: &str) -> Result<Option<String>, MemoryError> {
         tracing::warn!("Deprecated recall_async() called for key: {}", key);

@@ -44,7 +44,8 @@ fn tanstack_start_with_route_manifest_uses_file_route_fallback() {
     );
     assert!(app.join("src/router.tsx").is_file());
     assert!(app.join("src/routes/__root.tsx").is_file());
-    let adapter = fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter");
+    let adapter =
+        fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter");
     assert!(
         adapter.contains("buildChildRoutes"),
         "Start scaffold should ship shared manifest adapter when routes.manifest.ts is present"

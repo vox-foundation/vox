@@ -204,4 +204,55 @@ mod tests {
         assert_eq!(prepared[0].id, "y");
         assert_eq!(prepared[1].id, "z");
     }
+
+    /// Parse-oracle smoke on a stratified golden set (actors, workflows, UI, MCP, types, HTTP, fullstack).
+    #[test]
+    fn golden_vox_parse_for_eval_oracle_smoke() {
+        let golden = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden");
+        if !golden.is_dir() {
+            return;
+        }
+        const REL_PATHS: &[&str] = &[
+            "hello.vox",
+            "counter_actor.vox",
+            "checkout_workflow.vox",
+            "dashboard_ui.vox",
+            "mcp_tools.vox",
+            "ref_syntax.vox",
+            "type_system.vox",
+            "web_routing_fullstack.vox",
+            "blog_fullstack.vox",
+        ];
+        for rel in REL_PATHS {
+            let p = golden.join(rel);
+            assert!(
+                p.is_file(),
+                "expected golden file {} (update REL_PATHS if renamed)",
+                p.display()
+            );
+            let src = std::fs::read_to_string(&p).expect("read golden");
+            let tokens = vox_compiler::lexer::lex(&src);
+            let ok = vox_compiler::parser::parse(tokens).is_ok();
+            assert!(
+                ok,
+                "golden {} must parse (Mens / eval prompt-matrix syntax oracle)",
+                p.display()
+            );
+        }
+        let mut total_vox = 0usize;
+        for ent in walkdir::WalkDir::new(&golden)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
+            if ent.file_type().is_file()
+                && ent.path().extension().and_then(|e| e.to_str()) == Some("vox")
+            {
+                total_vox += 1;
+            }
+        }
+        assert!(
+            total_vox >= REL_PATHS.len(),
+            "expected more goldens than the smoke set (drift if equal — add new .vox or shrink REL_PATHS)"
+        );
+    }
 }

@@ -44,6 +44,20 @@ pub trait TaskProcessor: Send + Sync {
     ) -> anyhow::Result<crate::types::TaskId>;
 }
 
+/// No-op processor for tests and dry runs: completes immediately without calling external AI.
+pub struct StubTaskProcessor;
+
+#[async_trait::async_trait]
+impl TaskProcessor for StubTaskProcessor {
+    async fn process(
+        &self,
+        _agent_id: crate::types::AgentId,
+        task: crate::types::AgentTask,
+    ) -> anyhow::Result<crate::types::TaskId> {
+        Ok(task.id)
+    }
+}
+
 /// A real AI-powered task processor that streams tokens back to the event bus.
 pub struct AiTaskProcessor {
     client: vox_ludus::ai::FreeAiClient,
@@ -245,11 +259,13 @@ impl TaskProcessor for AiTaskProcessor {
         let reconciled_cost = Arc::new(Mutex::new(0.0));
         let client = {
             let reconciled_cost = reconciled_cost.clone();
-            self.client.clone().with_cost_reporter(Arc::new(move |cost| {
-                if let Ok(mut lock) = reconciled_cost.lock() {
-                    *lock += cost;
-                }
-            }))
+            self.client
+                .clone()
+                .with_cost_reporter(Arc::new(move |cost| {
+                    if let Ok(mut lock) = reconciled_cost.lock() {
+                        *lock += cost;
+                    }
+                }))
         };
 
         let mut notes = String::new();
@@ -316,7 +332,10 @@ impl TaskProcessor for AiTaskProcessor {
                 input_tokens,
                 output_tokens,
                 cost_usd,
-                reconciled_cost.lock().ok().and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
+                reconciled_cost
+                    .lock()
+                    .ok()
+                    .and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
             )
             .await;
 
@@ -697,7 +716,7 @@ impl AgentFleet {
     }
 }
 
-/// When truthy (default if unset), MCP / `vox-orchestrator-d` spawn [`AgentFleet`] with [`StubTaskProcessor`].
+/// When truthy (default if unset), MCP / `vox-orchestrator-d` spawn [`AgentFleet`] with [`AiTaskProcessor`].
 ///
 /// Disable with **`VOX_MCP_AGENT_FLEET`**=`0`, `false`, `no`, or `off`.
 #[must_use]

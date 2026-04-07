@@ -42,9 +42,9 @@ pub struct TrainingPair {
 }
 
 // ─── Minimal character-level vocabulary ──────────────────────────────────────
-// We build a deterministic vocab: all printable ASCII characters (32-126)
-// get their own token, plus a handful of Vox compound-keyword tokens,
-// plus three control tokens: [PAD]=0, [UNK]=1, [EOS]=2.
+// PAD/UNK/EOS, one id per printable ASCII (32–126), then ChatML / ``` compounds only.
+// Production QLoRA uses the Hugging Face tokenizer — see docs/src/reference/mens-training.md.
+// Control: [PAD]=0, [UNK]=1, [EOS]=2.
 const PAD_ID: usize = 0;
 const UNK_ID: usize = 1;
 const EOS_ID: usize = 2;
@@ -54,52 +54,13 @@ const ASCII_BASE: usize = 3;
 const ASCII_LEN: usize = 95;
 const COMPOUND_BASE: usize = ASCII_BASE + ASCII_LEN;
 
-/// Compound (multi-char) tokens specific to Vox constructs.
-/// Order is significant — earlier tokens are tried first.
-const COMPOUND_TOKENS: &[&str] = &[
-    // Vox compound keywords
-    "workflow",
-    "activity",
-    "ret ",
-    "let ",
-    "actor ",
-    "fn ",
-    "type ",
-    "import ",
-    "spawn(",
-    "match ",
-    "with {",
-    "->",
-    "=>",
-    "::",
-    "..",
-    "!=",
-    "==",
-    ">=",
-    "<=",
-    "<|im_start|>",
-    "<|im_end|>",
-    "```",
-    "@mcp",
-    "@table",
-    "@query",
-    "@mutation",
-    "@action",
-    "@server",
-    "@test",
-    "@component",
-    "@agent_def",
-    "@skill",
-    "@v0",
-];
+/// Greedy multi-byte matches before per-byte ASCII (longer strings listed first).
+const COMPOUND_TOKENS: &[&str] = &["<|redacted_im_end|>", "<|im_start|>", "```"];
 
-/// Total vocabulary size.
+/// Lab tokenizer vocab size (not HF / QLoRA checkpoint vocab).
 pub const VOCAB_SIZE: usize = COMPOUND_BASE + COMPOUND_TOKENS.len();
 
-/// A deterministic, dependency-free character-level tokenizer for Vox source code.
-///
-/// Longer compound tokens (Vox keywords, ChatML markers) are matched greedily
-/// before falling back to individual ASCII characters. Non-ASCII bytes map to UNK.
+/// Legacy Burn / dogfood tokenizer: ASCII + ChatML fence compounds only.
 pub struct VoxTokenizer;
 
 impl VoxTokenizer {
@@ -217,7 +178,10 @@ impl VoxTokenizer {
     }
 
     /// Tokenize multi-turn turns for training.
-    pub fn tokenize_turns_for_training(turns: &[ChatmlTurn], max_len: usize) -> (Vec<i64>, Vec<i64>) {
+    pub fn tokenize_turns_for_training(
+        turns: &[ChatmlTurn],
+        max_len: usize,
+    ) -> (Vec<i64>, Vec<i64>) {
         let full_ids = Self::encode_chatml_turns(turns);
 
         // Find the boundary of the last user turn
@@ -225,7 +189,8 @@ impl VoxTokenizer {
         let mut text = String::new();
         for (i, turn) in turns.iter().enumerate() {
             if i == turns.len() - 1 && turn.role == "assistant" {
-                last_assistant_start = Self::encode(&text).len() + Self::encode(&format!("<|im_start|>assistant\n")).len();
+                last_assistant_start = Self::encode(&text).len()
+                    + Self::encode(&format!("<|im_start|>assistant\n")).len();
             }
             text.push_str(&format!(
                 "<|im_start|>{role}\n{content}<|im_end|>\n",
@@ -345,12 +310,7 @@ impl Iterator for JsonlDataLoader {
             let (input_ids, labels) = if let Some(ref turns) = pair.turns {
                 VoxTokenizer::tokenize_turns_for_training(turns, self.max_len)
             } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
-                VoxTokenizer::tokenize_for_training(
-                    &self.system_prompt,
-                    p,
-                    r,
-                    self.max_len,
-                )
+                VoxTokenizer::tokenize_for_training(&self.system_prompt, p, r, self.max_len)
             } else {
                 continue; // skip if no training data
             };
@@ -445,16 +405,14 @@ mod tests {
         let ids = VoxTokenizer::encode(text);
         assert!(!ids.is_empty());
         let decoded = VoxTokenizer::decode(&ids);
-        // fn is a compound token — decoded should still reproduce the original text
         assert_eq!(decoded, text);
     }
 
     #[test]
     fn compound_token_matched_before_chars() {
-        let ids = VoxTokenizer::encode("workflow");
-        // Should be a single compound token, not 8 individual chars
+        let ids = VoxTokenizer::encode("<|im_start|>");
         assert_eq!(ids.len(), 1);
-        assert_eq!(ids[0] as usize, COMPOUND_BASE); // first compound token
+        assert_eq!(ids[0] as usize, COMPOUND_BASE + 1);
     }
 
     #[test]
@@ -499,7 +457,7 @@ mod tests {
         let loader = JsonlDataLoader::new(&path).unwrap();
         let rows: Vec<_> = loader.collect();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].2.prompt, "write a fn");
+        assert_eq!(rows[0].2.prompt.as_deref(), Some("write a fn"));
         let _ = std::fs::remove_file(&path);
     }
 
@@ -508,8 +466,8 @@ mod tests {
         let p: TrainingPair =
             serde_json::from_str(r#"{"instruction":"fix this","output":"fn ok() to int: ret 0"}"#)
                 .expect("instruction/output aliases");
-        assert_eq!(p.prompt, "fix this");
-        assert_eq!(p.response, "fn ok() to int: ret 0");
+        assert_eq!(p.prompt.as_deref(), Some("fix this"));
+        assert_eq!(p.response.as_deref(), Some("fn ok() to int: ret 0"));
     }
 
     #[test]
@@ -522,8 +480,8 @@ mod tests {
         }
         let pairs = load_all(&path, 0).unwrap();
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].prompt, "hello");
-        assert_eq!(pairs[0].response, "world");
+        assert_eq!(pairs[0].prompt.as_deref(), Some("hello"));
+        assert_eq!(pairs[0].response.as_deref(), Some("world"));
         let _ = std::fs::remove_file(&path);
     }
 

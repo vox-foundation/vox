@@ -114,7 +114,9 @@ impl<B: SecretBackend> SecretResolver<B> {
                         source: Some(SecretSource::ExternalBackend),
                         status: ResolutionStatus::RejectedSourcePolicy,
                         remediation: spec.remediation,
-                        detail: Some("external backend blocked by strict source policy".to_string()),
+                        detail: Some(
+                            "external backend blocked by strict source policy".to_string(),
+                        ),
                     };
                 }
                 return ResolvedSecret {
@@ -150,7 +152,10 @@ impl<B: SecretBackend> SecretResolver<B> {
                     source: Some(source),
                     status: ResolutionStatus::RejectedSourcePolicy,
                     remediation: spec.remediation,
-                    detail: Some(format!("source {:?} blocked by strict source policy", source)),
+                    detail: Some(format!(
+                        "source {:?} blocked by strict source policy",
+                        source
+                    )),
                 };
             }
             return ResolvedSecret {
@@ -175,7 +180,10 @@ impl<B: SecretBackend> SecretResolver<B> {
                     source: Some(source),
                     status: ResolutionStatus::RejectedSourcePolicy,
                     remediation: spec.remediation,
-                    detail: Some(format!("source {:?} blocked by strict source policy", source)),
+                    detail: Some(format!(
+                        "source {:?} blocked by strict source policy",
+                        source
+                    )),
                 };
             }
             return ResolvedSecret {

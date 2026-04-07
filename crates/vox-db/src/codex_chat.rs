@@ -175,10 +175,12 @@ impl VoxDb {
             let role: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
             let content: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
             let turn_id: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
-            let model_used: Option<String> =
-                row.get::<Option<String>>(3).map_err(|e| StoreError::Db(e.to_string()))?;
-            let token_count: Option<i64> =
-                row.get::<Option<i64>>(4).map_err(|e| StoreError::Db(e.to_string()))?;
+            let model_used: Option<String> = row
+                .get::<Option<String>>(3)
+                .map_err(|e| StoreError::Db(e.to_string()))?;
+            let token_count: Option<i64> = row
+                .get::<Option<i64>>(4)
+                .map_err(|e| StoreError::Db(e.to_string()))?;
             let ctx_files: String = row.get(5).map_err(|e| StoreError::Db(e.to_string()))?;
             let ts: u64 = row
                 .get::<i64>(6)

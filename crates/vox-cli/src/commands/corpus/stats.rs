@@ -335,9 +335,11 @@ pub(super) async fn run_review_stats(input: &Path) -> Result<()> {
     }
     let content = read_utf8_path_capped_async(input).await?;
     let mut total = 0usize;
-    let mut sample_kind: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut sample_kind: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     let mut category: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    let mut correctness: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut correctness: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
 
     for line in content.lines() {
         if line.trim().is_empty() {

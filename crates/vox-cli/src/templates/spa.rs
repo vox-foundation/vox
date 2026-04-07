@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn vite_config_includes_resolve_alias_at_to_src() {
         let spa = vite_config(4000, false);
-       let start = vite_config(4000, true);
+        let start = vite_config(4000, true);
         for cfg in [spa, start] {
             assert!(
                 cfg.contains("resolve:") && cfg.contains("alias:"),

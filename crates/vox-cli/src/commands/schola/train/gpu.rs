@@ -69,6 +69,7 @@ pub(super) async fn run_gpu_training(
     let contract_override =
         vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
             workspace_root.as_deref(),
+            &data_dir,
             skip_mix,
             true,
             None,
@@ -291,6 +292,7 @@ pub(super) async fn run_gpu_training(
         allow_cpu_fallback,
         curriculum_schedule,
         chatml,
+        reward_hook: None,
     };
     let model_name_for_stats = config
         .base_model

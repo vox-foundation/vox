@@ -1,14 +1,20 @@
-use pulldown_cmark::{Parser, Event, Tag, TagEnd, CodeBlockKind};
+use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
 use std::fs;
 use std::path::PathBuf;
-use walkdir::WalkDir;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::descent::parse;
+use walkdir::WalkDir;
 
 #[test]
 fn test_all_markdown_vox_blocks_parse() {
     let workspace_root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let docs_dir = PathBuf::from(&workspace_root).parent().unwrap().parent().unwrap().join("docs").join("src");
+    let docs_dir = PathBuf::from(&workspace_root)
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("docs")
+        .join("src");
 
     let mut failed = false;
     let mut parsed_blocks = 0;
@@ -44,19 +50,25 @@ fn test_all_markdown_vox_blocks_parse() {
                 Event::End(TagEnd::CodeBlock) => {
                     if in_vox_block {
                         in_vox_block = false;
-                        
+
                         // Ignore skipped blocks or ones with intentional warning placeholders
-                        if current_block.contains("Skip-Test") || current_block.contains("todo!(") || current_block.contains("empty-body") {
+                        if current_block.contains("Skip-Test")
+                            || current_block.contains("todo!(")
+                            || current_block.contains("empty-body")
+                        {
                             continue;
                         }
-                        
+
                         // Ignore things known to be partial snippets unless wrapped in fn
                         // We will just attempt to parse them. If they fail, we can add a skip.
-                        
-                        
+
                         let tokens = lex(&current_block);
                         if let Err(errs) = parse(tokens) {
-                            println!("Failed to parse vox block in {:?} \nBlock:\n{}\nErrors:\n", entry.path(), current_block);
+                            println!(
+                                "Failed to parse vox block in {:?} \nBlock:\n{}\nErrors:\n",
+                                entry.path(),
+                                current_block
+                            );
                             for e in errs {
                                 println!("{:?}", e);
                             }
@@ -72,5 +84,8 @@ fn test_all_markdown_vox_blocks_parse() {
     }
 
     println!("Successfully parsed {} vox blocks.", parsed_blocks);
-    assert!(!failed, "One or more markdown vox code blocks failed to parse. See stdout for details.");
+    assert!(
+        !failed,
+        "One or more markdown vox code blocks failed to parse. See stdout for details."
+    );
 }

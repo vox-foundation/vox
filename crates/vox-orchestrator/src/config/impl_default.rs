@@ -61,6 +61,7 @@ impl Default for OrchestratorConfig {
             trust_gate_relax_enabled: default_false(),
             trust_gate_relax_min_reliability: default_trust_gate_relax_min_reliability(),
             populi_control_url: None,
+            populi_inference_base_url: None,
             populi_scope_id: None,
             populi_poll_interval_secs: default_populi_poll_interval_secs(),
             populi_http_timeout_ms: default_populi_http_timeout_ms(),

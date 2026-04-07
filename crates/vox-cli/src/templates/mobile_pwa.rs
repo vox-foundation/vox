@@ -7,7 +7,7 @@ use std::path::Path;
 pub fn scaffold(name: &str, out_dir: &Path) -> Result<()> {
     // Write out the additional files needed for mobile PWA/Capacitor.
     // Ensure standard Vox manifest setup is already executed or handles the base.
-    
+
     let capacitor_config = format!(
         r#"import {{ CapacitorConfig }} from '@capacitor/cli';
 
@@ -75,7 +75,8 @@ export default config;
     }
   ]
 }"##;
-    std::fs::write(public_dir.join("manifest.webmanifest"), manifest).context("Write webmanifest")?;
+    std::fs::write(public_dir.join("manifest.webmanifest"), manifest)
+        .context("Write webmanifest")?;
 
     let sw = r#"importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
 

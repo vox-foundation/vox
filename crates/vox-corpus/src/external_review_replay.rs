@@ -91,7 +91,11 @@ pub async fn extract_external_review_rows(
             });
         }
     }
-    out.sort_by(|a, b| a.source_id.cmp(&b.source_id).then(a.sample_kind.cmp(&b.sample_kind)));
+    out.sort_by(|a, b| {
+        a.source_id
+            .cmp(&b.source_id)
+            .then(a.sample_kind.cmp(&b.sample_kind))
+    });
     Ok(out)
 }
 
@@ -115,12 +119,11 @@ pub fn validate_external_review_rows(rows: &[ExternalReviewReplayRow]) -> anyhow
 }
 
 /// Build repeated-error features and hard negatives from review rows.
-pub fn build_repeated_error_features(
-    rows: &[ExternalReviewReplayRow],
-) -> Vec<serde_json::Value> {
+pub fn build_repeated_error_features(rows: &[ExternalReviewReplayRow]) -> Vec<serde_json::Value> {
     let mut category_counts: std::collections::BTreeMap<String, usize> =
         std::collections::BTreeMap::new();
-    let mut file_counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut file_counts: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
     for row in rows {
         *category_counts.entry(row.category.clone()).or_insert(0) += 1;
         if let Some(path) = &row.file_path {
@@ -227,4 +230,3 @@ mod tests {
         assert_eq!(features[0]["hard_negative"], true);
     }
 }
-

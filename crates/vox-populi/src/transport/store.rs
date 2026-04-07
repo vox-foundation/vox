@@ -57,7 +57,9 @@ pub(super) fn load_exec_lease_store(
     serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))
 }
 
-pub(super) fn dispatch_results_store_path_from_env(a2a_store_path: Option<&PathBuf>) -> Option<PathBuf> {
+pub(super) fn dispatch_results_store_path_from_env(
+    a2a_store_path: Option<&PathBuf>,
+) -> Option<PathBuf> {
     if let Ok(v) = std::env::var("VOX_MESH_DISPATCH_STORE_PATH") {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
@@ -128,8 +130,8 @@ pub(super) fn persist_dispatch_results_store(
         hashmap.insert(entry.key().clone(), entry.value().clone());
     }
     let entries = hashmap.len();
-    let payload =
-        serde_json::to_string_pretty(&hashmap).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+    let payload = serde_json::to_string_pretty(&hashmap)
+        .map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, payload.as_bytes()).map_err(PopuliRegistryError::Io)?;
     std::fs::rename(&tmp, path).map_err(PopuliRegistryError::Io)?;

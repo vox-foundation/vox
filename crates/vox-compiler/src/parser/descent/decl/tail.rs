@@ -202,9 +202,7 @@ impl Parser {
         }
     }
     /// Optional `with loader: name` / `with pending: Name` / `with (loader: a, pending: b)` on a route line.
-    fn parse_optional_route_with_clause(
-        &mut self,
-    ) -> Result<(Option<String>, Option<String>), ()> {
+    fn parse_optional_route_with_clause(&mut self) -> Result<(Option<String>, Option<String>), ()> {
         if !self.eat(&Token::With) {
             return Ok((None, None));
         }

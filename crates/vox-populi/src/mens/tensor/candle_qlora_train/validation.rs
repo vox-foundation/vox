@@ -4,9 +4,7 @@ use candle_core::Device;
 use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
-use crate::mens::tensor::{
-    train_log, training_config::LoraTrainingConfig,
-};
+use crate::mens::tensor::{train_log, training_config::LoraTrainingConfig};
 
 /// Returns `(val_loss_sum, val_steps)` where loss is **negative** log-prob summed for averaging.
 pub(super) fn run_validation_pass(
@@ -30,14 +28,26 @@ pub(super) fn run_validation_pass(
         let text = if let Some(ref turns) = pair.turns {
             crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
         } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
-            crate::mens::tensor::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
+            crate::mens::tensor::training_text::chatml_supervised_text(
+                system_prompt,
+                p,
+                r,
+                &config.chatml,
+            )
         } else {
             continue;
         };
         let prefix_text = if let Some(ref turns) = pair.turns {
-            crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
+            crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(
+                turns,
+                &config.chatml,
+            )
         } else if let Some(ref p) = pair.prompt {
-            crate::mens::tensor::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
+            crate::mens::tensor::training_text::chatml_prefix_open_assistant(
+                system_prompt,
+                p,
+                &config.chatml,
+            )
         } else {
             continue;
         };

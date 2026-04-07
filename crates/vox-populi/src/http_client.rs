@@ -9,9 +9,9 @@ use std::time::Duration;
 use crate::transport::{
     A2AAckRequest, A2ADeliverRequest, A2AInboxRequest, A2AInboxResponse, A2ALeaseRenewRequest,
     A2AStoredMessage, AdminExecLeaseRevokeRequest, AdminMaintenanceRequest, AdminQuarantineRequest,
-    LeaveRequest, RemoteExecLeaseGrantRequest, RemoteExecLeaseGrantResponse,
-    RemoteExecLeaseListResponse, RemoteExecLeaseReleaseRequest, RemoteExecLeaseRenewRequest,
-    DispatchRequest, DispatchResponse,
+    DispatchRequest, DispatchResponse, LeaveRequest, RemoteExecLeaseGrantRequest,
+    RemoteExecLeaseGrantResponse, RemoteExecLeaseListResponse, RemoteExecLeaseReleaseRequest,
+    RemoteExecLeaseRenewRequest,
 };
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
@@ -471,7 +471,10 @@ impl PopuliHttpClient {
     }
 
     /// `POST /v1/populi/dispatch` — send a script to the control plane for remote execution.
-    pub async fn dispatch(&self, req: &DispatchRequest) -> Result<DispatchResponse, PopuliRegistryError> {
+    pub async fn dispatch(
+        &self,
+        req: &DispatchRequest,
+    ) -> Result<DispatchResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/dispatch", self.base);
         let resp = self
             .auth(self.client.post(url).json(req))
@@ -487,7 +490,10 @@ impl PopuliHttpClient {
     }
 
     /// `POST /v1/populi/worker/execute` — worker-side internal endpoint for executing dispatched scripts.
-    pub async fn worker_execute(&self, req: &DispatchRequest) -> Result<DispatchResponse, PopuliRegistryError> {
+    pub async fn worker_execute(
+        &self,
+        req: &DispatchRequest,
+    ) -> Result<DispatchResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/worker/execute", self.base);
         let resp = self
             .auth(self.client.post(url).json(req))
@@ -503,7 +509,10 @@ impl PopuliHttpClient {
     }
 
     /// `GET /v1/populi/dispatch/result/{id}` — poll for results of a detached execution (Wave 5).
-    pub async fn dispatch_result_poll(&self, id: &str) -> Result<DispatchResponse, PopuliRegistryError> {
+    pub async fn dispatch_result_poll(
+        &self,
+        id: &str,
+    ) -> Result<DispatchResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/dispatch/result/{}", self.base, id);
         let resp = self
             .auth(self.client.get(url))

@@ -13,7 +13,8 @@ use tracing::info;
 /// A localized inter-agent lock strictly for managing OS disk contention
 /// when spinning up heavy Node.js or Cargo tests which rely on singular
 /// target/ or node_modules/ caches. Populi node execution will queue here.
-static BEHAVIORAL_TEST_LOCK: tokio::sync::OnceCell<tokio::sync::Mutex<()>> = tokio::sync::OnceCell::const_new();
+static BEHAVIORAL_TEST_LOCK: tokio::sync::OnceCell<tokio::sync::Mutex<()>> =
+    tokio::sync::OnceCell::const_new();
 
 /// A gate that can allow or deny an AI request.
 #[async_trait]
@@ -102,8 +103,13 @@ impl BehavioralGate {
         };
 
         // Acquire the static inter-agent lock to ensure Cargo/npm OS caches don't collide
-        info!("BehavioralGate: Agent {} requesting OS test lock...", "agent");
-        let mtx = BEHAVIORAL_TEST_LOCK.get_or_init(|| async { tokio::sync::Mutex::new(()) }).await;
+        info!(
+            "BehavioralGate: Agent {} requesting OS test lock...",
+            "agent"
+        );
+        let mtx = BEHAVIORAL_TEST_LOCK
+            .get_or_init(|| async { tokio::sync::Mutex::new(()) })
+            .await;
         let _lock = mtx.lock().await;
         info!("BehavioralGate: Lock acquired. Executing tests...");
 

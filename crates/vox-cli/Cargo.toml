@@ -151,7 +151,7 @@ chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
 # `external_review_replay::extract_external_review_rows` is behind `database`; CLI `corpus review-export` needs it.
-vox-corpus = { workspace = true, features = ["database"] }
+vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 vox-tensor = { workspace = true, optional = true }
 vox-runtime = { workspace = true }
 vox-primitives = { workspace = true }

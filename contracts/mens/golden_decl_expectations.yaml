@@ -1,0 +1,22 @@
+# Golden declaration coverage (Mens / CI).
+# Histogram source: `vox ci corpus-decl-coverage` → `target/dogfood/corpus_decl_coverage.json`.
+# Cross-check with docs/src/reference/parser-feature-matrix.md when expanding parser surface.
+required_decl_kinds:
+  - fn
+  - actor
+  - workflow
+  - activity
+  - type
+  - import
+  - mcp_tool
+  - mcp_resource
+  - test
+  - island
+  - table
+  - query
+  - mutation
+  - http_route
+  - server_fn
+  - reactive_component
+  - routes
+  - agent

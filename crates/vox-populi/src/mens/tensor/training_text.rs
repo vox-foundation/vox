@@ -61,7 +61,11 @@ pub fn chatml_turns_prefix_open_assistant(
     let mut out = String::new();
     for (i, turn) in turns.iter().enumerate() {
         if i == turns.len() - 1 && turn.role == "assistant" {
-            out.push_str(&format!("{start}{role}\n", start = cfg.im_start, role = cfg.role_assistant));
+            out.push_str(&format!(
+                "{start}{role}\n",
+                start = cfg.im_start,
+                role = cfg.role_assistant
+            ));
             break;
         }
         out.push_str(&format!(

@@ -178,6 +178,9 @@ pub enum CiCmd {
         #[arg(long, value_enum)]
         emit: Option<GrammarDriftEmit>,
     },
+    /// Histogram of AST decl kinds across `examples/golden` (requires `vox-corpus/ast-extract`).
+    #[command(name = "corpus-decl-coverage", visible_alias = "corpus-coverage")]
+    CorpusDeclCoverage,
     /// Repository hygiene guards (`TypeVar(0)` in codegen crates only, filtered `opencode` refs, stray root files) — GitLab parity.
     #[command(name = "repo-guards")]
     RepoGuards,

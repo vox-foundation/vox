@@ -116,11 +116,13 @@ impl crate::VoxDb {
         limit: i64,
     ) -> Result<Vec<serde_json::Value>, StoreError> {
         let lim = limit.clamp(1, 500);
-        let mut query = "SELECT id, repository_id, kind, task_id, agent_id, session_id, workflow_id,
+        let mut query =
+            "SELECT id, repository_id, kind, task_id, agent_id, session_id, workflow_id,
                     plan_session_id, plan_node_id, payload_json, created_at_ms
                  FROM orchestration_lineage_events
-                 WHERE repository_id = ?1".to_string();
-        
+                 WHERE repository_id = ?1"
+                .to_string();
+
         if kind.is_some() {
             query.push_str(" AND kind = ?2");
         }
@@ -128,7 +130,9 @@ impl crate::VoxDb {
         query.push_str(&if kind.is_some() { "?3" } else { "?2" });
 
         let mut rows = if let Some(k) = kind {
-            self.conn.query(&query, params![repository_id, k, lim]).await?
+            self.conn
+                .query(&query, params![repository_id, k, lim])
+                .await?
         } else {
             self.conn.query(&query, params![repository_id, lim]).await?
         };
@@ -136,17 +140,50 @@ impl crate::VoxDb {
         let mut out = Vec::new();
         while let Some(r) = rows.next().await? {
             let mut map = serde_json::Map::new();
-            map.insert("id".to_string(), serde_json::json!(r.get::<i64>(0).unwrap_or(0)));
-            map.insert("repository_id".to_string(), serde_json::json!(r.get::<String>(1).unwrap_or_default()));
-            map.insert("kind".to_string(), serde_json::json!(r.get::<String>(2).unwrap_or_default()));
-            map.insert("task_id".to_string(), serde_json::json!(r.get::<i64>(3).unwrap_or(0)));
-            map.insert("agent_id".to_string(), serde_json::json!(r.get::<Option<i64>>(4).unwrap_or(None)));
-            map.insert("session_id".to_string(), serde_json::json!(r.get::<Option<String>>(5).unwrap_or(None)));
-            map.insert("workflow_id".to_string(), serde_json::json!(r.get::<Option<String>>(6).unwrap_or(None)));
-            map.insert("plan_session_id".to_string(), serde_json::json!(r.get::<Option<String>>(7).unwrap_or(None)));
-            map.insert("plan_node_id".to_string(), serde_json::json!(r.get::<Option<String>>(8).unwrap_or(None)));
-            map.insert("payload_json".to_string(), serde_json::json!(r.get::<Option<String>>(9).unwrap_or(None)));
-            map.insert("created_at_ms".to_string(), serde_json::json!(r.get::<i64>(10).unwrap_or(0)));
+            map.insert(
+                "id".to_string(),
+                serde_json::json!(r.get::<i64>(0).unwrap_or(0)),
+            );
+            map.insert(
+                "repository_id".to_string(),
+                serde_json::json!(r.get::<String>(1).unwrap_or_default()),
+            );
+            map.insert(
+                "kind".to_string(),
+                serde_json::json!(r.get::<String>(2).unwrap_or_default()),
+            );
+            map.insert(
+                "task_id".to_string(),
+                serde_json::json!(r.get::<i64>(3).unwrap_or(0)),
+            );
+            map.insert(
+                "agent_id".to_string(),
+                serde_json::json!(r.get::<Option<i64>>(4).unwrap_or(None)),
+            );
+            map.insert(
+                "session_id".to_string(),
+                serde_json::json!(r.get::<Option<String>>(5).unwrap_or(None)),
+            );
+            map.insert(
+                "workflow_id".to_string(),
+                serde_json::json!(r.get::<Option<String>>(6).unwrap_or(None)),
+            );
+            map.insert(
+                "plan_session_id".to_string(),
+                serde_json::json!(r.get::<Option<String>>(7).unwrap_or(None)),
+            );
+            map.insert(
+                "plan_node_id".to_string(),
+                serde_json::json!(r.get::<Option<String>>(8).unwrap_or(None)),
+            );
+            map.insert(
+                "payload_json".to_string(),
+                serde_json::json!(r.get::<Option<String>>(9).unwrap_or(None)),
+            );
+            map.insert(
+                "created_at_ms".to_string(),
+                serde_json::json!(r.get::<i64>(10).unwrap_or(0)),
+            );
             out.push(serde_json::Value::Object(map));
         }
         Ok(out)

@@ -1,7 +1,7 @@
 //! MENS and GRPO training types for [`crate::VoxDb`].
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// A report on an agent interaction observed by the [`Observer`].
 #[derive(Debug, Clone, Serialize, Deserialize)]

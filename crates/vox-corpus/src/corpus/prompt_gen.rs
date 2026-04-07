@@ -29,7 +29,13 @@ struct DomainTemplates {
 
 const SYNTAX: DomainTemplates = DomainTemplates {
     starters: &["Write me", "Show me", "Generate", "I need", "Create a"],
-    subjects: &["Vox program", "function", "piece of Vox code", "syntax example", "script in Vox"],
+    subjects: &[
+        "Vox program",
+        "function",
+        "piece of Vox code",
+        "syntax example",
+        "script in Vox",
+    ],
     constraints: &[
         "that uses pattern matching",
         "with a custom type definition",
@@ -41,7 +47,12 @@ const SYNTAX: DomainTemplates = DomainTemplates {
 
 const ACTOR: DomainTemplates = DomainTemplates {
     starters: &["Create", "Write", "Show me how to make", "Implement"],
-    subjects: &["a Vox actor", "an actor model example", "a stateful actor", "an actor definition"],
+    subjects: &[
+        "a Vox actor",
+        "an actor model example",
+        "a stateful actor",
+        "an actor definition",
+    ],
     constraints: &[
         "that manages a counter",
         "with message handling for generic events",
@@ -53,7 +64,12 @@ const ACTOR: DomainTemplates = DomainTemplates {
 
 const WORKFLOWS: DomainTemplates = DomainTemplates {
     starters: &["Generate", "I want", "Specify", "Show"],
-    subjects: &["a durable workflow", "a linear workflow", "a Vox workflow", "an activity sequence"],
+    subjects: &[
+        "a durable workflow",
+        "a linear workflow",
+        "a Vox workflow",
+        "an activity sequence",
+    ],
     constraints: &[
         "with persistent state across steps",
         "that uses the `match` construct",
@@ -65,7 +81,12 @@ const WORKFLOWS: DomainTemplates = DomainTemplates {
 
 const TOOL_USE: DomainTemplates = DomainTemplates {
     starters: &["Show", "Write", "Simulate", "Create"],
-    subjects: &["an MCP tool call", "a tool-enabled script", "an agentic tool trace", "a tool-use example"],
+    subjects: &[
+        "an MCP tool call",
+        "a tool-enabled script",
+        "an agentic tool trace",
+        "a tool-use example",
+    ],
     constraints: &[
         "using `@mcp` annotations",
         "that interacts with a database action",

@@ -209,10 +209,7 @@ impl crate::VoxDb {
     }
 
     /// Read `reliability` for one `agent_id`, or `None` if no row exists.
-    pub async fn get_agent_reliability(
-        &self,
-        agent_id: &str,
-    ) -> Result<Option<f64>, StoreError> {
+    pub async fn get_agent_reliability(&self, agent_id: &str) -> Result<Option<f64>, StoreError> {
         let agent_id = agent_id.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();

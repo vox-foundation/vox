@@ -5,11 +5,11 @@
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
 pub mod add;
-#[cfg(feature = "dei")]
-pub mod attention;
 /// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;
+#[cfg(feature = "dei")]
+pub mod attention;
 /// Identity and master key generation.
 pub mod auth;
 /// Building and codegen orchestration endpoints.
@@ -70,14 +70,14 @@ pub mod live;
 pub mod lock;
 /// Legacy login command (compat shim to Clavis).
 pub mod login;
-/// React interop / web stack migrations (`vox migrate web`, …).
-pub mod migrate;
 /// Legacy logout command (compat shim to Clavis).
 pub mod logout;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
 /// Start the Vox MCP server wrapper (`vox mcp`).
 pub mod mcp;
+/// React interop / web stack migrations (`vox migrate web`, …).
+pub mod migrate;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;

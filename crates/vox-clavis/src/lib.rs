@@ -10,14 +10,14 @@ mod types;
 
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
-use resolver::{ResolveOptions, SecretResolver};
 pub use resolver::ResolveProfile;
+use resolver::{ResolveOptions, SecretResolver};
 pub use spec::{
-    Capability, Profile, RequirementMode, RequirementSet, RotationPolicy, SecretBundle, SecretClass,
-    SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow, WorkflowRequirements,
-    all_bundle_doc_names, all_specs, capabilities_for_secret, managed_secret_env_names, required_for,
-    required_for_profile, requirements_for_bundle, requirements_for_profile,
-    requirements_for_profile_mode,
+    Capability, Profile, RequirementMode, RequirementSet, RotationPolicy, SecretBundle,
+    SecretClass, SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow,
+    WorkflowRequirements, all_bundle_doc_names, all_specs, capabilities_for_secret,
+    managed_secret_env_names, required_for, required_for_profile, requirements_for_bundle,
+    requirements_for_profile, requirements_for_profile_mode,
 };
 pub use types::{ResolutionStatus, ResolvedSecret, SecretSource};
 
@@ -93,10 +93,7 @@ fn resolve_with_backend<B: backend::SecretBackend>(
     id: SecretId,
     options: ResolveOptions,
 ) -> ResolvedSecret {
-    SecretResolver::new(backend).resolve(
-        id,
-        &options,
-    )
+    SecretResolver::new(backend).resolve(id, &options)
 }
 
 #[must_use]

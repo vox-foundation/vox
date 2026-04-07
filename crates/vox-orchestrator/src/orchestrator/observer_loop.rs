@@ -60,20 +60,23 @@ pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
                         });
                 } else if queue_depth == 0 && agent_id.0 > 0 {
                     // OAPV Auto-scale down: If the agent is idle and isn't the primary agent (ID 0)
-                    tracing::info!("MENS Observer: Agent {} is idle. Triggering scale-down evaluation.", agent_id);
-                    
+                    tracing::info!(
+                        "MENS Observer: Agent {} is idle. Triggering scale-down evaluation.",
+                        agent_id
+                    );
+
                     let msg_payload = serde_json::json!({
                         "observation_type": "IdleAgentDetected",
                         "queue_depth": 0
                     });
-                    
+
                     orch.message_bus.send(
                         AgentId(1), // System ID
                         agent_id,
                         crate::a2a::A2AMessageType::SocratesResearchRequest,
                         msg_payload.to_string(),
                     );
-                    
+
                     orch.event_bus()
                         .emit(crate::events::AgentEventKind::MensObserverObservation {
                             agent_id,

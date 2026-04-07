@@ -289,11 +289,7 @@ impl crate::VoxDb {
             .await
     }
 
-    pub async fn delete_user_preference(
-        &self,
-        user_id: &str,
-        key: &str,
-    ) -> Result<(), StoreError> {
+    pub async fn delete_user_preference(&self, user_id: &str, key: &str) -> Result<(), StoreError> {
         let user_id = user_id.to_string();
         let key = key.to_string();
         let breaker = self.breaker.clone();

@@ -8,7 +8,9 @@ description = "Training data contracts, preflight, corpus SSOT, and Mens dataset
 
 [features]
 database = ["dep:vox-db", "dep:turso"]
-parser-verify = ["dep:vox-compiler"]
+parser-verify = ["ast-extract"]
+# Walk parsed `Module` declarations for Mens `.vox` pair extraction (avoids lexer drift vs heuristics).
+ast-extract = ["dep:vox-compiler"]
 
 [dependencies]
 vox-db = { path = "../vox-db", optional = true }

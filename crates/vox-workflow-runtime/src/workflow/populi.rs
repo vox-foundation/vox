@@ -84,7 +84,10 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
             PopuliHttpOp::Dispatch => {
                 use base64::Engine as _;
                 // For an interpreted workflow, the dispatched source is a synthesized runner for the activity.
-                let shim = format!("workflow_durable_shim::execute_activity(\"{}\");\n", activity.name);
+                let shim = format!(
+                    "workflow_durable_shim::execute_activity(\"{}\");\n",
+                    activity.name
+                );
                 let b64_source = base64::engine::general_purpose::STANDARD.encode(shim);
                 let req = vox_populi::transport::DispatchRequest {
                     source: b64_source,
@@ -107,7 +110,11 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                         "result_output": res.output,
                         "exit_code": res.exit_code,
                     })),
-                    Err(e) => Err(anyhow!("mesh dispatch failed for activity `{}`: {}", activity.name, e)),
+                    Err(e) => Err(anyhow!(
+                        "mesh dispatch failed for activity `{}`: {}",
+                        activity.name,
+                        e
+                    )),
                 }
             }
             PopuliHttpOp::Wait => {
@@ -125,7 +132,11 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                         "result_output": res.output,
                         "exit_code": res.exit_code,
                     })),
-                    Err(e) => Err(anyhow!("mesh wait polling failed for activity `{}`: {}", activity.name, e)),
+                    Err(e) => Err(anyhow!(
+                        "mesh wait polling failed for activity `{}`: {}",
+                        activity.name,
+                        e
+                    )),
                 }
             }
         }

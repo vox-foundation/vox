@@ -45,15 +45,32 @@ impl FreeAiClient {
             }
 
             let mut stream = resp.bytes_stream();
+            let mut buf: Vec<u8> = Vec::new();
 
             while let Some(item) = stream.next().await {
                 let chunk: Bytes = item.map_err(AiError::Http)?;
-                let json: serde_json::Value = serde_json::from_slice(&chunk).map_err(AiError::Json)?;
+                buf.extend_from_slice(&chunk);
+                while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+                    let raw: Vec<u8> = buf.drain(..=pos).collect();
+                    let line: &[u8] = raw.strip_suffix(b"\n").unwrap_or(raw.as_slice());
+                    if line.is_empty() {
+                        continue;
+                    }
+                    let json: serde_json::Value =
+                        serde_json::from_slice(line).map_err(AiError::Json)?;
+                    if let Some(token) = json["response"].as_str() {
+                        yield token.to_string();
+                    }
+                    if json["done"].as_bool().unwrap_or(false) {
+                        return;
+                    }
+                }
+            }
+            if !buf.is_empty() {
+                let json: serde_json::Value =
+                    serde_json::from_slice(&buf).map_err(AiError::Json)?;
                 if let Some(token) = json["response"].as_str() {
                     yield token.to_string();
-                }
-                if json["done"].as_bool().unwrap_or(false) {
-                    break;
                 }
             }
         })
@@ -107,7 +124,7 @@ impl FreeAiClient {
     }
 
     /// OpenRouter chat completions with `stream: true` (SSE `data:` lines).
-     pub(crate) fn stream_openrouter(
+    pub(crate) fn stream_openrouter(
         http: &reqwest::Client,
         api_key: &str,
         model: &str,
@@ -424,5 +441,44 @@ impl FreeAiClient {
     /// Return the list of configured providers (for status display).
     pub fn providers(&self) -> &[FreeAiProvider] {
         &self.providers
+    }
+}
+
+#[cfg(test)]
+mod ollama_ndjson_line_tests {
+    /// Mirrors the newline buffering in [`FreeAiClient::stream_ollama`].
+    fn collect_responses_from_chunks(chunks: &[&[u8]]) -> Vec<String> {
+        let mut buf: Vec<u8> = Vec::new();
+        let mut out: Vec<String> = Vec::new();
+        for chunk in chunks {
+            buf.extend_from_slice(chunk);
+            while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+                let raw: Vec<u8> = buf.drain(..=pos).collect();
+                let line: &[u8] = raw.strip_suffix(b"\n").unwrap_or(raw.as_slice());
+                if line.is_empty() {
+                    continue;
+                }
+                let json: serde_json::Value = serde_json::from_slice(line).unwrap();
+                if let Some(s) = json["response"].as_str() {
+                    out.push(s.to_string());
+                }
+            }
+        }
+        if !buf.is_empty() {
+            let json: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+            if let Some(s) = json["response"].as_str() {
+                out.push(s.to_string());
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn ndjson_split_across_tcp_like_chunks() {
+        let out = collect_responses_from_chunks(&[
+            b"{\"response\":\"hel",
+            b"lo\",\"done\":false}\n{\"response\":\"\",\"done\":true}\n",
+        ]);
+        assert_eq!(out, vec!["hello", ""]);
     }
 }

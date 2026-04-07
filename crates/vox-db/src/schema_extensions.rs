@@ -1,8 +1,8 @@
 //! Ad-hoc schema extensions (e.g. FTS5 virtual tables) that depend on libSQL compile options
 //! and cannot be included in the monolithic baseline DDL safely.
 
-use turso::Connection;
 use crate::store::types::StoreError;
+use turso::Connection;
 
 pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
     apply_knowledge_fts_cutover(conn).await?;

@@ -68,6 +68,8 @@ impl RsTrainingPair {
     /// Serialize to a JSONL row compatible with `vox_tensor::data::TrainingPair`.
     #[must_use]
     pub fn to_jsonl(&self) -> String {
+        let lane = "rust_context".to_string();
+        let task_family = format!("rust_{}", self.category);
         let v = json!({
             "prompt": self.prompt,
             "response": self.response,
@@ -75,6 +77,8 @@ impl RsTrainingPair {
             "rating": self.rating,
             "difficulty": self.difficulty,
             "source": self.source_path.display().to_string(),
+            "lane": lane,
+            "task_family": task_family,
         });
         v.to_string()
     }
@@ -179,7 +183,7 @@ pub fn extract_from_source(
             || trimmed.starts_with("fn ")
             || trimmed.starts_with("pub async fn ")
             || trimmed.starts_with("async fn ");
-        
+
         let is_type_def = trimmed.starts_with("pub struct ")
             || trimmed.starts_with("pub(crate) struct ")
             || trimmed.starts_with("struct ")
@@ -244,7 +248,17 @@ pub fn extract_from_source(
 
             if eligible {
                 let response = block_lines.join("\n");
-                let kind = if is_fn_line { "function" } else if trimmed.contains("struct ") { "struct" } else if trimmed.contains("enum ") { "enum" } else if trimmed.contains("trait ") { "trait" } else { "type" };
+                let kind = if is_fn_line {
+                    "function"
+                } else if trimmed.contains("struct ") {
+                    "struct"
+                } else if trimmed.contains("enum ") {
+                    "enum"
+                } else if trimmed.contains("trait ") {
+                    "trait"
+                } else {
+                    "type"
+                };
 
                 // Build prompt from doc or generate imperative
                 let prompt = if pending_doc.is_empty() {
@@ -308,7 +322,7 @@ fn extract_block_name<'a>(line: &'a str, kind: &'a str) -> &'a str {
         "type" => "type ",
         _ => "fn ",
     };
-    
+
     // Find the marker and take the identifier after it
     let after = if let Some(p) = line.find(marker) {
         &line[p + marker.len()..]

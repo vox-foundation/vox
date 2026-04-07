@@ -1277,17 +1277,6 @@ operations:
   handler_rust: commands::diagnostics::doctor
 - surface: vox-cli
   path:
-  - migrate
-  status: active
-  latin_ns: pm
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::migrate
-- surface: vox-cli
-  path:
   - fabrica
   status: active
   latin_ns: fabrica
@@ -1699,6 +1688,18 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
+- surface: vox-cli
+  path:
+  - migrate
+  - web
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::migrate
 - surface: vox-cli
   path:
   - openclaw

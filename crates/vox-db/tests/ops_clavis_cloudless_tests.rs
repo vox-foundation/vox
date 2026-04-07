@@ -74,10 +74,11 @@ async fn upsert_get_and_integrity_roundtrip() {
     assert_eq!(row.kek_ref, "kek-primary");
     assert_eq!(row.kek_version, 9);
     assert_eq!(row.consistency_origin, "canonical");
-    assert!(db
-        .verify_account_secret_ciphertext_integrity("acct-1", "OPENROUTER_API_KEY")
-        .await
-        .expect("integrity"));
+    assert!(
+        db.verify_account_secret_ciphertext_integrity("acct-1", "OPENROUTER_API_KEY")
+            .await
+            .expect("integrity")
+    );
 }
 
 #[tokio::test]
@@ -191,10 +192,12 @@ async fn backup_restore_rejects_corrupted_row() {
         .import_account_secret_ciphertext_backup(&backup, true)
         .await
         .expect("restore");
-    assert!(target
-        .verify_account_secret_ciphertext_integrity("acct-backup", "VOX_MCP_HTTP_BEARER_TOKEN")
-        .await
-        .expect("integrity"));
+    assert!(
+        target
+            .verify_account_secret_ciphertext_integrity("acct-backup", "VOX_MCP_HTTP_BEARER_TOKEN")
+            .await
+            .expect("integrity")
+    );
 
     let mut corrupted = backup.clone();
     corrupted[0].ciphertext[0] ^= 0x01;
@@ -202,9 +205,7 @@ async fn backup_restore_rejects_corrupted_row() {
         .import_account_secret_ciphertext_backup(&corrupted, true)
         .await
         .expect_err("must reject checksum mismatch");
-    assert!(err
-        .to_string()
-        .contains("checksum mismatch during restore"));
+    assert!(err.to_string().contains("checksum mismatch during restore"));
 }
 
 #[tokio::test]

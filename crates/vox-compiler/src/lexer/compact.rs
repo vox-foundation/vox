@@ -93,7 +93,6 @@ fn is_word(t: &Token) -> bool {
             | Token::AtComponent
             | Token::AtMcpTool
             | Token::AtMcpResource
-
             | Token::AtTest
             | Token::AtServer
             | Token::AtTable

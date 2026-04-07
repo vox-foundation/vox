@@ -13,8 +13,8 @@ mod validate;
 
 use anyhow::{Context, Result};
 
-use clap::Parser;
 use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+use clap::Parser;
 
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) use stats::{eval_metrics, run_benchmark_gate};
@@ -75,6 +75,12 @@ pub enum CorpusAction {
         /// Skip re-checking code through the compiler
         #[arg(long)]
         no_recheck: bool,
+        /// Write compiler-rejected rows (original line + reason) as JSONL
+        #[arg(long)]
+        quarantine: Option<std::path::PathBuf>,
+        /// Write JSON summary (counts, sample failures)
+        #[arg(long)]
+        report: Option<std::path::PathBuf>,
     },
     /// Generate instruction→response training pairs from validated corpus
     Pairs {
@@ -149,7 +155,11 @@ pub enum CorpusAction {
         #[arg(long, default_value_t = 500)]
         limit: i64,
         /// Output JSONL file.
-        #[arg(short, long, default_value = "mens/data/mix_sources/review_findings.jsonl")]
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/review_findings.jsonl"
+        )]
         output: std::path::PathBuf,
     },
     /// Validate review-derived dataset rows.
@@ -161,7 +171,11 @@ pub enum CorpusAction {
     /// Show review-derived dataset stats.
     ReviewStats {
         /// Input JSONL file.
-        #[arg(short, long, default_value = "mens/data/mix_sources/review_findings.jsonl")]
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/review_findings.jsonl"
+        )]
         input: std::path::PathBuf,
     },
 }
@@ -208,9 +222,18 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             input,
             output,
             no_recheck,
+            quarantine,
+            report,
         } => {
             let out = output.as_deref().unwrap_or(&input);
-            validate::run_validate(&input, out, !no_recheck).await
+            validate::run_validate(
+                &input,
+                out,
+                !no_recheck,
+                quarantine.as_deref(),
+                report.as_deref(),
+            )
+            .await
         }
         CorpusAction::Pairs {
             input,
@@ -297,20 +320,22 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                     f.title
                 );
                 let response = f.suggested_fix.clone().unwrap_or_else(|| f.details.clone());
-                rows.push(vox_corpus::external_review_replay::ExternalReviewReplayRow {
-                    prompt,
-                    response,
-                    category: f.category,
-                    severity: f.severity,
-                    placement_kind: f.placement_kind,
-                    source_id: f.finding_identity,
-                    repository_id: f.repository_id,
-                    pr_number: f.pr_number,
-                    file_path: f.file_path,
-                    line_start: f.line_start,
-                    correctness_state: f.status,
-                    sample_kind: "review_fix_pairs".to_string(),
-                });
+                rows.push(
+                    vox_corpus::external_review_replay::ExternalReviewReplayRow {
+                        prompt,
+                        response,
+                        category: f.category,
+                        severity: f.severity,
+                        placement_kind: f.placement_kind,
+                        source_id: f.finding_identity,
+                        repository_id: f.repository_id,
+                        pr_number: f.pr_number,
+                        file_path: f.file_path,
+                        line_start: f.line_start,
+                        correctness_state: f.status,
+                        sample_kind: "review_fix_pairs".to_string(),
+                    },
+                );
             }
             vox_corpus::external_review_replay::validate_external_review_rows(&rows)
                 .context("validate extracted review rows")?;

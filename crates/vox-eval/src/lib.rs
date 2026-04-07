@@ -252,7 +252,7 @@ pub fn cargo_build_reward(snippet: &str) -> f64 {
         Ok(d) => d,
         Err(_) => return 0.0,
     };
-    
+
     let cargo_toml = r#"
 [package]
 name = "vox_eval_tmp"
@@ -261,25 +261,25 @@ edition = "2021"
 
 [dependencies]
 "#;
-    
+
     let src_dir = tmp_dir.path().join("src");
     if std::fs::create_dir_all(&src_dir).is_err() {
         return 0.0;
     }
-    
+
     if std::fs::write(tmp_dir.path().join("Cargo.toml"), cargo_toml).is_err() {
         return 0.0;
     }
-    
+
     if std::fs::write(src_dir.join("main.rs"), snippet).is_err() {
         return 0.0;
     }
-    
+
     let output = std::process::Command::new("cargo")
         .arg("check")
         .current_dir(tmp_dir.path())
         .output();
-        
+
     match output {
         Ok(out) if out.status.success() => 1.0,
         _ => 0.0,
@@ -294,7 +294,7 @@ pub fn cargo_test_reward(snippet: &str) -> f64 {
         Ok(d) => d,
         Err(_) => return 0.0,
     };
-    
+
     let cargo_toml = r#"
 [package]
 name = "vox_eval_tmp"
@@ -303,28 +303,27 @@ edition = "2021"
 
 [dependencies]
 "#;
-    
+
     let src_dir = tmp_dir.path().join("src");
     if std::fs::create_dir_all(&src_dir).is_err() {
         return 0.0;
     }
-    
+
     if std::fs::write(tmp_dir.path().join("Cargo.toml"), cargo_toml).is_err() {
         return 0.0;
     }
-    
+
     if std::fs::write(src_dir.join("main.rs"), snippet).is_err() {
         return 0.0;
     }
-    
+
     let output = std::process::Command::new("cargo")
         .arg("test")
         .current_dir(tmp_dir.path())
         .output();
-        
+
     match output {
         Ok(out) if out.status.success() => 1.0,
         _ => 0.0,
     }
 }
-

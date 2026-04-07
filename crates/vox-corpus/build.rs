@@ -1,6 +1,6 @@
 //! Build script for `vox-corpus`.
 //!
-//! Dynamically walks the `vox-ast` source tree via `syn` to extract every
+//! Dynamically walks the `vox-compiler` AST source tree via `syn` to extract every
 //! enum variant from `Expr`, `BinOp`, `UnOp`, `TypeExpr`, `Pattern`, `Stmt`,
 //! and `Decl`. These are emitted as `&[&str]` constants into `dynamic_registry.rs`,
 //! which `codegen_vox.rs` and `coverage.rs` consume.

@@ -1,8 +1,8 @@
-use std::time::Duration;
-use vox_populi::http_client::PopuliHttpClient;
-use vox_populi::transport::{PopuliTransportState, PopuliHttpAuth, populi_http_app_with_auth};
-use tokio::net::TcpListener;
 use serial_test::serial;
+use std::time::Duration;
+use tokio::net::TcpListener;
+use vox_populi::http_client::PopuliHttpClient;
+use vox_populi::transport::{PopuliHttpAuth, PopuliTransportState, populi_http_app_with_auth};
 
 static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -34,7 +34,10 @@ async fn verify_dispatch_results_persistence_across_restart() {
     std::fs::write(&store_path, serde_json::to_string_pretty(&payload).unwrap())
         .expect("setup dispatch persistence store");
 
-    assert!(store_path.exists(), "Dispatch store should exist after Pass 1");
+    assert!(
+        store_path.exists(),
+        "Dispatch store should exist after Pass 1"
+    );
 
     // Pass 2: Restart node via new_for_serve(), verify Wait operations retrieve the result.
     {
@@ -55,14 +58,14 @@ async fn verify_dispatch_results_persistence_across_restart() {
             .dispatch_result_poll(&dispatch_id)
             .await
             .expect("should retrieve result via wait");
-            
+
         assert_eq!(response.success, true);
         assert_eq!(response.output, "wait result retrieved after restart");
         assert_eq!(response.is_truncated, false);
 
         server_task.abort();
     }
-    
+
     unsafe {
         std::env::remove_var("VOX_MESH_DISPATCH_STORE_PATH");
     }

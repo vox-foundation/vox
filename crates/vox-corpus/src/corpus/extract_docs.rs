@@ -249,13 +249,16 @@ fn extract_code_blocks(
 
             let code = code_lines.join("\n");
             if code.len() >= 20 {
+                let suffix =
+                    " Use valid Vox only: annotate `fn` with `->` return types and 4-space indent.";
                 let prompt = if !preceding_context.is_empty() {
                     format!(
-                        "Show me Vox code for: {}",
-                        preceding_context.chars().take(200).collect::<String>()
+                        "Show me Vox code for: {}{}",
+                        preceding_context.chars().take(200).collect::<String>(),
+                        suffix
                     )
                 } else {
-                    "Write an example Vox program".to_string()
+                    format!("Write an example Vox program.{suffix}")
                 };
 
                 out.push(DocTrainingPair {
@@ -307,7 +310,10 @@ fn extract_qa_sections(
                 && current_body.len() >= config.min_section_chars
                 && heading_level >= 2
             {
-                let prompt = format!("Explain the Vox concept: {}", current_heading);
+                let prompt = format!(
+                    "Explain the Vox concept: {} (precise prose; any code snippets must use `->` returns.)",
+                    current_heading
+                );
                 let mut response = current_body.trim().to_string();
 
                 // Relational Chunking: Inject linked .vox examples directly into the training response

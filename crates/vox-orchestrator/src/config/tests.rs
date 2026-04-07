@@ -101,6 +101,7 @@ max_agents = 3
 [mens]
 control_url = "http://mens.example:9847"
 scope_id = "unit-scope"
+inference_base_url = "http://127.0.0.1:11435"
 advertise_gpu = true
 labels = ["from=toml"]
 "#,
@@ -112,6 +113,10 @@ labels = ["from=toml"]
         cfg.populi_control_url.as_deref(),
         Some("http://mens.example:9847")
     );
+    assert_eq!(
+        cfg.populi_inference_base_url.as_deref(),
+        Some("http://127.0.0.1:11435")
+    );
     assert_eq!(cfg.populi_scope_id.as_deref(), Some("unit-scope"));
     assert!(cfg.default_agent_capabilities.gpu_cuda);
     assert!(
@@ -119,6 +124,46 @@ labels = ["from=toml"]
             .labels
             .contains(&"from=toml".to_string())
     );
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn populi_inference_env_overrides_toml_base_url() {
+    let _guard = ENV_MUTEX.lock().expect("env test lock");
+    const KEY: &str = "VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL";
+    let prev = std::env::var(KEY).ok();
+    unsafe {
+        std::env::set_var(KEY, "http://env-infer:9999");
+    }
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let toml_path = dir.path().join("Vox.toml");
+    std::fs::write(
+        &toml_path,
+        r#"
+[mens]
+inference_base_url = "http://toml-infer:8888"
+"#,
+    )
+    .expect("write");
+
+    let mut cfg = OrchestratorConfig::load_from_toml(&toml_path).expect("load");
+    assert_eq!(
+        cfg.populi_inference_base_url.as_deref(),
+        Some("http://toml-infer:8888")
+    );
+    cfg.merge_env_overrides();
+    assert_eq!(
+        cfg.populi_inference_base_url.as_deref(),
+        Some("http://env-infer:9999")
+    );
+
+    unsafe {
+        match prev {
+            None => std::env::remove_var(KEY),
+            Some(v) => std::env::set_var(KEY, v),
+        }
+    }
 }
 
 #[test]
@@ -251,7 +296,10 @@ fn social_credentials_follow_clavis_lenient_vs_strict() {
         std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
         std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
         let tmp = std::env::temp_dir().join("vox-clavis-orchestrator-strict-lenient.db");
-        std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", tmp.to_string_lossy().to_string());
+        std::env::set_var(
+            "VOX_CLAVIS_CLOUDLESS_DB_PATH",
+            tmp.to_string_lossy().to_string(),
+        );
         std::env::set_var("VOX_ACCOUNT_ID", "orchestrator-strict-lenient-test");
     }
     let mut lenient = OrchestratorConfig::default();

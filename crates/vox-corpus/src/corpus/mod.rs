@@ -3,6 +3,7 @@
 pub mod augment;
 pub mod constrained_decoding;
 pub mod coverage;
+pub mod decl_coverage;
 pub mod extract_docs;
 pub mod extract_rs;
 pub mod extract_vox;
