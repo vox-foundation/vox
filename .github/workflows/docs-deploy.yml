@@ -1,0 +1,116 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'crates/vox-doc-pipeline/**'
+      - 'examples/**'
+
+# ── Permissions ────────────────────────────────────────────────────────────
+# GitHub Pages requires pages: write + id-token: write.
+# When porting to GitLab/Gitea, remove this block entirely —
+# those platforms use separate deploy keys or CI variables.
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    env:
+      # Public site origin for sitemap.xml (match GitHub Pages / docs URL).
+      MDBOOK_SITEMAP_DOMAIN: https://vox-lang.org/
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Rust toolchain ──────────────────────────────────────────────────
+      # Portable alternative: rustup update stable && rustup default stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # ── mdBook ─────────────────────────────────────────────────────────
+      # Portable alternative (any platform): cargo install mdbook --locked
+      - name: Install mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.40'
+
+      - name: Install mdBook tools
+        run: |
+          cargo install mdbook-metadata --locked
+          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Build Docs Pipeline
+        run: cargo build -p vox-doc-pipeline --profile ci
+        env:
+          RUSTC_WRAPPER: sccache
+
+      - name: Run Docs Pipeline (extract + validate SUMMARY)
+        id: deploy_docs_pipeline
+        continue-on-error: true
+        run: |
+          cargo run -p vox-doc-pipeline
+        env:
+          # Passed through to feed.xml lastBuildDate for reproducible builds.
+          # GitHub sets this to the ISO 8601 commit timestamp; the pipeline
+          # accepts both ISO strings and Unix epoch integers.
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
+
+      - name: Warn if docs pipeline failed during deploy
+        if: steps.deploy_docs_pipeline.outcome == 'failure'
+        run: echo "::warning title=Docs pipeline failed::Proceeding with Pages build using repository docs state."
+
+      - name: Validate feed.xml (well-formed XML)
+        id: validate_feed
+        continue-on-error: true
+        run: xmllint --noout docs/src/feed.xml
+
+      - name: Warn if feed.xml validation failed
+        if: steps.validate_feed.outcome == 'failure'
+        run: echo "::warning title=feed.xml invalid::feed.xml validation failed; proceeding with Pages build."
+
+      - name: Check SUMMARY.md drift
+        id: deploy_summary_drift
+        continue-on-error: true
+        run: cargo run -p vox-doc-pipeline -- --check
+
+      - name: Warn if SUMMARY drift was detected during deploy
+        if: steps.deploy_summary_drift.outcome == 'failure'
+        run: echo "::warning title=SUMMARY drift::SUMMARY drift detected during deploy; proceeding with Pages build."
+
+      - name: Build mdBook
+        run: mdbook build docs
+
+      - name: Generate sitemap.xml
+        working-directory: docs
+        run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/sitemap.xml
+
+      # ── Archive docs artifact ───────────────────────────────────────────
+      # This step is platform-agnostic: it produces docs.tar.gz as a
+      # portable build artifact.
+      - name: Archive docs
+        run: tar -czf docs.tar.gz docs/book/
+
+      # ── GitHub Pages Deploy ─────────────────────────────────────────────
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
