@@ -1,7 +1,0 @@
-# Transitional allowlist for `vox ci sql-surface-guard`
-#
-# Policy: domain SQL belongs in `crates/vox-db/src/store/ops_*.rs` (see database-nomenclature.md).
-# Built-in allowlist always includes: `crates/vox-db/`, `crates/vox-compiler/`.
-#
-# Add a `crates/<crate>/` line only while migrating that crate off
-# `.connection().query|execute(` until the transitional entry can be removed.

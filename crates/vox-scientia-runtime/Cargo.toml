@@ -1,9 +1,0 @@
-[package]
-name = "vox-scientia-runtime"
-version.workspace = true
-edition.workspace = true
-description = "Scientia runtime orchestration helpers."
-
-[dependencies]
-vox-scientia-core = { path = "../vox-scientia-core" }
-vox-scientia-social = { path = "../vox-scientia-social" }

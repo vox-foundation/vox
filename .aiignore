@@ -1,8 +1,0 @@
-# JJ object store — must not be indexed or modified by AI agents
-# Corruption of .jj/ can cause irreversible history loss (JUNIE-597)
-.jj/
-
-# Large binary blobs and build artifacts
-target/
-*.wasm
-*.rlib

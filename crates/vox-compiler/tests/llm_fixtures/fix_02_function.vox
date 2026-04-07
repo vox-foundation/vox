@@ -1,1 +1,0 @@
-fn test_02(a: int) to int { ret a }

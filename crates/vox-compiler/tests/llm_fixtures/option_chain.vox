@@ -1,4 +1,0 @@
-fn process_opt(opt: Option[int]) -> int {
-    let double = opt.map(x => x * 2)
-    return double.unwrap()
-}

@@ -1,5 +1,0 @@
-# Frozen speech-to-code benchmark manifest (extend with real audio/transcript pairs).
-# Format: one path or label per line; CI can assert these exist before eval.
-#
-tests/speech-to-code/fixtures/p001_transcript.txt
-tests/speech-to-code/fixtures/p001_expected.vox

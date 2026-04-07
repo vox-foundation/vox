@@ -1,8 +1,0 @@
-@mcp.tool
-fn get_weather(location: str) -> str {
-    if location == "London" {
-        return "Rainy"
-    } else {
-        return "Sunny"
-    }
-}

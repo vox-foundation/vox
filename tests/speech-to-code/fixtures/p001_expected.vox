@@ -1,3 +1,0 @@
-fn hello(name: str) to str {
-    ret "Hello " + name + "!"
-}

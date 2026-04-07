@@ -1,1 +1,0 @@
-fn generic_val() to str { ret "hello" }

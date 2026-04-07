@@ -1,1 +1,0 @@
-@component PhotoUploader(on_image: fn(str) to unit) { state x: int = 1 }

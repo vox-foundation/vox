@@ -1,5 +1,0 @@
-# JJ object store — must not be indexed by Cursor (JUNIE-597 class corruption)
-.jj/
-
-# Build artifacts
-target/

@@ -1,9 +1,0 @@
-# Mix configuration for populi-meta domain
-output: mens/data/train_mixed_populi_meta.jsonl
-sources:
-  - path: target/dogfood/populi_telemetry.jsonl
-    weight: 4.0
-    optional: true
-  - path: mens/data/mix_sources/vox_architecture_golden.jsonl
-    weight: 3.0
-    optional: true

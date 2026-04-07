@@ -1,7 +1,0 @@
-# Training contract: points preflight to the mix output.
-# Priority: contract train_path > data_dir/train.jsonl > data_dir/validated.jsonl
-train_path: target/dogfood/train_mixed.jsonl
-# Advisory note only: current Rust preflight consumes `train_path` from this
-# file, but does not automatically apply `context_filter`. Use CLI/config
-# wiring that explicitly passes a context filter when you need one.
-context_filter: vox_source

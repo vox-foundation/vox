@@ -1,9 +1,0 @@
-fn transform(data: List[int]) -> List[int] {
-    let mut out = []
-    for item in data {
-        if item > 0 {
-            out.push(item * 2)
-        }
-    }
-    return out
-}

@@ -1,9 +1,0 @@
-//! Telemetry interpretation SFT pairs.
-
-use std::io::Write;
-
-use serde_json::json;
-
-use super::{SyntheticGenConfig, emit_line};
-
-include!("bodies/_telemetry_pairs.inc");
