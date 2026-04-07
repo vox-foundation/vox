@@ -1277,6 +1277,17 @@ operations:
   handler_rust: commands::diagnostics::doctor
 - surface: vox-cli
   path:
+  - migrate
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::migrate
+- surface: vox-cli
+  path:
   - fabrica
   status: active
   latin_ns: fabrica
@@ -2988,6 +2999,8 @@ script_duals:
   canonical_cli: vox ci mesh-gate --profile <training|ci_full|m1m4>
 env_var_ssot_index:
 - VOX_WEB_TANSTACK_START
+- VOX_WEB_EMIT_SCAFFOLD
+- VOX_ALLOW_LEGACY_COMPONENT_FN
 - VOX_EMIT_EXPRESS_SERVER
 - VOX_ORCHESTRATE_VITE
 - VOX_SSR_DEV_URL

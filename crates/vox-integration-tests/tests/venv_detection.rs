@@ -46,7 +46,7 @@ fn venv_path_via_env_var_uv_project_environment() {
     let venv = make_windows_venv(tmp.path());
 
     unsafe {
-        unsafe { std::env::set_var("UV_PROJECT_ENVIRONMENT", venv.to_str() }.unwrap());
+        std::env::set_var("UV_PROJECT_ENVIRONMENT", venv.to_str().unwrap());
     }
     let env = dummy_env();
     let found = env.venv_path();
@@ -69,7 +69,7 @@ fn venv_path_via_env_var_virtual_env() {
 
     unsafe {
         std::env::remove_var("UV_PROJECT_ENVIRONMENT");
-        unsafe { std::env::set_var("VIRTUAL_ENV", venv.to_str() }.unwrap());
+        std::env::set_var("VIRTUAL_ENV", venv.to_str().unwrap());
     }
     let env = dummy_env();
     let found = env.venv_path();
@@ -89,7 +89,7 @@ fn site_packages_path_windows_layout() {
     let expected_sp = venv.join("Lib").join("site-packages");
 
     unsafe {
-        unsafe { std::env::set_var("UV_PROJECT_ENVIRONMENT", venv.to_str() }.unwrap());
+        std::env::set_var("UV_PROJECT_ENVIRONMENT", venv.to_str().unwrap());
     }
     let env = dummy_env();
     let sp = env.site_packages_path();
@@ -113,7 +113,7 @@ fn site_packages_path_posix_layout() {
 
     unsafe {
         std::env::remove_var("UV_PROJECT_ENVIRONMENT");
-        unsafe { std::env::set_var("VIRTUAL_ENV", venv.to_str() }.unwrap());
+        std::env::set_var("VIRTUAL_ENV", venv.to_str().unwrap());
     }
     let env = dummy_env();
     let sp = env.site_packages_path();

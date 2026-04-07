@@ -100,7 +100,7 @@ fn top_level_product_lane(path: &[String]) -> Option<&'static str> {
         Some(
             "add" | "remove" | "update" | "lock" | "sync" | "upgrade" | "pm" | "ci" | "doctor"
             | "diag" | "architect" | "stub-check" | "clavis" | "login" | "logout" | "commands"
-            | "shell",
+            | "shell" | "migrate",
         ) => Some("platform"),
         _ => None,
     }
@@ -170,6 +170,9 @@ pub(crate) fn fallback_source_group(path: &[String]) -> String {
     }
     if matches!(top, "oratio" | "speech") {
         return "oratio".to_string();
+    }
+    if top == "migrate" {
+        return "pm".to_string();
     }
     "core".to_string()
 }

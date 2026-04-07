@@ -1,8 +1,8 @@
 // Pipeline integration — Web IR block 19 completion (OP-0291..OP-0303).
 
 const PIPELINE_CLASSIC_BOX_STYLE_SRC: &str = r#"
-@component fn Box() to Element {
-    ret <div class="x">"a"</div>
+component Box() {
+    view: <div class="x">"a"</div>
 }
 style {
     .x { color: "red" }
@@ -54,7 +54,7 @@ fn pipeline_integration_classic_style_emits_css_module_import() {
     });
 }
 
-/// OP-0297: same intent as OP-0291 — full `chatbot.vox` classic `@component fn` + top-level `style { }` emits CSS module import.
+/// OP-0297: same intent as OP-0291 — full `chatbot.vox` Path C `component` + top-level `style { }` emits CSS module import.
 #[test]
 fn pipeline_integration_chatbot_fixture_classic_css_module_import() {
     let path = Path::new("fixtures/chatbot.vox");

@@ -1,4 +1,4 @@
-//! `vox bundle` — production-style packaging: codegen, React/Vite app, npm build, embed static files, ship one binary.
+//! `vox bundle` — production-style packaging: codegen, React/Vite app, **pnpm** install/build, embed static files, ship one binary.
 
 use crate::cli_args::BundleMode;
 use crate::commands::build;
@@ -12,7 +12,7 @@ use tokio::process::Command;
 
 /// Bundle a Vox source file into a complete, runnable web application or script binary.
 ///
-/// 1. For `App` mode: Runs full web scaffolding, npm build, and embeds assets.
+/// 1. For `App` mode: Runs full web scaffolding, `pnpm` install + build, and embeds assets.
 /// 2. For `Script` mode: Compiles to a single standalone binary (native or WASI).
 pub async fn run(
     file: &Path,
@@ -91,7 +91,7 @@ async fn run_app_bundle(
 ) -> Result<()> {
     // Step 1: Run the standard build pipeline
     println!("=== Step 1/5: Compiling Vox source ===");
-    build::run(file, out_dir, target.map(|s| s.to_string())).await?;
+    build::run(file, out_dir, target.map(|s| s.to_string()), false).await?;
 
     // Check if we have any frontend components
     let chat_tsx = out_dir.join("Chat.tsx");
@@ -132,7 +132,13 @@ async fn run_app_bundle(
 
     // Step 3: Install deps and build
     println!("=== Step 3/5: Installing dependencies & building ===");
-    npm_install_and_build(&app_dir).await?;
+    tokio::task::spawn_blocking({
+        let app_dir = app_dir.clone();
+        move || crate::frontend::npm_install_and_build(&app_dir)
+    })
+    .await
+    .context("frontend install/build join")?
+    .context("pnpm install / build failed")?;
 
     // Step 4: Copy built assets to backend public dir
     println!("=== Step 4/5: Packaging static assets ===");
@@ -174,42 +180,6 @@ async fn run_app_bundle(
     );
     println!("\n  Run with: ./{}", dest.display());
     println!("  Then open: http://localhost:3000");
-
-    Ok(())
-}
-
-/// Run npm install and build in the scaffolded project.
-async fn npm_install_and_build(app_dir: &Path) -> Result<()> {
-    let npm = if cfg!(windows) { "npm.cmd" } else { "npm" };
-    println!("  Running npm install...");
-    let install_status = Command::new(npm)
-        .arg("install")
-        .arg("--prefer-offline")
-        .current_dir(app_dir)
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status()
-        .await
-        .context("Failed to run npm install. Is Node.js/npm installed?")?;
-
-    if !install_status.success() {
-        anyhow::bail!("npm install failed");
-    }
-
-    println!("  Running npm run build...");
-    let build_status = Command::new(npm)
-        .arg("run")
-        .arg("build")
-        .current_dir(app_dir)
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status()
-        .await
-        .context("Failed to run npm run build")?;
-
-    if !build_status.success() {
-        anyhow::bail!("npm run build failed");
-    }
 
     Ok(())
 }

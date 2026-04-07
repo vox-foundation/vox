@@ -16,6 +16,10 @@ pub struct BuildArgs {
     /// Native mobile build target (e.g., ios, android, native)
     #[arg(long)]
     pub target: Option<String>,
+    /// Write one-shot user scaffold (`app/App.tsx`, Vite, Tailwind v4) next to output if files are missing.
+    /// Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag takes precedence when either is set).
+    #[arg(long)]
+    pub scaffold: bool,
 }
 
 /// `vox check` / `vox fabrica check`

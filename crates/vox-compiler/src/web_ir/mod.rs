@@ -283,6 +283,14 @@ pub struct WebIrLowerSummary {
     pub dom_expr_fallbacks: usize,
     /// Rows appended to [`WebIrModule::diagnostic_nodes`] from lowering gaps.
     pub lowering_diagnostics: usize,
+    /// Count of `routes { }` entries with a `with loader:` / `loader:` binding (manifest parity).
+    pub route_entries_with_loader: usize,
+    /// Count of route entries with explicit `pending:` / pending component binding.
+    pub route_entries_with_pending: usize,
+    /// `routes { }` blocks that declare `not_found:`.
+    pub route_blocks_with_not_found: usize,
+    /// `routes { }` blocks that declare `error:`.
+    pub route_blocks_with_error: usize,
 }
 
 /// Populated by [`validate::validate_web_ir_with_metrics`].
@@ -330,6 +338,9 @@ pub struct RouteContract {
     pub pattern: String,
     /// Small JSON attachment (e.g. target component name); keep router-shaped, not full RPC schemas.
     pub meta: serde_json::Value,
+    /// Nested client routes (same shape as HIR [`crate::ast::decl::RouteEntry::children`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<RouteContract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

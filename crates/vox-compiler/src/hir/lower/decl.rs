@@ -251,6 +251,7 @@ impl LowerCtx {
                     body: self.lower_expr(&c.body),
                     span: c.span,
                 }),
+                ReactiveMemberDecl::Stmt(s) => HirReactiveMember::Stmt(self.lower_stmt(s)),
             })
             .collect();
         let view = r.view.as_ref().map(|v| self.lower_expr(v));
@@ -262,6 +263,7 @@ impl LowerCtx {
             params,
             members,
             view,
+            styles: r.styles.clone(),
             span: r.span,
         }
     }

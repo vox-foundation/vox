@@ -19,9 +19,31 @@
 use std::collections::HashSet;
 
 use super::{
-    BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteNode, StyleNode,
-    WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
+    BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract, RouteNode,
+    StyleNode, WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
 };
+
+fn walk_route_contract_ids(
+    nodes: &[RouteContract],
+    seen: &mut HashSet<String>,
+    out: &mut Vec<WebIrDiagnostic>,
+    metrics: &mut WebIrValidateMetrics,
+) {
+    for r in nodes {
+        metrics.route_contract_ids_checked += 1;
+        if !seen.insert(r.id.clone()) {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.duplicate_contract_id".to_string(),
+                message: format!("duplicate RouteContract.id {:?}", r.id),
+                span: None,
+                category: Some("route".to_string()),
+            });
+        }
+        if !r.children.is_empty() {
+            walk_route_contract_ids(&r.children, seen, out, metrics);
+        }
+    }
+}
 
 fn check_dom_id(out: &mut Vec<WebIrDiagnostic>, len: usize, id: DomNodeId, ctx: &str) -> bool {
     if (id.0 as usize) >= len {
@@ -126,17 +148,7 @@ fn validate_route_families(
     for node in &module.route_nodes {
         match node {
             RouteNode::RouteTree { routes, .. } => {
-                for r in routes {
-                    metrics.route_contract_ids_checked += 1;
-                    if !seen_route_contract_ids.insert(r.id.clone()) {
-                        out.push(WebIrDiagnostic {
-                            code: "web_ir_validate.route.duplicate_contract_id".to_string(),
-                            message: format!("duplicate RouteContract.id {:?}", r.id),
-                            span: None,
-                            category: Some("route".to_string()),
-                        });
-                    }
-                }
+                walk_route_contract_ids(routes, &mut seen_route_contract_ids, out, metrics);
             }
             RouteNode::LoaderContract {
                 route_id, contract, ..

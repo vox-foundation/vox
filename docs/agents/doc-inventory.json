@@ -11858,17 +11858,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs",
-      "kind": "rust",
-      "lines_total": 141,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-repository/src/discover.rs",
       "kind": "rust",
       "lines_total": 140,
@@ -17402,9 +17391,9 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/codegen_ts/tanstack_start.rs",
+      "path": "crates/vox-compiler/src/codegen_ts/route_manifest.rs",
       "kind": "rust",
-      "lines_total": 7,
+      "lines_total": 172,
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,

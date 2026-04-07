@@ -2,7 +2,7 @@
 title: "Vox Web: Minimal React Interop Implementation Plan"
 description: "Complete implementation plan for Vox's minimal-surface, framework-agnostic React interop system. Supersedes the TanStack Start-specific codegen plan. Covers route manifest pattern, vox-client typed fetch SDK, v0/shadcn compatibility, decorator retirement, and full migration with 250+ tasks."
 category: "architecture"
-last_updated: 2026-04-07
+last_updated: 2026-04-08
 training_eligible: true
 ---
 
@@ -390,30 +390,31 @@ routes {
 }
 ```
 
-### Extended (new, must parse after Wave A):
+### Extended (implemented in compiler; layout `as` syntax is future work)
+
+> **Parser status:** `with loader` / `with pending` / **nested** `{ ... }` child routes / `not_found:` / `error:` **parse and emit** into `routes.manifest.ts`. **`"/path" as layout Name { ... }`**, **HTTP redirects**, and **wildcard route lines** are **not** implemented yet (see `RouteEntry.redirect` / `is_wildcard` placeholders in the AST).
+
 ```vox
-loading: fn GlobalSpinner() {
-  view: <div class="spinner">Loading…</div>
+@loading fn GlobalSpinner() to Element {
+  ret <div class="spinner">"Loading…"</div>
 }
 
-not_found: fn NotFoundPage() {
-  view: <div class="not-found">404</div>
-}
+component Home() { state n: int = 0 view: <span>"home"</span> }
+component PostList() { state n: int = 0 view: <span>"posts"</span> }
+component NotFoundPage() { state n: int = 0 view: <span>"404"</span> }
+component ErrorFallback() { state n: int = 0 view: <span>"err"</span> }
+@query fn getPosts() -> int { ret 0 }
 
 routes {
-  "/" to Home
-  "/posts" to PostList with loader: getPosts
-  "/posts/:id" to PostDetail with (loader: getPost, pending: Spinner)
-  "/app" as layout AppShell {
-    "/app/dashboard" to Dashboard
-    "/app/settings" to Settings
+  "/" to Home {
+    "/posts" to PostList with loader: getPosts
   }
   not_found: NotFoundPage
   error: ErrorFallback
 }
 ```
 
-All of these map into the `VoxRoute[]` manifest — zero framework coupling.
+Future (not in the grammar today): `"/app" as layout AppShell { "/dashboard" to Dashboard }` — tracked as a parser/WebIR extension, not a normative example.
 
 ---
 
@@ -430,7 +431,7 @@ Tasks:
 - `RoutesDecl.error_component: Option<String>`
 - Parser: `with loader: fnName` clause after `to ComponentName`
 - Parser: `with (loader: fnName, pending: SpinnerName)` variant
-- Parser: `"/path" as layout Name { ... }` sub-block
+- Parser (deferred): `"/path" as layout Name { ... }` sub-block — **not implemented**; use nested string paths under a parent route instead
 - Parser: `not_found: ComponentName` terminal in routes body
 - Parser: `error: ComponentName` terminal in routes body
 - Parser: hard error on `@hook fn` — message + docs link
@@ -465,7 +466,7 @@ Tasks:
 - Remove `hir.components` loop from `codegen_ts/emitter.rs`
 - Remove `hir.v0_components` standalone loop (keep @v0 as island)
 - Remove `hir.components` CSS loop from `emitter.rs`
-- Remove `VoxTanStackRouter.tsx` emission path from `tanstack_programmatic_routes.rs`
+- Removed `VoxTanStackRouter.tsx` programmatic emitter (module retired; manifest + adapter is current)
 - Remove `App.tsx` (SPA RouterProvider) emission path
 - Keep `routeTree.gen.ts` re-export emission as a no-op / delete
 - Remove `#[allow(deprecated)]` for `components`, `v0_components`, `pages` in `generate_with_options`
@@ -546,93 +547,54 @@ Tasks:
 - `cargo check -p vox-cli` gate
 
 ### Wave 7 — Documentation Updates
-**Goal:** Bring all docs into sync with the new model.
+**Goal:** Bring all docs into sync with the **manifest + `vox-client.ts`** model.
 
-Tasks:
-- Update `docs/src/architecture/tanstack-web-roadmap.md`: archive Phase 7 tanstack-start items, add Phase 8 "Minimal Interop Shell"
-- Update `docs/src/architecture/tanstack-web-backlog.md`: reflect actual current state
-- Create or update `docs/src/reference/ref-web-model.md`: rewrite route syntax, loader syntax, not_found, error, layout grouping
-- Update `docs/src/reference/vox-web-stack.md`: reflect new outputs (routes.manifest.ts, vox-client.ts, scaffold App.tsx)
-- Create `docs/src/how-to/tanstack-ssr-with-axum.md` addendum: note that TanStack Start is a user adapter choice, not Vox-generated
-- Create `docs/src/how-to/v0-shadcn-vox.md`: end-to-end guide for using v0.dev, shadcn, and Vox together
-- Update `docs/src/api/decorators/loading.md`: now maps to `pendingComponent` in route manifest
-- Update `docs/src/api/decorators/layout.md`: now maps to layout group in route manifest
-- Create/update `docs/src/api/decorators/not_found.md`: maps to `notFoundComponent` export
-- Create/update `docs/src/api/decorators/error_boundary.md`: maps to `App.tsx` error boundary
-- Update `docs/src/api/decorators/query.md`: now generates `vox-client.ts` GET
-- Update `docs/src/api/decorators/mutation.md`: now generates `vox-client.ts` POST
-- Update `docs/src/api/decorators/component.md` (classic `@component fn`): mark retired
-- Create `docs/src/api/decorators/context.md`: mark retired with migration guide
-- Create `docs/src/api/decorators/hook.md`: mark retired with migration guide
-- Create `docs/src/api/decorators/provider.md`: mark retired with migration guide
-- Update `docs/src/api/decorators/page.md` if exists: mark retired
-- Update `docs/src/architecture/architecture-index.md`: link to react-interop-research-findings-2026.md
-- Run mdbook build and fix any broken links
+**Done (verify / maintain):**
+- [`tanstack-web-backlog.md`](./tanstack-web-backlog.md) Phase 7 **wave verdicts** + Phase 5 Query note (**`useVoxServerQuery`** emitted; optional component auto-wrap).
+- [`vox-web-stack.md`](../reference/vox-web-stack.md) — SPA vs Start, GET `@query`, links to [`vox-codegen-ts.md`](../api/vox-codegen-ts.md) + [`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md).
+- [`ref-web-model.md`](../reference/ref-web-model.md) — route / loader / `not_found` / `error` (nested paths; **no** `as layout` / redirect / wildcard until implemented).
+- [`tanstack-ssr-with-axum.md`](../how-to/tanstack-ssr-with-axum.md) — Start as user adapter; Axum proxy env.
+- **API docs:** [`query.md`](../api/decorators/query.md), [`mutation.md`](../api/decorators/mutation.md), [`server.md`](../api/decorators/server.md), [`v0.md`](../api/decorators/v0.md), [`component.md`](../api/decorators/component.md), [`deprecated.md`](../api/decorators/deprecated.md). Route-level `loading` / `not_found` / `error` / nested `routes` syntax: [`ref-web-model.md`](../reference/ref-web-model.md) (per-decorator `loading.md` / `layout.md` files are **optional** future splits).
+- [`architecture-index.md`](./architecture-index.md) links to interop research when touching navigation.
+
+**Deferred / optional:**
+- Dedicated **`v0-shadcn-vox.md`** cookbook (covered today by [`v0.md`](../api/decorators/v0.md), doctor, scaffold `components.json`; add how-to when we want one narrative page).
+- [`tanstack-web-roadmap.md`](./tanstack-web-roadmap.md) Phase 8 archive line — editorial when roadmap is next revised.
+
+**Ongoing:** `mdbook build` in CI / local when editing `docs/src/`.
 
 ### Wave 8 — Golden Examples
 **Goal:** Update examples to use canonical, new syntax.
 
-Tasks:
-- Create `examples/golden/blog_fullstack.vox`:
-  - `@table Post { id: int, title: str, body: str }`
-  - `@query fn getPosts() -> list[Post]`
-  - `@mutation fn createPost(title: str, body: str) -> Post`
-  - `loading: fn Spinner() { ... }`
-  - `not_found: fn NotFoundPage() { ... }`
-  - `component PostList() { ... }` using `voxClient.getPosts()` in a `useEffect`
-  - `component PostForm() { ... }` calling `voxClient.createPost(...)`
-  - `routes { "/posts" to PostList with loader: getPosts, "/posts/new" to PostForm, not_found: NotFoundPage }`
-- Create `examples/golden/v0_shadcn_island.vox`:
-  - Demonstrates `@island` + `@v0` declarations
-  - Shows how v0-generated component is consumed
-- Create `examples/golden/layout_groups.vox`:
-  - Demonstrates `"/app" as layout AppShell { children }` route grouping
-- Update `examples/golden/rest_api.vox` if it exists:
-  - Replace any old `@component fn` or `serverFns` references
-  - Use canonical `@query`/`@mutation` → vox-client.ts
-- Create `examples/README.md` entries for all new golden files
-- Run `cargo test -p vox-parser` parity tests (all golden must parse)
-- Run `VOX_EXAMPLES_STRICT_PARSE=1 cargo test` (strict parse gate)
+**Status:**
+- [x] `examples/golden/web_routing_fullstack.vox` — nested `routes`, `@query` loader, `@loading`, `not_found` / `error` (guarded by `cargo test -p vox-compiler all_golden_vox_examples_parse_and_lower`).
+- [x] `examples/golden/blog_fullstack.vox` — `@table` + `@query` + `@mutation` + nested routes; pipeline: `cargo test -p vox-integration-tests --test pipeline golden_blog_fullstack_codegen_emits_manifest_get_and_post`.
+- [x] `examples/golden/v0_shadcn_island.vox` — `@v0` chat-id stub + `routes`; pipeline: `golden_v0_shadcn_island_codegen_includes_routes_manifest`.
+- [ ] `examples/golden/layout_groups.vox` — **blocked** until `"/path" as layout Name { }` is implemented; use nested string paths today.
 
 ### Wave 9 — Tests
-**Goal:** Add thorough test coverage for all new codegen.
+**Goal:** Codegen and scaffold coverage.
 
-Tasks:
-- Add snapshot test: `routes_manifest_basic` — `routes { "/" to Home }` → `voxRoutes contains VoxRoute for /`
-- Add snapshot test: `routes_manifest_with_loader` — `with loader: getPosts` → `loader:` in manifest
-- Add snapshot test: `routes_manifest_with_pending` — `with pending: Spinner` → `pendingComponent: Spinner`
-- Add snapshot test: `routes_manifest_not_found` — `not_found: NotFoundPage` → `notFoundComponent` export
-- Add snapshot test: `routes_manifest_layout_group` — `"/app" as layout Shell { ... }` → nested children VoxRoute
-- Add unit test: `vox_client_query_emits_get_fetch` — `@query fn` → `$get(...)` in vox-client.ts
-- Add unit test: `vox_client_mutation_emits_post_fetch` — `@mutation fn` → `$post(...)` in vox-client.ts
-- Add unit test: `vox_client_has_vite_api_url_constant` — manifest contains `import.meta.env.VITE_API_URL`
-- Add unit test: `vox_client_no_createServerFn_reference` — assert `createServerFn` does not appear in output
-- Add unit test: `scaffold_main_tsx_uses_createRoot` — scaffold `app/main.tsx` contains `ReactDOM.createRoot`
-- Add unit test: `scaffold_components_json_rsc_false` — `components.json` has `"rsc": false`
-- Add unit test: `scaffold_app_tsx_imports_voxRoutes` — `App.tsx` imports from `routes.manifest`
-- Add unit test: `scaffold_vite_config_has_api_proxy` — `vite.config.ts` has `/api` proxy entry
-- Add unit test: `classic_component_fn_emits_error_diagnostic` — `@component fn` → TypeckSeverity::Error
-- Add integration test: `pipeline_blog_fullstack_produces_manifest_and_client` — compiles blog_fullstack.vox, asserts `routes.manifest.ts` + `vox-client.ts` both present
-- Update `pipeline.rs` TanStack integration tests — remove assertions for `VoxTanStackRouter.tsx`/`__root.tsx`
-- `cargo test -p vox-compiler -p vox-cli -p vox-integration-tests` full pass
+Coverage today (names may differ from original sketch): `codegen_routes_produces_route_manifest_ts`, `codegen_routes_with_loading_emits_pending_component`, `codegen_tanstack_start_flag_does_not_emit_separate_router_file`, `golden_web_routing_fullstack_codegen_emits_manifest_and_client` in `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`; `codegen_nested_route_manifest_…`, `codegen_output_never_includes_vox_tanstack_router_or_server_fns`, `emitter_source_orders_validate_gate_before_route_manifest` in `crates/vox-compiler/tests/web_ir_lower_emit.rs`; `axum_emit_contract.rs` for GET query routes + mutation transaction error JSON.
+
+**Deferred:** layout-group snapshot until `as layout` parsing exists.
 
 ---
 
 ## v0.dev / shadcn Compatibility Checklist
 
-These are the hard requirements for Vox → v0 interop. All must be true:
+Scaffold vs compiler vs doctor — **\[scaffold]** items are written by `scaffold_react_app`; **\[compiler]** from `vox build` output; **\[doctor]** optional `vox doctor` checks when files exist.
 
-- [ ] Scaffold `components.json` has `"rsc": false`
-- [ ] Scaffold `vite.config.ts` has `@` alias pointing to `./app`
-- [ ] Scaffold `tsconfig.json` has `"paths": { "@/*": ["./app/*"] }`
-- [ ] Generated components use `className=` (not `class=`) — verify JSX emitter
-- [ ] Generated components use named exports (`export function Name`)
-- [ ] Generated route manifest does NOT use `"use server"` or `"use client"`
-- [ ] Generated `vox-client.ts` does NOT use `createServerFn`
-- [ ] `@island` TypeScript files land in `islands/src/` (unchanged from current)
-- [ ] `@v0` stubs emit a comment: `// Install this island: npx shadcn@latest add [URL]`
-- [ ] Tailwind v4 import is `@import "tailwindcss"` in `globals.css` (not old v3 directives)
-- [ ] `lucide-react` is in scaffold `package.json` deps (v0 components import from it)
+- [x] **\[scaffold]** `components.json` includes `"rsc": false` (minimal shadcn-style manifest)
+- [x] **\[scaffold]** `vite.config.ts` **`resolve.alias`**: `@` → `./src` (pairs with `tsconfig` paths; see [`spa.rs`](../../../crates/vox-cli/src/templates/spa.rs) `vite_config`)
+- [x] **\[scaffold]** `tsconfig.json` includes `"baseUrl": "."` and `"paths": { "@/*": ["./src/*"] }`
+- [x] **\[compiler]** JSX uses `className=` / named exports — see WebIR + `hir_emit`
+- [x] **\[compiler]** No `"use server"` / `"use client"` in generated manifest
+- [x] **\[compiler]** No `createServerFn` in `vox-client.ts` — `web_ir_lower_emit` / CI guards
+- [x] **\[workflow]** `@island` implementations under `islands/src/`
+- [x] **\[compiler]** `@v0` stub includes shadcn install hint comment in generated placeholder TSX
+- [x] **\[scaffold]** Tailwind v4 — **policy:** default scaffold keeps **Vox theme baseline** CSS ([`index_css`](../../../crates/vox-cli/src/templates/spa.rs)); charter “interop target” means **CLI + docs align with shadcn/Tailwind v4** when authors add Tailwind (see [charter](./react-interop-migration-charter-2026.md#policy)). Optional: add `@import "tailwindcss"` in a follow-on template toggle.
+- [x] **\[scaffold]** `lucide-react` in `package.json` dependencies
 
 ---
 
@@ -652,7 +614,7 @@ component MyButton(label: str) {
 }
 ```
 
-Run `vox migrate component src/` to auto-migrate.
+Run `vox migrate web` (with optional `--write` / `--check`) to auto-migrate `.vox` sources in the repo.
 
 ### `context: AuthContext { user: User }` → Delete
 
@@ -692,17 +654,16 @@ export function App() {
 
 ---
 
-## Done Criteria
+## Done Criteria (machine gates + manual polish)
 
-- [ ] `cargo check -p vox-compiler -p vox-cli -p vox-integration-tests` — 0 errors
-- [ ] `cargo test -p vox-compiler` — all pass (snapshots updated)
-- [ ] `cargo test -p vox-integration-tests` — all pass
-- [ ] `vox build --scaffold` on `examples/golden/blog_fullstack.vox`:
-  - Produces `dist/routes.manifest.ts` with VoxRoute[] array
-  - Produces `dist/vox-client.ts` with typed fetch functions
-  - Produces `dist/types.ts` with Post interface
-  - Produces `app/main.tsx`, `app/App.tsx`, `app/components.json`, `vite.config.ts`, `package.json`
-  - Does NOT produce `VoxTanStackRouter.tsx`, `__root.tsx`, or `createServerFn` references
-- [ ] `npx shadcn@latest add button` works in the generated project (validates `components.json`)
-- [ ] `pnpm install && vite dev` starts without errors on generated output
-- [ ] A v0-generated component (`LoginForm.tsx`) can be placed in `islands/` and imported without modification
+| Gate | Command / artifact | Notes |
+|------|-------------------|--------|
+| Compile | `cargo check -p vox-compiler -p vox-cli -p vox-integration-tests` | CI gate |
+| Compiler tests | `cargo test -p vox-compiler` | Includes `web_ir_lower_emit`, `axum_emit_contract`, golden parse |
+| Integration | `cargo test -p vox-integration-tests golden_web_routing_fullstack_codegen_emits_manifest_and_client` | Manifest + client smoke ([`include_01.rs`](../../../crates/vox-integration-tests/tests/pipeline/includes/include_01.rs)); add filters for new goldens as they land |
+| Forbidden strings | `web_ir_lower_emit` / pipeline | No `VoxTanStackRouter`, `createServerFn` in generated TS (see compiler tests) |
+| Optional E2E | `vox build` + `pnpm install && vite dev` on a scaffolded app | Manual / smoke job (`VOX_WEB_VITE_SMOKE`); not blocking on `blog_fullstack.vox` until golden exists |
+| shadcn CLI | `npx shadcn@latest add …` | Validates `components.json` when authors run it; doctor warns on `rsc` |
+| v0 drop-in | Islands + named exports | [`v0` decorator doc](../api/decorators/v0.md), `v0_tsx_normalize` tests |
+
+**Optional goldens:** `blog_fullstack.vox`, `v0_shadcn_island.vox` — tutorial narrative; **`web_routing_fullstack.vox`** already covers nested routes + loader + pending + `not_found` / `error`.

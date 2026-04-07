@@ -142,6 +142,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Lsp => {
             crate::commands::lsp::run()?;
         }
+        Cli::Migrate { cmd } => {
+            crate::commands::migrate::run(cmd)?;
+        }
         Cli::Mcp => {
             crate::commands::mcp::run()?;
         }

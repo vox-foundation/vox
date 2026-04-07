@@ -26,6 +26,7 @@ serde_yaml = { workspace = true }
 [dev-dependencies]
 serde_yaml = { workspace = true }
 jsonschema = { workspace = true }
+serial_test = { workspace = true }
 
 [lints]
 workspace = true

@@ -412,9 +412,10 @@ mod tests {
         });
 
         let out = emit_main(&module, "demo_pkg");
-        assert!(out.contains(".route(\"/api/query/q1\", post(handle_q_q1))"));
+        assert!(out.contains(".route(\"/api/query/q1\", get(handle_q_q1))"));
         assert!(out.contains(".route(\"/api/mutation/m1\", post(handle_m_m1))"));
         assert!(out.contains("async fn handle_q_q1("));
+        assert!(out.contains("Query(q): Query<std::collections::BTreeMap<String, String>>"));
         assert!(out.contains("async fn handle_m_m1("));
     }
 

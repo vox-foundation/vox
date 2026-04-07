@@ -71,7 +71,7 @@ fn recent_incomplete_tasks() to List[Task] {
 }
 ```
 
-`@mutation` wraps the write in a transaction and exposes `POST /api/mutation/add_task`. `@query` is read-only and validated against your schema. `@server` is a general RPC endpoint.
+`@mutation` wraps the write in a transaction and exposes `POST /api/mutation/add_task`. `@query` is read-only ( **`GET /api/query/<name>`** + JSON query args) and validated against your schema. `@server` is a general RPC endpoint (**`POST`** + JSON body).
 
 ### Step 3 — Build the UI in the same language
 

@@ -143,6 +143,10 @@ fn sorted_server_fns(hir: &HirModule) -> Vec<&HirServerFn> {
     v
 }
 
+fn is_hir_query_fn(hir: &HirModule, sf: &HirServerFn) -> bool {
+    hir.query_fns.iter().any(|q| q.id == sf.id)
+}
+
 fn emit_hir_route_expr(expr: &HirExpr) -> String {
     let empty = HashSet::new();
     let no_islands = empty_island_set();
@@ -293,15 +297,27 @@ pub fn generate_routes_from_ctx(ctx: &ExpressRouteEmitCtx<'_>) -> String {
 
     for sf in &server_fns {
         let route_path = &sf.route_path;
+        let is_query = is_hir_query_fn(hir, sf);
+        let method = if is_query { "get" } else { "post" };
         out.push_str(&format!(
-            "app.post(\"{route_path}\", async (req: Request, res: Response) => {{\n"
+            "app.{method}(\"{route_path}\", async (req: Request, res: Response) => {{\n"
         ));
         out.push_str("  try {\n");
-        for param in &sf.params {
-            out.push_str(&format!(
-                "    const {} = req.body.{};\n",
-                param.name, param.name
-            ));
+        if is_query {
+            out.push_str("    const q = req.query;\n");
+            for param in &sf.params {
+                out.push_str(&format!(
+                    "    const {p} = q.{p} !== undefined ? JSON.parse(String(q.{p})) : null;\n",
+                    p = param.name
+                ));
+            }
+        } else {
+            for param in &sf.params {
+                out.push_str(&format!(
+                    "    const {} = req.body.{};\n",
+                    param.name, param.name
+                ));
+            }
         }
         for stmt in &sf.body {
             out.push_str(&format!("    {}", emit_hir_route_stmt(stmt)));

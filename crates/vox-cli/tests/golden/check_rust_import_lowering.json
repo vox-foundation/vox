@@ -1,29 +1,62 @@
 [
   {
-    "category": "Typecheck",
-    "code": "E0001",
-    "col": 8,
+    "category": "typecheck",
+    "context": "",
+    "expected_type": null,
     "file": "tests/fixtures/golden_rust_import_lowering.vox",
-    "line": 1,
+    "found_type": null,
+    "line_col": {
+      "col_end": 1,
+      "col_start": 8,
+      "line_end": 2,
+      "line_start": 1
+    },
     "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
-    "severity": "Warning"
+    "severity": "Warning",
+    "span": {
+      "end": 45,
+      "start": 7
+    },
+    "suggestions": []
   },
   {
-    "category": "Typecheck",
-    "code": "E0002",
-    "col": 8,
+    "category": "typecheck",
+    "context": "",
+    "expected_type": null,
     "file": "tests/fixtures/golden_rust_import_lowering.vox",
-    "line": 2,
+    "found_type": null,
+    "line_col": {
+      "col_end": 1,
+      "col_start": 8,
+      "line_end": 3,
+      "line_start": 2
+    },
     "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
-    "severity": "Warning"
+    "severity": "Warning",
+    "span": {
+      "end": 90,
+      "start": 52
+    },
+    "suggestions": []
   },
   {
-    "category": "Lowering",
-    "code": "E0003",
-    "col": 8,
+    "category": "lowering",
+    "context": "",
+    "expected_type": null,
     "file": "tests/fixtures/golden_rust_import_lowering.vox",
-    "line": 2,
+    "found_type": null,
+    "line_col": {
+      "col_end": 1,
+      "col_start": 8,
+      "line_end": 3,
+      "line_start": 2
+    },
     "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
-    "severity": "Error"
+    "severity": "Error",
+    "span": {
+      "end": 90,
+      "start": 52
+    },
+    "suggestions": []
   }
 ]

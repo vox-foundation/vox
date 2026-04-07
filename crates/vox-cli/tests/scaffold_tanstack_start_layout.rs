@@ -9,16 +9,16 @@ use vox_cli::frontend;
 use vox_cli::templates;
 
 #[test]
-fn tanstack_start_programmatic_layout_writes_reexport_and_skips_index_route() {
+fn tanstack_start_with_route_manifest_uses_file_route_fallback() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let ts_out = tmp.path().join("ts_out");
     let app = tmp.path().join("app");
     fs::create_dir_all(&ts_out).expect("ts_out");
     fs::write(
-        ts_out.join("VoxTanStackRouter.tsx"),
-        "// stub\nexport const voxRouteTree = {} as never;\n",
+        ts_out.join("routes.manifest.ts"),
+        "export const voxRoutes = [] as never[];\n",
     )
-    .expect("vox");
+    .expect("manifest");
     fs::write(
         ts_out.join("Home.tsx"),
         "export function Home() { return null; }\n",
@@ -27,21 +27,28 @@ fn tanstack_start_programmatic_layout_writes_reexport_and_skips_index_route() {
 
     frontend::scaffold_react_app(&app, &ts_out, true).expect("scaffold");
 
+    let components = fs::read_to_string(app.join("components.json")).expect("components.json");
     assert!(
-        app.join("src/routeTree.gen.ts").is_file(),
-        "routeTree.gen.ts missing"
+        components.contains("\"rsc\": false"),
+        "scaffold should ship shadcn-compatible components.json with rsc:false"
     );
-    let rt = fs::read_to_string(app.join("src/routeTree.gen.ts")).expect("read routeTree.gen");
+    let tsconfig = fs::read_to_string(app.join("tsconfig.json")).expect("tsconfig");
     assert!(
-        rt.contains("VoxTanStackRouter"),
-        "expected re-export from VoxTanStackRouter, got: {rt}"
+        tsconfig.contains("\"@/*\": [\"./src/*\"]"),
+        "tsconfig should alias @/* to src for shadcn-style imports"
     );
+
     assert!(
-        !app.join("src/routes/index.tsx").exists(),
-        "programmatic Start must not write routes/index.tsx"
+        app.join("src/routes/index.tsx").is_file(),
+        "Start + manifest (no legacy VoxTanStackRouter) should fall back to file routes"
     );
     assert!(app.join("src/router.tsx").is_file());
     assert!(app.join("src/routes/__root.tsx").is_file());
+    let adapter = fs::read_to_string(app.join("src/vox-manifest-route-adapter.tsx")).expect("adapter");
+    assert!(
+        adapter.contains("buildChildRoutes"),
+        "Start scaffold should ship shared manifest adapter when routes.manifest.ts is present"
+    );
 }
 
 #[test]
@@ -64,8 +71,8 @@ fn tanstack_start_file_route_fallback_writes_index() {
 }
 
 #[test]
-fn route_tree_reexport_template_contains_router_type_import() {
-    let s = templates::tanstack_start_route_tree_gen_reexport();
-    assert!(s.contains("voxRouteTree"));
-    assert!(s.contains("./router"));
+fn route_tree_seed_template_contains_router_type_import() {
+    let s = templates::tanstack_start_route_tree_gen();
+    assert!(s.contains("routeTree"));
+    assert!(s.contains("./router.tsx"));
 }

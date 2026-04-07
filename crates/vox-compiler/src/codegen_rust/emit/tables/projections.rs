@@ -118,6 +118,7 @@ mod tests {
                 span,
             })],
             view: None,
+            styles: vec![],
             span,
         });
 

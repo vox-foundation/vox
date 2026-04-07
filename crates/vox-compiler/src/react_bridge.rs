@@ -33,6 +33,8 @@ pub mod react_exports {
     pub const USE_STATE: &str = "useState";
     pub const USE_EFFECT: &str = "useEffect";
     pub const USE_MEMO: &str = "useMemo";
+    pub const USE_REF: &str = "useRef";
+    pub const USE_CALLBACK: &str = "useCallback";
 }
 
 #[must_use]

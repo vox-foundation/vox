@@ -209,8 +209,8 @@ fn make_circle() to Shape {
 fn component_with_element_return_no_warning() {
     let warns = warnings(
         r#"
-@component fn Button() to Element {
-    <button>"Click"</button>
+component Button() {
+    view: <button>"Click"</button>
 }
 "#,
     );

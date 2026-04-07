@@ -70,6 +70,8 @@ pub mod live;
 pub mod lock;
 /// Legacy login command (compat shim to Clavis).
 pub mod login;
+/// React interop / web stack migrations (`vox migrate web`, …).
+pub mod migrate;
 /// Legacy logout command (compat shim to Clavis).
 pub mod logout;
 /// Launch Language Server Protocol wrapper (`vox lsp`).

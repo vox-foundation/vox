@@ -6,6 +6,17 @@ use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppr
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
+use crate::web_migration_env::legacy_component_fn_allowed;
+
+/// Classic `@component fn` (only present when `VOX_ALLOW_LEGACY_COMPONENT_FN=1` was used during parse)
+/// is a **Warning** under that escape hatch; otherwise it is an **Error** (defense in depth).
+fn legacy_component_fn_lint_severity() -> TypeckSeverity {
+    if legacy_component_fn_allowed() {
+        TypeckSeverity::Warning
+    } else {
+        TypeckSeverity::Error
+    }
+}
 
 fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
     match te {
@@ -224,9 +235,10 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
 
     for decl in &module.declarations {
         if let Decl::Component(c) = decl {
+            let severity = legacy_component_fn_lint_severity();
             diags.push(Diagnostic {
-                severity: TypeckSeverity::Warning,
-                message: "Classic `@component fn` syntax is deprecated. Use Path C `component Name() { ... }` instead.".to_string(),
+                severity,
+                message: "Classic `@component fn` syntax is retired. Use Path C `component Name() { ... }` instead (remove `VOX_ALLOW_LEGACY_COMPONENT_FN` once migrated).".to_string(),
                 span: c.func.span,
                 expected_type: None,
                 found_type: None,
@@ -240,6 +252,47 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                 line_col: None,
             });
             diags.extend(lint_component_react_hooks(c));
+        }
+    }
+
+    for decl in &module.declarations {
+        let retired: Option<(&str, crate::ast::span::Span, &str)> = match decl {
+            Decl::Context(c) => Some((
+                "`context` declarations are retired. Define React Context in user-owned `app/App.tsx` (see react-interop migration charter).",
+                c.span,
+                "lint.retired_context",
+            )),
+            Decl::Hook(h) => Some((
+                "`@hook fn` is retired. Prefer Path C `component`, islands, or plain TS under `islands/`.",
+                h.func.span,
+                "lint.retired_hook_fn",
+            )),
+            Decl::Provider(p) => Some((
+                "`@provider fn` is retired. Add providers in user-owned `app/App.tsx`.",
+                p.span,
+                "lint.retired_provider_fn",
+            )),
+            Decl::Page(pg) => Some((
+                "`page:` / static Page declarations are retired for the web stack. Use `routes { ... }` and Path C components.",
+                pg.span,
+                "lint.retired_page_decl",
+            )),
+            _ => None,
+        };
+        if let Some((message, span, code)) = retired {
+            diags.push(Diagnostic {
+                severity: TypeckSeverity::Error,
+                message: message.to_string(),
+                span,
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec![],
+                category: DiagnosticCategory::Lint,
+                code: Some(code.to_string()),
+                fixes: vec![],
+                line_col: None,
+            });
         }
     }
 

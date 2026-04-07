@@ -90,8 +90,8 @@ import react.use_effect
     content: str
 }
 
-@component fn Chat() to jsx {
-    ret <div class="chat"><div class="messages"></div></div>
+component Chat() {
+    view: <div class="chat"><div class="messages"></div></div>
 }
 
 routes {
@@ -119,8 +119,8 @@ import react.use_effect
     timestamp: str
 }
 
-@component fn Dashboard() to jsx {
-    ret <div class="dashboard"><h1>Dashboard</h1></div>
+component Dashboard() {
+    view: <div class="dashboard"><h1>Dashboard</h1></div>
 }
 
 routes {

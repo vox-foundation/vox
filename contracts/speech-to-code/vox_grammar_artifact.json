@@ -36,16 +36,11 @@
     "is",
     "isnt",
     "true",
-    "false",
-    "get",
-    "post",
-    "put",
-    "delete"
+    "false"
   ],
   "decorators": [
     "@component",
     "@mcp.tool",
-    "@external",
     "@test",
     "@server",
     "@query",

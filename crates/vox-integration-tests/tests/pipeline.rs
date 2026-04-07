@@ -42,8 +42,8 @@ fn with_express_server_enabled<R>(f: impl FnOnce() -> R) -> R {
     f()
 }
 
-/// Clears `VOX_WEBIR_VALIDATE` for the duration of `f`, then restores the prior value.
-/// Uses [`ENV_MUTEX`] so tests do not race `codegen_ts::maybe_web_ir_validate`.
+/// Sets `VOX_WEBIR_VALIDATE=0` to skip the Web IR validate gate (default is on), then restores the prior value.
+/// Uses [`ENV_MUTEX`] so tests do not race codegen.
 fn with_web_ir_validate_cleared<R>(f: impl FnOnce() -> R) -> R {
     let _env_guard = ENV_MUTEX.lock().expect("ENV_MUTEX poisoned");
     const KEY: &str = "VOX_WEBIR_VALIDATE";
@@ -60,7 +60,7 @@ fn with_web_ir_validate_cleared<R>(f: impl FnOnce() -> R) -> R {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        std::env::remove_var(KEY);
+        std::env::set_var(KEY, "0");
     }
     let _guard = Guard { prev };
     f()
@@ -128,14 +128,16 @@ type ChatResult =
     | Ok(text: str)
     | Error(message: str)
 
-@component fn Chat() to Element {
+component Chat() {
     let (messages, set_messages) = use_state([{role: "bot", text: ""}])
     let (input, set_input) = use_state("")
     let send = fn(msg) set_messages(messages.append({role: "user", text: msg}))
-    <div class="chat-container">
-        <h1>"Vox Chatbot"</h1>
-        <button on_click={fn(_e) send(input)}>"Send"</button>
-    </div>
+    view: (
+        <div class="chat-container">
+            <h1>"Vox Chatbot"</h1>
+            <button on_click={fn(_e) send(input)}>"Send"</button>
+        </div>
+    )
 }
 
 actor Claude {

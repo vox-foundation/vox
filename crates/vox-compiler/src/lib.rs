@@ -28,6 +28,7 @@ pub mod serialization;
 pub mod syntax_k;
 pub mod typeck;
 pub mod web_ir;
+mod web_migration_env;
 pub mod web_prefixes;
 
 /// Re-export of common types if needed.

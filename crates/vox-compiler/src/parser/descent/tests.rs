@@ -4,6 +4,10 @@ use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
 use crate::parser::ParseErrorClass;
+use std::sync::Mutex;
+
+/// Serialize tests that toggle `VOX_ALLOW_LEGACY_COMPONENT_FN` (process-global).
+static LEGACY_COMPONENT_FN_ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn parse_str(source: &str) -> Module {
     let tokens = lex(source);
@@ -78,9 +82,29 @@ fn test_parse_let() {
 }
 
 #[test]
-fn test_parse_component() {
+fn classic_component_fn_is_parse_error_without_escape_hatch() {
+    let _g = LEGACY_COMPONENT_FN_ENV_LOCK
+        .lock()
+        .expect("LEGACY_COMPONENT_FN_ENV_LOCK poisoned");
+    unsafe {
+        std::env::remove_var("VOX_ALLOW_LEGACY_COMPONENT_FN");
+    }
+    assert_parse_fails("@component fn Chat() to Element { ret 0 }");
+}
+
+#[test]
+fn classic_component_fn_parses_when_escape_hatch_enabled() {
+    let _g = LEGACY_COMPONENT_FN_ENV_LOCK
+        .lock()
+        .expect("LEGACY_COMPONENT_FN_ENV_LOCK poisoned");
+    unsafe {
+        std::env::set_var("VOX_ALLOW_LEGACY_COMPONENT_FN", "1");
+    }
     let m = parse_str("@component fn Chat() to Element { ret 0 }");
     assert!(matches!(&m.declarations[0], Decl::Component(_)));
+    unsafe {
+        std::env::remove_var("VOX_ALLOW_LEGACY_COMPONENT_FN");
+    }
 }
 
 #[test]
@@ -263,34 +287,29 @@ fn test_parse_method_chain() {
 
 #[test]
 fn test_parse_jsx_self_closing() {
-    let m = parse_str("@component fn App() to Element { <input value=\"test\" /> }");
-    if let Decl::Component(c) = &m.declarations[0] {
-        if let Stmt::Expr {
-            expr: Expr::JsxSelfClosing(_),
-            ..
-        } = &c.func.body[0]
-        {
-            // ok
-        } else {
-            panic!("Expected self-closing JSX");
+    let m = parse_str("component App() { view: <input value=\"test\" /> }");
+    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+        match &r.view {
+            Some(Expr::JsxSelfClosing(_)) => {}
+            other => panic!("Expected self-closing JSX in view, got {other:?}"),
         }
+    } else {
+        panic!("Expected reactive component");
     }
 }
 
 #[test]
 fn test_parse_jsx_with_children() {
-    let m = parse_str("@component fn A() to Element { <div><span>hello</span></div> }");
-    if let Decl::Component(c) = &m.declarations[0] {
-        if let Stmt::Expr {
-            expr: Expr::Jsx(el),
-            ..
-        } = &c.func.body[0]
-        {
+    let m = parse_str("component A() { view: <div><span>hello</span></div> }");
+    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+        if let Some(Expr::Jsx(el)) = &r.view {
             assert_eq!(el.tag, "div");
             assert_eq!(el.children.len(), 1);
         } else {
-            panic!("Expected JSX element");
+            panic!("Expected JSX element in view");
         }
+    } else {
+        panic!("Expected reactive component");
     }
 }
 
@@ -409,6 +428,19 @@ fn test_parse_v0_component() {
     if let Decl::V0Component(v) = &m.declarations[0] {
         assert_eq!(v.name, "Dashboard");
         assert_eq!(v.v0_id, "yM1xXq6");
+        assert!(v.image_path.is_none());
+    } else {
+        panic!("Expected V0Component, got {:?}", m.declarations[0]);
+    }
+}
+
+#[test]
+fn test_parse_v0_component_from_image() {
+    let m = parse_str(r#"@v0 from "mock.png" fn Landing() -> Element"#);
+    if let Decl::V0Component(v) = &m.declarations[0] {
+        assert_eq!(v.name, "Landing");
+        assert_eq!(v.v0_id, "");
+        assert_eq!(v.image_path.as_deref(), Some("mock.png"));
     } else {
         panic!("Expected V0Component, got {:?}", m.declarations[0]);
     }
@@ -554,14 +586,14 @@ fn test_routes_parse_summary_matches_paths() {
     }
 }
 
-/// OP-0029: unknown reactive member token uses [`ParseErrorClass::ReactiveComponentMember`].
+/// OP-0029: misplaced `view` JSX without `view:` is a hard parse failure (colon expectation).
 #[test]
 fn test_reactive_body_unknown_token_diagnostic_class() {
-    let tokens = lex("@component Bad() { not_a_member 1 }");
+    let tokens = lex("@component Bad() {\n  view <div />\n}");
     let err = parse(tokens).expect_err("expected parse failure");
     assert!(
         err.iter()
-            .any(|e| e.class == ParseErrorClass::ReactiveComponentMember),
+            .any(|e| e.class == ParseErrorClass::ExpectToken || e.class == ParseErrorClass::TopLevel),
         "{err:?}"
     );
 }

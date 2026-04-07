@@ -175,11 +175,13 @@ fn web_ir_validate_duplicate_route_contract_id() {
                 id: "route_0".into(),
                 pattern: "/".into(),
                 meta: serde_json::json!({ "component": "A" }),
+                children: vec![],
             },
             RouteContract {
                 id: "route_0".into(),
                 pattern: "/b".into(),
                 meta: serde_json::json!({ "component": "B" }),
+                children: vec![],
             },
         ],
         span: None,
@@ -192,7 +194,7 @@ fn web_ir_validate_duplicate_route_contract_id() {
     );
 }
 
-/// OP-S026 / OP-S025: `generate_with_options` runs WebIR validate when `VOX_WEBIR_VALIDATE=1`.
+/// OP-S026 / OP-S025: `generate_with_options` runs WebIR validate by default (`VOX_WEBIR_VALIDATE` unset).
 #[test]
 fn codegen_emitter_honors_vox_webir_validate_success_path() {
     let _lock = WEBIR_VALIDATE_EMITTER_LOCK
@@ -211,7 +213,9 @@ fn codegen_emitter_honors_vox_webir_validate_success_path() {
         }
     }
     let prev = std::env::var_os(KEY);
-    unsafe { std::env::set_var(KEY, "1") };
+    unsafe {
+        std::env::remove_var(KEY);
+    }
     let _guard = Guard { prev };
 
     let source = r#"
@@ -230,6 +234,98 @@ routes {
         out.files.iter().any(|(n, _)| n == "Home.tsx"),
         "{:?}",
         out.files.iter().map(|x| &x.0).collect::<Vec<_>>()
+    );
+}
+
+/// Nested `routes { }`, loaders, pending, and block-level `not_found` / `error` surface in `routes.manifest.ts`.
+#[test]
+fn codegen_nested_route_manifest_includes_children_loader_pending_and_boundary_exports() {
+    let source = r#"
+@query fn load_child() to int { ret 1 }
+
+component Home() {
+    state n: int = 0
+    view: <span>"home"</span>
+}
+
+component Child() {
+    state n: int = 0
+    view: <span>"child"</span>
+}
+
+component PendingSpin() {
+    state n: int = 0
+    view: <span>"…"</span>
+}
+
+component NotFoundPage() {
+    state n: int = 0
+    view: <span>"nf"</span>
+}
+
+component ErrorPage() {
+    state n: int = 0
+    view: <span>"err"</span>
+}
+
+routes {
+    "/" to Home with pending: PendingSpin {
+        "/child" to Child with loader: load_child
+    }
+    not_found: NotFoundPage
+    error: ErrorPage
+}
+"#;
+    let module = parse(lex(source)).expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_with_options(&hir, CodegenOptions::default()).expect("codegen");
+    let manifest = out
+        .files
+        .iter()
+        .find(|(n, _)| n == "routes.manifest.ts")
+        .map(|(_, c)| c.as_str())
+        .expect("routes.manifest.ts");
+    assert!(
+        manifest.contains("children:"),
+        "expected nested child routes in manifest:\n{manifest}"
+    );
+    assert!(
+        manifest.contains("pendingComponent: PendingSpin"),
+        "expected route-level pending:\n{manifest}"
+    );
+    assert!(
+        manifest.contains("loader: async () => load_child({})"),
+        "expected loader wrapper for static path:\n{manifest}"
+    );
+    assert!(
+        manifest.contains("export const notFoundComponent = NotFoundPage"),
+        "expected not_found export:\n{manifest}"
+    );
+    assert!(
+        manifest.contains("export const errorComponent = ErrorPage"),
+        "expected error export:\n{manifest}"
+    );
+    assert!(
+        manifest.contains("useVoxServerQuery") && manifest.contains("vox-tanstack-query"),
+        "manifest should document TanStack Query hook for component-level caching:\n{manifest}"
+    );
+}
+
+/// Emitter contract: `maybe_web_ir_validate` is invoked before the `route_manifest` match block so a failing
+/// `VOX_WEBIR_VALIDATE` gate never appends `routes.manifest.ts`.
+#[test]
+fn emitter_source_orders_validate_gate_before_route_manifest() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/codegen_ts/emitter.rs");
+    let src = std::fs::read_to_string(&path).expect("read emitter.rs");
+    let validate = src
+        .find("maybe_web_ir_validate(hir, web_projection_cache.as_ref())?")
+        .expect("maybe_web_ir_validate call");
+    let route_manifest = src
+        .find("let route_manifest = match web_projection_ref {")
+        .expect("route manifest match block");
+    assert!(
+        validate < route_manifest,
+        "validate gate must precede route manifest emit (validate={validate}, route_manifest={route_manifest})"
     );
 }
 
@@ -282,6 +378,67 @@ routes {
         err.contains("VOX_WEBIR_VALIDATE") && err.contains("web_ir_validate."),
         "{err}"
     );
+}
+
+/// WS08 / T074–T075: legacy TanStack router + `createServerFn` bundles must never ship from codegen.
+#[test]
+fn codegen_output_never_includes_vox_tanstack_router_or_server_fns() {
+    let source = r#"
+component Home() {
+    state n: int = 0
+    view: <span>{n}</span>
+}
+routes {
+    "/" to Home
+}
+http get "/api/x" to int {
+    ret 1
+}
+@query fn q_list() to int { ret 0 }
+"#;
+    let module = parse(lex(source)).expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_with_options(&hir, CodegenOptions::default()).expect("codegen");
+    let names: Vec<&str> = out.files.iter().map(|(n, _)| n.as_str()).collect();
+    for forbidden in ["VoxTanStackRouter.tsx", "serverFns.ts"] {
+        assert!(
+            !names.iter().any(|n| *n == forbidden),
+            "must not emit {forbidden}, files={names:?}"
+        );
+    }
+    let vox_client = out
+        .files
+        .iter()
+        .find(|(n, _)| n == "vox-client.ts")
+        .map(|(_, c)| c.as_str())
+        .expect("vox-client.ts when @query exists");
+    assert!(
+        vox_client.contains("method: \"GET\"") && vox_client.contains("$get"),
+        "vox-client must use GET for @query to match Axum query routes"
+    );
+    assert!(
+        vox_client.contains("method: \"POST\"") && vox_client.contains("$post"),
+        "vox-client must use POST for @mutation/@server"
+    );
+    assert!(
+        vox_client.contains("Object.keys(query).sort()"),
+        "vox-client must sort query keys for deterministic transport"
+    );
+    let forbidden_substrings = [
+        "createServerFn",
+        "createServerFn(",
+        "@tanstack/react-start",
+        "\"use server\"",
+        "vinxi/server",
+    ];
+    for (_name, content) in &out.files {
+        for sub in forbidden_substrings {
+            assert!(
+                !content.contains(sub),
+                "generated output must not contain forbidden {sub:?}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -381,6 +538,7 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
             id: "r0".into(),
             pattern: "/".into(),
             meta: json!({ "component": "Home" }),
+            children: vec![],
         }],
         span: None,
     });
@@ -480,11 +638,13 @@ fn web_ir_route_tree_contract_roundtrips_json() {
                 id: "route_0".into(),
                 pattern: "/a".into(),
                 meta: json!({ "component": "A" }),
+                children: vec![],
             },
             RouteContract {
                 id: "route_1".into(),
                 pattern: "/b".into(),
                 meta: json!({ "component": "B" }),
+                children: vec![],
             },
         ],
         span: None,
@@ -564,10 +724,10 @@ component Btn() {
 }
 
 #[test]
-fn web_ir_classic_component_style_blocks_lower_to_style_nodes() {
+fn web_ir_reactive_component_style_blocks_lower_to_style_nodes() {
     let src = r#"
-@component fn Box() to Element {
-    ret <div class="x">"a"</div>
+component Box() {
+    view: <div class="x">"a"</div>
 }
 style {
     .x { color: "red" }
@@ -578,7 +738,7 @@ style {
     let web = lower_hir_to_web_ir(&hir);
     assert!(
         !web.style_nodes.is_empty(),
-        "expected style rules from classic @component"
+        "expected style rules from Path C component + style block"
     );
     match &web.style_nodes[0] {
         StyleNode::Rule {
@@ -630,6 +790,7 @@ fn web_ir_validate_rejects_duplicate_route_contract_ids() {
         id: "same".into(),
         pattern: "/a".into(),
         meta: json!({}),
+        children: vec![],
     };
     m.route_nodes.push(RouteNode::RouteTree {
         routes: vec![dup.clone()],
@@ -703,9 +864,9 @@ fn web_ir_routes_block_lowers_to_route_tree_contract() {
     let src = r#"
 import react.use_state
 
-@component fn Home() to Element {
+component Home() {
     let (_n, _set_n) = use_state(0)
-    ret <div>"home"</div>
+    view: <div>"home"</div>
 }
 
 routes {
@@ -756,11 +917,13 @@ fn web_ir_diagnostic_codes_use_dotted_validate_prefixes() {
                 id: "d".into(),
                 pattern: "/".into(),
                 meta: serde_json::json!({}),
+                children: vec![],
             },
             RouteContract {
                 id: "d".into(),
                 pattern: "/x".into(),
                 meta: serde_json::json!({}),
+                children: vec![],
             },
         ],
         span: None,
@@ -1063,11 +1226,13 @@ fn op_s086_s088_route_detail_gate_duplicate_ids() {
                 id: "same".into(),
                 pattern: "/a".into(),
                 meta: json!({}),
+                children: vec![],
             },
             RouteContract {
                 id: "same".into(),
                 pattern: "/b".into(),
                 meta: json!({}),
+                children: vec![],
             },
         ],
         span: None,
@@ -1169,6 +1334,7 @@ fn op_s146_fixture_pack_e2_route_contract_json_stable() {
             id: "r".into(),
             pattern: "/".into(),
             meta: json!({ "component": "Home" }),
+            children: vec![],
         }],
         span: None,
     });
@@ -1232,6 +1398,7 @@ fn op_s190_style_route_integration_fixture() {
             id: "only".into(),
             pattern: "/".into(),
             meta: serde_json::json!({}),
+            children: vec![],
         }],
         span: None,
     });

@@ -26,24 +26,26 @@ type ChatResult =
     | Success(text: str)
     | Error(message: str)
 
-@component fn Chat() to Element {
+component Chat() {
     let (messages, set_messages) = use_state([{role: "bot", text: ""}])
     let (input, set_input) = use_state("")
     let send = fn(_e) set_messages(messages.append({role: "user", text: input}))
-    <div class="chat-container">
-        <h1>"Vox Chatbot"</h1>
-        <div class="messages">
-            for msg in messages {
-                <div class="message">
-                    {msg.text}
-                </div>
-            }
+    view: (
+        <div class="chat-container">
+            <h1>"Vox Chatbot"</h1>
+            <div class="messages">
+                for msg in messages {
+                    <div class="message">
+                        {msg.text}
+                    </div>
+                }
+            </div>
+            <div class="input-area">
+                <input class="chat-input" value={input}/>
+                <button class="send-btn" on_click={send}>"Send"</button>
+            </div>
         </div>
-        <div class="input-area">
-            <input class="chat-input" value={input}/>
-            <button class="send-btn" on_click={send}>"Send"</button>
-        </div>
-    </div>
+    )
 }
 
 http post "/api/chat" to ChatResult {

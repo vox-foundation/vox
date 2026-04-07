@@ -1,5 +1,5 @@
 use crate::ast::scalar_mapping::VoxScalar;
-use crate::hir::{HirModule, HirType};
+use crate::hir::{HirModule, HirServerFn, HirType};
 
 pub fn emit_api_client(module: &HirModule) -> String {
     if module.server_fns.is_empty() && module.query_fns.is_empty() && module.mutation_fns.is_empty()
@@ -9,59 +9,87 @@ pub fn emit_api_client(module: &HirModule) -> String {
 
     let mut out = String::new();
     out.push_str("// Auto-generated API client for Vox server functions\n");
+    out.push_str("// @query → GET + JSON query values; @server / @mutation → POST + JSON body.\n");
     out.push_str("// Do not edit manually — regenerated on each build.\n\n");
 
     out.push_str("const API_BASE = '';\n\n");
 
-    for sf in module
-        .server_fns
+    for sf in &module.server_fns {
+        out.push_str(&emit_api_ts_fn(sf, false));
+    }
+    for qf in &module.query_fns {
+        out.push_str(&emit_api_ts_fn(qf, true));
+    }
+    for mf in &module.mutation_fns {
+        out.push_str(&emit_api_ts_fn(mf, false));
+    }
+
+    out
+}
+
+fn emit_api_ts_fn(sf: &HirServerFn, is_query: bool) -> String {
+    let params: Vec<String> = sf
+        .params
         .iter()
-        .chain(module.query_fns.iter())
-        .chain(module.mutation_fns.iter())
-    {
-        // Generate TypeScript function signature
-        let params: Vec<String> = sf
-            .params
-            .iter()
-            .map(|p| {
-                let ts_type = p
-                    .type_ann
-                    .as_ref()
-                    .map_or("any".to_string(), hir_type_to_ts);
-                format!("{}: {}", p.name, ts_type)
-            })
-            .collect();
+        .map(|p| {
+            let ts_type = p
+                .type_ann
+                .as_ref()
+                .map_or("any".to_string(), hir_type_to_ts);
+            format!("{}: {}", p.name, ts_type)
+        })
+        .collect();
 
-        let return_ts = sf
-            .return_type
-            .as_ref()
-            .map_or("any".to_string(), hir_type_to_ts);
+    let return_ts = sf
+        .return_type
+        .as_ref()
+        .map_or("any".to_string(), hir_type_to_ts);
 
+    let mut out = String::new();
+    out.push_str(&format!(
+        "export async function {}({}): Promise<{}> {{\n",
+        sf.name,
+        params.join(", "),
+        return_ts,
+    ));
+    let path = &sf.route_path;
+    if is_query {
+        if sf.params.is_empty() {
+            out.push_str(&format!(
+                "  const response = await fetch(`${{API_BASE}}{path}`, {{ method: 'GET' }});\n"
+            ));
+        } else {
+            let obj_fields: Vec<String> = sf
+                .params
+                .iter()
+                .map(|p| format!("{}: {}", p.name, p.name))
+                .collect();
+            out.push_str(&format!(
+                "  const q: Record<string, unknown> = {{ {} }};\n",
+                obj_fields.join(", ")
+            ));
+            out.push_str("  const sorted = Object.keys(q).sort();\n");
+            out.push_str("  const qs = sorted.length ? ('?' + sorted.map(k => `${encodeURIComponent(k)}=${encodeURIComponent(JSON.stringify((q as Record<string, unknown>)[k]))}`).join('&')) : '';\n");
+            out.push_str(&format!(
+                "  const response = await fetch(`${{API_BASE}}{path}${{qs}}`, {{ method: 'GET' }});\n"
+            ));
+        }
+    } else {
         out.push_str(&format!(
-            "export async function {}({}): Promise<{}> {{\n",
-            sf.name,
-            params.join(", "),
-            return_ts,
-        ));
-        out.push_str(&format!(
-            "  const response = await fetch(`${{API_BASE}}{}`, {{\n",
-            sf.route_path,
+            "  const response = await fetch(`${{API_BASE}}{path}`, {{\n",
         ));
         out.push_str("    method: 'POST',\n");
         out.push_str("    headers: { 'Content-Type': 'application/json' },\n");
-
-        // Build body from params
         let body_fields: Vec<String> = sf.params.iter().map(|p| p.name.clone()).collect();
         out.push_str(&format!(
             "    body: JSON.stringify({{ {} }}),\n",
             body_fields.join(", ")
         ));
         out.push_str("  });\n");
-        out.push_str("  if (!response.ok) throw new Error(`Server error: ${response.status}`);\n");
-        out.push_str("  return response.json();\n");
-        out.push_str("}\n\n");
     }
-
+    out.push_str("  if (!response.ok) throw new Error(`Server error: ${response.status}`);\n");
+    out.push_str("  return response.json();\n");
+    out.push_str("}\n\n");
     out
 }
 

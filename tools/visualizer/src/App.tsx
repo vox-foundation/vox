@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Layers, GitBranch, Terminal, BarChart3, Settings } from 'lucide-react';
+import { Home, Layers, GitBranch, Terminal, BarChart3, Settings, FileJson } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -9,8 +9,9 @@ import { Dashboard } from './components/Dashboard';
 import { AgentFlow } from './components/AgentFlow';
 import { PipelineView } from './components/PipelineView';
 import { AstView } from './components/AstView';
+import { RouteManifestIngest } from './components/RouteManifestIngest';
 
-type View = 'dashboard' | 'dag' | 'pipeline' | 'ast' | 'telemetry';
+type View = 'dashboard' | 'dag' | 'pipeline' | 'ast' | 'telemetry' | 'webartifacts';
 
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard');
@@ -35,6 +36,7 @@ function App() {
           <NavItem icon={<GitBranch size={22} />} active={activeView === 'dag'} onClick={() => setActiveView('dag')} label="Agent DAG" />
           <NavItem icon={<Terminal size={22} />} active={activeView === 'pipeline'} onClick={() => setActiveView('pipeline')} label="Pipeline" />
           <NavItem icon={<BarChart3 size={22} />} active={activeView === 'telemetry'} onClick={() => setActiveView('telemetry')} label="Telemetry" />
+          <NavItem icon={<FileJson size={22} />} active={activeView === 'webartifacts'} onClick={() => setActiveView('webartifacts')} label="Web IR" />
         </div>
 
         <div className="mt-auto">
@@ -78,6 +80,7 @@ function App() {
               {activeView === 'dag' && <AgentFlow tasks={tasks} />}
               {activeView === 'pipeline' && <PipelineView />}
               {activeView === 'telemetry' && <div className="p-10 text-zinc-500">Telemetry view initialization...</div>}
+              {activeView === 'webartifacts' && <RouteManifestIngest />}
               {activeView === 'ast' && <AstView />}
             </motion.div>
           </AnimatePresence>

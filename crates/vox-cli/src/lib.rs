@@ -309,6 +309,11 @@ pub enum Cli {
     },
     /// Start the Vox Language Server
     Lsp,
+    /// Source migrations for React interop / retired web syntax (`migrate web`, …).
+    Migrate {
+        #[command(subcommand)]
+        cmd: commands::migrate::MigrateCmd,
+    },
     /// Start the Vox MCP (Model Context Protocol) server
     Mcp,
     /// Check toolchain and local environment readiness (`--build-perf` / `--json` need `--features codex`)

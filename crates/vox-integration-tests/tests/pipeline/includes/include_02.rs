@@ -67,17 +67,19 @@ import react.use_memo
 import react.use_ref
 import react.use_callback
 
-@component fn HooksDemo() to Element {
+component HooksDemo() {
     let (count, set_count) = use_state(0)
     let doubled = use_memo(fn(_x) count * 2)
     let input_ref = use_ref(0)
     let increment = use_callback(fn(_e) set_count(count + 1))
     use_effect(fn(_x) count)
-    <div class="hooks_demo">
-        <p>"Count: " {count}</p>
-        <p>"Doubled: " {doubled}</p>
-        <button on_click={increment}>"+"</button>
-    </div>
+    view: (
+        <div class="hooks_demo">
+            <p>"Count: " {count}</p>
+            <p>"Doubled: " {doubled}</p>
+            <button on_click={increment}>"+"</button>
+        </div>
+    )
 }
 
 routes {
@@ -135,7 +137,7 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
         "expected hooks demo class/root in preview:\n{preview}"
     );
 
-    // Mixed surface: classic `Shell` (hooks) + Path C `Dash` — `VOX_WEBIR_EMIT_REACTIVE_VIEWS` runs the bridge
+    // Mixed surface: Path C `Shell` (hooks) + Path C `Dash` — `VOX_WEBIR_EMIT_REACTIVE_VIEWS` runs the bridge
     // for `Dash` (Web IR preview when normalized JSX matches legacy, else parity fallback).
     let mix_tokens = lex(MIXED_SURFACE_SRC);
     let mix_mod = parse(mix_tokens).expect("parse MIXED_SURFACE");
@@ -162,7 +164,7 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
             .expect("Shell.tsx");
         assert!(
             shell.contains("useState"),
-            "classic Shell retains hooks:\n{shell}"
+            "Shell retains hooks:\n{shell}"
         );
         let stats = reactive_view_bridge_stats();
         assert!(
@@ -184,10 +186,12 @@ const ISLAND_DEMO_SRC: &str = r#"@island InteractiveChart {
     endpoint: str
 }
 
-@component fn IslandHost() to Element {
-    <div class="island_host">
-        <h1>"Islands Demo"</h1>
-    </div>
+component IslandHost() {
+    view: (
+        <div class="island_host">
+            <h1>"Islands Demo"</h1>
+        </div>
+    )
 }
 
 routes {

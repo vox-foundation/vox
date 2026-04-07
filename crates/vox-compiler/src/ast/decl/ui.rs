@@ -1,4 +1,4 @@
-use crate::ast::decl::fundecl::FnDecl;
+use crate::ast::decl::fundecl::{FnDecl, StyleBlock};
 use crate::ast::span::Span;
 use crate::ast::types::TypeExpr;
 
@@ -6,6 +6,9 @@ use crate::ast::types::TypeExpr;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct V0ComponentDecl {
     pub v0_id: String,
+    /// When set, this stub was generated from `@v0 from "path.png"` (design asset) instead of a v0 chat id string.
+    #[serde(default)]
+    pub image_path: Option<String>,
     pub name: String,
     pub return_type: Option<TypeExpr>,
     pub span: Span,
@@ -15,6 +18,12 @@ pub struct V0ComponentDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RoutesDecl {
     pub entries: Vec<RouteEntry>,
+    /// Optional 404 screen component (PascalCase name).
+    #[serde(default)]
+    pub not_found_component: Option<String>,
+    /// Optional global error screen component.
+    #[serde(default)]
+    pub error_component: Option<String>,
     pub span: Span,
 }
 
@@ -43,6 +52,12 @@ pub struct RouteEntry {
     pub children: Vec<RouteEntry>,
     pub redirect: Option<String>,
     pub is_wildcard: bool,
+    /// `@query` / loader function name for this route (emitted into `routes.manifest.ts`).
+    #[serde(default)]
+    pub loader_name: Option<String>,
+    /// Loading / pending component for this route.
+    #[serde(default)]
+    pub pending_component_name: Option<String>,
     pub span: Span,
 }
 
@@ -145,6 +160,9 @@ pub struct ReactiveComponentDecl {
     pub members: Vec<ReactiveMemberDecl>,
     /// Optional view expression (JSX).
     pub view: Option<crate::ast::expr::Expr>,
+    /// Scoped CSS blocks following the component body (same as classic `@component fn`).
+    #[serde(default)]
+    pub styles: Vec<StyleBlock>,
     /// Source span.
     pub span: Span,
 }
@@ -162,6 +180,8 @@ pub enum ReactiveMemberDecl {
     OnMount(OnMountDecl),
     /// Runs on component teardown.
     OnCleanup(OnCleanupDecl),
+    /// Imperative prelude: `let` bindings, hook calls (`use_effect(...)`), assignments, etc.
+    Stmt(crate::ast::stmt::Stmt),
 }
 
 /// `state name: Type = init_expr`

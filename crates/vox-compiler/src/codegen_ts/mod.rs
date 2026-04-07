@@ -21,14 +21,16 @@ pub mod jsx;
 pub mod reactive;
 /// File-based routes → TS route tables.
 pub mod routes;
+/// `routes.manifest.ts` (framework-agnostic `VoxRoute[]`).
+pub mod route_manifest;
+/// One-time SPA / shadcn / Tailwind scaffold (user-owned files).
+pub mod scaffold;
+/// `vox-client.ts` typed `fetch` SDK.
+pub mod vox_client;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).
 pub mod schema;
-/// `routes:` → programmatic TanStack Router trees.
-pub mod tanstack_programmatic_routes;
 /// TanStack Query helper emission (`vox-tanstack-query.tsx`).
 pub mod tanstack_query_emit;
-/// TanStack Start server-fn emission constants.
-pub mod tanstack_start;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};

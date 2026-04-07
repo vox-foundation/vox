@@ -2,6 +2,8 @@
 
 Tree-sitter grammar for the Vox language (grammar, queries, corpus tests).
 
+**React interop migration (2026):** the rustc parser now accepts `routes { }` entries with `with loader:` / `with pending:`, nested child routes, and `not_found:` / `error:` lines. This grammar should be extended to match those surfaces for highlighting and structural queries; track against [`docs/src/architecture/react-interop-backlog-2026.md`](../docs/src/architecture/react-interop-backlog-2026.md) (WS23).
+
 ## Development
 
 From this directory:

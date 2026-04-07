@@ -53,7 +53,6 @@ impl LowerCtx {
         }
     }
 
-    #[allow(deprecated)]
     fn lower(&mut self, module: &Module) -> HirModule {
         let mut hir = HirModule {
             imports: Vec::new(),

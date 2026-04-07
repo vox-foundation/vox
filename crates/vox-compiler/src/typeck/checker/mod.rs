@@ -212,6 +212,9 @@ impl<'a> Checker<'a> {
                 HirReactiveMember::OnCleanup(c) => {
                     let _ = self.check_expr(&c.body, None);
                 }
+                HirReactiveMember::Stmt(s) => {
+                    let _ = self.check_stmt(s);
+                }
             }
         }
 

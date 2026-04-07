@@ -1,9 +1,11 @@
 //! HIR → TypeScript file bundle (production path). **WebIR bridge (OP-S025):** after assembling
 //! artifacts, [`maybe_web_ir_validate`] may lower + validate [`crate::web_ir::WebIrModule`] when
-//! `VOX_WEBIR_VALIDATE=1`, so CI can gate structural errors without routing all emit through preview TSX.
+//! **`VOX_WEBIR_VALIDATE`** (default **on**): CI and local builds fail codegen when
+//! [`validate_web_ir`](crate::web_ir::validate::validate_web_ir) returns diagnostics. Set to `0` / `false` /
+//! `no` / `off` to skip the gate (escape hatch).
 //!
-//! **Fallback mode (OP-S027):** when that env var is unset, validation is skipped and codegen follows the
-//! historical fast path (WebIR used only by explicit tooling / tests).
+//! **Escape hatch:** disabling validation skips the structural gate; `routes.manifest.ts` is still emitted
+//! only after the validator runs when the gate is enabled (so a failing gate never writes the manifest).
 //!
 //! **Style + route printer bridge (OP-S059 / S091 / S111 / S137 / S171 / S199):** classic CSS emission and
 //! TanStack route files are still assembled here alongside [`super::routes`]; migrating printers to consume
@@ -16,12 +18,9 @@ use crate::codegen_ts::component::{generate_component, generate_component_from_w
 use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
-use crate::codegen_ts::tanstack_programmatic_routes::push_route_tree_files;
+use crate::codegen_ts::route_manifest::{try_emit_route_manifest_from_web_ir, ROUTE_MANIFEST_FILENAME};
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
-use crate::codegen_ts::tanstack_start::{
-    CREATE_SERVER_FN, CREATE_SERVER_FN_PKG, FETCH_CONTENT_TYPE, SERVER_FN_HTTP_METHOD,
-    SERVER_FNS_FILENAME,
-};
+use crate::codegen_ts::vox_client::{emit_vox_client, VOX_CLIENT_FILENAME};
 use crate::hir::{HirFn, HirModule};
 
 /// Output from the TypeScript code generator.
@@ -33,16 +32,15 @@ pub struct CodegenOutput {
 /// Options for [`generate_with_options`].
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CodegenOptions {
-    /// When true, `routes:` emits [`VoxTanStackRouter.tsx`] exporting **`voxRouteTree`** (no `RouterProvider`).
-    /// Use with TanStack Start so `getRouter()` in the Vite app owns the single router instance.
-    /// When false, emits [`App.tsx`] with `RouterProvider` for the SPA + `index.html` shell.
+    /// Legacy flag (TanStack Start tree emission). **Ignored** — `routes:` now emits [`routes.manifest.ts`] only.
     pub tanstack_start: bool,
     /// Build Target
     pub target: Option<String>,
 }
 
 impl CodegenOptions {
-    /// `VOX_WEB_TANSTACK_START=1` or `true` enables TanStack Start route-tree emission.
+    /// Reads **`VOX_WEB_TANSTACK_START`** for callers that still thread the flag (**ignored** for TS emit —
+    /// route output is always [`route_manifest`] + components).
     #[must_use]
     pub fn from_env() -> Self {
         Self {
@@ -60,7 +58,6 @@ pub fn generate(hir: &HirModule) -> Result<CodegenOutput, String> {
 }
 
 /// Generate TypeScript with explicit options (callers such as `vox build` should pass config here).
-#[allow(deprecated)]
 pub fn generate_with_options(
     hir: &HirModule,
     options: CodegenOptions,
@@ -86,6 +83,7 @@ pub fn generate_with_options(
     let web_projection_cache = if hir.reactive_components.is_empty()
         && hir.components.is_empty()
         && hir.loadings.is_empty()
+        && hir.client_routes.is_empty()
     {
         None
     } else {
@@ -127,10 +125,14 @@ pub fn generate_with_options(
         let v0 = &hir_v0.0;
         let filename = format!("{}.tsx", v0.name);
 
-        let comment = format!("v0 integration ID: {}", v0.v0_id);
+        let comment = if let Some(ref img) = v0.image_path {
+            format!("From image: {img}")
+        } else {
+            format!("v0 integration ID: {}", v0.v0_id)
+        };
 
         let content = format!(
-            "// @v0 generated component\n// {}\n// Note: This file will be overwritten by `npx v0 add` sidecar during build.\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* @v0 component pending v0 CLI download */}}</div>;\n}}\n",
+            "// @v0 generated component\n// {}\n// Note: This file will be overwritten by `npx v0 add` sidecar during build.\n// Install this island (shadcn): npx shadcn@latest add <component-url-or-name>\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* @v0 component pending v0 CLI download */}}</div>;\n}}\n",
             comment, v0.name
         );
         files.push((filename, content));
@@ -173,63 +175,14 @@ pub fn generate_with_options(
         files.push(("schema.ts".to_string(), schema));
     }
 
-    // Generate TanStack Start Server Functions from HIR
+    // Typed fetch client for `@query` (GET + JSON query values) / `@mutation` / `@server` (POST JSON).
     let has_api_fns =
         !hir.server_fns.is_empty() || !hir.query_fns.is_empty() || !hir.mutation_fns.is_empty();
-    if has_api_fns && options.tanstack_start {
-        let mut server_fns_out = String::new();
-        server_fns_out
-            .push_str("// Server Functions generated by Vox compiler for TanStack Start\n");
-        server_fns_out.push_str(&format!(
-            "import {{ {CREATE_SERVER_FN} }} from \"{CREATE_SERVER_FN_PKG}\";\n\n",
-        ));
-        for sf in hir
-            .server_fns
-            .iter()
-            .chain(hir.query_fns.iter())
-            .chain(hir.mutation_fns.iter())
-        {
-            let name = &sf.name;
-            let params: Vec<String> = sf
-                .params
-                .iter()
-                .map(|p| {
-                    let ty = p.type_ann.as_ref().map_or(
-                        "any".to_string(),
-                        crate::codegen_ts::hir_emit::map_hir_type_to_ts,
-                    );
-                    format!("{}: {}", p.name, ty)
-                })
-                .collect();
-            let return_type = sf.return_type.as_ref().map_or(
-                "any".to_string(),
-                crate::codegen_ts::hir_emit::map_hir_type_to_ts,
-            );
-            server_fns_out.push_str(&format!(
-                "export const {name} = {CREATE_SERVER_FN}({{ method: '{SERVER_FN_HTTP_METHOD}' }}).handler(async (data: {{ {} }}) => {{\n",
-                params.join(", ")
-            ));
-            server_fns_out.push_str(&format!(
-                "  const response = await fetch(\"{}\", {{\n",
-                sf.route_path
-            ));
-            server_fns_out.push_str(&format!("    method: '{SERVER_FN_HTTP_METHOD}',\n"));
-            server_fns_out.push_str(&format!(
-                "    headers: {{ 'Content-Type': '{FETCH_CONTENT_TYPE}' }},\n",
-            ));
-            server_fns_out.push_str("    body: JSON.stringify(data),\n");
-            server_fns_out.push_str("  });\n");
-            server_fns_out
-                .push_str("  if (!response.ok) throw new Error(\"Server function failed\");\n");
-            server_fns_out.push_str(&format!(
-                "  return response.json() as Promise<{return_type}>;\n"
-            ));
-            server_fns_out.push_str("});\n\n");
-        }
-        files.push((SERVER_FNS_FILENAME.to_string(), server_fns_out));
+    if has_api_fns {
+        files.push((VOX_CLIENT_FILENAME.to_string(), emit_vox_client(hir)));
     }
 
-    // Generate scoped CSS modules for components with style blocks
+    // Generate scoped CSS modules for components with style blocks (classic + Path C reactive).
     for hir_comp in &hir.components {
         let comp = &hir_comp.0;
         if !comp.styles.is_empty() {
@@ -255,8 +208,44 @@ pub fn generate_with_options(
             files.push((filename, css));
         }
     }
+    for rc in &hir.reactive_components {
+        if rc.styles.is_empty() {
+            continue;
+        }
+        let filename = format!("{}.css", rc.name);
+        let mut css = String::new();
+        for block in &rc.styles {
+            css.push_str(&format!("{} {{\n", block.selector));
+            for (prop, val) in &block.properties {
+                let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
+                    if c.is_uppercase() {
+                        acc.push('-');
+                        acc.push(c.to_ascii_lowercase());
+                    } else {
+                        acc.push(c);
+                    }
+                    acc
+                });
+                css.push_str(&format!("  {}: {};\n", css_prop, val));
+            }
+            css.push_str("}\n\n");
+        }
+        files.push((filename, css));
+    }
 
-    push_route_tree_files(&mut files, hir, options.tanstack_start);
+    maybe_web_ir_validate(hir, web_projection_cache.as_ref())?;
+
+    let route_manifest = match web_projection_ref {
+        Some(w) => try_emit_route_manifest_from_web_ir(w, hir)?,
+        None if !hir.client_routes.is_empty() => {
+            let w = crate::web_ir::lower::project_web_from_core(hir);
+            try_emit_route_manifest_from_web_ir(&w, hir)?
+        }
+        _ => None,
+    };
+    if let Some(manifest) = route_manifest {
+        files.push((ROUTE_MANIFEST_FILENAME.to_string(), manifest));
+    }
 
     let island_names: Vec<&str> = hir.islands.iter().map(|i| i.0.name.as_str()).collect();
     if !island_names.is_empty() {
@@ -316,23 +305,27 @@ pub fn generate_with_options(
         files.push((format!("Dockerfile.{}", env.name), dockerfile));
     }
 
-    maybe_web_ir_validate(hir)?;
-
     Ok(CodegenOutput { files })
 }
 
-/// Optional WebIR lower + validate gate (OP-0113, OP-0124). Set `VOX_WEBIR_VALIDATE=1` to fail
-/// codegen when [`crate::web_ir::validate::validate_web_ir`] returns diagnostics.
-#[allow(deprecated)]
-fn maybe_web_ir_validate(hir: &HirModule) -> Result<(), String> {
-    let enabled = std::env::var("VOX_WEBIR_VALIDATE")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
-    if !enabled {
+/// WebIR lower + validate gate (OP-0113, OP-0124). **On by default;** set `VOX_WEBIR_VALIDATE=0` / `false` /
+/// `no` / `off` to skip.
+fn maybe_web_ir_validate(
+    hir: &HirModule,
+    cached_web: Option<&crate::web_ir::WebIrModule>,
+) -> Result<(), String> {
+    if !crate::web_migration_env::web_ir_validate_gate_enabled() {
         return Ok(());
     }
-    let web = crate::web_ir::lower::project_web_from_core(hir);
-    let diags = crate::web_ir::validate::validate_web_ir(&web);
+    let fallback;
+    let web: &crate::web_ir::WebIrModule = match cached_web {
+        Some(w) => w,
+        None => {
+            fallback = crate::web_ir::lower::project_web_from_core(hir);
+            &fallback
+        }
+    };
+    let diags = crate::web_ir::validate::validate_web_ir(web);
     if diags.is_empty() {
         return Ok(());
     }

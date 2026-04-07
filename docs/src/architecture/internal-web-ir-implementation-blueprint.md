@@ -108,9 +108,9 @@ Canonical side-by-side representation mapping:
 | `crates/vox-compiler/src/codegen_ts/component.rs` | `@island` generation from AST-retained path | `legacy-shrink` | WebIR lowering adapters + thin wrapper |
 | `crates/vox-compiler/src/codegen_ts/reactive.rs` | reactive component generation | `legacy-shrink` | WebIR view roots + emitter |
 | `crates/vox-compiler/src/codegen_ts/routes.rs` | route-specific TS generation | `legacy-replace` | `RouteNode` contracts + target printer |
-| `crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs` | TanStack route tree strings | `legacy-shrink` | target formatter over `RouteNode` |
+| `crates/vox-compiler/src/codegen_ts/route_manifest.rs` | `routes.manifest.ts` (`VoxRoute[]`) for adapters | `active` | **Authority:** lowered [`RouteContract`](../../../crates/vox-compiler/src/web_ir/mod.rs) trees from [`WebIrModule`](../../../crates/vox-compiler/src/web_ir/mod.rs) (emitter uses cached `project_web_from_core`) |
 | `crates/vox-compiler/src/codegen_ts/tanstack_query_emit.rs` | query helper emit | `legacy-wrap` | contract-driven helper generation |
-| `crates/vox-compiler/src/codegen_ts/tanstack_start.rs` | constants/literals for Start mode | `retain-support` | keep as target support surface |
+| `crates/vox-compiler/src/codegen_ts/scaffold.rs` | TanStack Start scaffold / adapter stubs | `active` | shares manifest + `vox-client` contract with CLI templates |
 | `crates/vox-compiler/src/codegen_ts/activity.rs` | activity wrappers | `legacy-shrink` | consume WebIR/contract nodes |
 | `crates/vox-compiler/src/codegen_ts/schema/` (`mod.rs`, `from_ast.rs`, `from_hir.rs`, `type_maps.rs`) | schema TS emit path | `legacy-wrap` | route/data/DB contracts over WebIR |
 | `crates/vox-compiler/src/codegen_ts/adt.rs` | ADT/type generation | `retain-support` | remains mostly independent |

@@ -69,10 +69,10 @@ Source Code (.vox)
 Current path note:
 
 - `codegen_ts` is still the production TS emitter path.
-- `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a build gate.
+- `VOX_WEBIR_VALIDATE` defaults **on** (WebIR lower/validate gate); set `=0` / `false` / `no` / `off` to skip.
 - `app_contract::project_app_contract` is the SSOT for route/RPC/island/server-config codegen inputs.
 - `runtime_projection::project_runtime_from_hir` is the SSOT for orchestration-facing DB capability projection.
-- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` TSX bridge output only when parity checks pass.
+- `VOX_WEBIR_EMIT_REACTIVE_VIEWS` defaults **on** so reactive `view:` can use the Web IR TSX bridge when parity checks pass; set `=0` / `false` / `no` / `off` for legacy `emit_hir_expr` views only.
 
 ---
 

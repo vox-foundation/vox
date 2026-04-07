@@ -292,7 +292,8 @@ pub enum Token {
     TypeIdent(String),
 
     // ── Comments ──────────────────────────────────────────────
-    #[regex(r"//[^\r\n]*", allow_greedy = true, priority = 3)]
+    /// Line comments: `// …` (JS-style) and `# …` (shell / Vox fixture headers).
+    #[regex(r"//[^\r\n]*|#[^\r\n]*", allow_greedy = true, priority = 3)]
     Comment,
 
     // ── Newlines ─────────────────────────────────────────────

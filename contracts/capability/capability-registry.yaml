@@ -1809,6 +1809,23 @@ curated:
   mcp_tool: null
   cli_path:
   - doctor
+- id: cli.migrate.web
+  title: Migrate Web
+  description_human: null
+  description_model: CLI operation `vox migrate web` — scan `.vox` for React interop migration diagnostics; `--json` report; deterministic `--write` patches (`@component fn` → `component`, `@hook fn` → `fn`, and related safe transforms); `--check` exits non-zero if findings remain
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - migrate
+  - web
 - id: cli.fabrica
   title: Fabrica
   description_human: null

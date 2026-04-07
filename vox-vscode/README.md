@@ -2,6 +2,8 @@
 
 > Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/vox-foundation/vox) — the AI-native, full-stack programming language.
 
+**Frontend output (2026):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions should align with manifest-first adapters (see [`react-interop-hybrid-adapter-cookbook.md`](../docs/src/architecture/react-interop-hybrid-adapter-cookbook.md)).
+
 ## Features
 
 - **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering keywords, decorators (`@table`, `@server`, `@component`, `@agent_def`, `@skill`, `@mcp.tool`, etc.), types, JSX tags, strings, and comments.

@@ -24,8 +24,8 @@ pub struct RouteIR {
     pub path: String,
     /// Stable contract key (`"METHOD /path"`) aligned with HIR `route_contract` field.
     pub contract_key: String,
-    /// Parameter names exposed by this route/function. Rust extracts from JSON body;
-    /// TypeScript reads from `req.body`.
+    /// Parameter names exposed by this route/function. Rust/Axum uses JSON body (`@server` / `@mutation`)
+    /// or JSON-encoded query values (`@query`).
     pub params: Vec<RouteParam>,
     /// Whether the handler returns a non-unit value (affects status-200 JSON wrapping).
     pub has_return_value: bool,
@@ -124,9 +124,13 @@ impl RouteIR {
     /// Lower a `HirServerFn` into a `RouteIR` with typed params.
     #[must_use]
     pub fn from_server_fn(sf: &HirServerFn, kind: RouteKind) -> Self {
-        let contract_key = format!("POST {}", sf.route_path);
+        let method = match kind {
+            RouteKind::QueryFn => RouteMethod::Get,
+            _ => RouteMethod::Post,
+        };
+        let contract_key = format!("{} {}", method.as_uppercase_str(), sf.route_path);
         Self {
-            method: RouteMethod::Post,
+            method,
             path: sf.route_path.clone(),
             contract_key,
             params: sf.params.iter().map(RouteParam::from).collect(),
@@ -225,6 +229,27 @@ mod tests {
         // contract_key is "POST /path" — must start with method
         assert!(
             routes[0].contract_key.starts_with("POST "),
+            "contract_key: {:?}",
+            routes[0].contract_key
+        );
+    }
+
+    #[test]
+    fn route_ir_query_uses_get_contract_key() {
+        let src = r#"
+@query fn items() to int {
+    ret 0
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse");
+        let hir = lower_module(&module);
+        let routes = lower_module_routes(&hir);
+        assert_eq!(routes.len(), 1);
+        assert_eq!(routes[0].kind, RouteKind::QueryFn);
+        assert_eq!(routes[0].method, RouteMethod::Get);
+        assert!(
+            routes[0].contract_key.starts_with("GET "),
             "contract_key: {:?}",
             routes[0].contract_key
         );

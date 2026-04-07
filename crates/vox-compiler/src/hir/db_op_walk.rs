@@ -73,6 +73,7 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
                 HirReactiveMember::Effect(e) => walk_expr(&e.body, f),
                 HirReactiveMember::OnMount(e) => walk_expr(&e.body, f),
                 HirReactiveMember::OnCleanup(e) => walk_expr(&e.body, f),
+                HirReactiveMember::Stmt(s) => walk_stmt(s, f),
             }
         }
         if let Some(view) = &rc.view {
@@ -128,6 +129,7 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
                 HirReactiveMember::Effect(e) => walk_expr_mut(&mut e.body, f),
                 HirReactiveMember::OnMount(e) => walk_expr_mut(&mut e.body, f),
                 HirReactiveMember::OnCleanup(e) => walk_expr_mut(&mut e.body, f),
+                HirReactiveMember::Stmt(s) => walk_stmt_mut(s, f),
             }
         }
         if let Some(view) = &mut rc.view {

@@ -30,6 +30,63 @@ use std::collections::HashSet;
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name};
 pub(crate) use state_deps::extract_state_deps;
 
+/// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
+#[must_use]
+pub(crate) fn unwrap_inline_hir_block_expr(expr: &HirExpr) -> &HirExpr {
+    if let HirExpr::Block(stmts, _) = expr {
+        if stmts.len() == 1 {
+            if let HirStmt::Expr { expr: inner, .. } = &stmts[0] {
+                return inner;
+            }
+        }
+    }
+    expr
+}
+
+/// Expand `bind={…}` into (`value` expr string, `onChange` handler string), aligned with
+/// [`crate::codegen_ts::jsx::expand_bind_attribute`] and [`crate::web_ir::lower::lower_jsx_attr_pair`].
+#[must_use]
+pub(crate) fn expand_bind_hir_attribute(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+) -> (String, String) {
+    let e = unwrap_inline_hir_block_expr(expr);
+    match e {
+        HirExpr::Ident(name, _) => {
+            let setter = format!("set_{name}");
+            let value = emit_hir_expr(e, state_names, island_names);
+            (value, format!("(e) => {setter}(e.target.value)"))
+        }
+        HirExpr::FieldAccess(obj, field, _) => {
+            let value_str = emit_hir_expr(e, state_names, island_names);
+            let obj_str = emit_hir_expr(obj, state_names, island_names);
+            let setter = match obj.as_ref() {
+                HirExpr::Ident(obj_name, _) => format!("set_{obj_name}"),
+                _ => format!("set_{}", emit_hir_expr(obj, state_names, island_names)),
+            };
+            let onchange = format!("(e) => {setter}({{...{obj_str}, {field}: e.target.value}})");
+            (value_str, onchange)
+        }
+        _ => {
+            let val = emit_hir_expr(e, state_names, island_names);
+            (val, "(e) => {}".to_string())
+        }
+    }
+}
+
+#[inline]
+fn map_vox_react_hook_callee(name: &str) -> &str {
+    match name {
+        "use_state" => "useState",
+        "use_effect" => "useEffect",
+        "use_memo" => "useMemo",
+        "use_ref" => "useRef",
+        "use_callback" => "useCallback",
+        other => other,
+    }
+}
+
 /// Wrap a child expression so TSX matches [`crate::web_ir::emit_tsx`] [`DomNode::Expr`] (`{ts}`).
 ///
 /// JSX subtree roots (elements / island mounts) start with `<` and must not get an extra `{...}` layer.
@@ -111,6 +168,13 @@ pub fn emit_hir_expr(
             }
             let mut attrs = Vec::new();
             for attr in &el.attributes {
+                if attr.name == "bind" {
+                    let (value_str, onchange_str) =
+                        expand_bind_hir_attribute(&attr.value, state_names, island_names);
+                    attrs.push(format!("value={{{value_str}}}"));
+                    attrs.push(format!("onChange={{{onchange_str}}}"));
+                    continue;
+                }
                 let name = map_jsx_attr_name(&attr.name);
                 let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
@@ -136,6 +200,13 @@ pub fn emit_hir_expr(
             }
             let mut attrs = Vec::new();
             for attr in &el.attributes {
+                if attr.name == "bind" {
+                    let (value_str, onchange_str) =
+                        expand_bind_hir_attribute(&attr.value, state_names, island_names);
+                    attrs.push(format!("value={{{value_str}}}"));
+                    attrs.push(format!("onChange={{{onchange_str}}}"));
+                    continue;
+                }
                 let name = map_jsx_attr_name(&attr.name);
                 let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
@@ -157,7 +228,10 @@ pub fn emit_hir_expr(
             format!("[{}]", items.join(", "))
         }
         HirExpr::Call(callee, args, _, _) => {
-            let callee_str = emit_hir_expr(callee, state_names, island_names);
+            let callee_str = match callee.as_ref() {
+                HirExpr::Ident(name, _) => map_vox_react_hook_callee(name).to_string(),
+                _ => emit_hir_expr(callee, state_names, island_names),
+            };
             let args_str: Vec<String> = args
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, state_names, island_names))

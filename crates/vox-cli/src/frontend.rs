@@ -188,8 +188,9 @@ pub fn scaffold_react_app(
     maybe_write_root_pnpm_workspace(app_dir)?;
 
     let port = config::default_port();
-    let has_vox_programmatic_router = generated_ts_dir.join("VoxTanStackRouter.tsx").is_file();
-    let file_route_tsr_pregen = tanstack_start && !has_vox_programmatic_router;
+    // TanStack Start always uses file-based `src/routes/*` + seeded `routeTree.gen.ts`.
+    // Compiler output is `routes.manifest.ts` + components (no programmatic `VoxTanStackRouter.tsx`).
+    let file_route_tsr_pregen = tanstack_start;
     let pkg = templates::package_json(tanstack_start, file_route_tsr_pregen);
     let vite = templates::vite_config(port, tanstack_start);
 
@@ -198,39 +199,44 @@ pub fn scaffold_react_app(
         .context("Failed to write vite.config.ts")?;
     std::fs::write(app_dir.join("tsconfig.json"), templates::tsconfig_json())
         .context("Failed to write tsconfig.json")?;
+    std::fs::write(
+        app_dir.join("components.json"),
+        templates::components_json_shadcn_client(),
+    )
+    .context("Failed to write components.json")?;
     std::fs::write(src_dir.join("index.css"), templates::index_css())
         .context("Failed to write index.css")?;
 
+    let manifest_present = generated_ts_dir.join("routes.manifest.ts").is_file();
+
     if tanstack_start {
+        if manifest_present {
+            std::fs::write(
+                src_dir.join("vox-manifest-route-adapter.tsx"),
+                templates::vox_manifest_route_adapter_tsx(),
+            )
+            .context("Failed to write vox-manifest-route-adapter.tsx (Start + manifest)")?;
+        }
         std::fs::create_dir_all(src_dir.join("routes")).context("Failed to create src/routes")?;
         std::fs::write(
             src_dir.join("routes/__root.tsx"),
             templates::tanstack_start_root_tsx(),
         )
         .context("Failed to write routes/__root.tsx")?;
-        if has_vox_programmatic_router {
-            // `routes:` + TanStack Start: single router from codegen (`voxRouteTree`); no file-route index.
-            std::fs::write(
-                src_dir.join("routeTree.gen.ts"),
-                templates::tanstack_start_route_tree_gen_reexport(),
-            )
-            .context("Failed to write routeTree.gen.ts (re-export)")?;
+        let has_app = generated_ts_dir.join("App.tsx").is_file();
+        let component_name = fs_utils::find_component_name(generated_ts_dir)?;
+        let index_tsx = if has_app {
+            templates::tanstack_start_index_for_app().to_string()
         } else {
-            let has_app = generated_ts_dir.join("App.tsx").is_file();
-            let component_name = fs_utils::find_component_name(generated_ts_dir)?;
-            let index_tsx = if has_app {
-                templates::tanstack_start_index_for_app().to_string()
-            } else {
-                templates::tanstack_start_index_for_component(&component_name)
-            };
-            std::fs::write(src_dir.join("routes/index.tsx"), index_tsx)
-                .context("Failed to write routes/index.tsx")?;
-            std::fs::write(
-                src_dir.join("routeTree.gen.ts"),
-                templates::tanstack_start_route_tree_gen(),
-            )
-            .context("Failed to write routeTree.gen.ts")?;
-        }
+            templates::tanstack_start_index_for_component(&component_name)
+        };
+        std::fs::write(src_dir.join("routes/index.tsx"), index_tsx)
+            .context("Failed to write routes/index.tsx")?;
+        std::fs::write(
+            src_dir.join("routeTree.gen.ts"),
+            templates::tanstack_start_route_tree_gen(),
+        )
+        .context("Failed to write routeTree.gen.ts")?;
         std::fs::write(
             src_dir.join("router.tsx"),
             templates::tanstack_start_router_tsx(),
@@ -239,12 +245,27 @@ pub fn scaffold_react_app(
     } else {
         std::fs::write(app_dir.join("index.html"), templates::index_html())
             .context("Failed to write index.html")?;
-        let component_name = fs_utils::find_component_name(generated_ts_dir)?;
-        std::fs::write(
-            src_dir.join("main.tsx"),
-            templates::main_tsx(&component_name),
-        )
-        .context("Failed to write main.tsx")?;
+        if manifest_present {
+            std::fs::write(
+                src_dir.join("vox-manifest-route-adapter.tsx"),
+                templates::vox_manifest_route_adapter_tsx(),
+            )
+            .context("Failed to write vox-manifest-route-adapter.tsx")?;
+            std::fs::write(
+                src_dir.join("vox-manifest-router.tsx"),
+                templates::vox_spa_manifest_router_tsx(),
+            )
+            .context("Failed to write vox-manifest-router.tsx")?;
+            std::fs::write(src_dir.join("main.tsx"), templates::main_tsx_manifest_entry())
+                .context("Failed to write main.tsx (manifest router)")?;
+        } else {
+            let component_name = fs_utils::find_component_name(generated_ts_dir)?;
+            std::fs::write(
+                src_dir.join("main.tsx"),
+                templates::main_tsx(&component_name),
+            )
+            .context("Failed to write main.tsx")?;
+        }
     }
 
     for entry in

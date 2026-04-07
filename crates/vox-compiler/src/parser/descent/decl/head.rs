@@ -10,6 +10,7 @@ use crate::ast::decl::{
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
+use crate::web_migration_env::legacy_component_fn_allowed;
 
 impl Parser {
     pub(crate) fn parse_import(&mut self) -> Result<Decl, ()> {
@@ -201,20 +202,32 @@ impl Parser {
         self.skip_newlines();
         match self.peek().clone() {
             Token::Fn => {
+                if !legacy_component_fn_allowed() {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Retired classic `@component fn`. Use Path C `component Name() { ... }` (or prefix: `@component Name() { ... }`). \
+                         Transitional opt-in: set `VOX_ALLOW_LEGACY_COMPONENT_FN=1` to parse legacy sources while migrating.",
+                        vec!["component Counter() { state n: int = 0; view: <span>{n}</span> }".into()],
+                        Some("fn".into()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
                 let f = self.parse_fn_decl(false)?;
                 let styles = self.parse_style_blocks();
                 Ok(Decl::Component(ComponentDecl { func: f, styles }))
             }
             Token::Ident(_) | Token::TypeIdent(_) => {
                 let name = self.parse_ident_name()?;
-                let inner = self.finish_reactive_component_after_name(start, name)?;
+                let mut inner = self.finish_reactive_component_after_name(start, name)?;
+                inner.styles = self.parse_style_blocks();
                 Ok(Decl::ReactiveComponent(inner))
             }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Unsupported head after `@component`: use `fn` for the classic component (`@component fn Name(...)`) or an identifier for Path C (`@component Name(...)`). Nothing else may follow `@component` here.",
-                    vec!["fn".into(), "ComponentName".into()],
+                    "Unsupported head after `@component`: use an identifier for Path C (`@component Name(...)`). Classic `@component fn` is retired unless `VOX_ALLOW_LEGACY_COMPONENT_FN=1`.",
+                    vec!["ComponentName".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
                 ));
@@ -275,21 +288,8 @@ impl Parser {
                     view = Some(self.parse_expr()?);
                 }
                 _ => {
-                    self.errors.push(ParseError::classified(
-                        self.span(),
-                        "Parse (reactive body): unexpected token; expected a member keyword (`state`, `derived`, `effect`, `mount`, `cleanup`) or `view:` (parse-stage; see diagnostic taxonomy `parse` row)".to_string(),
-                        vec![
-                            "state".into(),
-                            "derived".into(),
-                            "effect".into(),
-                            "mount".into(),
-                            "cleanup".into(),
-                            "view:".into(),
-                        ],
-                        Some(self.peek().to_string()),
-                        ParseErrorClass::ReactiveComponentMember,
-                    ));
-                    return Err(());
+                    let stmt = self.parse_stmt()?;
+                    members.push(ReactiveMemberDecl::Stmt(stmt));
                 }
             }
             self.skip_newlines();
@@ -301,6 +301,7 @@ impl Parser {
             params,
             members,
             view,
+            styles: vec![],
             span: start.merge(self.span()),
         })
     }

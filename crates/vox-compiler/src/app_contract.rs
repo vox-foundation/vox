@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::ast::decl::RouteEntry;
 use crate::ast::types::TypeExpr;
 use crate::hir::{HirHttpMethod, HirModule};
 use crate::typeck::env::TypeEnv;
@@ -121,6 +122,20 @@ fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirTyp
     type_signature_from_hir(params, ret, &env)
 }
 
+fn collect_app_client_routes(entries: &[RouteEntry]) -> Vec<AppClientRouteContract> {
+    let mut out = Vec::new();
+    for e in entries {
+        out.push(AppClientRouteContract {
+            path: e.path.clone(),
+            component_name: e.component_name.clone(),
+            redirect: e.redirect.clone(),
+            is_wildcard: e.is_wildcard,
+        });
+        out.extend(collect_app_client_routes(&e.children));
+    }
+    out
+}
+
 fn type_expr_signature(te: &TypeExpr) -> String {
     match te {
         TypeExpr::Named { name, .. } => name.clone(),
@@ -159,7 +174,6 @@ fn type_expr_signature(te: &TypeExpr) -> String {
 }
 
 #[must_use]
-#[allow(deprecated)]
 pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     let env = TypeEnv::new();
     let http_routes = module
@@ -211,14 +225,7 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     let client_routes = module
         .client_routes
         .iter()
-        .flat_map(|r| {
-            r.0.entries.iter().map(|entry| AppClientRouteContract {
-                path: entry.path.clone(),
-                component_name: entry.component_name.clone(),
-                redirect: entry.redirect.clone(),
-                is_wildcard: entry.is_wildcard,
-            })
-        })
+        .flat_map(|r| collect_app_client_routes(&r.0.entries))
         .collect();
 
     let islands = module

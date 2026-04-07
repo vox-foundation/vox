@@ -1,8 +1,8 @@
 //! `vox build` — full compile pipeline and artifact layout.
 //!
 //! Writes **TypeScript** into `out_dir` and **Rust** under `target/generated/` (Axum-style backend).
-//! Emits `api.ts` when server functions produce a client. `@v0` declarations trigger optional
-//! v0.dev generation when `V0_API_KEY` is set — see `crate::v0::generate_component`.
+//! Optional **`--scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) writes user-owned Vite/app files via
+//! [`vox_compiler::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -11,7 +11,14 @@ use std::path::{Path, PathBuf};
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
-pub async fn run(file: &Path, out_dir: &Path, target: Option<String>) -> Result<()> {
+///
+/// `emit_scaffold`: write [`vox_compiler::codegen_ts::scaffold`] files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
+pub async fn run(
+    file: &Path,
+    out_dir: &Path,
+    target: Option<String>,
+    emit_scaffold: bool,
+) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
     if frontend.has_errors() {
@@ -51,32 +58,41 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<String>) -> Result<
         println!("  wrote {}", path.display());
     }
 
-    let emitted_vox_router = ts_output
+    let emitted_manifest = ts_output
         .files
         .iter()
-        .any(|(n, _)| n == "VoxTanStackRouter.tsx");
-    let emitted_app_tsx = ts_output.files.iter().any(|(n, _)| n == "App.tsx");
-    if emitted_vox_router {
-        let stale = out_dir.join("App.tsx");
-        if stale.is_file() {
-            fs::remove_file(&stale)
-                .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
-            println!("  removed stale {}", stale.display());
+        .any(|(n, _)| n == "routes.manifest.ts");
+    if emitted_manifest {
+        for stale_name in ["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"] {
+            let stale = out_dir.join(stale_name);
+            if stale.is_file() {
+                fs::remove_file(&stale)
+                    .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
+                println!("  removed stale {}", stale.display());
+            }
         }
     }
-    if emitted_app_tsx {
-        let stale = out_dir.join("VoxTanStackRouter.tsx");
-        if stale.is_file() {
-            fs::remove_file(&stale)
-                .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
-            println!("  removed stale {}", stale.display());
-        }
+
+    let scaffold_env = std::env::var("VOX_WEB_EMIT_SCAFFOLD")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if emit_scaffold || scaffold_env {
+        let project_root = out_dir.parent().unwrap_or(out_dir);
+        vox_compiler::codegen_ts::scaffold::write_scaffold_if_missing(project_root, "vox-app")
+            .with_context(|| "Failed to write web scaffold files")?;
     }
 
     // 8. Handle @v0 components
     // We iterate over the parsed declarations to find V0Components
     for decl in &module.declarations {
         if let vox_compiler::ast::decl::Decl::V0Component(comp) = decl {
+            if comp.image_path.is_some() {
+                // Asset-hint form (`@v0 from "…"`) has no v0 chat id; placeholder TSX comes from codegen only.
+                continue;
+            }
+            if comp.v0_id.is_empty() {
+                continue;
+            }
             let component_name = &comp.name;
             let filename = format!("{}.tsx", component_name);
             let target_path = out_dir.join(&filename);
@@ -136,7 +152,7 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<String>) -> Result<
         }
     }
 
-    verify_app_tsx_route_imports(out_dir).context("App.tsx route import graph")?;
+    verify_app_tsx_route_imports(out_dir).context("generated TS import graph (routes.manifest / App)")?;
 
     // Write API client for server functions (if any)
     if !rust_output.api_client_ts.is_empty() {
@@ -299,37 +315,15 @@ fn verify_ts_relative_imports_from_file(ts_file: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Fail fast when `App.tsx` references `./Component.tsx` (or `.ts`) that is missing from `out_dir`.
+/// Fail fast when generated `routes.manifest.ts` or `App.tsx` references missing `./` modules.
 fn verify_app_tsx_route_imports(out_dir: &Path) -> Result<()> {
-    let app_path = out_dir.join("App.tsx");
-    if !app_path.is_file() {
-        return Ok(());
+    let manifest = out_dir.join("routes.manifest.ts");
+    if manifest.is_file() {
+        verify_ts_relative_imports_from_file(&manifest)?;
     }
-    let content = read_utf8_path_capped(&app_path)
-        .with_context(|| format!("Failed to read {}", app_path.display()))?;
-    let re = regex::Regex::new(r#"from\s+["']\./([^"']+)["']"#).with_context(|| {
-        format!(
-            "compile App.tsx relative-import regex ({})",
-            app_path.display()
-        )
-    })?;
-    for cap in re.captures_iter(&content) {
-        let rel = cap
-            .get(1)
-            .with_context(|| {
-                format!(
-                    "App.tsx relative-import regex missing capture ({})",
-                    app_path.display()
-                )
-            })?
-            .as_str();
-        let target = out_dir.join(rel);
-        if !target.is_file() {
-            anyhow::bail!(
-                "App.tsx imports `{rel}` but that file was not found under {} (fix routes: targets or emit the component).",
-                out_dir.display()
-            );
-        }
+    let app_path = out_dir.join("App.tsx");
+    if app_path.is_file() {
+        verify_ts_relative_imports_from_file(&app_path)?;
     }
     Ok(())
 }

@@ -82,12 +82,14 @@ workflow process_chat(prompt: str, request_id: str, conversation_id: str) to Res
     ret process_chat(prompt, request_id, conversation_id)
 }
 
-@component fn ChatApp() to Element {
+component ChatApp() {
     let (input, set_input) = use_state("")
-    <div class="chat-app">
-        <h1>"Vox greaterFool Reference"</h1>
-        <input bind={input} />
-    </div>
+    view: (
+        <div class="chat-app">
+            <h1>"Vox greaterFool Reference"</h1>
+            <input bind={input} />
+        </div>
+    )
 }
 
 routes {

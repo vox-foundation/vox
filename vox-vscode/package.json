@@ -1,7 +1,7 @@
 {
   "name": "vox-lang",
   "displayName": "Vox Language",
-  "description": "Vox language support: LSP, MCP workspace (chat, Oratio speech, snapshots), and AI-assisted editing.",
+  "description": "Vox language support: LSP, MCP workspace (chat, Oratio speech, snapshots), web artifact import hints (routes.manifest / vox-client), and AI-assisted editing.",
   "version": "0.2.0",
   "publisher": "vox-lang",
   "license": "Apache-2.0",
@@ -26,6 +26,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
+    "workspaceContains:**/routes.manifest.ts",
     "workspaceContains:**/*.vox",
     "onCommand:vox.inlineEdit.accept",
     "onCommand:vox.inlineEdit.escapeReject",
@@ -124,6 +125,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable Vox Language Server."
+        },
+        "vox.webArtifacts.diagnosticsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Validate `./` imports from `routes.manifest.ts` / `vox-client.ts` against files on disk (parity with `vox build` output layout)."
         },
         "vox.mcp.serverPath": {
           "type": "string",

@@ -116,6 +116,39 @@ jobs:
       - name: Doc inventory matches generator (Rust)
         run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
 
+      - name: Docs — no stale `tanstack_start.rs` compiler path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "crates/vox-compiler/src/codegen_ts/tanstack_start\\.rs" docs/src; then
+            echo "docs must not reference removed tanstack_start.rs; use route_manifest / vox_client / scaffold"
+            exit 1
+          fi
+
+      - name: Web TS codegen — forbidden legacy RPC shims in sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "createServerFn\\(" crates/vox-compiler/src/codegen_ts; then
+            echo "createServerFn must not appear in vox-codegen-ts sources"
+            exit 1
+          fi
+
+      - name: Normative docs — @query is GET (no POST /api/query claims)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "POST /api/query" docs/src/reference docs/src/api docs/src/architecture docs/src/how-to; then
+            echo "docs must not describe @query as POST /api/query"
+            exit 1
+          fi
+
+      - name: routes.manifest + vox-client legacy-bundle smoke
+        run: cargo test -p vox-compiler --test web_ir_lower_emit codegen_output_never_includes_vox_tanstack_router_or_server_fns -q
+
+      - name: SPA scaffold manifest idempotency
+        run: cargo test -p vox-cli --test scaffold_spa_manifest_idempotent -q
+
       - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
         run: |
           cargo run -p vox-cli --quiet -- ci eval-matrix verify
@@ -209,6 +242,24 @@ jobs:
 
       - name: Populi CI gate matrix (single manifest)
         run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
+
+  # GitHub-hosted exception: stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
+  visualizer-ingest-smoke:
+    name: Visualizer ingest unit (pnpm + tsx)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install + run ingest tests
+        run: |
+          cd tools/visualizer
+          pnpm install
+          pnpm run test:ingest
 
   # GitHub-hosted exception: needs stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   web-vite-build-smoke:

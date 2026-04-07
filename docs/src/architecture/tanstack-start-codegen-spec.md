@@ -2,15 +2,20 @@
 title: "TanStack Start Codegen Specification"
 description: "Complete technical specification for how Vox compiler emits a real runnable TanStack Start fullstack application. Covers decorator fate, HIR changes, emitter refactors, scaffold files, virtual route trees, server function architecture, and layout/context/loading/not_found decorator repurposing. This is the SSOT for the TanStack Start codegen build-out."
 category: "architecture"
-last_updated: 2026-04-07
+last_updated: 2026-04-08
 training_eligible: true
 ---
 
 # TanStack Start Codegen Specification
 
-> **Status:** Draft — Implementation in progress. See [`tanstack-start-implementation-backlog.md`](./tanstack-start-implementation-backlog.md) for the checkbox-by-checkbox task list.
+> [!CAUTION]
+> **Historical / TanStack-upstream reference.** Vox **no longer** emits `VoxTanStackRouter.tsx`, generated `App.tsx`, or `serverFns.ts` / `createServerFn` boilerplate. Current product SSOT for outputs is **`routes.manifest.ts`** + **`vox-client.ts`** + user-owned adapters (see [`vox-web-stack.md`](../reference/vox-web-stack.md), [`react-interop-migration-charter-2026.md`](./react-interop-migration-charter-2026.md)). Keep this document for upstream TanStack Start mechanics and migration archaeology; treat **§8 programmatic route emitter** as superseded by [`route_manifest.rs`](../../../crates/vox-compiler/src/codegen_ts/route_manifest.rs) + scaffold.
 
-This document is the **single source of truth** for how Vox compiler syntax maps to TanStack Start output. Read this before touching any file in `crates/vox-compiler/src/codegen_ts/`.
+> **Status:** Historical reference; production path is **manifest-first** (see truth table in [`tanstack-start-implementation-backlog.md`](./tanstack-start-implementation-backlog.md)).
+
+This document described how Vox compiler syntax was planned to map to TanStack Start output. For current codegen touchpoints read this before touching files in `crates/vox-compiler/src/codegen_ts/`, but prefer **`route_manifest` / `vox_client` / `scaffold`** paths over removed `tanstack_programmatic_routes` / `tanstack_start` modules.
+
+**Grammar note (deferred vs spec examples):** Sections below may show `layout(...)` in **virtual** `app/routes.ts`, `RouteEntry.layout_name`, redirects, or wildcards. The **shipped Vox parser** today supports **string paths**, **`to`**, optional **`with loader:` / `pending:`**, **nested `{ }` children**, and block-level **`not_found:`** / **`error:`** (see [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs)). Teaching **`"/app" as layout Shell { }`**, **`under Layout`**, or parser-populated **`redirect` / `is_wildcard`** requires a follow-on language change — until then treat those spec fragments as **target design**, not copy-paste syntax.
 
 ---
 
@@ -279,7 +284,7 @@ loading: fn PageSpinner() {
 
 **Emitted: `PageSpinner.tsx`** (already works — no change to component emission)
 
-**Effect on routes:** When a route entry has no explicit `pending:`, the global `loading:` component is used as `pendingComponent`. This behavior already partially exists in `tanstack_programmatic_routes.rs` and must be preserved in the new virtual-route emitter.
+**Effect on routes:** When a route entry has no explicit `pending:`, the global `loading:` component is used as `pendingComponent`. Preserve this in the manifest + adapter path (historically lived in the retired programmatic route emitter).
 
 ---
 
@@ -616,22 +621,20 @@ The `HirRoutes(pub crate::ast::decl::RoutesDecl)` wrapper means HIR changes flow
 
 ## 8. Codegen Changes Required
 
-### 8.1 `tanstack_programmatic_routes.rs` — Complete rewrite (REPURPOSE not DELETE)
+### 8.1 ~~`tanstack_programmatic_routes.rs`~~ — superseded
 
-This file currently emits `VoxTanStackRouter.tsx` (code-based routes). It must be refactored to emit:
+**Current:** Programmatic `VoxTanStackRouter.tsx` emission was **removed**. **`routes.manifest.ts`** + user-owned TanStack file routes + `scaffold.rs` / CLI templates carry route metadata. The steps below are **historical** only:
 1. `dist/__root.tsx` — root route file with `createRootRoute`
 2. `dist/*.route.tsx` — one file per routes entry with `createFileRoute`
 3. `app/routes.ts` — virtual route config tree
 
-The file is **repurposed**, not deleted. Rename if clarity requires it (`tanstack_virtual_routes.rs`).
+### 8.2 `emitter.rs` — server fn / client SDK
 
-### 8.2 `emitter.rs` — Fix server function emission
+**Current:** Typed **`vox-client.ts`** replaces `createServerFn` boilerplate; align GET/POST with [`vox_client.rs`](../../../crates/vox-compiler/src/codegen_ts/vox_client.rs) and Axum.
 
-Lines 176–230: Replace the current blanket-POST, double-fetch server function emission with the correct GET/POST split and correct `createServerFn` handler API.
+### 8.3 `scaffold.rs` — Scaffold file emitter
 
-### 8.3 New: `scaffold.rs` — Scaffold file emitter
-
-New file: `crates/vox-compiler/src/codegen_ts/scaffold.rs`
+Implemented: `crates/vox-compiler/src/codegen_ts/scaffold.rs`
 
 Emits: `app/client.tsx`, `app/router.tsx`, `app/ssr.tsx`, `app/routes.ts`, `vite.config.ts`, `package.json`, `tsconfig.json`
 

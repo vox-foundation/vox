@@ -825,7 +825,7 @@ operations:
   cli: null
 - id: build
   title: Build
-  description: CLI operation `vox build`
+  description: CLI operation `vox build` (optional `--scaffold` seeds user app shell; same as `VOX_WEB_EMIT_SCAFFOLD`)
   description_human: null
   product_lane: app
   intent_tags: []
@@ -4327,6 +4327,33 @@ operations:
     status: active
     latin_ns: diag
     handler_rust: commands::diagnostics::doctor
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: migrate.web
+  title: Migrate Web Sources
+  description: CLI operation `vox migrate web` — scan `.vox` for migration diagnostics; `--json`; `--write` applies `@component fn` → `component`, `@hook fn` → `fn` (and related deterministic patches); `--check` fails CI when findings remain (v2)
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - migrate
+    - web
+    status: active
+    latin_ns: pm
+    handler_rust: commands::migrate
     feature_gate: null
     catalog_group: null
     ref_cli_required: true

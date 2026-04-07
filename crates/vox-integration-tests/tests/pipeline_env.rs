@@ -52,14 +52,16 @@ type ChatResult =
     | Ok(text: str)
     | Error(message: str)
 
-@component fn Chat() to Element {
+component Chat() {
     let (messages, set_messages) = use_state([{role: "bot", text: ""}])
     let (input, set_input) = use_state("")
     let send = fn(msg) set_messages(messages.append({role: "user", text: msg}))
-    <div class="chat-container">
-        <h1>"Vox Chatbot"</h1>
-        <button on_click={fn(_e) send(input)}>"Send"</button>
-    </div>
+    view: (
+        <div class="chat-container">
+            <h1>"Vox Chatbot"</h1>
+            <button on_click={fn(_e) send(input)}>"Send"</button>
+        </div>
+    )
 }
 
 actor Claude {

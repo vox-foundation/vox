@@ -114,7 +114,7 @@ pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
     use latin_cmd::FabricaCmd;
     match cmd {
         FabricaCmd::Build(a) => {
-            commands::build::run(&a.file, &a.out_dir, a.target.clone()).await?;
+            commands::build::run(&a.file, &a.out_dir, a.target.clone(), a.scaffold).await?;
         }
         FabricaCmd::Check(a) => {
             commands::check::run(&a.file, a.emit_training_jsonl.as_deref()).await?;

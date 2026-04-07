@@ -2,20 +2,40 @@
 title: "TanStack Start Implementation Backlog"
 description: "Complete checkbox-by-checkbox implementation backlog for Vox TanStack Start fullstack codegen. 200+ tasks organized by wave, with exact file names, line numbers, and code shapes for each change."
 category: "architecture"
-last_updated: 2026-04-07
+last_updated: 2026-04-08
 training_eligible: false
 ---
 
 # TanStack Start Implementation Backlog
 
-> **SSOT spec:** [`tanstack-start-codegen-spec.md`](./tanstack-start-codegen-spec.md)  
+> [!NOTE]
+> **Many file targets below name `tanstack_programmatic_routes.rs` — that module is retired.** Current implementation uses **`route_manifest.rs`**, **`vox_client.rs`**, **`scaffold.rs`**, and CLI templates. Treat unchecked items as **migration archaeology** unless explicitly refreshed against the tree.
+
+> **SSOT spec:** [`tanstack-start-codegen-spec.md`](./tanstack-start-codegen-spec.md) (historical TanStack reference + charter links)  
 > **Predecessor tasks (already done):** See [`tanstack-web-backlog.md`](./tanstack-web-backlog.md) Phases 0–6.
 
 This backlog picks up where Phase 4 left off. Each task has a concrete file, change description, and `cargo check` gate where applicable.
 
+## Wave status — truth table (manifest-first model)
+
+Use this table **before** implementing any checkbox below. Rows summarize what shipped vs what was **cancelled** when the product moved to **`routes.manifest.ts` + user adapter** (no compiler-owned virtual route tree).
+
+| Wave | Status | Ground truth in repo |
+|------|--------|----------------------|
+| **A** | **Mostly done** | [`RouteEntry`](../../../crates/vox-compiler/src/ast/decl/ui.rs): `loader_name`, `pending_component_name`, nested `children`; `redirect` / `is_wildcard` exist on AST but parser leaves defaults. [`RoutesDecl`](../../../crates/vox-compiler/src/ast/decl/ui.rs): `not_found_component`, `error_component`. Parser: [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs) — `with loader:` / `pending:`, nested `{ }`, `not_found:`, `error:`. **Deferred:** `under LayoutName` / separate `layout_name` on `RouteEntry` (use nested route children); spec `layout_name` field in older docs does not match current AST. |
+| **B–C** | **Partly obviated** | HIR ownership / legacy retirement evolved with Path C + `vox migrate web`. Verify current [`hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) before acting on B/C checklists. |
+| **D** | **Cancelled (shape)** | “New scaffold emitter” in compiler **exists** as opt-in [`codegen_ts/scaffold.rs`](../../../crates/vox-compiler/src/codegen_ts/scaffold.rs); **primary** one-time files come from **`vox-cli`** [`spa.rs`](../../../crates/vox-cli/src/templates/spa.rs) / [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) / [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs). Do not recreate D2–D4 Start-only `client.tsx` / `router.tsx` **from compiler alone** unless charter reopens that scope. |
+| **E** | **Cancelled (product)** | Programmatic `__root.tsx` / `*.route.tsx` / `app/routes.ts` **virtual tree** from compiler is **gone**. Parity is [`route_manifest.rs`](../../../crates/vox-compiler/src/codegen_ts/route_manifest.rs) + TanStack **file** routes + optional `vox-manifest-route-adapter`. E6 “retired” already applies. |
+| **F** | **Superseded** | `vox-client.ts` + Axum emit replaced `serverFns.ts` / `createServerFn`; see [`vox_client.rs`](../../../crates/vox-compiler/src/codegen_ts/vox_client.rs), [`http.rs`](../../../crates/vox-compiler/src/codegen_rust/emit/http.rs). |
+| **G–K** | **Docs / tests polish** | Many G-items overlap [`react-interop-implementation-plan-2026.md`](./react-interop-implementation-plan-2026.md) Wave 7; tests exist under different names in `vox-compiler` / `vox-integration-tests`. |
+
+**LLM guardrail:** If a task references `tanstack_programmatic_routes.rs` or “emit `app/routes.ts` from compiler,” treat it as **historical** unless you are explicitly restoring that architecture in a new ADR.
+
 ---
 
 ## WAVE A — AST Extensions
+
+> **Status:** Superseded by the truth table above. Checkboxes A1–A15 remain for archaeology; **do not** treat all `[ ]` rows as open product work.
 
 These tasks extend the parser/AST data model. Complete all before touching HIR or codegen.
 
@@ -247,6 +267,8 @@ These changes retired code paths that truly have no TanStack mapping. Do after W
 
 ## WAVE D — New Scaffold Emitter
 
+> **Cancelled as specified:** Scaffold is owned by **`vox-cli` templates** + optional **`codegen_ts::scaffold.rs`** (not the D2–D4 Start-only file set below as the only path). Implement D only if charter explicitly revives compiler-only Start app entrypoints.
+
 Create the scaffold emission system from scratch.
 
 ### D1 — Create `crates/vox-compiler/src/codegen_ts/scaffold.rs` [NEW FILE]
@@ -309,10 +331,12 @@ Create the scaffold emission system from scratch.
 
 ## WAVE E — Route Tree Emitter Refactor
 
-This is the core architectural change. `tanstack_programmatic_routes.rs` is refactored to emit virtual file routes.
+> **Superseded in-tree:** the programmatic emitter module is **gone**. Equivalent product behavior is **`routes.manifest.ts`** + TanStack **file** routes + adapter/scaffold; use **Wave E** tasks only as a checklist when auditing manifest fields and adapter coverage.
 
-### E1 — Add `fn emit_root_tsx()` to `tanstack_programmatic_routes.rs`
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`
+This wave historically targeted `tanstack_programmatic_routes.rs` virtual file routes.
+
+### E1 — Add `fn emit_root_tsx()` ~~to `tanstack_programmatic_routes.rs`~~
+- [ ] **File:** ~~`crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`~~ — use `route_manifest.rs` / user `__root.tsx`
 - [ ] New function signature: `fn emit_root_tsx(not_found: Option<&str>, error_comp: Option<&str>, global_loading: Option<&str>) -> String`
 - [ ] Emits `__root.tsx` with `createRootRoute`, `HeadContent`, `Scripts`, `Outlet`
 - [ ] Conditionally includes `notFoundComponent` and `errorComponent` lines if present
@@ -341,7 +365,7 @@ This is the core architectural change. `tanstack_programmatic_routes.rs` is refa
 - [ ] Wildcard routes (`is_wildcard: true`) use `route("$",...)`
 
 ### E5 — Refactor `push_route_tree_files()` to use new functions
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`
+- [ ] **File:** ~~`crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`~~ — see `emitter.rs` + `route_manifest.rs`
 - [ ] Replace the current body of `push_route_tree_files` with calls to E1–E4
 - [ ] For each `HirRoutes` entry in `hir.client_routes`:
   - Call E1 → push `("__root.tsx", content)`
@@ -351,7 +375,7 @@ This is the core architectural change. `tanstack_programmatic_routes.rs` is refa
 - [ ] The `_tanstack_start: bool` parameter: now always behaves as `tanstack_start = true`. Keep param for API compat, but ignore value.
 
 ### E6 — Remove old `App.tsx` and `VoxTanStackRouter.tsx` emission paths
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`
+- [x] **Retired** with programmatic emitter removal (`emitter.rs` / manifest path)
 - [ ] Search for any code that emits `App.tsx` (SPA RouterProvider) — either in this file or in `emitter.rs`
 - [ ] Remove the SPA path entirely — TanStack Start is the only output
 - [ ] If `app/router.tsx` is now the canonical router entry, `App.tsx` is no longer needed

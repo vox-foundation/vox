@@ -60,6 +60,11 @@ Use these when a page describes intended implementation rather than current beha
 - [Context management implementation blueprint](context-management-implementation-blueprint.md)
 - [Context management phase 1 backlog](context-management-phase1-backlog.md)
 - `*-implementation-plan-2026.md`
+- [React / v0 interop migration charter 2026](react-interop-migration-charter-2026.md) — governance, KPIs, cutover checkpoints
+- [React / v0 interop backlog 2026](react-interop-backlog-2026.md) — granular WS01–WS26 checklist index
+- [React / v0 interop research findings 2026](react-interop-research-findings-2026.md)
+- [React / v0 interop implementation plan 2026](react-interop-implementation-plan-2026.md)
+- [React / v0 hybrid adapter cookbook (SPA + SSR)](react-interop-hybrid-adapter-cookbook.md)
 - [Populi GPU mesh implementation plan 2026](populi-gpu-mesh-implementation-plan-2026.md)
 - [Populi GPU truth probe specification (NVML Layer A)](populi-gpu-truth-probe-spec.md) — optional `nvml-wrapper` build path for `NodeRecord` inventory
 - [Populi node lifecycle, drain, and GPU hotplug](populi-node-lifecycle-hotplug.md) — lifecycle model and backlog vs shipped gates

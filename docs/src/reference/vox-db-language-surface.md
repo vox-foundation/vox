@@ -14,7 +14,7 @@ This page is the **single** SSOT for how persistence appears in `.vox` source. O
 
 - **`@table type Name { field: Type ... }`** — Turso table + generated Rust row type. A surrogate **`_id`** column (integer primary key) is always added; do **not** add a separate column named `id` (the compiler warns; use another name for application ids).
 - **`@index Table.idx on (col1, col2)`** — B-tree index DDL.
-- **`@query fn name(...) -> T { ... }`** — Read-oriented function; HTTP route **`POST /api/query/<name>`** with JSON body (same transport as `@server` fns). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@query`.
+- **`@query fn name(...) -> T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@query`.
 - **`@mutation fn name(...) -> T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
 - **`@server fn name(...) -> T { ... }`** — General RPC; **`POST /api/<name>`**.
 - **HTTP routes** — Use `http get|post|put|delete "/path" to T { ... }` (optional named handler forms are not in the canonical grammar; see parser tests).

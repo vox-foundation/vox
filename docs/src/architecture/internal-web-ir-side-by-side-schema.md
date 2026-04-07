@@ -338,7 +338,7 @@ Target completed shape (planned in ADR 012 + blueprint):
   - `data-prop-title=...`
 - metadata file exists:
   - `vox-islands-meta.ts` with island names
-- routes emit TanStack router output (`App.tsx` / `VoxTanStackRouter.tsx` depending mode)
+- routes emit **`routes.manifest.ts`** + page components; TanStack file routes + adapter consume the manifest (no generated `VoxTanStackRouter.tsx`)
 
 Evidence:
 

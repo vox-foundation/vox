@@ -26,6 +26,13 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             crate::codegen_shared::RouteMethod::Delete => needs_delete = true,
         }
     }
+    // `@query` handlers are GET + query-string args; `@server` / `@mutation` stay POST + JSON body.
+    if !module.query_fns.is_empty() {
+        needs_get = true;
+    }
+    if !module.server_fns.is_empty() || !module.mutation_fns.is_empty() {
+        needs_post = true;
+    }
 
     let mut routing_methods = Vec::new();
     if needs_get {
@@ -48,6 +55,9 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             "use axum::{{Router, routing::{{{}}}, Json}};\n",
             routing_methods.join(", ")
         ));
+    }
+    if !module.query_fns.is_empty() {
+        out.push_str("use axum::extract::Query;\n");
     }
     out.push_str("use axum::response::{Response, IntoResponse};\n");
     out.push_str("use axum::body::Body;\n");
@@ -203,10 +213,10 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
                 sf.route_path, sf.name
             ));
         }
-        // `@query` — POST /api/query/<name>
+        // `@query` — GET /api/query/<name> + deterministic JSON-in-query encoding (see vox-client.ts).
         for qf in &app_contract.query_fns {
             out.push_str(&format!(
-                "        .route(\"{}\", post(handle_q_{}))\n",
+                "        .route(\"{}\", get(handle_q_{}))\n",
                 qf.route_path, qf.name
             ));
         }
@@ -260,7 +270,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     }
 
     for qf in &module.query_fns {
-        out.push_str(&emit_server_fn_handler(qf, has_tables, "handle_q_", false));
+        out.push_str(&emit_query_fn_handler(qf, has_tables, "handle_q_"));
     }
 
     for (idx, mf) in module.mutation_fns.iter().enumerate() {
@@ -388,6 +398,39 @@ fn emit_server_fn_handler(
         if !has_return {
             out.push_str("    Json(serde_json::Value::Null)\n");
         }
+    }
+    out.push_str("}\n\n");
+    out
+}
+
+/// Axum GET handler for `@query`: args are JSON-encoded query values (`name=<json>`), keys sorted on the client.
+fn emit_query_fn_handler(sf: &HirServerFn, has_tables: bool, name_prefix: &str) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
+    if has_tables {
+        out.push_str("Extension(db): Extension<Arc<Codex>>, ");
+    }
+    out.push_str(
+        "Query(q): Query<std::collections::BTreeMap<String, String>>) -> Json<serde_json::Value> {\n",
+    );
+
+    for param in &sf.params {
+        out.push_str(&format!(
+            "    let {} = q.get(\"{}\").and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok()).unwrap_or(serde_json::Value::Null);\n",
+            param.name, param.name
+        ));
+    }
+
+    let mut has_return = false;
+    for stmt in &sf.body {
+        let emitted = emit_stmt(stmt, 1, true, false, false);
+        if emitted.contains("return Json(") {
+            has_return = true;
+        }
+        out.push_str(&emitted);
+    }
+    if !has_return {
+        out.push_str("    Json(serde_json::Value::Null)\n");
     }
     out.push_str("}\n\n");
     out

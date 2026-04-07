@@ -14,6 +14,7 @@ import { SidebarProvider } from './SidebarProvider';
 import { registerOratioSpeechCommands } from './speech/registerOratioSpeechCommands';
 import { VisualEditorPanel } from './VisualEditorPanel';
 import { registerLinkDiagnostics } from './features/linkDiagnostics';
+import { registerWebArtifactImportDiagnostics } from './features/webArtifactDiagnostics';
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Vox');
@@ -59,6 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
     
     // ── Diagnostics ──────────────────────────────────────────────────────
     registerLinkDiagnostics(context);
+    registerWebArtifactImportDiagnostics(context);
 
     // ── Model Commands ───────────────────────────────────────────────────
     registerModelCommands(context, mcp);

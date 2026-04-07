@@ -11002,6 +11002,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "serial_test",
  "sha3",
  "thiserror 1.0.69",
  "vox-container",

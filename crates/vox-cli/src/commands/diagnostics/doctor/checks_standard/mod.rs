@@ -3,6 +3,7 @@
 mod tail;
 mod test_health;
 mod toolchain;
+mod web_frontend;
 
 use super::common::Check;
 
@@ -11,5 +12,6 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
         return;
     }
     toolchain::run(auto_heal, checks).await;
+    web_frontend::run(checks).await;
     tail::run(auto_heal, checks).await;
 }

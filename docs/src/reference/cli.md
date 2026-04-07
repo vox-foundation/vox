@@ -80,6 +80,7 @@ Compile a `.vox` source file.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-o`, `--out-dir` | `dist` | Directory for generated **TypeScript** (and related frontend files) |
+| `--scaffold` | off | When set, writes one-shot user scaffold files next to the project root (`app/App.tsx`, Vite, Tailwind v4, `components.json`) if they are missing — same as `VOX_WEB_EMIT_SCAFFOLD=1` |
 | _(positional)_ | — | Path to the `.vox` file |
 
 **Also writes** generated **Rust** under `target/generated/` (backend crate). If the module declares `@v0` UI components and output files are missing, the CLI invokes Vercel's `npx v0 add` sidecar process.

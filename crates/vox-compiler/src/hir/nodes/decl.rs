@@ -1,5 +1,6 @@
 //! HIR declarations: module shape, items, routes, tables (OP-0208).
 
+use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
 
 use super::expr::HirExpr;
@@ -57,7 +58,7 @@ pub struct HirModule {
     pub foralls: Vec<HirForall>,
     /// `@server` RPC functions.
     pub server_fns: Vec<HirServerFn>,
-    /// `@query` read-only DB / API functions (POST JSON body, `/api/query/...`).
+    /// `@query` read-only DB / API functions (GET + JSON query args, `/api/query/...`).
     pub query_fns: Vec<HirServerFn>,
     /// `@mutation` write functions (POST JSON body, `/api/mutation/...`).
     pub mutation_fns: Vec<HirServerFn>,
@@ -80,39 +81,28 @@ pub struct HirModule {
     /// Container environment specifications.
     pub environments: Vec<HirEnvironment>,
 
-    // UI & TanStack specific structures (AST-retained for TS codegen migration)
-    /// UI Components.
-    #[deprecated(since = "0.3.0", note = "Classic @component fn syntax is retired. Use Path C.")]
+    // UI surfaces (AST-retained where needed for emit + WebIR projection)
+    /// Classic `@component fn` components (Path B); prefer Path C `component`.
     pub components: Vec<HirComponent>,
     /// Extracted v0 components.
-    #[deprecated(since = "0.3.0", note = "Classic @component fn syntax is retired. Use Path C.")]
     pub v0_components: Vec<HirV0Component>,
-    /// Client-side Routes declaration.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly: Use reactive UI / routers")]
+    /// Client-side `routes { }` declarations.
     pub client_routes: Vec<HirRoutes>,
     /// Standalone islands.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly: Use reactive UI")]
     pub islands: Vec<HirIsland>,
     /// Route layouts.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly: layouts not lowered to typed HIR yet")]
     pub layouts: Vec<HirLayout>,
     /// Route pages.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly: pages not lowered to typed HIR yet")]
     pub pages: Vec<HirPage>,
     /// React context wrappers.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly: React context unsupported in Path C")]
     pub contexts: Vec<HirContext>,
     /// React hooks.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly: React hooks unsupported in Path C")]
     pub hooks: Vec<HirHook>,
     /// Error boundaries.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly")]
     pub error_boundaries: Vec<HirErrorBoundary>,
     /// Loading/Suspense fallbacks.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly")]
     pub loadings: Vec<HirLoading>,
     /// Not Found views.
-    #[deprecated(since = "0.3.0", note = "MigrationOnly")]
     pub not_founds: Vec<HirNotFound>,
     /// Reactive components (Path C).
     pub reactive_components: Vec<HirReactiveComponent>,
@@ -186,13 +176,13 @@ impl HirModule {
             ("v0_components", HirFieldOwnership::MigrationOnly),
             ("client_routes", HirFieldOwnership::AppContract),
             ("islands", HirFieldOwnership::AppContract),
-            ("layouts", HirFieldOwnership::MigrationOnly),
+            ("layouts", HirFieldOwnership::AppContract),
             ("pages", HirFieldOwnership::MigrationOnly),
             ("contexts", HirFieldOwnership::MigrationOnly),
             ("hooks", HirFieldOwnership::MigrationOnly),
-            ("error_boundaries", HirFieldOwnership::MigrationOnly),
-            ("loadings", HirFieldOwnership::MigrationOnly),
-            ("not_founds", HirFieldOwnership::MigrationOnly),
+            ("error_boundaries", HirFieldOwnership::AppContract),
+            ("loadings", HirFieldOwnership::AppContract),
+            ("not_founds", HirFieldOwnership::AppContract),
             ("reactive_components", HirFieldOwnership::SemanticCore),
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("lowering_migration", HirFieldOwnership::MigrationOnly),
@@ -201,7 +191,6 @@ impl HirModule {
 
     /// Project this module into a migration-free semantic snapshot.
     #[must_use]
-    #[allow(deprecated)]
     pub fn to_semantic_hir(&self) -> SemanticHirModule {
         SemanticHirModule {
             imports: self.imports.clone(),
@@ -587,6 +576,8 @@ pub struct HirReactiveComponent {
     pub params: Vec<HirParam>,
     pub members: Vec<HirReactiveMember>,
     pub view: Option<HirExpr>,
+    /// Scoped CSS blocks attached after the reactive body (Path C).
+    pub styles: Vec<StyleBlock>,
     pub span: Span,
 }
 
@@ -660,6 +651,8 @@ pub enum HirReactiveMember {
     Effect(HirEffect),
     OnMount(HirOnMount),
     OnCleanup(HirOnCleanup),
+    /// `let` / hook calls / assignments before `view:` (Path C prelude).
+    Stmt(HirStmt),
 }
 
 #[derive(Debug, Clone)]
