@@ -293,7 +293,7 @@ fn verify_ts_relative_imports_from_file(ts_file: &Path) -> Result<()> {
         .with_context(|| format!("No parent for {}", ts_file.display()))?;
     let content = read_utf8_path_capped(ts_file)
         .with_context(|| format!("Failed to read {}", ts_file.display()))?;
-    let re = regex::Regex::new(r#"from\s+["']([^"']+)["']"#)
+    let re = regex::Regex::new(r#"(?sm)^\s*(?:import|export)\s+.*?\s+from\s+["']([^"']+)["']"#)
         .with_context(|| format!("compile TS import regex ({})", ts_file.display()))?;
     for cap in re.captures_iter(&content) {
         let raw = cap

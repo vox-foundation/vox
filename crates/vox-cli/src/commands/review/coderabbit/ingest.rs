@@ -5,11 +5,11 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
+use vox_db::VoxDb;
 use vox_db::store::types::{
     ExternalReviewFindingParams, ExternalReviewFindingStateParams, ExternalReviewRunParams,
     ExternalReviewThreadParams,
 };
-use vox_db::VoxDb;
 use vox_git::GitBridge;
 
 use super::github::{forge_token, parse_github_owner_repo};
@@ -431,9 +431,17 @@ fn thread_identity(
     )
 }
 
-fn finding_identity(pr_number: u64, source_kind: SourceKind, comment_id: u64, dedup: &str) -> String {
+fn finding_identity(
+    pr_number: u64,
+    source_kind: SourceKind,
+    comment_id: u64,
+    dedup: &str,
+) -> String {
     let suffix = dedup.get(..12).unwrap_or(dedup);
-    format!("cr:{pr_number}:{}:{comment_id}:{suffix}", source_kind.as_str())
+    format!(
+        "cr:{pr_number}:{}:{comment_id}:{suffix}",
+        source_kind.as_str()
+    )
 }
 
 fn should_ingest_comment(c: &GhReviewComment, body: &str) -> bool {
@@ -787,7 +795,10 @@ pub async fn run_ingest(
             &items,
         )
         .await?;
-        eprintln!("Persisted {} findings to VoxDB run_id={run_id}", items.len());
+        eprintln!(
+            "Persisted {} findings to VoxDB run_id={run_id}",
+            items.len()
+        );
     }
 
     if persist_cache {
@@ -934,10 +945,7 @@ pub async fn run_db_status(path: &Path, json: bool) -> Result<()> {
         )
         .await
         .context("count external_review_run")?;
-    let run_count: i64 = run_rows
-        .pop()
-        .and_then(|r| r.get(0).ok())
-        .unwrap_or(0);
+    let run_count: i64 = run_rows.pop().and_then(|r| r.get(0).ok()).unwrap_or(0);
 
     let mut finding_rows = db
         .query_all(
@@ -946,10 +954,7 @@ pub async fn run_db_status(path: &Path, json: bool) -> Result<()> {
         )
         .await
         .context("count external_review_finding")?;
-    let finding_count: i64 = finding_rows
-        .pop()
-        .and_then(|r| r.get(0).ok())
-        .unwrap_or(0);
+    let finding_count: i64 = finding_rows.pop().and_then(|r| r.get(0).ok()).unwrap_or(0);
 
     let mut dl_rows = db
         .query_all(
@@ -981,7 +986,10 @@ pub async fn run_db_status(path: &Path, json: bool) -> Result<()> {
             run_count,
             finding_count,
             deadletter_pending,
-            out["kpi_snapshots"].as_array().map(|a| a.len()).unwrap_or(0)
+            out["kpi_snapshots"]
+                .as_array()
+                .map(|a| a.len())
+                .unwrap_or(0)
         );
     }
     Ok(())

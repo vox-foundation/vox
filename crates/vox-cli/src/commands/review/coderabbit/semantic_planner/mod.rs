@@ -61,7 +61,10 @@ mod tests {
 
     #[test]
     fn allow_markdown_prefix_rescues_md_and_txt() {
-        let allow = vec!["docs/src/quickstart.txt".to_string(), "AGENTS.md".to_string()];
+        let allow = vec![
+            "docs/src/quickstart.txt".to_string(),
+            "AGENTS.md".to_string(),
+        ];
         assert!(!SemanticPlanner::is_ignored_with(
             "docs/src/quickstart.txt",
             &allow

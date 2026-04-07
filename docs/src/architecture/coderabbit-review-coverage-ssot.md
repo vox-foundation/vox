@@ -47,6 +47,7 @@ flowchart LR
 
 - Full-repo coverage is anchored on `semantic-submit --full-repo` because it uses `git ls-files`.
 - The default policy is **code-first coverage**; docs/data/tooling paths can remain excluded when they are not part of the review objective.
+- **`allow_markdown_prefixes`** in `Vox.toml` opts selected `*.md` / `*.txt` back into semantic chunks (otherwise extension rules drop them). **`--extra-exclude-prefix`** (repeatable) and **`--write-ignored-paths`** support one-off waves and JSON audits of planner drops; see [`reference/cli.md`](../reference/cli.md#vox-review-coderabbit-feature-coderabbit).
 - If a release requires doc review, run a dedicated documentation wave by temporarily narrowing exclusions and re-running semantic-submit.
 
 ## Why 100% is operational, not absolute

@@ -87,37 +87,47 @@ mod tests {
     fn empty_baseline_commit_has_empty_tree_and_parent_head() {
         let dir = tempfile::tempdir().expect("tempdir");
         let repo = dir.path();
-        assert!(Command::new("git")
-            .args(["init"])
-            .current_dir(repo)
-            .status()
-            .expect("git init")
-            .success());
-        assert!(Command::new("git")
-            .args(["config", "user.email", "t@e.st"])
-            .current_dir(repo)
-            .status()
-            .unwrap()
-            .success());
-        assert!(Command::new("git")
-            .args(["config", "user.name", "t"])
-            .current_dir(repo)
-            .status()
-            .unwrap()
-            .success());
+        assert!(
+            Command::new("git")
+                .args(["init"])
+                .current_dir(repo)
+                .status()
+                .expect("git init")
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .args(["config", "user.email", "t@e.st"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .args(["config", "user.name", "t"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
         fs::write(repo.join("f.txt"), "x").unwrap();
-        assert!(Command::new("git")
-            .args(["add", "f.txt"])
-            .current_dir(repo)
-            .status()
-            .unwrap()
-            .success());
-        assert!(Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(repo)
-            .status()
-            .unwrap()
-            .success());
+        assert!(
+            Command::new("git")
+                .args(["add", "f.txt"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .args(["commit", "-m", "init"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
 
         let parent = String::from_utf8_lossy(
             &Command::new("git")
@@ -148,7 +158,9 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&commit_out.stderr)
         );
-        let commit = String::from_utf8_lossy(&commit_out.stdout).trim().to_string();
+        let commit = String::from_utf8_lossy(&commit_out.stdout)
+            .trim()
+            .to_string();
 
         let tree = String::from_utf8_lossy(
             &Command::new("git")

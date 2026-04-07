@@ -4,10 +4,10 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use vox_db::VoxDb;
+use vox_db::store::types::ExternalReviewRunParams;
 use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
-use vox_db::store::types::ExternalReviewRunParams;
-use vox_db::VoxDb;
 use vox_git::GitBridge;
 
 use super::super::run_state as cr_run_state;
@@ -75,10 +75,7 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     res
 }
 
-fn summarize_ignored_reasons(
-    paths: &[String],
-    planner: &SemanticPlanner,
-) -> Vec<(String, usize)> {
+fn summarize_ignored_reasons(paths: &[String], planner: &SemanticPlanner) -> Vec<(String, usize)> {
     let mut counts: std::collections::BTreeMap<&'static str, usize> =
         std::collections::BTreeMap::new();
     for path in paths {
@@ -116,8 +113,7 @@ fn maybe_write_ignored_paths_json(
     }
     rows.sort_by(|a, b| a.path.cmp(&b.path));
     let json = serde_json::to_string_pretty(&rows).context("serialize ignored paths")?;
-    std::fs::write(out, json)
-        .with_context(|| format!("write {}", out.display()))?;
+    std::fs::write(out, json).with_context(|| format!("write {}", out.display()))?;
     eprintln!(
         "[semantic-submit] Wrote {} ignored path(s) to {}",
         rows.len(),
