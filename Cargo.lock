@@ -11004,6 +11004,7 @@ dependencies = [
  "serde_yaml",
  "sha3",
  "thiserror 1.0.69",
+ "vox-container",
  "vox-eval",
  "vox-repository",
  "zstd",
@@ -11481,6 +11482,7 @@ dependencies = [
  "vox-clavis",
  "vox-corpus",
  "vox-db",
+ "vox-eval",
  "vox-primitives",
  "vox-repository",
  "vox-reqwest-defaults",
@@ -11632,8 +11634,8 @@ dependencies = [
 name = "vox-scientia-api"
 version = "0.1.0"
 dependencies = [
+ "vox-publisher",
  "vox-scientia-core",
- "vox-scientia-social",
 ]
 
 [[package]]
@@ -11654,9 +11656,6 @@ dependencies = [
 [[package]]
 name = "vox-scientia-social"
 version = "0.1.0"
-dependencies = [
- "vox-publisher",
-]
 
 [[package]]
 name = "vox-search"

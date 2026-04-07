@@ -142,6 +142,8 @@ impl Parser {
                 | Token::AtFuzz
                 | Token::AtLoading
                 | Token::Let
+                | Token::Agent
+                | Token::Environment
                 | Token::Async => break,
                 Token::RBrace => {
                     self.advance();
@@ -179,12 +181,17 @@ impl Parser {
                 self.advance(); // eat 'let'
                 let _mutable = self.eat(&Token::Mut);
                 let name = self.parse_ident_name()?;
+                let type_ann = if self.eat(&Token::Colon) {
+                    Some(self.parse_type_expr()?)
+                } else {
+                    None
+                };
                 self.expect(&Token::Eq)?;
                 let value = self.parse_expr()?;
                 Ok(Decl::Const(crate::ast::decl::ConstDecl {
                     name,
                     value,
-                    type_ann: None,
+                    type_ann,
                     is_pub: false,
                     is_deprecated: false,
                     is_build_const: false,
@@ -247,6 +254,8 @@ impl Parser {
             }
             Token::TypeKw => self.parse_typedef(false),
             Token::Actor => self.parse_actor(),
+            Token::Agent => self.parse_agent(),
+            Token::Environment => self.parse_environment(),
             Token::Workflow => self.parse_workflow(),
             Token::Activity => self.parse_activity(),
             Token::Http => self.parse_http_route(),

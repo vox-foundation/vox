@@ -38,6 +38,9 @@ pub struct EvalGatePolicy {
     /// Anti-stub thresholds from eval-local report.
     #[serde(default)]
     pub anti_stub: AntiStubGate,
+    /// Review-derived recurrence gate from `review_metrics.json`.
+    #[serde(default)]
+    pub review_recurrence: ReviewRecurrenceGate,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).
@@ -209,6 +212,22 @@ pub struct AntiStubGate {
     #[serde(default)]
     pub min_construct_richness_mean: f64,
     /// If true, violations block the run.
+    #[serde(default)]
+    pub block: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ReviewRecurrenceGate {
+    /// Maximum tolerated repeated finding rate (0.0-1.0).
+    #[serde(default)]
+    pub max_repeated_finding_rate: f64,
+    /// Maximum tolerated post-training regression rate (0.0-1.0).
+    #[serde(default)]
+    pub max_post_training_regression_rate: f64,
+    /// Minimum expected recurrence delta improvement (baseline - current).
+    #[serde(default)]
+    pub min_recurrence_delta: f64,
+    /// If true, violations block promotion.
     #[serde(default)]
     pub block: bool,
 }

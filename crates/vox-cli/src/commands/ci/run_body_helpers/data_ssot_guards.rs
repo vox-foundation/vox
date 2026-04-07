@@ -28,6 +28,140 @@ fn metric_type_constants_from_research_contract(src: &str) -> Vec<String> {
     out
 }
 
+fn run_scientia_consumption_registry_guard(root: &Path, contracts_index_raw: &str) -> Result<()> {
+    let registry = root.join("contracts/scientia/consumption-registry.v1.yaml");
+    let raw =
+        read_utf8_path_capped(&registry).with_context(|| format!("read {}", registry.display()))?;
+    let y: serde_yaml::Value =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", registry.display()))?;
+    let entries = y
+        .get("entries")
+        .and_then(serde_yaml::Value::as_sequence)
+        .ok_or_else(|| anyhow!("{} must define `entries: []`", registry.display()))?;
+    if entries.is_empty() {
+        return Err(anyhow!(
+            "{} must include at least one consumption entry",
+            registry.display()
+        ));
+    }
+    for entry in entries {
+        let schema_id = entry
+            .get("schema_id")
+            .and_then(serde_yaml::Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} contains an entry with missing/empty schema_id",
+                    registry.display()
+                )
+            })?;
+        let contract_path = entry
+            .get("contract_path")
+            .and_then(serde_yaml::Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} entry {schema_id} missing/empty contract_path",
+                    registry.display()
+                )
+            })?;
+        let consumption_required = entry
+            .get("consumption_required")
+            .and_then(serde_yaml::Value::as_bool)
+            .unwrap_or(false);
+
+        if !contracts_index_raw.contains(schema_id) {
+            return Err(anyhow!(
+                "{} schema_id `{schema_id}` must be registered in contracts/index.yaml",
+                registry.display()
+            ));
+        }
+        if !root.join(contract_path).is_file() {
+            return Err(anyhow!(
+                "{} schema_id `{schema_id}` references missing contract path {}",
+                registry.display(),
+                contract_path
+            ));
+        }
+        if !consumption_required {
+            continue;
+        }
+
+        let consumer_paths = entry
+            .get("consumer_paths")
+            .and_then(serde_yaml::Value::as_sequence)
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} entry {schema_id} must define consumer_paths when consumption_required=true",
+                    registry.display()
+                )
+            })?;
+        if consumer_paths.is_empty() {
+            return Err(anyhow!(
+                "{} entry {schema_id} requires non-empty consumer_paths",
+                registry.display()
+            ));
+        }
+        for p in consumer_paths {
+            let rel = p
+                .as_str()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    anyhow!(
+                        "{} entry {schema_id} has invalid consumer path",
+                        registry.display()
+                    )
+                })?;
+            if !root.join(rel).is_file() {
+                return Err(anyhow!(
+                    "{} entry {schema_id} references missing consumer path {}",
+                    registry.display(),
+                    rel
+                ));
+            }
+        }
+
+        let test_targets = entry
+            .get("test_targets")
+            .and_then(serde_yaml::Value::as_sequence)
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} entry {schema_id} must define test_targets when consumption_required=true",
+                    registry.display()
+                )
+            })?;
+        if test_targets.is_empty() {
+            return Err(anyhow!(
+                "{} entry {schema_id} requires at least one declared test target",
+                registry.display()
+            ));
+        }
+        for t in test_targets {
+            let cmd = t
+                .as_str()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    anyhow!(
+                        "{} entry {schema_id} has invalid test target",
+                        registry.display()
+                    )
+                })?;
+            if !cmd.starts_with("cargo test -p ") {
+                return Err(anyhow!(
+                    "{} entry {schema_id} test target must start with `cargo test -p ` (got `{}`)",
+                    registry.display(),
+                    cmd
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Run file-based checks that do not require a full workspace `cargo test`.
 pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
     let watch = root.join("crates/vox-cli/src/commands/mens/watch_telemetry.rs");
@@ -100,6 +234,7 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
             ));
         }
     }
+    run_scientia_consumption_registry_guard(root, &ix)?;
 
     let codex_metrics = root.join("crates/vox-db/src/store/ops_codex/codex_metrics_packages.rs");
     let cm = read_utf8_path_capped(&codex_metrics)

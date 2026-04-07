@@ -11,11 +11,10 @@ mod generate;
 mod stats;
 mod validate;
 
-#[cfg(feature = "database")]
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use clap::Parser;
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
 
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) use stats::{eval_metrics, run_benchmark_gate};
@@ -141,6 +140,30 @@ pub enum CorpusAction {
         #[arg(short, long, default_value = "target/dogfood/train.jsonl")]
         input: std::path::PathBuf,
     },
+    /// Export review-derived dataset rows from VoxDB.
+    ReviewExport {
+        /// Repository id, e.g. `owner/repo`.
+        #[arg(long)]
+        repository_id: String,
+        /// Max findings window.
+        #[arg(long, default_value_t = 500)]
+        limit: i64,
+        /// Output JSONL file.
+        #[arg(short, long, default_value = "mens/data/mix_sources/review_findings.jsonl")]
+        output: std::path::PathBuf,
+    },
+    /// Validate review-derived dataset rows.
+    ReviewValidate {
+        /// Input JSONL file.
+        #[arg(required = true)]
+        input: std::path::PathBuf,
+    },
+    /// Show review-derived dataset stats.
+    ReviewStats {
+        /// Input JSONL file.
+        #[arg(short, long, default_value = "mens/data/mix_sources/review_findings.jsonl")]
+        input: std::path::PathBuf,
+    },
 }
 
 /// Execute the native training data extraction or validation logic.
@@ -251,5 +274,77 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             Ok(())
         }
         CorpusAction::Stats { input } => stats::run_stats(&input).await,
+        CorpusAction::ReviewExport {
+            repository_id,
+            limit,
+            output,
+        } => {
+            let db = vox_db::VoxDb::connect_default()
+                .await
+                .context("review-export requires DB connection")?;
+            let findings = db
+                .list_external_review_findings_for_training_window(&repository_id, limit)
+                .await
+                .context("list external review findings for export")?;
+            let mut rows = Vec::new();
+            for f in findings {
+                let prompt = format!(
+                    "Review finding in {}:{} category={} severity={}: {}",
+                    f.file_path.as_deref().unwrap_or("global"),
+                    f.line_start.unwrap_or(0),
+                    f.category,
+                    f.severity,
+                    f.title
+                );
+                let response = f.suggested_fix.clone().unwrap_or_else(|| f.details.clone());
+                rows.push(vox_corpus::external_review_replay::ExternalReviewReplayRow {
+                    prompt,
+                    response,
+                    category: f.category,
+                    severity: f.severity,
+                    placement_kind: f.placement_kind,
+                    source_id: f.finding_identity,
+                    repository_id: f.repository_id,
+                    pr_number: f.pr_number,
+                    file_path: f.file_path,
+                    line_start: f.line_start,
+                    correctness_state: f.status,
+                    sample_kind: "review_fix_pairs".to_string(),
+                });
+            }
+            vox_corpus::external_review_replay::validate_external_review_rows(&rows)
+                .context("validate extracted review rows")?;
+            let parent = output.parent().unwrap_or(std::path::Path::new("."));
+            tokio::fs::create_dir_all(parent).await?;
+            let mut body = String::new();
+            for row in &rows {
+                body.push_str(&serde_json::to_string(row)?);
+                body.push('\n');
+            }
+            tokio::fs::write(&output, body).await?;
+            println!(
+                "✓ Wrote {} review-derived rows -> {}",
+                rows.len(),
+                output.display()
+            );
+            Ok(())
+        }
+        CorpusAction::ReviewValidate { input } => {
+            let raw = read_utf8_path_capped_async(&input).await?;
+            let mut rows = Vec::new();
+            for (idx, line) in raw.lines().enumerate() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let row: vox_corpus::external_review_replay::ExternalReviewReplayRow =
+                    serde_json::from_str(line)
+                        .with_context(|| format!("parse review row at line {}", idx + 1))?;
+                rows.push(row);
+            }
+            vox_corpus::external_review_replay::validate_external_review_rows(&rows)?;
+            println!("✓ Review dataset valid: {} rows", rows.len());
+            Ok(())
+        }
+        CorpusAction::ReviewStats { input } => stats::run_review_stats(&input).await,
     }
 }

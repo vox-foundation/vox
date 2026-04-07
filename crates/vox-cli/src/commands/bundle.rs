@@ -1,10 +1,10 @@
 //! `vox bundle` — production-style packaging: codegen, React/Vite app, npm build, embed static files, ship one binary.
 
+use crate::cli_args::BundleMode;
 use crate::commands::build;
 #[cfg(feature = "script-execution")]
 use crate::commands::runtime::run::script;
 use crate::frontend;
-use crate::cli_args::BundleMode;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -14,7 +14,13 @@ use tokio::process::Command;
 ///
 /// 1. For `App` mode: Runs full web scaffolding, npm build, and embeds assets.
 /// 2. For `Script` mode: Compiles to a single standalone binary (native or WASI).
-pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: bool, mode: BundleMode) -> Result<()> {
+pub async fn run(
+    file: &Path,
+    out_dir: &Path,
+    target: Option<&str>,
+    release: bool,
+    mode: BundleMode,
+) -> Result<()> {
     match mode {
         BundleMode::App => run_app_bundle(file, out_dir, target, release).await,
         BundleMode::Script => {
@@ -24,7 +30,9 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
             }
             #[cfg(not(feature = "script-execution"))]
             {
-                anyhow::bail!("Script bundling requires the `script-execution` feature. Rebuild with --features script-execution")
+                anyhow::bail!(
+                    "Script bundling requires the `script-execution` feature. Rebuild with --features script-execution"
+                )
             }
         }
     }
@@ -33,7 +41,7 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
 #[cfg(feature = "script-execution")]
 async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) -> Result<()> {
     println!("=== Bundling Script: {} ===", file.display());
-    
+
     // Setup script options for bundling
     let opts = script::ScriptOpts {
         sandbox: false,
@@ -46,9 +54,12 @@ async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) ->
     };
 
     let (artifact_path, backend) = script::compile(file, &opts).await?;
-    
+
     fs::create_dir_all(out_dir).await?;
-    let app_name = file.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "script".into());
+    let app_name = file
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "script".into());
     let bin_name = if backend.cache_label().contains("wasi") {
         format!("{}.wasm", app_name)
     } else if cfg!(windows) {
@@ -56,18 +67,28 @@ async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) ->
     } else {
         app_name
     };
-    
+
     let dest = out_dir.join(bin_name);
-    fs::copy(&artifact_path, &dest).await.context("Failed to copy script binary to output")?;
-    
+    fs::copy(&artifact_path, &dest)
+        .await
+        .context("Failed to copy script binary to output")?;
+
     println!("\n✓ Script bundle complete!");
     println!("  Binary: {}", dest.display());
-    println!("  Size: {:.2} MB", fs::metadata(&dest).await?.len() as f64 / 1_048_576.0);
-    
+    println!(
+        "  Size: {:.2} MB",
+        fs::metadata(&dest).await?.len() as f64 / 1_048_576.0
+    );
+
     Ok(())
 }
 
-async fn run_app_bundle(file: &Path, out_dir: &Path, target: Option<&str>, release: bool) -> Result<()> {
+async fn run_app_bundle(
+    file: &Path,
+    out_dir: &Path,
+    target: Option<&str>,
+    release: bool,
+) -> Result<()> {
     // Step 1: Run the standard build pipeline
     println!("=== Step 1/5: Compiling Vox source ===");
     build::run(file, out_dir).await?;

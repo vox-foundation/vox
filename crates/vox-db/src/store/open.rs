@@ -104,6 +104,10 @@ impl crate::VoxDb {
             if !sql.is_empty() {
                 conn.execute_batch(sql).await?;
             }
+
+            crate::ludus_schema_cutover::apply_ludus_gamify_cutover(conn).await?;
+            crate::schema_extensions::apply_schema_extensions(conn).await?;
+
             conn.execute(
                 "INSERT INTO schema_version (version) VALUES (?1)
                  ON CONFLICT(version) DO UPDATE SET applied_at = datetime('now')",
@@ -111,8 +115,6 @@ impl crate::VoxDb {
             )
             .await?;
         }
-
-        crate::schema_cutover::apply_schema_cutover(conn).await?;
 
         Ok(())
     }

@@ -490,6 +490,8 @@ With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** O
 
 Splits local changes into concern-based PRs with a **real baseline** (`origin/<default>` → `cr-baseline-*`) and **git worktrees** under **`.coderabbit/worktrees/`** so the main working tree is not checked out per chunk. **Plan-only** (default): writes **`.coderabbit-semantic-manifest.json`**. **Execute**: add **`--execute`** (pushes baseline, opens PRs into baseline, writes **`.coderabbit/run-state.json`** for resume). Before opening worktree PRs, **`semantic-submit --execute`** re-scans the dirty tree and **aborts with `[drift]`** if the changed-file set no longer matches the plan (replan without `--resume`). The drift check **ignores** paths the command itself creates as untracked files (**`.coderabbit-semantic-manifest.json`**, **`.coderabbit/run-state.json`**) so they do not false-trigger drift.
 
+For full-repo waves (`--full-repo`), the semantic manifest persists coverage counters (`candidate_files`, `included_files`, `ignored_files`) and plan output now prints ignored-rule buckets so operators can audit what was intentionally excluded from a “0-100%” run.
+
 | Step | Command |
 |------|---------|
 | Dry-run / plan | `vox review coderabbit semantic-submit` |
@@ -499,7 +501,9 @@ Splits local changes into concern-based PRs with a **real baseline** (`origin/<d
 | Size batches from `git diff` | Plan: `vox review coderabbit batch-submit`. Write manifest: **`batch-submit --execute`**. Caps are **clamped to the selected tier** (`--tier` or `Vox.toml`, default Pro). |
 | Full-repo stacked planner (orphan baseline, mutates checkout) | Plan + manifest: `vox review coderabbit stack-submit`. Live: **`stack-submit --execute`**. **`max_files_per_pr`** is tier-clamped; on failure the tool **restores your original branch** when possible. Prefer **`semantic-submit`**. |
 | Single PR from current branch | `vox review coderabbit submit` (still does checkout/`git add -A` in-repo — avoid on dirty trees) |
-| Ingest / tasks | `vox review coderabbit ingest <pr>` [`-o file`] / `vox review coderabbit tasks <pr> --format markdown` |
+| Ingest / tasks | `vox review coderabbit ingest <pr>` [`-o file`] [`--db-only` or `--db-and-cache`] [`--reingest-window <tag>`] [`--idempotency-key <key>`] / `vox review coderabbit tasks <pr> --format markdown` |
+| Backfill local cache to DB | `vox review coderabbit db-backfill [--input .coderabbit/ingested_findings.json]` |
+| DB reporting / recovery | `vox review coderabbit db-report <pr> [--json]` / `vox review coderabbit deadletter-retry <id>` |
 | Wait for bot review | `vox review coderabbit wait <pr> [--timeout-secs N]` |
 
 **Manifest files (when written)**
@@ -511,6 +515,10 @@ Splits local changes into concern-based PRs with a **real baseline** (`origin/<d
 | `stack-submit` | `.coderabbit-stack-manifest.json` (always) | same + git/PR actions |
 
 **`Vox.toml`** — optional **`[review.coderabbit]`**: `tier`, `delay_between_prs_secs`, `max_files_per_pr`, **`exclude_prefixes`** (path prefixes, forward slashes) -> drop noise paths from semantic/batch/stack planning.
+
+**Coverage SSOT:** [`architecture/coderabbit-review-coverage-ssot.md`](../architecture/coderabbit-review-coverage-ssot.md) defines the canonical scope and operational meaning of full-repository CodeRabbit coverage in Vox.
+
+**VoxDB-first ingest:** `vox review coderabbit ingest` writes to `external_review_*` tables by default. Local `.coderabbit/ingested_findings.json` is now optional mirror state (`--db-and-cache`) rather than the authoritative source.
 
 **Git hygiene**: `.gitignore` includes **`.coderabbit/worktrees/`**. You may commit **`.coderabbit/run-state.json`** if you want a shared run map (or keep it local). **Ignored in drift/planning (normalized repo-relative paths, including leading `./`)**: anything under **`.coderabbit/`** (local tooling, worktrees). Chunk worktree overlays **do not recurse into `.coderabbit/`** when copying from the main tree, so nested tool dirs are not duplicated.
 - **`--features dashboard`**: reserved **no-op** in `vox-cli`. The old **`vox mens` chat / agent / dei / learn** commands are removed from the CLI surface (they depended on the historical **`vox-orchestrator`** module tree, not the minimal workspace crate). Use **`vox-codex-dashboard`** / the VS Code extension for dashboard-style surfaces.

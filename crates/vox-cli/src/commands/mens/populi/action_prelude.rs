@@ -116,6 +116,12 @@ pub enum PipelineStage {
     Mix,
     /// Replaying Arca telemetry into training pairs (`vox mens corpus replay`).
     Replay,
+    /// Ingesting external review findings (`vox review coderabbit ingest` / backfill).
+    ReviewIngest,
+    /// Building review-derived dataset artifacts.
+    ReviewDatasetBuild,
+    /// Building review-derived evaluation challenge pack.
+    ReviewEvalPackBuild,
     /// Native model training (`vox mens train`).
     Train,
 }
@@ -131,6 +137,9 @@ impl PipelineStage {
             Self::Eval => "eval",
             Self::Mix => "mix",
             Self::Replay => "replay",
+            Self::ReviewIngest => "review_ingest",
+            Self::ReviewDatasetBuild => "review_dataset_build",
+            Self::ReviewEvalPackBuild => "review_eval_pack_build",
             Self::Train => "train",
         }
     }

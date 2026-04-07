@@ -9,7 +9,7 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Show pure inventory merge logic and minimal persistence for a Rosetta-style language comparison.
+// @training_prompt: Show pure inventory merge logic and minimal persistence for a Rosetta-style language comparison.
 
 // ANCHOR: types_and_merge
 type MergeError =

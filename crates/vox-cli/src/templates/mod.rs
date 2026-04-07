@@ -9,6 +9,7 @@
 mod islands;
 mod spa;
 mod tanstack;
+pub mod mobile_pwa;
 
 pub use islands::*;
 pub use spa::*;

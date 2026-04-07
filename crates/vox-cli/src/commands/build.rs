@@ -84,7 +84,10 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
             if !target_path.exists() {
                 println!("Generating v0 component '{}'...", component_name);
 
-                println!("Downloading v0 component '{}' via npx v0 add...", component_name);
+                println!(
+                    "Downloading v0 component '{}' via npx v0 add...",
+                    component_name
+                );
                 let status = tokio::process::Command::new("npx")
                     .arg("v0")
                     .arg("add")
@@ -97,11 +100,19 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
                     .current_dir(file.parent().unwrap_or(Path::new(".")))
                     .status()
                     .await;
-                
+
                 match status {
-                    Ok(s) if s.success() => println!("  generated v0 component: {}", target_path.display()),
-                    Ok(s) => eprintln!("  failed to download v0 component '{}': exited with {}", component_name, s),
-                    Err(e) => eprintln!("  failed to execute npx v0 add for '{}': {}", component_name, e),
+                    Ok(s) if s.success() => {
+                        println!("  generated v0 component: {}", target_path.display())
+                    }
+                    Ok(s) => eprintln!(
+                        "  failed to download v0 component '{}': exited with {}",
+                        component_name, s
+                    ),
+                    Err(e) => eprintln!(
+                        "  failed to execute npx v0 add for '{}': {}",
+                        component_name, e
+                    ),
                 }
             } else {
                 println!("  skipping v0 component '{}' (file exists)", component_name);

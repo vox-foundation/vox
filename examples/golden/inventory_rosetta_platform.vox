@@ -9,7 +9,7 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Demonstrate platform-facing inventory layers for actor/workflow/mcp/ui/capabilities in one compact Vox file.
+// @training_prompt: Demonstrate platform-facing inventory layers for actor/workflow/mcp/ui/capabilities in one compact Vox file.
 
 // ANCHOR: actor_layer
 actor InventoryActor {

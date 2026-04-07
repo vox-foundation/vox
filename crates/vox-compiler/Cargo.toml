@@ -8,6 +8,7 @@ description = "Unified Vox compiler crate containing lexer, parser, AST, HIR, ty
 logos = { workspace = true }
 vox-eval = { workspace = true }
 vox-repository = { workspace = true }
+vox-container = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

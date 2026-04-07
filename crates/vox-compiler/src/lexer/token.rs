@@ -78,6 +78,12 @@ pub enum Token {
     View,
     #[token("component")]
     Component,
+    #[token("agent")]
+    Agent,
+    #[token("migrate")]
+    Migrate,
+    #[token("environment")]
+    Environment,
 
     // ── Phonetic Operators ────────────────────────────────────
     #[token("and")]
@@ -333,6 +339,9 @@ impl std::fmt::Display for Token {
             Token::Cleanup => write!(f, "cleanup"),
             Token::View => write!(f, "view"),
             Token::Component => write!(f, "component"),
+            Token::Agent => write!(f, "agent"),
+            Token::Migrate => write!(f, "migrate"),
+            Token::Environment => write!(f, "environment"),
             Token::And => write!(f, "and"),
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),

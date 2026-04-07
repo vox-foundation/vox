@@ -132,7 +132,8 @@ pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             commands::dev::run(&a.file, &a.out_dir, a.port, a.open).await?;
         }
         FabricaCmd::Bundle(a) => {
-            commands::bundle::run(&a.file, &a.out_dir, a.target.as_deref(), a.release, a.mode).await?;
+            commands::bundle::run(&a.file, &a.out_dir, a.target.as_deref(), a.release, a.mode)
+                .await?;
         }
         FabricaCmd::Fmt(a) => {
             commands::fmt::run(&a.file, a.check)?;

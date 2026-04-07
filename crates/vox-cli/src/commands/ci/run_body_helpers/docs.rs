@@ -6,10 +6,10 @@ use std::sync::LazyLock;
 
 use super::guards::run_sql_surface_guard;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use crate::commands::ci::canonical_docs;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
 use crate::commands::ci::completion_quality;
-use crate::commands::ci::canonical_docs;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };

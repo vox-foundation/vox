@@ -117,6 +117,7 @@ struct ServeConfig {
     max_tokens: usize,
     temperature: f64,
     device: String,
+    domain_router: Option<vox_populi::mens::tensor::domain_router::DomainRouter>,
 }
 
 /// Shared state for Axum handlers.
@@ -136,7 +137,16 @@ async fn chat_completions(
 
     let prompt = build_prompt(&req.messages);
     let result = tokio::task::spawn_blocking({
-        let model_dir = state.config.model_dir.clone();
+        let mut model_dir = state.config.model_dir.clone();
+        if let Some(req_model) = &req.model {
+            if let Some(router) = &state.config.domain_router {
+                if let Some(path) = router.route(req_model) {
+                    if let Some(parent) = path.parent() {
+                        model_dir = parent.to_path_buf();
+                    }
+                }
+            }
+        }
         let device = state.config.device.clone();
         let prompt_clone = prompt.clone();
         move || {
@@ -209,7 +219,16 @@ async fn ollama_chat(
     let temperature = req.options.temperature.unwrap_or(state.config.temperature);
     let prompt = build_prompt(&req.messages);
     let result = tokio::task::spawn_blocking({
-        let model_dir = state.config.model_dir.clone();
+        let mut model_dir = state.config.model_dir.clone();
+        if let Some(req_model) = &req.model {
+            if let Some(router) = &state.config.domain_router {
+                if let Some(path) = router.route(req_model) {
+                    if let Some(parent) = path.parent() {
+                        model_dir = parent.to_path_buf();
+                    }
+                }
+            }
+        }
         let device = state.config.device.clone();
         let prompt_clone = prompt.clone();
         move || {
@@ -337,6 +356,7 @@ pub async fn run(args: Args) -> Result<()> {
 
     let state = Arc::new(AppState {
         config: ServeConfig {
+            domain_router: vox_populi::mens::tensor::domain_router::DomainRouter::discover(model.parent().unwrap_or(&model)).ok(),
             model_dir: model.clone(),
             model_name: model
                 .file_name()

@@ -13,15 +13,15 @@ mod row_cols;
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{
-    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
-    BehaviorEventEntry, BenchmarkEventRow, BuildRunRow, BuilderSessionEntry, CloudDispatchRow,
-    CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSampleRow, EmbeddingEntry,
-    EndpointReliabilityEntry, ExecutionEntry, ExternalStatusSnapshotParams,
-    ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
-    ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
-    GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow,
-    LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow,
-    PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, AgentDefEntry,
+    AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildRunRow,
+    BuilderSessionEntry, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry,
+    ComponentEntry, CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
+    ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
+    ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
+    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
+    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
+    PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
     PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
     PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
@@ -31,8 +31,8 @@ pub use types::{
     RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
     ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
     SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
-    ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry, UserEntry,
-    WarningRow, WorkflowExecutionRow,
+    ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry,
+    UpsertAccountSecretCiphertextParams, UserEntry, WarningRow, WorkflowExecutionRow,
     ObservationReport, ObserverAction, TestDecision, TestDecisionPolicy, VictoryVerdict, TierResult,
 };
 
@@ -45,8 +45,10 @@ mod ops;
 mod ops_agents;
 pub mod ops_build;
 mod ops_cas;
+mod ops_clavis_cloudless;
 mod ops_codex;
 mod ops_completion;
+mod ops_external_review;
 mod ops_learning;
 mod ops_lineage;
 mod ops_ludus;

@@ -47,6 +47,7 @@ profiles:
     system_prompt: scripts/rust_system_prompt.txt
     min_rating: 3
     ce_last_k: 64
+    reward_hook: "cargo_build"
 
   agents:
     description: "MCP tool-use, multi-turn orchestration, A2A, durable workflows"
@@ -65,3 +66,28 @@ profiles:
       epoch_2_max_difficulty: 8
       epoch_3_max_difficulty: 10
       curriculum_phases: ["tool_call", "multi_turn", "orchestration"]
+
+  rocks:
+    description: "Rocks database interaction and optimization patterns"
+    context_filter:
+      categories: [rocks_db, rocks_tuning, rocks_bindings]
+    mix_config: mens/config/mix-rocks.yaml
+    min_rating: 4
+    ce_last_k: 64
+
+  research:
+    description: "Epistemically grounded synthesis and knowledge acquisition"
+    context_filter:
+      categories: [socrates, research_synthesis, epistemic_grounding]
+    mix_config: mens/config/mix-research.yaml
+    min_rating: 4
+    ce_last_k: 64
+
+  populi-meta:
+    description: "Self-knowledge about Vox architecture from verified golden sources"
+    context_filter:
+      categories: [vox_architecture, populi_internals]
+    mix_config: mens/config/mix-populi-meta.yaml
+    min_rating: 4
+    ce_last_k: 64
+

@@ -147,8 +147,69 @@ pub enum CodeRabbitAction {
         path: PathBuf,
         #[arg(long, short = 'o')]
         output: Option<PathBuf>,
+        /// Persist local cache under `.coderabbit/ingested_findings.json`.
         #[arg(long, default_value_t = false)]
         persist: bool,
+        /// Persist only to VoxDB (no local cache write).
+        #[arg(long, default_value_t = false)]
+        db_only: bool,
+        /// Persist to VoxDB and local cache mirror.
+        #[arg(long, default_value_t = false)]
+        db_and_cache: bool,
+        /// Optional replay/lookback window tag (for audit metadata only).
+        #[arg(long)]
+        reingest_window: Option<String>,
+        /// Optional idempotency key used for run-level dedupe.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Import historical `.coderabbit/ingested_findings.json` into VoxDB.
+    #[command(name = "db-backfill")]
+    DbBackfill {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        input: Option<PathBuf>,
+        #[arg(long, default_value_t = false)]
+        persist_local_cache: bool,
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Show DB-backed review report summary for repo/PR.
+    #[command(name = "db-report")]
+    DbReport {
+        pr: u64,
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Show DB-backed status summary for this repository.
+    #[command(name = "db-status")]
+    DbStatus {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Build and validate review-derived dataset for MENS ingestion loop.
+    #[command(name = "learning-sync")]
+    LearningSync {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        repository_id: Option<String>,
+        #[arg(long, default_value_t = 1000)]
+        limit: i64,
+    },
+    /// Retry one deadletter row id.
+    #[command(name = "deadletter-retry")]
+    DeadletterRetry {
+        id: i64,
+        #[arg(default_value = ".")]
+        path: PathBuf,
     },
     /// Build a markdown/json task checklist from a PR's CodeRabbit comments.
     Tasks {
@@ -327,9 +388,63 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             path,
             output,
             persist,
+            db_only,
+            db_and_cache,
+            reingest_window,
+            idempotency_key,
         } => {
             let repo = resolve_repo(&path)?;
-            ingest::run_ingest(pr, output.as_deref(), persist, &repo).await?;
+            ingest::run_ingest(
+                pr,
+                output.as_deref(),
+                persist,
+                db_only,
+                db_and_cache,
+                reingest_window.as_deref(),
+                idempotency_key.as_deref(),
+                &repo,
+            )
+            .await?;
+        }
+        CodeRabbitAction::DbBackfill {
+            path,
+            input,
+            persist_local_cache,
+            idempotency_key,
+        } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_db_backfill(
+                input.as_deref(),
+                persist_local_cache,
+                idempotency_key.as_deref(),
+                &repo,
+            )
+            .await?;
+        }
+        CodeRabbitAction::DbReport {
+            pr,
+            path,
+            limit,
+            json,
+        } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_db_report(pr, &repo, limit, json).await?;
+        }
+        CodeRabbitAction::DbStatus { path, json } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_db_status(&repo, json).await?;
+        }
+        CodeRabbitAction::LearningSync {
+            path,
+            repository_id,
+            limit,
+        } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_learning_sync(&repo, repository_id.as_deref(), limit).await?;
+        }
+        CodeRabbitAction::DeadletterRetry { id, path } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_deadletter_retry(id, &repo).await?;
         }
         CodeRabbitAction::Tasks {
             pr,

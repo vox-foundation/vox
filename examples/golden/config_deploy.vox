@@ -9,7 +9,7 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Represent database settings as a Vox ADT and expose deployment-shaped helpers.
+// @training_prompt: Represent database settings as a Vox ADT and expose deployment-shaped helpers.
 // ANCHOR: display
 type DatabaseConfig =
     | DatabaseConfig(url: str, pool_size: int)

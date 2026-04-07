@@ -529,6 +529,29 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
         "relay_ok": relay_ok,
         "dropped_messages": orch.message_bus().dropped_messages(),
     });
+
+    if route_ok {
+        let trace_data = serde_json::json!({
+            "prompt": format!("Sender: {}\nReceiver: {}\nMsgType: {}", params.sender_id, params.receiver_id, msg_type_wire(&msg_type)),
+            "response": params.payload,
+            "category": "a2a_trace",
+            "schema_version": "vox_dogfood_v1",
+        });
+        
+        tokio::spawn(async move {
+            let path = std::path::PathBuf::from("target/dogfood/a2a_traces.jsonl");
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(line) = serde_json::to_string(&trace_data) {
+                use tokio::io::AsyncWriteExt;
+                if let Ok(mut f) = tokio::fs::OpenOptions::new().create(true).append(true).open(path).await {
+                    let _ = f.write_all(format!("{line}\n").as_bytes()).await;
+                }
+            }
+        });
+    }
+
     if let Some(obj) = data.as_object_mut() {
         extend_binding_fields(obj, binding_outcome);
     }

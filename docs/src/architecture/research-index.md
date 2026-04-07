@@ -48,6 +48,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Protocol convergence research 2026](protocol-convergence-research-2026.md)
 - [Populi GPU network research 2026](populi-gpu-network-research-2026.md)
 - [Populi GPU mesh implementation plan 2026](populi-gpu-mesh-implementation-plan-2026.md) — paired **decision** docs: [ADR 017](../adr/017-populi-lease-remote-execution.md), [ADR 018](../adr/018-populi-gpu-truth-layering.md), [ADR 020](../adr/020-populi-mesh-scaling-transport-default.md), [placement matrix](../reference/populi-work-type-placement-matrix.md); probe SSOT: [GPU truth probe spec](populi-gpu-truth-probe-spec.md), [node lifecycle / hotplug](populi-node-lifecycle-hotplug.md)
+- [Mobile/Desktop Convergence & Language Extension Research 2026](mobile-desktop-convergence-research-2026.md) — unified browser view, std.mobile namespace, agent/environment parser gaps, Web API vs Capacitor strategy, maintainability quantification
 - [Vox bell-curve strategy](vox-bell-curve-strategy.md)
 - [Feature growth boundaries](feature-growth-boundaries.md)
 - [Interop tier policy](interop-tier-policy.md)
@@ -57,6 +58,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - Finding-candidate and novelty-evidence v1 JSON Schemas live under `contracts/scientia/` (`finding-candidate.v1.schema.json`, `novelty-evidence-bundle.v1.schema.json`); example fixtures under `contracts/reports/scientia-*.example.v1.json`. CI: `vox ci scientia-novelty-ledger-contracts` (also nested in `vox ci ssot-drift`). CLI spot-check: `vox scientia finding-candidate-validate`, `vox scientia novelty-evidence-bundle-validate`.
 - **Impact / readership / citation-adjacent signals (research seed):** [scientia-impact-readership-research-2026.md](scientia-impact-readership-research-2026.md) and tunable weights in [`contracts/scientia/impact-readership-projection.seed.v1.yaml`](../../../contracts/scientia/impact-readership-projection.seed.v1.yaml) (orthogonal to novelty; no default publish gate).
 - **Publication-worthiness + SSOT unification research plan:** [scientia-publication-worthiness-ssot-unification-research-2026.md](scientia-publication-worthiness-ssot-unification-research-2026.md) (standards-to-signals matrix, canonical metadata graph proposal, detection calibration protocol, Codex research snapshot persistence blueprint, automation boundary ledger).
+- **Implementation wave playbook (roadmap):** [scientia-implementation-wave-playbook-2026.md](scientia-implementation-wave-playbook-2026.md) (232-task execution map, wave outputs, first-30 lock order, and contract inventory).
 
 ## Labeling rule
 

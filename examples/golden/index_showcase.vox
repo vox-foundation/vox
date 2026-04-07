@@ -15,12 +15,12 @@
 
 @server fn complete_task(id: Id[Task]) -> Result[Unit] {
     db.Task.update(id, { done: true })
-    ret Ok(())
+    ret Ok(Unit)
 }
 // ANCHOR_END: data
 
 // ANCHOR: ui
-@island fn TaskList(tasks: List[Task]) {
+@component fn TaskList(tasks: List[Task]) {
     <div>
         {tasks.map(fn(t) {
             <label>

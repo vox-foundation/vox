@@ -25,8 +25,22 @@ pub struct SemanticChunk {
 pub struct SemanticManifest {
     pub generated_at: String,
     pub baseline_branch: String,
+    /// Count of paths that are eligible for semantic chunking after all planner ignores.
     pub total_files: usize,
+    /// Coverage counters used to track "0-100%" review posture for a run.
+    pub coverage: CoverageStats,
     pub chunks: Vec<SemanticChunk>,
+}
+
+/// Coverage accounting attached to each semantic manifest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoverageStats {
+    /// Candidate paths considered by the semantic planner.
+    pub candidate_files: usize,
+    /// Paths accepted for review chunks.
+    pub included_files: usize,
+    /// Paths excluded by hard planner rules.
+    pub ignored_files: usize,
 }
 
 /// Diff-based semantic PR planner.
@@ -41,28 +55,33 @@ impl SemanticPlanner {
 
     /// Returns `true` if the file should be excluded from review PRs.
     pub fn is_ignored(path: &str) -> bool {
+        Self::ignored_reason(path).is_some()
+    }
+
+    /// Returns a stable reason when a path is excluded from semantic review chunks.
+    pub fn ignored_reason(path: &str) -> Option<&'static str> {
         let p = path.replace('\\', "/");
 
         if path_policy::is_coderabbit_local_tool_path(&p) {
-            return true;
+            return Some("coderabbit_tooling_path");
         }
 
         if IGNORED_DIRS.iter().any(|d| p.starts_with(d)) {
-            return true;
+            return Some("ignored_dir");
         }
         if IGNORED_EXTENSIONS.iter().any(|e| p.ends_with(e)) {
-            return true;
+            return Some("ignored_extension");
         }
         // Root-level scratch patterns and exact names (no directory component)
         if !p.contains('/') {
             if IGNORED_ROOT_EXACT.contains(&p.as_str()) {
-                return true;
+                return Some("ignored_root_exact");
             }
             if IGNORED_ROOT_PATTERNS.iter().any(|pat| p.ends_with(pat)) {
-                return true;
+                return Some("ignored_root_pattern");
             }
         }
-        false
+        None
     }
 
     /// Map a file path to its `(order, group_name)`.
@@ -84,13 +103,14 @@ impl SemanticPlanner {
         use std::collections::BTreeMap;
 
         let mut groups: BTreeMap<(u32, &'static str), Vec<String>> = BTreeMap::new();
-        let mut total = 0usize;
+        let candidate_files = files.len();
+        let mut included_files = 0usize;
 
         for f in files {
             if Self::is_ignored(&f) {
                 continue;
             }
-            total += 1;
+            included_files += 1;
             let (order, name) = Self::get_group(&f);
             groups.entry((order, name)).or_default().push(f);
         }
@@ -121,7 +141,12 @@ impl SemanticPlanner {
         SemanticManifest {
             generated_at: chrono::Utc::now().to_rfc3339(),
             baseline_branch: baseline_branch.to_string(),
-            total_files: total,
+            total_files: included_files,
+            coverage: CoverageStats {
+                candidate_files,
+                included_files,
+                ignored_files: candidate_files.saturating_sub(included_files),
+            },
             chunks,
         }
     }

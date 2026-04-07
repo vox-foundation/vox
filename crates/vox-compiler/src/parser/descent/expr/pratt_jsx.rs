@@ -12,6 +12,7 @@ impl Parser {
         let mut attrs = Vec::new();
         // Parse attributes until '>' or '/>'
         loop {
+            self.skip_newlines();
             match self.peek() {
                 Token::Gt | Token::JsxSelfClose | Token::Eof => break,
                 _ => {

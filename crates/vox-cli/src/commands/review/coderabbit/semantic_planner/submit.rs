@@ -6,6 +6,8 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
+use vox_db::store::types::ExternalReviewRunParams;
+use vox_db::VoxDb;
 use vox_git::GitBridge;
 
 use super::super::run_state as cr_run_state;
@@ -71,11 +73,28 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     res
 }
 
+fn summarize_ignored_reasons(paths: &[String]) -> Vec<(String, usize)> {
+    let mut counts: std::collections::BTreeMap<&'static str, usize> =
+        std::collections::BTreeMap::new();
+    for path in paths {
+        if let Some(reason) = SemanticPlanner::ignored_reason(path) {
+            *counts.entry(reason).or_insert(0) += 1;
+        }
+    }
+
+    let mut sorted: Vec<(String, usize)> = counts
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    sorted
+}
+
 async fn run_semantic_submit_core(
     repo: &Path,
     cfg: &SemanticSubmitConfig,
     all_files: Vec<String>,
-    _plan_snapshot: Vec<String>,
+    plan_snapshot: Vec<String>,
 ) -> Result<()> {
     // ── 2. Build semantic plan ──────────────────────────────────────────────
     let baseline_branch = if cfg.resume && !cfg.force_chunks {
@@ -118,6 +137,7 @@ async fn run_semantic_submit_core(
     }
     let planner = SemanticPlanner::new(max_per);
     let mut sem_manifest = planner.plan(all_files, &baseline_branch);
+    let ignored_reasons = summarize_ignored_reasons(&plan_snapshot);
 
     // Apply group filter if requested
     if let Some(ref filter) = cfg.group_filter {
@@ -145,8 +165,19 @@ async fn run_semantic_submit_core(
         cfg.max_files_per_pr, max_per
     );
     eprintln!("  Baseline     : {}", baseline_branch);
-    eprintln!("  Total files  : {}", sem_manifest.total_files);
+    eprintln!(
+        "  Coverage     : {} candidate, {} included, {} ignored",
+        sem_manifest.coverage.candidate_files,
+        sem_manifest.coverage.included_files,
+        sem_manifest.coverage.ignored_files
+    );
     eprintln!("  Chunks       : {}", sem_manifest.chunks.len());
+    if !ignored_reasons.is_empty() {
+        eprintln!("  Ignore rules :");
+        for (reason, count) in ignored_reasons {
+            eprintln!("    - {reason}: {count}");
+        }
+    }
     eprintln!("──────────────────────────────────────────────");
     for chunk in &sem_manifest.chunks {
         eprintln!("  {:.<30} {} files", chunk.name, chunk.files.len());
@@ -155,6 +186,9 @@ async fn run_semantic_submit_core(
 
     let manifest_path = write_semantic_manifest(repo, &sem_manifest)?;
     eprintln!("[manifest] Written to: {}", manifest_path.display());
+    if let Err(err) = persist_semantic_lineage_run(repo, &baseline_branch, &sem_manifest).await {
+        eprintln!("[semantic-submit] warning: could not persist lineage run to VoxDB: {err}");
+    }
 
     if !cfg.execute {
         eprintln!(
@@ -354,5 +388,48 @@ async fn run_semantic_submit_core(
     eprintln!("  vox review coderabbit ingest <pr_number>");
     eprintln!("  vox review coderabbit tasks <pr_number> --format markdown");
 
+    Ok(())
+}
+
+async fn persist_semantic_lineage_run(
+    repo: &Path,
+    baseline_branch: &str,
+    sem_manifest: &super::types::SemanticManifest,
+) -> Result<()> {
+    let bridge = GitBridge::open(repo).context("open git repo for lineage")?;
+    let remote_url = bridge.remote_url().context("get remote URL for lineage")?;
+    let (owner, repo_name) =
+        github::parse_github_owner_repo(&remote_url).context("parse owner/repo for lineage")?;
+    let repository_id = format!("{owner}/{repo_name}");
+    let metadata = serde_json::json!({
+        "baseline_branch": baseline_branch,
+        "generated_at": sem_manifest.generated_at,
+        "total_files": sem_manifest.total_files,
+        "coverage": sem_manifest.coverage,
+        "chunk_count": sem_manifest.chunks.len(),
+        "chunks": sem_manifest.chunks.iter().map(|c| {
+            serde_json::json!({
+                "name": c.name,
+                "file_count": c.files.len(),
+            })
+        }).collect::<Vec<_>>(),
+    })
+    .to_string();
+
+    let db = VoxDb::connect_default().await?;
+    let _ = db
+        .insert_external_review_run(ExternalReviewRunParams {
+            provider: "coderabbit",
+            repository_id: &repository_id,
+            owner: &owner,
+            repo: &repo_name,
+            pr_number: 0,
+            commit_sha: None,
+            trigger_kind: "semantic_submit_plan",
+            idempotency_key: Some(baseline_branch),
+            item_count: sem_manifest.coverage.included_files as i64,
+            metadata_json: Some(&metadata),
+        })
+        .await?;
     Ok(())
 }

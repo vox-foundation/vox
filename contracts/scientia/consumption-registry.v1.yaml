@@ -1,0 +1,45 @@
+version: v1
+description: >
+  SCIENTIA schema-to-runtime consumption registry. Entries marked
+  consumption_required=true must have live consumer code paths and declared test
+  targets before wave closure.
+
+entries:
+  - schema_id: scientia-canonical-publication-metadata-v1-schema
+    contract_path: contracts/scientia/canonical-publication-metadata.v1.schema.json
+    consumption_required: true
+    consumer_paths:
+      - crates/vox-publisher/src/scientia_contracts.rs
+      - crates/vox-publisher/src/scientific_metadata.rs
+    test_targets:
+      - cargo test -p vox-publisher scientia_contracts_roundtrip_and_schema
+
+  - schema_id: scientia-evidence-pack-v1-schema
+    contract_path: contracts/scientia/evidence-pack.v1.schema.json
+    consumption_required: true
+    consumer_paths:
+      - crates/vox-publisher/src/scientia_contracts.rs
+      - crates/vox-publisher/src/publication_preflight.rs
+    test_targets:
+      - cargo test -p vox-publisher scientia_contracts_roundtrip_and_schema
+
+  - schema_id: scientia-route-profile-requirements-v1
+    contract_path: contracts/scientia/route-profile-requirements.v1.yaml
+    consumption_required: true
+    consumer_paths:
+      - crates/vox-publisher/src/scientia_contracts.rs
+      - crates/vox-cli/src/commands/db/publication.rs
+    test_targets:
+      - cargo test -p vox-publisher scientia_contracts_roundtrip_and_schema
+
+  - schema_id: scientia-worthiness-signals-v2-schema
+    contract_path: contracts/scientia/worthiness-signals.v2.schema.json
+    consumption_required: false
+    consumer_paths: []
+    test_targets: []
+
+  - schema_id: scientia-research-snapshot-v1-schema
+    contract_path: contracts/scientia/research-snapshot.v1.schema.json
+    consumption_required: false
+    consumer_paths: []
+    test_targets: []

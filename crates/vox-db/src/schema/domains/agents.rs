@@ -457,4 +457,19 @@ CREATE INDEX IF NOT EXISTS idx_repository_reliability_score ON repository_reliab
 CREATE INDEX IF NOT EXISTS idx_trust_observations_entity_dim ON trust_observations(entity_type, entity_id, dimension, created_at_ms);
 CREATE INDEX IF NOT EXISTS idx_trust_observations_scope ON trust_observations(domain, task_class, provider, model_id, repository_id);
 CREATE INDEX IF NOT EXISTS idx_trust_rollups_entity_dim ON trust_rollups(entity_type, entity_id, dimension, score);
+
+-- Bounded routing decision log (journeys, surface, model selection).
+-- No prompt/body content — coarse metadata only.
+CREATE TABLE IF NOT EXISTS routing_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    journey_id TEXT,
+    repository_id TEXT,
+    session_id TEXT,
+    surface TEXT NOT NULL DEFAULT '',
+    model_id TEXT,
+    reason_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_routing_decisions_created ON routing_decisions(created_at);
+CREATE INDEX IF NOT EXISTS idx_routing_decisions_journey ON routing_decisions(journey_id);
 ";

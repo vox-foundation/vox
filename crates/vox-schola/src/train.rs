@@ -1,7 +1,9 @@
 //! `vox-schola train` — dispatches QLoRA training.
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use std::path::PathBuf;
+
+use vox_populi::mens::tensor::training_config::{ChatmlConfig, ContextFilter};
 
 use crate::cli::{Args, Cmd};
 
@@ -215,8 +217,19 @@ pub async fn run(args: Args) -> Result<()> {
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
-    let mix_path =
-        vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref());
+    let explicit_mix_path = if let Some(tag) = adapter_tag.as_deref() {
+        if let Ok(domain) = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(tag, workspace_root.as_deref()) {
+            domain.mix_config.clone()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let mix_path = explicit_mix_path.unwrap_or_else(|| {
+        vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref())
+    });
     if !skip_mix && mix_path.is_file() {
         eprintln!("  🔄 Running corpus mix to refresh training data...");
     }
@@ -226,20 +239,24 @@ pub async fn run(args: Args) -> Result<()> {
             &data_dir,
             skip_mix,
             true,
+            Some(&mix_path),
         )?;
 
+    // We must validate train preflight here directly
     let resolved = vox_corpus::training::preflight::validate_train_preflight(
         &data_dir,
         contract_override.as_deref(),
         workspace_root.as_deref(),
     )?;
 
+    // Re-resolve profile now that we have sample_count
     let profile = vox_populi::mens::resolve_effective_profile(
         preset.as_deref(),
         device_profile.clone(),
         resolved.sample_count,
         cli_overrides,
     );
+
     if device.eq_ignore_ascii_case("cuda") {
         eprintln!(
             "  ⚙ {}",
@@ -344,6 +361,28 @@ pub async fn run(args: Args) -> Result<()> {
         gpu_info.model_name.clone()
     };
 
+    let parsed_context_filter: Option<ContextFilter> = match context_filter.as_deref() {
+        None => None,
+        Some(raw) => {
+            let raw = raw.trim();
+            if raw.is_empty() {
+                None
+            } else {
+                Some(serde_json::from_str(raw).context("invalid --context-filter JSON")?)
+            }
+        }
+    };
+
+    let parsed_reward_hook = if let Some(tag) = adapter_tag.as_deref() {
+        if let Ok(domain) = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(tag, workspace_root.as_deref()) {
+            domain.reward_hook.clone()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
         base_model_family,
@@ -369,7 +408,7 @@ pub async fn run(args: Args) -> Result<()> {
         device_profile: Some(device_profile_str),
         max_vram_fraction: vram_limit_fraction,
         adapter_tag,
-        context_filter,
+        context_filter: parsed_context_filter,
         tokenizer_mode: vox_populi::mens::MensTokenizerMode::Hf,
         qlora_double_quant: !qlora_no_double_quant,
         finetune_contract_digest: None,
@@ -383,6 +422,7 @@ pub async fn run(args: Args) -> Result<()> {
         deployment_target: vox_populi::mens::TrainingDeploymentTarget::Workstation,
         validation_split_ratio: Some(0.05),
         curriculum: false,
+        curriculum_schedule: None,
         optimizer_experiment_mode:
             vox_populi::mens::tensor::training_config::OptimizerExperimentMode::Off,
         trajectory_weighting_enabled,
@@ -392,6 +432,8 @@ pub async fn run(args: Args) -> Result<()> {
         trajectory_quality_boost,
         require_gpu: false,
         allow_cpu_fallback: true,
+        chatml: ChatmlConfig::default(),
+        reward_hook: parsed_reward_hook,
     };
 
     let system_prompt = vox_corpus::training::generate_training_system_prompt();

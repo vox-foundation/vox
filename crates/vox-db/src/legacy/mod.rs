@@ -17,7 +17,7 @@ pub use crate::legacy_import_extras as import_extras;
 
 /// Apply legacy schema-cutover alignment for pre-baseline databases.
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), crate::StoreError> {
-    crate::schema_cutover::apply_schema_cutover(conn).await
+    crate::schema_extensions::apply_schema_extensions(conn).await
 }
 
 /// Apply legacy Ludus/gamification cutover alignment.

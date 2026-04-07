@@ -115,18 +115,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 force_restart,
                 false, // curriculum (dogfood default: off)
                 OptimizerExperimentModeCli::Off.into(),
-                true,  // require_gpu
-                false, // allow_cpu_fallback
-                None,  // base_model_family
-                None,  // upstream_model_id
-                None,  // license_class
-                false, // attribution_required
-                false, // trajectory_weighting_enabled
-                1.1,   // trajectory_tool_trace_boost
-                1.15,  // trajectory_failure_category_boost
-                None,  // trajectory_quality_floor
-                1.05,  // trajectory_quality_boost
-                None,  // curriculum_schedule
+                true,               // require_gpu
+                false,              // allow_cpu_fallback
+                None,               // base_model_family
+                None,               // upstream_model_id
+                None,               // license_class
+                false,              // attribution_required
+                false,              // trajectory_weighting_enabled
+                1.1,                // trajectory_tool_trace_boost
+                1.15,               // trajectory_failure_category_boost
+                None,               // trajectory_quality_floor
+                1.05,               // trajectory_quality_boost
+                None,               // curriculum_schedule
                 Default::default(), // chatml_config
             )
             .await?;

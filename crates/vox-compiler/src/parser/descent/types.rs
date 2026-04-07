@@ -39,6 +39,35 @@ impl Parser {
 
     pub(crate) fn parse_type_expr(&mut self) -> Result<TypeExpr, ()> {
         let start = self.span();
+        if self.eat(&Token::Underscore) {
+            return Ok(TypeExpr::Infer { span: start });
+        }
+        if self.eat(&Token::Dec) {
+            return Ok(TypeExpr::Decimal { span: start });
+        }
+        if self.eat(&Token::Fn) {
+            self.expect(&Token::LParen)?;
+            let mut params = Vec::new();
+            if !matches!(self.peek(), Token::RParen) {
+                loop {
+                    params.push(self.parse_type_expr()?);
+                    if !self.eat(&Token::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.expect(&Token::RParen)?;
+            let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
+                self.parse_type_expr()?
+            } else {
+                TypeExpr::Unit { span: self.span() }
+            };
+            return Ok(TypeExpr::Function {
+                params,
+                return_type: Box::new(return_type),
+                span: start.merge(self.span()),
+            });
+        }
         let name = self.parse_ident_name()?;
         if self.eat(&Token::LBracket) {
             let mut args = Vec::new();
@@ -54,10 +83,6 @@ impl Parser {
                 args,
                 span: start.merge(self.span()),
             })
-        } else if self.eat(&Token::Underscore) {
-            Ok(TypeExpr::Infer { span: start })
-        } else if self.eat(&Token::Dec) {
-            Ok(TypeExpr::Decimal { span: start })
         } else {
             Ok(TypeExpr::Named {
                 name,

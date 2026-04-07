@@ -1,8 +1,10 @@
 pub mod agents;
+pub mod clavis_cloudless;
 pub mod ci_completion;
 pub mod cas_codex;
 pub mod conversations;
 pub mod execution;
+pub mod external_review;
 pub mod foundation;
 pub mod gamification_coordination;
 pub mod knowledge;

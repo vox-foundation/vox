@@ -22,6 +22,7 @@ pub(crate) use legacy::{
 };
 pub use policy::{
     ContextGateEntry, EvalGatePolicy, EvalLocalGate, McpToolSchemaGate, ModalMixGate, PassAtKGate,
-    PerplexityGate, SupervisedRatioGate, ThroughputGate, TruncationGate, load_policy,
+    PerplexityGate, ReviewRecurrenceGate, SupervisedRatioGate, ThroughputGate, TruncationGate,
+    load_policy,
 };
 pub use run_gate::run_eval_gate;

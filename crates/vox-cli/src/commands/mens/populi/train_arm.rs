@@ -166,21 +166,32 @@ pub async fn run_train(
     let mut effective_chatml = vox_populi::mens::tensor::training_config::ChatmlConfig::default();
 
     if let Some(domain_name) = &domain {
-        match vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(domain_name, workspace_root.as_deref()) {
+        match vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(
+            domain_name,
+            workspace_root.as_deref(),
+        ) {
             Ok(profile) => {
                 use owo_colors::OwoColorize;
-                eprintln!("  {} Applied domain profile: {}", "✓".green(), domain_name.cyan());
-                
+                eprintln!(
+                    "  {} Applied domain profile: {}",
+                    "✓".green(),
+                    domain_name.cyan()
+                );
+
                 if let Some(desc) = &profile.description {
                     eprintln!("    Description: {}", desc.dimmed());
                 }
-                
+
                 effective_min_rating = profile.min_rating.or(min_rating);
                 effective_ce_last_k = profile.ce_last_k.unwrap_or(qlora_ce_last_k);
-                effective_validation_split_ratio = profile.validation_split_ratio.unwrap_or(validation_split_ratio);
+                effective_validation_split_ratio = profile
+                    .validation_split_ratio
+                    .unwrap_or(validation_split_ratio);
                 _effective_max_grad_norm = profile.max_grad_norm;
                 effective_curriculum = profile.curriculum.unwrap_or(curriculum);
-                effective_trajectory_weighting_enabled = profile.trajectory_weighting.unwrap_or(trajectory_weighting_enabled);
+                effective_trajectory_weighting_enabled = profile
+                    .trajectory_weighting
+                    .unwrap_or(trajectory_weighting_enabled);
                 if let Some(boost) = profile.trajectory_tool_trace_boost {
                     effective_trajectory_tool_trace_boost = boost;
                 }
@@ -190,7 +201,7 @@ pub async fn run_train(
                 }
                 effective_curriculum_schedule = profile.curriculum_schedule.clone();
                 effective_chatml = profile.chatml.clone();
-                
+
                 if let Some(ref mix_path) = profile.mix_config {
                     // Update env var to point mix to this one if `vox mens corpus mix` called?
                     // Actually simply inform.
@@ -208,10 +219,12 @@ pub async fn run_train(
     } else {
         context_filter
             .or_else(|| effective_adapter_tag.clone())
-            .map(|s| vox_populi::mens::tensor::training_config::ContextFilter {
-                categories: Some(vec![s]),
-                ..Default::default()
-            })
+            .map(
+                |s| vox_populi::mens::tensor::training_config::ContextFilter {
+                    categories: Some(vec![s]),
+                    ..Default::default()
+                },
+            )
     };
 
     let spawn_log_dir = if background {
@@ -283,7 +296,7 @@ pub async fn run_train(
         effective_chatml,
     )
     .await;
-    
+
     if train_res.is_ok() {
         if let Some(ref r) = workspace_root {
             let mixed = r.join("target/dogfood/train_mixed.jsonl");
@@ -294,15 +307,22 @@ pub async fn run_train(
                 }
                 if let Err(e) = std::fs::copy(&mixed, &backup) {
                     use owo_colors::OwoColorize;
-                    eprintln!("  {} Failed to copy train_mixed.jsonl to backup: {e}", "⚠️".yellow());
+                    eprintln!(
+                        "  {} Failed to copy train_mixed.jsonl to backup: {e}",
+                        "⚠️".yellow()
+                    );
                 } else {
                     use owo_colors::OwoColorize;
-                    eprintln!("  {} Backed up running corpus to {}", "✓".green(), backup.display());
+                    eprintln!(
+                        "  {} Backed up running corpus to {}",
+                        "✓".green(),
+                        backup.display()
+                    );
                 }
             }
         }
     }
-    
+
     train_res
 }
 

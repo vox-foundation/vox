@@ -17,6 +17,7 @@ pub mod scientia_evidence;
 pub mod scientia_finding_ledger;
 pub mod scientia_heuristics;
 pub mod scientia_prior_art;
+pub mod scientia_contracts;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scientia_worthiness_enrich;
 pub mod scientific_metadata;

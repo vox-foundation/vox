@@ -55,7 +55,7 @@ mens-candle-qlora-cuda = [
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
-mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub"]
+mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
@@ -111,6 +111,7 @@ qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
 async-trait = { version = "0.1", optional = true }
 futures = { version = "0.3", optional = true }
+vox-eval = { workspace = true, optional = true }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }

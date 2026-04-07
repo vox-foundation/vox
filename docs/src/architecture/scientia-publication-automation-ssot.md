@@ -32,6 +32,7 @@ Internal SSOT and implementation anchors:
 - `docs/src/architecture/scientia-publication-readiness-audit.md`
 - `docs/src/architecture/prompt-engineering-document-skills-scientia-research-2026.md`
 - `docs/src/architecture/scientia-publication-worthiness-ssot-unification-research-2026.md`
+- `docs/src/architecture/scientia-implementation-wave-playbook-2026.md`
 - `docs/src/adr/011-scientia-publication-ssot.md`
 - `docs/src/how-to/how-to-scientia-publication.md`
 - `docs/src/reference/socrates-protocol.md`

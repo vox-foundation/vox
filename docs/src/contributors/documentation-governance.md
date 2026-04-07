@@ -64,6 +64,30 @@ Use `status` when the distinction matters to readers:
 
 Do not use `status` to make aspirational pages sound shipped.
 
+### Frontmatter starter template
+
+Use this template for new pages so docs lint passes on first run:
+
+```md
+---
+title: "Page title"
+description: "One specific sentence about what this page covers."
+category: "architecture"
+status: "roadmap"
+last_updated: 2026-04-06
+training_eligible: true
+---
+```
+
+Fast local lint loop:
+
+- `cargo run -p vox-doc-pipeline -- --lint-only --paths architecture/my-page.md`
+- `cargo run -p vox-doc-pipeline -- --lint-only --paths architecture/my-page.md --fix`
+
+Authoring guardrail:
+
+- Do not start a line with a single backtick in prose (for example `` `vox ...`` at line start). Use normal prose with inline code or a full triple-backtick fence.
+
 ## Authority tiers (A-D)
 
 Use one authority tier per documentation domain. The canonical registry is

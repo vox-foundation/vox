@@ -1,4 +1,3 @@
-#[cfg(all(feature = "mens-dei", feature = "gpu"))]
 use anyhow::Context;
 use anyhow::Result;
 use owo_colors::OwoColorize;
@@ -286,8 +285,10 @@ pub(super) async fn run_stats(input: &Path) -> Result<()> {
     let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
     let total = lines.len();
 
-    let mut source_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    let mut category_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut source_counts: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
+    let mut category_counts: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
 
     for line in &lines {
         if let Ok(record) = serde_json::from_str::<serde_json::Value>(line) {
@@ -325,5 +326,44 @@ pub(super) async fn run_stats(input: &Path) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+pub(super) async fn run_review_stats(input: &Path) -> Result<()> {
+    if tokio::fs::metadata(input).await.is_err() {
+        anyhow::bail!("Input file not found: {}", input.display());
+    }
+    let content = read_utf8_path_capped_async(input).await?;
+    let mut total = 0usize;
+    let mut sample_kind: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut category: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut correctness: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+    for line in content.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let row: vox_corpus::external_review_replay::ExternalReviewReplayRow =
+            serde_json::from_str(line).context("parse review stats row")?;
+        total += 1;
+        *sample_kind.entry(row.sample_kind).or_insert(0) += 1;
+        *category.entry(row.category).or_insert(0) += 1;
+        *correctness.entry(row.correctness_state).or_insert(0) += 1;
+    }
+
+    println!("Review dataset stats for {}", input.display());
+    println!("  Total rows: {}", total);
+    println!("  By sample kind:");
+    for (k, v) in sample_kind {
+        println!("    - {k}: {v}");
+    }
+    println!("  By category:");
+    for (k, v) in category {
+        println!("    - {k}: {v}");
+    }
+    println!("  By correctness state:");
+    for (k, v) in correctness {
+        println!("    - {k}: {v}");
+    }
     Ok(())
 }

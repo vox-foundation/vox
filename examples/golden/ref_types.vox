@@ -1,31 +1,33 @@
 // ANCHOR: scalar
-let i: int = 42;
-let f: float = 3.14;
-let s: str = "hello";
-let b: bool = true;
-let c: char = 'x';
+fn demo_scalars() {
+    let i: int = 42
+    let f: float = 3.14
+    let s: str = "hello"
+    let b: bool = true
+    let c: char = 'x'
+}
 // ANCHOR_END: scalar
 
 // ANCHOR: collections
-let nums: List[int] = [1, 2, 3];
-let mapping: Map[str, int] = {"a": 1, "b": 2};
-let tags: Set[str] = {"rust", "vox"};
+fn demo_collections() {
+    let nums: List[int] = [1, 2, 3]
+    let mapping: Map[str, int] = {a: 1, b: 2}
+}
 // ANCHOR_END: collections
 
 // ANCHOR: adt
-type NetworkState {
-    Disconnected
-    Connecting
-    Connected { address: str, port: int }
-}
+type NetworkState = 
+    | Disconnected
+    | Connecting
+    | Connected(address: str, port: int)
 // ANCHOR_END: adt
 
 // ANCHOR: matching
-fn handle_state(state: NetworkState) {
-    match state {
-        NetworkState::Disconnected => print("offline")
-        NetworkState::Connecting => print("connecting...")
-        NetworkState::Connected { address, .. } => print("connected to " + address)
+fn handle_state(net_state: NetworkState) {
+    match net_state {
+        Disconnected -> print("offline")
+        Connecting -> print("connecting...")
+        Connected(address, port) -> print("connected to " + address)
     }
 }
 // ANCHOR_END: matching

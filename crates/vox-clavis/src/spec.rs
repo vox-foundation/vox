@@ -1,6 +1,62 @@
 use std::collections::BTreeSet;
 
 use crate::policy::SecretPolicy;
+use crate::types::SecretSource;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SecretClass {
+    Runtime,
+    Account,
+    Operator,
+    Integration,
+    Transport,
+    Bootstrap,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SecretMaterialKind {
+    ApiKey,
+    OAuthRefreshToken,
+    BearerToken,
+    HmacSecret,
+    EndpointUrl,
+    Username,
+    Password,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RotationPolicy {
+    Manual,
+    Periodic,
+    PerIncident,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SecretMetadata {
+    pub class: SecretClass,
+    pub material_kind: SecretMaterialKind,
+    pub persistable_account_secret: bool,
+    pub device_local_only: bool,
+    pub allow_env_in_strict: bool,
+    pub allow_compat_sources_in_strict: bool,
+    pub rotation_policy: RotationPolicy,
+}
+
+impl SecretMetadata {
+    #[must_use]
+    pub const fn allows_source(self, source: SecretSource, strict_profile: bool) -> bool {
+        if !strict_profile {
+            return true;
+        }
+        match source {
+            SecretSource::EnvCanonical | SecretSource::EnvAlias => self.allow_env_in_strict,
+            SecretSource::AuthJson | SecretSource::LegacyAuthToken | SecretSource::PopuliEnv => {
+                self.allow_compat_sources_in_strict
+            }
+            SecretSource::SecureStore | SecretSource::ExternalBackend => true,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Workflow {
@@ -113,6 +169,8 @@ pub enum SecretId {
     VoxZenodoAccessToken,
     /// OpenReview login identifier (typically the registered email).
     VoxOpenReviewEmail,
+    /// OpenReview access token for token-based auth flows.
+    VoxOpenReviewAccessToken,
     /// OpenReview account password for API/session flows.
     VoxOpenReviewPassword,
     /// Crossref Metadata Plus / Plus API key for metadata deposits (optional).
@@ -129,6 +187,10 @@ pub enum SecretId {
     VoxTelemetryUploadToken,
     /// Bearer token required on inbound `Authorization` header for the webhook ingress server.
     WebhookIngressToken,
+    /// Write-role bearer token for MCP HTTP gateway.
+    VoxMcpHttpBearerToken,
+    /// Read-role bearer token for MCP HTTP gateway.
+    VoxMcpHttpReadBearerToken,
     /// Shared HMAC secret for signing/verifying generic (non-GitHub/Discord/Slack) inbound webhook payloads.
     WebhookSigningSecret,
 }
@@ -585,6 +647,16 @@ const SPECS: &[SecretSpec] = &[
         remediation: "Set OPENREVIEW_EMAIL when OpenReview submission flows are enabled.",
     },
     SecretSpec {
+        id: SecretId::VoxOpenReviewAccessToken,
+        canonical_env: "OPENREVIEW_ACCESS_TOKEN",
+        aliases: &["VOX_OPENREVIEW_ACCESS_TOKEN"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set OPENREVIEW_ACCESS_TOKEN when OpenReview token-based flows are enabled.",
+    },
+    SecretSpec {
         id: SecretId::VoxOpenReviewPassword,
         canonical_env: "OPENREVIEW_PASSWORD",
         aliases: &["VOX_OPENREVIEW_PASSWORD"],
@@ -664,6 +736,26 @@ const SPECS: &[SecretSpec] = &[
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_WEBHOOK_SIGNING_SECRET to enable HMAC verification for generic inbound webhook sources.",
     },
+    SecretSpec {
+        id: SecretId::VoxMcpHttpBearerToken,
+        canonical_env: "VOX_MCP_HTTP_BEARER_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_MCP_HTTP_BEARER_TOKEN for MCP HTTP gateway write-role auth.",
+    },
+    SecretSpec {
+        id: SecretId::VoxMcpHttpReadBearerToken,
+        canonical_env: "VOX_MCP_HTTP_READ_BEARER_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_MCP_HTTP_READ_BEARER_TOKEN for MCP HTTP gateway read-role auth.",
+    },
 ];
 
 impl SecretId {
@@ -674,6 +766,156 @@ impl SecretId {
             .copied()
             .find(|s| s.id == self)
             .expect("SecretId must exist in SPECS")
+    }
+
+    #[must_use]
+    pub const fn metadata(self) -> SecretMetadata {
+        match self {
+            SecretId::GeminiApiKey
+            | SecretId::OpenRouterApiKey
+            | SecretId::OpenAiApiKey
+            | SecretId::AnthropicApiKey
+            | SecretId::HuggingFaceToken
+            | SecretId::GroqApiKey
+            | SecretId::CerebrasApiKey
+            | SecretId::MistralApiKey
+            | SecretId::DeepSeekApiKey
+            | SecretId::SambaNovaApiKey
+            | SecretId::CustomOpenAiApiKey
+            | SecretId::TogetherApiKey
+            | SecretId::VoxRunpodApiKey
+            | SecretId::VoxVastApiKey
+            | SecretId::PopuliApiKey
+            | SecretId::V0ApiKey
+            | SecretId::OpenClawToken
+            | SecretId::VoxSearchQdrantApiKey
+            | SecretId::VoxCrossrefPlusApiKey
+            | SecretId::VoxZenodoAccessToken => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::ApiKey,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: true,
+                allow_compat_sources_in_strict: true,
+                rotation_policy: RotationPolicy::Periodic,
+            },
+            SecretId::ForgeToken
+            | SecretId::VoxNewsTwitterBearer
+            | SecretId::VoxNewsOpenCollectiveToken
+            | SecretId::VoxArxivAssistHandoffSecret
+            | SecretId::VoxTelemetryUploadToken
+            | SecretId::WebhookIngressToken
+            | SecretId::VoxApiKey
+            | SecretId::VoxBearerToken
+            | SecretId::VoxMeshToken
+            | SecretId::VoxMeshWorkerToken
+            | SecretId::VoxMeshSubmitterToken
+            | SecretId::VoxMeshAdminToken => SecretMetadata {
+                class: SecretClass::Transport,
+                material_kind: SecretMaterialKind::BearerToken,
+                persistable_account_secret: false,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::PerIncident,
+            },
+            SecretId::VoxMcpHttpBearerToken | SecretId::VoxMcpHttpReadBearerToken => SecretMetadata {
+                class: SecretClass::Transport,
+                material_kind: SecretMaterialKind::BearerToken,
+                persistable_account_secret: false,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::PerIncident,
+            },
+            SecretId::VoxMeshJwtHmacSecret | SecretId::WebhookSigningSecret => SecretMetadata {
+                class: SecretClass::Transport,
+                material_kind: SecretMaterialKind::HmacSecret,
+                persistable_account_secret: false,
+                device_local_only: true,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::PerIncident,
+            },
+            SecretId::VoxMeshWorkerResultVerifyKey => SecretMetadata {
+                class: SecretClass::Transport,
+                material_kind: SecretMaterialKind::ApiKey,
+                persistable_account_secret: false,
+                device_local_only: true,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::PerIncident,
+            },
+            SecretId::VoxDbUrl => SecretMetadata {
+                class: SecretClass::Account,
+                material_kind: SecretMaterialKind::EndpointUrl,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::Manual,
+            },
+            SecretId::VoxDbToken => SecretMetadata {
+                class: SecretClass::Account,
+                material_kind: SecretMaterialKind::BearerToken,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::Periodic,
+            },
+            SecretId::VoxTelemetryUploadUrl => SecretMetadata {
+                class: SecretClass::Operator,
+                material_kind: SecretMaterialKind::EndpointUrl,
+                persistable_account_secret: false,
+                device_local_only: false,
+                allow_env_in_strict: true,
+                allow_compat_sources_in_strict: true,
+                rotation_policy: RotationPolicy::Manual,
+            },
+            SecretId::VoxOpenReviewEmail => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::Username,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: true,
+                allow_compat_sources_in_strict: true,
+                rotation_policy: RotationPolicy::Manual,
+            },
+            SecretId::VoxOpenReviewAccessToken => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::BearerToken,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: true,
+                allow_compat_sources_in_strict: true,
+                rotation_policy: RotationPolicy::Periodic,
+            },
+            SecretId::VoxOpenReviewPassword => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::Password,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: true,
+                allow_compat_sources_in_strict: true,
+                rotation_policy: RotationPolicy::Periodic,
+            },
+            SecretId::VoxSocialRedditClientId
+            | SecretId::VoxSocialRedditClientSecret
+            | SecretId::VoxSocialRedditRefreshToken
+            | SecretId::VoxSocialRedditUserAgent
+            | SecretId::VoxSocialYoutubeClientId
+            | SecretId::VoxSocialYoutubeClientSecret
+            | SecretId::VoxSocialYoutubeRefreshToken => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::OAuthRefreshToken,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: true,
+                allow_compat_sources_in_strict: true,
+                rotation_policy: RotationPolicy::Periodic,
+            },
+        }
     }
 }
 
@@ -758,6 +1000,7 @@ pub fn requirements_for_profile_mode(
         Workflow::Publish | Workflow::Review => vec![
             SecretId::VoxZenodoAccessToken,
             SecretId::VoxOpenReviewEmail,
+            SecretId::VoxOpenReviewAccessToken,
             SecretId::VoxOpenReviewPassword,
             SecretId::VoxCrossrefPlusApiKey,
             SecretId::VoxArxivAssistHandoffSecret,
@@ -853,6 +1096,7 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::VoxSocialYoutubeRefreshToken => &[Capability::ScientiaSyndication],
         SecretId::VoxZenodoAccessToken
         | SecretId::VoxOpenReviewEmail
+        | SecretId::VoxOpenReviewAccessToken
         | SecretId::VoxOpenReviewPassword
         | SecretId::VoxCrossrefPlusApiKey
         | SecretId::VoxArxivAssistHandoffSecret => &[Capability::ScholarlyPublication],
@@ -860,7 +1104,10 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::PopuliApiKey
         | SecretId::VoxTelemetryUploadUrl
         | SecretId::VoxTelemetryUploadToken => &[Capability::AuxTools],
-        SecretId::WebhookIngressToken | SecretId::WebhookSigningSecret => {
+        SecretId::WebhookIngressToken
+        | SecretId::WebhookSigningSecret
+        | SecretId::VoxMcpHttpBearerToken
+        | SecretId::VoxMcpHttpReadBearerToken => {
             &[Capability::RuntimeIngress]
         }
     }

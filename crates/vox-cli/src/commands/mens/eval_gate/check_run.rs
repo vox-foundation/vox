@@ -540,5 +540,59 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         }
     }
 
+    let rr = &policy.review_recurrence;
+    let rr_active = rr.block
+        || rr.max_repeated_finding_rate > 0.0
+        || rr.max_post_training_regression_rate > 0.0
+        || rr.min_recurrence_delta > 0.0;
+    if rr_active {
+        let metrics_path = run_dir.join("review_metrics.json");
+        if !metrics_path.exists() {
+            results.push(GateResult {
+                name: "review_recurrence".to_string(),
+                passed: false,
+                message: format!("metrics file missing: {}", metrics_path.display()),
+                block: rr.block,
+            });
+        } else {
+            let content = read_utf8_path_capped(&metrics_path)?;
+            let v: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+                anyhow::anyhow!("{}: invalid JSON ({})", metrics_path.display(), e)
+            })?;
+            let repeated = v
+                .get("repeated_finding_rate")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
+            let post_reg = v
+                .get("post_training_regression_rate")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
+            let delta = v
+                .get("recurrence_delta")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
+
+            let repeated_ok =
+                rr.max_repeated_finding_rate <= 0.0 || repeated <= rr.max_repeated_finding_rate;
+            let post_reg_ok = rr.max_post_training_regression_rate <= 0.0
+                || post_reg <= rr.max_post_training_regression_rate;
+            let delta_ok = rr.min_recurrence_delta <= 0.0 || delta >= rr.min_recurrence_delta;
+            results.push(GateResult {
+                name: "review_recurrence".to_string(),
+                passed: repeated_ok && post_reg_ok && delta_ok,
+                message: format!(
+                    "repeated={:.3} (max={:.3}) post_reg={:.3} (max={:.3}) delta={:.3} (min={:.3})",
+                    repeated,
+                    rr.max_repeated_finding_rate,
+                    post_reg,
+                    rr.max_post_training_regression_rate,
+                    delta,
+                    rr.min_recurrence_delta
+                ),
+                block: rr.block,
+            });
+        }
+    }
+
     Ok(results)
 }

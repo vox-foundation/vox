@@ -224,6 +224,21 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
 
     for decl in &module.declarations {
         if let Decl::Component(c) = decl {
+            diags.push(Diagnostic {
+                severity: TypeckSeverity::Warning,
+                message: "Classic `@component fn` syntax is deprecated. Use Path C `component Name() { ... }` instead.".to_string(),
+                span: c.func.span,
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec![
+                    "Refactor to Path C standard: `component Name() { ... }`".into(),
+                ],
+                category: DiagnosticCategory::Lint,
+                code: Some("lint.legacy_component_fn".into()),
+                fixes: vec![],
+                line_col: None,
+            });
             diags.extend(lint_component_react_hooks(c));
         }
     }

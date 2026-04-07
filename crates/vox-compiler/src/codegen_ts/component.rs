@@ -181,7 +181,8 @@ pub fn generate_component(
         }
     }
     if uses_mobile {
-        out.push_str("import * as mobile from \"./mobile-bridge\";\n\n");
+        // Assume default std.mobile for standard component imports
+        out.push_str("import { mobile } from \"./mobile-utils\";\n\n");
     }
 
     // Props interface

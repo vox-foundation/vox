@@ -7,6 +7,7 @@ pub mod arca_replay;
 pub mod codegen_vox;
 pub mod corpus;
 pub mod dataset_snapshot;
+pub mod external_review_replay;
 pub mod synthetic_gen;
 pub mod synthetic_search_gen;
 pub mod tool_workflow_corpus;

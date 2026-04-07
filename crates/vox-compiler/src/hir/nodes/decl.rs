@@ -82,8 +82,10 @@ pub struct HirModule {
 
     // UI & TanStack specific structures (AST-retained for TS codegen migration)
     /// UI Components.
+    #[deprecated(since = "0.3.0", note = "Classic @component fn syntax is retired. Use Path C.")]
     pub components: Vec<HirComponent>,
     /// Extracted v0 components.
+    #[deprecated(since = "0.3.0", note = "Classic @component fn syntax is retired. Use Path C.")]
     pub v0_components: Vec<HirV0Component>,
     /// Client-side Routes declaration.
     pub client_routes: Vec<HirRoutes>,

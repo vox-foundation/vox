@@ -96,7 +96,10 @@ impl RunBackend for NativeBackend {
 
         let profile_dir = if use_release { "release" } else { "script-dev" };
         let binary_path = if let Some(t) = opts.target_triple.as_ref() {
-            script_target_dir.join(t).join(profile_dir).join(binary_name)
+            script_target_dir
+                .join(t)
+                .join(profile_dir)
+                .join(binary_name)
         } else {
             script_target_dir.join(profile_dir).join(binary_name)
         };

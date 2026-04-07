@@ -14,12 +14,17 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
     let package_kind = kind.unwrap_or("application");
 
     let cwd = std::env::current_dir()?;
+    let scaffold_path = cwd.join(project_name);
     let summary = vox_project_scaffold::scaffold_vox_project_at(
-        &cwd,
+        &scaffold_path,
         project_name,
         package_kind,
         template.as_deref(),
     )?;
+
+    if let Some("mobile-pwa") = template.as_deref() {
+        crate::templates::mobile_pwa::scaffold(project_name, &scaffold_path)?;
+    }
 
     if summary.package_kind == "skill" {
         let skill_file_name = vox_repository::skill_markdown_filename(project_name);
@@ -73,6 +78,13 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
             println!("  Next steps:");
             println!("    1. vox build src/main.vox -o dist");
             println!("    2. Edit activities and workflow steps");
+        }
+        (_, Some("mobile-pwa")) => {
+            println!("  Next steps:");
+            println!("    1. pnpm install (or npm install)");
+            println!("    2. vox build src/main.vox -o dist");
+            println!("    3. npx cap add ios (or android)");
+            println!("    4. npx cap sync");
         }
         _ => {
             println!("  Get started with: vox build src/main.vox");

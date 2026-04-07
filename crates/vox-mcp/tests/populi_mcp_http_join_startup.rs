@@ -179,6 +179,7 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .expect("relay first A2A to mock control plane");
@@ -191,6 +192,7 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .expect("relay second A2A to mock control plane");
@@ -336,6 +338,7 @@ async fn a2a_inbox_source_modes_local_mesh_merged() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .expect("relay mesh-early");
@@ -348,6 +351,7 @@ async fn a2a_inbox_source_modes_local_mesh_merged() {
         privacy_class: None,
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
     })
     .await
     .expect("relay mesh-late");
@@ -508,6 +512,7 @@ async fn a2a_inbox_mesh_paging_forwards_limit_and_cursor() {
             privacy_class: None,
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
+            jwe_payload: None,
         })
         .await
         .expect("relay paged mesh message");

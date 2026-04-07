@@ -32,7 +32,7 @@ training_eligible: true
 
 ### Today: `build_run*` telemetry tables
 
-`vox ci build-timings --deep` persists structured build telemetry in `build_run` plus child tables
+The `vox ci build-timings --deep` command persists structured build telemetry in `build_run` plus child tables
 (`build_crate_sample`, `build_warning`, `build_run_dependency_shape`). Retention follows
 [retention-policy.yaml](../../../contracts/db/retention-policy.yaml):
 

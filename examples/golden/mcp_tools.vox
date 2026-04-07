@@ -9,7 +9,7 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Define Vox MCP tools and read-only resources.
+// @training_prompt: Define Vox MCP tools and read-only resources.
 // ANCHOR: display
 @mcp.tool "read_file: Reads a file from disk"
 fn read_file(path: str) -> str {

@@ -96,11 +96,14 @@ pub fn refresh_train_contract_override_from_mix(
     data_dir: &Path,
     skip_mix: bool,
     sync_primary_with_data_dir_train: bool,
+    explicit_mix_yaml: Option<&Path>,
 ) -> anyhow::Result<Option<PathBuf>> {
     if skip_mix {
         return Ok(None);
     }
-    let mix_yaml = resolve_mix_config_path(workspace_root);
+    let mix_yaml = explicit_mix_yaml
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| resolve_mix_config_path(workspace_root));
     if !mix_yaml.is_file() {
         return Ok(None);
     }
@@ -209,7 +212,30 @@ pub fn recover_train_input_path_after_prefetch(
     }
 
     if !skip_mix && mix_yaml.is_file() {
-        match refresh_train_contract_override_from_mix(workspace_root, data_dir, false, true) {
+        if let Ok(cfg) = crate::corpus::mix::MixConfigSchema::load(mix_yaml) {
+            let path_base = workspace_root
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+            for src in &cfg.sources {
+                let p = path_base.join(&src.path);
+                if !p.exists() {
+                    if src.path == "mens/data/mix_sources/docs.jsonl" {
+                        eprintln!("  🔄 Generating missing components: docs.jsonl");
+                        let c = crate::corpus::extract_docs::ExtractDocsConfig { root: path_base.join("docs"), ..Default::default() };
+                        if let Ok(pairs) = crate::corpus::extract_docs::walk_and_extract_docs(&c) {
+                            let _ = crate::corpus::extract_docs::write_docs_to_jsonl(&pairs, &p);
+                        }
+                    } else if src.path == "mens/data/mix_sources/rust_source.jsonl" {
+                        eprintln!("  🔄 Generating missing components: rust_source.jsonl");
+                        let c = crate::corpus::extract_rs::ExtractRsConfig { root: path_base.join("crates"), ..Default::default() };
+                        if let Ok(pairs) = crate::corpus::extract_rs::walk_and_extract(&c) {
+                            let _ = crate::corpus::extract_rs::write_to_jsonl(&pairs, &p);
+                        }
+                    }
+                }
+            }
+        }
+        match refresh_train_contract_override_from_mix(workspace_root, data_dir, false, true, Some(mix_yaml)) {
             Ok(Some(p)) if p.is_file() => return Ok(p),
             Ok(_) => {}
             Err(e) => tracing::warn!(error = %e, "recovery: corpus mix re-run failed"),

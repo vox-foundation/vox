@@ -284,6 +284,34 @@ pub fn generate_with_options(
         files.push(("mobile-bridge.ts".to_string(), mobile_bridge));
     }
 
+    let uses_mobile_namespace = hir.imports.iter().any(|imp| {
+        (imp.module_path == vec!["std"] && imp.item == "mobile")
+            || (imp.module_path.is_empty() && imp.item == "mobile")
+    });
+    if uses_mobile_namespace {
+        files.push((
+            "mobile-utils.ts".to_string(),
+            crate::codegen_ts::hir_emit::emit_mobile_web_api_utils(),
+        ));
+    }
+
+    for env in &hir.environments {
+        let spec = vox_container::generate::EnvironmentSpec {
+            base_image: env.base_image.clone().unwrap_or_else(|| "debian:bookworm-slim".to_string()),
+            packages: env.packages.clone(),
+            env_vars: env.env_vars.clone(),
+            exposed_ports: env.exposed_ports.clone(),
+            volumes: env.volumes.clone(),
+            workdir: env.workdir.clone(),
+            copy_instructions: env.copy_instructions.clone(),
+            run_commands: env.run_commands.clone(),
+            cmd: env.cmd.clone(),
+            entrypoint: Vec::new(),
+        };
+        let dockerfile = vox_container::generate::generate_dockerfile_from_spec(&spec);
+        files.push((format!("Dockerfile.{}", env.name), dockerfile));
+    }
+
     maybe_web_ir_validate(hir)?;
 
     Ok(CodegenOutput { files })

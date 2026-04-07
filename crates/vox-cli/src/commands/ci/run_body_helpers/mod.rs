@@ -16,7 +16,8 @@ pub(crate) use data_ssot_guards::run_data_ssot_guards;
 pub(crate) use docs::{check_codex_ssot, check_docs_ssot, run_manifest, run_ssot_drift};
 pub(crate) use grammar::run_grammar_drift;
 pub(crate) use guards::{
-    run_clavis_parity, run_repo_guards, run_secret_env_guard, run_sql_surface_guard,
+    run_clavis_cutover_audit, run_clavis_cutover_gates, run_clavis_parity, run_repo_guards,
+    run_secret_env_guard, run_sql_surface_guard,
 };
 pub(crate) use matrix::{
     MensGateOpts, check_no_vox_dei, check_workflow_scripts, run_feature_matrix, run_mens_gate,

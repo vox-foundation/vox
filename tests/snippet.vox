@@ -1,0 +1,1 @@
+@component fn Test(tasks: List[Task]) { <div>{tasks.map(fn(t) { <label><input type="checkbox" checked={t.done} onChange={fn() complete_task(t.id)} />{t.title}</label>})}</div> }

@@ -243,3 +243,88 @@ mod scope_tests {
         );
     }
 }
+
+/// Compilation-driven feedback for Rust code.
+/// Spawns a lightweight `cargo check` in a temporary directory containing the provided snippet.
+/// Returns 1.0 if it passes, 0.0 otherwise.
+pub fn cargo_build_reward(snippet: &str) -> f64 {
+    let tmp_dir = match tempfile::tempdir() {
+        Ok(d) => d,
+        Err(_) => return 0.0,
+    };
+    
+    let cargo_toml = r#"
+[package]
+name = "vox_eval_tmp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+"#;
+    
+    let src_dir = tmp_dir.path().join("src");
+    if std::fs::create_dir_all(&src_dir).is_err() {
+        return 0.0;
+    }
+    
+    if std::fs::write(tmp_dir.path().join("Cargo.toml"), cargo_toml).is_err() {
+        return 0.0;
+    }
+    
+    if std::fs::write(src_dir.join("main.rs"), snippet).is_err() {
+        return 0.0;
+    }
+    
+    let output = std::process::Command::new("cargo")
+        .arg("check")
+        .current_dir(tmp_dir.path())
+        .output();
+        
+    match output {
+        Ok(out) if out.status.success() => 1.0,
+        _ => 0.0,
+    }
+}
+
+/// Test-driven feedback for Rust code.
+/// Spawns a lightweight `cargo test` in a temporary directory containing the provided snippet.
+/// Returns 1.0 if it passes, 0.0 otherwise.
+pub fn cargo_test_reward(snippet: &str) -> f64 {
+    let tmp_dir = match tempfile::tempdir() {
+        Ok(d) => d,
+        Err(_) => return 0.0,
+    };
+    
+    let cargo_toml = r#"
+[package]
+name = "vox_eval_tmp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+"#;
+    
+    let src_dir = tmp_dir.path().join("src");
+    if std::fs::create_dir_all(&src_dir).is_err() {
+        return 0.0;
+    }
+    
+    if std::fs::write(tmp_dir.path().join("Cargo.toml"), cargo_toml).is_err() {
+        return 0.0;
+    }
+    
+    if std::fs::write(src_dir.join("main.rs"), snippet).is_err() {
+        return 0.0;
+    }
+    
+    let output = std::process::Command::new("cargo")
+        .arg("test")
+        .current_dir(tmp_dir.path())
+        .output();
+        
+    match output {
+        Ok(out) if out.status.success() => 1.0,
+        _ => 0.0,
+    }
+}
+

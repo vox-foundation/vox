@@ -35,6 +35,9 @@ pub async fn run(
         PipelineStage::Generate,
         PipelineStage::Extract,
         PipelineStage::Replay,
+        PipelineStage::ReviewIngest,
+        PipelineStage::ReviewDatasetBuild,
+        PipelineStage::ReviewEvalPackBuild,
         PipelineStage::Validate,
         PipelineStage::Pairs,
         PipelineStage::Eval,
@@ -178,6 +181,38 @@ pub async fn run(
                     .await?;
                 }
             }
+            PipelineStage::ReviewIngest => {
+                if !dry_run {
+                    let repo_id = std::env::var("VOX_REVIEW_REPOSITORY_ID")
+                        .unwrap_or_else(|_| "vox-foundation/vox".to_string());
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::ReviewExport {
+                            repository_id: repo_id,
+                            limit: 1000,
+                            output: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                        },
+                    )
+                    .await?;
+                }
+            }
+            PipelineStage::ReviewDatasetBuild => {
+                if !dry_run {
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::ReviewValidate {
+                            input: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                        },
+                    )
+                    .await?;
+                }
+            }
+            PipelineStage::ReviewEvalPackBuild => {
+                if !dry_run {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::ReviewStats {
+                        input: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                    })
+                    .await?;
+                }
+            }
             PipelineStage::Pairs => {
                 if !dry_run {
                     if validated.is_file() {
@@ -280,18 +315,18 @@ pub async fn run(
                             false, // force_restart
                             curriculum,
                             vox_populi::mens::OptimizerExperimentMode::Off,
-                            false, // require_gpu
-                            true,  // allow_cpu_fallback
-                            None,  // base_model_family
-                            None,  // upstream_model_id
-                            None,  // license_class
-                            false, // attribution_required
-                            false, // trajectory_weighting_enabled
-                            1.1,   // trajectory_tool_trace_boost
-                            1.15,  // trajectory_failure_category_boost
-                            None,  // trajectory_quality_floor
-                            1.05,  // trajectory_quality_boost
-                            None,  // curriculum_schedule
+                            false,              // require_gpu
+                            true,               // allow_cpu_fallback
+                            None,               // base_model_family
+                            None,               // upstream_model_id
+                            None,               // license_class
+                            false,              // attribution_required
+                            false,              // trajectory_weighting_enabled
+                            1.1,                // trajectory_tool_trace_boost
+                            1.15,               // trajectory_failure_category_boost
+                            None,               // trajectory_quality_floor
+                            1.05,               // trajectory_quality_boost
+                            None,               // curriculum_schedule
                             Default::default(), // chatml_config
                         )
                         .await?;

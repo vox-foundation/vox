@@ -9,7 +9,7 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Write a Vox @test that uses helper fns and assert.
+// @training_prompt: Write a Vox @test that uses helper fns and assert.
 // ANCHOR: display
 fn setup_user() -> list[str] {
     ret ["alice", "bob"]

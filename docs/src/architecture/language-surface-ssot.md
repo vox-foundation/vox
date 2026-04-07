@@ -55,9 +55,12 @@ vox-compiler (lexer/parser) ──► codegen / build.rs or `vox ci` step
         └──► contracts/speech-to-code/vox_grammar_artifact.json (generated)
 ```
 
-## Non-goals (near term)
-
 - Replacing the recursive-descent parser or `logos` lexer with external parser frameworks solely to deduplicate lists.
+
+## Syntax Modernization (Path C)
+
+As part of the legacy codebase retirement (OP-0179, OP-0158), surface definitions are being realigned towards **Path C** syntax (`component Name() { ... }`).
+The legacy `@component fn` surface is formally deprecated and will be removed from the canonical SSOT generator once all downstream UI surfaces conform to Path C.
 - Deleting `decorators.json` editorial fields without an overlay story.
 
 ## Implementation order

@@ -300,7 +300,10 @@ pub async fn stop(reason: Option<String>) -> Result<()> {
     let config = load_config();
     let orch = build_repo_scoped_orchestrator_cli(config);
     orch.emergency_stop(reason.clone());
-    println!("  {} Orchestrator emergency stop requested", "✓".green().bold());
+    println!(
+        "  {} Orchestrator emergency stop requested",
+        "✓".green().bold()
+    );
     Ok(())
 }
 

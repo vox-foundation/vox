@@ -1,0 +1,24 @@
+version: v1
+baselines:
+  publishability_precision: null
+  publishability_recall: null
+  metadata_required_completeness: null
+  unresolved_citation_count: null
+  route_success_rate:
+    journal: null
+    preprint: null
+    repository: null
+    social: null
+release_lanes:
+  experimental:
+    default_hard_gate_promotions: false
+    requires_manual_review: true
+  default:
+    requires_calibration_report: true
+    requires_parity_checks: true
+done_criteria:
+  wave_must_include:
+    - kpi_delta_report
+    - contract_change_log
+    - ci_gate_update
+    - known_limitations

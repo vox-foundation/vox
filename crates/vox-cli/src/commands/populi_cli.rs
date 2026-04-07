@@ -375,7 +375,8 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     .clone()
                     .unwrap_or_else(|| format!("node-{}", vox_primitives::id::simple_hex_id()));
 
-                let mut record = vox_populi::node_record_for_current_process(id, Some(bind.clone()));
+                let mut record =
+                    vox_populi::node_record_for_current_process(id, Some(bind.clone()));
                 for lab in labels {
                     if !record.capabilities.labels.contains(&lab) {
                         record.capabilities.labels.push(lab);
@@ -393,30 +394,35 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
 
                 // Start heartbeat loop and worker listener
                 let state = vox_populi::transport::PopuliTransportState::new_for_serve();
-                
+
                 // Spawn heartbeat
                 let base_cl = base.clone();
                 let timeout = vox_populi::http_lifecycle::populi_http_timeout_ms_from_env();
-                let interval = vox_populi::http_lifecycle::populi_heartbeat_interval_secs_from_env();
-                
+                let interval =
+                    vox_populi::http_lifecycle::populi_heartbeat_interval_secs_from_env();
+
                 if interval > 0 {
                     tokio::spawn(async move {
                         use sysinfo::System;
                         let mut sys = System::new_all();
-                        
-                        let mut tick = tokio::time::interval(std::time::Duration::from_secs(interval));
-                        let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(&base_cl, std::time::Duration::from_millis(timeout))
-                            .with_env_token();
+
+                        let mut tick =
+                            tokio::time::interval(std::time::Duration::from_secs(interval));
+                        let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                            &base_cl,
+                            std::time::Duration::from_millis(timeout),
+                        )
+                        .with_env_token();
                         let mut current_record = updated.clone();
-                        
+
                         loop {
                             tick.tick().await;
                             sys.refresh_cpu_all();
                             sys.refresh_memory();
-                            
+
                             current_record.cpu_usage_pct = Some(sys.global_cpu_usage());
                             current_record.memory_free_bytes = Some(sys.available_memory());
-                            
+
                             let _ = client.heartbeat(&current_record).await;
                         }
                     });
@@ -497,43 +503,64 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 }
             }
 
-            let (b64_source, is_bundle, source_blake3_hex) = if bundle && script.extension().map_or(false, |ext| ext == "vox") {
-                // Auto-bundle source to a temp dir
-                let tmp_bundle_dir = std::env::temp_dir().join("vox-bundle-dispatch");
-                let _ = std::fs::remove_dir_all(&tmp_bundle_dir);
-                
-                // Use resolved triple if found, otherwise let it be None (host native)
-                crate::commands::bundle::run(&script, &tmp_bundle_dir, target_triple.as_deref(), true, crate::cli_args::BundleMode::Script).await?;
-                
-                // Find the binary in the temp dir
-                let mut entries = std::fs::read_dir(&tmp_bundle_dir)?;
-                let mut bin_path = None;
-                while let Some(Ok(entry)) = entries.next() {
-                    if entry.path().is_file() {
-                        bin_path = Some(entry.path());
-                        break;
+            let (b64_source, is_bundle, source_blake3_hex) =
+                if bundle && script.extension().map_or(false, |ext| ext == "vox") {
+                    // Auto-bundle source to a temp dir
+                    let tmp_bundle_dir = std::env::temp_dir().join("vox-bundle-dispatch");
+                    let _ = std::fs::remove_dir_all(&tmp_bundle_dir);
+
+                    // Use resolved triple if found, otherwise let it be None (host native)
+                    crate::commands::bundle::run(
+                        &script,
+                        &tmp_bundle_dir,
+                        target_triple.as_deref(),
+                        true,
+                        crate::cli_args::BundleMode::Script,
+                    )
+                    .await?;
+
+                    // Find the binary in the temp dir
+                    let mut entries = std::fs::read_dir(&tmp_bundle_dir)?;
+                    let mut bin_path = None;
+                    while let Some(Ok(entry)) = entries.next() {
+                        if entry.path().is_file() {
+                            bin_path = Some(entry.path());
+                            break;
+                        }
                     }
-                }
-                
-                let bin_path = bin_path.ok_or_else(|| anyhow::anyhow!("Bundling failed to produce a binary"))?;
-                let bin_bytes = std::fs::read(&bin_path)?;
-                let hash_hex = blake3::hash(&bin_bytes).to_hex().to_string();
-                use base64::Engine as _;
-                (base64::engine::general_purpose::STANDARD.encode(bin_bytes), true, Some(hash_hex))
-            } else if bundle {
-                // Input is already a bundle binary
-                let bin_bytes = std::fs::read(&script)?;
-                let hash_hex = blake3::hash(&bin_bytes).to_hex().to_string();
-                use base64::Engine as _;
-                (base64::engine::general_purpose::STANDARD.encode(bin_bytes), true, Some(hash_hex))
-            } else {
-                // Send as source
-                let source = std::fs::read_to_string(&script)
-                    .with_context(|| format!("failed to read script {}", script.display()))?;
-                let hash_hex = blake3::hash(source.as_bytes()).to_hex().to_string();
-                use base64::Engine as _;
-                (base64::engine::general_purpose::STANDARD.encode(&source), false, Some(hash_hex))
-            };
+
+                    let bin_path = bin_path
+                        .ok_or_else(|| anyhow::anyhow!("Bundling failed to produce a binary"))?;
+                    let bin_bytes = std::fs::read(&bin_path)?;
+                    let hash_hex = blake3::hash(&bin_bytes).to_hex().to_string();
+                    use base64::Engine as _;
+                    (
+                        base64::engine::general_purpose::STANDARD.encode(bin_bytes),
+                        true,
+                        Some(hash_hex),
+                    )
+                } else if bundle {
+                    // Input is already a bundle binary
+                    let bin_bytes = std::fs::read(&script)?;
+                    let hash_hex = blake3::hash(&bin_bytes).to_hex().to_string();
+                    use base64::Engine as _;
+                    (
+                        base64::engine::general_purpose::STANDARD.encode(bin_bytes),
+                        true,
+                        Some(hash_hex),
+                    )
+                } else {
+                    // Send as source
+                    let source = std::fs::read_to_string(&script)
+                        .with_context(|| format!("failed to read script {}", script.display()))?;
+                    let hash_hex = blake3::hash(source.as_bytes()).to_hex().to_string();
+                    use base64::Engine as _;
+                    (
+                        base64::engine::general_purpose::STANDARD.encode(&source),
+                        false,
+                        Some(hash_hex),
+                    )
+                };
 
             let req = vox_populi::transport::DispatchRequest {
                 source: b64_source,
@@ -541,7 +568,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 timeout_secs: timeout,
                 is_bundle,
                 source_blake3_hex,
-                required_labels: if routing_labels.is_empty() { None } else { Some(routing_labels) },
+                required_labels: if routing_labels.is_empty() {
+                    None
+                } else {
+                    Some(routing_labels)
+                },
                 is_detached: detach,
             };
 

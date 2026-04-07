@@ -79,13 +79,14 @@ pub mod legacy;
 mod ludus_schema_cutover;
 pub mod research_metrics_contract;
 pub mod schema;
-/// Idempotent fixes after baseline `CREATE IF NOT EXISTS` (column adds, renames).
-mod schema_cutover;
+/// Idempotent schema extensions (FTS).
+pub mod schema_extensions;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
 pub mod canonical_store;
+#[doc(hidden)]
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
@@ -175,11 +176,11 @@ pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
 pub use store::{
-    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
-    BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
-    CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry,
-    CorpusQualitySummary, CrateSample, CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry,
-    ExecutionEntry, GrpoStepRow,
+    A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, AgentDefEntry,
+    AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary,
+    BuildRunRow, BuilderSessionEntry, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry,
+    CommandFrequencyEntry, ComponentEntry, CorpusQualitySummary, CrateSample, CrateSampleRow,
+    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, GrpoStepRow,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
@@ -195,7 +196,8 @@ pub use store::{
     ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
     SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
     SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
-    TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
+    TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry, WarningRow,
+    WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;

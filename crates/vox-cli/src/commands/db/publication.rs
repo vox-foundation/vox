@@ -675,14 +675,21 @@ pub async fn publication_status(publication_id: &str, with_worthiness: bool) -> 
         anyhow::bail!("publication not found: {publication_id}");
     };
     let manifest = publication_manifest_from_row(&row);
+    let preflight_profile = vox_publisher::publication_preflight::PreflightProfile::Default;
     let preflight_report = publication_preflight_report_for_row(
         &db,
         &row,
         &manifest,
-        vox_publisher::publication_preflight::PreflightProfile::Default,
+        preflight_profile,
         with_worthiness,
     )
     .await?;
+    let operator_status_surface_v1 =
+        vox_publisher::publication_preflight::operator_status_surface_v1(
+            publication_id,
+            preflight_profile,
+            &preflight_report,
+        );
     let approvals = db
         .count_publication_approvers_for_digest(publication_id, &row.content_sha3_256)
         .await?;
@@ -722,6 +729,7 @@ pub async fn publication_status(publication_id: &str, with_worthiness: bool) -> 
             "version": row.version,
             "approvals_for_digest": approvals,
             "preflight_report": preflight_report,
+            "operator_status_surface_v1": operator_status_surface_v1,
             "discovery_rank": discovery_rank,
             "manifest_completion": manifest_completion,
             "evidence_completeness_0_100": evidence_complete,

@@ -37,7 +37,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
 | `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
 | `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
-| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
+| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
 | `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
 | `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
@@ -48,6 +48,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_MESH_JWT_HMAC_SECRET` | HS256 key for mesh JWT bearer | Optional | JWT claims `role`, `jti`, `exp` |
 | `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Ed25519 verify key (hex or Standard base64) | Optional | Signed `job_result` / `job_fail` payloads |
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-runtime` auth gate |
+| `VOX_MCP_HTTP_BEARER_TOKEN`, `VOX_MCP_HTTP_READ_BEARER_TOKEN` | MCP HTTP gateway auth | Optional hardening | `vox-mcp` HTTP gateway auth surfaces |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
 
 ## Managed Secret Env Names
@@ -85,6 +86,8 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 - `VOX_ZENODO_ACCESS_TOKEN`
 - `OPENREVIEW_EMAIL`
 - `VOX_OPENREVIEW_EMAIL`
+- `OPENREVIEW_ACCESS_TOKEN`
+- `VOX_OPENREVIEW_ACCESS_TOKEN`
 - `OPENREVIEW_PASSWORD`
 - `VOX_OPENREVIEW_PASSWORD`
 - `POPULI_API_KEY`
@@ -113,6 +116,8 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 - `VOX_VAST_API_KEY`
 - `VOX_API_KEY`
 - `VOX_BEARER_TOKEN`
+- `VOX_WEBHOOK_INGRESS_TOKEN`
+- `VOX_WEBHOOK_SIGNING_SECRET`
 - `VOX_DB_URL`
 - `VOX_TURSO_URL`
 - `TURSO_URL`
@@ -128,6 +133,8 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 - `VOX_MESH_ADMIN_TOKEN`
 - `VOX_MESH_JWT_HMAC_SECRET`
 - `VOX_MESH_WORKER_RESULT_VERIFY_KEY`
+- `VOX_MCP_HTTP_BEARER_TOKEN`
+- `VOX_MCP_HTTP_READ_BEARER_TOKEN`
 
 ## Resolution Precedence
 

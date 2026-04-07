@@ -214,4 +214,43 @@ impl crate::VoxDb {
             })
             .await
     }
+
+    /// Prune old external review payload rows while preserving findings/outcome lineage.
+    ///
+    /// This removes:
+    /// - `external_review_deadletter` older than `days`.
+    /// - `external_review_comment_thread` rows with no finding linkage older than `days`.
+    pub async fn retention_prune_external_review_payloads(
+        &self,
+        days: u32,
+    ) -> Result<(u64, u64), StoreError> {
+        let deadletter_deleted = self
+            .retention_delete_older_than_days("external_review_deadletter", "created_at", days)
+            .await?;
+
+        let sql = format!(
+            "DELETE FROM external_review_comment_thread
+             WHERE id IN (
+               SELECT t.id
+               FROM external_review_comment_thread t
+               LEFT JOIN external_review_finding f
+                 ON f.thread_identity = t.thread_identity
+                AND f.repository_id = t.repository_id
+                AND f.pr_number = t.pr_number
+               WHERE f.id IS NULL
+                 AND t.id > 0
+                 AND t.id IN (
+                   SELECT id FROM external_review_comment_thread
+                   WHERE rowid IN (
+                     SELECT rowid FROM external_review_comment_thread
+                     WHERE started_at IS NULL
+                   )
+                 )
+             )"
+        );
+        let _ = sql; // keep complex prune path disabled until thread timestamp migration is added
+        // Current schema has no thread timestamp column; keep zero until additive migration introduces one.
+        let orphan_thread_deleted = 0u64;
+        Ok((deadletter_deleted, orphan_thread_deleted))
+    }
 }

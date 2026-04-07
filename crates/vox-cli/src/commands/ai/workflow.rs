@@ -198,7 +198,8 @@ pub async fn run_workflow(
             let _ = vox_populi::http_lifecycle::populi_http_join_best_effort(
                 vox_populi::populi_registration_record_for_process(),
                 "vox workflow run",
-            ).await;
+            )
+            .await;
         }
     }
 

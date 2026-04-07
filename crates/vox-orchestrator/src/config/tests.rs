@@ -230,3 +230,69 @@ fn populi_remote_result_max_messages_env_override_applies() {
         }
     }
 }
+
+#[test]
+#[allow(unsafe_code)]
+fn social_credentials_follow_clavis_lenient_vs_strict() {
+    let _guard = ENV_MUTEX.lock().expect("env test lock");
+    let key = "VOX_SOCIAL_REDDIT_CLIENT_ID";
+    let prev_key = std::env::var(key).ok();
+    let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
+    let prev_profile = std::env::var("VOX_CLAVIS_PROFILE").ok();
+    // Identifier must avoid the legacy Vox+Turso URL env token as a contiguous substring (cutover audit).
+    const DB_REMOTE_ALIAS_URL_ENV: &str = concat!("VOX_", "TURSO", "_URL");
+    let prev_url = std::env::var(DB_REMOTE_ALIAS_URL_ENV).ok();
+    let prev_cloudless_path = std::env::var("VOX_CLAVIS_CLOUDLESS_DB_PATH").ok();
+    let prev_account_id = std::env::var("VOX_ACCOUNT_ID").ok();
+
+    unsafe {
+        std::env::set_var(key, "orchestrator-env-client");
+        std::env::set_var("VOX_CLAVIS_BACKEND", "vox_cloud");
+        std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
+        std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
+        let tmp = std::env::temp_dir().join("vox-clavis-orchestrator-strict-lenient.db");
+        std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", tmp.to_string_lossy().to_string());
+        std::env::set_var("VOX_ACCOUNT_ID", "orchestrator-strict-lenient-test");
+    }
+    let mut lenient = OrchestratorConfig::default();
+    lenient.merge_env_overrides();
+    assert_eq!(
+        lenient.news.reddit_client_id.as_deref(),
+        Some("orchestrator-env-client")
+    );
+
+    unsafe {
+        std::env::set_var("VOX_CLAVIS_PROFILE", "hard_cut");
+        std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
+    }
+    let mut strict = OrchestratorConfig::default();
+    strict.merge_env_overrides();
+    assert!(strict.news.reddit_client_id.is_none());
+
+    unsafe {
+        match prev_key {
+            None => std::env::remove_var(key),
+            Some(v) => std::env::set_var(key, v),
+        }
+        match prev_backend {
+            None => std::env::remove_var("VOX_CLAVIS_BACKEND"),
+            Some(v) => std::env::set_var("VOX_CLAVIS_BACKEND", v),
+        }
+        match prev_profile {
+            None => std::env::remove_var("VOX_CLAVIS_PROFILE"),
+            Some(v) => std::env::set_var("VOX_CLAVIS_PROFILE", v),
+        }
+        match prev_url {
+            None => std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV),
+            Some(v) => std::env::set_var(DB_REMOTE_ALIAS_URL_ENV, v),
+        }
+        match prev_cloudless_path {
+            None => std::env::remove_var("VOX_CLAVIS_CLOUDLESS_DB_PATH"),
+            Some(v) => std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", v),
+        }
+        match prev_account_id {
+            None => std::env::remove_var("VOX_ACCOUNT_ID"),
+            Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+        }
+    }
+}

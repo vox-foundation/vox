@@ -171,9 +171,9 @@
 - [Capability registry SSOT](architecture/capability-registry-ssot.md)
 - [SCIENTIA impact, readership, and citation-adjacent signals (research seed)](architecture/scientia-impact-readership-research-2026.md)
 - [Capability visualization views](architecture/capability-visualization-views.md)
-- [Clavis secrets, env vars, and API key strategy research 2026](architecture/clavis-secrets-env-research-2026.md)
 - [Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)](architecture/prompt-engineering-document-skills-scientia-research-2026.md)
 - [SCIENTIA publication-worthiness and SSOT unification (research 2026)](architecture/scientia-publication-worthiness-ssot-unification-research-2026.md)
+- [SCIENTIA implementation wave playbook 2026](architecture/scientia-implementation-wave-playbook-2026.md)
 - [MCP exposure from the Vox language (SSOT)](architecture/mcp-vox-language-exposure.md)
 - [2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration](architecture/res_dynamic_agentic_planning_2026.md)
 - [AI IDE feature research findings 2026](architecture/ai-ide-feature-research-findings-2026.md)
@@ -182,6 +182,9 @@
 - [Automated Testing Research for the Vox Language](architecture/automated-testing-research-2026.md)
 - [CLI design rules SSOT](architecture/cli-design-rules-ssot.md)
 - [CLI reachability SSOT](architecture/cli-reachability-ssot.md)
+- [Clavis Cloudless Implementation Catalog](architecture/clavis-cloudless-implementation-catalog.md)
+- [Clavis Cloudless Threat Model V1](architecture/clavis-cloudless-threat-model-v1.md)
+- [Clavis secrets, env vars, and API key strategy research 2026](architecture/clavis-secrets-env-research-2026.md)
 - [Completion policy SSOT (LLM premature-completion)](architecture/completion-policy-ssot.md)
 - [Context management implementation blueprint](architecture/context-management-implementation-blueprint.md)
 - [Context management phase 1 backlog](architecture/context-management-phase1-backlog.md)
@@ -285,6 +288,8 @@
 
 # Operations
 
+- [Clavis Break-Glass Runbook](operations/clavis-break-glass-runbook.md)
+- [Clavis Cloudless Ops Runbook](operations/clavis-cloudless-ops-runbook.md)
 - [VoxDB data cutover and telemetry sidecar runbook](operations/voxdb-cutover-runbook.md)
 
 # Reference

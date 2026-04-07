@@ -206,7 +206,10 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
 
 /// Compile a Vox script to an executable binary (native or WASI).
 /// Returns the path to the compiled artifact.
-pub(crate) async fn compile(file: &Path, opts: &ScriptOpts) -> Result<(PathBuf, Box<dyn RunBackend>)> {
+pub(crate) async fn compile(
+    file: &Path,
+    opts: &ScriptOpts,
+) -> Result<(PathBuf, Box<dyn RunBackend>)> {
     let result: crate::pipeline::FrontendResult =
         crate::pipeline::run_frontend(file, false).await?;
 
@@ -295,7 +298,6 @@ pub(crate) async fn execute_binary(
 
     Ok(())
 }
-
 
 /// Evaluate a Vox expression inline — wraps it in a synthetic `fn main`.
 pub async fn eval_inline(expr: &str, sandbox: bool) -> Result<()> {

@@ -1,7 +1,8 @@
 //! CodeRabbit tier limits and rate constants.
 //!
 //! Source: [CodeRabbit FAQ – Usage Limits](https://docs.coderabbit.ai/faq/) (per developer).
-//! Last verified: 2026-03-06.
+//! Last verified: 2026-04-06.
+//! Re-verify quarterly or when billing tiers/features change.
 
 /// CodeRabbit subscription tier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

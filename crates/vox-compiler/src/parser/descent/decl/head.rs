@@ -621,6 +621,10 @@ impl Parser {
                 self.advance();
                 Ok(n)
             }
+            Token::TypeKw => {
+                self.advance();
+                Ok("type".to_string())
+            }
             Token::On => {
                 self.advance();
                 Ok("on".to_string())

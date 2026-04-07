@@ -783,4 +783,21 @@ fn f() to Unit {
         assert_eq!(hir.vector_indexes.len(), 1);
         assert_eq!(hir.search_indexes.len(), 1);
     }
+
+    #[test]
+    fn test_hir_lowering_environment() {
+        let tokens = crate::lexer::lex(r#"
+environment staging {
+    base "node:22-alpine"
+    packages ["curl"]
+}
+"#);
+        let m = crate::parser::parse(tokens).unwrap();
+        let hir = lower_module(&m);
+        assert_eq!(1, hir.environments.len());
+        let env = &hir.environments[0];
+        assert_eq!(env.name, "staging");
+        assert_eq!(env.base_image.as_deref(), Some("node:22-alpine"));
+        assert_eq!(env.packages, vec!["curl".to_string()]);
+    }
 }

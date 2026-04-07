@@ -705,10 +705,28 @@ pub(super) fn run_training_loop(
                 Some(prev) => 0.1 * (loss_val as f64) + 0.9 * prev,
             });
 
+            let mut computed_reward = pair.rating.unwrap_or(0) as f32;
+            match config.reward_hook.as_deref() {
+                Some("cargo_build") | Some("cargo_test") => {
+                    if let Some(resp) = &pair.response {
+                        if vox_eval::cargo_build_reward(resp) > 0.0 {
+                            computed_reward = computed_reward.max(4.0) + 1.0;
+                        }
+                    } else if let Some(turns) = &pair.turns {
+                        if let Some(last) = turns.last() {
+                            if vox_eval::cargo_build_reward(&last.content) > 0.0 {
+                                computed_reward = computed_reward.max(4.0) + 1.0;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+
             let _ = db_tx.send(TrainingDbEvent::GrpoStep {
                 run_id: run_id.to_string(),
                 step: global_step,
-                mean_reward: pair.rating.unwrap_or(0) as f32, // placeholder for RL reward
+                mean_reward: computed_reward,
                 policy_loss: loss_val,
                 clip_fraction: 0.0, // placeholder
                 parse_rate: 1.0,    // placeholder

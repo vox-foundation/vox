@@ -181,7 +181,17 @@ pub async fn vox_scientia_publication_preflight(
             Some(attention),
         )
     };
-    ToolResult::ok(report).to_json()
+    let operator_status_surface_v1 =
+        vox_publisher::publication_preflight::operator_status_surface_v1(
+            row.publication_id.as_str(),
+            profile,
+            &report,
+        );
+    ToolResult::ok(serde_json::json!({
+        "preflight_report": report,
+        "operator_status_surface_v1": operator_status_surface_v1
+    }))
+    .to_json()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

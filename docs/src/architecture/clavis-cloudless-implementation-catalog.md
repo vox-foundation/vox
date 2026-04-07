@@ -2,7 +2,7 @@
 title: "Clavis Cloudless Implementation Catalog"
 description: "Task-by-task execution catalog for hardened Clavis Cloudless rollout, keyed to plan todo IDs."
 category: "architecture"
-status: "draft"
+status: "roadmap"
 last_updated: 2026-04-06
 training_eligible: true
 ---

@@ -598,6 +598,103 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: scientia-implementation-wave-backlog-v1
+    path: contracts/scientia/implementation-wave-backlog.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Machine-readable wave/package backlog inventory for the 232-task SCIENTIA implementation program.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-implementation-kpis-v1
+    path: contracts/scientia/implementation-kpis.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Program KPI baselines, release lanes, and wave done criteria.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-canonical-publication-metadata-v1-schema
+    path: contracts/scientia/canonical-publication-metadata.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Canonical manifest-centered publication metadata graph used as single-source input to route adapters.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-route-profile-requirements-v1
+    path: contracts/scientia/route-profile-requirements.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Route profile required/recommended field and signal requirements for journal, preprint, repository, and social paths.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-worthiness-signals-v2-schema
+    path: contracts/scientia/worthiness-signals.v2.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Signal taxonomy output contract for worthiness v2 (hard/soft/diagnostic plus reason codes and next actions).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-evidence-pack-v1-schema
+    path: contracts/scientia/evidence-pack.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Publication candidate EvidencePack contract for baseline/candidate pairing and replayability metadata.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-research-snapshot-v1-schema
+    path: contracts/scientia/research-snapshot.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Auditable worthiness/metadata recomputation snapshot envelope with provenance metadata.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-adapter-capability-registry-v1
+    path: contracts/scientia/adapter-capability-registry.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Adapter capability and unsupported-feature registry for canonical-to-route transforms.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-document-skill-profiles-v1
+    path: contracts/scientia/document-skill-profiles.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Skill profile contract for publication evidence authoring and venue-policy adaptation skill outputs.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-operator-status-surface-v1-schema
+    path: contracts/scientia/operator-status-surface.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Shared CLI/MCP publication status read-model contract (snapshot summary, next_actions, route readiness).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-worthiness-eval-harness-v1
+    path: contracts/scientia/worthiness-eval-harness.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Offline worthiness evaluation and calibration harness registry with release gate thresholds.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-consumption-registry-v1
+    path: contracts/scientia/consumption-registry.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: SCIENTIA schema-to-runtime consumption registry used by CI guards to prevent paper-only SSOT drift.
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci contracts-index
+
   - id: scientia-arxiv-handoff-schema
     path: contracts/scientia/arxiv-handoff.schema.json
     owner: scientia

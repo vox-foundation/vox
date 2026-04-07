@@ -23,12 +23,14 @@ Use these when you need current policy and behavior. The canonical cross-domain 
 - [Vox bell-curve strategy](vox-bell-curve-strategy.md)
 - [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
 - [Orphan surface inventory](orphan-surface-inventory.md)
+- [Legacy retirement roadmap 2026](legacy-retirement-roadmap.md) — **LLM guard**: deprecated surfaces, frozen files, safe-to-extend surfaces
 - [Language surface authority](language-surface-ssot.md) — keywords / decorators / manifests
 - [OpenAPI contract authority](openapi-contract-ssot.md) — committed YAML, validation, optional codegen
 - [Outbound HTTP policy](outbound-http-policy.md) — `vox-reqwest-defaults` and migration order
 - [Compiler diagnostics ergonomics](compiler-diagnostics-ergonomics.md) — `miette` vs custom errors, `quote` pilot
 - [Vox shell operations boundaries](vox-shell-operations-boundaries.md) — host `pwsh` vs `vox shell` vs `.vox` `std.*` (no shell emulator product)
 - [Plan adequacy (thin plans & telemetry)](plan-adequacy.md) — external limits, shared heuristics, expansion policy
+- [CodeRabbit review coverage SSOT](coderabbit-review-coverage-ssot.md) — full-repo review scope, persistence, and lane hardening
 - [Telemetry trust boundary map](telemetry-trust-ssot.md) — telemetry surfaces, trust planes, and canonical links
 - [Telemetry taxonomy and contracts](telemetry-taxonomy-contracts-ssot.md) — roadmap event taxonomy and contracts
 - [Telemetry retention and sensitivity](telemetry-retention-sensitivity-ssot.md) — roadmap retention and S0–S3 classes

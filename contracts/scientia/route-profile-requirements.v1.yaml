@@ -1,0 +1,52 @@
+version: v1
+profiles:
+  journal:
+    required_fields:
+      - identity.title
+      - identity.abstract
+      - contributors.authors
+      - policy.ai_disclosure.declared
+      - policy.double_blind_ready
+      - rights_and_funding.license
+    recommended_fields:
+      - policy.ethics_statement
+      - policy.broader_impact_statement
+      - rights_and_funding.funding
+      - contributors.authors[].orcid
+    hard_gate_signals:
+      - citation_verification_confidence
+      - claim_evidence_coverage
+      - ai_disclosure_compliance
+  preprint:
+    required_fields:
+      - identity.title
+      - identity.abstract
+      - contributors.authors
+      - policy.ai_disclosure.declared
+    recommended_fields:
+      - rights_and_funding.license
+      - contributors.authors[].orcid
+      - evidence
+    hard_gate_signals:
+      - citation_verification_confidence
+      - ai_disclosure_compliance
+  repository:
+    required_fields:
+      - identity.title
+      - contributors.authors
+      - rights_and_funding.license
+    recommended_fields:
+      - rights_and_funding.funding
+      - provenance.evidence_pack_digest
+      - policy.ai_disclosure.tools
+    hard_gate_signals:
+      - metadata_required_completeness
+  social:
+    required_fields:
+      - identity.title
+      - distribution.routes
+    recommended_fields:
+      - provenance.manifest_digest
+      - policy.ai_disclosure.declared
+    hard_gate_signals:
+      - social_payload_safety

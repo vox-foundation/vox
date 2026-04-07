@@ -16,6 +16,7 @@ pub struct DomainProfile {
     pub trajectory_tool_trace_boost: Option<f32>,
     pub curriculum_schedule: Option<CurriculumSchedule>,
     pub chatml: Option<crate::mens::tensor::training_config::ChatmlConfig>,
+    pub reward_hook: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +30,7 @@ pub struct DomainProfileDefaults {
     pub trajectory_weighting: Option<bool>,
     pub curriculum_schedule: Option<CurriculumSchedule>,
     pub chatml: Option<crate::mens::tensor::training_config::ChatmlConfig>,
+    pub reward_hook: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +58,7 @@ pub struct EffectiveDomainProfile {
     pub trajectory_tool_trace_boost: Option<f32>,
     pub curriculum_schedule: Option<CurriculumSchedule>,
     pub chatml: crate::mens::tensor::training_config::ChatmlConfig,
+    pub reward_hook: Option<String>,
 }
 
 impl EffectiveDomainProfile {
@@ -81,6 +84,7 @@ impl EffectiveDomainProfile {
             trajectory_weighting: None,
             curriculum_schedule: None,
             chatml: None,
+            reward_hook: None,
         });
 
         // Merge curriculum schedule
@@ -113,6 +117,7 @@ impl EffectiveDomainProfile {
             trajectory_tool_trace_boost: profile.trajectory_tool_trace_boost,
             curriculum_schedule: cur_sched,
             chatml: profile.chatml.clone().or_else(|| def.chatml.clone()).unwrap_or_default(),
+            reward_hook: profile.reward_hook.clone().or_else(|| def.reward_hook.clone()),
         })
     }
 }

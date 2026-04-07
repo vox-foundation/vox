@@ -7,18 +7,95 @@ mod types;
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use feed::generate_feed;
-use lint::collect_lint_errors;
+use lint::{collect_lint_errors, collect_lint_errors_target};
 use summary::{SECTION_ORDER, assert_summary_link_targets_unique, walk_dir};
 use types::{LintError, LintKind, Page};
+
+fn parse_paths_arg(args: &[String], docs_src: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut i = 0_usize;
+    while i < args.len() {
+        let arg = &args[i];
+        let value_opt = if let Some(v) = arg.strip_prefix("--paths=") {
+            Some(v.to_string())
+        } else if arg == "--paths" {
+            args.get(i + 1).cloned()
+        } else {
+            None
+        };
+        if let Some(value) = value_opt {
+            for raw in value.split(',') {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let p = PathBuf::from(trimmed);
+                let resolved = if p.is_absolute() { p } else { docs_src.join(p) };
+                out.push(resolved);
+            }
+        }
+        i += 1;
+    }
+    out
+}
+
+fn try_autofix_status_draft(path: &Path) -> bool {
+    if !path.is_file() || path.extension().and_then(|e| e.to_str()) != Some("md") {
+        return false;
+    }
+    let Ok(raw) = vox_bounded_fs::read_utf8_path_capped(path) else {
+        return false;
+    };
+    let Some(after_open) = raw.strip_prefix("---\n") else {
+        return false;
+    };
+    let Some(end) = after_open.find("\n---") else {
+        return false;
+    };
+    let frontmatter = &after_open[..end];
+    if !frontmatter.contains("status: \"draft\"") && !frontmatter.contains("status: draft") {
+        return false;
+    }
+    let updated = raw
+        .replace("status: \"draft\"", "status: \"roadmap\"")
+        .replace("status: draft", "status: roadmap");
+    if updated == raw {
+        return false;
+    }
+    fs::write(path, updated).is_ok()
+}
+
+fn collect_md_files(target: &Path, out: &mut Vec<PathBuf>) {
+    if target.is_file() {
+        if target.extension().and_then(|e| e.to_str()) == Some("md") {
+            out.push(target.to_path_buf());
+        }
+        return;
+    }
+    if !target.is_dir() {
+        return;
+    }
+    if let Ok(entries) = fs::read_dir(target) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                collect_md_files(&p, out);
+            } else if p.extension().and_then(|e| e.to_str()) == Some("md") {
+                out.push(p);
+            }
+        }
+    }
+}
 
 /// Run the full doc pipeline (lint, optional SUMMARY + feed).
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
     let check_mode = args.contains(&"--check".to_string());
     let lint_only = args.contains(&"--lint-only".to_string());
+    let fix_mode = args.contains(&"--fix".to_string());
 
     let docs_src = Path::new("docs/src");
     if !docs_src.exists() {
@@ -26,8 +103,47 @@ pub fn run() {
         std::process::exit(1);
     }
 
+    let lint_targets = parse_paths_arg(&args, docs_src);
+    if fix_mode {
+        let mut fixed = 0_usize;
+        if lint_targets.is_empty() {
+            let mut md_files = Vec::new();
+            collect_md_files(docs_src, &mut md_files);
+            for f in md_files {
+                if try_autofix_status_draft(&f) {
+                    fixed += 1;
+                }
+            }
+        } else {
+            for t in &lint_targets {
+                if t.is_file() {
+                    if try_autofix_status_draft(t) {
+                        fixed += 1;
+                    }
+                    continue;
+                }
+                let mut md_files = Vec::new();
+                collect_md_files(t, &mut md_files);
+                for f in md_files {
+                    if try_autofix_status_draft(&f) {
+                        fixed += 1;
+                    }
+                }
+            }
+        }
+        if fixed > 0 {
+            eprintln!("Applied {} frontmatter status auto-fix(es).", fixed);
+        }
+    }
+
     let mut lint_errors: Vec<LintError> = Vec::new();
-    collect_lint_errors(docs_src, &mut lint_errors);
+    if lint_targets.is_empty() {
+        collect_lint_errors(docs_src, &mut lint_errors);
+    } else {
+        for target in &lint_targets {
+            collect_lint_errors_target(target, &mut lint_errors);
+        }
+    }
 
     if !lint_errors.is_empty() {
         eprintln!("\n── vox-doc-pipeline: doc lint errors ──────────────────────────────");

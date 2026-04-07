@@ -167,6 +167,8 @@ pub struct LoraTrainingConfig {
     pub allow_cpu_fallback: bool,
     /// Dynamic ChatML separator configuration (registry-driven).
     pub chatml: ChatmlConfig,
+    /// Optional dynamic hook for running code evaluations (e.g. "cargo_build")
+    pub reward_hook: Option<String>,
 }
 
 impl Default for LoraTrainingConfig {
@@ -220,6 +222,7 @@ impl Default for LoraTrainingConfig {
             require_gpu: false,
             allow_cpu_fallback: true,
             chatml: ChatmlConfig::default(),
+            reward_hook: None,
         }
     }
 }

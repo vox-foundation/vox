@@ -196,6 +196,16 @@ pub enum CiCmd {
     /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
     #[command(name = "clavis-parity")]
     ClavisParity,
+    /// Machine-checkable Clavis cutover promotion/rollback gates for shadow/canary/enforce/decommission.
+    #[command(name = "clavis-cutover-gates")]
+    ClavisCutoverGates,
+    /// Emit post-cutover policy-violation audit report for Clavis migration.
+    #[command(name = "clavis-cutover-audit")]
+    ClavisCutoverAudit {
+        /// Scan all crate Rust files instead of only changed files.
+        #[arg(long)]
+        all: bool,
+    },
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,

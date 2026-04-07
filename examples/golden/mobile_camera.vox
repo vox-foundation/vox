@@ -9,35 +9,29 @@ import std.mobile
     state status = "idle"
     state last_photo: Option[str] = None
 
-    fn capture() {
-        status = "capturing"
-        // take_photo returns Result[str] (the local URI / blob handle)
-        match mobile.take_photo():
-            Ok(uri) -> {
-                last_photo = Some(uri)
-                status = "done"
-                on_image(uri)
-            }
-            Error(msg) -> {
-                status = "error: " + msg
-                mobile.notify("Camera Error", msg)
-            }
-    }
-
-    fn ping() {
-        mobile.vibrate()
-    }
-
     view:
         <div class="uploader">
-            <div class="status">Status: {status}</div>
-            <button onclick={capture}>Take Photo</button>
-            <button onclick={ping}>Vibrate</button>
+            <div class="status">"Status: " {status}</div>
+            <button onclick={fn() {
+                status = "capturing"
+                match mobile.take_photo() {
+                    Ok(uri) -> {
+                        last_photo = Some(uri)
+                        status = "done"
+                        on_image(uri)
+                    }
+                    Error(msg) -> {
+                        status = "error: " + msg
+                        mobile.notify("Camera Error", msg)
+                    }
+                }
+            }}>"Take Photo"</button>
+            <button onclick={fn() { mobile.vibrate() }}>"Vibrate"</button>
             
-            {match last_photo:
+            {match last_photo {
                 Some(uri) -> <img src={uri} alt="captured" />
-                None -> <div class="placeholder">No photo captured</div>
-            }
+                None -> <div class="placeholder">"No photo captured"</div>
+            }}
         </div>
 }
 // [END:display]

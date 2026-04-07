@@ -1,13 +1,15 @@
 // ANCHOR: comments
 // Single line comment
-/* Multi-line
-   comment */
+// Multi-line
+// comment
 // ANCHOR_END: comments
 
 // ANCHOR: variables
-let x = 10;
-let mutable y = 20;
-y = 30;
+fn demo_vars() {
+    let x = 10
+    let mut y = 20
+    y = 30
+}
 // ANCHOR_END: variables
 
 // ANCHOR: control_flow

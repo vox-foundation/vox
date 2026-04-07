@@ -47,12 +47,8 @@ pub(crate) fn run(repo_root: &Path) -> Result<()> {
         serde_yaml::from_str(&map_raw).context("parse canonical-map as JSON value")?;
     let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
         .context("compile canonical-map schema")?;
-    vox_jsonschema_util::validate(
-        &instance,
-        &validator,
-        format!("{MAP_REL} vs {SCHEMA_REL}"),
-    )
-    .map_err(|e| anyhow!("{e:#}"))?;
+    vox_jsonschema_util::validate(&instance, &validator, format!("{MAP_REL} vs {SCHEMA_REL}"))
+        .map_err(|e| anyhow!("{e:#}"))?;
 
     let map: CanonicalMap = serde_yaml::from_str(&map_raw).context("parse canonical-map YAML")?;
     verify_uniqueness(&map)?;
@@ -197,4 +193,3 @@ fn collect_files(repo_root: &Path) -> Result<Vec<PathBuf>> {
     }
     Ok(out)
 }
-

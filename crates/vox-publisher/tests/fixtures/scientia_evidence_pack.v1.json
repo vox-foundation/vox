@@ -1,0 +1,20 @@
+{
+  "version": "v1",
+  "publication_id": "scientia-wave-baseline-001",
+  "manifest_digest": "d3adb33fd3adb33fd3adb33fd3adb33f",
+  "baseline": {
+    "run_id": "baseline-2026-04-06",
+    "config_digest": "1111111111111111",
+    "telemetry_digest": "2222222222222222",
+    "eval_digest": "3333333333333333"
+  },
+  "candidate": {
+    "run_id": "candidate-2026-04-06",
+    "config_digest": "aaaaaaaaaaaaaaaa",
+    "telemetry_digest": "bbbbbbbbbbbbbbbb",
+    "eval_digest": "cccccccccccccccc",
+    "gate_digest": "dddddddddddddddd"
+  },
+  "pair_integrity_passed": true,
+  "replay_instructions": "Run `vox mens eval-gate --profile publication` with the recorded config digests."
+}

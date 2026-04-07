@@ -42,11 +42,33 @@ const VALID_STATUS: &[&str] = &[
 
 /// Recursively walk `dir` and collect lint errors for every `.md` file.
 pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
-    if let Ok(entries) = fs::read_dir(dir) {
+    collect_lint_errors_target(dir, errors);
+}
+
+/// Collect lint errors from either a markdown file or a directory tree.
+pub(crate) fn collect_lint_errors_target(target: &Path, errors: &mut Vec<LintError>) {
+    if target.is_file() {
+        if target.extension().map(|e| e == "md").unwrap_or(false) {
+            let rel = target.to_str().unwrap_or_default();
+            if rel.contains("SUMMARY.md") {
+                return;
+            }
+            let content =
+                vox_bounded_fs::read_utf8_path_capped(target).unwrap_or_else(|_| String::new());
+            lint_file(target, &content, errors);
+        }
+        return;
+    }
+
+    if !target.is_dir() {
+        return;
+    }
+
+    if let Ok(entries) = fs::read_dir(target) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                collect_lint_errors(&path, errors);
+                collect_lint_errors_target(&path, errors);
             } else if path.extension().map(|e| e == "md").unwrap_or(false) {
                 let rel = path.to_str().unwrap_or_default();
                 if rel.contains("SUMMARY.md") {

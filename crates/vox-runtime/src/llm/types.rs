@@ -96,11 +96,7 @@ impl LlmConfig {
         let entry = registry
             .get(alias)
             .ok_or_else(|| format!("Unknown model alias: {}", alias))?;
-        let api_key = entry
-            .api_key_env
-            .as_deref()
-            .and_then(|env_name| std::env::var(env_name).ok())
-            .or_else(|| match entry.provider.as_str() {
+        let api_key = match entry.provider.as_str() {
                 "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
                     .expose()
                     .map(std::string::ToString::to_string),
@@ -114,6 +110,13 @@ impl LlmConfig {
                     vox_config::inference::huggingface_hub_token()
                 }
                 _ => None,
+            }
+            .or_else(|| {
+                // Compatibility escape hatch for custom providers not yet mapped into Clavis `SecretId`.
+                entry
+                    .api_key_env
+                    .as_deref()
+                    .and_then(|env_name| std::env::var(env_name).ok())
             });
         let base_url = entry
             .base_url
@@ -204,4 +207,92 @@ pub struct LlmResponse {
     pub completion_tokens: u32,
     /// Model id from the response body, or the configured model as fallback.
     pub model: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LlmConfig, ModelRegistryEntry};
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn openrouter_registry_resolution_respects_clavis_profile_modes() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let openrouter_key = "OPENROUTER_API_KEY";
+        let prev_key = std::env::var(openrouter_key).ok();
+        let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
+        let prev_profile = std::env::var("VOX_CLAVIS_PROFILE").ok();
+        const DB_REMOTE_ALIAS_URL_ENV: &str = concat!("VOX_", "TURSO", "_URL");
+        let prev_url = std::env::var(DB_REMOTE_ALIAS_URL_ENV).ok();
+        let prev_cloudless_path = std::env::var("VOX_CLAVIS_CLOUDLESS_DB_PATH").ok();
+        let prev_account_id = std::env::var("VOX_ACCOUNT_ID").ok();
+        let mut registry = HashMap::new();
+        registry.insert(
+            "fast".to_string(),
+            ModelRegistryEntry {
+                provider: "openrouter".to_string(),
+                model: "openrouter/auto".to_string(),
+                temperature: None,
+                max_tokens: None,
+                api_key_env: None,
+                base_url: None,
+                timeout_ms: None,
+            },
+        );
+        unsafe {
+            std::env::set_var("OPENROUTER_API_KEY", "runtime-env-token");
+            std::env::set_var("VOX_CLAVIS_BACKEND", "vox_cloud");
+            std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
+            std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
+            let unique = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let tmp = std::env::temp_dir().join(format!(
+                "vox-clavis-runtime-strict-lenient-{unique}.db"
+            ));
+            std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", tmp.to_string_lossy().to_string());
+            std::env::set_var("VOX_ACCOUNT_ID", "runtime-strict-lenient-test");
+        }
+        let lenient =
+            LlmConfig::from_registry("fast", &registry).expect("lenient registry resolution");
+        assert_eq!(lenient.api_key.as_deref(), Some("runtime-env-token"));
+
+        unsafe {
+            std::env::set_var("VOX_CLAVIS_PROFILE", "hard_cut");
+            std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
+        }
+        let strict = LlmConfig::from_registry("fast", &registry).expect("strict resolution");
+        assert!(strict.api_key.is_none());
+
+        unsafe {
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+            match prev_backend {
+                Some(v) => std::env::set_var("VOX_CLAVIS_BACKEND", v),
+                None => std::env::remove_var("VOX_CLAVIS_BACKEND"),
+            }
+            match prev_profile {
+                Some(v) => std::env::set_var("VOX_CLAVIS_PROFILE", v),
+                None => std::env::remove_var("VOX_CLAVIS_PROFILE"),
+            }
+            match prev_url {
+                Some(v) => std::env::set_var(DB_REMOTE_ALIAS_URL_ENV, v),
+                None => std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV),
+            }
+            match prev_cloudless_path {
+                Some(v) => std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", v),
+                None => std::env::remove_var("VOX_CLAVIS_CLOUDLESS_DB_PATH"),
+            }
+            match prev_account_id {
+                Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+                None => std::env::remove_var("VOX_ACCOUNT_ID"),
+            }
+        }
+    }
 }

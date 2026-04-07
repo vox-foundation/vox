@@ -33,6 +33,21 @@ pub enum DbConfig {
 }
 
 fn try_remote_from_compat_env() -> Option<DbConfig> {
+    let hard_cut_strict = std::env::var("VOX_CLAVIS_HARD_CUT")
+        .ok()
+        .map(|v| {
+            let t = v.trim().to_ascii_lowercase();
+            matches!(t.as_str(), "1" | "true" | "yes" | "on")
+        })
+        .unwrap_or(false);
+    let cutover_phase_blocks_compat = std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
+        .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .is_some_and(|phase| matches!(phase.as_str(), "enforce" | "decommission"));
+    if hard_cut_strict || cutover_phase_blocks_compat {
+        return None;
+    }
     if let (Ok(url), Ok(token)) = (
         std::env::var("VOX_TURSO_URL"),
         std::env::var("VOX_TURSO_TOKEN"),
@@ -232,6 +247,114 @@ impl DbConfig {
             }
             (Some(u), Some(t), None) => Ok(Self::Remote { url: u, token: t }),
             _ => Self::resolve_canonical(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DbConfig, try_remote_from_compat_env};
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn hard_cut_disables_compat_remote_aliases() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
+        let prev_url = std::env::var("VOX_TURSO_URL").ok();
+        let prev_token = std::env::var("VOX_TURSO_TOKEN").ok();
+        unsafe {
+            std::env::set_var("VOX_CLAVIS_HARD_CUT", "1");
+            std::env::set_var("VOX_TURSO_URL", "libsql://example.turso.io");
+            std::env::set_var("VOX_TURSO_TOKEN", "token");
+        }
+        assert!(try_remote_from_compat_env().is_none());
+        unsafe {
+            match prev_hard_cut {
+                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+            }
+            match prev_url {
+                Some(v) => std::env::set_var("VOX_TURSO_URL", v),
+                None => std::env::remove_var("VOX_TURSO_URL"),
+            }
+            match prev_token {
+                Some(v) => std::env::set_var("VOX_TURSO_TOKEN", v),
+                None => std::env::remove_var("VOX_TURSO_TOKEN"),
+            }
+        }
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn lenient_mode_allows_compat_remote_aliases() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
+        let prev_url = std::env::var("VOX_TURSO_URL").ok();
+        let prev_token = std::env::var("VOX_TURSO_TOKEN").ok();
+        unsafe {
+            std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
+            std::env::set_var("VOX_TURSO_URL", "libsql://example.turso.io");
+            std::env::set_var("VOX_TURSO_TOKEN", "token");
+        }
+        let cfg = try_remote_from_compat_env().expect("compat alias should resolve");
+        assert!(matches!(cfg, DbConfig::Remote { .. }));
+        unsafe {
+            match prev_hard_cut {
+                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+            }
+            match prev_url {
+                Some(v) => std::env::set_var("VOX_TURSO_URL", v),
+                None => std::env::remove_var("VOX_TURSO_URL"),
+            }
+            match prev_token {
+                Some(v) => std::env::set_var("VOX_TURSO_TOKEN", v),
+                None => std::env::remove_var("VOX_TURSO_TOKEN"),
+            }
+        }
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn enforce_cutover_phase_disables_compat_remote_aliases() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
+        let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
+        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
+        let prev_url = std::env::var("VOX_TURSO_URL").ok();
+        let prev_token = std::env::var("VOX_TURSO_TOKEN").ok();
+        unsafe {
+            std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
+            std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "enforce");
+            std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE");
+            std::env::set_var("VOX_TURSO_URL", "libsql://example.turso.io");
+            std::env::set_var("VOX_TURSO_TOKEN", "token");
+        }
+        assert!(try_remote_from_compat_env().is_none());
+        unsafe {
+            match prev_cutover {
+                Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
+                None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+            }
+            match prev_migration {
+                Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
+                None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
+            }
+            match prev_hard_cut {
+                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+            }
+            match prev_url {
+                Some(v) => std::env::set_var("VOX_TURSO_URL", v),
+                None => std::env::remove_var("VOX_TURSO_URL"),
+            }
+            match prev_token {
+                Some(v) => std::env::set_var("VOX_TURSO_TOKEN", v),
+                None => std::env::remove_var("VOX_TURSO_TOKEN"),
+            }
         }
     }
 }

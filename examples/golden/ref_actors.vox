@@ -1,17 +1,16 @@
 // ANCHOR: basic_actor
 actor Counter {
-    let mutable count = 0;
-
-    on increment() {
-        count = count + 1;
-        print("Count is " + count);
+    on increment(current: int) -> int {
+        let count = current + 1
+        print("Count is " + count)
+        ret count
     }
 }
 // ANCHOR_END: basic_actor
 
 // ANCHOR: spawn_and_send
 fn run() {
-    let c = spawn Counter();
-    c.send increment();
+    let c = spawn(Counter)
+    c.increment(0)
 }
 // ANCHOR_END: spawn_and_send

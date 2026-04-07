@@ -17,7 +17,7 @@
 }
 
 // ANCHOR: ui
-@island fn App() {
+@component fn App() {
     <div>"Hello Vox"</div>
 }
 // ANCHOR_END: ui
@@ -39,8 +39,8 @@ routes {
 }
 
 workflow order(id: str) -> Result[Unit] {
-    let status = activity check_inventory(id)
-    ret Ok(())
+    let status = check_inventory(id)
+    ret Ok(Unit)
 }
 // ANCHOR_END: logic
 // ANCHOR_END: concepts

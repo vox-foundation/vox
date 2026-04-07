@@ -92,12 +92,9 @@ fn collect_destination_readiness(manifest: &PublicationManifest) -> Vec<Destinat
         credential_present: Some(zenodo_tok),
     });
 
-    let or_token = std::env::var("OPENREVIEW_ACCESS_TOKEN")
-        .ok()
-        .is_some_and(|s| !s.trim().is_empty())
-        || std::env::var("VOX_OPENREVIEW_ACCESS_TOKEN")
-            .ok()
-            .is_some_and(|s| !s.trim().is_empty());
+    let or_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewAccessToken)
+        .expose()
+        .is_some_and(|s| !s.trim().is_empty());
     let or_email = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
         .expose()
         .is_some_and(|s| !s.trim().is_empty());
@@ -188,6 +185,100 @@ pub struct PreflightReport {
     /// Conservative worthiness rubric output when requested (heuristic metrics; `meaningful_advance` is always false).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worthiness: Option<crate::publication_worthiness::WorthinessEvaluation>,
+}
+
+/// `contracts/scientia/operator-status-surface.v1.schema.json` compatible summary.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OperatorStatusSurfaceV1 {
+    pub publication_id: String,
+    pub profile: String,
+    pub snapshot_summary: OperatorStatusSnapshotSummary,
+    pub next_actions: Vec<OperatorStatusAction>,
+    pub route_readiness: Vec<OperatorStatusRouteReadiness>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OperatorStatusSnapshotSummary {
+    pub hard_gate_failures: u32,
+    pub soft_gate_failures: u32,
+    pub diagnostic_count: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OperatorStatusAction {
+    pub priority: u16,
+    pub action: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OperatorStatusRouteReadiness {
+    pub route: String,
+    pub ready: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing_required: Vec<String>,
+}
+
+fn profile_label(profile: PreflightProfile) -> &'static str {
+    match profile {
+        PreflightProfile::Default => "default",
+        PreflightProfile::DoubleBlind => "double_blind",
+        PreflightProfile::MetadataComplete => "metadata_complete",
+        PreflightProfile::ArxivAssist => "arxiv_assist",
+    }
+}
+
+/// Derive a stable operator status surface from preflight output for CLI/MCP parity.
+pub fn operator_status_surface_v1(
+    publication_id: &str,
+    profile: PreflightProfile,
+    report: &PreflightReport,
+) -> OperatorStatusSurfaceV1 {
+    let mut hard_gate_failures = 0_u32;
+    let mut soft_gate_failures = 0_u32;
+    for f in &report.findings {
+        match f.severity {
+            PreflightSeverity::Error => hard_gate_failures += 1,
+            PreflightSeverity::Warning => soft_gate_failures += 1,
+        }
+    }
+    let next_actions = report
+        .next_actions
+        .iter()
+        .enumerate()
+        .map(|(idx, a)| OperatorStatusAction {
+            priority: (idx + 1) as u16,
+            action: a.summary.clone(),
+        })
+        .collect::<Vec<_>>();
+    let route_readiness = report
+        .destination_readiness
+        .iter()
+        .map(|d| {
+            let missing_required = if d.ready {
+                Vec::new()
+            } else if d.remediation.trim().is_empty() {
+                vec!["manual_operator_review".to_string()]
+            } else {
+                vec![d.remediation.clone()]
+            };
+            OperatorStatusRouteReadiness {
+                route: d.destination.to_string(),
+                ready: d.ready,
+                missing_required,
+            }
+        })
+        .collect::<Vec<_>>();
+    OperatorStatusSurfaceV1 {
+        publication_id: publication_id.to_string(),
+        profile: profile_label(profile).to_string(),
+        snapshot_summary: OperatorStatusSnapshotSummary {
+            hard_gate_failures,
+            soft_gate_failures,
+            diagnostic_count: report.findings.len() as u32,
+        },
+        next_actions,
+        route_readiness,
+    }
 }
 
 struct OperatorCredentialPresence {
@@ -1095,6 +1186,9 @@ pub fn run_preflight_with_worthiness_attention_heuristics(
 mod tests {
     use super::*;
     use crate::scientific_metadata::{ScientificAuthor, ScientificPublicationMetadata};
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn sample_manifest(f: impl FnOnce(&mut PublicationManifest)) -> PublicationManifest {
         let mut m = PublicationManifest {
@@ -1329,5 +1423,101 @@ mod tests {
             "{:?}",
             r.next_actions
         );
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn openreview_readiness_respects_clavis_strict_mode() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let openreview_token_key = "VOX_OPENREVIEW_ACCESS_TOKEN";
+        let prev_token = std::env::var(openreview_token_key).ok();
+        let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
+        let prev_profile = std::env::var("VOX_CLAVIS_PROFILE").ok();
+        const DB_REMOTE_ALIAS_URL_ENV: &str = concat!("VOX_", "TURSO", "_URL");
+        let prev_url = std::env::var(DB_REMOTE_ALIAS_URL_ENV).ok();
+        let prev_cloudless_path = std::env::var("VOX_CLAVIS_CLOUDLESS_DB_PATH").ok();
+        let prev_account_id = std::env::var("VOX_ACCOUNT_ID").ok();
+        unsafe {
+            std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", "publisher-env-token");
+            std::env::set_var("VOX_CLAVIS_BACKEND", "vox_cloud");
+            std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
+            std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
+            let tmp = std::env::temp_dir().join("vox-clavis-publisher-strict-lenient.db");
+            std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", tmp.to_string_lossy().to_string());
+            std::env::set_var("VOX_ACCOUNT_ID", "publisher-strict-lenient-test");
+        }
+        let lenient = run_preflight(&sample_manifest(|_| {}), PreflightProfile::Default);
+        let openreview_lenient = lenient
+            .destination_readiness
+            .iter()
+            .find(|d| d.destination == "openreview")
+            .expect("openreview readiness");
+        assert!(openreview_lenient.ready);
+
+        unsafe {
+            std::env::set_var("VOX_CLAVIS_PROFILE", "hard_cut");
+            std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
+        }
+        let strict = run_preflight(&sample_manifest(|_| {}), PreflightProfile::Default);
+        let openreview_strict = strict
+            .destination_readiness
+            .iter()
+            .find(|d| d.destination == "openreview")
+            .expect("openreview readiness");
+        assert!(!openreview_strict.ready);
+
+        unsafe {
+            match prev_token {
+                Some(v) => std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", v),
+                None => std::env::remove_var("VOX_OPENREVIEW_ACCESS_TOKEN"),
+            }
+            match prev_backend {
+                Some(v) => std::env::set_var("VOX_CLAVIS_BACKEND", v),
+                None => std::env::remove_var("VOX_CLAVIS_BACKEND"),
+            }
+            match prev_profile {
+                Some(v) => std::env::set_var("VOX_CLAVIS_PROFILE", v),
+                None => std::env::remove_var("VOX_CLAVIS_PROFILE"),
+            }
+            match prev_url {
+                Some(v) => std::env::set_var(DB_REMOTE_ALIAS_URL_ENV, v),
+                None => std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV),
+            }
+            match prev_cloudless_path {
+                Some(v) => std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", v),
+                None => std::env::remove_var("VOX_CLAVIS_CLOUDLESS_DB_PATH"),
+            }
+            match prev_account_id {
+                Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+                None => std::env::remove_var("VOX_ACCOUNT_ID"),
+            }
+        }
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn operator_status_surface_never_serializes_secret_values() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let openreview_token_key = "VOX_OPENREVIEW_ACCESS_TOKEN";
+        let prev_token = std::env::var(openreview_token_key).ok();
+        unsafe {
+            std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", "do-not-leak-me");
+            std::env::set_var("VOX_CLAVIS_BACKEND", "env_only");
+            std::env::remove_var("VOX_CLAVIS_PROFILE");
+        }
+        let manifest = sample_manifest(|_| {});
+        let report = run_preflight(&manifest, PreflightProfile::Default);
+        let status = operator_status_surface_v1(&manifest.publication_id, PreflightProfile::Default, &report);
+        let json = serde_json::to_string(&status).expect("serialize operator status");
+        assert!(!json.contains("do-not-leak-me"));
+        assert!(!json.contains("VOX_OPENREVIEW_ACCESS_TOKEN"));
+        unsafe {
+            match prev_token {
+                Some(v) => std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", v),
+                None => std::env::remove_var("VOX_OPENREVIEW_ACCESS_TOKEN"),
+            }
+            std::env::remove_var("VOX_CLAVIS_BACKEND");
+            std::env::remove_var("VOX_CLAVIS_PROFILE");
+        }
     }
 }

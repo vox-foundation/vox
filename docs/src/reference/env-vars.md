@@ -17,6 +17,11 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 | `VOX_DB_URL` | Remote libSQL / Turso URL (with `VOX_DB_TOKEN`). |
 | `VOX_DB_TOKEN` | Auth token for `VOX_DB_URL`. |
 | `VOX_DB_PATH` | Local database file path (`local` / replication features). |
+| `VOX_CLAVIS_HARD_CUT` | When truthy, disables `VOX_TURSO_*` / `TURSO_*` compatibility alias fallback in DB config resolution. |
+| `VOX_CLAVIS_PROFILE` | Clavis resolution strictness profile: `dev` (default), `ci`, `prod`, or `hard_cut`. Strict profiles reject deprecated aliases and source-policy violations. |
+| `VOX_CLAVIS_BACKEND` | Clavis backend selector: `auto` (default), `env_only`, `infisical`, `vault`, `vox_cloud`. |
+| `VOX_CLAVIS_CUTOVER_PHASE` | Cloudless rollout choreography: `shadow` -> `canary` -> `enforce` -> `decommission`. `shadow` allows legacy sources, `canary` blocks legacy sources in strict profiles, `enforce` blocks legacy sources for all profiles, `decommission` also forces `vox_cloud` backend resolution. |
+| `VOX_CLAVIS_MIGRATION_PHASE` | Compatibility alias for `VOX_CLAVIS_CUTOVER_PHASE`; same values and semantics. |
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | **Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). In Cloudless hard-cut strict profiles, these aliases are scheduled for rejection by source policy. |
 | `TURSO_URL` / `TURSO_AUTH_TOKEN` | **Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. In Cloudless hard-cut strict profiles, these legacy aliases are scheduled for rejection by source policy. |
 | `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | Integer ≥ 1: multiplier for brute-force embedding search window (`limit * mult`, capped). See [`capabilities`](../../../crates/vox-db/src/capabilities.rs). |

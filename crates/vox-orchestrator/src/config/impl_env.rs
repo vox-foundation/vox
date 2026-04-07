@@ -596,62 +596,55 @@ impl OrchestratorConfig {
                 self.news.twitter_truncation_suffix = Some(t.to_string());
             }
         }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_CLIENT_ID") {
-            let t = v.trim();
-            self.news.reddit_client_id = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_CLIENT_SECRET") {
-            let t = v.trim();
-            self.news.reddit_client_secret = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_REFRESH_TOKEN") {
-            let t = v.trim();
-            self.news.reddit_refresh_token = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_USER_AGENT") {
-            let t = v.trim();
-            self.news.reddit_user_agent = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_CLIENT_ID") {
-            let t = v.trim();
-            self.news.youtube_client_id = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_CLIENT_SECRET") {
-            let t = v.trim();
-            self.news.youtube_client_secret = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN") {
-            let t = v.trim();
-            self.news.youtube_refresh_token = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
+        self.news.reddit_client_id = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialRedditClientId,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+        self.news.reddit_client_secret = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialRedditClientSecret,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+        self.news.reddit_refresh_token = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialRedditRefreshToken,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+        self.news.reddit_user_agent = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialRedditUserAgent,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+        self.news.youtube_client_id = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialYoutubeClientId,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+        self.news.youtube_client_secret = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialYoutubeClientSecret,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+        self.news.youtube_refresh_token = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
+        )
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
         if let Ok(v) = std::env::var("VOX_SOCIAL_HN_MODE") {
             let t = v.trim();
             self.news.hacker_news_mode = if t.is_empty() {

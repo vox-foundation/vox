@@ -156,14 +156,17 @@ pub fn spawn_http_gateway_if_enabled(
         .ok()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
-    let bearer_token = std::env::var("VOX_MCP_HTTP_BEARER_TOKEN")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
-    let read_bearer_token = std::env::var("VOX_MCP_HTTP_READ_BEARER_TOKEN")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    let bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let read_bearer_token =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpReadBearerToken)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
     let allow_unauthenticated =
         read_bool_env("VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED").unwrap_or(false);
     if bearer_token.is_none() && read_bearer_token.is_none() && !allow_unauthenticated {
@@ -975,6 +978,9 @@ mod tests {
     use super::*;
     use axum::body::to_bytes;
     use axum::http::{HeaderValue, header::AUTHORIZATION};
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     async fn make_state(calls_per_minute: u32) -> GatewayState {
         let mut allowed = HashSet::new();
@@ -1334,5 +1340,45 @@ mod tests {
                 .contains("not allowed for current gateway role")
         );
         server.abort();
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn clavis_profile_lenient_vs_strict_for_gateway_token() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let token_key = "VOX_MCP_HTTP_BEARER_TOKEN";
+        let prev_token = std::env::var(token_key).ok();
+        unsafe {
+            std::env::set_var("VOX_MCP_HTTP_BEARER_TOKEN", "gateway-env-token");
+        }
+        let resolver = vox_clavis::resolver::SecretResolver::new(vox_clavis::backend::NoopBackend);
+        let lenient = resolver.resolve(
+            vox_clavis::SecretId::VoxMcpHttpBearerToken,
+            &vox_clavis::resolver::ResolveOptions {
+                include_env: true,
+                include_auth_json: false,
+                include_populi_env: false,
+                profile: vox_clavis::ResolveProfile::DevLenient,
+            },
+        );
+        assert_eq!(lenient.expose(), Some("gateway-env-token"));
+
+        let strict = resolver.resolve(
+            vox_clavis::SecretId::VoxMcpHttpBearerToken,
+            &vox_clavis::resolver::ResolveOptions {
+                include_env: false,
+                include_auth_json: false,
+                include_populi_env: false,
+                profile: vox_clavis::ResolveProfile::HardCutStrict,
+            },
+        );
+        assert!(strict.expose().is_none());
+
+        unsafe {
+            match prev_token {
+                Some(v) => std::env::set_var("VOX_MCP_HTTP_BEARER_TOKEN", v),
+                None => std::env::remove_var("VOX_MCP_HTTP_BEARER_TOKEN"),
+            }
+        }
     }
 }

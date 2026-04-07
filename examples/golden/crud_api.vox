@@ -9,7 +9,7 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @query, @mutation, one http route, and db.Table operations (get/find, all, insert).
+// @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @query, @mutation, one http route, and db.Table operations (get/find, all, insert).
 // ANCHOR: display
 @table type User {
     name: str
