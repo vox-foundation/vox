@@ -1,0 +1,6 @@
+# Pilot: mutation testing for workspace packages (workflow uses `-p vox-compiler`).
+# See https://mutants.rs/config-file.html
+
+test_tool = "nextest"
+cap_lints = true
+minimum_test_timeout = 120.0
