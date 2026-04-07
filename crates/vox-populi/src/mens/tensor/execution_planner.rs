@@ -321,6 +321,7 @@ mod tests {
                 qlora_lm_head_only: false,
                 qlora_proxy_max_layers: None,
                 qlora_ce_last_k: 1,
+                curriculum_schedule: None,
             },
             artifact: ArtifactSpec::default(),
         }

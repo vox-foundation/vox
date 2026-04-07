@@ -983,6 +983,7 @@ pub fn run_candle_qlora_train(
     result
 }
 
+mod ce_mask_align;
 mod checkpoint_mid;
 mod db_thread;
 mod device_select;

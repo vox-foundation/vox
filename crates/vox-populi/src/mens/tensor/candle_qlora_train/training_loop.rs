@@ -181,10 +181,8 @@ fn try_encode_training_step(
     } else {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     };
-    let prefix_enc = tokenizer
-        .encode(prefix_text, true)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let prefix_len = prefix_enc.get_ids().len();
+    let prefix_len =
+        super::ce_mask_align::aligned_prefix_token_len(tokenizer, prefix_text.as_str(), text.as_str())?;
     let enc = tokenizer
         .encode(text, true)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -248,6 +246,13 @@ pub(super) fn forward_masked_ce(
     let logits = model.forward(&input_ids)?;
     let logits = logits.flatten_to(1)?;
     let targets_flat = targets.flatten_all()?;
+    let vocab_dim = logits.dim(1)?;
+    let max_tgt = targets_flat.max(0)?.to_scalar::<u32>()? as usize;
+    if max_tgt >= vocab_dim {
+        anyhow::bail!(
+            "forward_masked_ce: max target token id {max_tgt} >= logits vocab dimension {vocab_dim}"
+        );
+    }
 
     let prompt_len = prefix_len.saturating_sub(trunc_offset);
     let ce_last_k = if config.qlora_ce_last_k == 0 {
@@ -1076,6 +1081,22 @@ mod tests {
 
     use crate::mens::tensor::training_config::LoraTrainingConfig;
 
+    fn trivial_training_pair() -> TrainingPair {
+        TrainingPair {
+            prompt: Some(String::new()),
+            response: Some(String::new()),
+            turns: None,
+            rating: None,
+            category: None,
+            difficulty: None,
+            lane: None,
+            response_mode: None,
+            task_family: None,
+            interruption_decision: None,
+            agent_trust_score: None,
+        }
+    }
+
     #[test]
     fn token_ids_in_model_vocab_accepts_in_range() {
         assert!(token_ids_in_model_vocab(&[0, 10, 99], 100));
@@ -1099,7 +1120,7 @@ mod tests {
     #[test]
     fn uses_resume_indices_when_present_and_nonempty() {
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-        let pairs = vec![TrainingPair::default(); 5];
+        let pairs = vec![trivial_training_pair(); 5];
         let got =
             build_epoch_shuffled_indices(3, 3, &pairs, &Some(vec![4, 2, 1, 3, 0]), &mut rng, false);
         assert_eq!(got, vec![4, 2, 1, 3, 0]);
@@ -1109,7 +1130,7 @@ mod tests {
     fn reshuffles_when_resume_indices_are_empty() {
         let mut rng_a = rand::rngs::StdRng::seed_from_u64(42);
         let mut rng_b = rand::rngs::StdRng::seed_from_u64(42);
-        let pairs = vec![TrainingPair::default(); 6];
+        let pairs = vec![trivial_training_pair(); 6];
         let got = build_epoch_shuffled_indices(2, 2, &pairs, &Some(vec![]), &mut rng_a, false);
         let expect = build_epoch_shuffled_indices(2, 1, &pairs, &None, &mut rng_b, false);
         assert_eq!(got, expect);
@@ -1135,6 +1156,8 @@ mod tests {
             lane: None,
             response_mode: None,
             task_family: None,
+            interruption_decision: None,
+            agent_trust_score: None,
         };
         let cfg = LoraTrainingConfig::default();
         assert_eq!(trajectory_weight_for_pair(&pair, &cfg), (1.0, false));
@@ -1152,6 +1175,8 @@ mod tests {
             lane: None,
             response_mode: None,
             task_family: None,
+            interruption_decision: None,
+            agent_trust_score: None,
         };
         let cfg = LoraTrainingConfig {
             trajectory_weighting_enabled: true,
@@ -1173,14 +1198,17 @@ mod tests {
     #[test]
     fn trajectory_weighting_clamps_pathological_values() {
         let pair = TrainingPair {
-            prompt: "p".into(),
-            response: "r".into(),
+            prompt: Some("p".into()),
+            response: Some("r".into()),
+            turns: None,
             rating: Some(5),
             category: Some("trajectory_failure".into()),
             difficulty: None,
             lane: None,
             response_mode: None,
             task_family: None,
+            interruption_decision: None,
+            agent_trust_score: None,
         };
         let cfg = LoraTrainingConfig {
             trajectory_weighting_enabled: true,

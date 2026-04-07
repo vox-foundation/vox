@@ -51,11 +51,13 @@ pub(super) fn run_validation_pass(
         } else {
             continue;
         };
-        if let Ok(enc) = tokenizer.encode(text, true) {
-            let prefix_len = tokenizer
-                .encode(prefix_text, true)
-                .map(|e| e.get_ids().len())
-                .unwrap_or(0);
+        let prefix_len = super::ce_mask_align::aligned_prefix_token_len(
+            tokenizer,
+            prefix_text.as_str(),
+            text.as_str(),
+        )
+        .unwrap_or(0);
+        if let Ok(enc) = tokenizer.encode(text.as_str(), true) {
             let mut ids = enc.get_ids().to_vec();
             let mut trunc_offset = 0usize;
             if ids.len() > config.seq_len {
