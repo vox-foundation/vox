@@ -38,7 +38,8 @@ export default config;
     "@capacitor/camera": "^6.0.0",
     "@capacitor/haptics": "^6.0.0",
     "@capacitor/geolocation": "^6.0.0",
-    "@capacitor/clipboard": "^6.0.0"
+    "@capacitor/clipboard": "^6.0.0",
+    "workbox-window": "^7.0.0"
   }},
   "devDependencies": {{
     "@capacitor/cli": "^6.0.0",
@@ -76,12 +77,25 @@ export default config;
 }"##;
     std::fs::write(public_dir.join("manifest.webmanifest"), manifest).context("Write webmanifest")?;
 
-    let sw = r#"self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('vox-store').then((cache) => cache.addAll(['/'])));
+    let sw = r#"importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
+
+const { routing, strategies, backgroundSync } = workbox;
+
+const bgSyncPlugin = new backgroundSync.BackgroundSyncPlugin('vox-offline-queue', {
+  maxRetentionTime: 24 * 60 // Retry for max 24 Hours
 });
-self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((response) => response || fetch(e.request)));
-});
+
+routing.registerRoute(
+  ({request}) => request.method === 'POST',
+  new strategies.NetworkOnly({
+    plugins: [bgSyncPlugin]
+  })
+);
+
+routing.registerRoute(
+  ({request}) => request.destination === 'document' || request.destination === 'script' || request.destination === 'style',
+  new strategies.StaleWhileRevalidate()
+);
 "#;
     std::fs::write(public_dir.join("sw.js"), sw).context("Write sw.js")?;
 

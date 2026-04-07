@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
-pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
+pub async fn run(file: &Path, out_dir: &Path, target: Option<String>) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
     if frontend.has_errors() {
@@ -30,6 +30,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     // 5. Generate TypeScript (Frontend)
     let ts_opts = vox_compiler::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
+        target: target.clone(),
     };
     let ts_output = vox_compiler::codegen_ts::generate_with_options(&hir, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
@@ -176,6 +177,49 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
             )
         })?;
         println!("  wrote {}", out.display());
+    }
+
+    if let Some(t) = target {
+        if t == "ios" || t == "android" {
+            println!("Synchronizing Capacitor project for {}...", t);
+            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let status = tokio::process::Command::new("npx")
+                .arg("cap")
+                .arg("sync")
+                .arg(&t)
+                .current_dir(&cwd)
+                .status()
+                .await;
+            match status {
+                Ok(s) if s.success() => println!("  Capacitor sync complete."),
+                Ok(s) => eprintln!("  Capacitor sync exited with {s}"),
+                Err(e) => eprintln!("  Failed to execute npx cap sync: {e}"),
+            }
+
+            if t == "android" {
+                let res_dir = cwd.join("android/app/src/main/res/xml");
+                if std::fs::create_dir_all(&res_dir).is_ok() {
+                    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>"#;
+                    let _ = std::fs::write(res_dir.join("network_security_config.xml"), xml);
+                }
+
+                // WAKE_LOCK injection
+                let manifest_path = cwd.join("android/app/src/main/AndroidManifest.xml");
+                if manifest_path.is_file() {
+                    let mut m = std::fs::read_to_string(&manifest_path).unwrap_or_default();
+                    if !m.contains("android.permission.WAKE_LOCK") {
+                        m = m.replace("<application", "<uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n    <application");
+                        let _ = std::fs::write(&manifest_path, m);
+                    }
+                }
+            }
+        }
     }
 
     println!(

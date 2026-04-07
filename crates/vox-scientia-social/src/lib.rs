@@ -1,1 +1,1 @@
-// dummy
+pub fn dummy() {}

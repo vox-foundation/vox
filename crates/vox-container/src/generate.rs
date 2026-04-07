@@ -153,6 +153,7 @@ services:
     environment:
       - VOX_API_KEY=${{VOX_API_KEY:-}}
       - VOX_BEARER_TOKEN=${{VOX_BEARER_TOKEN:-}}
+      - FCM_SERVER_KEY=${{FCM_SERVER_KEY:-}}
 {mesh_env}    restart: unless-stopped
   nginx:
     image: nginx:alpine

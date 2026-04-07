@@ -35,6 +35,10 @@ pub struct TrainingPair {
     pub response_mode: Option<String>,
     /// Optional task family tag (e.g. `docs_code`, `tool_trace`, `speech_to_code`).
     pub task_family: Option<String>,
+    /// Attention budgeting decision
+    pub interruption_decision: Option<String>,
+    /// Attention budget agent trust score
+    pub agent_trust_score: Option<f64>,
 }
 
 // ─── Minimal character-level vocabulary ──────────────────────────────────────

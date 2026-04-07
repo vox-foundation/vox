@@ -5,7 +5,7 @@
 
 import std.mobile
 
-@component PhotoUploader(on_image: fn(str) to unit) {
+component PhotoUploader(on_image: fn(str) -> unit) {
     state status = "idle"
     state last_photo: Option[str] = None
 

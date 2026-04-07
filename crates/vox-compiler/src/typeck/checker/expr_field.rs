@@ -15,7 +15,7 @@ impl<'a> Checker<'a> {
         field: &str,
         span: Span,
     ) -> Ty {
-        let raw_obj = self.check_expr(object);
+        let raw_obj = self.check_expr(object, None);
         let obj_ty = self.uf.resolve(&raw_obj);
         match &obj_ty {
             Ty::Named(n) if n == "JsonBody" => match field {
@@ -174,6 +174,16 @@ impl<'a> Checker<'a> {
                     ));
                     Ty::Error
                 }
+            }
+            Ty::TypeVar(_) => {
+                let ret_var = self.uf.fresh_var();
+                self.uf.pending_constraints.push(crate::typeck::unify::PendingConstraint::HasField {
+                    target: obj_ty.clone(),
+                    field: field.to_string(),
+                    result: ret_var.clone(),
+                    span,
+                });
+                ret_var
             }
             Ty::Error => Ty::Error,
             _ => {

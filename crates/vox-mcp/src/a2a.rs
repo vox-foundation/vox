@@ -25,6 +25,14 @@ fn a2a_message_may_surface_to_pilot(msg_type: &A2AMessageType) -> bool {
     )
 }
 
+#[inline]
+fn is_high_priority_a2a_type(msg_type: &A2AMessageType) -> bool {
+    matches!(
+        msg_type,
+        A2AMessageType::ErrorReport | A2AMessageType::ConflictDetected
+    )
+}
+
 const REM_A2A_ACK: &str = "List inbox with `a2a_inbox` and use a pending `message_id` for this agent; ids are consumed after ack.";
 
 // ---------------------------------------------------------------------------
@@ -631,6 +639,31 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
     }
     messages.sort_by_key(|m| m.timestamp_ms);
 
+    let focus_depth = if state.orchestrator_config.attention_enabled {
+        let bm = state.orchestrator.budget_manager_handle();
+        let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
+        snap.focus_depth()
+    } else {
+        vox_orchestrator::FocusDepth::Ambient
+    };
+
+    let suppressed_count = if focus_depth == vox_orchestrator::FocusDepth::Deep {
+        let before = messages.len();
+        messages.retain(|m| {
+            let mt = parse_msg_type(&m.msg_type);
+            is_high_priority_a2a_type(&mt)
+        });
+        let diff = before - messages.len();
+        if diff > 0 {
+            let bm = state.orchestrator.budget_manager_handle();
+            let bml = vox_orchestrator::sync_lock::rw_read(&*bm);
+            bml.record_inbox_suppression(diff as u32);
+        }
+        diff
+    } else {
+        0
+    };
+
     let mut data = serde_json::json!({
         "agent_id": params.agent_id,
         "source": source.as_str(),
@@ -646,6 +679,8 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
         "remote_attempted": remote_attempted,
         "remote_ok": remote_ok,
         "dropped_messages": orch.message_bus().dropped_messages(),
+        "suppressed_count": suppressed_count,
+        "focus_depth_filter_active": focus_depth == vox_orchestrator::FocusDepth::Deep,
         "messages": messages,
     });
     if let Some(obj) = data.as_object_mut() {
@@ -720,10 +755,125 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
             Err(msg) => return ToolResult::<String>::err(msg).to_json(),
         };
     let msg_type = parse_msg_type(&params.msg_type);
+    let agent_count = orch.agent_ids().len().saturating_sub(1);
+
+    if state.orchestrator_config.attention_enabled && a2a_message_may_surface_to_pilot(&msg_type) {
+        let bm = state.orchestrator.budget_manager_handle();
+        let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
+        if let vox_orchestrator::GateResult::AttentionExhausted { message, .. } =
+            vox_orchestrator::BudgetGate::check_attention_snapshot(
+                &snap,
+                &state.orchestrator_config,
+            )
+        {
+            return ToolResult::<String>::err_with_remediation(
+                message,
+                "Pilot attention budget is exhausted; resolve MCP clarifications or block broadcasts.",
+            )
+            .to_json();
+        }
+
+        let mut backlog = pending_backlog_for_session(state, params.sender_session_id.as_deref());
+        backlog = backlog.saturating_add(agent_count as u32);
+        
+        let trust = trust_for_session(state, params.sender_session_id.as_deref());
+        let signals = a2a_escalation_signals(
+            &msg_type,
+            &params.payload,
+            backlog,
+            trust,
+            state.orchestrator_config.attention_interrupt_cost_ms,
+        );
+        let decision = evaluate_with_state(state, &signals, &snap);
+        match decision {
+            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue {
+                reason, ..
+            } => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("A2A broadcast blocked pending human review: {reason}"),
+                    "Reduce blast radius or include explicit human-approved context before resubmitting.",
+                )
+                .to_json();
+            }
+            vox_orchestrator::InterruptionDecision::DeferUntilCheckpoint { ref reason }
+            | vox_orchestrator::InterruptionDecision::BatchWithExistingPrompt { ref reason } => {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                state.record_attention_event(vox_orchestrator::AttentionEvent {
+                    agent_id: sender,
+                    task_id: None,
+                    event_type: vox_orchestrator::AttentionEventType::A2AInterrupt,
+                    tier: vox_orchestrator::ApprovalTier::Confirm,
+                    cost_ms: 0,
+                    outcome: vox_orchestrator::ApprovalOutcome::AutoApproved,
+                    trust_score_at_time: trust,
+                    effective_complexity: (params.payload.len() as f64 / 120.0).clamp(0.0, 10.0),
+                    decision_entropy_bits: signals.expected_information_gain_bits,
+                    timestamp_ms: ts,
+                    channel: Some("a2a_broadcast".to_string()),
+                    policy_reason: Some(reason.clone()),
+                });
+                let mut data = serde_json::json!({
+                    "deferred": true,
+                    "decision": decision_label(&decision),
+                    "surface": "a2a_broadcast",
+                    "channel": channel_label(vox_orchestrator::InterruptionChannel::A2AEscalation),
+                    "reason": reason,
+                    "timestamp_ms": ts,
+                    "sender": params.sender_id,
+                });
+                if let Some(obj) = data.as_object_mut() {
+                    extend_binding_fields(obj, binding_outcome);
+                }
+                return ToolResult::ok(data).to_json();
+            }
+            vox_orchestrator::InterruptionDecision::ProceedAutonomously { ref reason } => {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                state.record_attention_event(vox_orchestrator::AttentionEvent {
+                    agent_id: sender,
+                    task_id: None,
+                    event_type: vox_orchestrator::AttentionEventType::A2AInterrupt,
+                    tier: vox_orchestrator::ApprovalTier::AutoApprove,
+                    cost_ms: 0,
+                    outcome: vox_orchestrator::ApprovalOutcome::AutoApproved,
+                    trust_score_at_time: trust,
+                    effective_complexity: (params.payload.len() as f64 / 120.0).clamp(0.0, 10.0),
+                    decision_entropy_bits: signals.expected_information_gain_bits,
+                    timestamp_ms: ts,
+                    channel: Some("a2a_broadcast".to_string()),
+                    policy_reason: Some(reason.clone()),
+                });
+            }
+            vox_orchestrator::InterruptionDecision::InterruptNow { scaled_cost_ms, ref reason, .. } => {
+                let cost_ms = scaled_cost_ms.saturating_mul(agent_count as u64);
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                state.record_attention_event(vox_orchestrator::AttentionEvent {
+                    agent_id: sender,
+                    task_id: None,
+                    event_type: vox_orchestrator::AttentionEventType::A2AInterrupt,
+                    tier: vox_orchestrator::ApprovalTier::Review,
+                    cost_ms,
+                    outcome: vox_orchestrator::ApprovalOutcome::Approved,
+                    trust_score_at_time: trust,
+                    effective_complexity: (params.payload.len() as f64 / 120.0).clamp(0.0, 10.0),
+                    decision_entropy_bits: signals.expected_information_gain_bits,
+                    timestamp_ms: ts,
+                    channel: Some("a2a_broadcast".to_string()),
+                    policy_reason: Some(reason.clone()),
+                });
+            }
+        }
+    }
 
     let msg_id = orch.broadcast_a2a(sender, msg_type, params.payload);
-
-    let agent_count = orch.agent_ids().len().saturating_sub(1);
 
     let mut data = serde_json::json!({
         "message_id": msg_id.0,

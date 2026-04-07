@@ -318,9 +318,13 @@ impl TypeEnv {
         self.agents.get(name)
     }
 
-    /// Field types for an ADT constructor name (e.g. `Some`, `Ok`, or a user variant).
-    pub fn lookup_adt_variant(&self, constructor_name: &str) -> Option<Vec<(String, Ty)>> {
+    pub fn lookup_adt_variant(&self, constructor_name: &str, expected_adt_name: Option<&str>) -> Option<Vec<(String, Ty)>> {
         for adt in self.types.values() {
+            if let Some(expected) = expected_adt_name {
+                if adt.name != expected {
+                    continue;
+                }
+            }
             if let Some(v) = adt.variants.iter().find(|v| v.name == constructor_name) {
                 return Some(v.fields.clone());
             }

@@ -521,6 +521,33 @@ impl OrchestratorConfig {
                 self.trust_auto_approve_min,
             );
         }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_MENTAL") {
+            self.attention_tlx_weights.mental = parse_or_warn("VOX_ORCHESTRATOR_TLX_MENTAL", &v, self.attention_tlx_weights.mental);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_TEMPORAL") {
+            self.attention_tlx_weights.temporal = parse_or_warn("VOX_ORCHESTRATOR_TLX_TEMPORAL", &v, self.attention_tlx_weights.temporal);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_FRUSTRATION") {
+            self.attention_tlx_weights.frustration = parse_or_warn("VOX_ORCHESTRATOR_TLX_FRUSTRATION", &v, self.attention_tlx_weights.frustration);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT") {
+            self.attention_tlx_weights.trust_discount = parse_or_warn("VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT", &v, self.attention_tlx_weights.trust_discount);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD") {
+            self.tier_gate.entropy_auto_approve_threshold = parse_or_warn("VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD", &v, self.tier_gate.entropy_auto_approve_threshold);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS") {
+            self.tier_gate.auto_approve_min_observations = parse_or_warn("VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS", &v, self.tier_gate.auto_approve_min_observations);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN") {
+            self.interruption_calibration.plan_review_gain_offset_bits = parse_or_warn("VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN", &v, self.interruption_calibration.plan_review_gain_offset_bits);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN") {
+            self.interruption_calibration.a2a_escalation_gain_offset_bits = parse_or_warn("VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN", &v, self.interruption_calibration.a2a_escalation_gain_offset_bits);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY") {
+            self.interruption_calibration.backlog_cost_penalty_per_item = parse_or_warn("VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY", &v, self.interruption_calibration.backlog_cost_penalty_per_item);
+        }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT") {
             self.attention_trust_routing_weight = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT",

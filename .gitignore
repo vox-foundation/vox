@@ -103,3 +103,11 @@ mens/runs/qwen35_qlora_smoke35_v4/checkpoint_state.json
 
 # Repo-root only: renamed `target` trees when deletes fail on locked binaries (e.g. Windows).
 /target*.stale-*/
+
+# Session artifacts
+*.txt
+!*.txt
+cargo_errors*.txt
+train_out*.txt
+run*.txt
+build_log*.txt

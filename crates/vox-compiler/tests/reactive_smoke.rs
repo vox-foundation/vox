@@ -751,6 +751,9 @@ fn worked_app_k_metric_appendix_token_classes_are_traceable_in_source() {
 /// OP-0269: stable sentinel for island compatibility boundary (`data-vox-island` + `data-prop-*`) in codegen output.
 #[test]
 fn reactive_smoke_compat_island_boundary_snapshot_in_panel_fixture() {
+    let _serial = REACTIVE_SMOKE_SERIAL
+        .lock()
+        .expect("REACTIVE_SMOKE_SERIAL poisoned");
     let source = r#"
 @island Badge { label: str }
 
@@ -788,6 +791,9 @@ component Panel() {
 /// OP-0257 / OP-0265: parser-valid module with `@island` + Path C reactive codegen succeeds.
 #[test]
 fn reactive_smoke_worked_app_island_and_reactive_codegen() {
+    let _serial = REACTIVE_SMOKE_SERIAL
+        .lock()
+        .expect("REACTIVE_SMOKE_SERIAL poisoned");
     let source = r#"
 @island Badge { label: str }
 

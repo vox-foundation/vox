@@ -1,6 +1,6 @@
 import std.mobile
 
-@component App() {
+component App() {
   fn on_click() {
     mobile.notify("Hello", "From Vox!")
   }

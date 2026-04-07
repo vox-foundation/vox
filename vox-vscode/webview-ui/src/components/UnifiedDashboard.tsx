@@ -4,6 +4,8 @@ import { getVsCodeApi } from '../utils/vscode';
 import { Panel } from './ui/Panel';
 import { StateChip } from './ui/StateChip';
 
+import { AttentionPanel } from './AttentionPanel';
+
 const vscode = getVsCodeApi();
 
 function opRowTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
@@ -22,6 +24,8 @@ export const UnifiedDashboard = ({
     budgetHistory = [],
     ludusSnapshot = null,
     meshTopology = null,
+    attentionStatus = null,
+    attentionAlert = null,
 }: {
     ops: any[];
     stats: any;
@@ -29,6 +33,8 @@ export const UnifiedDashboard = ({
     budgetHistory: any[];
     ludusSnapshot: Record<string, unknown> | null;
     meshTopology: any;
+    attentionStatus: any;
+    attentionAlert: any;
 }) => {
     const isIdle = (stats.activeAgents === '0' || !stats.activeAgents) && (stats.queueDepth === '0' || !stats.queueDepth) && ops.length === 0;
 
@@ -212,7 +218,7 @@ export const UnifiedDashboard = ({
                 </div>
             )}
 
-            {/* Right column: Pipeline Health */}
+            {/* Right column: Pipeline Health & Attention */}
             <div className="col-span-4 flex flex-col gap-4">
                 <div className="p-4 border border-border bg-surface rounded-xl shadow-lg">
                     <div className="flex items-center gap-2 mb-4 border-b border-border pb-3">
@@ -235,6 +241,10 @@ export const UnifiedDashboard = ({
                         )}
                     </div>
                 </div>
+                
+                {attentionStatus?.enabled && (
+                    <AttentionPanel status={attentionStatus} alert={attentionAlert} />
+                )}
             </div>
         </div>
     );

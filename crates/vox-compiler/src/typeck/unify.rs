@@ -1,10 +1,18 @@
 use crate::typeck::ty::Ty;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
+pub enum PendingConstraint {
+    HasField { target: Ty, field: String, result: Ty, span: crate::ast::span::Span },
+    HasMethod { target: Ty, method: String, result: Ty, args: Vec<Ty>, span: crate::ast::span::Span },
+}
+
 /// Inference context with union-find based type variable substitution.
 pub struct InferenceContext {
     substitutions: Vec<Option<Ty>>,
     next_var: u32,
+    pub expected_return_ty: Option<Ty>,
+    pub pending_constraints: Vec<PendingConstraint>,
 }
 
 impl InferenceContext {
@@ -12,6 +20,8 @@ impl InferenceContext {
         Self {
             substitutions: Vec::new(),
             next_var: 0,
+            expected_return_ty: None,
+            pending_constraints: Vec::new(),
         }
     }
 
@@ -77,6 +87,14 @@ impl InferenceContext {
         self.instantiate_inner(ty.clone(), &mut map)
     }
 
+    pub fn instantiate_with(&mut self, ty: &Ty, bindings: &[Ty]) -> Ty {
+        let mut map = HashMap::new();
+        for (i, b) in bindings.iter().enumerate() {
+            map.insert(i as u32, b.clone());
+        }
+        self.instantiate_inner(ty.clone(), &mut map)
+    }
+
     fn instantiate_inner(&mut self, ty: Ty, map: &mut HashMap<u32, Ty>) -> Ty {
         match ty {
             Ty::GenericParam(id) => map.entry(id).or_insert_with(|| self.fresh_var()).clone(),
@@ -126,6 +144,41 @@ impl InferenceContext {
         }
     }
 
+    fn occurs(&self, id: u32, ty: &Ty) -> bool {
+        match self.resolve(ty) {
+            Ty::TypeVar(other_id) => id == other_id,
+            Ty::List(inner) | Ty::Set(inner) | Ty::Stream(inner) | Ty::Option(inner) | Ty::Result(inner) => self.occurs(id, &inner),
+            Ty::Map(k, v) => self.occurs(id, &k) || self.occurs(id, &v),
+            Ty::Tuple(elems) => elems.iter().any(|e| self.occurs(id, e)),
+            Ty::Fn(params, ret) => params.iter().any(|p| self.occurs(id, p)) || self.occurs(id, &ret),
+            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => fields.iter().any(|(_, t)| self.occurs(id, t)),
+            _ => false,
+        }
+    }
+
+    pub fn least_upper_bound(&mut self, a: Ty, b: Ty) -> Result<Ty, String> {
+        let a = self.resolve(&a);
+        let b = self.resolve(&b);
+        if a == b { return Ok(a); }
+        match (&a, &b) {
+            (Ty::Int, Ty::Float) | (Ty::Float, Ty::Int) => Ok(Ty::Float),
+            (Ty::Int, Ty::Decimal) | (Ty::Decimal, Ty::Int) => Ok(Ty::Decimal),
+            (Ty::Float, Ty::Decimal) | (Ty::Decimal, Ty::Float) => Ok(Ty::Decimal),
+            (Ty::List(ai), Ty::List(bi)) => {
+                let inner = self.least_upper_bound(ai.as_ref().clone(), bi.as_ref().clone())?;
+                Ok(Ty::List(Box::new(inner)))
+            }
+            (Ty::TypeVar(id), other) | (other, Ty::TypeVar(id)) => {
+                self.unify(&Ty::TypeVar(*id), other)?;
+                Ok(other.clone())
+            }
+            _ => {
+                self.unify(&a, &b)?;
+                Ok(a)
+            }
+        }
+    }
+
     /// Unify two types, updating substitutions.
     pub fn unify(&mut self, a: &Ty, b: &Ty) -> Result<(), String> {
         let a = self.resolve(a);
@@ -134,10 +187,16 @@ impl InferenceContext {
         match (&a, &b) {
             _ if a == b => Ok(()),
             (Ty::TypeVar(id), _) => {
+                if self.occurs(*id, &b) {
+                    return Err(format!("Recursive type unification (occurs check failed): TypeVar({id}) occurs in {b:?}"));
+                }
                 self.substitutions[*id as usize] = Some(b);
                 Ok(())
             }
             (_, Ty::TypeVar(id)) => {
+                if self.occurs(*id, &a) {
+                    return Err(format!("Recursive type unification (occurs check failed): TypeVar({id}) occurs in {a:?}"));
+                }
                 self.substitutions[*id as usize] = Some(a);
                 Ok(())
             }
@@ -176,29 +235,19 @@ impl InferenceContext {
                 Ok(())
             }
             (Ty::Record(a_fields), Ty::Record(b_fields)) => {
-                if a_fields.len() != b_fields.len() {
-                    return Err(crate::typeck::diagnostics::msg_record_size_mismatch(
-                        a_fields.len(),
-                        b_fields.len(),
-                    ));
-                }
                 for (name, a_ty) in a_fields {
                     if let Some((_, b_ty)) = b_fields.iter().find(|(n, _)| n == name) {
                         self.unify(a_ty, b_ty)?;
                     } else {
-                        return Err(format!("Missing field '{name}' in record"));
+                        return Err(format!("Expected field '{name}' missing from record"));
                     }
                 }
                 Ok(())
             }
             (Ty::Error, Ty::Error) => Ok(()),
-            (Ty::Never, Ty::Never) => Ok(()),
+            (Ty::Never, _) | (_, Ty::Never) => Ok(()),
             (Ty::Error, other) | (other, Ty::Error) => Err(format!(
                 "Cannot unify error type with {}",
-                crate::typeck::ty::ty_display(other)
-            )),
-            (Ty::Never, other) | (other, Ty::Never) => Err(format!(
-                "Cannot unify never type with {}",
                 crate::typeck::ty::ty_display(other)
             )),
             (Ty::ImportPlaceholder(a), Ty::ImportPlaceholder(b)) if a == b => Ok(()),
@@ -284,9 +333,9 @@ mod tests {
     }
 
     #[test]
-    fn test_unify_never_with_concrete_is_error() {
+    fn test_unify_never_with_concrete_is_ok() {
         let mut ctx = InferenceContext::new();
-        assert!(ctx.unify(&Ty::Never, &Ty::Int).is_err());
+        assert!(ctx.unify(&Ty::Never, &Ty::Int).is_ok());
     }
 
     #[test]

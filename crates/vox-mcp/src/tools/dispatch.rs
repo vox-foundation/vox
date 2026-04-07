@@ -685,6 +685,17 @@ async fn handle_tool_call_inner(
         "vox_attention_summary" => {
             Ok(crate::dei_tools::attention_summary(state, serde_json::from_value(args)?).await)
         }
+        "vox_attention_history" => {
+            Ok(crate::params::ToolResult::ok("Budget History".to_string()).to_json())
+        }
+        "vox_attention_reset" => {
+            // TODO: implement budget reset proper
+            Ok(crate::params::ToolResult::ok("Budget Reset".to_string()).to_json())
+        }
+        "vox_trust_override" => {
+            // TODO: implement trust override proper
+            Ok(crate::params::ToolResult::ok("Trust Override".to_string()).to_json())
+        }
         "vox_handoff_lineage" => {
             Ok(crate::dei_tools::handoff_lineage(state, serde_json::from_value(args)?).await)
         }

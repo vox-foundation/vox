@@ -727,6 +727,8 @@ pub struct StatusResponse {
     pub daemon_orch_status: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub daemon_orch_status_rpc_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attention_budget: Option<serde_json::Value>,
 }
 
 /// Single LSP-style diagnostic for validate-file responses.

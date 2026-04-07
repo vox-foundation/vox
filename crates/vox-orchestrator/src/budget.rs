@@ -245,6 +245,12 @@ impl BudgetManager {
         }
     }
 
+    /// Record suppressed messages in the A2A Deep focus filter.
+    pub fn record_inbox_suppression(&self, count: u32) {
+        let mut att = sync_lock::rw_write(&*self.attention);
+        att.inbox_suppressed_count = att.inbox_suppressed_count.saturating_add(count);
+    }
+
     /// Record token usage for an agent.
     pub fn record_usage(&self, agent_id: AgentId, tokens: usize) {
         let mut map = sync_lock::rw_write(&*self.inner);

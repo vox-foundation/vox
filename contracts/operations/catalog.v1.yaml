@@ -405,6 +405,44 @@ operations:
     name: vox_ask_agent
     http_read_role_eligible: false
   cli: null
+- id: attention.history
+  title: Attention History
+  description: Returns the history of attention shifts.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_attention_history
+    http_read_role_eligible: false
+  cli: null
+- id: attention.reset
+  title: Attention Reset
+  description: Resets the attention budget for the agent pool.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_attention_reset
+    http_read_role_eligible: false
+  cli: null
 - id: attention.summary
   title: Attention Summary
   description: Returns a summary of agent attention allocation and focus shifts over a time window.
@@ -423,6 +461,25 @@ operations:
   mcp:
     name: vox_attention_summary
     http_read_role_eligible: true
+  cli: null
+- id: attention.trust.override
+  title: Attention Trust Override
+  description: Overrides the trust tier for the agent context.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_trust_override
+    http_read_role_eligible: false
   cli: null
 - id: behavior.record
   title: Behavior Record

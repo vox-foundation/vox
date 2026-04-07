@@ -1,4 +1,4 @@
-// Shared types for the vox-vscode extension
+export * from './attention';
 
 export interface ProviderStatus {
     provider: string;

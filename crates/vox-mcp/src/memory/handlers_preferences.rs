@@ -58,6 +58,31 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
                             }
                         }
                     }
+                } else if params.key == "attention_enabled" {
+                    if let Ok(b) = params.value.parse::<bool>() {
+                        let cfg_handle = state.orchestrator.config_handle();
+                        if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(cfg_handle.write(), "orchestrator config") {
+                            cfg.attention_enabled = b;
+                        }
+                    }
+                } else if params.key == "attention_budget_ms" {
+                    if let Ok(v) = params.value.parse::<u64>() {
+                        let cfg_handle = state.orchestrator.config_handle();
+                        if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(cfg_handle.write(), "orchestrator config") {
+                            cfg.attention_budget_ms = v;
+                        }
+                        let bm = state.orchestrator.budget_manager_handle();
+                        if let Ok(mut g) = crate::sync_poison::poison_rw_write(bm.write(), "budget manager") {
+                            g.init_attention(v);
+                        }
+                    }
+                } else if params.key == "attention_alert_threshold" {
+                    if let Ok(v) = params.value.parse::<f64>() {
+                        let cfg_handle = state.orchestrator.config_handle();
+                        if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(cfg_handle.write(), "orchestrator config") {
+                            cfg.attention_alert_threshold = v;
+                        }
+                    }
                 }
                 ToolResult::ok(format!("Set '{}' = '{}'", params.key, params.value)).to_json()
             }

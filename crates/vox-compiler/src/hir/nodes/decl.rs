@@ -88,22 +88,31 @@ pub struct HirModule {
     #[deprecated(since = "0.3.0", note = "Classic @component fn syntax is retired. Use Path C.")]
     pub v0_components: Vec<HirV0Component>,
     /// Client-side Routes declaration.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly: Use reactive UI / routers")]
     pub client_routes: Vec<HirRoutes>,
     /// Standalone islands.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly: Use reactive UI")]
     pub islands: Vec<HirIsland>,
     /// Route layouts.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly: layouts not lowered to typed HIR yet")]
     pub layouts: Vec<HirLayout>,
     /// Route pages.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly: pages not lowered to typed HIR yet")]
     pub pages: Vec<HirPage>,
     /// React context wrappers.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly: React context unsupported in Path C")]
     pub contexts: Vec<HirContext>,
     /// React hooks.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly: React hooks unsupported in Path C")]
     pub hooks: Vec<HirHook>,
     /// Error boundaries.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly")]
     pub error_boundaries: Vec<HirErrorBoundary>,
     /// Loading/Suspense fallbacks.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly")]
     pub loadings: Vec<HirLoading>,
     /// Not Found views.
+    #[deprecated(since = "0.3.0", note = "MigrationOnly")]
     pub not_founds: Vec<HirNotFound>,
     /// Reactive components (Path C).
     pub reactive_components: Vec<HirReactiveComponent>,
@@ -192,6 +201,7 @@ impl HirModule {
 
     /// Project this module into a migration-free semantic snapshot.
     #[must_use]
+    #[allow(deprecated)]
     pub fn to_semantic_hir(&self) -> SemanticHirModule {
         SemanticHirModule {
             imports: self.imports.clone(),

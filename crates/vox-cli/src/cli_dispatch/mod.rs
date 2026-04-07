@@ -215,6 +215,14 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                     .await?;
             }
         },
+        #[cfg(feature = "dei")]
+        Cli::Attention { cmd } => {
+            crate::commands::attention::handle_attention_command(
+                cmd,
+                &std::env::current_dir().map_err(|e| anyhow::anyhow!("{}", e))?,
+            )
+            .await.map_err(|e| anyhow::anyhow!("{}", e))?;
+        }
         Cli::Repo { cmd } => {
             let cmd = cmd.unwrap_or(crate::commands::repo::RepoCmd::Status { json: false });
             crate::commands::repo::run(cmd).await?;

@@ -31,12 +31,14 @@ pub struct CodegenOutput {
 }
 
 /// Options for [`generate_with_options`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CodegenOptions {
     /// When true, `routes:` emits [`VoxTanStackRouter.tsx`] exporting **`voxRouteTree`** (no `RouterProvider`).
     /// Use with TanStack Start so `getRouter()` in the Vite app owns the single router instance.
     /// When false, emits [`App.tsx`] with `RouterProvider` for the SPA + `index.html` shell.
     pub tanstack_start: bool,
+    /// Build Target
+    pub target: Option<String>,
 }
 
 impl CodegenOptions {
@@ -47,6 +49,7 @@ impl CodegenOptions {
             tanstack_start: std::env::var("VOX_WEB_TANSTACK_START")
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false),
+            target: None,
         }
     }
 }
@@ -57,6 +60,7 @@ pub fn generate(hir: &HirModule) -> Result<CodegenOutput, String> {
 }
 
 /// Generate TypeScript with explicit options (callers such as `vox build` should pass config here).
+#[allow(deprecated)]
 pub fn generate_with_options(
     hir: &HirModule,
     options: CodegenOptions,
@@ -291,7 +295,7 @@ pub fn generate_with_options(
     if uses_mobile_namespace {
         files.push((
             "mobile-utils.ts".to_string(),
-            crate::codegen_ts::hir_emit::emit_mobile_web_api_utils(),
+            crate::codegen_ts::hir_emit::emit_mobile_web_api_utils(options.target.as_deref()),
         ));
     }
 
@@ -319,6 +323,7 @@ pub fn generate_with_options(
 
 /// Optional WebIR lower + validate gate (OP-0113, OP-0124). Set `VOX_WEBIR_VALIDATE=1` to fail
 /// codegen when [`crate::web_ir::validate::validate_web_ir`] returns diagnostics.
+#[allow(deprecated)]
 fn maybe_web_ir_validate(hir: &HirModule) -> Result<(), String> {
     let enabled = std::env::var("VOX_WEBIR_VALIDATE")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))

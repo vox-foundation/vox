@@ -13,6 +13,9 @@ pub struct BuildArgs {
     /// Output directory for generated TypeScript
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
+    /// Native mobile build target (e.g., ios, android, native)
+    #[arg(long)]
+    pub target: Option<String>,
 }
 
 /// `vox check` / `vox fabrica check`

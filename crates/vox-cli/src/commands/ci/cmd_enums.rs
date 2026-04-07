@@ -59,6 +59,8 @@ pub enum CiCmd {
     NoDeiImport,
     /// Run `vox-doc-pipeline --check` to verify SUMMARY.md matches docs/src
     CheckSummaryDrift,
+    /// Verify attention event tracking parity
+    AttentionEventLedgerParity,
     /// Build all documentation artifacts
     BuildDocs,
     /// Doc inventory (schema v3): generate or verify.
@@ -206,6 +208,9 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Enforce mapping between OrchestratorConfig, Vox Db and preferences for Attention Guarding.
+    #[command(name = "attention-config-parity")]
+    AttentionConfigParity,
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,

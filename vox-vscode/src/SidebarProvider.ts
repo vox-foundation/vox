@@ -279,6 +279,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     vscode.commands.executeCommand('workbench.action.reloadWindow');
                     break;
                 }
+                case 'setAttentionPreference':
+                    await this._mcp.preferenceSet(parsed.key, parsed.value);
+                    await this._sendFullState();
+                    break;
+                case 'attentionReset':
+                    await this._mcp.attentionReset('reset', parsed.newMaxMs);
+                    await this._sendFullState();
+                    break;
+                case 'trustOverride':
+                    await this._mcp.trustOverride(parsed.agentId, parsed.tier, parsed.reason);
+                    await this._sendFullState();
+                    break;
                 case 'rebalance':
                     if (this._mcp.isToolAvailable('vox_rebalance')) {
                         await this._mcp.rebalance();
@@ -374,12 +386,42 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 // Push initial full state on connect
                 void this._sendFullState();
             };
-            this._ws.onmessage = () => {
+            this._ws.onmessage = (event) => {
                 // Debounce rapid event bursts into a single state refresh
                 clearTimeout(this._wsDebounceTimer);
                 this._wsDebounceTimer = setTimeout(() => {
                     void this._sendFullState();
                 }, SIDEBAR_WS_DEBOUNCE_MS);
+
+                // Check for AttentionBudgetAlert push from server directly
+                if (typeof event.data === 'string') {
+                    try {
+                        const evtData = JSON.parse(event.data);
+                        if (evtData && (evtData.type === 'AttentionBudgetAlert' || evtData.kind === 'AttentionBudgetAlert')) {
+                            const payload = evtData.payload || evtData;
+                            const signal = payload.signal || (payload.focus_depth === 'Deep' ? 'critical' : 'high');
+                            const spentRatio = payload.spent_ratio || payload.spent_ratio_estimate || 1.0;
+                            
+                            this.postMessage({
+                                type: 'attentionAlert',
+                                value: { signal, spent_ratio: spentRatio }
+                            });
+
+                            const level = vscode.workspace.getConfiguration('vox').get<string>('attention.notificationLevel') ?? 'high';
+                            if (signal === 'critical' && (level === 'high' || level === 'critical')) {
+                                void vscode.window.showWarningMessage(
+                                    `🚨 Vox Attention Critical: Exhausted or Deep focus.`,
+                                    'Reset Session', 'Dismiss'
+                                ).then(choice => {
+                                    if (choice === 'Reset Session') {
+                                        void this._mcp.attentionReset('reset');
+                                        void this._sendFullState();
+                                    }
+                                });
+                            }
+                        }
+                    } catch {}
+                }
             };
             this._ws.onclose = () => {
                 this._wsReconnectTimer = setTimeout(() => this._connectEventStream(), 5000);
@@ -734,6 +776,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this._sendAst();
         await this._refreshInspectorData(false);
         await this.maybePushLudusSnapshot();
+
+        // Push Attention Status if panel visible
+        const showPanel = vscode.workspace.getConfiguration('vox').get<boolean>('attention.panelVisible') ?? true;
+        if (showPanel && this._mcp.isToolAvailable('vox_attention_status')) {
+            const att = await this._mcp.attentionStatus();
+            if (att) {
+                this.postMessage({ type: 'attentionStatus', value: att });
+            }
+        }
     }
 
     /** Push Ludus MCP snapshot to the webview (throttled unless `force`). */

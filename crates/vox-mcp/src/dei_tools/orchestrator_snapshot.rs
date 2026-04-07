@@ -245,6 +245,14 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         }
     }
 
+    let attention_budget = if state.orchestrator_config.attention_enabled {
+        let bm = state.orchestrator.budget_manager_handle();
+        let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
+        Some(serde_json::to_value(snap).unwrap_or(serde_json::Value::Null))
+    } else {
+        None
+    };
+
     let response = StatusResponse {
         agent_count: status.agents.len(),
         in_progress: status.total_in_progress,
@@ -271,6 +279,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         event_feed_mode: event_feed_mode.to_string(),
         daemon_orch_status,
         daemon_orch_status_rpc_error,
+        attention_budget,
     };
 
     Ok(ToolResult::ok(response).to_json())

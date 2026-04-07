@@ -289,6 +289,27 @@ impl crate::VoxDb {
             .await
     }
 
+    pub async fn delete_user_preference(
+        &self,
+        user_id: &str,
+        key: &str,
+    ) -> Result<(), StoreError> {
+        let user_id = user_id.to_string();
+        let key = key.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM user_preferences WHERE user_id = ?1 AND key = ?2",
+                    params![user_id.as_str(), key.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// Read a single `user_preferences` value by `(user_id, key)`, or `None` if absent.
     ///
     /// Called from `vox-mcp/src/memory.rs` preference handler.

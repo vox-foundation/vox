@@ -18,9 +18,10 @@ This document implements the execution narrative for [ADR 010: TanStack web spin
 | 1 | Minimal golden `examples/` + parser parity | Done |
 | 2 | **TanStack Router** in `vox-codegen-ts` + templates | Done |
 | 3 | **pnpm workspace** linking main Vite app + `islands/` | Mostly done (see backlog) |
-| 4 | **TanStack Start** + full SSR default (Axum proxy topology) | In progress (dev proxy + orchestration) |
-| 5 | Optional **TanStack Query / Table** aligned with `@loading` / data decls | Future |
+| 4 | **TanStack Start** + full SSR default (Axum proxy topology) | Done (scaffold + dev proxy) |
+| 5 | **Route loaders + server fn fix** — @query→GET, @mutation→POST, route loader bindings | In progress |
 | 6 | **v0.dev** unified docs + lint parity (main + islands) | Done (shared normalization) |
+| 7 | **Virtual file routes** — `__root.tsx` + per-route files + `app/routes.ts` | In progress — see [spec](./tanstack-start-codegen-spec.md) |
 
 ## SSR topology (summary)
 

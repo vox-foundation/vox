@@ -20,8 +20,8 @@
 // ANCHOR_END: data
 
 // ANCHOR: ui
-@component fn TaskList(tasks: List[Task]) {
-    <div>
+component TaskList(tasks: List[Task]) {
+    view: <div>
         {tasks.map(fn(t) {
             <label>
                 <input 

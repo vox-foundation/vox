@@ -60,6 +60,26 @@ impl<'a> AttentionTracker<'a> {
 
     // ── attention_events: QUERY (aggregate) ───────────────────────────────
 
+    /// Retrieve the most recent attention events up to a given limit.
+    pub async fn list_events(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<AttentionEvent>, Box<dyn std::error::Error + Send + Sync>> {
+        let col = self.db.collection("attention_events");
+        col.ensure_table().await?;
+        let all = col.find(&json!({})).await?;
+        
+        let mut events = Vec::new();
+        for (_id, doc) in all {
+            if let Ok(ev) = serde_json::from_value::<AttentionEvent>(doc) {
+                events.push(ev);
+            }
+        }
+        events.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+        events.truncate(limit as usize);
+        Ok(events)
+    }
+
     /// Session summary: total spent, efficiency, auto-approve ratio.
     pub async fn session_summary(
         &self,

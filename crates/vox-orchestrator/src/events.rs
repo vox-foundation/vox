@@ -426,6 +426,28 @@ pub enum AgentEventKind {
         /// The new source after healing
         new_source: String,
     },
+
+    /// Attention budget threshold alert
+    AttentionBudgetAlert {
+        agent_id: AgentId,
+        threshold: f64,
+        spent_ms: u64,
+        max_ms: u64,
+    },
+    /// Attention budget was explicitly reset
+    AttentionBudgetReset {
+        agent_id: AgentId,
+        new_max_ms: u64,
+        reason: String,
+    },
+    /// Agent trust level was manually overridden
+    TrustOverride {
+        agent_id: AgentId,
+        tier: String,
+        reason: String,
+    },
+    /// Attention policy configuration was hot-reloaded
+    AttentionConfigReloaded,
 }
 
 // ---------------------------------------------------------------------------

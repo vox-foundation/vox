@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 
 import { getVsCodeApi } from './utils/vscode';
 import { parseHostToWebviewMessage } from '../../src/protocol/hostToWebviewMessages';
-import type { ChatSessionMeta, ComposerState, WorkspaceInspectorState } from '../../src/types';
+import { ChatSessionMeta, ComposerState, WorkspaceInspectorState, AttentionStatusPayload } from '../../src/types';
 
 import { UnifiedDashboard } from './components/UnifiedDashboard';
 import { EngineeringDiagnostics } from './components/EngineeringDiagnostics';
@@ -46,6 +46,8 @@ function App() {
   const [composerState, setComposerState] = useState<ComposerState | null>(null);
   const [inspectorState, setInspectorState] = useState<WorkspaceInspectorState | null>(null);
   const [planAdequacyQuestions, setPlanAdequacyQuestions] = useState<string[]>([]);
+  const [attentionStatus, setAttentionStatus] = useState<AttentionStatusPayload | null>(null);
+  const [attentionAlert, setAttentionAlert] = useState<any | null>(null);
 
   // Local UI states
   const [chatInput, setChatInput] = useState<string>('');
@@ -79,6 +81,8 @@ function App() {
           break;
         case 'chatHistory': setChatMessages(Array.isArray(parsed.value) ? parsed.value : []); break;
         case 'chatMeta': setChatMeta((parsed.value as ChatSessionMeta) ?? null); break;
+        case 'attentionStatus': setAttentionStatus(parsed.value as AttentionStatusPayload); break;
+        case 'attentionAlert': setAttentionAlert(parsed.value); break;
         case 'workspaceContext': setWorkspaceContext(parsed.value); break;
         case 'composerState': setComposerState((parsed.value as ComposerState) ?? null); break;
         case 'inspectorState': setInspectorState((parsed.value as WorkspaceInspectorState) ?? null); break;
@@ -142,6 +146,8 @@ function App() {
                 budgetHistory={budgetHistory} 
                 ludusSnapshot={ludusSnapshot} 
                 meshTopology={undefined} 
+                attentionStatus={attentionStatus}
+                attentionAlert={attentionAlert}
             />
         );
       case 'network':

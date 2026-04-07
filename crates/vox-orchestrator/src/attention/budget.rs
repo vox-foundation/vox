@@ -220,6 +220,8 @@ pub struct AttentionBudget {
     pub interrupt_freq_per_hour: f64,
     /// Timestamp of last non-auto interrupt (for gap calculation).
     pub last_interrupt_ms: u64,
+    /// Number of A2A messages suppressed due to Deep focus depth.
+    pub inbox_suppressed_count: u32,
 }
 
 impl Default for AttentionBudget {
@@ -232,6 +234,7 @@ impl Default for AttentionBudget {
             rejected: 0,
             interrupt_freq_per_hour: 0.0,
             last_interrupt_ms: 0,
+            inbox_suppressed_count: 0,
         }
     }
 }

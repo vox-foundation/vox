@@ -154,6 +154,22 @@
           "type": "string",
           "default": "",
           "description": "BYOK API Key for OpenAI."
+        },
+        "vox.attention.panelVisible": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the Attention Budget and Tracking panel in the sidebar."
+        },
+        "vox.attention.notificationLevel": {
+          "type": "string",
+          "enum": ["none", "high", "critical"],
+          "default": "high",
+          "description": "Verbosity level for Vox attention interruption notifications/toasts."
+        },
+        "vox.attention.pollIntervalMs": {
+          "type": "number",
+          "default": 10000,
+          "description": "Client polling interval for attention metrics."
         }
       }
     },

@@ -64,6 +64,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
+        CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
             let cargo = cargo_bin();
             let st = Command::new(&cargo)
@@ -204,6 +205,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),
         CiCmd::ClavisCutoverAudit { all } => run_clavis_cutover_audit(&root, all),
         CiCmd::CapabilitySync { write } => super::capability_sync::run(&root, write),
+        CiCmd::AttentionConfigParity => super::attention_parity::run(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
         CiCmd::CompletionAudit { scan_extra } => completion_quality::run_audit(&root, &scan_extra),
         CiCmd::CompletionGates { mode } => completion_quality::run_gates(&root, mode),

@@ -56,3 +56,21 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 
 - [x] **`vox build`** validates each present `{Name}.tsx` for `@v0` against the **named export** contract; **`cargo test -p vox-cli v0_tsx_normalize`** covers matchers; optional **`vox doctor`** check when **`VOX_WEB_TS_OUT`** points at the TS output dir
 - [x] Docs: [@v0](../api/decorators/v0.md) links **v0.dev**, **named exports**, **islands** / `vox island`, and **doctor** env
+
+## Phase 7 — Virtual File Routes + Complete TanStack Start
+
+Full 200+ task backlog: [tanstack-start-implementation-backlog.md](./tanstack-start-implementation-backlog.md)
+Spec and decorator fate table: [tanstack-start-codegen-spec.md](./tanstack-start-codegen-spec.md)
+
+- [ ] Wave A: AST extensions (RouteEntry.loader/pending/layout_name; RoutesDecl.not_found_component/error_component; parser with(...)/under/not_found:/error:; hard errors on @hook/@provider/page:/context:)
+- [ ] Wave B: HIR de-deprecation (client_routes, islands, loadings, layouts, not_founds, error_boundaries promoted to AppContract)
+- [ ] Wave C: Retire @component fn (Error not Warning), remove components/v0_components emit loops
+- [ ] Wave D: New scaffold.rs (app/client.tsx, app/router.tsx, app/ssr.tsx, vite.config.ts, package.json, tsconfig.json)
+- [ ] Wave E: Route emitter -> __root.tsx (createRootRoute) + *.route.tsx (createFileRoute) + app/routes.ts (virtual route config)
+- [ ] Wave F: Server fn fix — @query->GET, @mutation->POST, correct ({ data }) pattern, VOX_API env constant
+- [ ] Wave G: Docs updates (roadmap, decorator docs, retired migration guides)
+- [ ] Wave H: Golden examples (blog_fullstack.vox, layout_routes.vox, not_found_error.vox)
+- [ ] Wave I: Tests (snapshots for virtual file routes, loaders, server fn methods, scaffold)
+- [ ] Wave J: CLI templates (tanstack.rs, vox init --web, frontend.rs)
+- [ ] Wave K: ADR/arch updates (ADR 010 amendment, architecture-index)
+

@@ -269,6 +269,40 @@ impl ServerState {
         }
     }
 
+    /// Load attention preferences from VoxDb after early connection.
+    pub async fn load_attention_preferences_from_db(&self) {
+        if let Some(db) = &self.db {
+            if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_enabled").await {
+                if let Ok(b) = val.parse::<bool>() {
+                    let cfg_handle = self.orchestrator.config_handle();
+                    if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(cfg_handle.write(), "orchestrator config") {
+                        cfg.attention_enabled = b;
+                    }
+                }
+            }
+            if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_budget_ms").await {
+                if let Ok(v) = val.parse::<u64>() {
+                    let cfg_handle = self.orchestrator.config_handle();
+                    if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(cfg_handle.write(), "orchestrator config") {
+                        cfg.attention_budget_ms = v;
+                    }
+                    let bm = self.orchestrator.budget_manager_handle();
+                    if let Ok(mut g) = crate::sync_poison::poison_rw_write(bm.write(), "budget manager") {
+                        g.init_attention(v);
+                    }
+                }
+            }
+            if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_alert_threshold").await {
+                if let Ok(v) = val.parse::<f64>() {
+                    let cfg_handle = self.orchestrator.config_handle();
+                    if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(cfg_handle.write(), "orchestrator config") {
+                        cfg.attention_alert_threshold = v;
+                    }
+                }
+            }
+        }
+    }
+
     fn mcp_env_truthy(var: &str) -> bool {
         std::env::var(var)
             .map(|v| {
@@ -865,6 +899,7 @@ impl ServerState {
         };
         let mut next = self.with_db_arc(db_arc);
         next.sqlite_capabilities = probe;
+        next.load_attention_preferences_from_db().await;
         next
     }
 

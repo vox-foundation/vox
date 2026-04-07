@@ -17,8 +17,8 @@
 }
 
 // ANCHOR: ui
-@component fn App() {
-    <div>"Hello Vox"</div>
+component App() {
+    view: <div>"Hello Vox"</div>
 }
 // ANCHOR_END: ui
 

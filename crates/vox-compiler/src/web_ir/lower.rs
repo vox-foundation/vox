@@ -308,6 +308,7 @@ fn slug_path_segment(p: &str) -> String {
     }
 }
 
+#[allow(deprecated)]
 fn lower_styles_from_classic_components(
     hir: &HirModule,
     m: &mut WebIrModule,
@@ -398,6 +399,7 @@ fn lower_mutation_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut 
     }
 }
 
+#[allow(deprecated)]
 fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     summary.classic_components_deferred = hir
         .components
@@ -420,6 +422,7 @@ fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrL
 /// Build a [`WebIrModule`] from lowered HIR (reactive views + `routes:` contracts + behaviors)
 /// and return structural counts for gates (OP-0078).
 #[must_use]
+#[allow(deprecated)]
 pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrLowerSummary) {
     let island_names = crate::codegen_ts::island_emit::collect_island_names(hir);
 

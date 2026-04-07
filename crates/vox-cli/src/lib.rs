@@ -348,6 +348,13 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: CodexCmd,
     },
+    /// Manage the Vox attention-budgeting system and A2A thresholds.
+    #[cfg(feature = "dei")]
+    Attention {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::attention::AttentionCommand,
+    },
     /// Repository discovery status, catalog (`.vox/repositories.yaml`), and cross-repo queries.
     Repo {
         /// Subcommand (`Option` so bare `vox repo` defaults to status in dispatch).

@@ -111,6 +111,21 @@ const incomingSchema = z.union([
     z.object({ type: z.literal('runTerminalCommand'), value: z.string() }),
     z.object({ type: z.literal('restartMcpServer') }),
     z.object({ type: z.literal('emergencyStop') }),
+    z.object({
+        type: z.literal('setAttentionPreference'),
+        key: z.string(),
+        value: z.string(),
+    }),
+    z.object({
+        type: z.literal('attentionReset'),
+        newMaxMs: z.number().optional(),
+    }),
+    z.object({
+        type: z.literal('trustOverride'),
+        agentId: z.number().int(),
+        tier: z.string(),
+        reason: z.string(),
+    }),
 ]);
 
 export type WebviewToHostMessage =
@@ -164,7 +179,10 @@ export type WebviewToHostMessage =
     | { type: 'ludusRefreshSnapshot' }
     | { type: 'runTerminalCommand'; value: string }
     | { type: 'restartMcpServer' }
-    | { type: 'emergencyStop' };
+    | { type: 'emergencyStop' }
+    | { type: 'setAttentionPreference'; key: string; value: string }
+    | { type: 'attentionReset'; newMaxMs?: number }
+    | { type: 'trustOverride'; agentId: number; tier: string; reason: string };
 
 export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
     const r = incomingSchema.safeParse(raw);
@@ -311,6 +329,18 @@ export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
             return { type: 'runTerminalCommand', value: typeof o.value === 'string' ? o.value : '' };
         case 'restartMcpServer':
             return { type: 'restartMcpServer' };
+        case 'setAttentionPreference':
+            if (typeof o.key === 'string' && typeof o.value === 'string') {
+                return { type: 'setAttentionPreference', key: o.key, value: o.value };
+            }
+            return null;
+        case 'attentionReset':
+            return { type: 'attentionReset', newMaxMs: typeof o.newMaxMs === 'number' ? o.newMaxMs : undefined };
+        case 'trustOverride':
+            if (typeof o.agentId === 'number' && typeof o.tier === 'string' && typeof o.reason === 'string') {
+                return { type: 'trustOverride', agentId: o.agentId, tier: o.tier, reason: o.reason };
+            }
+            return null;
         default:
             return null;
     }

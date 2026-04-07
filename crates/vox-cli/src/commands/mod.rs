@@ -5,6 +5,8 @@
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
 pub mod add;
+#[cfg(feature = "dei")]
+pub mod attention;
 /// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;

@@ -15,8 +15,8 @@ training_eligible: true
 
 | Surface | Location | Status | Use instead |
 |---------|----------|--------|-------------|
-| `schema_cutover.rs` | `crates/vox-db/src/schema_cutover.rs` | **FROZEN — do not add functions** | Add columns to `schema/domains/` fragments |
-| `ludus_schema_cutover.rs` | `crates/vox-db/src/ludus_schema_cutover.rs` | **FROZEN** | Same |
+| `schema_cutover.rs` | `crates/vox-db/src/schema_cutover.rs` | **Deleted** (FTS moved to `schema_extensions`) | Core schema fragments |
+| `ludus_schema_cutover.rs` | `crates/vox-db/src/ludus_schema_cutover.rs` | **No-Op** | Core game fragments |
 | `MemoryManager::recall()` (sync) | `crates/vox-orchestrator/src/memory/manager.rs` | **Incomplete — misses Codex** | Use `recall_async()` |
 | `persist_fact()` (sync) | Same | **Loses writes on crash** | Use `recall_async()` / `sync_to_db()` |
 | `@component fn Name() to Element` | Vox syntax | **Deprecated** — Path A (classic) | Use `component Name() { state ...; view: }` Path C |
@@ -32,11 +32,7 @@ training_eligible: true
 
 ### 1 · DB schema cutover machinery
 
-Every column `align_*` function in `schema_cutover.rs` is archaeology — it performs idempotent DDL for databases created before the SQL baseline. **Do not add to this file.** New DDL belongs in `crates/vox-db/src/schema/domains/`.
-
-The `routing_decisions` table is entirely absent from baseline domain fragments — it is only created via `align_routing_decisions_table()`. This is the most urgent promotion target.
-
-**Deletion roadmap:** Promote each cutover function's DDL into the appropriate `schema/domains/*.rs` file, then delete the function. Once all functions are deleted, remove `apply_schema_cutover` and the module.
+**COMPLETED:** `schema_cutover.rs` is fully deleted. `routing_decisions` was ported to baseline. The 10 irrelevant DDL shims were stripped entirely. FTS functions securely sit in `schema_extensions.rs`. `ludus_schema_cutover.rs` has been reduced to a comment logic block since tables now properly belong in the `gamification_coordination` baseline module.
 
 ### 2 · File-based memory (MEMORY.md)
 
@@ -86,9 +82,16 @@ Created automatically when `vox.db` is on a legacy schema chain. Signals: `VoxDb
 
 | Script | Status | Canonical replacement |
 |--------|--------|-----------------------|
-| `scripts/populi/vox_continuous_trainer.ps1` | **Legacy** | `vox mens corpus` + `vox mens pipeline` |
-| `scripts/mens/release_training_gate.*` | **Legacy forwarder** | `vox ci mens-gate` |
-| Root-level `fix_docs.py`, `*.txt` session artifacts | **Cleanup** | `.gitignore` or delete |
+| `scripts/populi/vox_continuous_trainer.ps1` | **Deleted** | `vox mens corpus` + `vox mens pipeline` |
+| `scripts/mens/release_training_gate.*` | **Deleted** | `vox ci mens-gate` |
+| Root-level `fix_docs.py`, `*.txt` session artifacts | **Ignored / Deleted** | `.gitignore` or delete |
+
+## Completed retirements (April 2026)
+*   **FTS Re-anchoring:** `schema_cutover.rs` deleted.
+*   **File-based memory mutability:** Gutted active write path in `MemoryManager::persist_fact`.
+*   **Classic @component fn syntax:** Compiler lint and explicit AST deprecated declarations applied.
+*   **Stale Env Vars:** Removed `VOX_TURSO_*` dependencies.
+*   `vox-scientia-social` zombie crate deleted.
 
 ## Partial migrations that block new work
 

@@ -59,6 +59,14 @@ tools:
   description: Ask another agent a question.
   product_lane: ai
   http_read_role_eligible: false
+- name: vox_attention_history
+  description: Returns the history of attention shifts.
+  product_lane: ai
+  http_read_role_eligible: false
+- name: vox_attention_reset
+  description: Resets the attention budget for the agent pool.
+  product_lane: ai
+  http_read_role_eligible: false
 - name: vox_attention_summary
   description: Returns a summary of agent attention allocation and focus shifts over a time window.
   product_lane: ai
@@ -905,6 +913,10 @@ tools:
   http_read_role_eligible: false
 - name: vox_transfer_file
   description: Transfer ownership of a file to another agent.
+  product_lane: ai
+  http_read_role_eligible: false
+- name: vox_trust_override
+  description: Overrides the trust tier for the agent context.
   product_lane: ai
   http_read_role_eligible: false
 - name: vox_undo

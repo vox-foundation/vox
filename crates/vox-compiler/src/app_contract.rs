@@ -159,6 +159,7 @@ fn type_expr_signature(te: &TypeExpr) -> String {
 }
 
 #[must_use]
+#[allow(deprecated)]
 pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     let env = TypeEnv::new();
     let http_routes = module

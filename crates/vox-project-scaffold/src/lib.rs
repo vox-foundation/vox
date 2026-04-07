@@ -139,8 +139,11 @@ import std.mobile
 
 @component fn App() to Element:
     let (photo, set_photo) = use_state("")
+    let is_syncing = mobile.useWaitUntilSync()
     <div class="app">
         <h1>"Camera Test"</h1>
+        if is_syncing:
+            <div class="offline-badge">"Sync Pending..."</div>
         <button on_click={fn():
             let result = mobile.take_photo()
             if result.is_ok():

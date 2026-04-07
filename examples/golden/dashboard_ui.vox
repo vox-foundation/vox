@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@island, @component, routes, type, jsx]
+// constructs: [@island, component, routes, type, jsx]
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
@@ -19,9 +19,9 @@ type DashboardStatus =
     data: list[int]
 }
 
-@component fn DashboardView() -> Element {
-    ret <div className="dashboard">
-        <h1>Dashboard</h1>
+component DashboardView() {
+    view: <div className="dashboard">
+        <h1>"Dashboard"</h1>
         <DataChart data=[1, 2, 3] />
     </div>
 }

@@ -139,7 +139,7 @@ impl<'a> Checker<'a> {
         for m in &rc.members {
             match m {
                 HirReactiveMember::State(s) => {
-                    let init_ty = self.check_expr(&s.init);
+                    let init_ty = self.check_expr(&s.init, None);
                     let state_ty = if let Some(ann) = &s.ty {
                         let t = resolve_hir_type(ann, self.env);
                         if let Err(msg) = self.uf.unify(&init_ty, &t) {
@@ -172,7 +172,7 @@ impl<'a> Checker<'a> {
                     );
                 }
                 HirReactiveMember::Derived(d) => {
-                    let expr_ty = self.check_expr(&d.expr);
+                    let expr_ty = self.check_expr(&d.expr, None);
                     let derived_ty = if let Some(ann) = &d.ty {
                         let t = resolve_hir_type(ann, self.env);
                         if let Err(msg) = self.uf.unify(&expr_ty, &t) {
@@ -204,19 +204,19 @@ impl<'a> Checker<'a> {
                     );
                 }
                 HirReactiveMember::Effect(e) => {
-                    let _ = self.check_expr(&e.body);
+                    let _ = self.check_expr(&e.body, None);
                 }
                 HirReactiveMember::OnMount(m) => {
-                    let _ = self.check_expr(&m.body);
+                    let _ = self.check_expr(&m.body, None);
                 }
                 HirReactiveMember::OnCleanup(c) => {
-                    let _ = self.check_expr(&c.body);
+                    let _ = self.check_expr(&c.body, None);
                 }
             }
         }
 
         if let Some(view) = &rc.view {
-            let _ = self.check_expr(view);
+            let _ = self.check_expr(view, None);
         }
 
         self.env.pop_scope();
@@ -623,7 +623,7 @@ impl<'a> Checker<'a> {
                 mutable,
                 ..
             } => {
-                let val_ty = self.check_expr(value);
+                let val_ty = self.check_expr(value, None);
                 let target_ty = if let Some(ann) = type_ann {
                     let ann_ty = resolve_hir_type(ann, self.env);
                     if let Err(msg) = self.uf.unify(&val_ty, &ann_ty) {
@@ -652,13 +652,13 @@ impl<'a> Checker<'a> {
                         }
                     }
                 }
-                let target_ty = self.check_expr(target);
-                let value_ty = self.check_expr(value);
+                let target_ty = self.check_expr(target, None);
+                let value_ty = self.check_expr(value, None);
                 let _ = self.uf.unify(&target_ty, &value_ty);
                 Ty::Unit
             }
             HirStmt::Return { value, span } => {
-                let val_ty = value.as_ref().map_or(Ty::Unit, |v| self.check_expr(v));
+                let val_ty = value.as_ref().map_or(Ty::Unit, |v| self.check_expr(v, None));
                 if let Some(expected) = self.env.current_return_type() {
                     if let Err(msg) = self.uf.unify(&val_ty, expected) {
                         self.diags.push(Diagnostic::error(
@@ -673,7 +673,7 @@ impl<'a> Checker<'a> {
             HirStmt::While {
                 condition, body, ..
             } => {
-                let cond_ty = self.check_expr(condition);
+                let cond_ty = self.check_expr(condition, None);
                 let _ = self.uf.unify(&cond_ty, &Ty::Bool);
                 for stmt in body {
                     self.check_stmt(stmt);
@@ -687,7 +687,86 @@ impl<'a> Checker<'a> {
                 Ty::Never
             }
             HirStmt::Break { .. } | HirStmt::Continue { .. } => Ty::Never,
-            HirStmt::Expr { expr, .. } => self.check_expr(expr),
+            HirStmt::Expr { expr, .. } => self.check_expr(expr, None),
+        }
+    }
+
+    pub(crate) fn solve_constraints(&mut self) {
+        let mut queue = std::mem::take(&mut self.uf.pending_constraints);
+        let mut progress = true;
+        while progress && !queue.is_empty() {
+            progress = false;
+            let mut next_queue = Vec::new();
+            
+            for constraint in queue {
+                match constraint {
+                    crate::typeck::unify::PendingConstraint::HasField { target, field, result, span } => {
+                        let obj_ty = self.uf.resolve(&target);
+                        match &obj_ty {
+                            Ty::TypeVar(_) => {
+                                next_queue.push(crate::typeck::unify::PendingConstraint::HasField { target: obj_ty, field, result, span });
+                            }
+                            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => {
+                                if let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == &field) {
+                                    let _ = self.uf.unify(&result, f_ty);
+                                    progress = true;
+                                } else {
+                                    self.diags.push(Diagnostic::error(
+                                        format!("Field '{field}' not found on {obj_ty:?}"),
+                                        span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                            Ty::Error | Ty::Never => { progress = true; } // suppress cascades
+                            other => {
+                                self.diags.push(Diagnostic::error(
+                                    format!("Cannot access field '{field}' on {other:?}"),
+                                    span,
+                                    self.source,
+                                ));
+                            }
+                        }
+                    }
+                    crate::typeck::unify::PendingConstraint::HasMethod { target, method, result, span, .. } => {
+                        let obj_ty = self.uf.resolve(&target);
+                        match &obj_ty {
+                            Ty::TypeVar(_) => {
+                                next_queue.push(crate::typeck::unify::PendingConstraint::HasMethod { target: obj_ty, method, result, args: vec![], span });
+                            }
+                            Ty::Error | Ty::Never => { progress = true; }
+                            other => {
+                                if let Some(method_ty) = self.builtins.lookup_method(&other, &method) {
+                                    let method_instantiated = self.uf.instantiate(&method_ty);
+                                    if let Ty::Fn(_params, ret) = &method_instantiated {
+                                        let _ = self.uf.unify(&result, ret.as_ref());
+                                    }
+                                    progress = true;
+                                } else {
+                                    self.diags.push(Diagnostic::error(
+                                        format!("Method '{method}' not found on {other:?}"),
+                                        span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            queue = next_queue;
+        }
+        
+        for constraint in queue {
+            let span = match constraint {
+                crate::typeck::unify::PendingConstraint::HasField { span, .. } => span,
+                crate::typeck::unify::PendingConstraint::HasMethod { span, .. } => span,
+            };
+            self.diags.push(Diagnostic::error(
+                format!("Type inference requires more type annotations. Unsolved constraint: {constraint:?}"),
+                span,
+                self.source
+            ));
         }
     }
 }
@@ -702,5 +781,9 @@ pub fn typecheck_hir(
     let mut diags = Vec::new();
     let mut checker = Checker::new(env, builtins, &mut uf, &mut diags, source);
     checker.check_module(module);
+    
+    // Category 3: evaluate deferred logic after top-down + bottom-up propagation concludes
+    checker.solve_constraints();
+    
     diags
 }

@@ -24,18 +24,20 @@ pub(crate) fn check_hir_match_exhaustiveness(
     };
 
     let mut covered_variants: Vec<String> = Vec::new();
-    let mut has_wildcard = false;
+    let mut wildcard_span = None;
 
     for arm in arms {
         match &arm.pattern {
-            HirPattern::Wildcard(_) => {
-                has_wildcard = true;
+            HirPattern::Wildcard(s) => {
+                if wildcard_span.is_none() {
+                    wildcard_span = Some(*s);
+                }
             }
-            HirPattern::Ident(name, _) => {
+            HirPattern::Ident(name, s) => {
                 if adt.variants.iter().any(|v| v.name == *name) {
                     covered_variants.push(name.clone());
-                } else {
-                    has_wildcard = true;
+                } else if wildcard_span.is_none() {
+                    wildcard_span = Some(*s);
                 }
             }
             HirPattern::Constructor(name, _, _) => {
@@ -45,16 +47,23 @@ pub(crate) fn check_hir_match_exhaustiveness(
         }
     }
 
-    if has_wildcard {
-        return;
-    }
-
     let missing: Vec<&str> = adt
         .variants
         .iter()
         .filter(|v| !covered_variants.contains(&v.name))
         .map(|v| v.name.as_str())
         .collect();
+
+    if let Some(w_span) = wildcard_span {
+        if missing.is_empty() {
+            diags.push(Diagnostic::warning(
+                format!("Divergent wildcard: all variants of '{}' are already covered", type_name),
+                w_span,
+                source,
+            ));
+        }
+        return;
+    }
 
     if !missing.is_empty() {
         diags.push(Diagnostic::error(

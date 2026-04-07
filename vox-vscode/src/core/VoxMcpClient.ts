@@ -15,6 +15,9 @@ import type {
     VoxConfigResponse,
     SubmitTaskResponse,
     PlanGoalResult,
+    AttentionStatusPayload,
+    AttentionHistoryParams,
+    AttentionHistoryPayload,
 } from '../types';
 import { CapabilityRegistry, type ListedMcpTool } from './CapabilityRegistry';
 import { MCP_EXTENSION_EXPECTED_TOOLS } from './mcpToolRegistry.generated';
@@ -363,6 +366,28 @@ export class VoxMcpClient {
             max_tokens: maxTokens,
             max_cost_usd: maxCostUsd,
         });
+    }
+
+    // ── Attention Budget ──────────────────────────────────────────────────────
+    async attentionStatus(): Promise<AttentionStatusPayload | null> {
+        return this.call<AttentionStatusPayload>('vox_attention_summary', {});
+    }
+
+    async attentionReset(confirm: string, newMaxMs?: number): Promise<void> {
+        await this.call('vox_attention_reset', { confirm, new_max_ms: newMaxMs });
+    }
+
+    async attentionHistory(params: AttentionHistoryParams): Promise<AttentionHistoryPayload | null> {
+        return this.call<AttentionHistoryPayload>('vox_attention_history', {
+            since_hours: params.since_hours,
+            channel: params.channel,
+            agent_id: params.agent_id,
+            limit: params.limit,
+        });
+    }
+
+    async trustOverride(agentId: number, tier: string, reason: string): Promise<void> {
+        await this.call('vox_trust_override', { agent_id: agentId, tier, reason });
     }
 
     // ── Memory & Knowledge ────────────────────────────────────────────────────
