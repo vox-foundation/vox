@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
@@ -21,6 +22,63 @@ use crate::mens::tensor::{
     backend, checkpoint_state::CheckpointState, manifest, qlora_preflight::QloraEmbedBundle,
     telemetry, telemetry_schema, train_log, training_config::LoraTrainingConfig,
 };
+
+// #region agent log
+const AGENT_DEBUG_SESSION: &str = "041af3";
+const AGENT_DEBUG_FILE: &str = "debug-041af3.log";
+
+fn agent_ndjson(hypothesis_id: &str, location: &str, message: &str, data: serde_json::Value) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let payload = serde_json::json!({
+        "sessionId": AGENT_DEBUG_SESSION,
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": ts,
+    });
+    let path = std::env::current_dir()
+        .map(|d| d.join(AGENT_DEBUG_FILE))
+        .unwrap_or_else(|_| PathBuf::from(AGENT_DEBUG_FILE));
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = writeln!(f, "{payload}");
+    }
+}
+
+fn candle_row_finite_scan_f32(
+    logits_2d: &candle_core::Tensor,
+    row: usize,
+) -> Result<(usize, usize, f32, f32)> {
+    let n0 = logits_2d.dim(0)?;
+    if row >= n0 {
+        anyhow::bail!("row_oob");
+    }
+    let row_t = logits_2d
+        .narrow(0, row, 1)?
+        .flatten_all()?
+        .to_dtype(candle_core::DType::F32)?;
+    let vec = row_t.to_vec1::<f32>()?;
+    let bad = vec.iter().filter(|x| !x.is_finite()).count();
+    let mut min_v = f32::INFINITY;
+    let mut max_v = f32::NEG_INFINITY;
+    for x in vec.iter().copied().filter(|x| x.is_finite()) {
+        min_v = min_v.min(x);
+        max_v = max_v.max(x);
+    }
+    if bad == vec.len() {
+        min_v = f32::NAN;
+        max_v = f32::NAN;
+    }
+    Ok((vec.len(), bad, min_v, max_v))
+}
+// #endregion
 
 #[derive(Debug, Clone)]
 pub(super) struct QloraTrainingResume {
@@ -255,6 +313,41 @@ pub(super) fn forward_masked_ce(
     }
 
     let prompt_len = prefix_len.saturating_sub(trunc_offset);
+    let ids_head: Vec<u32> = ids.iter().copied().take(8).collect();
+    agent_ndjson(
+        "H2",
+        "training_loop.rs:forward_masked_ce",
+        "ce_inputs",
+        serde_json::json!({
+            "ids_len": ids_len,
+            "prefix_len": prefix_len,
+            "trunc_offset": trunc_offset,
+            "prompt_len": prompt_len,
+            "vocab_dim": vocab_dim,
+            "max_tgt": max_tgt,
+            "logits_dtype": format!("{:?}", logits.dtype()),
+            "logits_dims": format!("{:?}", logits.dims()),
+            "ids_head": ids_head,
+        }),
+    );
+
+    let n_rows = logits.dim(0)?;
+    let last_row = n_rows.saturating_sub(1);
+    if let (Ok((w0, bad0, min0, max0)), Ok((wl, badl, minl, maxl))) = (
+        candle_row_finite_scan_f32(&logits, 0),
+        candle_row_finite_scan_f32(&logits, last_row),
+    ) {
+        agent_ndjson(
+            "H1",
+            "training_loop.rs:forward_masked_ce",
+            "logits_rows_finite_scan",
+            serde_json::json!({
+                "row0": { "vocab": w0, "non_finite": bad0, "min": min0, "max": max0 },
+                "row_last": { "vocab": wl, "non_finite": badl, "min": minl, "max": maxl },
+                "last_row_idx": last_row,
+            }),
+        );
+    }
     let ce_last_k = if config.qlora_ce_last_k == 0 {
         ids_len
     } else {
@@ -280,9 +373,39 @@ pub(super) fn forward_masked_ce(
     }
 
     let log_sm = candle_nn::ops::log_softmax(&logits, 1)?;
+    if let (Ok((w0, bad0, min0, max0)), Ok((wl, badl, minl, maxl))) = (
+        candle_row_finite_scan_f32(&log_sm, 0),
+        candle_row_finite_scan_f32(&log_sm, last_row),
+    ) {
+        agent_ndjson(
+            "H3",
+            "training_loop.rs:forward_masked_ce",
+            "log_softmax_rows_finite_scan",
+            serde_json::json!({
+                "row0": { "vocab": w0, "non_finite": bad0, "min": min0, "max": max0 },
+                "row_last": { "vocab": wl, "non_finite": badl, "min": minl, "max": maxl },
+            }),
+        );
+    }
     let logprobs = log_sm
         .gather(&targets_flat.unsqueeze(1)?, 1)?
         .flatten_all()?;
+    if let Ok(lp) = logprobs.to_dtype(candle_core::DType::F32)?.to_vec1::<f32>() {
+        let bad_lp = lp.iter().filter(|x| !x.is_finite()).count();
+        let min_lp = lp.iter().copied().filter(|x| x.is_finite()).fold(f32::INFINITY, f32::min);
+        let max_lp = lp.iter().copied().filter(|x| x.is_finite()).fold(f32::NEG_INFINITY, f32::max);
+        agent_ndjson(
+            "H3",
+            "training_loop.rs:forward_masked_ce",
+            "gathered_logprobs_vector",
+            serde_json::json!({
+                "len": lp.len(),
+                "non_finite": bad_lp,
+                "min": min_lp,
+                "max": max_lp,
+            }),
+        );
+    }
     let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
     let w = -sample_weight as f32;
     let w_t = candle_core::Tensor::new(&[w], device)?;
@@ -297,6 +420,17 @@ pub(super) fn forward_masked_ce(
     };
     if !loss_scalar.is_finite() {
         let kind = if loss_scalar.is_nan() { "nan" } else { "inf" };
+        agent_ndjson(
+            "H4",
+            "training_loop.rs:forward_masked_ce",
+            "non_finite_loss_scalar",
+            serde_json::json!({
+                "kind": kind,
+                "mask_sum": mask_sum,
+                "loss_scalar": loss_scalar,
+                "sample_weight": sample_weight,
+            }),
+        );
         return Ok(MaskedCeForward::NonFinite { kind, mask_sum });
     }
 

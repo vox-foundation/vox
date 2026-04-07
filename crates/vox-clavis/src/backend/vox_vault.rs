@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use std::{future::Future, panic};
 
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
@@ -42,12 +43,8 @@ pub struct VoxCloudBackend {
 impl VoxCloudBackend {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Result<Self, SecretError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-        let conn = rt.block_on(open_cloudless_connection())?;
-        rt.block_on(ensure_schema(&conn))?;
+        let conn = run_clavis_future(open_cloudless_connection())?;
+        run_clavis_future(ensure_schema(&conn))?;
         let account_id = std::env::var("VOX_ACCOUNT_ID")
             .ok()
             .filter(|v| !v.trim().is_empty())
@@ -113,11 +110,7 @@ impl VoxCloudBackend {
             consistency_version,
         );
         let conn = self.conn.lock().expect("vox vault mutex");
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-        rt.block_on(async {
+        run_clavis_future(async {
             conn.execute(
                 "INSERT INTO clavis_account_secrets (
                     account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped, dek_wrap_alg,
@@ -205,11 +198,7 @@ impl VoxCloudBackend {
             existing.consistency_version,
         );
         let conn = self.conn.lock().expect("vox vault mutex");
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-        rt.block_on(async {
+        run_clavis_future(async {
             conn.execute(
                 "UPDATE clavis_account_secrets
                  SET dek_wrapped = ?1,
@@ -242,11 +231,7 @@ impl VoxCloudBackend {
         account_id: &str,
     ) -> Result<Vec<CloudlessSecretRecord>, SecretError> {
         let conn = self.conn.lock().expect("vox vault mutex");
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-        rt.block_on(async {
+        run_clavis_future(async {
             let mut rows = conn
                 .query(
                     "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
@@ -284,11 +269,7 @@ impl VoxCloudBackend {
                 )));
             }
             let conn = self.conn.lock().expect("vox vault mutex");
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-            rt.block_on(async {
+            run_clavis_future(async {
                 conn.execute(
                     "INSERT INTO clavis_account_secrets (
                         account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped, dek_wrap_alg,
@@ -341,11 +322,7 @@ impl VoxCloudBackend {
         secret_id: &str,
     ) -> Result<Option<CloudlessSecretRecord>, SecretError> {
         let conn = self.conn.lock().expect("vox vault mutex");
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-        rt.block_on(async {
+        run_clavis_future(async {
             let mut stmt = conn
                 .prepare(
                     "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
@@ -647,4 +624,26 @@ fn now_ms() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
+}
+
+fn run_clavis_future<F, T>(future: F) -> Result<T, SecretError>
+where
+    F: Future<Output = Result<T, SecretError>>,
+{
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+            tokio::task::block_in_place(|| handle.block_on(future))
+        }));
+        return result.map_err(|_| {
+            SecretError::BackendMisconfigured(
+                "failed to execute clavis async operation from active runtime".to_string(),
+            )
+        })?;
+    }
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
+    rt.block_on(future)
 }
