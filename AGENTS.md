@@ -48,6 +48,7 @@ API key lifecycle checklist:
 - **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for interactive terminal work and agent-driven shell steps so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
 - **CI vs local:** Repository CI jobs often run under **bash** on Linux self-hosted runners ([`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)); that does not override the **local/agent** preference for `pwsh` when you have it.
 - Prefer structured tooling and project CLIs (`vox`, `cargo`, `pnpm`, `uv`, `rg`) over ad hoc shell pipelines.
+- **Dev launcher when `vox` is missing from `PATH`:** [`scripts/windows/vox-dev.ps1`](scripts/windows/vox-dev.ps1) / [`scripts/vox-dev.sh`](scripts/vox-dev.sh) — forwards argv to `vox` via `cargo run -p vox-cli` from the workspace root (optional env: `VOX_REPO_ROOT`, `VOX_USE_PATH=1`, `VOX_DEV_FEATURES`, `VOX_DEV_QUIET=1`). See [`docs/src/reference/cli.md`](docs/src/reference/cli.md) (heading **Bootstrap / dev launcher (missing `vox` on `PATH`)**).
 - Do not rely on shell-specific one-liners as policy boundaries; approvals and allowlists vary across IDEs.
 - Keep commands decomposed into clear steps when safety or portability is at risk.
 

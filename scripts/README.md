@@ -6,6 +6,7 @@ Policy: **`vox ci`** is canonical; scripts here are optional thin delegates — 
 
 | Script | Prefer |
 |--------|--------|
+| `windows/vox-dev.ps1`, `vox-dev.sh` | When **`vox`** is not on **`PATH`**: run any **`vox …`** argv via **`cargo run -p vox-cli`** from the clone (auto **`--features coderabbit`** if an arg is `coderabbit` and `VOX_DEV_FEATURES` unset). See **`docs/src/reference/cli.md`** (Bootstrap / dev launcher). |
 | `check_docs_ssot.sh` / `.ps1` | `vox ci check-docs-ssot` |
 | `check_codex_ssot.sh` / `.ps1` | `vox ci check-codex-ssot` |
 | `verify_workspace_manifest.sh` | `vox ci manifest` |

@@ -149,6 +149,32 @@ Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; ther
 
 Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, milestone eval matrix contract, workflow `scripts/` allowlist, Mens gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
 
+### Bootstrap / dev launcher (missing `vox` on `PATH`)
+
+When **`vox` is not installed** or not on `PATH`, use the repo launchers so **`cargo run -p vox-cli`** runs from the **workspace root** (Cargo decides incrementally whether to rebuild):
+
+- **Windows (PowerShell):** `pwsh -File scripts/windows/vox-dev.ps1 <vox args…>` — [`scripts/windows/vox-dev.ps1`](../../../scripts/windows/vox-dev.ps1)
+- **Linux / macOS / Git Bash:** `./scripts/vox-dev.sh <vox args…>` — [`scripts/vox-dev.sh`](../../../scripts/vox-dev.sh)
+
+| Env | Meaning |
+|-----|---------|
+| `VOX_REPO_ROOT` | Force workspace root (root `Cargo.toml` must contain `[workspace]`). |
+| `VOX_USE_PATH=1` | Prefer **`vox` on `PATH`** when present (default: **`cargo run`** from the clone so the binary matches sources). |
+| `VOX_DEV_FEATURES` | Optional comma-separated Cargo features for `vox-cli` (e.g. `coderabbit,gpu`). If unset and an argument equals **`coderabbit`**, the launcher adds **`--features coderabbit`**. |
+| `VOX_DEV_QUIET=1` | Pass **`--quiet`** to **`cargo run`**. |
+
+**Full-repo CodeRabbit (build-if-needed + open PRs):** set **`GITHUB_TOKEN`** or **`GH_TOKEN`**, then from the repo root:
+
+```powershell
+pwsh -File scripts/windows/vox-dev.ps1 review coderabbit semantic-submit --full-repo --execute
+```
+
+```bash
+./scripts/vox-dev.sh review coderabbit semantic-submit --full-repo --execute
+```
+
+Equivalent one-liner without the script: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --full-repo --execute` (plan-only: omit **`--execute`**).
+
 | Subcommand | Role |
 |------------|------|
 | `manifest` | `cargo metadata --locked` |
@@ -496,7 +522,9 @@ For full-repo waves (`--full-repo`), the semantic manifest persists coverage cou
 | Step | Command |
 |------|---------|
 | Dry-run / plan | `vox review coderabbit semantic-submit` |
+| Full-repo plan (all tracked files) | `vox review coderabbit semantic-submit --full-repo` |
 | Apply | `vox review coderabbit semantic-submit --execute` |
+| Full-repo apply (open PRs for whole tree) | `vox review coderabbit semantic-submit --full-repo --execute` |
 | Resume after failure | **`--resume`** reuses baseline from **`.coderabbit/run-state.json`** if you omit **`--baseline-branch`**; or pass **`--baseline-branch`** that matches the saved baseline. **`--force-chunks`** redo all chunks. |
 | Legacy “commit everything to default branch” | **`--commit-main`** (broad `git add -u` — use only if intentional) |
 | Size batches from `git diff` | Plan: `vox review coderabbit batch-submit`. Write manifest: **`batch-submit --execute`**. Caps are **clamped to the selected tier** (`--tier` or `Vox.toml`, default Pro). |
