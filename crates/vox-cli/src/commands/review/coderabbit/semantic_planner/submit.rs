@@ -14,6 +14,7 @@ use super::super::run_state as cr_run_state;
 use super::super::{config, github, path_policy};
 use super::collector::{collect_all_files, collect_changed_files};
 use super::manifest::write_semantic_manifest;
+use super::rules::{resolve_semantic_rule_set, unassigned_prefix_histogram};
 use super::types::{SemanticPlanner, SemanticSubmitConfig};
 
 /// Entry point: collect files, plan groups, optionally push baseline + isolated worktree PRs.
@@ -167,10 +168,39 @@ async fn run_semantic_submit_core(
             cfg.tier, cfg.max_files_per_pr, max_per
         );
     }
-    let planner = SemanticPlanner::new(max_per)
+    let rule_set = resolve_semantic_rule_set(
+        repo,
+        cfg.groups_config.as_deref(),
+        cfg.semantic_workspace_crates,
+    )
+    .context("load semantic group rules")?;
+    let planner = SemanticPlanner::new(max_per, rule_set, cfg.legacy_chunk_split)
         .with_allow_markdown_prefixes(cfg.allow_markdown_prefixes.clone());
     let mut sem_manifest = planner.plan(all_files, &baseline_branch);
     let ignored_reasons = summarize_ignored_reasons(&plan_snapshot, &planner);
+
+    let u_name = planner.unassigned_name();
+    let part_prefix = format!("{u_name}_part");
+    let unassigned_count: usize = sem_manifest
+        .chunks
+        .iter()
+        .filter(|c| c.name == u_name || c.name.starts_with(&part_prefix))
+        .map(|c| c.files.len())
+        .sum();
+    if let Some(max_ratio) = cfg.max_unassigned_ratio {
+        let denom = sem_manifest.coverage.included_files.max(1);
+        let frac = unassigned_count as f64 / denom as f64;
+        if frac > max_ratio {
+            anyhow::bail!(
+                "unassigned ratio {:.2}% exceeds max_unassigned_ratio {:.2}% ({} / {} files). \
+                 Extend `contracts/review/coderabbit-semantic-groups.v1.yaml` or adjust `[review.coderabbit] max_unassigned_ratio`.",
+                frac * 100.0,
+                max_ratio * 100.0,
+                unassigned_count,
+                denom
+            );
+        }
+    }
 
     // Apply group filter if requested
     if let Some(ref filter) = cfg.group_filter {
@@ -209,6 +239,18 @@ async fn run_semantic_submit_core(
         eprintln!("  Ignore rules :");
         for (reason, count) in ignored_reasons {
             eprintln!("    - {reason}: {count}");
+        }
+    }
+    if unassigned_count > 0 {
+        eprintln!(
+            "  Unassigned   : {} file(s) → group `{}` (top path prefixes):",
+            unassigned_count, u_name
+        );
+        for (pfx, n) in unassigned_prefix_histogram(&plan_snapshot, planner.rule_set())
+            .into_iter()
+            .take(10)
+        {
+            eprintln!("    - {pfx}: {n}");
         }
     }
     eprintln!("──────────────────────────────────────────────");

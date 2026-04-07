@@ -1,4 +1,4 @@
-//! Core manifest types, submit configuration, and [`SemanticPlanner`].
+//! Core manifest types, [`SemanticPlanner`], and semantic-submit config.
 
 use serde::{Deserialize, Serialize};
 
@@ -6,8 +6,9 @@ use super::super::limits;
 use super::super::path_policy;
 use super::groups::{
     DEFAULT_MAX_FILES_PER_PR, IGNORED_DIRS, IGNORED_EXTENSIONS, IGNORED_ROOT_EXACT,
-    IGNORED_ROOT_PATTERNS, SEMANTIC_GROUPS,
+    IGNORED_ROOT_PATTERNS,
 };
+use super::rules::{pack_oversized_files, SemanticRuleSet};
 
 /// A single named semantic group of files (≤ max_files_per_pr).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,19 +44,27 @@ pub struct CoverageStats {
     pub ignored_files: usize,
 }
 
-/// Diff-based semantic PR planner.
+/// Diff-based semantic PR planner (rules from YAML + optional `cargo metadata`).
 pub struct SemanticPlanner {
     max_files_per_pr: usize,
     /// Paths (forward slashes) starting with one of these keep `*.md` / `*.txt` despite
     /// [`IGNORED_EXTENSIONS`] — see `[review.coderabbit] allow_markdown_prefixes` in `Vox.toml`.
     allow_markdown_prefixes: Vec<String>,
+    rule_set: SemanticRuleSet,
+    legacy_chunk_split: bool,
 }
 
 impl SemanticPlanner {
-    pub fn new(max_files_per_pr: usize) -> Self {
+    pub fn new(
+        max_files_per_pr: usize,
+        rule_set: SemanticRuleSet,
+        legacy_chunk_split: bool,
+    ) -> Self {
         Self {
             max_files_per_pr,
             allow_markdown_prefixes: Vec::new(),
+            rule_set,
+            legacy_chunk_split,
         }
     }
 
@@ -123,25 +132,18 @@ impl SemanticPlanner {
         Self::ignored_reason_with(path, &self.allow_markdown_prefixes)
     }
 
-    /// Map a file path to its `(order, group_name)`.
-    pub fn get_group(path: &str) -> (u32, &'static str) {
-        let p = path.replace('\\', "/");
-        for (order, name, matcher) in SEMANTIC_GROUPS {
-            if matcher.matches(&p) {
-                return (*order, name);
-            }
-        }
-        (199, "99_unassigned")
+    /// Map a file path to its `(order, group_name)` using the loaded rule set.
+    pub fn group_for(&self, path: &str) -> (u32, String) {
+        self.rule_set.group_for(path)
     }
 
     /// Plan semantic chunks from a list of files.
     ///
-    /// Large groups are sub-divided into `_part1`, `_part2`, … ensuring no chunk
-    /// exceeds [`SemanticPlanner::max_files_per_pr`].
+    /// Large groups are sub-divided with path-prefix packing (or legacy alphabetical chunks).
     pub fn plan(&self, files: Vec<String>, baseline_branch: &str) -> SemanticManifest {
         use std::collections::BTreeMap;
 
-        let mut groups: BTreeMap<(u32, &'static str), Vec<String>> = BTreeMap::new();
+        let mut groups: BTreeMap<(u32, String), Vec<String>> = BTreeMap::new();
         let candidate_files = files.len();
         let mut included_files = 0usize;
 
@@ -150,26 +152,30 @@ impl SemanticPlanner {
                 continue;
             }
             included_files += 1;
-            let (order, name) = Self::get_group(&f);
+            let (order, name) = self.group_for(&f);
             groups.entry((order, name)).or_default().push(f);
         }
 
         let mut chunks: Vec<SemanticChunk> = Vec::new();
         for ((order, name), mut group_files) in groups {
-            group_files.sort(); // stable, alphabetical
+            group_files.sort();
             if group_files.len() <= self.max_files_per_pr {
                 chunks.push(SemanticChunk {
                     order,
-                    name: name.to_string(),
+                    name,
                     files: group_files,
                 });
             } else {
-                // Sub-divide
-                for (i, batch) in group_files.chunks(self.max_files_per_pr).enumerate() {
+                let batches = pack_oversized_files(
+                    group_files,
+                    self.max_files_per_pr,
+                    self.legacy_chunk_split,
+                );
+                for (i, batch) in batches.into_iter().enumerate() {
                     chunks.push(SemanticChunk {
                         order,
                         name: format!("{}_part{}", name, i + 1),
-                        files: batch.to_vec(),
+                        files: batch,
                     });
                 }
             }
@@ -188,6 +194,14 @@ impl SemanticPlanner {
             },
             chunks,
         }
+    }
+
+    pub fn rule_set(&self) -> &SemanticRuleSet {
+        &self.rule_set
+    }
+
+    pub fn unassigned_name(&self) -> &str {
+        &self.rule_set.unassigned_name
     }
 }
 
@@ -230,6 +244,14 @@ pub struct SemanticSubmitConfig {
     pub write_ignored_paths: Option<std::path::PathBuf>,
     /// From `Vox.toml` `[review.coderabbit] allow_markdown_prefixes`.
     pub allow_markdown_prefixes: Vec<String>,
+    /// Alphabetical `chunks(max)` instead of path-prefix packing for oversized groups.
+    pub legacy_chunk_split: bool,
+    /// Optional path to semantic groups YAML (replaces bundled default).
+    pub groups_config: Option<std::path::PathBuf>,
+    /// `cargo metadata` workspace crate injection (`false` disables even if YAML enables).
+    pub semantic_workspace_crates: bool,
+    /// When set, fail planning if unassigned / included exceeds this ratio.
+    pub max_unassigned_ratio: Option<f64>,
 }
 
 impl Default for SemanticSubmitConfig {
@@ -250,6 +272,10 @@ impl Default for SemanticSubmitConfig {
             extra_exclude_prefixes: Vec::new(),
             write_ignored_paths: None,
             allow_markdown_prefixes: Vec::new(),
+            legacy_chunk_split: false,
+            groups_config: None,
+            semantic_workspace_crates: true,
+            max_unassigned_ratio: None,
         }
     }
 }

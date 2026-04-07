@@ -79,6 +79,9 @@ pub enum CodeRabbitAction {
         /// Write ignored candidate paths as JSON (`[{ "path", "reason" }, …]`) after planning.
         #[arg(long)]
         write_ignored_paths: Option<PathBuf>,
+        /// Split oversized groups by sorted path chunks (legacy); default is path-prefix packing.
+        #[arg(long, default_value_t = false)]
+        legacy_chunk_split: bool,
     },
     /// Generate stacked PRs comparing a historical commit to the current local state safely.
     #[command(name = "historical-submit")]
@@ -263,6 +266,7 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             full_repo,
             extra_exclude_prefix,
             write_ignored_paths,
+            legacy_chunk_split,
         } => {
             let repo = resolve_repo(&path)?;
             let vox = config::load_from_dir(&repo);
@@ -299,6 +303,10 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             cfg.extra_exclude_prefixes = extra_exclude_prefix;
             cfg.write_ignored_paths = write_ignored_paths;
             cfg.allow_markdown_prefixes = vox.allow_markdown_prefixes.clone();
+            cfg.legacy_chunk_split = legacy_chunk_split || vox.legacy_chunk_split;
+            cfg.groups_config = vox.groups_config.as_ref().map(PathBuf::from);
+            cfg.semantic_workspace_crates = vox.semantic_workspace_crates;
+            cfg.max_unassigned_ratio = vox.max_unassigned_ratio;
             semantic_planner::run_semantic_submit(&repo, &cfg).await?;
         }
         CodeRabbitAction::HistoricalSubmit {

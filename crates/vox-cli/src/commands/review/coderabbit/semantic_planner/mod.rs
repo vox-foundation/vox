@@ -22,17 +22,29 @@
 mod collector;
 mod groups;
 mod manifest;
+mod rules;
 mod submit;
 mod types;
 
 pub use collector::{collect_all_files, collect_changed_files};
-pub use groups::SemanticMatcher;
+pub use rules::{resolve_semantic_rule_set, unassigned_prefix_histogram, SemanticRuleSet};
 pub use submit::run_semantic_submit;
 pub use types::{SemanticChunk, SemanticManifest, SemanticPlanner, SemanticSubmitConfig};
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
+
+    fn workspace_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn test_planner(max: usize) -> SemanticPlanner {
+        let rs = resolve_semantic_rule_set(&workspace_root(), None, true).expect("rules");
+        SemanticPlanner::new(max, rs, false)
+    }
 
     #[test]
     fn is_ignored_build_artifacts() {
@@ -94,7 +106,8 @@ mod tests {
 
     #[test]
     fn group_assignment_canonical() {
-        let g = |p: &str| SemanticPlanner::get_group(p).1;
+        let p = test_planner(250);
+        let g = |path: &str| p.group_for(path).1;
         assert_eq!(g("AGENTS.md"), "01_scaffold");
         assert_eq!(g("Cargo.toml"), "01_scaffold");
         assert_eq!(g(".github/workflows/ci.yml"), "02_github_agents");
@@ -110,36 +123,34 @@ mod tests {
         assert_eq!(g("scripts/unlock.ps1"), "11_scripts_xtask");
         assert_eq!(g("mens/data/sft_pairs.jsonl"), "12_populi_ml");
         assert_eq!(g("tests/fixtures/minimal.vox"), "13_tests");
-        assert_eq!(g("crates/vox-parser/src/lib.rs"), "14_crate_parser_lexer");
-        assert_eq!(g("crates/vox-hir/src/hir/nodes.rs"), "15_crate_hir");
-        assert_eq!(g("crates/vox-typeck/src/lib.rs"), "16_crate_typeck");
-        assert_eq!(g("crates/vox-codegen-rust/src/lib.rs"), "17_crate_codegen");
-        assert_eq!(g("crates/vox-lsp/src/lib.rs"), "18_crate_runtime_lsp");
-        assert_eq!(g("crates/vox-mcp/src/lib.rs"), "19_crate_mcp_dei");
-        assert_eq!(g("crates/vox-cli/src/main.rs"), "20_crate_cli");
-        assert_eq!(g("crates/vox-arca/src/lib.rs"), "21_crate_other");
+        assert_eq!(g("crates/vox-compiler/src/lib.rs"), "crate_vox_compiler");
+        assert_eq!(g("crates/vox-primitives/src/lib.rs"), "crate_vox_primitives");
+        assert_eq!(g("crates/vox-runtime/src/lib.rs"), "crate_vox_runtime");
+        assert_eq!(g("crates/vox-lsp/src/lib.rs"), "crate_vox_lsp");
+        assert_eq!(g("crates/vox-mcp/src/lib.rs"), "crate_vox_mcp");
+        assert_eq!(g("crates/vox-cli/src/main.rs"), "crate_vox_cli");
+        assert_eq!(g("crates/vox-bootstrap/src/main.rs"), "crate_vox_bootstrap");
     }
 
     #[test]
     fn plan_subdivides_large_groups() {
-        let planner = SemanticPlanner::new(3);
+        let planner = test_planner(3);
         let files: Vec<String> = (0..7)
             .map(|i| format!("crates/vox-cli/src/file{i}.rs"))
             .collect();
         let manifest = planner.plan(files, "cr-baseline");
-        // All go in crate_cli (20_crate_cli), should be split into 3 chunks (3+3+1)
         assert!(
             manifest
                 .chunks
                 .iter()
-                .any(|c| c.name.starts_with("20_crate_cli"))
+                .any(|c| c.name.starts_with("crate_vox_cli"))
         );
         assert!(manifest.chunks.iter().all(|c| c.files.len() <= 3));
     }
 
     #[test]
     fn plan_filters_ignored_files() {
-        let planner = SemanticPlanner::new(250);
+        let planner = test_planner(250);
         let files = vec![
             "target/debug/vox".to_string(),
             "build_error.log".to_string(),

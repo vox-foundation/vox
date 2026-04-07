@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// CodeRabbit config from `Vox.toml` `[review.coderabbit]`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CodeRabbitConfig {
     /// Tier: free, trial, oss, pro, enterprise.
     pub tier: Option<String>,
@@ -18,6 +18,30 @@ pub struct CodeRabbitConfig {
     /// Paths matching these prefixes keep `*.md` / `*.txt` in review payloads (otherwise excluded
     /// by extension rules). Example: `["AGENTS.md", "docs/src/contributors/"]`.
     pub allow_markdown_prefixes: Vec<String>,
+    /// Replace bundled `contracts/review/coderabbit-semantic-groups.v1.yaml` with this path (repo-relative).
+    pub groups_config: Option<String>,
+    /// When false, skip `cargo metadata` workspace crate rule injection.
+    pub semantic_workspace_crates: bool,
+    /// Fail `semantic-submit` planning if (unassigned files / included files) exceeds this (0.0–1.0).
+    pub max_unassigned_ratio: Option<f64>,
+    /// Use alphabetical chunk splits instead of path-prefix packing (matches pre-2026 behavior).
+    pub legacy_chunk_split: bool,
+}
+
+impl Default for CodeRabbitConfig {
+    fn default() -> Self {
+        Self {
+            tier: None,
+            delay_between_prs_secs: None,
+            max_files_per_pr: None,
+            exclude_prefixes: Vec::new(),
+            allow_markdown_prefixes: Vec::new(),
+            groups_config: None,
+            semantic_workspace_crates: true,
+            max_unassigned_ratio: None,
+            legacy_chunk_split: false,
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -33,6 +57,11 @@ struct CoderabbitTomlSection {
     /// Additional path prefixes to exclude (e.g. `"mens/data/"`).
     exclude_prefixes: Option<Vec<String>>,
     allow_markdown_prefixes: Option<Vec<String>>,
+    groups_config: Option<String>,
+    /// Default true when omitted.
+    semantic_workspace_crates: Option<bool>,
+    max_unassigned_ratio: Option<f64>,
+    legacy_chunk_split: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -75,6 +104,10 @@ pub fn load_from_dir(path: &Path) -> CodeRabbitConfig {
         max_files_per_pr: max_files,
         exclude_prefixes: cr.exclude_prefixes.unwrap_or_default(),
         allow_markdown_prefixes: cr.allow_markdown_prefixes.unwrap_or_default(),
+        groups_config: cr.groups_config,
+        semantic_workspace_crates: cr.semantic_workspace_crates.unwrap_or(true),
+        max_unassigned_ratio: cr.max_unassigned_ratio,
+        legacy_chunk_split: cr.legacy_chunk_split.unwrap_or(false),
     }
 }
 
@@ -108,6 +141,8 @@ exclude_prefixes = ["mens/data/", "tmp/"]
         assert!(c.tier.is_none());
         assert!(c.exclude_prefixes.is_empty());
         assert!(c.allow_markdown_prefixes.is_empty());
+        assert!(c.semantic_workspace_crates);
+        assert!(!c.legacy_chunk_split);
     }
 
     #[test]
