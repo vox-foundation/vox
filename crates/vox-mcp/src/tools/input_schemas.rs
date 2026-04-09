@@ -432,6 +432,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_attention_summary" => {
             derived_tool_schema!(crate::dei_tools::params::AttentionSummaryParams)
         }
+        "vox_attention_history" | "vox_attention_reset" | "vox_trust_override" => {
+            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
+        }
         "vox_handoff_lineage" => {
             derived_tool_schema!(crate::dei_tools::params::HandoffLineageParams)
         }

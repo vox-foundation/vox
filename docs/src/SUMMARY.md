@@ -167,7 +167,11 @@
 - [OpenAPI contract SSOT (Populi, MCP, Codex)](architecture/openapi-contract-ssot.md)
 - [Outbound HTTP policy (reqwest / vox-reqwest-defaults)](architecture/outbound-http-policy.md)
 - [Research index](architecture/research-index.md)
-- [Protocol convergence research 2026](architecture/protocol-convergence-research-2026.md)
+- [GRPO Reward Shaping for Code LLMs](architecture/research-grpo-reward-shaping-2026.md)
+- [Continual Learning Flywheel Risks](architecture/research-continual-learning-flywheel-2026.md)
+- [LLM-Native Language Design](architecture/research-llm-native-lang-design-2026.md)
+- [Vox 0.4 Grand Migration Plan](architecture/vox-0.4-migration-plan.md)
+- [Protocol convergence research 2026]
 - [Capability registry SSOT](architecture/capability-registry-ssot.md)
 - [SCIENTIA impact, readership, and citation-adjacent signals (research seed)](architecture/scientia-impact-readership-research-2026.md)
 - [Capability visualization views](architecture/capability-visualization-views.md)

@@ -110,7 +110,7 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
     let hir = vox_compiler::hir::lower_module(&module);
     for e in vox_compiler::hir::validate_module(&hir) {
         diagnostics.push(vox_compiler::typeck::Diagnostic::hir_invariant(
-            e.message, e.span, source,
+            e.message, e.span, source, e.correction_hint,
         ));
     }
 

@@ -7,8 +7,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use vox_orchestrator::{
     OrchestratorConfig, RemotePopuliSnapshot, a2a, build_repo_scoped_orchestrator,
-    clarification_db_inbox_poll, mesh_federation_poll, orch_daemon, orchestrator_event_log,
-    runtime,
+    clarification_db_inbox_poll, mesh_federation_poll, orch_daemon, runtime,
 };
 
 fn load_config() -> OrchestratorConfig {
@@ -89,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     );
     a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
     a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
-    orchestrator_event_log::spawn_orchestrator_event_log_sink(orch.clone(), None);
+
     if let Some(db) = db_holder.as_ref() {
         clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
             db.clone(),

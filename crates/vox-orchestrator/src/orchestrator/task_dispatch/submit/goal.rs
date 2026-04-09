@@ -180,7 +180,7 @@ impl Orchestrator {
         true
     }
 
-    fn attach_goal_search_heuristic_only(&self, task_id: TaskId, description: &str) {
+    fn generate_goal_search_heuristic_only(&self, description: &str) -> crate::socrates::SocratesTaskContext {
         let plan = vox_db::heuristic_search_plan(description, false, None);
         let recommended_next_action = match plan.intent {
             vox_db::SearchIntent::CodeNavigation => Some("focus_repo".to_string()),
@@ -207,25 +207,17 @@ impl Orchestrator {
             retrieval_diagnosis: None,
             fatigue_active: false,
         };
-        if let Err(e) = self.attach_socrates_context(task_id, ctx) {
-            tracing::debug!(
-                task_id = task_id.0,
-                error = %e,
-                "goal search context attach failed"
-            );
-        }
+        ctx
     }
 
     /// Goal intake retrieval: run shared `vox-search` when Codex is attached, else heuristic hints.
-    pub(crate) async fn attach_goal_search_context_with_retrieval(
+    pub(crate) async fn generate_goal_search_context(
         &self,
-        task_id: TaskId,
         description: &str,
         file_manifest: &[FileAffinity],
-    ) {
+    ) -> crate::socrates::SocratesTaskContext {
         if self.db().is_none() {
-            self.attach_goal_search_heuristic_only(task_id, description);
-            return;
+            return self.generate_goal_search_heuristic_only(description);
         }
         let policy = vox_search::SearchPolicy::from_env();
         let repo_root =
@@ -237,7 +229,7 @@ impl Orchestrator {
             mem_cfg.log_dir.clone(),
             mem_cfg.memory_md_path.clone(),
         )
-        .with_trace_id(Some(format!("orchestrator-goal-task-{}", task_id.0)));
+        .with_trace_id(Some(format!("orchestrator-goal-task-{}", uuid::Uuid::new_v4())));
         let fallback: Option<Box<dyn vox_search::LexicalMemoryFallback>> = if mem_cfg.enabled {
             Some(Box::new(crate::search_bridge::MemorySubstringFallback(
                 mem_cfg.clone(),
@@ -256,11 +248,19 @@ impl Orchestrator {
         )
         .await
         else {
-            self.attach_goal_search_heuristic_only(task_id, description);
-            return;
+            return self.generate_goal_search_heuristic_only(description);
         };
-        let sctx = socrates_task_from_search_pass(&execution, &diagnostics, &plan, &policy);
-        if let Err(e) = self.attach_socrates_context(task_id, sctx) {
+        socrates_task_from_search_pass(&execution, &diagnostics, &plan, &policy)
+    }
+
+    pub(crate) async fn attach_goal_search_context_with_retrieval(
+        &self,
+        task_id: TaskId,
+        description: &str,
+        file_manifest: &[FileAffinity],
+    ) {
+        let ctx = self.generate_goal_search_context(description, file_manifest).await;
+        if let Err(e) = self.attach_socrates_context(task_id, ctx) {
             tracing::debug!(
                 task_id = task_id.0,
                 error = %e,
@@ -349,13 +349,43 @@ impl Orchestrator {
                 .await;
         }
 
+        let socrates_ctx = self.generate_goal_search_context(&goal, &file_manifest).await;
+
+        let cost_ms = {
+            let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+            if bm.attention_snapshot().spent_ratio() > 1.0 {
+                return Err(OrchestratorError::ApprovalBlocked(
+                    "Planning rejected: Attention budget is completely exhausted. Please review notifications or reset budget.".to_string()
+                ));
+            }
+            let action = crate::attention::ActionDescriptor {
+                estimated_complexity: eval.complexity as u8,
+                tokens_output: 0,
+                priority: priority.unwrap_or(crate::types::TaskPriority::Normal),
+                write_file_count: file_manifest.len().max(1),
+                external: false,
+                repeated_approve_count: 0,
+                concurrent_tasks: 0,
+            };
+            let base = cfg.attention_interrupt_cost_ms.max(1);
+            let cost_ms = crate::attention::compute_attention_cost_ms(
+                &action,
+                0.5,
+                base,
+                &cfg.attention_tlx_weights,
+            );
+            bm.add_questioning_attention_debit_ms(cost_ms);
+            cost_ms
+        };
+
         let plan_session_id = format!("plan-{}", uuid::Uuid::new_v4());
         let plan_version = 1_u32;
         let mut nodes = crate::planning::synthesizer::synthesize_plan_nodes(&goal);
+        let socrates_ctx_clone = socrates_ctx.clone();
         for n in &mut nodes {
-            if let Some(ref h) = enqueue_hints {
-                n.execution_policy.enqueue_hints = Some(h.clone());
-            }
+            let mut h = enqueue_hints.clone().unwrap_or_default();
+            h.socrates_context = Some(socrates_ctx_clone.clone());
+            n.execution_policy.enqueue_hints = Some(h);
             if !file_manifest.is_empty() {
                 merge_file_affinities(&mut n.execution_policy.file_manifest, &file_manifest);
             }
@@ -368,6 +398,7 @@ impl Orchestrator {
             Some(eval.complexity),
             0,
             &adeq_tasks,
+            socrates_ctx.fatigue_active,
         );
         if adeq_report.adequacy.is_too_thin {
             if cfg.plan_adequacy_enforce {

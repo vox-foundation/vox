@@ -48,6 +48,7 @@ pub fn analyze_plan_gaps(
         plan_depth_bonus(plan_depth),
         &at,
         prior_slice,
+        false,
     )
 }
 

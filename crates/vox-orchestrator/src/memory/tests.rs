@@ -4,7 +4,7 @@ use crate::types::AgentId;
 
 use super::account_registry::AccountMemoryRegistry;
 use super::config::MemoryConfig;
-use super::daily_log::DailyLog;
+
 use super::long_term::LongTermMemory;
 use super::manager::MemoryManager;
 use super::time::unix_secs_to_ymd;
@@ -18,26 +18,7 @@ fn test_config(dir: &TempDir) -> MemoryConfig {
     MemoryConfig::for_account("test", dir.path())
 }
 
-#[test]
-fn daily_log_append_and_read() {
-    let dir = memory_workdir();
-    let log = DailyLog::open(dir.path(), "2026-02-27").expect("open");
-    log.append("compiler fixed").expect("append");
-    let content = log.read().expect("read");
-    assert!(content.contains("compiler fixed"));
-    assert!(content.contains("2026-02-27"));
-}
 
-#[test]
-fn daily_log_multiple_appends() {
-    let dir = memory_workdir();
-    let log = DailyLog::open(dir.path(), "2026-02-28").expect("open");
-    log.append("first entry").expect("append");
-    log.append("second entry").expect("append");
-    let content = log.read().expect("read");
-    assert!(content.contains("first entry"));
-    assert!(content.contains("second entry"));
-}
 
 #[test]
 fn long_term_memory_set_and_get() {

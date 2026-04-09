@@ -42,7 +42,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | `scripts/populi/vox_continuous_trainer.ps1` | Legacy orchestration |
 | `scripts/quality/toestub_scoped.sh` | CI guard wrapper |
 | `scripts/run_mens_pipeline.ps1` | Local dev helper |
-| `scripts/run_qwen25_qlora_real_4080.ps1` | Operator preset |
+| `scripts/run_qwen35_qlora_real_4080.ps1` | Operator preset (Qwen 3.5 SSOT; `run_qwen25_*` is deprecated shim) |
 | `scripts/telemetry_watch.ps1` | Local dev UX |
 | `scripts/toestub_self_apply.ps1` | Quality helper |
 | `scripts/toestub_self_apply.sh` | Quality helper |
@@ -68,7 +68,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 ### Useful but replaceable
 
 - **CI shims** (`check_*`, `verify_workspace_manifest`, `toestub_scoped`, gate one-liners): canonical behavior is **`vox ci …`**; scripts exist for `cargo run -p vox-cli` ergonomics only.
-- **`run_mens_pipeline.ps1`**, **`run_qwen25_qlora_real_4080.ps1`**, **`dogfood_qlora_cuda.ps1`**: operator presets over **`vox mens train`** / **`cargo vox-cuda-release`**.
+- **`run_mens_pipeline.ps1`**, **`run_qwen35_qlora_real_4080.ps1`**, **`dogfood_qlora_cuda.ps1`**: operator presets over **`vox mens train`** / **`cargo vox-cuda-release`**.
 - **`cursor_background_*.ps1`**, **`telemetry_watch.ps1`**: IDE/logging UX; could become one `vox` subcommand each if pain remains high.
 
 ### Legacy or cleanup
@@ -128,7 +128,7 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 - Fix [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1) -> use **`vox mens train`** (not `vox populi train`).
 - Align [`infra/containers/entrypoints/populi-entrypoint.sh`](../../../infra/containers/entrypoints/populi-entrypoint.sh) **train** branch to **`vox mens train`**; document **serve/agent** limitations in this doc.
 - Mark **`vox_continuous_trainer.ps1`** as deprecated in-script; prefer **`vox mens corpus`** + **`vox mens pipeline`**.
-- Correct **[`scripts/README.md`](../../../scripts/README.md)** canonical train line to match **`vox mens train`** (matches `run_qwen25_qlora_real_4080.ps1`).
+- Correct **[`scripts/README.md`](../../../scripts/README.md)** canonical train line to match **`vox mens train`** (matches `run_qwen35_qlora_real_4080.ps1`).
 - Extend [`docs/agents/script-registry.json`](../../agents/script-registry.json) with missing tracked scripts.
 
 ## Phase 2 (implemented in `vox-cli`)

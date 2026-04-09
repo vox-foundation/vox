@@ -15,7 +15,7 @@ path_literals:
     - "mens/runs"
   extra_flag_literals:
     - "/tmp/"
-    - "mens/runs/qwen25_qlora"
+    - "mens/runs/qwen35_qlora"
 
 magic_numeric_hints:
   - 1024

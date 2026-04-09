@@ -137,13 +137,21 @@ impl Qwen2Attention {
         let n_rep = self.n_heads / self.n_kv_heads;
         let k = repeat_kv(&k, n_rep)?;
         let v = repeat_kv(&v, n_rep)?;
+        // Stabilize weighted values: extreme V projections on CUDA (common after hybrid linear
+        // blocks in Qwen3.5) yield NaN in `att @ v` even when attention weights are finite.
+        let v = v.clamp(-256f64, 256f64)?;
 
         // Scaled dot-product: [batch, n_heads, seq, seq]
         let scale = 1.0 / (self.head_dim as f64).sqrt();
-        let att = (q.contiguous()?.matmul(&k.transpose(2, 3)?.contiguous()?)? * scale)?;
+        let mut att = (q.contiguous()?.matmul(&k.transpose(2, 3)?.contiguous()?)? * scale)?;
+        // Cap scores before row-wise softmax stabilization: unbounded q·k can become +inf so
+        // `scores - max(scores)` becomes NaN for the whole row.
+        att = att.clamp(-120f64, 120f64)?;
 
         // --- Causal mask ---
         if seq_len > 1 {
+            let att_max = att.max_keepdim(candle_core::D::Minus1)?;
+            att = att.broadcast_sub(&att_max)?;
             let mask = causal_mask(seq_len, device)?;
             let att = att.broadcast_add(&mask)?;
             let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
@@ -644,6 +652,9 @@ impl Qwen35Model {
             x = layer.forward(&x, 0, None)?;
         }
         let x = self.norm.forward(&x)?;
+        // Late-sequence hidden magnitudes + NF4 `lm_head` can yield non-finite logits on the
+        // trailing rows for Qwen3.5 hybrid stacks at long context on CUDA.
+        let x = x.clamp(-64f64, 64f64)?;
         self.lm_head
             .forward(&x)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))
@@ -683,6 +694,7 @@ impl Qwen35Model {
             x = layer.forward(&x, pos, slot.as_mut())?;
         }
         let x = self.norm.forward(&x)?;
+        let x = x.clamp(-64f64, 64f64)?;
         self.lm_head
             .forward(&x)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))

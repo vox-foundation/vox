@@ -174,3 +174,19 @@ pub(super) fn default_populi_remote_lease_timeout_ms() -> u64 {
 pub(super) fn default_observer_poll_interval_ms() -> u64 {
     10_000
 }
+
+pub(super) fn default_planning_depth() -> String {
+    "standard".to_string()
+}
+pub(super) fn default_parallel_context_enabled() -> bool {
+    true
+}
+pub(super) fn default_context_gather_timeout_secs() -> u64 {
+    15
+}
+pub(super) fn default_min_quality_score() -> f64 {
+    0.0
+}
+pub(super) fn default_context_compression_enabled() -> bool {
+    true
+}

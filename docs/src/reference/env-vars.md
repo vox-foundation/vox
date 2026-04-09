@@ -139,6 +139,13 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL` | Overrides `Vox.toml` **`[mesh].inference_base_url`** (Schola or Ollama-shaped HTTP base). An empty value clears the TOML entry. Processes that call Ludus still read **`POPULI_URL`**; keep them aligned per [mens serving SSOT](mens-serving-ssot.md). Impl: [`merge_env_overrides`](../../../crates/vox-orchestrator/src/config/impl_env.rs). |
 | `POPULI_API_KEY` | Read via Clavis for authenticated remote mens inference. |
 | `POPULI_TEMPERATURE` / `POPULI_MAX_TOKENS` | Generation configuration overrides for mens inference. |
+| `VOX_ACCOUNT_ID` | Account identifier for orchestrator multi-tenant boundaries. |
+| `VOX_CLAVIS_CLOUDLESS_DB_PATH` | Path to Cloudless DB for Clavis secrets backend. |
+| `VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN` | Gain multiplier for A2A interruptions. |
+| `VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY` | Penalty offset for queue backlog in interruption math. |
+| `VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN` | Gain multiplier for plan-related interruptions. |
+| `VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD` / `VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS` | Calibration vars for dynamic tier gating based on query entropy. |
+| `VOX_ORCHESTRATOR_TLX_FRUSTRATION` / `VOX_ORCHESTRATOR_TLX_MENTAL` / `VOX_ORCHESTRATOR_TLX_TEMPORAL` / `VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT` | NASA-TLX cognitive load analogues for orchestrator agent scheduling pressure. |
 | `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Clavis** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
 | `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter { `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |

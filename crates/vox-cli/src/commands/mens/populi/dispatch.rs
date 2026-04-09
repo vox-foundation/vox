@@ -189,6 +189,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             curriculum,
             optimizer_experiment_mode,
             data_mode,
+            fast_corpus,
         } => {
             super::train_arm::run_train(
                 model,
@@ -246,6 +247,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 curriculum,
                 optimizer_experiment_mode.into(),
                 data_mode,
+                fast_corpus,
             )
             .await
         }

@@ -179,11 +179,11 @@
       "notes": "ML workflow output; allowlisted in workflow-script-allowlist.txt"
     },
     {
-      "path": "scripts/run_qwen25_qlora_real_4080.ps1",
+      "path": "scripts/run_qwen35_qlora_real_4080.ps1",
       "invoked_by_ci": false,
       "replacement": "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_real --device cuda --background --log-dir mens/runs/logs (SSOT base model when --model omitted; build: cargo vox-cuda-release)",
       "status": "operator",
-      "notes": "Windows helper: build + background QLoRA; SSOT: docs/src/architecture/mens-training-ssot.md"
+      "notes": "Windows helper: build + background QLoRA (Qwen 3.5 SSOT). Deprecated alias: scripts/run_qwen25_qlora_real_4080.ps1. See docs/src/architecture/mens-training-ssot.md"
     },
     {
       "path": "scripts/populi/dogfood_qlora_cuda.ps1",

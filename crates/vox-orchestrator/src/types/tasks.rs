@@ -43,6 +43,8 @@ pub enum TaskStatus {
     Failed(String),
     /// Blocked waiting for another task to complete.
     Blocked(TaskId),
+    /// Blocked waiting for human approval.
+    BlockedOnApproval,
     /// Explicitly cancelled by user or system.
     Cancelled,
 }
@@ -55,6 +57,7 @@ impl fmt::Display for TaskStatus {
             Self::Completed => write!(f, "completed"),
             Self::Failed(reason) => write!(f, "failed: {}", reason),
             Self::Blocked(dep) => write!(f, "blocked on {}", dep),
+            Self::BlockedOnApproval => write!(f, "blocked on approval"),
             Self::Cancelled => write!(f, "cancelled"),
         }
     }
@@ -120,6 +123,10 @@ pub enum TaskCategory {
     Planning,
     /// Code review and critique.
     Review,
+    /// Short-lived inter-agent relay / summarization hop. Uses Light-tier models.
+    InterAgent,
+    /// Structured tool call orchestration — needs native-tool support but not deep reasoning.
+    ToolOrchestration,
 }
 
 /// Populi mesh holds execution authority for this task; local actors must not dequeue it.
@@ -136,7 +143,7 @@ pub struct PopuliRemoteDelegate {
 }
 
 /// Optional hints applied at enqueue time and merged into [`AgentTask`] for routing / telemetry.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct TaskEnqueueHints {
     /// When set, overrides default task category.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -177,6 +184,12 @@ pub struct TaskEnqueueHints {
     /// True if the mesh task should detach for asynchronous execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_detached: Option<bool>,
+    /// Whether this task requires human approval before execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requires_approval: Option<bool>,
+    /// Pre-computed Socrates tracking from the planner phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub socrates_context: Option<crate::socrates::SocratesTaskContext>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
@@ -228,6 +241,9 @@ pub struct TaskDescriptor {
     /// Optional logical thread id preserving branch continuity for handoff or remote execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_id: Option<String>,
+    /// Whether this task requires human approval before execution.
+    #[serde(default)]
+    pub requires_approval: bool,
 }
 
 /// A unit of work to be executed by an agent.
@@ -570,6 +586,8 @@ mod tests {
             research_hints: vec![],
             required_labels: None,
             is_detached: None,
+            requires_approval: None,
+            socrates_context: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

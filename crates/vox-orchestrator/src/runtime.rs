@@ -178,6 +178,7 @@ impl TaskProcessor for AiTaskProcessor {
                         crate::models::ProviderType::Mistral => "mistral",
                         crate::models::ProviderType::DeepSeek => "deepseek",
                         crate::models::ProviderType::SambaNova => "sambanova",
+                        crate::models::ProviderType::Anthropic => "anthropic",
                         crate::models::ProviderType::PopuliMesh => "populimesh",
                         crate::models::ProviderType::Custom(_) => "custom",
                     };

@@ -158,11 +158,30 @@ impl Default for SessionTimingDefaults {
     }
 }
 
+/// Target ASR Backend and Domain.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AsrBackendConfig {
+    pub backend: String,              
+    pub domain_mode: crate::refine::DomainMode, 
+}
+
+impl Default for AsrBackendConfig {
+    fn default() -> Self {
+        Self {
+            backend: "auto".to_string(),
+            domain_mode: crate::refine::DomainMode::General,
+        }
+    }
+}
+
 /// Merged Oratio runtime configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 #[derive(Default)]
 pub struct OratioRuntimeConfig {
+    /// Target ASR Backend and Domain.
+    pub asr: AsrBackendConfig,
     /// Session timing defaults (capture vs inference vs wall cap).
     pub session_timing: SessionTimingDefaults,
     /// Deterministic refine confidence tunables.
@@ -404,6 +423,17 @@ impl OratioRuntimeConfig {
             && let Ok(v) = s.parse::<usize>()
         {
             self.logit.trie_stuck_steps = v.max(1);
+        }
+
+        if let Ok(s) = var("VOX_ORATIO_BACKEND") {
+            self.asr.backend = s.trim().to_ascii_lowercase();
+        }
+        if let Ok(s) = var("VOX_ORATIO_DOMAIN_MODE") {
+            if s.trim().to_ascii_lowercase() == "code" {
+                self.asr.domain_mode = crate::refine::DomainMode::Code;
+            } else {
+                self.asr.domain_mode = crate::refine::DomainMode::General;
+            }
         }
     }
 

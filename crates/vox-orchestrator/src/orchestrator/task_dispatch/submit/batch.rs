@@ -64,6 +64,9 @@ impl Orchestrator {
             );
             task.capability_requirements = desc.capability_requirements.clone();
             task.session_id = desc.session_id.clone();
+            if desc.requires_approval {
+                task.status = crate::types::TaskStatus::BlockedOnApproval;
+            }
             task.start(); // ensure started_at_ms is populated
 
             // Add all collected deps
@@ -293,6 +296,7 @@ impl Orchestrator {
                 capability_requirements: None,
                 session_id: session_id.clone(),
                 thread_id: None,
+                requires_approval: false,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -306,6 +310,7 @@ impl Orchestrator {
                 capability_requirements: None,
                 session_id: session_id.clone(),
                 thread_id: None,
+                requires_approval: false,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -319,6 +324,7 @@ impl Orchestrator {
                 capability_requirements: None,
                 session_id: session_id.clone(),
                 thread_id: None,
+                requires_approval: false,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -332,6 +338,7 @@ impl Orchestrator {
                 capability_requirements: None,
                 session_id,
                 thread_id: None,
+                requires_approval: false,
             },
         ];
         self.submit_batch(descriptors).await
@@ -510,6 +517,7 @@ fn build_repo_shard_descriptors(
             capability_requirements: None,
             session_id: session_id.clone(),
             thread_id: None,
+                requires_approval: false,
         });
         gen_descriptor_index_by_shard.insert(*shard_idx, descriptor_idx);
     }
@@ -531,6 +539,7 @@ fn build_repo_shard_descriptors(
             capability_requirements: None,
             session_id: session_id.clone(),
             thread_id: None,
+                requires_approval: false,
         });
         validation_temp_deps.push(descriptors.len().saturating_sub(1));
     }
@@ -548,6 +557,7 @@ fn build_repo_shard_descriptors(
         capability_requirements: None,
         session_id,
         thread_id: None,
+                requires_approval: false,
     });
 
     descriptors

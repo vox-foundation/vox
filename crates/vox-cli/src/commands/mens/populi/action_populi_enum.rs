@@ -176,10 +176,14 @@ pub enum PopuliAction {
         /// Experimental optimizer lane (guarded by VOX_MENS_EXPERIMENTAL_OPTIMIZER when non-off).
         #[arg(long, value_enum, default_value_t = OptimizerExperimentModeCli::Off)]
         optimizer_experiment_mode: OptimizerExperimentModeCli,
-        /// How to refresh training inputs before the trainer runs (`strict` = no implicit regen; default `auto-refresh` preserves legacy behavior).
+        /// How to refresh training inputs before the trainer runs (`strict` = abort on refresh failures; reproducible full corpus path). Use `auto-refresh` for lenient legacy behavior.
         #[cfg(feature = "gpu")]
-        #[arg(long, value_enum, default_value_t = TrainDataModeCli::AutoRefresh)]
+        #[arg(long, value_enum, default_value_t = TrainDataModeCli::Strict)]
         data_mode: TrainDataModeCli,
+        /// Use existing `train.jsonl` in `--data-dir` only; skip mix-driven refresh (`VOX_TRAIN_SKIP_CORPUS_MIX`). For dev/tests — default off for a full corpus pipeline when stale.
+        #[cfg(feature = "gpu")]
+        #[arg(long, default_value_t = false)]
+        fast_corpus: bool,
         /// Provenance: coarse family label for upstream lineage (e.g. `kimi-k2.5`, `qwen2.5`).
         #[arg(long)]
         base_model_family: Option<String>,

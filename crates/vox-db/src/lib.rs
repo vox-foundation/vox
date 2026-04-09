@@ -107,6 +107,8 @@ mod mens_scorecard_trust;
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
 pub mod paths;
+pub mod pool;
+pub use pool::VoxDbPool;
 /// Mens control-plane audit (`populi_control_event` in `research_metrics`).
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
@@ -136,6 +138,8 @@ pub mod workflow_journal;
 /// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
 pub mod workspace_journey_store;
 
+pub mod oratio_eval;
+
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
@@ -156,6 +160,7 @@ pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use project_store::{open_project_db, open_project_db_at_root};
+pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,

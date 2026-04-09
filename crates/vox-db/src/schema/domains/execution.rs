@@ -142,6 +142,8 @@ CREATE TABLE IF NOT EXISTS plan_versions (
     parent_version INTEGER,
     trigger_event TEXT,
     trigger_payload_json TEXT,
+    quality_score REAL NOT NULL DEFAULT 0.0,
+    reviewer_verdict TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (plan_session_id, version)
 );

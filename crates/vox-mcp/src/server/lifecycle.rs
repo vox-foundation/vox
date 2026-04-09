@@ -70,7 +70,6 @@ pub struct ServerState {
     /// Cached basename → candidate paths map for `@file` mention resolution.
     pub mention_path_cache: Arc<SyncMutex<Option<(PathBuf, Arc<HashMap<String, Vec<PathBuf>>>)>>>,
     /// Aborted and replaced when the orchestrator is re-rooted so stale event sinks do not leak.
-    event_log_sink_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Last background fetch of `GET /v1/populi/nodes` (read-only federation; see mens SSOT).
     pub populi_remote_snapshot: Arc<RwLock<RemotePopuliSnapshot>>,
     /// Stops the federation poller when re-rooting (see [`Self::with_workspace_root`]).
@@ -177,7 +176,6 @@ impl ServerState {
             budget_manager: Arc::new(BudgetManager::new(None)),
             http_client,
             mention_path_cache: Arc::new(SyncMutex::new(None)),
-            event_log_sink_join: Arc::new(SyncMutex::new(None)),
             populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
             populi_poll_join: Arc::new(SyncMutex::new(None)),
             populi_remote_result_poll_join: Arc::new(SyncMutex::new(None)),
@@ -186,7 +184,7 @@ impl ServerState {
             questioning_attention_spent_ms: Arc::new(RwLock::new(HashMap::new())),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
         };
-        state.spawn_orchestrator_event_log_sink();
+
         state.spawn_populi_federation_poller();
         state.spawn_populi_remote_result_poller();
         state.spawn_populi_remote_worker_poller();
@@ -773,14 +771,6 @@ impl ServerState {
         );
     }
 
-    /// Append JSON lines for every [`AgentEvent`] when **`VOX_ORCHESTRATOR_EVENT_LOG`** is set to a file path.
-    pub fn spawn_orchestrator_event_log_sink(&self) {
-        vox_orchestrator::orchestrator_event_log::spawn_orchestrator_event_log_sink(
-            self.orchestrator.clone(),
-            Some(self.event_log_sink_join.clone()),
-        );
-    }
-
     /// Override the workspace root.
     pub fn with_workspace_root(mut self, path: PathBuf) -> Self {
         self.workspace_root = Some(path.clone());
@@ -816,7 +806,7 @@ impl ServerState {
 
         self.orchestrator_config = build.config.clone();
         self.orchestrator = Arc::new(build.orchestrator);
-        self.spawn_orchestrator_event_log_sink();
+
         if let Ok(mut g) = self.populi_poll_join.lock() {
             if let Some(h) = g.take() {
                 h.abort();
@@ -879,7 +869,6 @@ impl ServerState {
             budget_manager: Arc::new(BudgetManager::new(None)),
             http_client: reqwest::Client::new(),
             mention_path_cache: Arc::new(SyncMutex::new(None)),
-            event_log_sink_join: Arc::new(SyncMutex::new(None)),
             populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
             populi_poll_join: Arc::new(SyncMutex::new(None)),
             populi_remote_result_poll_join: Arc::new(SyncMutex::new(None)),

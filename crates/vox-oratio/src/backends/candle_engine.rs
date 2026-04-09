@@ -109,6 +109,8 @@ pub(crate) enum StreamEvent {
         text: String,
         avg_logprob: f64,
         no_speech_prob: f64,
+        start_frame: usize,
+        end_frame: usize,
     },
     TokenDecoded {
         segment_index: usize,
@@ -617,7 +619,11 @@ impl Decoder {
                 self.decode_with_fallback(&mel_segment, None)?
             };
             seek += segment_size;
-            if dr.no_speech_prob > m::NO_SPEECH_THRESHOLD && dr.avg_logprob < m::LOGPROB_THRESHOLD {
+            let no_speech_threshold = std::env::var("VOX_ORATIO_NO_SPEECH_THRESHOLD")
+                .ok()
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(0.6);
+            if dr.no_speech_prob > no_speech_threshold {
                 debug!(seek, ?dr, "whisper: no speech segment skipped");
                 segment_index = segment_index.saturating_add(1);
                 continue;
@@ -630,6 +636,8 @@ impl Decoder {
                     text: segment_text,
                     avg_logprob: dr.avg_logprob,
                     no_speech_prob: dr.no_speech_prob,
+                    start_frame: seek,
+                    end_frame: seek + segment_size,
                 });
             }
             if self.verbose {

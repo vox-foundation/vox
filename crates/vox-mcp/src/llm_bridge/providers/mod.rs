@@ -1,5 +1,6 @@
 //! HTTP clients for OpenRouter-compatible, Gemini, and Ollama chat APIs.
 
+mod anthropic;
 mod gemini;
 mod metadata;
 mod ollama_chat;
@@ -7,6 +8,7 @@ mod openai;
 mod probe;
 mod types;
 
+pub(crate) use anthropic::http_anthropic_direct;
 pub(crate) use gemini::{http_gemini, http_gemini_with_metadata};
 pub(crate) use metadata::{HttpCallMetadata, ollama_base_url};
 pub(crate) use ollama_chat::{http_ollama, http_ollama_with_metadata};

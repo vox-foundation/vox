@@ -132,7 +132,7 @@ impl SessionRetrievalEnvelope {
 }
 
 /// Corpus-level retrieval outcome for critique loops (orchestrator / MCP parity).
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct RetrievalDiagnosis {
     /// Corpora that returned at least one hit.
     #[serde(default)]
@@ -152,7 +152,7 @@ pub struct RetrievalDiagnosis {
 }
 
 /// Structured evidence / risk hints attached to an [`crate::types::AgentTask`].
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct SocratesTaskContext {
     /// Operational risk tier label (logged to traces only).
     #[serde(default)]

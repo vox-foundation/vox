@@ -32,6 +32,9 @@ pub enum HandoffInvariantError {
     /// Metadata advertised a harness spec but it failed validation.
     #[error("handoff metadata contains invalid harness spec JSON: {0}")]
     InvalidHarnessSpec(String),
+    /// Receiver context resolution lacks opaque routing metadata.
+    #[error("handoff to a remote agent requires a2a_context_uri and obo_token payloads")]
+    MissingOpaqueRoutingContext,
 }
 
 /// A single step in the execution history preserved during handoff.
@@ -55,6 +58,12 @@ pub struct HandoffPayload {
     pub from_agent: AgentId,
     /// Who should receive (None = any available agent).
     pub to_agent: Option<AgentId>,
+    /// Optional A2A cryptologic reference URI for context retrieval across nodes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub a2a_context_uri: Option<String>,
+    /// Optional On-Behalf-Of token session smuggling protection.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub obo_token: Option<String>,
     /// When this handoff was created (unix ms).
     pub created_at: u64,
     /// Optional timeout for this handoff.
@@ -97,6 +106,8 @@ impl HandoffPayload {
         Self {
             from_agent,
             to_agent,
+            a2a_context_uri: None,
+            obo_token: None,
             created_at,
             timeout_ms: None,
             plan_summary: plan_summary.into(),
@@ -120,6 +131,18 @@ impl HandoffPayload {
     /// Builder: add an execution history step.
     pub fn with_step(mut self, step: ExecutionStep) -> Self {
         self.execution_history.push(step);
+        self
+    }
+
+    /// Builder: Set an A2A routing context identity map context.
+    pub fn with_a2a_context(mut self, uri: impl Into<String>) -> Self {
+        self.a2a_context_uri = Some(uri.into());
+        self
+    }
+
+    /// Builder: Set On-Behalf-Of token metadata.
+    pub fn with_obo_token(mut self, tok: impl Into<String>) -> Self {
+        self.obo_token = Some(tok.into());
         self
     }
 
@@ -248,6 +271,13 @@ pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), Hando
     {
         return Err(HandoffInvariantError::MissingExecutionRoleMetadata);
     }
+    
+    if payload.to_agent.is_some() {
+        if payload.a2a_context_uri.is_none() || payload.obo_token.is_none() {
+            return Err(HandoffInvariantError::MissingOpaqueRoutingContext);
+        }
+    }
+
     if let Some((_, context_json)) = payload
         .metadata
         .iter()
@@ -374,6 +404,8 @@ mod tests {
     #[test]
     fn handoff_builder() {
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "Fix parser bugs")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123")
             .with_completed(vec![TaskId(1), TaskId(2)])
             .with_pending(vec![TaskId(3)])
             .with_files(vec![PathBuf::from("src/parser.rs")])
@@ -406,6 +438,8 @@ mod tests {
     #[test]
     fn markdown_output() {
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "Fix bugs")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123")
             .with_completed(vec![TaskId(1)])
             .with_pending(vec![TaskId(2), TaskId(3)])
             .with_metadata("execution_role", "builder")
@@ -423,7 +457,9 @@ mod tests {
         let bus = EventBus::new(16);
         let mut rx = bus.subscribe();
 
-        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "Test handoff");
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "Test handoff")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123");
         execute_handoff(&payload, &bus).expect("handoff invariants");
 
         // Event should be in the channel
@@ -530,6 +566,8 @@ mod tests {
         let context = crate::ContextEnvelope::from_session_retrieval("repo", "sess", &retrieval);
         let context_json = serde_json::to_string(&context).expect("serialize context envelope");
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123")
             .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json);
         execute_handoff(&payload, &bus).expect("valid context envelope metadata");
     }
@@ -553,10 +591,13 @@ mod tests {
             Some("thread-handoff"),
             &["artifacts/out.md".to_string()],
         );
-        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff").with_metadata(
-            HARNESS_SPEC_JSON_METADATA_KEY,
-            serde_json::to_string(&harness).expect("serialize harness"),
-        );
+        let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123")
+            .with_metadata(
+                HARNESS_SPEC_JSON_METADATA_KEY,
+                serde_json::to_string(&harness).expect("serialize harness"),
+            );
         execute_handoff(&payload, &bus).expect("valid harness metadata");
     }
 
@@ -585,6 +626,8 @@ mod tests {
         let context =
             crate::ContextEnvelope::from_session_retrieval("repo", "sid-event", &retrieval);
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff with context")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123")
             .with_metadata(
                 CONTEXT_ENVELOPE_JSON_METADATA_KEY,
                 serde_json::to_string(&context).expect("serialize context"),
@@ -620,6 +663,8 @@ mod tests {
             &["artifacts/out.md".to_string()],
         );
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "handoff with harness")
+            .with_a2a_context("uri://agent2")
+            .with_obo_token("tok-123")
             .with_metadata(
                 HARNESS_SPEC_JSON_METADATA_KEY,
                 serde_json::to_string(&harness).expect("serialize harness"),

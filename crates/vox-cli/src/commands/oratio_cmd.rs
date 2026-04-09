@@ -163,6 +163,40 @@ pub enum OratioAction {
     Doctor,
     /// Show which Oratio backends and passthrough modes are available
     Status,
+    /// Evaluate a JSONL dataset of expected transcripts to calculate WER.
+    Eval {
+        /// JSONL file with {"path": "...", "expected": "...", "language": "..."}
+        dataset: std::path::PathBuf,
+        /// Limit number of samples to evaluate
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Write metrics to VoxDB for long-term trending
+        #[arg(long, default_value_t = false)]
+        persist: bool,
+    },
+    /// View recent ASR evaluation runs.
+    EvalHistory {
+        /// Limit number of runs to display
+        #[arg(long, default_value_t = 10)]
+        limit: u32,
+    },
+    /// Generate an SRT subtitle from a video or audio file.
+    Subtitle {
+        /// Path to audio or video input file.
+        path: String,
+        /// Explicit output path (defaults to beside input with .srt extension).
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Optional explicit ISO language code constraint (e.g. `en`).
+        #[arg(long)]
+        language: Option<String>,
+        /// Max characters per line.
+        #[arg(long, default_value_t = 42)]
+        line_width: usize,
+        /// Max lines per subtitle block.
+        #[arg(long, default_value_t = 2)]
+        max_lines: usize,
+    },
 }
 
 /// Run **`vox oratio …`**.
@@ -339,6 +373,152 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 "{}",
                 serde_json::to_string_pretty(&vox_oratio::candle_backend_status_json())?
             );
+            Ok(())
+        }
+        OratioAction::Eval { dataset, limit, persist } => {
+            let file = std::fs::read_to_string(&dataset)?;
+            let mut total_words = 0;
+            let mut total_errors = 0;
+            let mut count = 0;
+            
+            let rt = tokio::runtime::Runtime::new()?;
+            let db_opt = if persist {
+                rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await.ok() })
+            } else { None };
+            let run_id = uuid::Uuid::new_v4().to_string();
+            
+            if let Some(ref db) = db_opt {
+                let ds_name = dataset.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let params = vox_db::OratioEvalRunStartParams {
+                    run_id: run_id.clone(),
+                    run_type: "general_subtitle".to_string(),
+                    backend: "candle-whisper".to_string(),
+                    model_id: None,
+                    dataset_name: ds_name,
+                };
+                let _ = rt.block_on(async { db.record_oratio_eval_run_start(&params).await });
+            }
+
+            for line in file.lines().filter(|l| !l.trim().is_empty()) {
+                if let Some(l) = limit {
+                    if count >= l {
+                        break;
+                    }
+                }
+                let val: serde_json::Value = serde_json::from_str(line)?;
+                let path = val["path"].as_str().unwrap();
+                let expected = val["expected"].as_str().unwrap();
+                let lang = val.get("language").and_then(|v| v.as_str());
+
+                let p = std::path::Path::new(path);
+                let ctx = vox_oratio::refine::CorrectionContext::from_runtime(
+                    runtime,
+                    vox_oratio::refine::OratioCorrectionProfile::Balanced,
+                    false,
+                );
+                let detail = vox_oratio::transcribe_path_detailed(p, &ctx, lang)?;
+                let actual = detail.refined_text;
+
+                let expected_words: Vec<&str> = expected.split_whitespace().collect();
+
+                let wer_val = vox_oratio::eval::word_error_rate(expected, &actual);
+                let cer_val = vox_oratio::eval::char_error_rate(expected, &actual);
+                let errs = (wer_val * expected_words.len() as f64).round() as usize;
+
+                total_words += expected_words.len();
+                total_errors += errs;
+                count += 1;
+                
+                if let Some(ref db) = db_opt {
+                    let _ = rt.block_on(async {
+                        db.append_oratio_eval_sample(
+                            &run_id,
+                            path,
+                            expected,
+                            &actual,
+                            wer_val as f32,
+                            cer_val as f32,
+                            None,
+                            None,
+                            0,
+                        ).await
+                    });
+                }
+
+                println!("File: {}", path);
+                println!("Expected: {}", expected);
+                println!("Actual:   {}", actual);
+                println!("Errors: {} / {} (WER: {:.1}%, CER: {:.1}%)", errs, expected_words.len(), wer_val * 100.0, cer_val * 100.0);
+                println!("Confidence: {:.3}\n", detail.confidence);
+            }
+
+            let wer = if total_words > 0 {
+                (total_errors as f64 / total_words as f64) * 100.0
+            } else {
+                0.0
+            };
+            
+            if let Some(ref db) = db_opt {
+                let _ = rt.block_on(async {
+                    db.complete_oratio_eval_run(&run_id, Some(wer as f32 / 100.0), None, None, None).await
+                });
+            }
+            
+            println!("Processed {} samples.", count);
+            println!("Total Words: {}", total_words);
+            println!("Total Errors: {}", total_errors);
+            println!("Overall WER: {:.2}%", wer);
+
+            Ok(())
+        }
+        OratioAction::EvalHistory { limit } => {
+            let rt = tokio::runtime::Runtime::new()?;
+            let db = rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })?;
+            let runs = rt.block_on(async { db.get_recent_oratio_eval_runs(limit).await })?;
+            if runs.is_empty() {
+                println!("No evaluation runs found.");
+            } else {
+                for r in runs {
+                    let wer_display = r.global_wer.map(|w| format!("{:.2}%", w * 100.0)).unwrap_or_else(|| "N/A".to_string());
+                    println!("{} | {} | {} | {} samples | WER: {}", r.created_at, r.run_type, r.dataset_name, r.sample_count, wer_display);
+                }
+            }
+            Ok(())
+        }
+        OratioAction::Subtitle { path, output, language, line_width, max_lines, ground_truth_srt, persist } => {
+            let metrics = vox_oratio::subtitle::generate_srt_file(path.clone(), output, language, line_width, max_lines, ground_truth_srt.clone(), persist)?;
+            if persist {
+                if let Some((wer, cer, offset)) = metrics {
+                    let rt = tokio::runtime::Runtime::new()?;
+                    let db_opt = rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await.ok() });
+                    if let Some(db) = db_opt {
+                        let run_id = uuid::Uuid::new_v4().to_string();
+                        let params = vox_db::OratioEvalRunStartParams {
+                            run_id: run_id.clone(),
+                            run_type: "srt_ground_truth".to_string(),
+                            backend: "candle-whisper".to_string(),
+                            model_id: None,
+                            dataset_name: ground_truth_srt.unwrap_or_default(),
+                        };
+                        let _ = rt.block_on(async { 
+                            if db.record_oratio_eval_run_start(&params).await.is_ok() {
+                                let _ = db.append_oratio_eval_sample(
+                                    &run_id,
+                                    &path,
+                                    "srts",
+                                    "srts",
+                                    wer as f32,
+                                    cer as f32,
+                                    None,
+                                    None,
+                                    0,
+                                ).await;
+                                let _ = db.complete_oratio_eval_run(&run_id, Some(wer as f32), Some(cer as f32), None, Some(offset)).await;
+                            }
+                        });
+                    }
+                }
+            }
             Ok(())
         }
     }

@@ -6,7 +6,7 @@ use vox_orchestrator::usage::{RemainingBudget, UsageTracker};
 use vox_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
 
 use super::super::MCP_GLOBAL_LLM_AGENT;
-use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_ollama_model_allowed};
+use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
 use super::types::McpChatModelResolution;
 use crate::server::ServerState;
 use vox_orchestrator::models::scoring::auto_score_model;
@@ -45,7 +45,7 @@ pub fn resolve_mcp_chat_model_sync(
         let id = raw.trim();
         if !id.is_empty() {
             if let Some(m) = registry.get(id) {
-                if !mcp_ollama_model_allowed(&m) {
+                if !mcp_local_model_allowed(&m) {
                     return Err(
                         "Sticky MCP model uses Ollama but VOX_INFERENCE_PROFILE does not allow local Ollama HTTP; use desktop_ollama or lan_gateway, pick a cloud model, or clear the override (see docs/src/architecture/mobile-edge-ai-ssot.md).".into(),
                     );
@@ -59,12 +59,12 @@ pub fn resolve_mcp_chat_model_sync(
     let task = res.task_category;
 
     if res.free_tier_latency_critical {
-        if let Some(m) = registry.best_free_for_with_filter(task, mcp_ollama_model_allowed) {
+        if let Some(m) = registry.best_free_for_with_filter(task, mcp_local_model_allowed) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
         if res.allow_cheapest_fallback {
-            if let Some(m) = registry.cheapest_free_with_filter(mcp_ollama_model_allowed) {
+            if let Some(m) = registry.cheapest_free_with_filter(mcp_local_model_allowed) {
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
@@ -74,7 +74,7 @@ pub fn resolve_mcp_chat_model_sync(
     if let Some(m) = registry
         .list_models()
         .into_iter()
-        .filter(mcp_ollama_model_allowed)
+        .filter(mcp_local_model_allowed)
         .max_by(|a, b| {
             let score_a = auto_score_model(
                 a,
@@ -101,11 +101,11 @@ pub fn resolve_mcp_chat_model_sync(
     }
 
     if res.allow_cheapest_fallback {
-        if let Some(m) = registry.cheapest_free_with_filter(mcp_ollama_model_allowed) {
+        if let Some(m) = registry.cheapest_free_with_filter(mcp_local_model_allowed) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
-        if let Some(m) = registry.cheapest_with_filter(mcp_ollama_model_allowed) {
+        if let Some(m) = registry.cheapest_with_filter(mcp_local_model_allowed) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
@@ -160,6 +160,7 @@ pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, 
         | ProviderType::Mistral
         | ProviderType::DeepSeek
         | ProviderType::SambaNova
+        | ProviderType::Anthropic
         | ProviderType::Custom(_) => ChatRouteBackend::CascadeFallback,
     })
 }

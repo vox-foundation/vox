@@ -184,6 +184,7 @@ impl RetrievalEvidenceEnvelope {
                     self.selected_mode.clone(),
                 ],
                 structured_payload: serde_json::to_value(self).ok(),
+                truncated_warnings: Vec::new(),
             },
             conflict_policy: vox_orchestrator::ContextConflictPolicy {
                 merge_strategy: vox_orchestrator::ContextMergeStrategy::ConfidenceWeighted,

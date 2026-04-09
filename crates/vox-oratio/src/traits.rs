@@ -136,6 +136,16 @@ impl TranscribeDetail {
 /// Human-readable description of which Oratio capabilities are active.
 #[must_use]
 pub fn transcript_status() -> &'static str {
+    #[cfg(all(feature = "stt-sherpa", not(feature = "stt-candle")))]
+    {
+        return "Vox Oratio: Sherpa-ONNX STT backend active. Env: VOX_ORATIO_BACKEND, \
+                VOX_ORATIO_SHERPA_MODEL, VOX_ORATIO_SHERPA_MODEL_DIR.";
+    }
+    #[cfg(all(feature = "stt-sherpa", feature = "stt-candle"))]
+    {
+        return "Vox Oratio: dual backends compiled — Sherpa-ONNX + Candle Whisper. \
+                Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa).";
+    }
     #[cfg(feature = "stt-candle")]
     {
         "Vox Oratio: Candle Whisper (Rust) STT enabled; symphonia decode + 16 kHz resample; \
@@ -173,35 +183,50 @@ pub fn transcribe_path_detailed(
         return Ok(finalize_after_refine(raw_text, refined));
     }
 
-    #[cfg(feature = "stt-candle")]
-    {
-        if matches!(
-            ext.as_str(),
-            "wav" | "mp3" | "flac" | "ogg" | "oga" | "aac" | "m4a" | "mp4" | "opus"
-        ) {
-            let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
-            let raw_text =
-                crate::transcribe_audio_file_with_language(path, whisper_lang.as_deref())?;
-            let refined = crate::refine::refine_transcript(&raw_text, ctx);
-            return Ok(finalize_after_refine(raw_text, refined));
-        }
+    let is_audio_or_video = matches!(
+        ext.as_str(),
+        "wav" | "mp3" | "flac" | "ogg" | "oga" | "aac" | "m4a" | "opus"
+            | "mp4" | "mkv" | "avi" | "webm" | "mov"
+    );
+
+    if is_audio_or_video {
+        let (pcm, sample_rate) = match crate::backends::audio_io::pcm_decode_to_16k_mono(path) {
+            Ok(res) => (res, 16_000),
+            Err(e) => {
+                // If symphonia fails, try ffmpeg fallback for video containers
+                if matches!(ext.as_str(), "mp4" | "mkv" | "avi" | "webm" | "mov") {
+                    tracing::info!("audio_io failed: {}, attempting ffmpeg fallback", e);
+                    match crate::subtitle::ffmpeg_extract::extract_audio_ffmpeg(path) {
+                        Ok(res) => (res, 16_000),
+                        Err(e2) => anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2),
+                    }
+                } else {
+                    anyhow::bail!("audio decode failed: {}", e);
+                }
+            }
+        };
+
+        // Allow acoustic preprocess via AsrBackend path
+        let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(25u64);
+        // Note: preprocess_audio_pcm_f32_reported returns (Vec<f32>, AcousticsPreprocessDiagnostics)
+        let (pcm, _diag) = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
+
+        let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
+        
+        let backend = crate::backend_dispatch::create_backend()?;
+        let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
+        
+        let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
+        return Ok(finalize_after_refine(out.raw_text, refined));
     }
 
     anyhow::bail!(
-        "Vox Oratio: unsupported extension {:?} for file {}. \
-         Supported: .txt / .md{}. Build with `stt-candle` for audio.",
+        "Vox Oratio: unsupported extension {:?} for file {}.",
         path.extension().unwrap_or_default(),
-        path.display(),
-        {
-            #[cfg(feature = "stt-candle")]
-            {
-                " plus .wav, .mp3, .flac, .ogg, …"
-            }
-            #[cfg(not(feature = "stt-candle"))]
-            {
-                ""
-            }
-        }
+        path.display()
     );
 }
 

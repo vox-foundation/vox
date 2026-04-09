@@ -42,6 +42,7 @@ trait ProviderAdapter: Send + Sync {
 
 struct GoogleDirectAdapter;
 struct OllamaAdapter;
+struct AnthropicNativeAdapter;
 struct OpenAiCompatAdapter;
 
 fn adapt_result(
@@ -121,6 +122,43 @@ impl ProviderAdapter for OllamaAdapter {
         })
     }
 }
+impl ProviderAdapter for AnthropicNativeAdapter {
+    fn supports(&self, provider_type: &ProviderType) -> bool {
+        matches!(provider_type, ProviderType::Anthropic)
+            && std::env::var("ANTHROPIC_DIRECT").unwrap_or_default() == "1"
+    }
+
+    fn infer<'a>(
+        &'a self,
+        client: &'a reqwest::Client,
+        model: &'a ModelSpec,
+        req: InferRequest<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>> {
+        Box::pin(async move {
+            use super::providers::http_anthropic_direct;
+            let url = endpoint_for(model)?;
+            let bearer = super::provider_auth::bearer_for(model)?;
+            let api_key = if bearer.starts_with("Bearer ") {
+                &bearer[7..]
+            } else {
+                &bearer
+            };
+
+            let (text, prompt_tokens, completion_tokens, meta) = http_anthropic_direct(
+                client,
+                &url,
+                api_key,
+                &model.id,
+                req.system_prompt,
+                req.user_prompt,
+                req.max_t,
+                req.temperature,
+            )
+            .await?;
+            Ok(adapt_result(text, prompt_tokens, completion_tokens, meta))
+        })
+    }
+}
 
 impl ProviderAdapter for OpenAiCompatAdapter {
     fn supports(&self, provider_type: &ProviderType) -> bool {
@@ -166,6 +204,7 @@ fn adapters() -> Vec<Box<dyn ProviderAdapter>> {
     vec![
         Box::new(GoogleDirectAdapter),
         Box::new(OllamaAdapter),
+        Box::new(AnthropicNativeAdapter),
         Box::new(OpenAiCompatAdapter),
     ]
 }

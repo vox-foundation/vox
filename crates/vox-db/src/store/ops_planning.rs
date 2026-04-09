@@ -57,8 +57,8 @@ impl crate::VoxDb {
             .call(|| async move {
                 conn.execute(
                     "INSERT OR REPLACE INTO plan_versions (
-                    plan_session_id, version, parent_version, trigger_event, trigger_payload_json
-                ) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    plan_session_id, version, parent_version, trigger_event, trigger_payload_json, quality_score, reviewer_verdict
+                ) VALUES (?1, ?2, ?3, ?4, ?5, 0.0, 'pending')",
                     params![
                         plan_session_id.as_str(),
                         version,
@@ -71,6 +71,35 @@ impl crate::VoxDb {
                 conn.execute(
                     "UPDATE plan_sessions SET current_version = ?2, updated_at = datetime('now') WHERE plan_session_id = ?1",
                     params![plan_session_id.as_str(), version],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    pub async fn update_plan_version_quality(
+        &self,
+        plan_session_id: &str,
+        version: i64,
+        quality_score: f64,
+        reviewer_verdict: &str,
+    ) -> Result<(), StoreError> {
+        let plan_session_id = plan_session_id.to_string();
+        let reviewer_verdict = reviewer_verdict.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE plan_versions SET quality_score = ?1, reviewer_verdict = ?2 
+                     WHERE plan_session_id = ?3 AND version = ?4",
+                    params![
+                        quality_score,
+                        reviewer_verdict.as_str(),
+                        plan_session_id.as_str(),
+                        version,
+                    ],
                 )
                 .await?;
                 Ok::<(), StoreError>(())

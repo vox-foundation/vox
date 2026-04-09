@@ -56,7 +56,7 @@ curated:
 - id: cli.build
   title: Build
   description_human: null
-  description_model: CLI operation `vox build`
+  description_model: CLI operation `vox build` (optional `--scaffold` seeds user app shell; same as `VOX_WEB_EMIT_SCAFFOLD`)
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1809,23 +1809,6 @@ curated:
   mcp_tool: null
   cli_path:
   - doctor
-- id: cli.migrate.web
-  title: Migrate Web
-  description_human: null
-  description_model: CLI operation `vox migrate web` — scan `.vox` for React interop migration diagnostics; `--json` report; deterministic `--write` patches (`@component fn` → `component`, `@hook fn` → `fn`, and related safe transforms); `--check` exits non-zero if findings remain
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - migrate
-  - web
 - id: cli.fabrica
   title: Fabrica
   description_human: null
@@ -2369,6 +2352,23 @@ curated:
   - mens
   - workflow
   - run
+- id: cli.migrate.web
+  title: Migrate Web Sources
+  description_human: null
+  description_model: CLI operation `vox migrate web` — scan `.vox` for migration diagnostics; `--json`; `--write` applies `@component fn` → `component`, `@hook fn` → `fn` (and related deterministic patches); `--check` fails CI when findings remain (v2)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - migrate
+  - web
 - id: cli.openclaw
   title: Openclaw
   description_human: null
@@ -4036,6 +4036,36 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_ask_agent
+  cli_path: null
+- id: mcp.vox_attention_history
+  title: Attention History
+  description_human: null
+  description_model: Returns the history of attention shifts.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_attention_history
+  cli_path: null
+- id: mcp.vox_attention_reset
+  title: Attention Reset
+  description_human: null
+  description_model: Resets the attention budget for the agent pool.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_attention_reset
   cli_path: null
 - id: mcp.vox_attention_summary
   title: Attention Summary
@@ -7240,6 +7270,21 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_transfer_file
+  cli_path: null
+- id: mcp.vox_trust_override
+  title: Attention Trust Override
+  description_human: null
+  description_model: Overrides the trust tier for the agent context.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_trust_override
   cli_path: null
 - id: mcp.vox_undo
   title: Undo

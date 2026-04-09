@@ -448,6 +448,21 @@ pub enum AgentEventKind {
     },
     /// Attention policy configuration was hot-reloaded
     AttentionConfigReloaded,
+    
+    /// Warning emitted when context bytes are dropped due to limits
+    ContextTruncated {
+        session_id: String,
+        section: String,
+        chars_dropped: usize,
+    },
+    
+    /// LLM request completed inside planning or context phases
+    LlmCallCompleted {
+        session_id: String,
+        duration_ms: u64,
+        prompt_tokens: u32,
+        completion_tokens: u32,
+    },
 }
 
 // ---------------------------------------------------------------------------

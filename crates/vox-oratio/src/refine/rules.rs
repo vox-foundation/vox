@@ -23,6 +23,27 @@ fn default_confusion_map() -> HashMap<&'static str, &'static str> {
     ])
 }
 
+fn code_confusion_map() -> HashMap<&'static str, &'static str> {
+    HashMap::from([
+        ("unwrap or else", "unwrap_or_else"),
+        ("unwrap or default", "unwrap_or_default"),
+        ("hash map", "HashMap"),
+        ("box dine", "Box<dyn "),
+        ("to string", "to_string"),
+        ("pub fun", "pub fn"),
+        ("pub function", "pub fn"),
+        ("let mute", "let mut "),
+        ("a sync", "async"),
+        ("vec bang", "vec!"),
+        ("debug bang", "dbg!"),
+        ("print len", "println!"),
+        ("print el in", "println!"),
+        ("if let some", "if let Some"),
+        ("impl for", "impl for "),
+        ("mut self", "mut self"),
+    ])
+}
+
 fn default_domain_lexicon() -> HashSet<String> {
     [
         "vox",
@@ -81,7 +102,11 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
         });
     }
 
-    let confusion = default_confusion_map();
+    let mut confusion = default_confusion_map();
+    if ctx.domain == crate::refine::DomainMode::Code {
+        confusion.extend(code_confusion_map());
+    }
+    
     let mut domain_lexicon = default_domain_lexicon();
     for item in &ctx.domain_lexicon {
         domain_lexicon.insert(item.to_ascii_lowercase());

@@ -8,6 +8,8 @@ pub mod replan;
 pub mod schedule;
 pub mod synthesizer;
 pub mod types;
+pub mod review;
+pub mod prompts;
 
 pub use content_blocks::{ContentBlock, markdown_to_content_blocks};
 pub use plan_adequacy::{

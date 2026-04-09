@@ -47,6 +47,33 @@ pub fn char_error_rate(reference: &str, hypothesis: &str) -> f64 {
     d as f64 / r.len() as f64
 }
 
+/// **Symbol error rate** for code-domain evaluation.
+/// Only considers tokens that look like identifiers `[a-zA-Z_][a-zA-Z0-9_]*`.
+#[must_use]
+pub fn symbol_error_rate(reference: &str, hypothesis: &str) -> f64 {
+    let is_ident = |s: &str| -> bool {
+        let mut chars = s.chars();
+        if let Some(c) = chars.next() {
+            if c.is_ascii_alphabetic() || c == '_' {
+                return chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_');
+            }
+        }
+        false
+    };
+
+    let r: Vec<String> = tokenize_words(reference).into_iter().filter(|s| is_ident(s)).collect();
+    let h: Vec<String> = tokenize_words(hypothesis).into_iter().filter(|s| is_ident(s)).collect();
+
+    if r.is_empty() && h.is_empty() {
+        return 0.0;
+    }
+    if r.is_empty() {
+        return 1.0;
+    }
+    let d = levenshtein(r.as_slice(), h.as_slice());
+    d as f64 / r.len() as f64
+}
+
 fn levenshtein<T: Eq>(a: &[T], b: &[T]) -> usize {
     let n = a.len();
     let m = b.len();

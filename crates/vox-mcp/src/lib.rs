@@ -10,7 +10,6 @@
 //! [`mens-training-ssot.md`](../../../docs/src/architecture/mens-training-ssot.md), repo
 //! [`AGENTS.md`](../../../AGENTS.md) §2.2.1 (Codex / Arca / Turso).
 //!
-//! **Shared event sink:** set **`VOX_ORCHESTRATOR_EVENT_LOG`** to a path; [`ServerState`](crate::server::ServerState) appends one JSON line per [`vox_orchestrator::AgentEvent`] (see [`ServerState::spawn_orchestrator_event_log_sink`](crate::server::ServerState::spawn_orchestrator_event_log_sink)). `vox live` can tail the same file when built with the `live` feature.
 
 #![allow(unused)]
 #![allow(clippy::collapsible_if)]

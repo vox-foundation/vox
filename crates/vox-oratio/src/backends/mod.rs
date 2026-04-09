@@ -1,7 +1,13 @@
-//! STT backends (Candle Whisper — pure Rust stack; no whisper.cpp / clang).
+//! STT backends for Oratio. Default: Candle Whisper. Optional: Sherpa-ONNX.
+
+pub mod asr_backend;
+#[cfg(feature = "stt-sherpa")]
+pub mod sherpa_onnx;
+#[cfg(feature = "stt-sherpa")]
+pub mod sherpa_model_config;
 
 #[cfg(feature = "stt-candle")]
-mod audio_io;
+pub mod audio_io;
 #[cfg(feature = "stt-candle")]
 mod candle_engine;
 #[cfg(feature = "stt-candle")]

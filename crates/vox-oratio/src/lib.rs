@@ -15,19 +15,22 @@ pub use acoustic_preprocess::{AcousticPreprocessDiagnostics, preprocess_audio_pc
 pub mod ast_mapper;
 pub mod contextual_bias;
 
-#[cfg(feature = "stt-candle")]
-mod backends;
+pub mod backend_dispatch;
+pub mod backends;
 
 pub mod eval;
+pub mod eval_srt;
 pub mod failure_taxonomy;
 pub mod refine;
 pub mod routing;
+pub mod subtitle;
 pub mod session;
 pub mod speaker_profile;
 pub mod speech_intent;
 pub mod speech_lexicon;
 pub mod speech_normalize;
 pub mod speech_policy;
+pub mod vad;
 /// Env-tunable stabilization thresholds for **future** streaming decoders; offline `transcribe_path` ignores this.
 pub mod streaming_partial;
 /// Policy helpers (escalation hint, cache keys) for hosts — not required for file-based STT.
@@ -35,6 +38,9 @@ pub mod tiering;
 pub mod trace;
 pub mod traits;
 pub mod transcript_rerank;
+
+pub use backend_dispatch::create_backend;
+pub use backends::asr_backend::{AsrBackend, AsrOutput};
 
 #[cfg(feature = "stt-candle")]
 pub use backends::candle_whisper::{

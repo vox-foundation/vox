@@ -222,6 +222,15 @@ pub struct ContextFact {
     pub supersedes_fact_ids: Vec<String>,
 }
 
+/// Emitted when a context section is cut short by the character budget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextTruncatedWarning {
+    pub section: String,
+    pub chars_included: usize,
+    pub chars_dropped: usize,
+    pub session_id: String,
+}
+
 /// Core content payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContextContent {
@@ -238,6 +247,8 @@ pub struct ContextContent {
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub structured_payload: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub truncated_warnings: Vec<ContextTruncatedWarning>,
 }
 
 /// Conflict handling policy.
@@ -399,6 +410,7 @@ impl ContextEnvelope {
                     },
                 ],
                 structured_payload: serde_json::to_value(retrieval).ok(),
+                truncated_warnings: Vec::new(),
             },
             conflict_policy: ContextConflictPolicy {
                 merge_strategy: ContextMergeStrategy::ConfidenceWeighted,
@@ -498,6 +510,7 @@ impl ContextEnvelope {
                         .unwrap_or_else(|| "none".to_string()),
                 ],
                 structured_payload: serde_json::to_value(ctx).ok(),
+                truncated_warnings: Vec::new(),
             },
             conflict_policy: ContextConflictPolicy {
                 merge_strategy: ContextMergeStrategy::AuthorityPrecedence,

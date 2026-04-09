@@ -8,7 +8,7 @@ pub(crate) fn generate_script_pairs(out: &mut impl Write, _cfg: &SyntheticGenCon
         // (prompt, script content, category)
         (
             "Write a PowerShell script to monitor QLoRA training telemetry",
-            r#"$TelemetryPath = "mens\runs\qwen25_qlora\telemetry.jsonl"
+            r#"$TelemetryPath = "mens\runs\qwen35_qlora\telemetry.jsonl"
 if (Test-Path $TelemetryPath) {
     Get-Content $TelemetryPath -Wait -Tail 10 | ForEach-Object {
         $event = $_ | ConvertFrom-Json
@@ -60,7 +60,7 @@ Write-Host "Corpus ready at target/dogfood/train_mixed.jsonl" -ForegroundColor G
         ),
         (
             "Write a PowerShell script to start QLoRA training detached with persistent logging",
-            r#"$RunDir = "mens\runs\qwen25_qlora"
+            r#"$RunDir = "mens\runs\qwen35_qlora"
 New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 New-Item -ItemType Directory -Force -Path "target\dogfood" | Out-Null
 
@@ -80,7 +80,7 @@ Write-Host "Training started. Monitor with: Get-Content $RunDir\telemetry.jsonl 
         ),
         (
             "Write a PowerShell command to tail the training log file",
-            "Get-Content C:\\Users\\Owner\\vox\\mens\\runs\\qwen25_qlora\\telemetry.jsonl -Wait -Tail 10",
+            "Get-Content C:\\Users\\Owner\\vox\\mens\\runs\\qwen35_qlora\\telemetry.jsonl -Wait -Tail 10",
             "shell_command",
         ),
         (

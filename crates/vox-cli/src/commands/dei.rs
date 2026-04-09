@@ -285,11 +285,15 @@ pub async fn resume(agent_id: u64) -> Result<()> {
 pub async fn save() -> Result<()> {
     let config = load_config();
     let orch = build_repo_scoped_orchestrator_cli(config.clone());
+    let store = vox_db::VoxDb::open_default().await?;
     let state = vox_orchestrator::state::OrchestratorState::from_status(&orch.status(), &config);
 
-    match state.save(std::path::Path::new(".vox_orch_state.json")) {
-        Ok(_) => println!("  {} DEI state saved successfully", "✓".green().bold()),
-        Err(e) => println!("  {} Failed to save state: {}", "✗".red().bold(), e),
+    match state.save_to_db(&store).await {
+        Ok(_) => println!(
+            "  {} DEI state saved to DB successfully",
+            "✓".green().bold()
+        ),
+        Err(e) => println!("  {} Failed to save state to DB: {}", "✗".red().bold(), e),
     }
 
     Ok(())
@@ -311,13 +315,15 @@ pub async fn stop(reason: Option<String>) -> Result<()> {
 pub async fn load() -> Result<()> {
     let config = load_config();
     let _orch = build_repo_scoped_orchestrator_cli(config);
+    let store = vox_db::VoxDb::open_default().await?;
 
-    match vox_orchestrator::state::OrchestratorState::load(std::path::Path::new(
-        ".vox_orch_state.json",
-    )) {
-        Ok(Some(_)) => println!("  {} DEI state loaded successfully", "✓".green().bold()),
-        Ok(None) => println!("  {} No saved state found", "ℹ".blue().bold()),
-        Err(e) => println!("  {} Failed to load state: {}", "✗".red().bold(), e),
+    match vox_orchestrator::state::OrchestratorState::load_from_db(&store).await {
+        Ok(Some(_)) => println!(
+            "  {} DEI state loaded from DB successfully",
+            "✓".green().bold()
+        ),
+        Ok(None) => println!("  {} No saved state found in DB", "ℹ".blue().bold()),
+        Err(e) => println!("  {} Failed to load state from DB: {}", "✗".red().bold(), e),
     }
 
     Ok(())

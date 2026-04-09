@@ -10,7 +10,6 @@
 
 pub mod account_registry;
 mod config;
-mod daily_log;
 mod error;
 mod long_term;
 mod manager;
@@ -21,7 +20,6 @@ mod time;
 
 pub use account_registry::AccountMemoryRegistry;
 pub use config::MemoryConfig;
-pub use daily_log::DailyLog;
 pub use error::MemoryError;
 pub use long_term::LongTermMemory;
 pub use manager::{MemoryFact, MemoryManager};

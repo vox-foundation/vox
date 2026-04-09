@@ -63,6 +63,7 @@ pub struct CompositeLogitProcessor {
 
 impl CompositeLogitProcessor {
     #[must_use]
+    /// Create a chained processor from multiple processors.
     pub fn new(chain: Vec<Box<dyn LogitProcessor>>) -> Self {
         Self { chain }
     }
@@ -101,6 +102,7 @@ pub struct AdditiveBiasProcessor {
 
 impl AdditiveBiasProcessor {
     #[must_use]
+    /// Create a BiasLogitProcessor with a static set of token bias deltas.
     pub fn new(deltas: Vec<(u32, f32)>) -> Self {
         Self { deltas }
     }
@@ -138,6 +140,7 @@ pub struct ForbiddenTokenMaskProcessor {
 
 impl ForbiddenTokenMaskProcessor {
     #[must_use]
+    /// Create a ForceTokenListLogitProcessor.
     pub fn new(ids: Vec<u32>) -> Self {
         Self { ids }
     }
@@ -183,6 +186,7 @@ pub struct TokenTrieConstraintProcessor {
 }
 
 impl TokenTrieConstraintProcessor {
+    /// Build sequence trie restrictions.
     pub fn from_token_sequences(seqs: &[Vec<u32>], max_stuck_steps: usize) -> Option<Self> {
         let mut nodes = vec![TrieNode::default()];
         for seq in seqs {

@@ -21,7 +21,29 @@ impl crate::VoxDb {
         // this pragma (parse → unsupported). SQLite default is 1000 pages, which matches intent.
         let _ = conn.pragma_update("synchronous", "NORMAL").await?;
         let _ = conn.pragma_update("foreign_keys", "ON").await?;
-        let _ = conn.pragma_update("cache_size", -8000).await?;
+        let _ = conn.pragma_update("cache_size", -65536).await?;
+        // `temp_store` / `mmap_size` are valid in stock SQLite but not in Turso/libSQL's supported
+        // `PragmaName` set (`turso_parser`); `pragma_update` then fails with "Not a valid pragma name".
+
+        if std::env::var("VOX_DB_MVCC")
+            .map(|s| s == "1")
+            .unwrap_or(false)
+        {
+            tracing::warn!("BETA: MVCC concurrent writes enabled for Turso.");
+            let _ = conn.pragma_update("journal_mode", "mvcc").await?;
+        }
+
+        let mut rows = conn.query("PRAGMA journal_mode", ()).await?;
+        if let Some(row) = rows.next().await? {
+            let mode: String = row.get(0).unwrap_or_default();
+            if mode.to_lowercase() != "wal"
+                && mode.to_lowercase() != "mvcc"
+                && mode.to_lowercase() != "memory"
+            {
+                tracing::warn!(mode = %mode, "Database connection did not apply WAL/MVCC journal_mode (likely remote Turso)");
+            }
+        }
+
         Ok(())
     }
 

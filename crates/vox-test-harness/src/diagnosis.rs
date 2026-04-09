@@ -91,3 +91,20 @@ impl TestDiagnosis {
         }
     }
 }
+
+/// Reward record for GRPO data flywheel logging.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HarnessIngestExpectations {
+    pub test: String,
+    pub crate_name: String,
+    pub ast_reward: f32,
+    pub is_pass: bool,
+}
+
+impl HarnessIngestExpectations {
+    pub fn emit_grpo_reward(&self) {
+        if let Ok(json) = serde_json::to_string(self) {
+            println!("GRPO_REWARD: {}", json);
+        }
+    }
+}

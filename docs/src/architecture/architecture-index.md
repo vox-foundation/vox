@@ -4,7 +4,7 @@ description: "Guide to the current architecture, SSOT, research, and roadmap doc
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-06
+last_updated: 2026-04-08
 training_eligible: true
 ---
 
@@ -49,6 +49,8 @@ Use these when the question is exploratory, comparative, or evidence-gathering:
 - [Telemetry unification research findings 2026](telemetry-unification-research-findings-2026.md)
 - [Context management research findings 2026](context-management-research-findings-2026.md)
 - [Protocol convergence research 2026](protocol-convergence-research-2026.md)
+- [ASR speech-to-code scouting 2026](asr-speech-to-code-findings-2026.md) — model WER comparison, Canary/Qwen/Whisper/Moonshine/Parakeet overview
+- [ASR speech-to-code full architecture 2026](asr-speech-to-code-architecture-2026.md) — preprocessing stack, Rust crate design, WER estimates by adaptation tier, MENS integration, training pathway
 - `*-research-2026.md`
 - `*-findings-2026.md`
 - synthesis pages that are explicitly labeled as research
@@ -57,6 +59,8 @@ Use these when the question is exploratory, comparative, or evidence-gathering:
 
 Use these when a page describes intended implementation rather than current behavior:
 
+- [Qwen 3.6 integration research (groundwork)](qwen36-integration-research.md) — pre-implementation checklist vs Qwen 3.5 SSOT; native vs API paths
+- [Qwen3.5 multimodal Phase 2 backlog](qwen35-multimodal-phase2-backlog.md) — vision/video tokens after text-only 3.5 is green
 - [Context management implementation blueprint](context-management-implementation-blueprint.md)
 - [Context management phase 1 backlog](context-management-phase1-backlog.md)
 - `*-implementation-plan-2026.md`

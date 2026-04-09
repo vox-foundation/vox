@@ -9,11 +9,10 @@ use serde::{Deserialize, Serialize};
 use crate::types::AgentId;
 
 use super::config::MemoryConfig;
-use super::daily_log::DailyLog;
 use super::error::MemoryError;
 use super::long_term::LongTermMemory;
 use super::search_hit::SearchHit;
-use super::time::{today_str, yesterday_str};
+use super::time::today_str;
 
 /// A quick in-memory cache of a recently stored fact.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,7 +40,6 @@ pub struct MemoryFact {
 /// **MEMORY.md**, then **Codex** (via [`Self::recall_async`] — sync [`Self::recall`] stops after file).
 pub struct MemoryManager {
     pub(super) config: MemoryConfig,
-    pub(super) today_log: DailyLog,
     pub(super) long_term: LongTermMemory,
     /// In-memory cache of recently stored facts (bounded).
     pub(super) cache: Vec<MemoryFact>,
@@ -56,12 +54,9 @@ pub struct MemoryManager {
 impl MemoryManager {
     /// Create a `MemoryManager` using the given config (file-only mode).
     pub fn new(config: MemoryConfig) -> Result<Self, MemoryError> {
-        let today = today_str();
-        let today_log = DailyLog::open(&config.log_dir, &today)?;
         let long_term = LongTermMemory::open(&config.memory_md_path)?;
         Ok(Self {
             config,
-            today_log,
             long_term,
             cache: Vec::new(),
             cache_limit: 256,
@@ -114,7 +109,25 @@ impl MemoryManager {
 
     /// Append a note to today's daily log.
     pub fn log(&self, entry: &str) -> Result<(), MemoryError> {
-        self.today_log.append(entry)
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let entry = entry.to_string();
+            let acc = self.config.account_id.clone();
+            tokio::spawn(async move {
+                let _ = db
+                    .save_memory(vox_db::SaveMemoryParams {
+                        agent_id: "global",
+                        session_id: "global",
+                        memory_type: "daily_log",
+                        content: &entry,
+                        metadata: Some(&format!("{{\"account_id\":\"{acc}\"}}")),
+                        importance: 1.0,
+                        vcs_snapshot_id: None,
+                    })
+                    .await;
+            });
+        }
+        Ok(())
     }
 
     /// Persist a key-value fact to MEMORY.md, in-memory cache, and VoxDB.
@@ -422,34 +435,6 @@ impl MemoryManager {
     pub fn search(&self, query: &str) -> Result<Vec<SearchHit>, MemoryError> {
         let q = query.to_lowercase();
         let mut hits = Vec::new();
-
-        // Search today's log
-        let today = self.today_log.read()?;
-        for (i, line) in today.lines().enumerate() {
-            if line.to_lowercase().contains(&q) {
-                hits.push(SearchHit {
-                    source: format!("daily:{}", today_str()),
-                    line: i + 1,
-                    content: line.to_string(),
-                });
-            }
-        }
-
-        // Search yesterday's log
-        let yesterday = DailyLog::open(&self.config.log_dir, &yesterday_str())?;
-        if yesterday.exists() {
-            let content = yesterday.read()?;
-            for (i, line) in content.lines().enumerate() {
-                if line.to_lowercase().contains(&q) {
-                    hits.push(SearchHit {
-                        source: format!("daily:{}", yesterday_str()),
-                        line: i + 1,
-                        content: line.to_string(),
-                    });
-                }
-            }
-        }
-
         // Search MEMORY.md
         let memory_content = self.long_term.read_all()?;
         for (i, line) in memory_content.lines().enumerate() {
@@ -496,29 +481,6 @@ impl MemoryManager {
             }
         }
 
-        // Yesterday's log
-        let yesterday = yesterday_str();
-        if let Ok(ylog) = DailyLog::open(&self.config.log_dir, &yesterday) {
-            if ylog.exists() {
-                if let Ok(content) = ylog.read() {
-                    if !content.trim().is_empty() {
-                        out.push_str(&format!("## Yesterday ({yesterday})\n\n"));
-                        out.push_str(&content);
-                        out.push_str("\n\n");
-                    }
-                }
-            }
-        }
-
-        // Today's log
-        if let Ok(content) = self.today_log.read() {
-            if !content.trim().is_empty() {
-                out.push_str(&format!("## Today ({})\n\n", today_str()));
-                out.push_str(&content);
-                out.push('\n');
-            }
-        }
-
         out
     }
 
@@ -538,10 +500,11 @@ impl MemoryManager {
             let _ = write!(summary, "{key}, ");
         }
         if count > 0 {
-            let _ = self.today_log.append(&format!(
+            let summary_str = format!(
                 "[pre-compaction flush] Persisted {count} facts: {}",
                 summary.trim_end_matches(", ")
-            ));
+            );
+            let _ = self.log(&summary_str);
         }
         Ok(count)
     }

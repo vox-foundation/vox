@@ -15,16 +15,17 @@ pub(super) fn enforce_free_tier_if_needed(
     }
     let task = res.task_category;
     registry
-        .best_free_for_with_filter(task, mcp_ollama_model_allowed)
-        .or_else(|| registry.cheapest_free_with_filter(mcp_ollama_model_allowed))
+        .best_free_for_with_filter(task, mcp_local_model_allowed)
+        .or_else(|| registry.cheapest_free_with_filter(mcp_local_model_allowed))
         .ok_or_else(|| {
             "No free-tier model available (enforce_free_tier_only) after VOX_INFERENCE_PROFILE rules; clear sticky override, allow desktop_ollama/lan_gateway for Ollama, or add a non-Ollama free model in models.toml".to_string()
         })
 }
 
 #[must_use]
-pub(super) fn mcp_ollama_model_allowed(m: &ModelSpec) -> bool {
-    !matches!(m.provider_type, ProviderType::Ollama) || inference_profile_allows_local_ollama_http()
+pub(super) fn mcp_local_model_allowed(m: &ModelSpec) -> bool {
+    let is_local = matches!(m.provider_type, ProviderType::Ollama | ProviderType::PopuliMesh);
+    !is_local || inference_profile_allows_local_ollama_http()
 }
 
 #[must_use]

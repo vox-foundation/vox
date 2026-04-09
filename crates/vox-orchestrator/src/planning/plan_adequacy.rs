@@ -400,9 +400,17 @@ fn compute_adequacy_summary(
     router_complexity_hint: Option<u8>,
     depth_bonus: i8,
     aggregate_unresolved_risk: f32,
+    fatigued: bool,
 ) -> PlanAdequacySummary {
-    let estimated = effective_goal_complexity(goal, router_complexity_hint);
-    let detail_target = detail_target_min_tasks(estimated, depth_bonus);
+    let mut estimated = effective_goal_complexity(goal, router_complexity_hint);
+    if fatigued {
+        // Escalate complexity expectation when human is burnt out (forcing more precise plan decomposition).
+        estimated = estimated.max(8);
+    }
+    let mut detail_target = detail_target_min_tasks(estimated, depth_bonus);
+    if fatigued {
+        detail_target = (detail_target * 2).max(4); // Force much higher task decomposition when fatigued.
+    }
 
     let mut thin_codes = Vec::new();
     let mut score: f32 = 1.0;
@@ -478,6 +486,7 @@ pub fn analyze_plan_refinement_report(
     router_complexity_hint: Option<u8>,
     plan_depth_bonus: i8,
     tasks: &[PlanAdequacyTask],
+    fatigued: bool,
 ) -> PlanRefinementReport {
     analyze_plan_refinement_report_with_prior(
         goal,
@@ -486,6 +495,7 @@ pub fn analyze_plan_refinement_report(
         plan_depth_bonus,
         tasks,
         None,
+        fatigued,
     )
 }
 
@@ -496,6 +506,7 @@ pub fn analyze_plan_refinement_report_with_prior(
     plan_depth_bonus: i8,
     tasks: &[PlanAdequacyTask],
     prior_tasks_after_refine: Option<&[PlanAdequacyTask]>,
+    fatigued: bool,
 ) -> PlanRefinementReport {
     let mut router = router_complexity_hint;
     if scope_file_count >= 4 {
@@ -514,6 +525,7 @@ pub fn analyze_plan_refinement_report_with_prior(
         router,
         plan_depth_bonus,
         aggregate_unresolved_risk,
+        fatigued,
     );
 
     let (sn_codes, sn_mul) = structural_noise_penalties(
@@ -602,7 +614,7 @@ mod tests {
     fn flags_too_few_tasks_for_complex_goal() {
         let goal = "migrate authentication across crates/vox-auth, crates/vox-mcp, and update docs; add regression tests";
         let tasks = vec![sample_task(1, "do the migration work", 8)];
-        let r = analyze_plan_refinement_report(goal, 0, None, 0, &tasks);
+        let r = analyze_plan_refinement_report(goal, 0, None, 0, &tasks, false);
         assert!(r.adequacy.is_too_thin);
         assert!(r.adequacy.reason_codes.iter().any(|c| c == "too_few_tasks"));
     }
@@ -611,7 +623,7 @@ mod tests {
     fn per_task_destructive_still_critical() {
         let goal = "small cleanup";
         let tasks = vec![sample_task(1, "rm -rf /unused", 3)];
-        let r = analyze_plan_refinement_report(goal, 0, None, 0, &tasks);
+        let r = analyze_plan_refinement_report(goal, 0, None, 0, &tasks, false);
         assert!(r.critical_count >= 1);
         assert!(r.aggregate_unresolved_risk > 0.2);
     }
@@ -629,7 +641,7 @@ mod tests {
             sample_task(1, "audit current auth flows in crates/vox-auth", 5),
             sample_task(2, "finish migration and testing", 8),
         ];
-        let r = analyze_plan_refinement_report_with_prior(goal, 0, None, 0, &shrunk, Some(&prior));
+        let r = analyze_plan_refinement_report_with_prior(goal, 0, None, 0, &shrunk, Some(&prior), false);
         assert!(
             r.adequacy
                 .reason_codes
@@ -647,7 +659,7 @@ mod tests {
             "Add detailed error recovery for unexpected tokens in the grammar pipeline with tests";
         let tasks: Vec<PlanAdequacyTask> =
             (1..=5usize).map(|id| sample_task(id, open, 5)).collect();
-        let r = analyze_plan_refinement_report(goal, 0, None, 0, &tasks);
+        let r = analyze_plan_refinement_report(goal, 0, None, 0, &tasks, false);
         assert!(
             r.adequacy
                 .reason_codes

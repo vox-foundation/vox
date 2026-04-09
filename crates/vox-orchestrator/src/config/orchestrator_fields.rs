@@ -282,6 +282,16 @@ pub struct OrchestratorConfig {
     /// Rollout percentage for auto planning (0-100).
     #[serde(default)]
     pub planning_rollout_percent: u8,
+    #[serde(default = "default_planning_depth")]
+    pub planning_depth: String,
+    #[serde(default = "default_parallel_context_enabled")]
+    pub parallel_context_enabled: bool,
+    #[serde(default = "default_context_gather_timeout_secs")]
+    pub context_gather_timeout_secs: u64,
+    #[serde(default = "default_min_quality_score")]
+    pub min_quality_score: f64,
+    #[serde(default = "default_context_compression_enabled")]
+    pub context_compression_enabled: bool,
     /// When true (default), plan adequacy is recorded in lineage/telemetry only; enqueue behavior is unchanged.
     #[serde(default = "default_true")]
     pub plan_adequacy_shadow: bool,

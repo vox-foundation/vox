@@ -17,7 +17,7 @@ use anyhow::Result;
                   Pass flags on `train` (e.g. `vox-schola train --device cuda --preset 4080`).\n\n\
                   Quick start:\n\
                   \n  vox-schola   # default `--model`: Qwen/Qwen3.5-4B (VoxMens SSOT; forwards to `vox` when found)\
-                  \n  vox-schola train --device cuda --preset 4080 --model Qwen/Qwen2.5-Coder-1.5B-Instruct\
+                  \n  vox-schola train --device cuda --preset 4080 --model Qwen/Qwen3.5-4B\
                   \n  vox-schola serve --model mens/runs/latest\
                   \n  vox-schola probe",
     version,
@@ -60,7 +60,7 @@ impl Args {
 pub enum Cmd {
     /// Fine-tune a HuggingFace model with Candle QLoRA (NF4).
     Train {
-        /// HuggingFace model repo (e.g. Qwen/Qwen2.5-Coder-1.5B-Instruct). Downloads weights.
+        /// HuggingFace model repo (e.g. Qwen/Qwen3.5-4B; default is Vox Mens SSOT). Downloads weights.
         #[arg(long, default_value = vox_populi::mens::DEFAULT_MODEL_ID)]
         model: Option<String>,
         /// GPU backend: best | cuda | cpu | metal | vulkan | dx12.

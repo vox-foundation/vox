@@ -481,6 +481,7 @@ mod tests {
                 citations: Vec::new(),
                 tags: Vec::new(),
                 structured_payload: None,
+                truncated_warnings: Vec::new(),
             },
             conflict_policy: ContextConflictPolicy {
                 merge_strategy: ContextMergeStrategy::LastWriteWins,

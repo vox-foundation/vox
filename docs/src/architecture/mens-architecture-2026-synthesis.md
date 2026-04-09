@@ -18,9 +18,9 @@ Vox Mens is the unified native Rust AI/ML subsystem that moves Vox beyond legacy
 1.  **`vox mens corpus` (Data Pipeline)**: Extracts syntactically correct code samples directly from `.vox` files in the repository. It performs a semantic validation through the Vox compiler and tokenizes data via the deterministic, character-level `VoxTokenizer`.
 2.  **`vox-tensor` (Core ML Primitives)**: The foundational crate that wraps backend logic. It abstracts tensors and Neural Network (`nn`) modules so they gracefully dispatch to specific device backends (WGPU, CUDA, Metal, NdArray).
 3.  **`vox mens train` (Native Orchestrator)**: The heart of the fine-tuning process. The active and supported path is:
-    *   **Candle qlora-rs (`--backend qlora`)**: Geared specifically for 16GB VRAM hardware (e.g., RTX 4080) fine-tuning industry models like Qwen2.5-Coder. It applies NF4 (4-bit NormalFloat) quantization to frozen Hugging Face (HF) base model weights while only training localized high-precision LoRA matrices.
+    *   **Candle qlora-rs (`--backend qlora`)**: Geared specifically for 16GB VRAM hardware (e.g., RTX 4080) fine-tuning industry models in the **Qwen 3.5** family (SSOT base: `Qwen/Qwen3.5-4B`; see [`mens-training.md`](../reference/mens-training.md)). It applies NF4 (4-bit NormalFloat) quantization to frozen Hugging Face (HF) base model weights while only training localized high-precision LoRA matrices.
     *   **Burn LoRA (`--backend lora`)**: historical path kept for context only; no longer the active training lane in current code.
-4.  **`vox mens serve` (Inference Server)**: An Axum-based high-concurrency server implementing the `OpenAI /v1/completions` API schema natively, seamlessly serving merged Burn LoRA checkpoints.
+4.  **`vox mens serve` (Inference Server)**: For QLoRA run directories, delegates to **`vox-schola serve`** (OpenAI-compatible HTTP); legacy Burn merged checkpoints remain a separate lane. See [`mens-serving-ssot.md`](../reference/mens-serving-ssot.md).
 
 ## 2. Mathematical Decisions & Foundations
 

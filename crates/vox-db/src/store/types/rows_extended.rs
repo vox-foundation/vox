@@ -484,6 +484,8 @@ pub struct PlanVersionRow {
     pub parent_version: Option<i64>,
     pub trigger_event: Option<String>,
     pub trigger_payload_json: Option<String>,
+    pub quality_score: f64,
+    pub reviewer_verdict: String,
 }
 
 /// One row from `plan_nodes`.

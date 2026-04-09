@@ -7,6 +7,8 @@ const CEREBRAS_URL: &str = "https://api.cerebras.ai/v1/chat/completions";
 const MISTRAL_URL: &str = "https://api.mistral.ai/v1/chat/completions";
 const DEEPSEEK_URL: &str = "https://api.deepseek.com/chat/completions";
 const SAMBANOVA_URL: &str = "https://api.sambanova.ai/v1/chat/completions";
+const ANTHROPIC_PROXY_URL: &str = "http://127.0.0.1:4000/v1/chat/completions";
+const ANTHROPIC_MESSAGES_URL: &str = "https://api.anthropic.com/v1/messages";
 
 fn env_or_default(key: &str, default_value: &str) -> String {
     std::env::var(key)
@@ -33,6 +35,14 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         ProviderType::SambaNova => Ok(env_or_default(
             "SAMBANOVA_CHAT_COMPLETIONS_URL",
             SAMBANOVA_URL,
+        )),
+        ProviderType::Anthropic => Ok(env_or_default(
+            "ANTHROPIC_CHAT_COMPLETIONS_URL",
+            if std::env::var("ANTHROPIC_DIRECT").unwrap_or_default() == "1" {
+                ANTHROPIC_MESSAGES_URL
+            } else {
+                ANTHROPIC_PROXY_URL
+            },
         )),
         ProviderType::Custom(base) => {
             let trimmed = base.trim();

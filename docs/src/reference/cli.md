@@ -149,31 +149,7 @@ Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; ther
 
 Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, milestone eval matrix contract, workflow `scripts/` allowlist, Mens gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
 
-### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
-When **`vox` is not installed** or not on `PATH`, use the repo launchers so **`cargo run -p vox-cli`** runs from the **workspace root** (Cargo decides incrementally whether to rebuild):
-
-- **Windows (PowerShell):** `pwsh -File scripts/windows/vox-dev.ps1 <vox args…>` — [`scripts/windows/vox-dev.ps1`](../../../scripts/windows/vox-dev.ps1)
-- **Linux / macOS / Git Bash:** `./scripts/vox-dev.sh <vox args…>` — [`scripts/vox-dev.sh`](../../../scripts/vox-dev.sh)
-
-| Env | Meaning |
-|-----|---------|
-| `VOX_REPO_ROOT` | Force workspace root (root `Cargo.toml` must contain `[workspace]`). |
-| `VOX_USE_PATH=1` | Prefer **`vox` on `PATH`** when present (default: **`cargo run`** from the clone so the binary matches sources). |
-| `VOX_DEV_FEATURES` | Optional comma-separated Cargo features for `vox-cli` (e.g. `coderabbit,gpu`). If unset and an argument equals **`coderabbit`**, the launcher adds **`--features coderabbit`**. |
-| `VOX_DEV_QUIET=1` | Pass **`--quiet`** to **`cargo run`**. |
-
-**Full-repo CodeRabbit (build-if-needed + open PRs):** set **`GITHUB_TOKEN`** or **`GH_TOKEN`**, then from the repo root:
-
-```powershell
-pwsh -File scripts/windows/vox-dev.ps1 review coderabbit semantic-submit --full-repo --execute
-```
-
-```bash
-./scripts/vox-dev.sh review coderabbit semantic-submit --full-repo --execute
-```
-
-Equivalent one-liner without the script: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --full-repo --execute` (plan-only: omit **`--execute`**).
 
 | Subcommand | Role |
 |------------|------|
@@ -224,6 +200,31 @@ Equivalent one-liner without the script: `cargo run -p vox-cli --features codera
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
 
+### Bootstrap / dev launcher (missing `vox` on `PATH`)
+
+When **`vox` is not installed** or not on `PATH`, use the repo launchers so **`cargo run -p vox-cli`** runs from the **workspace root** (Cargo decides incrementally whether to rebuild):
+
+- **Windows (PowerShell):** `pwsh -File scripts/windows/vox-dev.ps1 <vox args…>` — [`scripts/windows/vox-dev.ps1`](../../../scripts/windows/vox-dev.ps1)
+- **Linux / macOS / Git Bash:** `./scripts/vox-dev.sh <vox args…>` — [`scripts/vox-dev.sh`](../../../scripts/vox-dev.sh)
+
+| Env | Meaning |
+|-----|---------|
+| `VOX_REPO_ROOT` | Force workspace root (root `Cargo.toml` must contain `[workspace]`). |
+| `VOX_USE_PATH=1` | Prefer **`vox` on `PATH`** when present (default: **`cargo run`** from the clone so the binary matches sources). |
+| `VOX_DEV_FEATURES` | Optional comma-separated Cargo features for `vox-cli` (e.g. `coderabbit,gpu`). If unset and an argument equals **`coderabbit`**, the launcher adds **`--features coderabbit`**. |
+| `VOX_DEV_QUIET=1` | Pass **`--quiet`** to **`cargo run`**. |
+
+**Full-repo CodeRabbit (build-if-needed + open PRs):** set **`GITHUB_TOKEN`** or **`GH_TOKEN`**, then from the repo root:
+
+```powershell
+pwsh -File scripts/windows/vox-dev.ps1 review coderabbit semantic-submit --full-repo --execute
+```
+
+```bash
+./scripts/vox-dev.sh review coderabbit semantic-submit --full-repo --execute
+```
+
+Equivalent one-liner without the script: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --full-repo --execute` (plan-only: omit **`--execute`**).
 ### `vox clavis` (alias `vox secrets`)
 
 Centralized secret diagnostics and compatibility credential storage.
@@ -301,6 +302,11 @@ End-to-end **shipping** flow: build → scaffold `dist/app` (Vite + React) → *
 | `--release` | `true` | Release vs debug backend build |
 
 If no TSX components are detected after build, stops after codegen (“backend-only”).
+
+### `vox migrate web`
+
+Automated codemod runner for migrating legacy web concepts into standardized Path C React syntax.
+`vox migrate web --apply` rewrites `.vox` files in place to remove legacy tags such as `@component` and updates them to standard block properties.
 
 ## Quality
 

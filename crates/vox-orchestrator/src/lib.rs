@@ -122,7 +122,7 @@ pub mod orch_daemon;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
 /// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
-pub mod orchestrator_event_log;
+
 /// Dynamic planning domain (router, synthesis, policies, replanning).
 pub mod planning;
 /// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
@@ -232,7 +232,7 @@ pub use heartbeat::{
     live_nodes_from_db, persist_heartbeat,
 };
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
-pub use memory::{DailyLog, LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
+pub use memory::{LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
 pub use monitor::AiMonitor;
 pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
 pub use orchestrator::{Orchestrator, TaskTraceStep};

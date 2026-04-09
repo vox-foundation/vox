@@ -165,7 +165,12 @@ impl Diagnostic {
 
     /// HIR structural invariant violation (after lowering).
     #[must_use]
-    pub fn hir_invariant(message: String, span: Span, source: &str) -> Self {
+    pub fn hir_invariant(
+        message: String,
+        span: Span,
+        source: &str,
+        correction_hint: Option<String>,
+    ) -> Self {
         Self {
             severity: TypeckSeverity::Error,
             message,
@@ -173,7 +178,7 @@ impl Diagnostic {
             expected_type: None,
             found_type: None,
             context: Some(Self::capture_context(source, span)),
-            suggestions: vec![],
+            suggestions: correction_hint.into_iter().collect(),
             category: DiagnosticCategory::HirInvariant,
             code: None,
             fixes: vec![],

@@ -45,6 +45,8 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         "codegen" => TaskCategory::CodeGen,
         "review" => TaskCategory::Review,
         "general" | "ars" | "planning" => TaskCategory::General,
+        "inter_agent" => TaskCategory::InterAgent,
+        "tool_orchestration" => TaskCategory::ToolOrchestration,
         _ => {
             return ToolResult::<String>::err_with_remediation(
                 "Unknown task_category",
@@ -62,6 +64,8 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         TaskCategory::General => 5,
         TaskCategory::Planning => 8,
         TaskCategory::Ars => 9,
+        TaskCategory::InterAgent => 2,
+        TaskCategory::ToolOrchestration => 5,
     };
     let resolution = McpChatModelResolution {
         allow_cheapest_fallback: true,

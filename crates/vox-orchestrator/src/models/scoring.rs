@@ -98,7 +98,10 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
 
     match m.provider_type {
         ProviderType::Ollama => 0.95,
+        ProviderType::Groq => 0.95,
+        ProviderType::Cerebras => 0.95,
         ProviderType::GoogleDirect => 0.8,
+        ProviderType::Anthropic => 0.75,
         ProviderType::OpenRouter => {
             // Give fast engines on OpenRouter a better fallback if missing p50
             if m.id.to_lowercase().contains("llama-3")
@@ -223,7 +226,19 @@ pub fn auto_score_model(
         + f64::from(w.availability) * availability_score
         + f64::from(w.balance) * balance_bias
         + f64::from(w.mobile) * mobile_score(m);
-    (score / total_w) + fim_bias
+        
+    let mens_bonus = if m.provider_type == crate::models::ProviderType::PopuliMesh {
+        // Find if we are currently parsing or doing inter-agent
+        if *m.id == *"mens/vox-language-model" {
+            0.25
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+    
+    (score / total_w) + fim_bias + mens_bonus
 }
 
 #[cfg(test)]
@@ -269,6 +284,10 @@ mod tests {
         assert_eq!(latency_score(&spec), 0.95, "Ollama fallback = 0.95");
         let spec2 = make_spec(ProviderType::OpenRouter, 0.0, false);
         assert_eq!(latency_score(&spec2), 0.7, "OpenRouter fallback = 0.7");
+        let spec3 = make_spec(ProviderType::Groq, 0.0, true);
+        assert_eq!(latency_score(&spec3), 0.95, "Groq fallback = 0.95");
+        let spec4 = make_spec(ProviderType::Anthropic, 0.0, false);
+        assert_eq!(latency_score(&spec4), 0.75, "Anthropic fallback = 0.75");
     }
 
     #[test]

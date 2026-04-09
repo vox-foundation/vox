@@ -59,7 +59,7 @@ fn validate_document_impl(text: &str, include_hir: bool) -> Vec<Diagnostic> {
             if include_hir {
                 let hir = vox_compiler::hir::lower_module(&module);
                 for e in vox_compiler::hir::validate_module(&hir) {
-                    type_errors.push(TypeckDiagnostic::hir_invariant(e.message, e.span, text));
+                    type_errors.push(TypeckDiagnostic::hir_invariant(e.message, e.span, text, e.correction_hint));
                 }
             }
             diagnostics.extend(

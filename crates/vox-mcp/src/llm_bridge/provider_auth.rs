@@ -34,6 +34,9 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
         ProviderType::SambaNova => {
             required_secret(vox_clavis::SecretId::SambaNovaApiKey, "SambaNova")
         }
+        ProviderType::Anthropic => {
+            required_secret(vox_clavis::SecretId::AnthropicApiKey, "Anthropic")
+        }
         ProviderType::Custom(_) => {
             required_secret(vox_clavis::SecretId::CustomOpenAiApiKey, "Custom OpenAI")
         }

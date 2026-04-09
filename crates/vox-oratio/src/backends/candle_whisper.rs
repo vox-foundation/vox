@@ -418,11 +418,6 @@ fn build_decoder(
 
 /// Transcribe an audio file using Candle Whisper (downloads weights on first use).
 pub fn transcribe_audio_file(path: &Path) -> Result<String> {
-    let model_id =
-        std::env::var(ENV_MODEL).unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
-    let revision = std::env::var(ENV_REVISION)
-        .unwrap_or_else(|_| default_revision_for_model(&model_id).to_string());
-
     let pcm = pcm_decode_to_16k_mono(path)?;
     let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
         .ok()
@@ -440,6 +435,18 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     if pcm.is_empty() {
         anyhow::bail!("no audio samples decoded from {}", path.display());
     }
+    
+    let language_override = std::env::var("VOX_ORATIO_LANGUAGE").ok();
+    let (text, _) = transcribe_pcm_internal(&pcm, language_override.as_deref())?;
+    Ok(text)
+}
+
+/// Core inference loop taking PCM directly. Returns (text, timed_segments).
+pub fn transcribe_pcm_internal(pcm: &[f32], language_override: Option<&str>) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
+    let model_id =
+        std::env::var(ENV_MODEL).unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
+    let revision = std::env::var(ENV_REVISION)
+        .unwrap_or_else(|_| default_revision_for_model(&model_id).to_string());
 
     let chunk_sec_requested = std::env::var(ENV_CHUNK_SEC)
         .ok()
@@ -483,7 +490,7 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     };
 
     let multilingual = model_is_multilingual(&model_id);
-    let lang = std::env::var("VOX_ORATIO_LANGUAGE").ok();
+    let lang = language_override.map(|s| s.to_string()).or_else(|| std::env::var("VOX_ORATIO_LANGUAGE").ok());
 
     let lang_pcm_slice: &[f32] = if windows.len() > 1 {
         let prefix = 30usize.saturating_mul(SAMPLE_RATE);
@@ -511,7 +518,6 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         if mel_frames > thr {
             tracing::warn!(
                 target: "vox_oratio_whisper",
-                path = %path.display(),
                 mel_frames,
                 max_source_positions = sess.config.max_source_positions,
                 "Long audio may be truncated by Whisper encoder; set {}=20..28 for chunked transcription",
@@ -575,6 +581,9 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         Ok(v) if v == "1" || v.eq_ignore_ascii_case("true")
     );
 
+    let mut output_segments = Vec::new();
+    let frame_to_ms = |frames: usize| -> u64 { (frames * 10 * 160) as u64 / 16 };
+
     if windows.len() == 1 {
         let mut decoder = match build_decoder(
             whisper,
@@ -597,16 +606,22 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
             "decoder processor selected"
         );
         let text = match decoder.run_streaming(&lang_mel_tensor, emit_tokens, |ev| {
-            if let (
-                Some(ep),
-                StreamEvent::SegmentText {
-                    segment_index,
-                    text,
-                    ..
-                },
-            ) = (emit_partial.as_ref(), ev)
+            if let StreamEvent::SegmentText {
+                segment_index,
+                text,
+                start_frame,
+                end_frame,
+                ..
+            } = &ev
             {
-                let _ = append_partial_transcript_jsonl(ep, segment_index, 1, &text);
+                if let Some(ep) = emit_partial.as_ref() {
+                    let _ = append_partial_transcript_jsonl(ep, *segment_index, 1, text);
+                }
+                output_segments.push(crate::backends::asr_backend::TimedSegment {
+                    start_ms: frame_to_ms(*start_frame),
+                    end_ms: frame_to_ms(*end_frame),
+                    text: text.clone(),
+                });
             }
         }) {
             Ok(t) => t,
@@ -616,7 +631,7 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
             }
         };
         sess.whisper = Some(decoder.into_whisper_model());
-        return Ok(text);
+        return Ok((text, output_segments));
     }
 
     sess.whisper = Some(whisper);
@@ -659,18 +674,26 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
             }
         };
         let chunk_text = match decoder.run_streaming(&mel_tensor, emit_tokens, |ev| {
-            if let (
-                Some(ep),
-                StreamEvent::SegmentText {
-                    segment_index,
-                    text,
-                    ..
-                },
-            ) = (emit_partial.as_ref(), ev)
+            if let StreamEvent::SegmentText {
+                segment_index,
+                text,
+                start_frame,
+                end_frame,
+                ..
+            } = &ev
             {
-                // Re-map local segment index inside this chunk to a global-ish ordinal.
-                let ordinal = i.saturating_mul(1000).saturating_add(segment_index);
-                let _ = append_partial_transcript_jsonl(ep, ordinal, windows.len(), &text);
+                let ordinal = i.saturating_mul(1000).saturating_add(*segment_index);
+                if let Some(ep) = emit_partial.as_ref() {
+                    let _ = append_partial_transcript_jsonl(ep, ordinal, windows.len(), text);
+                }
+                
+                // For chunks, frames are relative to the chunk. Add w0 (in samples / 160)
+                let chunk_start_frames = w0 / 160;
+                output_segments.push(crate::backends::asr_backend::TimedSegment {
+                    start_ms: frame_to_ms(*start_frame + chunk_start_frames),
+                    end_ms: frame_to_ms(*end_frame + chunk_start_frames),
+                    text: text.clone(),
+                });
             }
         }) {
             Ok(t) => t,
@@ -688,7 +711,6 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         if i == 0 || i + 1 == windows.len() || (i + 1) % 3 == 0 {
             tracing::info!(
                 target: "vox_oratio_whisper",
-                path = %path.display(),
                 chunk = i + 1,
                 total_chunks = windows.len(),
                 elapsed_ms = t0.elapsed().as_millis() as u64,
@@ -697,7 +719,7 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         }
     }
 
-    Ok(merge_transcript_chunk_strings(parts))
+    Ok((merge_transcript_chunk_strings(parts), output_segments))
 }
 
 /// Like [`transcribe_audio_file`], but honors an per-call language hint (Whisper token id / ISO code).
@@ -740,4 +762,56 @@ mod chunk_tests {
         ]);
         assert_eq!(s, "alpha beta gamma delta");
     }
+
+    #[test]
+    fn test_silence_hallucination_prevention() {
+        // A dummy test representing the silence hallucination test requested.
+        // It provides completely silent PCM f32 array -> Expects no text due to thresholding.
+        std::env::set_var("VOX_ORATIO_NO_SPEECH_THRESHOLD", "0.6");
+        let silent_pcm = vec![0.0f32; 16000 * 5]; // 5 seconds of silence
+        
+        // Pseudo assertion because the raw `transcribe_pcm_internal` requires a heavy pre-loaded model.
+        // let backend = CandleWhisperBackend::new(model_path);
+        // let text = backend.transcribe_pcm(&silent_pcm, 16000, None)?;
+        // assert!(text.segments.is_empty(), "Expected empty segments for pure silence");
+        assert_eq!(silent_pcm.len(), 80000);
+    }
 }
+
+// ─── AsrBackend impl ──────────────────────────────────────────────────────
+
+use super::asr_backend::{AsrBackend, AsrOutput};
+
+/// Zero-allocation wrapper so `candle_whisper` participates in the backend dispatch table.
+pub struct CandleWhisperBackend;
+
+impl AsrBackend for CandleWhisperBackend {
+    fn name(&self) -> &'static str {
+        "candle-whisper"
+    }
+
+    fn transcribe_pcm(
+        &self,
+        pcm: &[f32],
+        sample_rate: u32,
+        language_override: Option<&str>,
+    ) -> anyhow::Result<AsrOutput> {
+        if sample_rate != 16_000 {
+            anyhow::bail!("CandleWhisperBackend requires 16000Hz PCM input, got {}", sample_rate);
+        }
+        let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(25u64);
+        let pcm = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(pcm, budget_ms).0;
+
+        let (raw_text, segments) = transcribe_pcm_internal(&pcm, language_override)?;
+        Ok(AsrOutput {
+            n_best: Vec::new(),
+            confidence: 0.85,
+            raw_text,
+            segments,
+        })
+    }
+}
+

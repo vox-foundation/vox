@@ -61,7 +61,7 @@ pub const DEFAULT_MENS_RUNS_V1: &str = "mens/runs/v1";
 pub const DEFAULT_MENS_RUNS_UV_OUTPUT: &str = "mens/runs/uv_output";
 
 /// Default QLoRA run directory basename (repo-relative path prefix).
-pub const DEFAULT_MENS_RUNS_QWEN_QLORA: &str = "mens/runs/qwen25_qlora";
+pub const DEFAULT_MENS_RUNS_QWEN_QLORA: &str = "mens/runs/qwen35_qlora";
 
 #[cfg(test)]
 mod tests {

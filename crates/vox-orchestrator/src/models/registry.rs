@@ -5,9 +5,10 @@ use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
 use crate::types::{AgentTask, TaskCategory};
 
+use super::key_guard::provider_secret_is_available;
 use super::spec::{
-    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_premium_key,
-    task_category_strength,
+    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias,
+    task_category_premium_key, task_category_strength,
 };
 
 /// A registry managing available agent models and model routing.
@@ -25,10 +26,8 @@ impl ModelRegistry {
             .any(|s| s == strength || s == "generalist")
     }
 
-    fn refresh_marker_path() -> Option<std::path::PathBuf> {
-        let mut path = vox_db::paths::config_dir()?;
-        path.push("openrouter_catalog_refresh.marker");
-        Some(path)
+    fn key_is_present_for(m: &ModelSpec) -> bool {
+        provider_secret_is_available(&m.provider_type)
     }
 
     fn min_refresh_interval() -> Duration {
@@ -46,103 +45,86 @@ impl ModelRegistry {
             .unwrap_or(0)
             .min(60_000)
     }
-
-    fn should_refresh_openrouter_catalog(now_secs: u64) -> bool {
-        let Some(path) = Self::refresh_marker_path() else {
-            return true;
-        };
-        let Ok(raw) = std::fs::read_to_string(path) else {
-            return true;
-        };
-        let Ok(last_secs) = raw.trim().parse::<u64>() else {
-            return true;
-        };
-        now_secs.saturating_sub(last_secs) >= Self::min_refresh_interval().as_secs()
-    }
-
-    fn write_refresh_marker(now_secs: u64) {
-        let Some(path) = Self::refresh_marker_path() else {
-            return;
-        };
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        let _ = std::fs::write(path, now_secs.to_string());
-    }
-
-    #[cfg_attr(test, allow(dead_code))] // Called from `new` only outside `cfg(test)` (avoids network in unit tests).
+    #[cfg_attr(test, allow(dead_code))]
     fn maybe_refresh_openrouter_models(&mut self) {
         let now_secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        if !Self::should_refresh_openrouter_catalog(now_secs) {
-            tracing::debug!(
-                target: "vox.orchestrator.models",
-                "openrouter catalog refresh skipped (within min refresh interval)"
-            );
-            return;
-        }
-        let jitter = Self::jitter_ms();
-        if jitter > 0 {
-            let offset = now_secs % (jitter + 1);
-            std::thread::sleep(Duration::from_millis(offset));
-        }
 
-        // Avoid `block_on` on a thread that already drives a Tokio runtime (e.g. `#[tokio::test]`,
-        // `cargo nextest`): that panics with "Cannot start a runtime from within a runtime". Run the
-        // ephemeral runtime on a fresh OS thread instead.
+        let min_refresh = Self::min_refresh_interval().as_secs();
+        let jitter = Self::jitter_ms();
+
         enum RefreshFail {
             Runtime(String),
             Fetch(String),
         }
 
-        let joined = std::thread::spawn(|| -> Result<Vec<ModelSpec>, RefreshFail> {
+        let joined = std::thread::spawn(move || -> Result<Option<Vec<ModelSpec>>, RefreshFail> {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .map_err(|e| RefreshFail::Runtime(e.to_string()))?;
             rt.block_on(async {
+                let db = vox_db::VoxDb::open_default()
+                    .await
+                    .map_err(|_| anyhow::anyhow!("db error"))?;
+                if let Ok(Some(last_str)) = db
+                    .get_user_preference("global", "openrouter_catalog_refresh")
+                    .await
+                {
+                    if let Ok(last_secs) = last_str.parse::<u64>() {
+                        if now_secs.saturating_sub(last_secs) < min_refresh {
+                            return Ok::<_, anyhow::Error>(None);
+                        }
+                    }
+                }
+
+                if jitter > 0 {
+                    let offset = now_secs % (jitter + 1);
+                    tokio::time::sleep(Duration::from_millis(offset)).await;
+                }
+
                 let mut models = OpenRouterCatalog::new().refresh().await?;
                 crate::catalog_classifier::classify_models(&mut models).await;
-                Ok::<_, anyhow::Error>(models)
+                let _ = db
+                    .set_user_preference(
+                        "global",
+                        "openrouter_catalog_refresh",
+                        &now_secs.to_string(),
+                    )
+                    .await;
+                Ok(Some(models))
             })
             .map_err(|e| RefreshFail::Fetch(e.to_string()))
         })
         .join();
 
-        let models = match joined {
-            Ok(Ok(models)) => models,
+        let models_opt = match joined {
+            Ok(Ok(m)) => m,
             Ok(Err(RefreshFail::Runtime(msg))) => {
-                tracing::warn!(
-                    target: "vox.orchestrator.models",
-                    error = %msg,
-                    "openrouter catalog runtime init failed"
-                );
+                tracing::warn!(target: "vox.orchestrator.models", error = %msg, "openrouter catalog runtime init failed");
                 return;
             }
             Ok(Err(RefreshFail::Fetch(msg))) => {
-                tracing::warn!(
-                    target: "vox.orchestrator.models",
-                    error = %msg,
-                    "openrouter model catalog refresh failed; keeping static model registry"
-                );
+                tracing::warn!(target: "vox.orchestrator.models", error = %msg, "openrouter model catalog refresh failed");
                 return;
             }
             Err(_) => {
-                tracing::warn!(
-                    target: "vox.orchestrator.models",
-                    "openrouter catalog refresh panicked; keeping static model registry"
-                );
+                tracing::warn!(target: "vox.orchestrator.models", "openrouter catalog refresh panicked");
                 return;
             }
         };
-        let count = models.len();
-        for m in models {
-            self.register(m);
+
+        if let Some(models) = models_opt {
+            let count = models.len();
+            for m in models {
+                self.register(m);
+            }
+            tracing::info!(target: "vox.orchestrator.models", count, "openrouter catalog refresh merged into model registry");
+        } else {
+            tracing::debug!(target: "vox.orchestrator.models", "openrouter catalog refresh skipped (within min refresh interval)");
         }
-        Self::write_refresh_marker(now_secs);
-        tracing::info!(target: "vox.orchestrator.models", count, "openrouter catalog refresh merged into model registry");
     }
 
     /// Create a new model registry, loading from the configuration file or falling back to defaults.
@@ -257,16 +239,7 @@ impl ModelRegistry {
 
         if effective_pref == CostPreference::Economy {
             // Find the cheapest model that has the relevant strength for the category
-            let strength = match task_type {
-                TaskCategory::CodeGen => "codegen",
-                TaskCategory::Testing => "codegen",
-                TaskCategory::Debugging => "debugging",
-                TaskCategory::TypeChecking => "logic",
-                TaskCategory::Research => "research",
-                TaskCategory::Parsing => "parsing",
-                TaskCategory::Review => "review",
-                TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
-            };
+            let strength = task_category_strength(task_type);
 
             return self
                 .models
@@ -281,7 +254,9 @@ impl ModelRegistry {
         let key = task_category_premium_key(task_type);
         if let Some(id) = self.premium_alias.get(key) {
             if let Some(m) = self.models.get(id) {
-                return Some(m.clone());
+                if m.is_free || Self::key_is_present_for(m) {
+                    return Some(m.clone());
+                }
             }
         }
         let strength = task_category_strength(task_type);
@@ -316,16 +291,7 @@ impl ModelRegistry {
         };
 
         if effective_pref == CostPreference::Economy {
-            let strength = match task_type {
-                TaskCategory::CodeGen => "codegen",
-                TaskCategory::Testing => "codegen",
-                TaskCategory::Debugging => "debugging",
-                TaskCategory::TypeChecking => "logic",
-                TaskCategory::Research => "research",
-                TaskCategory::Parsing => "parsing",
-                TaskCategory::Review => "review",
-                TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
-            };
+            let strength = task_category_strength(task_type);
 
             return self
                 .models
@@ -339,7 +305,7 @@ impl ModelRegistry {
         let key = task_category_premium_key(task_type);
         if let Some(id) = self.premium_alias.get(key) {
             if let Some(m) = self.models.get(id) {
-                if pred(m) {
+                if pred(m) && (m.is_free || Self::key_is_present_for(m)) {
                     return Some(m.clone());
                 }
             }
@@ -362,16 +328,7 @@ impl ModelRegistry {
 
     /// Return the best free model for a given task category.
     pub fn best_free_for(&self, task_type: TaskCategory) -> Option<ModelSpec> {
-        let strength = match task_type {
-            TaskCategory::CodeGen => "codegen",
-            TaskCategory::Testing => "codegen",
-            TaskCategory::Debugging => "debugging",
-            TaskCategory::TypeChecking => "logic",
-            TaskCategory::Research => "research",
-            TaskCategory::Parsing => "parsing",
-            TaskCategory::Review => "review",
-            TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
-        };
+        let strength = task_category_strength(task_type);
 
         self.models
             .values()
@@ -388,16 +345,7 @@ impl ModelRegistry {
         task_type: TaskCategory,
         mut pred: impl FnMut(&ModelSpec) -> bool,
     ) -> Option<ModelSpec> {
-        let strength = match task_type {
-            TaskCategory::CodeGen => "codegen",
-            TaskCategory::Testing => "codegen",
-            TaskCategory::Debugging => "debugging",
-            TaskCategory::TypeChecking => "logic",
-            TaskCategory::Research => "research",
-            TaskCategory::Parsing => "parsing",
-            TaskCategory::Review => "review",
-            TaskCategory::General | TaskCategory::Ars | TaskCategory::Planning => "logic",
-        };
+        let strength = task_category_strength(task_type);
 
         self.models
             .values()
@@ -540,6 +488,7 @@ impl ModelRegistry {
                     | ProviderType::Mistral
                     | ProviderType::DeepSeek
                     | ProviderType::SambaNova
+                    | ProviderType::Anthropic
                     | ProviderType::PopuliMesh
                     | ProviderType::Custom(_) => {
                         vox_runtime::llm::LlmConfig::openrouter(spec.id.clone())

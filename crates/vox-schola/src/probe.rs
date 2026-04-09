@@ -27,7 +27,7 @@ pub fn run() -> Result<()> {
     println!("  warmup:     {}", profile.warmup);
     println!();
     println!("Quick start:");
-    println!("  vox-schola train --model Qwen/Qwen2.5-Coder-1.5B-Instruct");
-    println!("  vox-schola train --model Qwen/Qwen2.5-Coder-1.5B-Instruct --preset 4080");
+    println!("  vox-schola train --model Qwen/Qwen3.5-4B");
+    println!("  vox-schola train --model Qwen/Qwen3.5-4B --preset 4080");
     Ok(())
 }

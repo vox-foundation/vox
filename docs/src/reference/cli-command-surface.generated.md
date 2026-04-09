@@ -10,7 +10,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 228
+**schema_version:** `1` · **vox-cli operations:** 229
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -155,6 +155,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox mens workflow inspect` | active | mens-dei | mens | ai | — |
 | `vox mens workflow list` | active | mens-dei | mens | ai | — |
 | `vox mens workflow run` | active | mens-dei | mens | ai | — |
+| `vox migrate web` | active | — | pm | platform | — |
 | `vox openclaw` | active | ars | ars | interop | — |
 | `vox openclaw doctor` | active | ars | ars | interop | — |
 | `vox openclaw gateway-call` | active | ars | ars | interop | — |

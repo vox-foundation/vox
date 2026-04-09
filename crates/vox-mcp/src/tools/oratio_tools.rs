@@ -116,16 +116,12 @@ async fn maybe_llm_polish(
         });
     }
 
-    let user_prompt = format!(
-        "Normalize this speech-to-text line for a Rust CLI. Preserve paths, --flags, and :: tokens.\n\n\
-Original text:\n{}\n\n\
-Raw ASR:\n{}\n\n\
-Deterministic confidence: {}\n\n\
-Reply with ONLY compact JSON (no markdown) matching this shape:\n\
-{{\"corrected_text\":string,\"confidence\":number between 0 and 1,\"changes\":[{{\"before\":string,\"after\":string}}],\"keep_original\":boolean}}\n",
-        session.text, session.raw_text, session.confidence
+    let user_prompt = vox_oratio::refine::llm_correction_prompt::build_llm_correction_prompt(
+        &session.raw_text,
+        &session.text,
+        session.confidence,
     );
-    let system_prompt = "You correct ASR transcripts. Output JSON only; booleans lowercase; confidence between 0 and 1 inclusive.";
+    let system_prompt = vox_oratio::refine::llm_correction_prompt::llm_system_prompt();
 
     let resolution_template = crate::llm_bridge::McpChatModelResolution {
         complexity: 1,

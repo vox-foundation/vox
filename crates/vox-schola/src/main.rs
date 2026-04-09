@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! vox-schola                                  # defaults to `train`
-//! vox-schola train --model Qwen/Qwen2.5-Coder-1.5B-Instruct
+//! vox-schola train --model Qwen/Qwen3.5-4B
 //! vox-schola serve --model mens/runs/latest --port 8080
 //! vox-schola probe
 //! vox-schola status

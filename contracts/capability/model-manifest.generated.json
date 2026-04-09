@@ -122,6 +122,22 @@
       "title": "Ask Agent"
     },
     {
+      "capability_id": "mcp.vox_attention_history",
+      "curated": true,
+      "description_model": "Returns the history of attention shifts.",
+      "implicit": false,
+      "mcp_tool": "vox_attention_history",
+      "title": "Attention History"
+    },
+    {
+      "capability_id": "mcp.vox_attention_reset",
+      "curated": true,
+      "description_model": "Resets the attention budget for the agent pool.",
+      "implicit": false,
+      "mcp_tool": "vox_attention_reset",
+      "title": "Attention Reset"
+    },
+    {
       "capability_id": "mcp.vox_attention_summary",
       "curated": true,
       "description_model": "Returns a summary of agent attention allocation and focus shifts over a time window.",
@@ -1914,6 +1930,14 @@
       "title": "Transfer File"
     },
     {
+      "capability_id": "mcp.vox_trust_override",
+      "curated": true,
+      "description_model": "Overrides the trust tier for the agent context.",
+      "implicit": false,
+      "mcp_tool": "vox_trust_override",
+      "title": "Attention Trust Override"
+    },
+    {
       "capability_id": "mcp.vox_undo",
       "curated": true,
       "description_model": "Undo the last operation or a specific operation by ID.",
@@ -2019,7 +2043,7 @@
         "build"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox build`",
+      "description_model": "CLI operation `vox build` (optional `--scaffold` seeds user app shell; same as `VOX_WEB_EMIT_SCAFFOLD`)",
       "implicit": false,
       "title": "Build"
     },
@@ -3513,6 +3537,17 @@
       "description_model": "CLI operation `vox mens workflow run`",
       "implicit": false,
       "title": "Mens Workflow Run"
+    },
+    {
+      "capability_id": "cli.migrate.web",
+      "cli_path": [
+        "migrate",
+        "web"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox migrate web` — scan `.vox` for migration diagnostics; `--json`; `--write` applies `@component fn` → `component`, `@hook fn` → `fn` (and related deterministic patches); `--check` fails CI when findings remain (v2)",
+      "implicit": false,
+      "title": "Migrate Web Sources"
     },
     {
       "capability_id": "cli.openclaw",

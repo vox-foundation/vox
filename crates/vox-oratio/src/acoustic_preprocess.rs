@@ -17,6 +17,10 @@ pub struct AcousticPreprocessDiagnostics {
     pub peak_before: f32,
     /// Absolute peak after processing.
     pub peak_after: f32,
+    /// RMS level before any processing (only valid for rms_normalize mode).
+    pub rms_before: f32,
+    /// RMS level after processing.
+    pub rms_after: f32,
     /// True when work exceeded `max_extra_ms` and the original buffer was returned.
     pub skipped_due_to_budget: bool,
 }
@@ -37,6 +41,9 @@ fn effective_mode() -> &'static str {
                 || t.eq_ignore_ascii_case("peak_normalize")
             {
                 return "peak_normalize";
+            }
+            if t.eq_ignore_ascii_case("rms_normalize") || t.eq_ignore_ascii_case("rms") {
+                return "rms_normalize";
             }
             "none"
         }
@@ -61,15 +68,27 @@ pub fn preprocess_audio_pcm_f32_reported(
                 wall_ms: elapsed_ms(&start),
                 peak_before,
                 peak_after: peak_before,
+                rms_before: 0.0,
+                rms_after: 0.0,
                 skipped_due_to_budget: false,
             },
         );
     }
 
-    // Peak normalize toward 0.95 full scale (leave headroom).
-    const TARGET: f32 = 0.95;
-    let out: Vec<f32> = if peak_before > 0.0 {
-        let scale = TARGET / peak_before;
+    let mut rms_before = 0.0;
+    let mut rms_after = 0.0;
+
+    let out: Vec<f32> = if mode == "rms_normalize" {
+        let target_rms_dbfs: f32 = std::env::var("VOX_ORATIO_RMS_TARGET_DBFS")
+            .ok().and_then(|s| s.parse().ok()).unwrap_or(-18.0_f32);
+        let target_rms_linear = 10.0_f32.powf(target_rms_dbfs / 20.0);
+        rms_before = (samples.iter().map(|x| x * x).sum::<f32>() / samples.len() as f32).sqrt();
+        let gain = if rms_before > 1e-6 { target_rms_linear / rms_before } else { 1.0 };
+        let processed: Vec<f32> = samples.iter().map(|x| (x * gain).clamp(-1.0, 1.0)).collect();
+        rms_after = (processed.iter().map(|x| x * x).sum::<f32>() / processed.len() as f32).sqrt();
+        processed
+    } else if peak_before > 0.0 {
+        let scale = 0.95 / peak_before;
         samples
             .iter()
             .map(|x| (x * scale).clamp(-1.0, 1.0))
@@ -87,6 +106,8 @@ pub fn preprocess_audio_pcm_f32_reported(
                 wall_ms,
                 peak_before,
                 peak_after: peak_before,
+                rms_before,
+                rms_after: rms_before,
                 skipped_due_to_budget: true,
             },
         );
@@ -96,10 +117,12 @@ pub fn preprocess_audio_pcm_f32_reported(
     (
         out,
         AcousticPreprocessDiagnostics {
-            mode: "peak_normalize".to_string(),
+            mode: mode.to_string(),
             wall_ms,
             peak_before,
             peak_after,
+            rms_before,
+            rms_after,
             skipped_due_to_budget: false,
         },
     )
@@ -121,9 +144,13 @@ pub fn preprocess_audio_pcm_f32(samples: &[f32], max_extra_ms: u64) -> Vec<f32> 
 #[allow(unsafe_code)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn peak_normalize_scales_quiet_signal() {
+        let _guard = TEST_LOCK.lock().unwrap();
         // SAFETY: tests are single-threaded here; env is restored after the assertion.
         unsafe {
             unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize") };
@@ -135,5 +162,15 @@ mod tests {
         unsafe {
             std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS");
         }
+    }
+
+    #[test]
+    fn rms_normalize_brings_quiet_to_target() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "rms_normalize") };
+        let quiet: Vec<f32> = vec![0.001; 16000];
+        let (_out, d) = preprocess_audio_pcm_f32_reported(&quiet, 1000);
+        assert!(d.rms_after > d.rms_before);
+        unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
     }
 }

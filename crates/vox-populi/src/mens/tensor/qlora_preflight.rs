@@ -115,7 +115,7 @@ fn warn_on_missing_qwen35_rope_keys(
         }
     }
     if !missing.is_empty() {
-        super::train_log::warn(&format!(
+        super::train_log::debug(&format!(
             "qwen3_5 RoPE tensors (`inv_freq`) are missing for {} layer(s) in shards; trainer will synthesize rotary frequencies from config `rope_theta` when available. Missing (up to 8): {:?}",
             missing.len(),
             missing.into_iter().take(8).collect::<Vec<_>>()

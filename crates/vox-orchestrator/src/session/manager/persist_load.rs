@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use crate::types::AgentId;
@@ -268,20 +268,5 @@ impl SessionManager {
     /// Session file path for a given ID.
     pub(super) fn session_path(&self, session_id: &str) -> PathBuf {
         self.config.sessions_dir.join(format!("{session_id}.jsonl"))
-    }
-
-    /// Append a JSONL event to the session's file.
-    pub(super) fn append_event(
-        &self,
-        session_id: &str,
-        event: &SessionEvent,
-    ) -> Result<(), SessionError> {
-        let path = self.session_path(session_id);
-        let mut json = serde_json::to_string(event).map_err(SessionError::Serialize)?;
-        json.push('\n');
-        let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
-        f.write_all(json.as_bytes())?;
-        f.sync_all()?;
-        Ok(())
     }
 }

@@ -179,6 +179,8 @@ fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnq
         research_hints: params.research_hints.clone(),
         required_labels: params.required_labels.clone(),
         is_detached: params.is_detached,
+        requires_approval: None,
+        socrates_context: None,
     })
 }
 

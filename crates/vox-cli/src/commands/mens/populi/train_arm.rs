@@ -64,6 +64,7 @@ pub async fn run_train(
     curriculum: bool,
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     data_mode: TrainDataModeCli,
+    fast_corpus: bool,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
@@ -115,6 +116,15 @@ pub async fn run_train(
     let resume = resume.map(|r| {
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
+
+    #[allow(unsafe_code)]
+    unsafe {
+        if fast_corpus {
+            std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
+        } else {
+            std::env::remove_var("VOX_TRAIN_SKIP_CORPUS_MIX");
+        }
+    }
 
     // Preflight: stale corpus fingerprint → same refresh path for both data modes (synthetic + pipeline w/o train + mix).
     // `strict`: refresh failures abort. `auto-refresh`: log warnings and continue (legacy).

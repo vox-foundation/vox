@@ -25,6 +25,8 @@ fn test_handoff_payload_serialization() {
 fn accept_handoff_rejects_invalid_context_envelope_metadata() {
     let orch = Orchestrator::new(OrchestratorConfig::for_testing());
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "bad context")
+        .with_a2a_context("uri://agent2")
+        .with_obo_token("tok-123")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, "{not-json");
     let err = orch
         .accept_handoff(payload)
@@ -63,6 +65,8 @@ fn accept_handoff_accepts_valid_context_envelope_metadata() {
     );
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "good context")
+        .with_a2a_context("uri://agent2")
+        .with_obo_token("tok-123")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json);
     let accepted = orch
         .accept_handoff(payload)
@@ -101,6 +105,8 @@ fn accept_handoff_persists_context_envelope_by_session_id() {
     let key = vox_orchestrator::session_context_envelope_key("sid-handoff-persist");
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "persist context")
+        .with_a2a_context("uri://agent2")
+        .with_obo_token("tok-123")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json.clone());
     orch.accept_handoff(payload)
         .expect("handoff should succeed");
@@ -156,6 +162,8 @@ fn accept_handoff_does_not_persist_when_context_session_id_missing() {
     context.subject.session_id = None;
     let context_json = serde_json::to_string(&context).expect("serialize context");
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "no session id")
+        .with_a2a_context("uri://agent2")
+        .with_obo_token("tok-123")
         .with_metadata(CONTEXT_ENVELOPE_JSON_METADATA_KEY, context_json);
     orch.accept_handoff(payload)
         .expect("handoff should succeed");
@@ -179,6 +187,8 @@ fn accept_handoff_emits_harness_metadata_fields() {
         &["artifacts/out.md".to_string()],
     );
     let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "harness accept")
+        .with_a2a_context("uri://agent2")
+        .with_obo_token("tok-123")
         .with_metadata(
             HARNESS_SPEC_JSON_METADATA_KEY,
             serde_json::to_string(&harness).expect("serialize harness"),

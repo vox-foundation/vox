@@ -59,15 +59,6 @@ impl SessionManager {
             })?;
         }
 
-        if self.config.persist {
-            let event = SessionEvent::Created {
-                session_id: id.clone(),
-                agent_id: agent_id.0,
-                created_at: session.created_at,
-            };
-            self.append_event(&id, &event)?;
-        }
-
         self.sessions.insert(id.clone(), session);
         Ok(id)
     }
@@ -115,10 +106,6 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
         session.add_turn_at(role, content, tokens, at);
-
-        if self.config.persist {
-            self.append_event(session_id, &event)?;
-        }
         Ok(())
     }
 
@@ -154,10 +141,6 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
         session.set_meta(&key, &value);
-
-        if self.config.persist {
-            self.append_event(session_id, &event)?;
-        }
         Ok(())
     }
 
@@ -192,10 +175,6 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
         session.set_plugin_state(&plugin_id, state);
-
-        if self.config.persist {
-            self.append_event(session_id, &event)?;
-        }
         Ok(())
     }
 
@@ -219,10 +198,6 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
         let cleared = session.reset();
-
-        if self.config.persist {
-            self.append_event(session_id, &event)?;
-        }
         Ok(cleared)
     }
 
@@ -249,10 +224,6 @@ impl SessionManager {
                 db.append_session_event(&sid, "compacted", &payload).await
             })?;
         }
-
-        if self.config.persist {
-            self.append_event(session_id, &event)?;
-        }
         Ok(removed)
     }
 
@@ -278,10 +249,6 @@ impl SessionManager {
 
         session.last_expensive_op_at = Some(at);
         session.last_active = at;
-
-        if self.config.persist {
-            self.append_event(session_id, &event)?;
-        }
         Ok(())
     }
 }
