@@ -30,6 +30,7 @@ last_updated: "2026-03-28"
 | Run domain SQL | Inside `vox-db/src/store/ops_*.rs` (methods on `VoxDb`) | Raw SQL scattered in consumers for tables owned by Arca |
 | Read-only diagnostics | Documented exceptions (allowlist) | `connection().execute` for business writes outside `vox-db` |
 | CI: `.connection().query\|execute` | `vox ci sql-surface-guard` (diff-scoped; `--all` for full audit) | Extra path prefixes in [`sql-connection-api-allowlist.txt`](./sql-connection-api-allowlist.txt) while migrating |
+| CI: `.query_all(` escape hatch on [`VoxDb`](../../crates/vox-db/src/facade/memory.rs) | `vox ci query-all-guard` (diff-scoped; `--all` for full audit) | Transitional paths in [`query-all-allowlist.txt`](./query-all-allowlist.txt); prefer typed `store/ops_*.rs` methods |
 
 > [!CAUTION]
 > Prefer adding a method on `VoxDb` in `store/ops_*.rs` instead of embedding SQL in `vox-ludus`, `vox-mcp`, or `vox-orchestrator`.
@@ -48,14 +49,14 @@ last_updated: "2026-03-28"
 |-------|-----------|-------|
 | Baseline relational | `schema/domains/*.rs`, `schema/domains/sql/*.sql`, `schema/spec` strings appended in `manifest::baseline_sql` | Core SSOT for new DBs via `migrate`. |
 | Orchestrator / document collections | `orchestrator_schema_digest` → `sync_schema_from_digest`; `Collection::ensure_table` | `_id`/`_data` layout; not duplicated as flat SQL tables for `provider_usage`. |
-| Domain cutover | `ludus_schema_cutover.rs` | Idempotent alignment for DBs already at baseline integer (ALTER/rename/FTS); composite reporting indexes live in domain DDL, not cutover. |
+| Domain cutover | (removed) | Extended Ludus DDL is in baseline fragments; no separate Ludus cutover entrypoint. |
 | Meta bootstrap | `store/open.rs`, `facade/migrations.rs` | `schema_version` and local object store tables where applicable. |
-| Legacy no-op hooks | `training_run::ensure_training_run_table`, `research::ensure_cap_table` | Baseline now creates tables; hooks remain for call-site stability. |
+| Legacy hooks | (removed) | `populi_training_run` / `codex_capability_map` are created by baseline `migrate` only. |
 
 To add a new table:
 
 1. Add `CREATE TABLE IF NOT EXISTS` (and indexes) to the appropriate **domain** module under `schema/domains/`.
-2. Use `ludus_schema_cutover.rs` or domain-specific idempotent SQL for migrations baseline `IF NOT EXISTS` cannot perform (e.g. renames).
+2. Use domain-specific idempotent SQL (or a legacy namespace helper) for migrations baseline `IF NOT EXISTS` cannot perform (e.g. renames).
 3. Add `VoxDb` methods in `store/ops_<domain>.rs`.
 4. Add tests under `crates/vox-db/tests/`.
 
@@ -90,8 +91,8 @@ Legacy deletion criteria:
 | A2A cross-node messages (`a2a_messages`) | **DB** | Cross-node delivery; audit trail |
 | OpLog history (`OpLog.entries`, bounded VecDeque) | **RAM** | VecDeque capped at 1000; cleared on restart |
 | OpLog audit/replay (`agent_oplog`) | **DB** | Long-term audit, model provenance (main `record_operation` path + undo/redo flag sync) |
-| Orchestrator MCP sessions (when DB attached) | **DB** (`agent_sessions`, `agent_session_events`) | Durable replay SSOT |
-| MCP session JSONL (`SessionConfig::persist`) | **Files** | Optional non-authoritative export |
+| Orchestrator MCP sessions (when DB attached) | **DB** (`agent_sessions`, `agent_session_events`) | Durable replay SSOT; [`SessionManager::load`](../../crates/vox-orchestrator/src/session/manager/persist_load.rs) reads Codex only |
+| Legacy session `.jsonl` paths under `SessionConfig::sessions_dir` | **Files** | Cleanup of stale paths only; not authoritative replay (no JSONL load in `SessionManager::load`) |
 | Training / eval JSONL corpora | **Files** | Large immutable artifacts; not operational SSOT |
 | Actor KV state (`actor_state`) | **DB** | Survives restarts |
 | Cost audit trail (`cost_records`) | **DB** | Budget tracking across sessions |
@@ -100,7 +101,7 @@ Legacy deletion criteria:
 ## JSONL vs Codex
 
 - **Codex:** operational state, approvals, session replay, coordination, gamification, cost records.
-- **JSONL:** training exports, run telemetry, optional session file export — **not** authoritative when a DB is attached.
+- **JSONL:** training exports, run telemetry, optional dogfood traces — **not** authoritative when Codex holds the same domain’s rows (orchestrator sessions: DB-only load path).
 
 ## Struct Deduplication Policy
 

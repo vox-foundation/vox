@@ -20,33 +20,245 @@
     }
   },
   "crates": {
-    "vox-ast": {
-      "role": "Source of Truth for syntax tree node definitions",
-      "path_pattern": "crates/vox-ast/src/**/*.rs"
+    "vox-audio-ingress": {
+      "role": "Workspace member: vox-audio-ingress",
+      "path_pattern": "crates/vox-audio-ingress/**/*.rs"
     },
-    "vox-hir": {
-      "role": "Intermediate representation and desugaring logic",
-      "path_pattern": "crates/vox-hir/src/**/*.rs"
+    "vox-bootstrap": {
+      "role": "Workspace member: vox-bootstrap",
+      "path_pattern": "crates/vox-bootstrap/**/*.rs"
     },
-    "vox-toestub": {
-      "role": "Architectural enforcer and anti-pattern detector",
-      "path_pattern": "crates/vox-toestub/src/**/*.rs"
+    "vox-bounded-fs": {
+      "role": "Workspace member: vox-bounded-fs",
+      "path_pattern": "crates/vox-bounded-fs/**/*.rs"
     },
-    "vox-pm": {
-      "role": "Package manager and dependency resolver",
-      "path_pattern": "crates/vox-pm/src/**/*.rs"
+    "vox-browser": {
+      "role": "Workspace member: vox-browser",
+      "path_pattern": "crates/vox-browser/**/*.rs"
+    },
+    "vox-build-meta": {
+      "role": "Workspace member: vox-build-meta",
+      "path_pattern": "crates/vox-build-meta/**/*.rs"
+    },
+    "vox-capability-registry": {
+      "role": "Workspace member: vox-capability-registry",
+      "path_pattern": "crates/vox-capability-registry/**/*.rs"
+    },
+    "vox-checksum-manifest": {
+      "role": "Workspace member: vox-checksum-manifest",
+      "path_pattern": "crates/vox-checksum-manifest/**/*.rs"
+    },
+    "vox-clavis": {
+      "role": "Workspace member: vox-clavis",
+      "path_pattern": "crates/vox-clavis/**/*.rs"
     },
     "vox-cli": {
       "role": "Primary `vox` CLI, CI guards, and workspace tooling",
-      "path_pattern": "crates/vox-cli/src/**/*.rs"
-    },
-    "vox-lsp": {
-      "role": "Language Server Protocol frontend: diagnostics, hover, completion, code lens",
-      "path_pattern": "crates/vox-lsp/src/**/*.rs"
+      "path_pattern": "crates/vox-cli/**/*.rs"
     },
     "vox-compiler": {
       "role": "Lexer, parser, HIR lowering, typechecking, and codegen pipeline",
-      "path_pattern": "crates/vox-compiler/src/**/*.rs"
+      "path_pattern": "crates/vox-compiler/**/*.rs"
+    },
+    "vox-config": {
+      "role": "Workspace member: vox-config",
+      "path_pattern": "crates/vox-config/**/*.rs"
+    },
+    "vox-constrained-gen": {
+      "role": "Workspace member: vox-constrained-gen",
+      "path_pattern": "crates/vox-constrained-gen/**/*.rs"
+    },
+    "vox-container": {
+      "role": "Workspace member: vox-container",
+      "path_pattern": "crates/vox-container/**/*.rs"
+    },
+    "vox-corpus": {
+      "role": "Workspace member: vox-corpus",
+      "path_pattern": "crates/vox-corpus/**/*.rs"
+    },
+    "vox-db": {
+      "role": "Codex / VoxDB relational store, schema, migrations, and typed SQL ops",
+      "path_pattern": "crates/vox-db/**/*.rs"
+    },
+    "vox-dei": {
+      "role": "Workspace member: vox-dei",
+      "path_pattern": "crates/vox-dei/**/*.rs"
+    },
+    "vox-doc-inventory": {
+      "role": "Workspace member: vox-doc-inventory",
+      "path_pattern": "crates/vox-doc-inventory/**/*.rs"
+    },
+    "vox-doc-pipeline": {
+      "role": "Workspace member: vox-doc-pipeline",
+      "path_pattern": "crates/vox-doc-pipeline/**/*.rs"
+    },
+    "vox-eval": {
+      "role": "Workspace member: vox-eval",
+      "path_pattern": "crates/vox-eval/**/*.rs"
+    },
+    "vox-forge": {
+      "role": "Workspace member: vox-forge",
+      "path_pattern": "crates/vox-forge/**/*.rs"
+    },
+    "vox-git": {
+      "role": "Workspace member: vox-git",
+      "path_pattern": "crates/vox-git/**/*.rs"
+    },
+    "vox-grammar-export": {
+      "role": "Workspace member: vox-grammar-export",
+      "path_pattern": "crates/vox-grammar-export/**/*.rs"
+    },
+    "vox-install-policy": {
+      "role": "Workspace member: vox-install-policy",
+      "path_pattern": "crates/vox-install-policy/**/*.rs"
+    },
+    "vox-integration-tests": {
+      "role": "Workspace member: vox-integration-tests",
+      "path_pattern": "crates/vox-integration-tests/**/*.rs"
+    },
+    "vox-jsonschema-util": {
+      "role": "Workspace member: vox-jsonschema-util",
+      "path_pattern": "crates/vox-jsonschema-util/**/*.rs"
+    },
+    "vox-lsp": {
+      "role": "Language Server Protocol frontend: diagnostics, hover, completion, code lens",
+      "path_pattern": "crates/vox-lsp/**/*.rs"
+    },
+    "vox-ludus": {
+      "role": "Workspace member: vox-ludus",
+      "path_pattern": "crates/vox-ludus/**/*.rs"
+    },
+    "vox-mcp": {
+      "role": "Workspace member: vox-mcp",
+      "path_pattern": "crates/vox-mcp/**/*.rs"
+    },
+    "vox-mcp-meta": {
+      "role": "Workspace member: vox-mcp-meta",
+      "path_pattern": "crates/vox-mcp-meta/**/*.rs"
+    },
+    "vox-mcp-registry": {
+      "role": "Workspace member: vox-mcp-registry",
+      "path_pattern": "crates/vox-mcp-registry/**/*.rs"
+    },
+    "vox-openai-sse": {
+      "role": "Workspace member: vox-openai-sse",
+      "path_pattern": "crates/vox-openai-sse/**/*.rs"
+    },
+    "vox-openai-wire": {
+      "role": "Workspace member: vox-openai-wire",
+      "path_pattern": "crates/vox-openai-wire/**/*.rs"
+    },
+    "vox-oratio": {
+      "role": "Workspace member: vox-oratio",
+      "path_pattern": "crates/vox-oratio/**/*.rs"
+    },
+    "vox-orchestrator": {
+      "role": "Workspace member: vox-orchestrator",
+      "path_pattern": "crates/vox-orchestrator/**/*.rs"
+    },
+    "vox-pm": {
+      "role": "Package manager and dependency resolver",
+      "path_pattern": "crates/vox-pm/**/*.rs"
+    },
+    "vox-populi": {
+      "role": "Workspace member: vox-populi",
+      "path_pattern": "crates/vox-populi/**/*.rs"
+    },
+    "vox-primitives": {
+      "role": "Workspace member: vox-primitives",
+      "path_pattern": "crates/vox-primitives/**/*.rs"
+    },
+    "vox-project-scaffold": {
+      "role": "Workspace member: vox-project-scaffold",
+      "path_pattern": "crates/vox-project-scaffold/**/*.rs"
+    },
+    "vox-protocol": {
+      "role": "Workspace member: vox-protocol",
+      "path_pattern": "crates/vox-protocol/**/*.rs"
+    },
+    "vox-publisher": {
+      "role": "Workspace member: vox-publisher",
+      "path_pattern": "crates/vox-publisher/**/*.rs"
+    },
+    "vox-repository": {
+      "role": "Workspace member: vox-repository",
+      "path_pattern": "crates/vox-repository/**/*.rs"
+    },
+    "vox-reqwest-defaults": {
+      "role": "Workspace member: vox-reqwest-defaults",
+      "path_pattern": "crates/vox-reqwest-defaults/**/*.rs"
+    },
+    "vox-runtime": {
+      "role": "Workspace member: vox-runtime",
+      "path_pattern": "crates/vox-runtime/**/*.rs"
+    },
+    "vox-scaling-policy": {
+      "role": "Workspace member: vox-scaling-policy",
+      "path_pattern": "crates/vox-scaling-policy/**/*.rs"
+    },
+    "vox-schola": {
+      "role": "Workspace member: vox-schola",
+      "path_pattern": "crates/vox-schola/**/*.rs"
+    },
+    "vox-scientia-api": {
+      "role": "Workspace member: vox-scientia-api",
+      "path_pattern": "crates/vox-scientia-api/**/*.rs"
+    },
+    "vox-scientia-core": {
+      "role": "Workspace member: vox-scientia-core",
+      "path_pattern": "crates/vox-scientia-core/**/*.rs"
+    },
+    "vox-scientia-runtime": {
+      "role": "Workspace member: vox-scientia-runtime",
+      "path_pattern": "crates/vox-scientia-runtime/**/*.rs"
+    },
+    "vox-scientia-social": {
+      "role": "Workspace member: vox-scientia-social",
+      "path_pattern": "crates/vox-scientia-social/**/*.rs"
+    },
+    "vox-search": {
+      "role": "Workspace member: vox-search",
+      "path_pattern": "crates/vox-search/**/*.rs"
+    },
+    "vox-skills": {
+      "role": "Workspace member: vox-skills",
+      "path_pattern": "crates/vox-skills/**/*.rs"
+    },
+    "vox-socrates-policy": {
+      "role": "Workspace member: vox-socrates-policy",
+      "path_pattern": "crates/vox-socrates-policy/**/*.rs"
+    },
+    "vox-ssg": {
+      "role": "Workspace member: vox-ssg",
+      "path_pattern": "crates/vox-ssg/**/*.rs"
+    },
+    "vox-tensor": {
+      "role": "Workspace member: vox-tensor",
+      "path_pattern": "crates/vox-tensor/**/*.rs"
+    },
+    "vox-test-harness": {
+      "role": "Workspace member: vox-test-harness",
+      "path_pattern": "crates/vox-test-harness/**/*.rs"
+    },
+    "vox-toestub": {
+      "role": "Architectural enforcer and anti-pattern detector",
+      "path_pattern": "crates/vox-toestub/**/*.rs"
+    },
+    "vox-tools": {
+      "role": "Workspace member: vox-tools",
+      "path_pattern": "crates/vox-tools/**/*.rs"
+    },
+    "vox-webhook": {
+      "role": "Workspace member: vox-webhook",
+      "path_pattern": "crates/vox-webhook/**/*.rs"
+    },
+    "vox-workflow-runtime": {
+      "role": "Workspace member: vox-workflow-runtime",
+      "path_pattern": "crates/vox-workflow-runtime/**/*.rs"
+    },
+    "workspace-hack": {
+      "role": "Workspace member: workspace-hack",
+      "path_pattern": "crates/workspace-hack/**/*.rs"
     }
   },
   "staging_policy": {
@@ -55,3 +267,4 @@
     "promotion_requirement": "Subagent @reviewer approval + Lint Clean"
   }
 }
+

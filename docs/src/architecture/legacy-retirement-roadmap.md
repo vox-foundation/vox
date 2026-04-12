@@ -3,7 +3,7 @@ title: "Legacy retirement roadmap (2026)"
 description: "Machine-readable guide identifying retired and retiring code pathways in Vox. Prevents LLMs and contributors from building on deprecated surfaces. Last research audit: 2026-04-06."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-06
+last_updated: 2026-04-10
 training_eligible: true
 ---
 
@@ -16,7 +16,7 @@ training_eligible: true
 | Surface | Location | Status | Use instead |
 |---------|----------|--------|-------------|
 | `schema_cutover.rs` | `crates/vox-db/src/schema_cutover.rs` | **Deleted** (FTS moved to `schema_extensions`) | Core schema fragments |
-| `ludus_schema_cutover.rs` | `crates/vox-db/src/ludus_schema_cutover.rs` | **No-Op** | Core game fragments |
+| Ludus cutover module (removed) | (deleted) | **Removed** | Baseline gamification fragments in `schema/domains/` |
 | `MemoryManager::recall()` (sync) | `crates/vox-orchestrator/src/memory/manager.rs` | **Incomplete — misses Codex** | Use `recall_async()` |
 | `persist_fact()` (sync) | Same | **Loses writes on crash** | Use `recall_async()` / `sync_to_db()` |
 | `@component fn Name() to Element` | Vox syntax | **Deprecated** — Path A (classic) | Use `component Name() { state ...; view: }` Path C |
@@ -32,7 +32,7 @@ training_eligible: true
 
 ### 1 · DB schema cutover machinery
 
-**COMPLETED:** `schema_cutover.rs` is fully deleted. `routing_decisions` was ported to baseline. The 10 irrelevant DDL shims were stripped entirely. FTS functions securely sit in `schema_extensions.rs`. `ludus_schema_cutover.rs` has been reduced to a comment logic block since tables now properly belong in the `gamification_coordination` baseline module.
+**COMPLETED:** `schema_cutover.rs` is fully deleted. `routing_decisions` was ported to baseline. The 10 irrelevant DDL shims were stripped entirely. FTS functions securely sit in `schema_extensions.rs`. `ludus_schema_cutover.rs` and `legacy::apply_ludus_gamify_cutover` are **deleted**; Ludus DDL lives in baseline fragments only.
 
 ### 2 · File-based memory (MEMORY.md)
 
@@ -76,7 +76,7 @@ Retirement prerequisite: Clavis `doctor` must warn on deprecated vars + telemetr
 
 ### 6 · Training telemetry sidecar DB (`vox_training_telemetry.db`)
 
-Created automatically when `vox.db` is on a legacy schema chain. Signals: `VoxDb::connect_default_with_training_fallback` in `crates/vox-db/src/facade/connect.rs`. This is a crutch to avoid forcing immediate migration. Retire after all operators are on baseline schema.
+May remain on disk from older releases beside `vox.db`. Current code uses `VoxDb::connect_default` only; legacy primary surfaces `LegacySchemaChain` in `crates/vox-db/src/store/open.rs` until migration. Remove or archive after operators complete baseline cutover.
 
 ### 7 · Script surface (dead / replaceable)
 
@@ -102,7 +102,6 @@ These must be completed before new features can build correctly on top of them:
 | Language surface SSOT | `contracts/language/vox-language-surface.json` generator not built | New decorators/keywords require 6-way updates; drift guaranteed |
 | CLI command metadata generation | Stream H (boilerplate roadmap) not shipped | Commands added 3 times manually; drift in compliance gate |
 | `@component` deprecation lint | Lint exists for `use_*` hooks but not for the classic form itself | LLMs keep generating classic forms |
-| God Object watchlist cleanup | Stale `vox-dei/` path references in `god-object-defactor-checklist.md` | Misleads readers; `vox-dei` was deleted |
 
 ## What is safe to extend
 
@@ -117,7 +116,9 @@ The following surfaces are stable and canonical — new code should live here:
 | `VOX_DB_URL` / `VOX_DB_TOKEN` / `VOX_DB_PATH` | env vars | Canonical Codex config |
 | `vox_db::VoxDb` / `Codex` | `crates/vox-db/src/lib.rs` | Facade for all DB ops |
 | `vox-skills` | `crates/vox-skills/` | Skills/ARS SSOT (was vox-ars) |
-| `vox-orchestrator` | `crates/vox-orchestrator/` | Orchestrator SSOT (was vox-dei) |
+| `vox-orchestrator` | `crates/vox-orchestrator/` | Orchestrator SSOT (was large vox-dei crate) |
+| `vox-dei` | `crates/vox-dei/` | HITL Doubt/Resolution logic crate |
+| `vox-constrained-gen` | `crates/vox-constrained-gen/` | Grammar-constrained decoding logic |
 
 ## Related
 

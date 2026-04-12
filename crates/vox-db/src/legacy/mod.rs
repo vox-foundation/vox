@@ -19,8 +19,3 @@ pub use crate::legacy_import_extras as import_extras;
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), crate::StoreError> {
     crate::schema_extensions::apply_schema_extensions(conn).await
 }
-
-/// Apply legacy Ludus/gamification cutover alignment.
-pub async fn apply_ludus_gamify_cutover(conn: &Connection) -> Result<(), crate::StoreError> {
-    crate::ludus_schema_cutover::apply_ludus_gamify_cutover(conn).await
-}

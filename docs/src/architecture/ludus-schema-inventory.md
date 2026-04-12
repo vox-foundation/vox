@@ -1,6 +1,6 @@
 ---
 title: "Ludus / gamify schema inventory (SSOT pointers)"
-description: "Index to vox-db gamification SQL, agents domain, ludus_schema_cutover, plus vox-ludus router/rewards/schema code and key tests—no duplicated schema text."
+description: "Index to vox-db gamification SQL, agents domain, legacy Ludus hook, plus vox-ludus router/rewards/schema code and key tests—no duplicated schema text."
 category: "architecture"
 ---
 
@@ -11,9 +11,9 @@ category: "architecture"
 - Core tables: [`crates/vox-db/src/schema/domains/sql/gamification.sql`](../../../crates/vox-db/src/schema/domains/sql/gamification.sql) (profiles, companions, quests, battles) plus coordination SQL in the same domain.
 - Agents / events: [`crates/vox-db/src/schema/domains/agents.rs`](../../../crates/vox-db/src/schema/domains/agents.rs) (`agent_events`, `cost_records`, …).
 
-## Post-baseline cutover (idempotent)
+## Baseline gamification coordination (extended tables)
 
-Extended Ludus tables and column fixes live in [`crates/vox-db/src/ludus_schema_cutover.rs`](../../../crates/vox-db/src/ludus_schema_cutover.rs). (Note: `schema_cutover.rs` has been retired and its coordination logic moved to baseline).
+Extended Ludus tables and column fixes live in the **gamification** / coordination fragments under [`crates/vox-db/src/schema/domains/`](../../../crates/vox-db/src/schema/domains/) (consumed by `manifest::baseline_sql`). The former `ludus_schema_cutover` module and its legacy entrypoint are removed; use baseline `migrate` only.
 
 Covers, among others:
 
@@ -31,5 +31,5 @@ Covers, among others:
 
 ## Tests
 
-- Cutover smoke: [`crates/vox-db/tests/ludus_schema_cutover_test.rs`](../../../crates/vox-db/tests/ludus_schema_cutover_test.rs)
+- Ludus SQL / ops: [`crates/vox-db/tests/ops_ludus_tests.rs`](../../../crates/vox-db/tests/ops_ludus_tests.rs)
 - Policy / router: [`crates/vox-ludus/tests/gamify_integration_test.rs`](../../../crates/vox-ludus/tests/gamify_integration_test.rs)

@@ -48,7 +48,7 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 | compiler frontend entry path | `crates/vox-cli/src/commands/build.rs`, `crates/vox-cli/src/commands/check.rs`, `crates/vox-cli/src/pipeline.rs` | merge | `vox-cli` pipeline frontend | Route build/check/adjacent callers through one frontend pipeline |
 | std/openclaw builtin mapping | `crates/vox-compiler/src/builtin_registry.rs`, `crates/vox-compiler/src/typeck/checker/expr_field.rs`, `crates/vox-compiler/src/codegen_rust/emit/stmt_expr.rs` | merge | data-driven builtin registry | Generate/derive type + codegen/runtime mapping from one table |
 | rust interop support tiers | `contracts/rust/ecosystem-support.yaml`, `crates/vox-compiler/src/rust_interop_support.rs`, `docs/src/architecture/rust-ecosystem-support-ssot.md` | merge | contract YAML (+ generated Rust) | Keep contract machine-SSOT, generate classifier |
-| db baseline vs legacy/cutover chain | `crates/vox-db/src/codex_legacy.rs`, `legacy_import_extras.rs`, `schema_cutover.rs`, `ludus_schema_cutover.rs`, `schema/manifest.rs` | legacy | baseline schema manifest/spec | Fence migration-only paths under explicit legacy namespace and age-out policy |
+| db baseline vs legacy/cutover chain | `crates/vox-db/src/codex_legacy.rs`, `legacy_import_extras.rs`, `legacy/mod.rs`, `schema/manifest.rs` | legacy | baseline schema manifest/spec | Fence migration-only paths under explicit legacy namespace and age-out policy |
 | mcp registry bootstrap inversion | `scripts/extract_mcp_tool_registry.py`, `contracts/mcp/tool-registry.canonical.yaml`, `crates/vox-mcp-registry/build.rs` | legacy | canonical YAML | Mark extract script as migration-only legacy pathway |
 | duplicate non-normative mcp reference table | `docs/mcp-tool-reference.md` | delete/legacy | `docs/src/reference/mcp-tool-registry-contract.md` + canonical YAML | Replace with redirect to normative source |
 | redirect stub docs (`ref/*`) | `docs/src/ref/*.md` | keep (alias) | `docs/src/reference/*` | Keep lightweight redirects; no duplicated normative content |
@@ -56,22 +56,25 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 ## Workspace crate index (CI guard)
 
 `scripts/check_docs_ssot.sh` (or `scripts/check_docs_ssot.ps1` on Windows) requires every `crates/*/Cargo.toml` package name to appear **exactly once** between the markers below (one crate per line).
+Note: `vox-ars` and `vox-gamify` are retired aliases/namespaces (now `vox-skills` and `vox-ludus`).
 
 <!-- workspace-crates-start -->
-vox-skills
 vox-audio-ingress
 vox-bootstrap
 vox-bounded-fs
 vox-browser
+vox-build-meta
 vox-capability-registry
 vox-checksum-manifest
 vox-clavis
 vox-cli
 vox-compiler
 vox-config
+vox-constrained-gen
 vox-container
 vox-corpus
 vox-db
+vox-dei
 vox-orchestrator
 vox-doc-inventory
 vox-doc-pipeline
@@ -90,7 +93,6 @@ vox-mcp-registry
 vox-openai-sse
 vox-openai-wire
 vox-oratio
-vox-orchestrator
 vox-pm
 vox-populi
 vox-primitives
@@ -105,8 +107,8 @@ vox-schola
 vox-scientia-api
 vox-scientia-core
 vox-scientia-runtime
-vox-scientia-social
 vox-search
+vox-scientia-social
 vox-skills
 vox-socrates-policy
 vox-ssg
@@ -116,6 +118,7 @@ vox-toestub
 vox-tools
 vox-webhook
 vox-workflow-runtime
+workspace-hack
 <!-- workspace-crates-end -->
 
 ## Review cadence
