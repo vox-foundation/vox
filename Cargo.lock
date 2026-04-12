@@ -11513,6 +11513,7 @@ dependencies = [
  "serial_test",
  "sha3",
  "thiserror 1.0.69",
+ "vox-clavis",
  "vox-container",
  "vox-eval",
  "vox-grammar-export",

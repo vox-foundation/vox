@@ -11,7 +11,7 @@ pub enum ReviewProvider {
     /// Set `OPENROUTER_API_KEY` env var or provide `api_key` directly.
     OpenRouter {
         /// API key; empty means resolve from `OPENROUTER_API_KEY` when the client runs.
-        #[serde(default)]
+        #[serde(default, skip_serializing)]
         api_key: String,
         /// Model identifier, e.g. `"anthropic/claude-3.5-sonnet"`.
         #[serde(default = "default_openrouter_model")]
@@ -24,7 +24,7 @@ pub enum ReviewProvider {
     /// overridden for local servers (LMStudio, vLLM, etc.).
     OpenAi {
         /// API key; empty means resolve from `OPENAI_API_KEY` when the client runs.
-        #[serde(default)]
+        #[serde(default, skip_serializing)]
         api_key: String,
         /// Chat model id (e.g. `gpt-4o-mini`) passed to `/chat/completions`.
         #[serde(default = "default_openai_model")]
@@ -35,7 +35,7 @@ pub enum ReviewProvider {
     },
     /// Google Gemini Flash free tier.
     Gemini {
-        #[serde(default)]
+        #[serde(default, skip_serializing)]
         /// Google AI Studio key; empty means resolve from `GEMINI_API_KEY` when the client runs.
         api_key: String,
         #[serde(default = "default_gemini_model")]

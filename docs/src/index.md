@@ -27,22 +27,9 @@ schema_type: "HowTo"
 *“Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!”*  
 — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
 
-## Why Vox Exists
+{{#include ../../README.md:why_vox}}
 
-When a language model needs to act on a system — retrieve data, mutate state, call a tool, write a workflow — it usually reaches for Python. Python fails silently at runtime: a generated script that mishandles a missing value won't error until it runs, and the model gets no feedback from the compiler. **Vox gives models a compiled, verified surface instead.** If generated code mishandles an absent value, drops an error, or mismatches a type, the compiler rejects it before anything executes.
-
-Our telemetry from fine-tuning on Vox shows **~40% fewer hallucinated field names** versus equivalent Python generation tasks and **~3× fewer runtime-only failures** in generated tool-call sequences.
-
-The same guarantee applies to human-written code — and a single language surface covering schema, server, and UI means developers stop chasing sync bugs between three separate layers.
-
-## Design Principles
-
-- **Compiler as error boundary.** No `null`, no `undefined`. Absence is `Option[T]`; failure is `Result[T]`. Every branch must be handled.
-- **One source of truth.** `@table`, `@server`, and `@island` live in the same file. The compiler generates the SQL schema, HTTP endpoint, and TypeScript client from one declaration.
-- **Durability without a framework.** `workflow` and `actor` are language keywords, not libraries.
-- **AI-native tooling.** `@mcp.tool` turns any function into a callable tool for any MCP-compatible agent. The orchestrator, agent mesh, and model routing are built into the platform.
-
----
+{{#include ../../README.md:how_vox}}
 
 ## The Language, Step by Step
 
@@ -148,12 +135,14 @@ fn search_knowledge(query: str, max_results: int) to SearchResult {
 
 ## Agent Orchestration & AI Capabilities
 
-Vox goes beyond just syntax. It includes a full AI ecosystem:
+Vox goes beyond just syntax. It includes a full AI ecosystem built directly into the toolchain:
 
-- **Multi-agent coordination**: The DEI orchestrator (`vox-dei`) routes concurrent tasks by file affinity and role (Builder, Planner, Verifier). Every state transition is persisted through MCP tools.
-- **Agent-to-agent messaging**: Agents exchange typed, JWE-encrypted envelopes over a structured bus (A2A), ensuring compile-time shape guarantees.
-- **The Populi Mesh**: `vox populi` acts as a node registry. The orchestrator routes training and inference to where the hardware can support it out of the box.
-- **Native Training**: `vox populi probe` detects your GPU and recommends a QLoRA configuration. Training runs natively in Rust via Burn — no Python required.
+- **Multi-Agent Coordination:** The DEI orchestrator (`vox-dei`) routes concurrent tasks by file affinity and role. Every state transition is persisted and traceable.
+- **Agent-to-Agent Messaging:** Agents exchange typed, JWE-encrypted envelopes over a structured bus, ensuring compile-time shape guarantees for AI interactions.
+- **Local GPU & Native Training (MENS):** The MENS neural pipeline natively equips developers to fine-tune models using [Burn](https://github.com/tracel-ai/burn) and [Candle](https://github.com/huggingface/candle). No Python required. `vox populi probe` orchestrates:
+  1. **QLoRA Fine-Tuning** against your internal repositories.
+  2. **Speech-to-Code (ASR)** via local Whisper/Qwen to map vocal commands to AST edits.
+  3. **Local Mesh Serving** securely exposing models over a `/v1/completions` endpoint for offline execution.
 
 ---
 
@@ -184,8 +173,8 @@ Vox uses the **Diátaxis** framework to organize knowledge by user intent.
     </div>
 </div>
 
-## Quick Links
+{{#include ../../README.md:community_license}}
+
+### Quick Documentation Links
 - **[Installation Guide](tutorials/tut-getting-started.md)**: Set up the `vox` toolchain on your machine.
-- **[Golden Examples](examples/golden.md)**: Scannable, verified code snippets for common patterns.
-- **[Internal Architecture](architecture/architecture-index.md)**: Deep dives into the compiler and runtime internals.
-- **[GitHub Repository](https://github.com/vox-foundation/vox)**: Core source code and contributor space (Apache-2.0).
+- **[Master Architecture Index](architecture/architecture-index.md)**: Deep dives into the compiler and runtime internals.

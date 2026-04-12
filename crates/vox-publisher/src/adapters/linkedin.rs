@@ -8,5 +8,6 @@ pub async fn post(
     _cfg: &LinkedInConfig,
     _dry_run: bool,
 ) -> Result<String> {
+    // TOESTUB: stub/unimplemented - LinkedIn adapter awaiting App approval
     Err(anyhow!("LinkedIn adapter not implemented"))
 }

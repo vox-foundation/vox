@@ -132,6 +132,16 @@ pub struct DiscordConfig {
     pub message: Option<String>,
     #[serde(default)]
     pub tts: bool,
+    #[serde(default)]
+    pub embed_title: Option<String>,
+    #[serde(default)]
+    pub embed_url: Option<String>,
+    #[serde(default)]
+    pub embed_description: Option<String>,
+    #[serde(default)]
+    pub embed_color: Option<u32>,
+    #[serde(default)]
+    pub webhook_url_override: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,6 +168,8 @@ pub struct OpenCollectiveConfig {
     #[serde(default)]
     pub is_private: bool,
     pub collective_slug: String,
+    #[serde(default)]
+    pub scheduled_publish_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

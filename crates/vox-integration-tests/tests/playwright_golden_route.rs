@@ -10,8 +10,9 @@ use vox_cli::frontend;
 #[tokio::test]
 #[ignore = "set VOX_GUI_PLAYWRIGHT=1; run `pnpm install` + `pnpm exec playwright install chromium` in crates/vox-integration-tests"]
 async fn golden_route_screenshot_and_a11y() {
+    let playwright_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGuiPlaywright);
     assert_eq!(
-        std::env::var("VOX_GUI_PLAYWRIGHT").ok().as_deref(),
+        playwright_resolved.expose().as_deref(),
         Some("1"),
         "set VOX_GUI_PLAYWRIGHT=1 to run this test"
     );

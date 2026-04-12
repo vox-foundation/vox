@@ -8,8 +8,8 @@ use vox_pm::{Lockfile, RegistryClient, content_hash};
 
 fn registry_client_for_verify(registry_url: Option<&str>) -> RegistryClient {
     let base = registry_url.unwrap_or(DEFAULT_REGISTRY_BASE);
-    let token = std::env::var("VOX_REGISTRY_TOKEN")
-        .ok()
+    let token_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRegistryToken);
+    let token = token_resolved.expose()
         .filter(|s| !s.is_empty());
     if let Some(t) = token {
         RegistryClient::with_auth(base, &t)
@@ -69,7 +69,8 @@ pub async fn verify_dl_against_lock(registry_url: Option<&str>) -> Result<()> {
                 }
             }
             PackageSource::Git { url, .. } => {
-                if std::env::var_os("VOX_PM_ALLOW_GIT_UNVERIFIED").is_some() {
+                let allow_unverified_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPmAllowGitUnverified);
+                if allow_unverified_resolved.expose().is_some() {
                     eprintln!(
                         "  ⚠ {name}: skipping git source verification for `{url}` (VOX_PM_ALLOW_GIT_UNVERIFIED=1)"
                     );

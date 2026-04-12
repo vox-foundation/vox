@@ -38,8 +38,10 @@ fn load_build_timing_budgets(root: &Path) -> Result<std::collections::HashMap<St
 /// Soft budgets from `budgets.json`. `VOX_BUILD_TIMINGS_BUDGET_WARN=1` stderr for missing lane keys
 /// and over-budget lanes. `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` fails if any lane exceeded its cap (warn not required).
 fn apply_build_timing_budgets(records: &[TimingRecord], root: &Path) -> Result<()> {
-    let warn = std::env::var("VOX_BUILD_TIMINGS_BUDGET_WARN").unwrap_or_default() == "1";
-    let fail = std::env::var("VOX_BUILD_TIMINGS_BUDGET_FAIL").unwrap_or_default() == "1";
+    let warn_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBuildTimingsBudgetWarn);
+    let warn = warn_resolved.expose().unwrap_or_default() == "1";
+    let fail_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBuildTimingsBudgetFail);
+    let fail = fail_resolved.expose().unwrap_or_default() == "1";
     if !warn && !fail {
         return Ok(());
     }
@@ -151,7 +153,8 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
     }
 
     // Optional CUDA lane (same policy as `cuda-features`).
-    if std::env::var("SKIP_CUDA_FEATURE_CHECK").unwrap_or_default() != "1" {
+    let skip_cuda_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+    if skip_cuda_resolved.expose().unwrap_or_default() != "1" {
         let nvcc_ok = nvcc_available();
         if nvcc_ok {
             records.push(run_cargo_lane(
@@ -195,7 +198,8 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 println!("    ({e})");
             }
         }
-        if std::env::var("SKIP_CUDA_FEATURE_CHECK").unwrap_or_default() == "1" {
+        let skip_cuda_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+        if skip_cuda_resolved.expose().unwrap_or_default() == "1" {
             println!("  (CUDA lane skipped: SKIP_CUDA_FEATURE_CHECK=1)");
         } else if !records
             .iter()

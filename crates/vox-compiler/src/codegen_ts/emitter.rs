@@ -45,10 +45,10 @@ impl CodegenOptions {
     /// route output is always [`route_manifest`] + components).
     #[must_use]
     pub fn from_env() -> Self {
+        let tanstack_start_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebTanstackStart);
         Self {
-            tanstack_start: std::env::var("VOX_WEB_TANSTACK_START")
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false),
+            tanstack_start: tanstack_start_resolved.expose()
+                .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true")),
             target: None,
         }
     }
@@ -142,10 +142,10 @@ pub fn generate_with_options(
 
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
     let routes_content = generate_routes(hir);
+    let emit_express_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEmitExpressServer);
     if !routes_content.is_empty()
-        && std::env::var("VOX_EMIT_EXPRESS_SERVER")
-            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-            .unwrap_or(false)
+        && emit_express_resolved.expose()
+            .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true"))
     {
         files.push(("server.ts".to_string(), routes_content));
     }

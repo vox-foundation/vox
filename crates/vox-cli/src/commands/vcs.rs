@@ -35,7 +35,9 @@ async fn jj(args: &[&str]) -> Result<String> {
 
 /// Dispatch a [`VcsAction`] subcommand.
 pub async fn run(action: VcsAction) -> Result<()> {
-    let json_mode = std::env::var("VOX_JSON_OUTPUT").is_ok_and(|v| v == "1");
+    let json_mode = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxJsonOutput)
+        .expose()
+        .is_some_and(|v| v == "1");
 
     match action {
         VcsAction::Init => {

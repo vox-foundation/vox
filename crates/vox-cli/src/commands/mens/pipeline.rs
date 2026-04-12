@@ -185,8 +185,10 @@ pub async fn run(
             }
             PipelineStage::ReviewIngest => {
                 if !dry_run {
-                    let repo_id = std::env::var("VOX_REVIEW_REPOSITORY_ID")
-                        .unwrap_or_else(|_| "vox-foundation/vox".to_string());
+                    let repo_id_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxReviewRepositoryId);
+                    let repo_id = repo_id_resolved.expose()
+                        .unwrap_or("vox-foundation/vox")
+                        .to_string();
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::ReviewExport {
                             repository_id: repo_id,

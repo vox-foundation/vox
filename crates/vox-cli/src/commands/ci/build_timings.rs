@@ -418,9 +418,9 @@ pub async fn bench_build_run(
                 })),
             )
             .await;
-            if std::env::var("VOX_BENCHMARK_TELEMETRY")
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false)
+            let benchmark_telemetry_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBenchmarkTelemetry);
+            if benchmark_telemetry_resolved.expose()
+                .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             {
                 println!(
                     "Recorded fallback metrics to research_metrics (VOX_BENCHMARK_TELEMETRY)."

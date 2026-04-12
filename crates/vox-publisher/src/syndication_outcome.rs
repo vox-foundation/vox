@@ -142,4 +142,69 @@ impl SyndicationResult {
             _ => None,
         }
     }
+
+    #[must_use]
+    pub fn reddit_id(&self) -> Option<&str> {
+        match &self.reddit {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn discord_id(&self) -> Option<&str> {
+        match &self.discord {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn bluesky_id(&self) -> Option<&str> {
+        match &self.bluesky {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn mastodon_id(&self) -> Option<&str> {
+        match &self.mastodon {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn linkedin_id(&self) -> Option<&str> {
+        match &self.linkedin {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
 }

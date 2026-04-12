@@ -11,6 +11,7 @@ pub struct OutboundWebhook {
     /// Target URL
     pub url: String,
     /// Optional HMAC secret for signing outbound payloads
+    #[serde(skip_serializing)]
     pub secret: Option<String>,
     /// Maximum delivery attempts
     pub max_retries: u32,

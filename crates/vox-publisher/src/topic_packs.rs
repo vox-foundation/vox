@@ -1,4 +1,4 @@
-﻿//! Contract-backed **topic packs** (`contracts/scientia/distribution.topic-packs.yaml`) merged into
+//! Contract-backed **topic packs** (`contracts/scientia/distribution.topic-packs.yaml`) merged into
 //! [`crate::types::SyndicationConfig`] when `metadata_json` contains `"topic_pack": "<id>"`.
 
 use std::collections::{BTreeMap, HashSet};
@@ -73,6 +73,18 @@ pub fn merge_topic_pack_into_syndication(
         }
         if !allow.contains("crates_io") {
             syn.crates_io = None;
+        }
+        if !allow.contains("discord") {
+            syn.discord = None;
+        }
+        if !allow.contains("bluesky") {
+            syn.bluesky = None;
+        }
+        if !allow.contains("linkedin") {
+            syn.linkedin = None;
+        }
+        if !allow.contains("mastodon") {
+            syn.mastodon = None;
         }
     }
     for (ch, score) in &pack.min_worthiness_score {

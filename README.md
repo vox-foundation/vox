@@ -3,7 +3,7 @@
 
   <br><br>
 
-  <p><strong>One language. Database, backend, UI, and scientific publication — designed first as a target for large language models to orchestrate systems and autonomously hunt for discovery alongside developers.</strong></p>
+  <p><strong>One language. Database, backend, UI, and scientific publication — designed first as a target for large language models to orchestrate systems and hunt for discovery alongside developers.</strong></p>
   <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 
 </div>
@@ -29,25 +29,25 @@
 
 ---
 
+<!-- ANCHOR: why_vox -->
 ## Why Vox Exists
 
-The way we build software has changed forever. Today, developers direct Large Language Models to architect, write, and orchestrate logic. Yet, the foundations we rely on—Python, TypeScript, Rust—were designed decades before AI could write code. Their vast, unconstrained surfaces often cause agents to guess, hallucinate, and fail mid-execution.
+Today, developers direct large language models to architect and execute logic. But Python, JavaScript, and Rust were designed decades before AI could write code. Their vast, unconstrained surfaces cause agents to hallucinate and fail.
 
-The core intent behind Vox is to return power to developers by providing an environment where an AI never has to guess. It is a language built from the ground up as a deterministic target for language models. 
-
-By constraining the boundaries of software engineering on behalf of the AI, Vox turns arbitrary text generation into a predictable, self-correcting loop. It is not merely a web framework; it is an orchestration engine designed to help humans and models jointly construct distributed systems, synthesize unstructured data, and power autonomous research pipelines.
+Vox is built from the ground up as a deterministic target for language models. By constraining the boundaries of software engineering on behalf of the AI, it turns arbitrary text generation into a predictable, self-correcting loop. It is an orchestration engine for humans and models jointly building distributed systems, synthesizing unstructured data, and powering autonomous research pipelines.
+<!-- ANCHOR_END: why_vox -->
 
 
 
 ### Platform Architecture & Stability
 
-We stratify the platform's development based on a single metric: **Model Predictability**. The systems responsible for data integrity, core language syntax, and agent memory represent the unchanging foundation because they anchor an LLM's understanding of the codebase. Conversely, high-level orchestration features and rendering lifecycles remain cautiously fluid as we iterate on the most effective ways for AI to construct them. 
+We stratify the platform based on a single metric: **Model Predictability**. Data integrity, core language syntax, and agent memory are the unchanging foundation because they anchor an LLM's understanding of the codebase. High-level orchestration and rendering lifecycles remain fluid as we find the most effective ways for AI to construct them.
 
-Rather than maintaining a brittle list of micro-features, we enforce capability stability directly through our continuous integration and compiler test boundaries.
+Stability is enforced through CI and compiler test boundaries, not a maintained list of micro-features.
 
-* 🟢 **Tier 1 (Stable):** Production-ready. The AST syntax and runtime behavior are locked to ensure LLM code generation is completely predictable.
-* 🟡 **Tier 2 (Preview):** Functionally available, but execution lifecycles or internal AST schemas may evolve to improve model generation rates.
-* 🚧 **Tier 3 (Experimental):** Under active architectural planning or limited tightly behind CLI feature flags.
+* 🟢 **Tier 1 (Stable):** Production-ready. AST syntax and runtime behavior are locked for predictable LLM code generation.
+* 🟡 **Tier 2 (Preview):** Functionally available, but execution lifecycles or internal AST schemas may evolve.
+* 🚧 **Tier 3 (Experimental):** Under active architectural planning or behind CLI feature flags.
 
 | Domain & Key Capabilities | Stability | How we verify this |
 |:--------------------------|:----------|:-------------------|
@@ -65,43 +65,24 @@ Rather than maintaining a brittle list of micro-features, we enforce capability 
 
 ---
 
-## Architectural Guardrails
-
-Vox enforces its design through machine-verifiable limits. To ensure that autonomous agents and human developers can predictably navigate and build upon the codebase, the framework implements five absolute architectural boundaries that trigger CI failure if breached:
-
-**Complexity Bounds (The Sprawl Limit)**
-To ensure that logic fits securely within an AI's processing window without diluting reasoning, code sprawl—measured internally as Kolmogorov Complexity (K-Complexity)—is hard-limited. A struct or class cannot exceed 500 lines or 12 methods, and a directory cannot contain more than 20 files. Exceeding these limits forces a build failure, requiring the developer (or agent) to refactor logic cleanly into new sub-domains.
-
-**Zero-Skeleton Enforcement (TOESTUB)**
-Code cannot be built if it contains empty execution paths or temporary placeholders. The `toestub` CI pipeline automatically blocks identifiers like `stub/todo` or `stub/unimplemented` in production paths, ensuring that AI-generated logic is fully complete before the system permits evaluation.
-
-**Scientific Documentation Hygiene (Scientia)**
-An AI is only as capable as the truth it trains on. Vox treats documentation not as casual text, but as formal, machine-verified research. Under the `Scientia` doctrine, code blocks cannot be written loosely; the framework physically requires all `.vox` snippets to be compiler-verified via direct inclusion (`{{#include}}`). Language models and developers can mathematically trust that the publications they read are strictly factual.
-
-**Strict Credential Resolution (Clavis)**
-Hidden environment variables cause deployment drift and model hallucinations. Our security pipeline (`secret-env-guard`) blocks any logic that attempts to directly read generic environment variables. All credentials must route through the central Clavis registry, generating complete, auditable clarity on what capabilities an application possesses.
-
-**Context Window Isolation**
-Because the language targets large language models, maintaining context hygiene is treated as a structural mandate. A single source of truth (`.voxignore`) automatically derives all agent exclusion boundaries, shielding models from reading generated artifacts or telemetry logs and keeping their attention solely on intentional logic.
-
----
-
 ## How Vox Solves the Training Paradox
 
-It is often assumed that legacy languages hold a permanent advantage in AI generation simply because language models blindly vacuum up massive quantities of their scripts scraped from across the internet. 
+Legacy languages appear to hold a permanent AI advantage because models absorb massive quantities of their code scraped from the internet.
 
-Vox bypasses this shotgun approach entirely. The repository includes local training primitives (`vox populi` and the MENS neural training pipeline) that allow developers to natively fine-tune *any* foundation model to master Vox's strict structural boundaries. Because the platform ships with an inference and training mesh that scales seamlessly across a variety of hardware architectures, you are never locked out of AI-assisted engineering just because a model hasn't scraped enough of your syntax. You fine-tune it natively, empowering specialized models to write flawless code tailored exactly to your orchestration needs.
+Vox bypasses this entirely. The repository includes local training primitives (`vox populi` and the MENS neural training pipeline) that let developers natively fine-tune any foundation model to master Vox's structural boundaries. Because the platform ships with an inference and training mesh that scales across diverse hardware architectures, you aren't locked out of AI-assisted engineering because a model hasn't seen enough of your syntax. Fine-tune it natively — specialized models writing flawless code tailored exactly to your orchestration needs.
 
 ---
 
+<!-- ANCHOR: how_vox -->
 ## How Vox Works
 
-Code generation fails when an AI is forced to navigate fragmented files, hidden states, and chaotic lifecycles. Vox solves this by functioning as a high-level abstraction that rigorously lowers into safe, deterministic infrastructure.
+Code generation fails when an AI navigates fragmented files, hidden states, and chaotic lifecycles. Vox functions as a high-level abstraction that lowers into safe, deterministic infrastructure.
 
-* **The High-Level Intermediate Representation (HIR):** When an AI writes a `.vox` file, the parser doesn't just strip it into an Abstract Syntax Tree (AST); it lowers it into a strictly unified HIR. This means database bindings, HTTP handshakes, and UI lifecycles are resolved mathematically by the compiler before any code is generated. The AI doesn't write React or SQL; it writes HIR directives, and the compiler handles the mechanical execution logic.
-* **Deterministic Rendering (WebIR):** UI is compiled directly to a Web Intermediate Representation (WebIR). Agents never have to juggle React hooks, client state waterfalls, or asynchronous DOM wiring. They emit pure data representations, and the WebIR projection handles the translation down to HTML.
-* **Semantic Error Feedback:** There are no implicit runtime exceptions. Complex operations return strict `Result[T]` constraints. Because semantic checking happens exclusively along the unified HIR path, if an agent fails to handle an error state, the compiler catches the omission immediately, providing the LLM with rigorous, syntax-level feedback to self-correct during the generation loop.
-* **Native Protocol Projection:** AI capabilities are not a bolted-on SDK. Because the language is AI-native, the AST inherently recognizes decorators like `@mcp.tool`. The compiler automatically projects these into Model Context Protocol manifests, allowing any external agent to execute your logic without you writing a single HTTP route.
+* **The High-Level Intermediate Representation (HIR):** When an AI writes a `.vox` file, the parser lowers it into a strictly unified HIR. Database bindings, HTTP handshakes, and UI lifecycles are resolved by the compiler before any code is generated. The AI writes HIR directives, and the compiler handles execution logic.
+* **Deterministic Rendering (WebIR):** UI compiles directly to a Web Intermediate Representation. Agents never juggle React hooks, client state waterfalls, or asynchronous DOM wiring — they emit pure data representations, and WebIR handles the translation to HTML.
+* **Semantic Error Feedback:** There are no implicit runtime exceptions. Operations return strict `Result[T]` constraints. Semantic checking happens exclusively along the unified HIR path — if an agent fails to handle an error state, the compiler catches it immediately and feeds the LLM syntax-level feedback to self-correct.
+* **Native Protocol Projection:** AI capabilities aren't a bolted-on SDK. The AST inherently recognizes decorators like `@mcp.tool`. The compiler automatically projects these into Model Context Protocol manifests, so any external agent can execute your logic without a single hand-written HTTP route.
+<!-- ANCHOR_END: how_vox -->
 
 ---
 
@@ -131,11 +112,11 @@ component TaskPage() { // the static page that hosts it
 routes { "/" to TaskPage }
 ```
 
-One file. The compiler generates the SQL schema, the server endpoint, and the browser-side code that connects them. There's no separate ORM configuration, no hand-written API route, no TypeScript interface to keep in sync. The steps below build this up from first principles.
+One file. The compiler generates the SQL schema, the server endpoint, and the browser-side code that connects them. No separate ORM configuration, no hand-written API route, no TypeScript interface to keep in sync.
 
 ### Step 1 — Declare your data
 
-In most projects, a data type lives in three places at once: a database schema (SQL), a server model (TypeScript or Python class), and a client type. They drift apart silently. Vox collapses all three into one declaration:
+In most projects, a data type lives in three places at once: a database schema, a server model, and a client type. They drift apart silently. Vox collapses all three into one declaration:
 
 ```vox
 @require(len(self.title) > 0)    // the compiler rejects empty titles on insert
@@ -149,11 +130,9 @@ In most projects, a data type lives in three places at once: a database schema (
 @index Task.by_owner on (owner)  // the database index, declared next to the type
 ```
 
-`@table` tells the compiler this type lives in the database. It generates the SQL table and handles schema migrations — the process of updating a live database when you change the shape of your data — automatically. `@require` is a rule the compiler bakes into every write path: it's not just a runtime check, it can't be bypassed. `@index` creates a database index for fast lookups by owner, declared right next to the type it belongs to.
+`@table` generates the SQL table and handles schema migrations automatically. `@require` is baked into every write path — not just a runtime check, it can't be bypassed. `@index` creates a database index for fast lookups by owner.
 
 ### Step 2 — Write server functions
-
-A web application needs ways to read data, write data, and do custom logic. In Vox, you declare the intent with a decorator rather than wiring up a router by hand:
 
 ```vox
 @query
@@ -177,15 +156,11 @@ fn add_task(title: str, owner: str) to Id[Task] {
 }
 ```
 
-`@query` exposes a read-only endpoint — the kind that should never change data, so Vox enforces that. `@mutation` wraps the write in a database transaction, meaning if something goes wrong partway through, the whole operation is rolled back cleanly. `@server` is for everything else — general-purpose logic with a `POST` endpoint.
-
-The return type `Result[Task]` is where Vox earns its keep: it forces every piece of code that calls `get_task` to handle *both* outcomes — the found case and the not-found case. There's no way to call this function and silently ignore the error. The compiler won't build code that does.
+`@query` exposes a read-only endpoint — Vox enforces that it never changes data. `@mutation` wraps the write in a database transaction; if something goes wrong, the whole operation rolls back. The return type `Result[Task]` forces every caller to handle both the found and not-found cases. The compiler won't build code that ignores the error.
 
 ### Step 3 — Build the UI
 
-Modern web apps split into two concerns: the **server**, which renders initial HTML and handles data, and the **browser**, which handles interactivity. The key design challenge is keeping those boundaries clean without leaking React hook syntax, JSX idioms, or CSS class names into your core application logic.
-
-Vox solves this with two distinct primitives:
+Modern web apps split into two concerns: the **server**, which renders initial HTML and handles data, and the **browser**, which handles interactivity. Vox solves this with two distinct primitives:
 
 ```vox
 // An island is a piece of the page that's interactive in the browser.
@@ -196,7 +171,6 @@ Vox solves this with two distinct primitives:
 }
 
 // A component is server-rendered — fast initial load, no JavaScript needed.
-// It composes islands using the same Vox syntax, with no JSX boilerplate.
 component TaskPage() {
     view: <div className="task-list">
         <TaskList tasks=[...] on_complete={complete_task} />
@@ -206,15 +180,11 @@ component TaskPage() {
 routes { "/" to TaskPage }
 ```
 
-`@island` marks the boundary where the browser takes over. The compiler generates the React component, the browser lifecycle wiring, and the typed client stub — none of that appears in your `.vox` source. `component` stays on the server: rendered to HTML, fast to load, and written entirely in Vox syntax. The `routes { }` block maps URLs to pages without touching a router configuration file.
-
-The distinction isn't just organizational. It means React's mental model — hooks, lifecycle, client state — is confined to the generated layer. You write Vox; the compiler decides what runs where.
+`@island` marks the boundary where the browser takes over. The compiler generates the React component, the browser lifecycle wiring, and the typed client stub — none of that appears in your `.vox` source. `component` stays on the server: rendered to HTML, fast to load, written entirely in Vox syntax. React's mental model — hooks, lifecycle, client state — is confined to the generated layer.
 
 > **v0.dev integration:** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the generated component into `islands/src/TaskDashboard/`. The `@v0` build hook triggers this automatically during `vox build`.
 
 ### Step 4 — Durable logic and AI tools
-
-Real applications need things that survive a server restart, can be retried on failure, and can be called by people *and* AI agents. Vox builds all three in at the language level:
 
 ```vox
 // An activity is a step that can be retried independently if it fails
@@ -245,9 +215,7 @@ fn test_search() to Unit {
 }
 ```
 
-`workflow` and `actor` are keywords in the language, not third-party frameworks you install. A workflow tracks its own progress — if the server restarts halfway through `checkout`, it picks up where it left off. An `actor` is a named entity that receives typed messages and can hold its own state across many calls.
-
-`@mcp.tool` is one line that connects your function to the [Model Context Protocol](https://modelcontextprotocol.io) — the standard that lets AI assistants call tools in editors and agent pipelines. With one decorator, `search_knowledge` becomes something Claude or Cursor can invoke directly.
+`workflow` tracks its own progress — if the server restarts halfway through `checkout`, it picks up where it left off. An `actor` is a named entity that receives typed messages and holds its own state across many calls. `@mcp.tool` connects your function to the [Model Context Protocol](https://modelcontextprotocol.io) in one line, making `search_knowledge` directly invocable from Claude, Cursor, or any compatible agent.
 
 More examples: [`examples/golden/`](examples/golden/).
 
@@ -312,7 +280,7 @@ vox_queue_status     Show orchestrator queue and agent states
 
 ### Agent-to-agent messaging
 
-In most systems, passing results between agents means building your own protocol — a shared table, a queue, a webhook. In Vox, agent-to-agent messaging is built into the runtime. Agents exchange typed, encrypted messages; because both sides use the same declared Vox type, the compiler catches mismatches in each codebase before anything runs.
+In most systems, passing results between agents means building your own protocol — a shared table, a queue, a webhook. In Vox, agent-to-agent messaging is built into the runtime. Agents exchange typed, encrypted messages; because both sides use the same declared Vox type, the compiler catches mismatches before anything runs.
 
 The in-process message bus is active in every session. Cross-machine relay is available with the `populi-transport` feature.
 
@@ -339,22 +307,28 @@ VOX_MESH_ENABLED=1 VOX_MESH_NODE_ID=my-node vox populi serve
 vox populi status --quotas   # view per-provider usage and remaining budget
 ```
 
-### Local GPU & native training
+### Local GPU & Native Training (MENS)
 
-`vox populi probe` detects your GPU and recommends a QLoRA configuration. Training runs natively in Rust via [Burn](https://github.com/tracel-ai/burn) — no Python, no `pip install`, no virtual environment:
+The MENS neural pipeline lets developers fine-tune foundation models to generate Vox code natively. `vox-tensor` and `vox-populi` run in Rust using [Burn](https://github.com/tracel-ai/burn) and [Candle](https://github.com/huggingface/candle) — no Python, no `pip install`, no virtual environments.
+
+`vox populi probe` detects your local hardware topology (CUDA, Metal, WebGPU) and orchestrates multiple parallel AI pipelines:
+1. **QLoRA Fine-Tuning:** Train specialized adapter weights from your team's internal `src/` repositories.
+2. **Speech-to-Code (ASR):** Run real-time structured inference using local Whisper/Qwen models to map vocal commands to AST modifications.
+3. **Local Mesh Serving:** Deploy models via an OpenAI-compatible `/v1/completions` endpoint for offline agentic orchestration.
 
 ```bash
+# Automatically profile hardware and begin a QLoRA fine-tune
 vox populi train --config qlora.toml
+
+# Expose the fine-tuned adapter over the local mesh network
 vox populi serve --model mens/runs/latest/model_final.bin --port 8080
 ```
-
-~4,000 tokens/second on an RTX 4080 SUPER. Served on an OpenAI-compatible `/v1/completions` endpoint.
 
 ---
 
 ## Documentation
 
-Vox documentation is structured around the **Diátaxis** framework, explicitly separating tutorials, how-to guides, explanations, and pure reference material. 
+Vox documentation is structured around the **Diátaxis** framework, explicitly separating tutorials, how-to guides, explanations, and pure reference material.
 
 | Section | Description | Key Links |
 |---------|-------------|-----------|
@@ -364,28 +338,80 @@ Vox documentation is structured around the **Diátaxis** framework, explicitly s
 | **Explanations** | Theoretical deep-dives and architectural 'Why's. | [Compiler Architecture](docs/src/explanation/expl-architecture.md) <br> [AI Orchestration](docs/src/explanation/expl-ai-orchestration.md) |
 | **Reference** | Authoritative lists, CLI maps, and type systems. | [CLI Surface](docs/src/reference/cli.md) <br> [Decorator Registry](docs/src/reference/ref-decorators.md) |
 | **Architecture** | Single-Source-of-Truth (SSOT) planning and ADRs. | [Master Arch Index](docs/src/architecture/architecture-index.md) <br> [Contributor Hub](docs/src/contributors/contributor-hub.md) |
+| **Operations & Quality** | Deployment runbooks, CI constraints, and Docker topology. | [Docker Deployment](docs/src/reference/deployment-compose.md) <br> [CI Runner Contract](docs/src/ci/runner-contract.md) |
+
+> **Looking to contribute?** We actively track undocumented surfaces. Check our [Known Documentation Gaps & Backlog](docs/src/api/DOC_GAPS.md) to see where the community needs help.
 
 ---
 
+## Architectural Guardrails
+
+Vox applies the same philosophy to itself that it applies to user code: machine-verifiable constraints over style-guide suggestions. The rules below aren't enforced through code review — they fail CI. Each one exists because we've seen what happens without it.
+
+### No skeleton code (`vox-toestub`)
+
+`todo!()`, `unimplemented!()`, empty function bodies, and hollow arrow functions in production paths are a build blocker. The `vox-toestub` crate runs a suite of detectors — `StubDetector`, `EmptyBodyDetector`, `HollowFnDetector`, `ReachabilityDetector`, and others — as part of every CI matrix pass under `vox ci toestub`.
+
+**Why it matters for AI codebases:** AI agents produce plausible-looking scaffolding. An agent that returns a `todo!()` didn't finish the job — it silently deferred it. TOESTUB makes that deferral a build failure rather than a runtime surprise. The `VictoryClaimDetector` goes further, flagging comments like "implementation complete" adjacent to `unimplemented!()` calls.
+
+```bash
+vox stub-check --path crates/my-crate   # run locally before pushing
+vox ci toestub                          # full workspace scan in CI
+```
+
+### Complexity bounds (`GodObjectDetector`, `SprawlDetector`)
+
+No struct or impl block may exceed 500 lines or 12 methods. No directory may contain more than 20 files. Both limits are enforced by dedicated detectors in `vox-toestub`.
+
+**Why it matters:** An LLM's ability to reason about a module degrades sharply when the module exceeds its coherent processing window. The 500-line limit isn't aesthetic — it's calibrated so the entire struct fits comfortably within a 32K-token context window alongside the surrounding codebase. The 20-file directory limit forces domain decomposition before a module becomes a grab-bag. The `vox-orchestrator` crate documents this explicitly in its own module comment: *"decomposed from the original god-object."*
+
+### All credentials routed through Clavis (`secret-env-guard`, `operator-env-guard`)
+
+Direct `std::env::var` calls for secrets are a CI failure. All credentials are declared as `SecretId` variants in `crates/vox-clavis/src/spec.rs` and resolved via `vox_clavis::resolve_secret(...)`. The `vox ci secret-env-guard` command scans changed files for raw environment reads and fails the build if any are found outside a strict allowlist.
+
+**Why it matters:** Hidden environment variables cause deployment drift and make it impossible to audit what capabilities an application possesses. When an agent introduces a new API key, it must go through Clavis — which means it appears in `vox clavis doctor`, gets picked up by `vox ci clavis-parity`, and is visible to every operator. There's no path for a credential to sneak in through a casual `env::var("SOME_API_KEY")`. The `SecretDetector` in `vox-toestub` catches hardcoded credentials as a separate failure class.
+
+### Documentation is compiler-verified (`vox-doc-pipeline`, `SchemaComplianceDetector`)
+
+All `.vox` code blocks in `docs/src/` must either use `{{#include}}` to pull from a verified file in `examples/golden/`, or be marked `// vox:skip`. Loose code snippets that can't be compiled are a CI failure via `SchemaComplianceDetector`.
+
+**Why it matters:** Documentation that silently diverges from working code is worse than no documentation — it actively misleads both human readers and AI agents that use docs as retrieval context. The golden file pipeline (`examples/golden/`) means every snippet in this README and the docs site has been compiled against the current compiler before it shipped.
+
+### Context isolation is centrally managed (`.voxignore` → `vox ci sync-ignore-files`)
+
+`.voxignore` is the single source of truth for what files are excluded from AI context. Derived files (`.cursorignore`, `.aiignore`, `.aiexclude`) are regenerated automatically. Editing them directly causes a CI drift failure.
+
+**Why it matters:** Generated artifacts, telemetry logs, and build outputs are noise that degrades model attention. Without a centrally managed exclusion surface, each tool gets its own ad-hoc ignore file that drifts out of sync, and agents start reading their own previous outputs as source of truth. Centralizing this in `.voxignore` means the boundary is enforced once, not maintained four times.
+
+### No DRY violations, deprecated symbols, or unwired modules
+
+`vox-toestub` ships additional detectors that catch structural debt before it accumulates: `DryViolationDetector` flags copy-pasted logic blocks; `DeprecatedUsageDetector` blocks use of retired crate names and environment variables (see the retired-symbols table in `AGENTS.md`); `UnwiredModuleDetector` catches modules declared but never imported. These run in CI alongside the structural checks above.
+
+```bash
+vox ci toestub --report    # full findings report with severity breakdown
+```
+
+---
+
+<!-- ANCHOR: community_license -->
 ## Community, Backing & License
 
-Vox is built in the open and designed for immense commercial and academic scale.
-
 ### Backing Vox (Open Collective)
-The Vox Foundation operates as a transparent, community-backed entity through **Open Collective**. We believe that foundational language development shouldn't be captured by a single corporate interest.
-- **Sponsorship & Grants:** By contributing via our Open Collective, you directly fund developer grants, heavy CI/CD hardware (crucial for our MENS neural training networks), and academic bounties.
-- **Complete Transparency:** Every dollar raised and spent is public. You can see exactly how the community's resources are allocated to further the language.
 
-### The Apache 2.0 License
-Vox is licensed under the **Apache License, Version 2.0**. For software developers, this means:
-- **Commercial Use:** You can use Vox to build commercial, closed-source, or proprietary applications without being forced to open-source your own code (unlike the GPL).
-- **Patent Protection:** The license grants you explicit patent rights from contributors. If a contributor holds a patent on the code they submitted, you are legally protected to use it.
-- **Modification & Distribution:** You are free to modify the compiler, the runtime, or the standard library, as long as you include the original copyright notices.
+The Vox Foundation operates as a transparent, community-backed entity through **Open Collective**. Every dollar raised and spent is public. Sponsorship funds developer grants, CI hardware for MENS neural training, and academic bounties.
 
-Read the full text here: [`LICENSE`](LICENSE). Source: [github.com/vox-foundation/vox](https://github.com/vox-foundation/vox).
+[Open Collective →](https://opencollective.com/vox-foundation)
+
+### License
+
+Vox is licensed under **Apache 2.0**. You can use it to build commercial or closed-source applications without opening your own code. Contributors grant explicit patent rights. You can modify the compiler, runtime, or standard library as long as you retain the original copyright notices.
+
+[`LICENSE`](LICENSE) · [github.com/vox-foundation/vox](https://github.com/vox-foundation/vox)
 
 ### Get Involved
-- **GitHub Discussions**: The primary hub for architecture questions, language design feedback, and roadmap input.
-- **X (Twitter)**: Follow **[@vox_foundation](https://x.com/vox_foundation)** for milestone updates, release notes, and research highlights.
-- **Discord**: Join the **[Vox Developer Discord](https://discord.gg/vox-lang)** to collaborate with engineers, share LLM fine-tunes, and get real-time compiler help.
+
+Vox Scientia is a publication pipeline for aggregating and surfacing community research — pulling from wherever developers are talking, not constraining where they talk. Roadmap decisions and architectural questions are tracked in GitHub Discussions because that's the format our tooling can index, parse, and feed back into the system. Come wherever you are.
+
+- **[GitHub Discussions](https://github.com/vox-foundation/vox/discussions)**: Architecture questions, language design feedback, and roadmap input.
 - **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelogs and architectural decision records.
+<!-- ANCHOR_END: community_license -->

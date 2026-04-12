@@ -10,8 +10,9 @@ use vox_cli::frontend;
 #[tokio::test]
 #[ignore = "set VOX_WEB_VITE_SMOKE=1 and ensure pnpm is on PATH"]
 async fn full_stack_minimal_vite_production_build() {
+    let vite_smoke_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebViteSmoke);
     assert_eq!(
-        std::env::var("VOX_WEB_VITE_SMOKE").ok().as_deref(),
+        vite_smoke_resolved.expose().as_deref(),
         Some("1"),
         "set VOX_WEB_VITE_SMOKE=1 to run this test"
     );

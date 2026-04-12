@@ -43,6 +43,7 @@ pub struct Channel {
     pub id: String,
     pub kind: ChannelKind,
     pub endpoint: String,
+    #[serde(skip_serializing)]
     pub token: Option<String>,
     pub enabled: bool,
 }

@@ -1,4 +1,4 @@
-﻿//! Standard news templates (placeholders `{{key}}`).
+//! Standard news templates (placeholders `{{key}}`).
 
 use crate::contract::{DEFAULT_GITHUB_REPO, DEFAULT_OPENCOLLECTIVE_SLUG, DEFAULT_SITE_BASE_URL};
 
@@ -9,6 +9,7 @@ pub enum NewsTemplateId {
     Release,
     SecurityAdvisory,
     CommunityUpdate,
+    DiscordAnnouncement,
 }
 
 impl NewsTemplateId {
@@ -19,6 +20,7 @@ impl NewsTemplateId {
             Self::Release => "release",
             Self::SecurityAdvisory => "security_advisory",
             Self::CommunityUpdate => "community_update",
+            Self::DiscordAnnouncement => "discord_announcement",
         }
     }
 }
@@ -65,6 +67,12 @@ pub fn template_source(id: NewsTemplateId) -> &'static str {
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/news-templates/community_update.md"
+            ))
+        }
+        NewsTemplateId::DiscordAnnouncement => {
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/news-templates/discord_announcement.md"
             ))
         }
     }
@@ -123,6 +131,62 @@ mod tests {
         assert_eq!(
             crate_src, docs_src,
             "docs/news/templates/research_update.md must mirror crates/vox-publisher/news-templates/research_update.md"
+        );
+    }
+
+    #[test]
+    fn docs_mirror_release_template_matches_crate_template() {
+        let crate_src = template_source(NewsTemplateId::Release).replace("\r\n", "\n");
+        let docs_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/news/templates/release.md"
+        ))
+        .replace("\r\n", "\n");
+        assert_eq!(
+            crate_src, docs_src,
+            "docs/news/templates/release.md must mirror crates/vox-publisher/news-templates/release.md"
+        );
+    }
+
+    #[test]
+    fn docs_mirror_security_advisory_template_matches_crate_template() {
+        let crate_src = template_source(NewsTemplateId::SecurityAdvisory).replace("\r\n", "\n");
+        let docs_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/news/templates/security_advisory.md"
+        ))
+        .replace("\r\n", "\n");
+        assert_eq!(
+            crate_src, docs_src,
+            "docs/news/templates/security_advisory.md must mirror crates/vox-publisher/news-templates/security_advisory.md"
+        );
+    }
+
+    #[test]
+    fn docs_mirror_community_update_template_matches_crate_template() {
+        let crate_src = template_source(NewsTemplateId::CommunityUpdate).replace("\r\n", "\n");
+        let docs_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/news/templates/community_update.md"
+        ))
+        .replace("\r\n", "\n");
+        assert_eq!(
+            crate_src, docs_src,
+            "docs/news/templates/community_update.md must mirror crates/vox-publisher/news-templates/community_update.md"
+        );
+    }
+
+    #[test]
+    fn docs_mirror_discord_announcement_template_matches_crate_template() {
+        let crate_src = template_source(NewsTemplateId::DiscordAnnouncement).replace("\r\n", "\n");
+        let docs_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/news/templates/discord_announcement.md"
+        ))
+        .replace("\r\n", "\n");
+        assert_eq!(
+            crate_src, docs_src,
+            "docs/news/templates/discord_announcement.md must mirror crates/vox-publisher/news-templates/discord_announcement.md"
         );
     }
 }

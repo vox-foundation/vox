@@ -8,5 +8,6 @@ pub async fn post(
     _cfg: &MastodonConfig,
     _dry_run: bool,
 ) -> Result<String> {
+    // TOESTUB: stub/unimplemented - Mastodon adapter awaiting provider policy
     Err(anyhow!("Mastodon adapter not implemented"))
 }

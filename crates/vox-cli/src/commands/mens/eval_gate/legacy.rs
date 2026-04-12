@@ -26,12 +26,12 @@ pub(crate) fn run_legacy_train_post_eval_gate(
         return Ok(());
     }
 
-    let min_parse_rate = std::env::var("VOX_EVAL_MIN_PARSE_RATE")
-        .ok()
+    let min_parse_rate = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEvalMinParseRate)
+        .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_PARSE_RATE);
-    let min_coverage = std::env::var("VOX_EVAL_MIN_COVERAGE")
-        .ok()
+    let min_coverage = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEvalMinCoverage)
+        .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_COVERAGE);
 
@@ -101,8 +101,9 @@ pub(crate) fn run_legacy_train_post_eval_gate(
             .unwrap_or(data_dir)
             .join("eval_gate_failed.json");
         std::fs::write(&marker, serde_json::to_string_pretty(&gate_result)?).ok();
-        let strict = std::env::var("VOX_EVAL_STRICT")
-            .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+        let strict = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEvalStrict)
+            .expose()
+            .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
         if strict {
             anyhow::bail!(
                 "Eval gate FAILED (VOX_EVAL_STRICT=1). Parse rate: {:.1}%, Coverage: {:.1}%",

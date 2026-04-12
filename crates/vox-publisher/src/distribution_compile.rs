@@ -169,6 +169,42 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
+    if item.syndication.discord.is_some() {
+        push_channel(
+            "discord",
+            &item.syndication,
+            profiles,
+            &mut warnings,
+            &mut channel_plans,
+        );
+    }
+    if item.syndication.mastodon.is_some() {
+        push_channel(
+            "mastodon",
+            &item.syndication,
+            profiles,
+            &mut warnings,
+            &mut channel_plans,
+        );
+    }
+    if item.syndication.linkedin.is_some() {
+        push_channel(
+            "linkedin",
+            &item.syndication,
+            profiles,
+            &mut warnings,
+            &mut channel_plans,
+        );
+    }
+    if item.syndication.bluesky.is_some() {
+        push_channel(
+            "bluesky",
+            &item.syndication,
+            profiles,
+            &mut warnings,
+            &mut channel_plans,
+        );
+    }
 
     DistributionCompileReport {
         derivation_digest_hex,
@@ -263,6 +299,10 @@ fn channel_contract_defaults(channel: &str) -> (usize, usize) {
         "open_collective" => (200, 10_000),
         "rss" => (500, 100_000),
         "crates_io" => (200, 8000),
+        "discord" => (256, 2000),
+        "mastodon" => (500, 500),
+        "linkedin" => (200, 3000),
+        "bluesky" => (300, 300),
         _ => (300, 2000),
     }
 }
