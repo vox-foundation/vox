@@ -4,6 +4,8 @@ description: "Normative layering between probe-backed hardware facts, allocatabl
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 018: Populi GPU truth layering

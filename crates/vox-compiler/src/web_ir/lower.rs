@@ -40,8 +40,8 @@ use crate::hir::{
 };
 use crate::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, MutationContract, RouteContract, RouteNode,
-    ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector, WebIrDiagnostic,
-    WebIrLowerSummary, WebIrModule, WebIrVersion,
+    ScheduledJobSpec, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
+    WebIrDiagnostic, WebIrLowerSummary, WebIrModule, WebIrVersion,
 };
 
 fn hir_pattern_binding_names(pat: &HirPattern, out: &mut HashSet<String>) {
@@ -442,6 +442,19 @@ fn lower_mutation_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut 
     }
 }
 
+fn lower_scheduled_jobs(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
+    for f in &hir.functions {
+        if let Some(interval) = f.schedule_interval.clone() {
+            m.scheduled_jobs.push(ScheduledJobSpec {
+                name: f.name.clone(),
+                interval,
+                span: None,
+            });
+            summary.scheduled_jobs_lowered += 1;
+        }
+    }
+}
+
 fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     summary.classic_components_deferred = hir
         .components
@@ -485,6 +498,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     lower_server_fn_contracts(hir, &mut m, &mut summary);
     lower_query_fn_contracts(hir, &mut m, &mut summary);
     lower_mutation_contracts(hir, &mut m, &mut summary);
+    lower_scheduled_jobs(hir, &mut m, &mut summary);
 
     // Stage S — classic `@component` scoped CSS (AST-retained)
     lower_styles_from_classic_components(hir, &mut m, &mut summary);

@@ -1,0 +1,18 @@
+[package]
+name = "vox-scientia-ingest"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+vox-db = { path = "../vox-db" }
+vox-search = { path = "../vox-search" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+reqwest = "0.12"
+feed-rs = "2.1"
+fnv = "1.0"

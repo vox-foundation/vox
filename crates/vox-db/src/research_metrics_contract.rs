@@ -15,6 +15,7 @@
 //! | [`METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY`] | **S1–S2** | Durable workflow journal JSON; may reference mesh activities |
 //! | [`METRIC_TYPE_POPULI_CONTROL_EVENT`] | **S1** | Mesh/registry audit; **must not** store bearer tokens (`VOX_MESH_*`) in `metadata_json` |
 //! | [`METRIC_TYPE_QUESTIONING_EVENT`] | **S1–S2** | Questioning KPIs; may be session-linked |
+//! | [`METRIC_TYPE_AGENT_EXEC_TIME`] | **S1** | Tool execution tracking (duration, timeouts, compute/cost) |
 //!
 //! All `metadata_json` payloads are bounded by [`RESEARCH_METRICS_METADATA_JSON_MAX_BYTES`]
 //! inside [`validate_research_metric_row`] before insert.
@@ -37,6 +38,9 @@ pub const METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY: &str = "workflow_journal_entry";
 pub const METRIC_TYPE_POPULI_CONTROL_EVENT: &str = "populi_control_event";
 pub const METRIC_TYPE_QUESTIONING_EVENT: &str = "questioning_event";
 pub const METRIC_TYPE_MEMORY_HYBRID_FUSION: &str = "memory_hybrid_fusion";
+/// Tool execution observation for time-budget calibration.
+/// Sensitivity: **S1 (OperationalTracing)**. Contains tool names + durations only.
+pub const METRIC_TYPE_AGENT_EXEC_TIME: &str = "agent_exec_time";
 
 // ── Session id prefixes (`<prefix><repository_id>`) ─────────────────────────
 

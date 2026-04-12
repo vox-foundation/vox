@@ -65,6 +65,7 @@ pub async fn vox_scientia_assist_suggestions(
         row.source_ref.as_deref(),
         &evidence,
         &scientia_h,
+        None,
     );
     let completion = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
     let evidence_json = serde_json::to_string(&evidence).unwrap_or_default();

@@ -4,6 +4,8 @@ description: "SSOT for the four-tier Vox interop model: core surfaces, approved 
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Interop tier policy

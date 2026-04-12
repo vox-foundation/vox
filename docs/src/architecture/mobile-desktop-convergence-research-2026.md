@@ -1,9 +1,11 @@
 ---
 title: "Mobile/Desktop Convergence & Language Extension Research 2026"
 description: "Research findings on mobile–desktop view convergence, device API unification, and parser gaps for agent/environment declarations. Informs future implementation planning."
-category: "research"
+category: "architecture"
 last_updated: 2026-04-06
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Mobile/Desktop Convergence & Language Extension Research 2026
@@ -19,7 +21,7 @@ training_eligible: false
 Vox's current mobile story has three disconnected layers:
 
 1. **`@mobile.native` annotation** — parses onto any `fn`, sets `is_mobile_native: bool`, and emits a Capacitor `VoxNative.invoke` bridge stub in `mobile-bridge.ts`. This is purely a codegen hint; there is no runtime, no stdlib module, no type system integration.
-2. **`std.mobile` namespace** — imported in golden examples (`mobile_camera.vox`, `mobile_test.vox`) and used as `mobile.take_photo()`, `mobile.vibrate()`, `mobile.notify()`. There is **no Rust implementation** of this namespace anywhere in the codebase. It is aspirational syntax only.
+2. **`std.mobile` namespace** — imported in golden examples (`examples/golden/mobile_camera.vox`, `examples/golden/mobile_test.vox`) and used as `mobile.take_photo()`, `mobile.vibrate()`, `mobile.notify()`. There is **no Rust implementation** of this namespace anywhere in the codebase. It is aspirational syntax only.
 3. **`agent` and `environment` AST nodes** — fully specified in `ast/decl/logic.rs` and `ast/decl/config.rs` but have **zero parser coverage**. The golden examples that use them (`ref_agents.vox`, `ref_orchestrator.vox`) have been `.skip`-ed from the test suite.
 
 The gap between what the syntax promises and what is implemented is large. The good news: the target architecture (browser-based unified frontend via WebView/PWA, device access via well-supported Web APIs) is achievable with low technical debt if we pick the right primitives.
@@ -212,6 +214,7 @@ The `agent` keyword doesn't exist in the lexer. The full gap is:
 `EnvironmentDecl` is the most fully-specified unimplemented node. It models a Dockerfile in Vox syntax:
 
 ```vox
+// vox:skip
 environment production {
     base "node:22-alpine"
     packages ["curl", "git"]
@@ -279,6 +282,7 @@ This maps directly to Docker/OCI concepts. The `EnvironmentDecl` struct has all 
 ### 6.2 Proposed Method Surface
 
 ```vox
+// vox:skip
 // The std.mobile API Vox authors see
 import std.mobile
 

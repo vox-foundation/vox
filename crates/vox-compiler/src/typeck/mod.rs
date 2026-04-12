@@ -13,6 +13,8 @@
 #![allow(clippy::collapsible_if)]
 
 mod ast_decl_lints;
+
+pub use ast_decl_lints::lint_ast_declarations;
 /// Automated fix suggestions for type-check diagnostics.
 pub mod autofix;
 /// Logic for registering and accessing builtin types and functions.
@@ -35,25 +37,30 @@ pub mod ty;
 /// Logic for unification of types and solving constraints.
 pub mod unify;
 
+use crate::ast::decl::Module;
+pub use crate::hir::HirModule;
+use crate::hir::lower::lower_module;
 pub use builtins::BuiltinTypes;
 pub use checker::{Checker, typecheck_hir};
 /// A single semantic diagnostic (error or warning) produced during type checking.
 pub use diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticFix, TypeckSeverity};
 pub use env::TypeEnv;
 pub use ty::ty_display;
-pub use unify::InferenceContext;
 
-use crate::ast::decl::Module;
-use crate::hir::lower::lower_module;
+/// Run the type Checker on a HirModule (replacement for the removed AST-only path).
+#[must_use]
+pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic> {
+    let mut env = TypeEnv::new();
+    let builtins = BuiltinTypes::register_all(&mut env);
+    typecheck_hir(hir, &mut env, &builtins, source)
+}
 
 /// Lower `module` to HIR and run the type Checker (replacement for the removed AST-only path).
 #[must_use]
 pub fn typecheck_ast_module(source: &str, module: &Module) -> Vec<Diagnostic> {
-    let mut diags = ast_decl_lints::lint_ast_declarations(module);
-    let hir = lower_module(module);
-    let mut env = TypeEnv::new();
-    let builtins = BuiltinTypes::register_all(&mut env);
-    diags.extend(typecheck_hir(&hir, &mut env, &builtins, source));
+    let mut diags = ast_decl_lints::lint_ast_declarations(module, source);
+    let mut hir = lower_module(module);
+    diags.extend(typecheck_hir_module(source, &mut hir));
     diags
 }
 

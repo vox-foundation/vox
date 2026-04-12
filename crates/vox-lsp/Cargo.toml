@@ -17,7 +17,9 @@ vox-compiler = { workspace = true }
 vox-db = { path = "../vox-db" }
 vox-ludus = { path = "../vox-ludus" }
 vox-bounded-fs = { workspace = true }
+vox-clavis = { path = "../vox-clavis" }
 anyhow = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]
 workspace = true

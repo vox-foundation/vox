@@ -1,5 +1,4 @@
 use crate::config::OrchestratorConfig;
-use crate::planning::plan_adequacy::estimate_goal_word_complexity;
 use crate::planning::{PlanningMode, PlanningStrategy, RouterEvaluation};
 
 pub fn evaluate_goal(
@@ -10,7 +9,16 @@ pub fn evaluate_goal(
     let mode = mode.unwrap_or(PlanningMode::Auto);
     let gl = goal.to_ascii_lowercase();
     let search_plan = vox_db::heuristic_search_plan(goal, false, None);
-    let mut complexity = estimate_goal_word_complexity(goal);
+    let words = goal.split_whitespace().count();
+    let mut complexity = if words <= 6 {
+        2
+    } else if words <= 16 {
+        5
+    } else if words <= 30 {
+        7
+    } else {
+        9
+    };
     if matches!(
         search_plan.intent,
         vox_db::SearchIntent::BroadResearch | vox_db::SearchIntent::RepoStructure

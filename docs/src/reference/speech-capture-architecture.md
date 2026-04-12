@@ -4,6 +4,8 @@ description: "Where audio is captured, how it reaches Oratio/MCP, and Docker-fri
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Speech capture architecture

@@ -111,6 +111,9 @@
               "items": { "type": "string" }
             }
           ]
+        },
+        "parameters": {
+          "type": ["object", "null"]
         }
       }
     }

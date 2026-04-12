@@ -221,6 +221,12 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::ScriptArgs,
     },
+    #[cfg(not(feature = "script-execution"))]
+    #[command(name = "script")]
+    ScriptStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
+    },
     /// Watch and rebuild via `vox-compilerd` (install daemon next to `vox` or on PATH)
     Dev {
         /// Arguments.
@@ -316,6 +322,12 @@ pub enum Cli {
     },
     /// Start the Vox MCP (Model Context Protocol) server
     Mcp,
+    /// Export the Vox language grammar in various formats for MENS training.
+    Grammar {
+        /// Arguments.
+        #[command(flatten)]
+        args: commands::grammar::GrammarParams,
+    },
     /// Check toolchain and local environment readiness (`--build-perf` / `--json` need `--features codex`)
     Doctor {
         /// Arguments.
@@ -371,6 +383,12 @@ pub enum Cli {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::db_cli::DbCli,
+    },
+    /// Manage the `.vox/repositories.yaml` cross-repo catalog.
+    Catalog {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::catalog::CatalogCmd,
     },
     /// Vox Scientia — research / capability map facade (delegates to `vox db` tools)
     Scientia {
@@ -428,6 +446,12 @@ pub enum Cli {
         #[command(subcommand)]
         action: commands::mens::PopuliAction,
     },
+    /// Unified research operations: infrastructure (up/down/status) and eval.
+    Research {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::research::ResearchCmd,
+    },
     /// Oratio: speech-to-text / transcripts (`--features oratio`).
     #[cfg(feature = "oratio")]
     #[command(visible_alias = "speech")]
@@ -435,6 +459,12 @@ pub enum Cli {
         /// Action.
         #[command(subcommand)]
         action: commands::oratio_cmd::OratioAction,
+    },
+    #[cfg(not(feature = "oratio"))]
+    #[command(name = "oratio", visible_alias = "speech")]
+    OratioStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
@@ -456,6 +486,12 @@ pub enum Cli {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::TrainLegacyArgs,
+    },
+    #[cfg(not(all(feature = "gpu", feature = "mens-dei")))]
+    #[command(name = "train")]
+    TrainStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
     /// Populi registry + HTTP control plane (`--features populi`).
     #[cfg(feature = "populi")]

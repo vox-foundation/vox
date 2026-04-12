@@ -19,6 +19,8 @@ pub enum PreflightProfile {
     MetadataComplete,
     /// arXiv-oriented packaging checks (submission bundle layout).
     ArxivAssist,
+    /// Inbound scraped news: demands source URL, abstract text, title, and initial classification.
+    NewsInbound,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -114,16 +116,18 @@ fn collect_destination_readiness(manifest: &PublicationManifest) -> Vec<Destinat
         credential_present: Some(openreview_ready),
     });
 
-    let scholarly_adapter_configured = std::env::var("VOX_SCHOLARLY_ADAPTER")
-        .ok()
-        .is_some_and(|s| !s.trim().is_empty());
+    let scholarly_adapter = vox_config::scholarly::scholarly_adapter_from_env();
+    let scholarly_ready = !matches!(
+        scholarly_adapter,
+        vox_config::scholarly::ScholarlyAdapterKind::LocalLedger
+    );
     out.push(DestinationReadinessEntry {
         destination: "scholarly_adapter",
-        ready: scholarly_adapter_configured,
-        remediation: if scholarly_adapter_configured {
+        ready: scholarly_ready,
+        remediation: if scholarly_ready {
             String::new()
         } else {
-            "Set `VOX_SCHOLARLY_ADAPTER` when exercising scholarly submission adapters.".to_string()
+            "Set `VOX_SCHOLARLY_ADAPTER` (e.g., zenodo, openreview) for non-local scholarly submission.".to_string()
         },
         credential_present: None,
     });
@@ -224,6 +228,7 @@ fn profile_label(profile: PreflightProfile) -> &'static str {
         PreflightProfile::DoubleBlind => "double_blind",
         PreflightProfile::MetadataComplete => "metadata_complete",
         PreflightProfile::ArxivAssist => "arxiv_assist",
+        PreflightProfile::NewsInbound => "news_inbound",
     }
 }
 
@@ -707,6 +712,39 @@ pub fn run_preflight_with_attention(
         });
     }
 
+    if profile == PreflightProfile::NewsInbound {
+        if manifest.source_ref.as_deref().unwrap_or("").trim().is_empty() {
+            findings.push(PreflightFinding {
+                code: "source_url_missing",
+                severity: PreflightSeverity::Error,
+                message: "source_ref (original URL) is required for news_inbound preflight".to_string(),
+            });
+        }
+        if manifest.title.trim().is_empty() {
+            // Already checked above, but keep for profile-specific clarity if needed
+        }
+        if manifest.abstract_text.as_deref().unwrap_or("").trim().is_empty() {
+            findings.push(PreflightFinding {
+                code: "abstract_missing",
+                severity: PreflightSeverity::Error,
+                message: "abstract_text is required for news_inbound profile".to_string(),
+            });
+        }
+        
+        let has_classification = manifest.metadata_json.as_deref()
+            .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
+            .and_then(|v| v.get("classification").cloned())
+            .is_some();
+            
+        if !has_classification {
+            findings.push(PreflightFinding {
+                code: "classification_missing",
+                severity: PreflightSeverity::Warning,
+                message: "Initial classification (metadata_json.classification) is recommended for news_inbound items".to_string(),
+            });
+        }
+    }
+
     if let Some(raw) = manifest.metadata_json.as_deref()
         && !raw.trim().is_empty()
     {
@@ -816,6 +854,22 @@ pub fn run_preflight_with_attention(
         }),
     }
 
+    if profile == PreflightProfile::NewsInbound {
+        let has_tags = manifest.metadata_json.as_deref().and_then(|raw| {
+            let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+            let tags = v.get("tags")?.as_array()?;
+            Some(!tags.is_empty())
+        }).unwrap_or(false);
+
+        if !has_tags {
+            findings.push(PreflightFinding {
+                code: "initial_classification_missing",
+                severity: PreflightSeverity::Error,
+                message: "initial classification (at least one tag) is required for news_inbound preflight".to_string(),
+            });
+        }
+    }
+
     if manifest
         .abstract_text
         .as_deref()
@@ -823,7 +877,7 @@ pub fn run_preflight_with_attention(
     {
         if matches!(
             profile,
-            PreflightProfile::MetadataComplete | PreflightProfile::ArxivAssist
+            PreflightProfile::MetadataComplete | PreflightProfile::ArxivAssist | PreflightProfile::NewsInbound
         ) {
             findings.push(PreflightFinding {
                 code: "abstract_required",
@@ -835,6 +889,9 @@ pub fn run_preflight_with_attention(
                     PreflightProfile::ArxivAssist => {
                         "abstract_text is required for arxiv_assist preflight (arXiv submission expects an abstract)"
                             .to_string()
+                    }
+                    PreflightProfile::NewsInbound => {
+                        "abstract_text is required for inbound news ingestion preflight".to_string()
                     }
                     _ => "abstract_text is required".to_string(),
                 },
@@ -1083,7 +1140,7 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
     if let Some(evidence) =
         crate::scientia_evidence::parse_scientia_evidence(manifest.metadata_json.as_deref())
     {
-        inputs = crate::scientia_evidence::apply_scientia_evidence(inputs, &evidence);
+        inputs = crate::scientia_evidence::apply_scientia_evidence(inputs, &evidence, h);
     }
     if let Some(bundle) = crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
         manifest.metadata_json.as_deref(),
@@ -1231,6 +1288,7 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -1251,6 +1309,7 @@ mod tests {
                 name: "Someone Else".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -1330,6 +1389,7 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -1349,6 +1409,7 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ethics_and_impact: Some(crate::scientific_metadata::EthicsAndImpactAttestation {

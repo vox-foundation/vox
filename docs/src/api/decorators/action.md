@@ -4,6 +4,8 @@ description: "Vox @action decorator: marks imperative handlers and codegen entry
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Action

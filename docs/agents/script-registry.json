@@ -79,13 +79,13 @@
     {
       "path": "scripts/examples_strict_parse.sh",
       "invoked_by_ci": false,
-      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-parser --test parity_test",
+      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test parity_test",
       "status": "wrapper"
     },
     {
       "path": "scripts/examples_strict_parse.ps1",
       "invoked_by_ci": false,
-      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-parser --test parity_test",
+      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test parity_test",
       "status": "wrapper"
     },
     {

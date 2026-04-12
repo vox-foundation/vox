@@ -4,6 +4,8 @@ description: "How probe-backed NVIDIA inventory flows into NodeRecord heartbeats
 category: "architecture"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Populi GPU truth probe specification (NVML Layer A)

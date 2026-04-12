@@ -4,6 +4,8 @@ description: "Official documentation for Doc inventory verifier (SSOT) for the V
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Doc inventory verifier (SSOT)

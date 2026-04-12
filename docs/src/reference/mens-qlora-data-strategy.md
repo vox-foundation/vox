@@ -4,6 +4,8 @@ description: "Official documentation for QLoRA Fine-tuning Data Strategy & SSoT 
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # QLoRA Fine-tuning Data Strategy & SSoT
 

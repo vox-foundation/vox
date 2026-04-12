@@ -4,6 +4,8 @@ description: "Official documentation for Deprecation policy — Mens native fine
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Deprecation policy — Mens native fine-tuning
 

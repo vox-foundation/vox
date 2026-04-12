@@ -26,6 +26,7 @@ pub async fn run_search_with_verification(
     limit: usize,
     policy: &SearchPolicy,
     lexical_fallback: Option<&dyn LexicalMemoryFallback>,
+    budget: Option<&crate::tavily::TavilySessionBudget>,
 ) -> Result<(SearchExecution, SearchDiagnostics, SearchPlan), String> {
     let plan = heuristic_search_plan(
         query,
@@ -130,6 +131,96 @@ pub async fn run_search_with_verification(
             || verified.source_diversity > execution.source_diversity
         {
             execution = verified;
+        }
+    }
+
+    #[cfg(feature = "tavily")]
+    {
+        let is_empty = execution.memory_lines.is_empty()
+            && execution.knowledge_lines.is_empty()
+            && execution.chunk_lines.is_empty()
+            && execution.repo_lines.is_empty()
+            && execution.tantivy_doc_lines.is_empty()
+            && execution.qdrant_lines.is_empty();
+
+        if policy.tavily_enabled {
+            let tavily_should_fire = (policy.tavily_fire_on_empty && is_empty)
+                || (policy.tavily_fire_on_weak && execution.evidence_quality < threshold);
+
+            if tavily_should_fire {
+                if let Some(b) = budget {
+                    if !b.try_consume(1) {
+                        execution
+                            .warnings
+                            .push("tavily_budget_exhausted".to_string());
+                        return Ok((execution, diagnostics, plan));
+                    }
+                }
+                if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
+                    match client
+                        .search(
+                            query,
+                            policy.tavily_max_results,
+                            &policy.tavily_search_depth,
+                        )
+                        .await
+                    {
+                        Ok(hits) => {
+                            if let Some(b) = budget {
+                                let rem = b.remaining();
+                                diagnostics
+                                    .notes
+                                    .push(format!("tavily_credits_remaining={rem}"));
+                                if rem <= 20 {
+                                    execution.warnings.push("Tavily session budget >=80% exhausted".to_string());
+                                }
+                            }
+                            let mut t_lines = Vec::new();
+                            for h in hits {
+                                t_lines.push(format!(
+                                    "[crag_tavily:{}] {} (score: {:.3})",
+                                    h.url,
+                                    h.content.replace('\n', " "),
+                                    h.score
+                                ));
+                                
+                                if let Some(db) = &ctx.db {
+                                    let url = h.url.clone();
+                                    let content = h.content.clone();
+                                    let title = h.title.clone();
+                                    let db_arc = db.clone();
+                                    tokio::spawn(async move {
+                                        let source_uri = format!("tavily:{}", url);
+                                        let mut hasher = blake3::Hasher::new();
+                                        hasher.update(content.as_bytes());
+                                        let hash = hasher.finalize().to_string();
+                                        if let Ok(doc_id) = db_arc.upsert_search_document(&source_uri, &title, "text/plain", &hash).await {
+                                            let _ = db_arc.replace_search_document_chunks_with_refs(doc_id, &[content], &[None]).await;
+                                        }
+                                    });
+                                }
+                            }
+                            diagnostics
+                                .notes
+                                .push("crag_tavily_triggered=true".to_string());
+                            diagnostics
+                                .notes
+                                .push(format!("tavily_results_count={}", t_lines.len()));
+                            execution.web_lines.extend(t_lines.iter().cloned());
+                            if policy.prefer_rrf_merge {
+                                execution.rrf_fused_lines.extend(t_lines);
+                            }
+                        }
+                        Err(e) => {
+                            execution.warnings.push(e);
+                        }
+                    }
+                } else {
+                    execution
+                        .warnings
+                        .push("tavily_triggered_but_missing_auth".to_string());
+                }
+            }
         }
     }
 

@@ -4,6 +4,8 @@ description: "Revalidated evidence grading for Composer/Kimi claims and operatio
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # MENS findings: Composer and Kimi (2026)

@@ -4,6 +4,8 @@ description: "Program SSOT for the narrow app-software scope, product lanes, ran
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Vox bell-curve strategy

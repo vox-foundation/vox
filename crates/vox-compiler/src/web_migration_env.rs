@@ -1,18 +1,3 @@
-//! Web stack migration escape hatches (strict-by-default policy).
-//!
-//! Defaults align with [react-interop SSOT](https://github.com/vox-foundation/vox/blob/main/docs/src/architecture/react-interop-migration-charter-2026.md):
-//! retired syntax is rejected unless an explicit opt-in env var is set for transitional fixtures.
-
-/// When `1`/`true`/`TRUE`, the parser accepts classic `@component fn` and the legacy component lint is a **Warning** instead of **Error**.
-///
-/// **Default:** unset → `@component fn` is a **parse error**; use Path C `component Name() { ... }`.
-pub(crate) fn legacy_component_fn_allowed() -> bool {
-    matches!(
-        std::env::var("VOX_ALLOW_LEGACY_COMPONENT_FN").as_deref(),
-        Ok("1") | Ok("true") | Ok("TRUE")
-    )
-}
-
 #[inline]
 fn env_var_explicitly_disabled(res: Result<String, std::env::VarError>) -> bool {
     match res {

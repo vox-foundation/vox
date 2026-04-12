@@ -1,13 +1,9 @@
 use super::*;
-use crate::ast::decl::{ImportPathKind, ReactiveMemberDecl, RoutesParseSummary};
+use crate::ast::decl::{Decl, ImportPathKind, ReactiveMemberDecl, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
 use crate::parser::ParseErrorClass;
-use std::sync::Mutex;
-
-/// Serialize tests that toggle `VOX_ALLOW_LEGACY_COMPONENT_FN` (process-global).
-static LEGACY_COMPONENT_FN_ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn parse_str(source: &str) -> Module {
     let tokens = lex(source);
@@ -82,29 +78,8 @@ fn test_parse_let() {
 }
 
 #[test]
-fn classic_component_fn_is_parse_error_without_escape_hatch() {
-    let _g = LEGACY_COMPONENT_FN_ENV_LOCK
-        .lock()
-        .expect("LEGACY_COMPONENT_FN_ENV_LOCK poisoned");
-    unsafe {
-        std::env::remove_var("VOX_ALLOW_LEGACY_COMPONENT_FN");
-    }
+fn classic_component_fn_is_parse_error() {
     assert_parse_fails("@component fn Chat() to Element { ret 0 }");
-}
-
-#[test]
-fn classic_component_fn_parses_when_escape_hatch_enabled() {
-    let _g = LEGACY_COMPONENT_FN_ENV_LOCK
-        .lock()
-        .expect("LEGACY_COMPONENT_FN_ENV_LOCK poisoned");
-    unsafe {
-        std::env::set_var("VOX_ALLOW_LEGACY_COMPONENT_FN", "1");
-    }
-    let m = parse_str("@component fn Chat() to Element { ret 0 }");
-    assert!(matches!(&m.declarations[0], Decl::Component(_)));
-    unsafe {
-        std::env::remove_var("VOX_ALLOW_LEGACY_COMPONENT_FN");
-    }
 }
 
 #[test]
@@ -424,7 +399,7 @@ fn test_parse_index() {
 }
 #[test]
 fn test_parse_v0_component() {
-    let m = parse_str("@v0 \"yM1xXq6\" fn Dashboard() -> Element");
+    let m = parse_str("@v0 \"yM1xXq6\" Dashboard {}");
     if let Decl::V0Component(v) = &m.declarations[0] {
         assert_eq!(v.name, "Dashboard");
         assert_eq!(v.v0_id, "yM1xXq6");
@@ -436,7 +411,7 @@ fn test_parse_v0_component() {
 
 #[test]
 fn test_parse_v0_component_from_image() {
-    let m = parse_str(r#"@v0 from "mock.png" fn Landing() -> Element"#);
+    let m = parse_str(r#"@v0 from "mock.png" Landing {}"#);
     if let Decl::V0Component(v) = &m.declarations[0] {
         assert_eq!(v.name, "Landing");
         assert_eq!(v.v0_id, "");
@@ -513,7 +488,7 @@ fn test_parse_routes_root_and_nested_path_literals() {
 #[test]
 fn test_parse_reactive_effect_mount_cleanup_view() {
     let m = parse_str(
-        "@component Demo(x: int) {\n  state n: int = x\n  effect: { }\n  mount: { }\n  cleanup: { }\n  view: <span>{n}</span>\n}",
+        "@component Demo(x: int) {\n  state n: int = x\n  effect: { }\n  on mount: { }\n  on cleanup: { }\n  view: <span>{n}</span>\n}",
     );
     if let Decl::ReactiveComponent(r) = &m.declarations[0] {
         assert_eq!(r.name, "Demo");
@@ -542,6 +517,23 @@ fn test_parse_reactive_effect_mount_cleanup_view() {
             m.declarations[0]
         );
     }
+}
+
+#[test]
+fn test_parse_std_http_dotted_path_and_import() {
+    let m = parse_str(
+        "import std.http\n\nfn main() {\n  let _ = std.http.get_text(\"https://example.com\")\n}\n",
+    );
+    assert!(
+        m.declarations.iter().any(|d| matches!(d, Decl::Import(_))),
+        "expected import decl"
+    );
+    assert!(
+        m.declarations
+            .iter()
+            .any(|d| matches!(d, Decl::Function(_))),
+        "expected fn decl"
+    );
 }
 
 #[test]

@@ -106,6 +106,7 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
+        let _ = std::hint::black_box(self as *const _ as usize);
         Ok(())
     }
 

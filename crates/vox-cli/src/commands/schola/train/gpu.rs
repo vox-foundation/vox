@@ -311,7 +311,7 @@ pub(super) async fn run_gpu_training(
         &system_prompt,
     )?;
 
-    if let Ok(db) = vox_db::VoxDb::connect_default_with_training_fallback().await {
+    if let Ok(db) = vox_db::VoxDb::connect_default().await {
         let _ = db
             .local_log_train_run(
                 &device_profile_str,

@@ -4,6 +4,8 @@ description: "Index of Vox decorators with links to per-decorator API reference 
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Decorators

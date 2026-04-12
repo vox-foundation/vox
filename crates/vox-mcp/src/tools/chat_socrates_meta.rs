@@ -21,6 +21,8 @@ pub(crate) struct SocratesJsonMeta {
     pub(crate) confidence_estimate: f64,
     pub(crate) contradiction_ratio: f64,
     #[serde(default)]
+    pub(crate) citation_coverage: f64,
+    #[serde(default)]
     pub(crate) questioning: Option<QuestioningJsonMeta>,
     #[serde(default)]
     pub(crate) search_refinement: Option<SearchRefinementJsonMeta>,
@@ -652,12 +654,14 @@ pub(crate) fn socrates_tool_meta(
     } else {
         0.0_f64
     };
-    let decision = p.evaluate_risk_decision(grounding_score, cr);
+    let cov = retrieval.map(|r| r.citation_coverage).unwrap_or(1.0);
+    let decision = p.evaluate_risk_decision(grounding_score, cr, cov);
     let questioning_policy = QuestioningPolicy::default();
     let candidates = retrieval_question_candidates(retrieval);
     let selection = p.select_clarification_question(
         grounding_score,
         cr,
+        cov,
         clarification_turn_index,
         &candidates,
         questioning_policy,
@@ -686,6 +690,7 @@ pub(crate) fn socrates_tool_meta(
         "risk_decision": decision,
         "confidence_estimate": grounding_score,
         "contradiction_ratio": cr,
+        "citation_coverage": cov,
         "questioning": {
             "question_needed": selection.question_needed,
             "question_kind": selection.question_kind,

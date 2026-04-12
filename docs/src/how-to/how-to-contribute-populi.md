@@ -3,6 +3,8 @@ title: "Contributing — Populi control plane"
 description: "Onboarding for vox-populi HTTP transport and operators"
 category: "how-to"
 last_updated: 2026-03-25
+
+schema_type: "HowTo"
 ---
 
 # Contributing — Populi / mens HTTP

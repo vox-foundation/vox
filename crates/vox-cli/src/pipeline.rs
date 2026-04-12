@@ -80,66 +80,42 @@ pub async fn run_frontend(file: &Path, json: bool) -> Result<FrontendResult> {
 
 /// Same as [`run_frontend`] but takes an already-loaded source string.
 pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<FrontendResult> {
-    // 1. Lex
-    let tokens = vox_compiler::lexer::lex(source);
-
-    // 2. Parse
-    let module = match vox_compiler::parser::parse(tokens) {
-        Ok(m) => m,
-        Err(errors) => {
+    let file_path = file.to_string_lossy();
+    match vox_compiler::pipeline::run_frontend_str(source, &file_path) {
+        Ok(res) => Ok(FrontendResult {
+            module: res.module,
+            hir: res.hir,
+            diagnostics: res.diagnostics,
+            source: res.source,
+        }),
+        Err(e) => {
             if json {
-                let parse_errors: Vec<String> = errors.iter().map(ToString::to_string).collect();
-                let json_out = serde_json::json!({
-                    "file": file.to_string_lossy(),
-                    "parse_errors": parse_errors,
-                });
-                if let Ok(s) = serde_json::to_string_pretty(&json_out) {
+                let diagnostics = vox_compiler::pipeline::check_file(source, &file_path);
+                if let Ok(s) = serde_json::to_string_pretty(&diagnostics) {
                     println!("{}", s);
                 }
             } else {
-                print_parse_errors(&errors, source, file);
+                // We need the parse errors to print them pretty.
+                // For now, we'll re-lex/parse if we need pretty printing,
+                // but usually, run_frontend_str failure means parse failure.
+                let tokens = vox_compiler::lexer::lex(source);
+                if let Err(errors) = vox_compiler::parser::parse(tokens) {
+                    print_parse_errors(&errors, source, file);
+                }
             }
-            anyhow::bail!("Parsing failed with {} error(s)", errors.len());
+            Err(e)
         }
-    };
-
-    // 3. Type-check (HIR)
-    let mut diagnostics = vox_compiler::typeck::typecheck_ast_module(source, &module);
-
-    // 4. Lower to HIR + structural validation (invariants for codegen consumers).
-    let hir = vox_compiler::hir::lower_module(&module);
-    for e in vox_compiler::hir::validate_module(&hir) {
-        diagnostics.push(vox_compiler::typeck::Diagnostic::hir_invariant(
-            e.message, e.span, source, e.correction_hint,
-        ));
     }
-
-    Ok(FrontendResult {
-        module,
-        hir,
-        diagnostics,
-        source: source.to_owned(),
-    })
 }
 
 #[must_use]
 pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> String {
-    let output: Vec<serde_json::Value> = result
+    use vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload;
+    let file_path = file.to_string_lossy();
+    let output: Vec<VoxCompilerDiagnosticPayload> = result
         .diagnostics
         .iter()
-        .map(|d| {
-            // Apply new wave 3 enrichment
-            let enriched = d.clone().with_line_col(&result.source);
-            let mut val = serde_json::to_value(&enriched).unwrap_or(serde_json::json!({}));
-            // Provide the legacy filename attribute
-            if let Some(obj) = val.as_object_mut() {
-                obj.insert(
-                    "file".to_string(),
-                    serde_json::Value::String(file.display().to_string()),
-                );
-            }
-            val
-        })
+        .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, &file_path, &result.source))
         .collect();
     serde_json::to_string_pretty(&output).unwrap_or_default()
 }

@@ -4,6 +4,8 @@ description: "Legacy filename. Canonical pointer hub is docs/src/ci/documentatio
 category: "ci"
 status: "legacy"
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Command compliance SSOT

@@ -5,6 +5,9 @@ category: "architecture"
 status: "roadmap"
 last_updated: 2026-04-02
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Telemetry taxonomy and contracts SSOT
@@ -46,6 +49,7 @@ From [`research_metrics_contract.rs`](../../../crates/vox-db/src/research_metric
 | `populi_control_event` | `mens:<repository_id>` | `vox-cli`, `vox-mcp`, `vox-db` |
 | `questioning_event` | (linked session keys) | `vox-mcp`, `vox-db` |
 | `memory_hybrid_fusion` | `socrates:retrieval` | `vox-search`, `vox-ludus`, `vox-db` |
+| `agent_exec_time` | (no prefix, agent_exec_history) | `vox-db` |
 
 ## Contract inventory (machine)
 

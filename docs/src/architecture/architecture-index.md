@@ -4,8 +4,10 @@ description: "Guide to the current architecture, SSOT, research, and roadmap doc
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-08
+last_updated: 2026-04-12
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Architecture index
@@ -20,12 +22,14 @@ Use these when you need current policy and behavior. The canonical cross-domain 
 - [Interop tier policy](interop-tier-policy.md)
 - [MCP exposure from the Vox language](mcp-vox-language-exposure.md)
 - [Capability registry authority](capability-registry-ssot.md) — `contracts/capability`, `vox ci capability-sync`, model manifest
+- [Capability visualization views](capability-visualization-views.md)
 - [Vox bell-curve strategy](vox-bell-curve-strategy.md)
 - [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
 - [Orphan surface inventory](orphan-surface-inventory.md)
 - [Legacy retirement roadmap 2026](legacy-retirement-roadmap.md) — **LLM guard**: deprecated surfaces, frozen files, safe-to-extend surfaces
 - [Language surface authority](language-surface-ssot.md) — keywords / decorators / manifests
 - [OpenAPI contract authority](openapi-contract-ssot.md) — committed YAML, validation, optional codegen
+- [AI CLI generation standard](ai-cli-generation-standard.md) — AST/JSON schema constraints for MENS command generation
 - [Outbound HTTP policy](outbound-http-policy.md) — `vox-reqwest-defaults` and migration order
 - [Compiler diagnostics ergonomics](compiler-diagnostics-ergonomics.md) — `miette` vs custom errors, `quote` pilot
 - [Vox shell operations boundaries](vox-shell-operations-boundaries.md) — host `pwsh` vs `vox shell` vs `.vox` `std.*` (no shell emulator product)
@@ -38,6 +42,29 @@ Use these when you need current policy and behavior. The canonical cross-domain 
 - [Telemetry implementation blueprint 2026](telemetry-implementation-blueprint-2026.md) — phased rollout plan
 - [Telemetry implementation backlog 2026](telemetry-implementation-backlog-2026.md) — executable checklist
 - [Telemetry remote sink specification](telemetry-remote-sink-spec.md) — optional `vox telemetry upload` wire contract
+- [Operations catalog authority](operations-catalog-ssot.md)
+- [Completion policy authority](completion-policy-ssot.md)
+- [HITL doubt loop](hitl-doubt-loop-ssot.md)
+- [Cross-repo query observability](cross-repo-query-observability.md)
+- [Vox organization](vox-organization.md)
+- [Session management](session_management.md)
+- [Security model](security_model.md)
+- [News syndication security](news_syndication_security.md)
+- [News syndication incident patterns](news_syndication_incident_patterns.md)
+- [Memory system](memory_system.md)
+- [Vox web stack SSOT](vox-web-stack-ssot.md)
+- [Compiler IR pipeline](compiler-ir-pipeline.md)
+- [IR emission SSOT (check vs build, VoxIrModule vs WebIR)](ir-emission-ssot.md)
+- [Vox source → Mens pipeline SSOT](vox-source-to-mens-pipeline-ssot.md) — lexer/compiler → goldens → corpus → HF tokenizer
+- [Populi data pipeline](populi-data-pipeline.md) — mesh control plane vs Mens training sources
+- [RAG and research architecture 2026](rag-and-research-architecture-2026.md)
+
+## MENS System
+
+For MENS architecture and training details, refer to:
+- [Populi training orchestration](populi-training-orchestration.md)
+- [Populi data pipeline](populi-data-pipeline.md)
+- [GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)](vox-gui-vision-virtuous-cycle-implementation-plan-2026.md) — GUI verification loop, vision rubrics, fine-tuned Qwen3.5 vs optional VL lane
 
 ## Research and synthesis
 

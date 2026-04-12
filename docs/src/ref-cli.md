@@ -3,6 +3,8 @@ title: "CLI reference (redirect)"
 description: "Canonical vox CLI documentation lives under docs/src/reference/cli.md"
 category: "reference"
 last_updated: 2026-03-25
+
+schema_type: "TechArticle"
 ---
 
 # CLI reference (legacy path)

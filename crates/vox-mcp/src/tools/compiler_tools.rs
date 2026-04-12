@@ -11,9 +11,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::params::{
-    DiagnosticInfo, RunTestsParams, ToolResult, ValidateFileParams, ValidateResponse,
-};
+use crate::params::{RunTestsParams, ToolResult};
 use crate::server::ServerState;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 
@@ -171,68 +169,6 @@ fn cargo_unavailable_message(state: &ServerState) -> Option<String> {
     }
 }
 
-/// Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
-pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> String {
-    let path = match super::workspace_path::resolve_existing_path_in_repository(state, &params.path)
-    {
-        Ok(p) => p,
-        Err(e) => {
-            return ToolResult::<ValidateResponse>::err_with_remediation(
-                e.message(),
-                e.remediation(),
-            )
-            .to_json();
-        }
-    };
-
-    let text = match tokio::fs::read_to_string(&path).await {
-        Ok(t) => t,
-        Err(e) => {
-            return ToolResult::<ValidateResponse>::err_with_remediation(
-                format!("failed to read file: {e}"),
-                super::workspace_path::REM_VALIDATE_IO,
-            )
-            .to_json();
-        }
-    };
-
-    let correlation_id = vox_oratio::trace::new_correlation_id();
-    tracing::debug!(
-        target: "vox_mcp_speech",
-        correlation_id = %correlation_id,
-        path = %params.path,
-        bytes = text.len(),
-        "validate_file: running HIR validation"
-    );
-    let diagnostics = vox_lsp::validate_document_with_hir(&text);
-    let infos: Vec<DiagnosticInfo> = diagnostics
-        .iter()
-        .map(|d| DiagnosticInfo {
-            severity: match d.severity {
-                Some(s) if s == tower_lsp::lsp_types::DiagnosticSeverity::ERROR => {
-                    "error".to_string()
-                }
-                _ => "warning".to_string(),
-            },
-            message: d.message.clone(),
-            source: d.source.clone().unwrap_or_default(),
-            start_line: d.range.start.line,
-            start_col: d.range.start.character,
-            end_line: d.range.end.line,
-            end_col: d.range.end.character,
-        })
-        .collect();
-
-    ToolResult::ok(ValidateResponse {
-        count: infos.len(),
-        diagnostics: infos,
-        hir_validation_included: true,
-        correlation_id: Some(correlation_id),
-    })
-    .to_json()
-}
-
-/// Run `cargo test` for a specific crate.
 pub async fn run_tests(state: &ServerState, params: RunTestsParams) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
         return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
@@ -871,6 +807,28 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 surface_contract_failures,
                 Some("semantic"),
             );
+
+            if let Some(db) = state.db.as_ref() {
+                let snapshot_for_json: Vec<serde_json::Value> = validation
+                    .errors
+                    .iter()
+                    .map(|e| {
+                        serde_json::json!({
+                            "category": e.category,
+                            "code": e.code,
+                            "message": e.message,
+                        })
+                    })
+                    .collect();
+                let errors_json = serde_json::to_string(&snapshot_for_json).unwrap_or_default();
+                let _ = vox_corpus::tool_workflow_corpus::auto_ingest_negative_vox(
+                    &completion,
+                    &errors_json,
+                    db,
+                )
+                .await;
+            }
+
             return ToolResult::<String>::err_with_remediation_meta(
                 format!(
                     "Failed to generate valid code after {} retries. Errors: {:?}",

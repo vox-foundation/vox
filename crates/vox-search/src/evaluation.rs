@@ -39,6 +39,66 @@ pub struct SearchEvalReport {
     pub per_query: HashMap<String, bool>,
 }
 
+/// Simple entity-based recall against a reference answer.
+pub fn calculate_recall_at_5(model_answer: &str, gold_answer: &str) -> f64 {
+    let model_lower = model_answer.to_lowercase();
+    let model_words: std::collections::HashSet<_> = model_lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| s.len() > 3)
+        .collect();
+
+    let gold_lower = gold_answer.to_lowercase();
+    let gold_words: std::collections::HashSet<_> = gold_lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| s.len() > 3)
+        .collect();
+
+    if gold_words.is_empty() {
+        return 1.0;
+    }
+
+    let intersection = model_words.intersection(&gold_words).count();
+    intersection as f64 / gold_words.len() as f64
+}
+
+/// Naive groundedness check: ensures majority of model answer clusters match evidence snippets.
+pub fn calculate_groundedness(model_answer: &str, evidence_snippets: &[String]) -> f64 {
+    if model_answer.is_empty() {
+        return 0.0;
+    }
+    if evidence_snippets.is_empty() {
+        return 0.0;
+    }
+
+    let evidence_corpus = evidence_snippets.join(" ").to_lowercase();
+    let model_clusters: Vec<_> = model_answer
+        .split('.')
+        .filter(|s| s.trim().len() > 10)
+        .collect();
+
+    if model_clusters.is_empty() {
+        return 1.0;
+    }
+
+    let mut grounded_count = 0;
+    for cluster in &model_clusters {
+        let keywords: Vec<_> = cluster
+            .split_whitespace()
+            .filter(|s| s.len() > 4)
+            .take(5)
+            .collect();
+
+        if keywords
+            .iter()
+            .any(|k| evidence_corpus.contains(&k.to_lowercase()))
+        {
+            grounded_count += 1;
+        }
+    }
+
+    grounded_count as f64 / model_clusters.len() as f64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

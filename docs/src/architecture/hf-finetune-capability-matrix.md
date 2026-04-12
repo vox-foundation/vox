@@ -4,6 +4,8 @@ description: "Official documentation for HF fine-tuning capability matrix (code-
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # HF fine-tuning capability matrix (code-grounded)
 

@@ -168,6 +168,7 @@ async fn legacy_export_covers_all_baseline_tables() {
     live.sort();
     let mut expected: Vec<&str> = LEGACY_EXPORT_TABLES.to_vec();
     expected.sort();
+
     assert_eq!(
         live,
         expected.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
@@ -400,10 +401,10 @@ async fn seed_legacy_schema_version_only(path: &std::path::Path, version: i64) {
     .expect("insert version");
 }
 
-/// `connect_default_with_training_fallback` must recover when the telemetry sidecar is also legacy.
+/// [`VoxDb::connect_default`] returns [`StoreError::LegacySchemaChain`] when the primary DB is not on baseline (no sidecar fallback).
 #[allow(unsafe_code)] // Rust 2024: `set_var` / `remove_var` are `unsafe`; mutex serializes this test.
 #[tokio::test]
-async fn connect_default_with_training_fallback_resets_stale_sidecar() {
+async fn connect_default_errors_when_primary_legacy_schema_chain() {
     use std::sync::{Mutex, OnceLock};
 
     static DATA_DIR_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -411,38 +412,28 @@ async fn connect_default_with_training_fallback_resets_stale_sidecar() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     seed_legacy_schema_version_only(&dir.path().join("vox.db"), 38).await;
-    seed_legacy_schema_version_only(&dir.path().join("vox_training_telemetry.db"), 38).await;
 
     let old = std::env::var("VOX_DATA_DIR").ok();
     // SAFETY: `DATA_DIR_LOCK` serializes tests that touch `VOX_DATA_DIR` for this module.
     unsafe {
-        unsafe { std::env::set_var("VOX_DATA_DIR", dir.path()) };
+        std::env::set_var("VOX_DATA_DIR", dir.path());
     }
 
-    let db = VoxDb::connect_default_with_training_fallback()
-        .await
-        .expect("fallback connects after resetting sidecar");
-    assert_eq!(
-        db.schema_version().await.expect("schema_version"),
-        BASELINE_VERSION
+    let err = match VoxDb::connect_default().await {
+        Ok(_) => panic!("legacy primary should not open under baseline migrate"),
+        Err(e) => e,
+    };
+    assert!(
+        matches!(err, StoreError::LegacySchemaChain { max_version: 38 }),
+        "expected LegacySchemaChain {{ max_version: 38 }}, got {err:?}"
     );
-    drop(db);
 
     unsafe {
         match &old {
-            Some(s) => unsafe { std::env::set_var("VOX_DATA_DIR", s) },
+            Some(s) => std::env::set_var("VOX_DATA_DIR", s),
             None => std::env::remove_var("VOX_DATA_DIR"),
         }
     }
-
-    let sidecar = dir.path().join("vox_training_telemetry.db");
-    let check = VoxDb::connect(DbConfig::local(sidecar.to_string_lossy().to_string()))
-        .await
-        .expect("reopen sidecar");
-    assert_eq!(
-        check.schema_version().await.expect("sidecar version"),
-        BASELINE_VERSION
-    );
 }
 
 #[test]
@@ -450,4 +441,30 @@ fn resolve_canonical_matches_resolve_standalone() {
     let a = DbConfig::resolve_canonical().expect("canonical");
     let b = DbConfig::resolve_standalone().expect("standalone");
     assert_eq!(format!("{a:?}"), format!("{b:?}"));
+}
+
+#[tokio::test]
+async fn record_and_query_exec_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = VoxDb::connect(DbConfig::local(
+        dir.path().join("test.db").to_str().unwrap(),
+    ))
+    .await
+    .unwrap();
+
+    let record = crate::ExecTimeRecord {
+        tool_key: "t1",
+        repository_id: "r1",
+        duration_ms: 1500,
+        timeout_budget_ms: None,
+        compute_tokens_used: Some(100),
+        vendor_cost_usd_micros: Some(500),
+        attention_cost_ms: Some(1500),
+        outcome: crate::ExecOutcome::Success,
+    };
+    db.record_exec_time(&record).await.unwrap();
+    db.record_exec_timeout("t1", "r1", 2000).await.unwrap();
+
+    let latency = db.query_tool_latency("t1", "r1", 90, 1.5).await.unwrap();
+    assert!(latency.is_some());
 }

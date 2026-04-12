@@ -39,6 +39,9 @@ pub mod unwrap_call;
 /// Premature “done” comments or victory language without matching tests or implementation.
 pub mod victory_claim;
 
+/// Enforces Cargo.toml workspace dependencies inheritance and detects orphan crates
+pub mod workspace_drift;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -65,12 +68,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(scaling::ScalingSurfacesDetector::new()),
         Box::new(hollow_fn::HollowFnDetector::new()),
         Box::new(reachability::ReachabilityDetector::new()),
+        Box::new(workspace_drift::WorkspaceDriftDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    19
+    20
 }
 
 #[cfg(test)]

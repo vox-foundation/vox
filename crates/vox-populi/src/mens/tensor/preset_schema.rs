@@ -277,8 +277,8 @@ pub fn resolve_effective_profile(
     sample_count: Option<usize>,
     overrides: CliOverrides,
 ) -> TrainPresetProfile {
-    let model_hint = std::env::var("VOX_BASE_MODEL").ok();
-    let env_p = std::env::var("VOX_TRAIN_PROFILE").ok();
+    let model_hint = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBaseModel).expose().ok();
+    let env_p = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTrainProfile).expose().ok();
     let name = normalize_preset_name(preset.or(env_p.as_deref()).unwrap_or(DEFAULT_PRESET));
 
     let mut p = if name == "auto" {

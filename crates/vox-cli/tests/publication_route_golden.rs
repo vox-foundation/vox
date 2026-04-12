@@ -22,6 +22,7 @@ async fn publication_route_simulate_with_memory_db_matches_golden_fixture() {
         body_markdown: "Hello world for golden route.",
         citations_json: None,
         metadata_json: Some(metadata),
+        revision_history_json: None,
         content_sha3_256: "0000000000000000000000000000000000000000000000000000000000000000",
         state: "draft",
     })

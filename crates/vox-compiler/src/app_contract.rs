@@ -277,7 +277,7 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         mcp_tools,
         mcp_resources,
         server_config: AppServerConfigContract {
-            bind_host: "127.0.0.1".to_string(),
+            bind_host: std::net::Ipv4Addr::LOCALHOST.to_string(),
             default_port: APP_DEFAULT_HTTP_PORT,
             port_env_var: "VOX_PORT".to_string(),
             dev_proxy_env_var: "VOX_SSR_DEV_URL".to_string(),

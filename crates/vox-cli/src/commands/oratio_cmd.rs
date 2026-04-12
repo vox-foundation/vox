@@ -375,20 +375,34 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
             );
             Ok(())
         }
-        OratioAction::Eval { dataset, limit, persist } => {
+        OratioAction::Eval {
+            dataset,
+            limit,
+            persist,
+        } => {
             let file = std::fs::read_to_string(&dataset)?;
             let mut total_words = 0;
             let mut total_errors = 0;
             let mut count = 0;
-            
+
             let rt = tokio::runtime::Runtime::new()?;
             let db_opt = if persist {
-                rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await.ok() })
-            } else { None };
+                rt.block_on(async {
+                    crate::workspace_db::connect_cli_workspace_voxdb()
+                        .await
+                        .ok()
+                })
+            } else {
+                None
+            };
             let run_id = uuid::Uuid::new_v4().to_string();
-            
+
             if let Some(ref db) = db_opt {
-                let ds_name = dataset.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let ds_name = dataset
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let params = vox_db::OratioEvalRunStartParams {
                     run_id: run_id.clone(),
                     run_type: "general_subtitle".to_string(),
@@ -428,7 +442,7 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 total_words += expected_words.len();
                 total_errors += errs;
                 count += 1;
-                
+
                 if let Some(ref db) = db_opt {
                     let _ = rt.block_on(async {
                         db.append_oratio_eval_sample(
@@ -441,14 +455,21 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
                             None,
                             None,
                             0,
-                        ).await
+                        )
+                        .await
                     });
                 }
 
                 println!("File: {}", path);
                 println!("Expected: {}", expected);
                 println!("Actual:   {}", actual);
-                println!("Errors: {} / {} (WER: {:.1}%, CER: {:.1}%)", errs, expected_words.len(), wer_val * 100.0, cer_val * 100.0);
+                println!(
+                    "Errors: {} / {} (WER: {:.1}%, CER: {:.1}%)",
+                    errs,
+                    expected_words.len(),
+                    wer_val * 100.0,
+                    cer_val * 100.0
+                );
                 println!("Confidence: {:.3}\n", detail.confidence);
             }
 
@@ -457,13 +478,14 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
             } else {
                 0.0
             };
-            
+
             if let Some(ref db) = db_opt {
                 let _ = rt.block_on(async {
-                    db.complete_oratio_eval_run(&run_id, Some(wer as f32 / 100.0), None, None, None).await
+                    db.complete_oratio_eval_run(&run_id, Some(wer as f32 / 100.0), None, None, None)
+                        .await
                 });
             }
-            
+
             println!("Processed {} samples.", count);
             println!("Total Words: {}", total_words);
             println!("Total Errors: {}", total_errors);
@@ -473,24 +495,51 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
         }
         OratioAction::EvalHistory { limit } => {
             let rt = tokio::runtime::Runtime::new()?;
-            let db = rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })?;
+            let db =
+                rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })?;
             let runs = rt.block_on(async { db.get_recent_oratio_eval_runs(limit).await })?;
             if runs.is_empty() {
                 println!("No evaluation runs found.");
             } else {
                 for r in runs {
-                    let wer_display = r.global_wer.map(|w| format!("{:.2}%", w * 100.0)).unwrap_or_else(|| "N/A".to_string());
-                    println!("{} | {} | {} | {} samples | WER: {}", r.created_at, r.run_type, r.dataset_name, r.sample_count, wer_display);
+                    let wer_display = r
+                        .global_wer
+                        .map(|w| format!("{:.2}%", w * 100.0))
+                        .unwrap_or_else(|| "N/A".to_string());
+                    println!(
+                        "{} | {} | {} | {} samples | WER: {}",
+                        r.created_at, r.run_type, r.dataset_name, r.sample_count, wer_display
+                    );
                 }
             }
             Ok(())
         }
-        OratioAction::Subtitle { path, output, language, line_width, max_lines, ground_truth_srt, persist } => {
-            let metrics = vox_oratio::subtitle::generate_srt_file(path.clone(), output, language, line_width, max_lines, ground_truth_srt.clone(), persist)?;
+        OratioAction::Subtitle {
+            path,
+            output,
+            language,
+            line_width,
+            max_lines,
+            ground_truth_srt,
+            persist,
+        } => {
+            let metrics = vox_oratio::subtitle::generate_srt_file(
+                path.clone(),
+                output,
+                language,
+                line_width,
+                max_lines,
+                ground_truth_srt.clone(),
+                persist,
+            )?;
             if persist {
                 if let Some((wer, cer, offset)) = metrics {
                     let rt = tokio::runtime::Runtime::new()?;
-                    let db_opt = rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await.ok() });
+                    let db_opt = rt.block_on(async {
+                        crate::workspace_db::connect_cli_workspace_voxdb()
+                            .await
+                            .ok()
+                    });
                     if let Some(db) = db_opt {
                         let run_id = uuid::Uuid::new_v4().to_string();
                         let params = vox_db::OratioEvalRunStartParams {
@@ -500,20 +549,23 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
                             model_id: None,
                             dataset_name: ground_truth_srt.unwrap_or_default(),
                         };
-                        let _ = rt.block_on(async { 
+                        let _ = rt.block_on(async {
                             if db.record_oratio_eval_run_start(&params).await.is_ok() {
-                                let _ = db.append_oratio_eval_sample(
-                                    &run_id,
-                                    &path,
-                                    "srts",
-                                    "srts",
-                                    wer as f32,
-                                    cer as f32,
-                                    None,
-                                    None,
-                                    0,
-                                ).await;
-                                let _ = db.complete_oratio_eval_run(&run_id, Some(wer as f32), Some(cer as f32), None, Some(offset)).await;
+                                let _ = db
+                                    .append_oratio_eval_sample(
+                                        &run_id, &path, "srts", "srts", wer as f32, cer as f32,
+                                        None, None, 0,
+                                    )
+                                    .await;
+                                let _ = db
+                                    .complete_oratio_eval_run(
+                                        &run_id,
+                                        Some(wer as f32),
+                                        Some(cer as f32),
+                                        None,
+                                        Some(offset),
+                                    )
+                                    .await;
                             }
                         });
                     }

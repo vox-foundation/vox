@@ -87,7 +87,7 @@ pub async fn run(action: PlanAction) -> Result<()> {
     match action {
         PlanAction::New {
             goal,
-            scope_files: _,
+            scope_files,
             write_to_disk,
             max_tasks,
             mode,
@@ -97,6 +97,7 @@ pub async fn run(action: PlanAction) -> Result<()> {
                 crate::dei_daemon::method::AI_PLAN_NEW,
                 serde_json::json!({
                     "goal": goal,
+                    "scope_files": scope_files,
                     "write_to_disk": write_to_disk,
                     "max_tasks": max_tasks,
                     "mode": mode,
@@ -111,7 +112,7 @@ pub async fn run(action: PlanAction) -> Result<()> {
             session_id,
             delta_hint,
             write_to_disk,
-            mode: _,
+            mode,
             json,
         } => {
             let resp = crate::dei_daemon::call(
@@ -120,6 +121,7 @@ pub async fn run(action: PlanAction) -> Result<()> {
                     "session_id": session_id,
                     "delta_hint": delta_hint,
                     "write_to_disk": write_to_disk,
+                    "mode": mode,
                 }),
                 false,
             )
@@ -219,6 +221,41 @@ fn print_plan_daemon_response(resp: &serde_json::Value, json: bool, write: bool)
     println!("  Goal    : {goal}");
     println!("  Summary : {summary}");
     println!("  Steps   : {steps}");
+
+    // Print each step with its testing decision if available
+    if let Some(steps_array) = resp
+        .get("versions")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.last())
+        .and_then(|v| v.get("steps"))
+        .and_then(|v| v.as_array())
+    {
+        println!();
+        for (i, step) in steps_array.iter().enumerate() {
+            let desc = step
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("<no desc>");
+            let first_line = desc.lines().next().unwrap_or("<no desc>");
+            let test_dec = step
+                .get("test_decision")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Deferred");
+
+            let dt = if c {
+                match test_dec {
+                    "Required" => "[Test: Required]".red().bold().to_string(),
+                    "Recommended" => "[Test: Recommended]".yellow().to_string(),
+                    "Skip" => "[Test: Skip]".dimmed().to_string(),
+                    _ => format!("[Test: {test_dec}]").cyan().to_string(),
+                }
+            } else {
+                format!("[Test: {test_dec}]")
+            };
+
+            println!("    {:02}. {} {}", i + 1, dt, first_line);
+        }
+    }
     if write {
         println!("  Written : PLAN.md (when supported by daemon)");
     }

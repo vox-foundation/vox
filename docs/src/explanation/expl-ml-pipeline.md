@@ -2,13 +2,17 @@
 title: "Native ML Training Pipeline"
 description: "End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy."
 category: "explanation"
-last_updated: 2026-04-06
+last_updated: 2026-04-12
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Native ML Training Pipeline
 
 Vox "dogfoods" itself: the language, compiler, and documentation all feed a native machine learning loop that trains the **Mens** code assistant model.
+
+End-to-end map from `.vox` sources through goldens and corpus extraction to model inputs: [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Training pair contract: [Mens training data contract](../reference/mens-training-data-contract.md).
 
 **Canonical operator fine-tuning:** **`vox mens train`** with **Candle + qlora-rs** on **Hugging Face** weights. **`--backend qlora`** and **`--tokenizer hf`** are the **defaults**; no Python training loop. SSOT: [Mens native training](../reference/mens-training.md). **`PopuliTrainBackend::BurnLora` is rejected at runtime** in this dispatch — the supported trainer is **`CandleQlora`**.
 
@@ -23,9 +27,9 @@ Vox "dogfoods" itself: the language, compiler, and documentation all feed a nati
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  DATA SOURCES                                               │
-│  examples/*.vox ──────────┐                                 │
-│  docs/src/*.md (code  ────┤──► vox mens corpus extract   │
-│    blocks with frontmatter)│         │                       │
+│  golden/**/*.vox + examples.ssot.v1.yaml ──┐                │
+│  docs … golden .vox ───┤──► vox mens corpus extract         │
+│    (+ prose per mix policy)│         │                      │
 │  vox-cli generate-data ───┘         │                       │
 └─────────────────────────────────────│───────────────────────┘
                                       ▼
@@ -70,9 +74,9 @@ All training pairs follow this JSONL schema (must match across all tools):
 
 ```json
 {
-  "prompt": "Write a Vox actor that tracks a counter",
-  "response": "actor Counter {\n    state count: int = 0\n    on increment() -> int {\n        count = count + 1\n        return count\n    }\n}",
-  "category": "actor",
+  "prompt": "Write a minimal Vox program that prints hello",
+  "response": "fn main() {\n    print(\"hello\")\n}\n",
+  "category": "function",
   "rating": 5,
   "schema_version": "vox_dogfood_v1"
 }
@@ -88,9 +92,13 @@ All training pairs follow this JSONL schema (must match across all tools):
 
 ---
 
-## Tokenizer
+## Tokenizer (training vs compile)
 
-`vox-tensor` includes a **deterministic, dependency-free character-level tokenizer** (`VoxTokenizer`):
+**Compile path:** source text is lexed by **`vox-compiler`** (`logos` [`Token`](../../../crates/vox-compiler/src/lexer/token.rs) enum)—this is unrelated to Mens model vocabulary. See [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md).
+
+**Mens QLoRA path (default):** supervised strings are tokenized with the **Hugging Face tokenizer** for the chosen `--model` (tens of thousands of BPE tokens). See [Mens native training](../reference/mens-training.md) § Tokenization SSOT.
+
+**Lab / Burn scratch:** `vox-tensor` exposes a **deterministic small `VoxTokenizer`** (not a mirror of the Vox lexer keyword set):
 
 - **95 printable ASCII characters** (IDs 3-97)
 - **35 Vox compound tokens** (workflow, actor, fn , @island, etc.)
@@ -136,7 +144,7 @@ vox generate-data --limit 500 --output mens/data/train.jsonl
 ### 2. Extract corpus from real Vox files (canonical flow, PowerShell)
 
 ```powershell
-.\target\release\vox.exe mens corpus extract examples/ -o mens/data/validated.jsonl
+.\target\release\vox.exe mens corpus extract examples/golden/ -o mens/data/validated.jsonl
 .\target\release\vox.exe mens corpus extract docs/ -o mens/data/validated.jsonl 2>$null
 .\target\release\vox.exe mens corpus validate mens/data/validated.jsonl --no-recheck -o mens/data/validated.jsonl
 .\target\release\vox.exe mens corpus pairs mens/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/

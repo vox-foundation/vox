@@ -174,6 +174,8 @@ impl<'a> Checker<'a> {
                     code: Some("typecheck.arg_mismatch".into()),
                     fixes: vec![],
                     line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
                 });
             }
         }

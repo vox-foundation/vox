@@ -5,6 +5,9 @@ category: "reference"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "TechArticle"
+keywords: ["Vox syntax reference", "Vox language keywords", "Vox grammar specification", "full-stack syntax guide"]
 ---
 
 # Reference: Language Syntax

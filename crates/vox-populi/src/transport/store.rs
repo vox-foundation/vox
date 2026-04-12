@@ -7,7 +7,7 @@ use super::PopuliTransportState;
 use super::RemoteExecLeaseRow;
 
 pub(super) fn a2a_store_path_from_env() -> Option<PathBuf> {
-    if let Ok(v) = std::env::var("VOX_MESH_A2A_STORE_PATH") {
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aStorePath).expose() {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return Some(PathBuf::from(trimmed));
@@ -30,7 +30,7 @@ pub(super) fn load_a2a_store(
 }
 
 pub(super) fn exec_lease_store_path_from_env(a2a_store_path: Option<&PathBuf>) -> Option<PathBuf> {
-    if let Ok(v) = std::env::var("VOX_MESH_EXEC_LEASE_STORE_PATH") {
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecLeaseStorePath).expose() {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return Some(PathBuf::from(trimmed));
@@ -60,7 +60,7 @@ pub(super) fn load_exec_lease_store(
 pub(super) fn dispatch_results_store_path_from_env(
     a2a_store_path: Option<&PathBuf>,
 ) -> Option<PathBuf> {
-    if let Ok(v) = std::env::var("VOX_MESH_DISPATCH_STORE_PATH") {
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDispatchStorePath).expose() {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return Some(PathBuf::from(trimmed));

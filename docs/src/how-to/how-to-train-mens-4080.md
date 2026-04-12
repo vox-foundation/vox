@@ -4,6 +4,8 @@ description: "Official documentation for How To: Train Mens on RTX 4080 Super fo
 category: "how-to"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # How To: Train Mens on RTX 4080 Super

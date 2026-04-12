@@ -4,6 +4,8 @@ description: "Like-with-like map for workspace crates under crates/* and major m
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Crate topology buckets

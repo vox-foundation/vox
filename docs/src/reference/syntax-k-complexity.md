@@ -4,6 +4,8 @@ description: "Kolmogorov-style syntax complexity telemetry for Vox compiler outp
 category: "reference"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Syntax K complexity telemetry (WebIR + emit)

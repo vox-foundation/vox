@@ -2,6 +2,8 @@
 title: "Telemetry and research_metrics contract"
 description: "research_metrics row shape, write validation, session_id prefix conventions, key metric_type semantics, Mens telemetry.jsonl envelope and KPI tiers, deprecation notes, and related CI guards."
 category: "reference"
+
+schema_type: "TechArticle"
 ---
 
 # Telemetry & `research_metrics` contract

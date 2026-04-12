@@ -182,6 +182,12 @@ pub fn run() {
                         rel.display()
                     );
                 }
+                LintKind::MissingTrainingRationale => {
+                    eprintln!(
+                        "  ERROR  {} — `training_eligible: true` requires `training_rationale:` frontmatter on research/roadmap pages",
+                        rel.display()
+                    );
+                }
                 LintKind::UnknownCategory { value } => {
                     eprintln!(
                         "  ERROR  {} — unknown category {:?}; use the canonical docs vocabulary",
@@ -192,6 +198,13 @@ pub fn run() {
                 LintKind::UnknownStatus { value } => {
                     eprintln!(
                         "  ERROR  {} — unknown status {:?}; use current|experimental|legacy|research|roadmap|deprecated",
+                        rel.display(),
+                        value
+                    );
+                }
+                LintKind::UnknownSchemaType { value } => {
+                    eprintln!(
+                        "  ERROR  {} — unknown schema_type {:?}; use HowTo|FAQPage|TechArticle|SoftwareSourceCode",
                         rel.display(),
                         value
                     );
@@ -232,9 +245,11 @@ pub fn run() {
                         | LintKind::GenericDescription
                         | LintKind::UnknownCategory { .. }
                         | LintKind::UnknownStatus { .. }
+                        | LintKind::UnknownSchemaType { .. }
                         | LintKind::RawVoxCodeBlock
                         | LintKind::BrokenIncludeAnchor { .. }
                         | LintKind::WholeFileIncludeHasTrainingHeader { .. }
+                        | LintKind::MissingTrainingRationale
                 )
             })
             .count();
@@ -279,22 +294,16 @@ pub fn run() {
     output.push('\n');
 
     for section_name in SECTION_ORDER {
-        if let Some(mut pages) = sections.remove(*section_name) {
+        if let Some(pages) = sections.remove(*section_name) {
             output.push_str(&format!("# {}\n\n", section_name));
-            pages.sort_by_key(|p| (p.sort_order, p.title.clone()));
-            for page in pages {
-                output.push_str(&format!("- [{}]({})\n", page.title, page.path));
-            }
+            push_pages_grouped(&mut output, pages);
             output.push('\n');
         }
     }
 
-    for (name, mut pages) in sections {
+    for (name, pages) in sections {
         output.push_str(&format!("# {}\n\n", name));
-        pages.sort_by_key(|p| (p.sort_order, p.title.clone()));
-        for page in pages {
-            output.push_str(&format!("- [{}]({})\n", page.title, page.path));
-        }
+        push_pages_grouped(&mut output, pages);
         output.push('\n');
     }
 
@@ -322,5 +331,54 @@ pub fn run() {
         fs::write(&summary_path, output).expect("Failed to write SUMMARY.md");
         println!("Successfully generated SUMMARY.md with all pages.");
         generate_feed(docs_src, &all_pages);
+    }
+}
+
+fn push_pages_grouped(output: &mut String, mut pages: Vec<Page>) {
+    // Collect by status
+    let mut by_status: BTreeMap<String, Vec<Page>> = BTreeMap::new();
+    for page in pages.drain(..) {
+        let status = page.status.clone().unwrap_or_else(|| "current".to_string());
+        by_status.entry(status).or_default().push(page);
+    }
+
+    // Status order for subheadings
+    let status_order = [
+        "current",
+        "experimental",
+        "research",
+        "roadmap",
+        "legacy",
+        "deprecated",
+    ];
+
+    for status in &status_order {
+        if let Some(mut status_pages) = by_status.remove(*status) {
+            let label = match *status {
+                "current" => "Current",
+                "experimental" => "Experimental",
+                "research" => "Research",
+                "roadmap" => "Roadmap",
+                "legacy" => "Legacy",
+                "deprecated" => "Deprecated",
+                other => other, // fallback
+            };
+            output.push_str(&format!("## Status: {}\n\n", label));
+            status_pages.sort_by_key(|p| (p.sort_order, p.title.clone()));
+            for page in status_pages {
+                output.push_str(&format!("- [{}]({})\n", page.title, page.path));
+            }
+            output.push('\n');
+        }
+    }
+
+    // Remaining statuses (if any)
+    for (status, mut status_pages) in by_status {
+        output.push_str(&format!("## Status: {}\n\n", status));
+        status_pages.sort_by_key(|p| (p.sort_order, p.title.clone()));
+        for page in status_pages {
+            output.push_str(&format!("- [{}]({})\n", page.title, page.path));
+        }
+        output.push('\n');
     }
 }

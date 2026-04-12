@@ -6,6 +6,33 @@ use std::sync::Mutex;
 /// Serializes `reactive_smoke` tests: `VOX_WEBIR_EMIT_REACTIVE_VIEWS` is process-global and `generate()` touches bridge counters.
 static REACTIVE_SMOKE_SERIAL: Mutex<()> = Mutex::new(());
 
+/// Shared fixture for OP-S114 / OP-S177: derived state surfaces in `D.tsx` output.
+const REACTIVE_SMOKE_DERIVED_HARNESS_FIXTURE: &str = r#"
+component D() {
+    state x: int = 1
+    derived y = x + 1
+    view: <i>{y}</i>
+}
+"#;
+
+fn reactive_smoke_assert_derived_harness_in_d_tsx() {
+    let _serial = REACTIVE_SMOKE_SERIAL
+        .lock()
+        .expect("REACTIVE_SMOKE_SERIAL poisoned");
+    let m = vox_compiler::parser::parse(vox_compiler::lexer::lex(REACTIVE_SMOKE_DERIVED_HARNESS_FIXTURE))
+        .expect("parse");
+    let hir = vox_compiler::hir::lower_module(&m);
+    let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
+    let body = out
+        .files
+        .iter()
+        .find(|(n, _)| n == "D.tsx")
+        .unwrap()
+        .1
+        .as_str();
+    assert!(body.contains("useMemo") || body.contains('y'), "{body}");
+}
+
 /// Worked surface for grammar-branch registry (OP-0267) and K-metric token trace (OP-0268).
 /// Covers G01–G08 from §A3; G09 (`style { }`) stays on the dedicated [`reactive_smoke_style_block_emits_css_module_import`] fixture (top-level `style` must follow only `@component` with no later decls in the same module).
 const K_METRIC_BRANCH_REGISTRY_FIXTURE: &str = r#"
@@ -310,7 +337,7 @@ component Counter(initial: int) {
     state count: int = initial
     derived double = count * 2
     
-    mount: {
+    on mount: {
         log("mounted")
     }
 
@@ -464,62 +491,6 @@ component Tick() {
     );
 }
 
-/// Path C plus classic `@component fn` in one module (OP-0075): HIR carries both; WebIR summary tracks deferred classic.
-/// Uses `VOX_ALLOW_LEGACY_COMPONENT_FN=1` so classic Shell still parses under strict defaults.
-#[serial_test::serial]
-#[test]
-fn mixed_path_c_and_classic_component_hir_surface() {
-    let _serial = REACTIVE_SMOKE_SERIAL
-        .lock()
-        .expect("REACTIVE_SMOKE_SERIAL poisoned");
-    struct LegacyFnGuard;
-    impl Drop for LegacyFnGuard {
-        fn drop(&mut self) {
-            unsafe {
-                std::env::remove_var("VOX_ALLOW_LEGACY_COMPONENT_FN");
-            }
-        }
-    }
-    unsafe {
-        std::env::set_var("VOX_ALLOW_LEGACY_COMPONENT_FN", "1");
-    }
-    let _legacy_fn = LegacyFnGuard;
-    let source = r#"
-import react.use_state
-
-component Dash() {
-    state s: str = ""
-    view: <div>{s}</div>
-}
-
-@component fn Shell() to Element {
-    let (n, _set_n) = use_state(0)
-    ret <span>{n}</span>
-}
-"#;
-    let tokens = vox_compiler::lexer::lex(source);
-    let module = vox_compiler::parser::parse(tokens).expect("parse mixed fixture");
-    let hir = vox_compiler::hir::lower_module(&module);
-    assert_eq!(hir.reactive_components.len(), 1, "Path C Dash");
-    assert_eq!(hir.components.len(), 1, "classic Shell");
-    let (web, summary) = vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
-    assert_eq!(summary.reactive_components, 1);
-    assert_eq!(summary.classic_component_views_lowered, 1);
-    assert_eq!(summary.classic_components_deferred, 0);
-    assert!(
-        web.view_roots.iter().any(|(n, _)| n == "Shell"),
-        "classic Shell should get a Web IR view root, got {:?}",
-        web.view_roots.iter().map(|(n, _)| n).collect::<Vec<_>>()
-    );
-
-    use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
-    let tsx = emit_component_view_tsx(&web, "Shell").expect("Shell preview emit");
-    assert!(
-        tsx.contains("<span") && tsx.contains('n'),
-        "expected preview JSX for Shell span + n binding, got:\n{tsx}"
-    );
-}
-
 /// Validator rejects island mount rows with empty prop keys (OP-0091).
 #[serial_test::serial]
 #[test]
@@ -602,7 +573,7 @@ component Counter(initial: int) {
     state count: int = initial
     derived double = count * 2
 
-    mount: {
+    on mount: {
         log("mounted")
     }
 
@@ -682,7 +653,7 @@ component Counter(initial: int) {
     state count: int = initial
     derived double = count * 2
 
-    mount: {
+    on mount: {
         log("mounted")
     }
 
@@ -1118,27 +1089,7 @@ component U() {
 #[serial_test::serial]
 #[test]
 fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
-    let _serial = REACTIVE_SMOKE_SERIAL
-        .lock()
-        .expect("REACTIVE_SMOKE_SERIAL poisoned");
-    let source = r#"
-component D() {
-    state x: int = 1
-    derived y = x + 1
-    view: <i>{y}</i>
-}
-"#;
-    let m = vox_compiler::parser::parse(vox_compiler::lexer::lex(source)).expect("parse");
-    let hir = vox_compiler::hir::lower_module(&m);
-    let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
-    let body = out
-        .files
-        .iter()
-        .find(|(n, _)| n == "D.tsx")
-        .unwrap()
-        .1
-        .as_str();
-    assert!(body.contains("useMemo") || body.contains('y'), "{body}");
+    reactive_smoke_assert_derived_harness_in_d_tsx();
 }
 
 /// OP-S125 fixture pack D1.
@@ -1227,27 +1178,7 @@ fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
 #[serial_test::serial]
 #[test]
 fn reactive_smoke_op_s177_fixture_pack_f1() {
-    let _serial = REACTIVE_SMOKE_SERIAL
-        .lock()
-        .expect("REACTIVE_SMOKE_SERIAL poisoned");
-    let source = r#"
-component D() {
-    state x: int = 1
-    derived y = x + 1
-    view: <i>{y}</i>
-}
-"#;
-    let m = vox_compiler::parser::parse(vox_compiler::lexer::lex(source)).expect("parse");
-    let hir = vox_compiler::hir::lower_module(&m);
-    let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
-    let body = out
-        .files
-        .iter()
-        .find(|(n, _)| n == "D.tsx")
-        .unwrap()
-        .1
-        .as_str();
-    assert!(body.contains("useMemo") || body.contains('y'), "{body}");
+    reactive_smoke_assert_derived_harness_in_d_tsx();
 }
 
 /// OP-S194 component C.
@@ -1299,7 +1230,7 @@ fn reactive_smoke_op_s205_fixture_pack_g1() {
 component Counter(initial: int) {
     state count: int = initial
     derived double = count * 2
-    mount: {
+    on mount: {
         log("mounted")
     }
     view: (

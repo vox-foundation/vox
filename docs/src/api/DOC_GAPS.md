@@ -4,6 +4,8 @@ description: "Living checklist of documentation gaps, backlog items, and recentl
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Known Documentation Gaps & Backlog

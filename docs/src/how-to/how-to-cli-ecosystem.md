@@ -4,6 +4,8 @@ description: "Official documentation for Ecosystem & Tooling for the Vox languag
 category: "how-to"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 # Ecosystem & Tooling
 
@@ -163,7 +165,7 @@ search_code_snippets(query, limit)  # Vector-similarity search
 The store also manages agent memory for AI-powered features:
 
 ```
-recall_memory(agent, type, limit, min_importance)  # Query with relevance filtering
+recall_async(agent, type, limit, min_importance)  # Query with relevance filtering
 ```
 
 ---

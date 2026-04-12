@@ -4,6 +4,8 @@ description: "Official documentation for Crate and build-lane migration map for 
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Crate and build-lane migration map

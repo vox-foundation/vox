@@ -32,4 +32,5 @@ workspace = true
 [dependencies]
 pulldown-cmark = "0.13"
 walkdir.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

@@ -450,13 +450,27 @@ impl InferenceEngine {
     }
 
     /// Autoregressive generation loop with KV cache.
+    ///
+    /// `grammar_mode` selects grammar-constrained decoding:
+    /// - `GrammarMode::None` — unconstrained (original behaviour)
+    /// - `GrammarMode::Json` — legacy JSON FSM
+    /// - `GrammarMode::Vox` — Earley-backed Vox grammar constraint
+    /// - `GrammarMode::VoxPda` — PDA-backed Vox grammar constraint
     pub fn generate(
         &mut self,
         prompt: &str,
         max_tokens: usize,
         _temperature: f64,
         _top_p: Option<f64>,
+        grammar_mode: &vox_constrained_gen::GrammarMode,
     ) -> Result<String> {
+        let json_mode = *grammar_mode == vox_constrained_gen::GrammarMode::Json;
+        let vox_sampler = vox_constrained_gen::build_sampler(grammar_mode);
+        let mut vox_sampler_state = vox_sampler
+            .as_ref()
+            .map(|s| s.initial_state())
+            .unwrap_or_default();
+
         let mut tokens = self
             .tokenizer
             .encode(prompt, true)
@@ -465,6 +479,7 @@ impl InferenceEngine {
             .to_vec();
 
         let mut generated = String::new();
+        let mut json_fsm = vox_grammar_export::automaton::JsonGrammarAutomaton::new();
 
         // Very basic inference loop
         for i in 0..max_tokens {
@@ -489,21 +504,59 @@ impl InferenceEngine {
             let logits = logits.narrow(0, seq.saturating_sub(1), 1)?.squeeze(0)?;
 
             let slice = logits.to_vec1::<f32>()?;
+
+            // ── Grammar-constrained masking ──────────────────────────────
+            let effective_logits = if let Some(ref sampler) = vox_sampler {
+                // Decode all token strings for the sampler.
+                let vocab_size = slice.len();
+                let token_strings: Vec<String> = (0..vocab_size)
+                    .map(|idx| {
+                        self.tokenizer
+                            .decode(&[idx as u32], false)
+                            .unwrap_or_default()
+                    })
+                    .collect();
+                match sampler.mask_logits(&slice, &vox_sampler_state, &token_strings) {
+                    Ok((masked, new_state)) => {
+                        vox_sampler_state = new_state;
+                        masked
+                    }
+                    Err(_) => slice.clone(), // fallback to unconstrained on error
+                }
+            } else {
+                slice.clone()
+            };
+
             let mut next_token = 0;
             let mut max_val = f32::NEG_INFINITY;
-            for (idx, &v) in slice.iter().enumerate() {
-                if v > max_val {
+            for (idx, &v) in effective_logits.iter().enumerate() {
+                let is_valid = if json_mode {
+                    if let Ok(char_str) = self.tokenizer.decode(&[idx as u32], false) {
+                        json_fsm.is_valid_transition(&char_str)
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                };
+
+                if v > max_val && is_valid {
                     max_val = v;
                     next_token = idx;
                 }
             }
             let next_token = next_token as u32;
 
-            tokens.push(next_token);
-
-            if let Ok(txt) = self.tokenizer.decode(&[next_token], false) {
-                generated.push_str(&txt);
+            if json_mode {
+                if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
+                    json_fsm.advance(&char_str);
+                    generated.push_str(&char_str);
+                }
+            } else if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
+                generated.push_str(&char_str);
             }
+
+            tokens.push(next_token);
 
             // check EOS (assume 151643 for Qwen2 as EOS)
             if next_token == 151643 {

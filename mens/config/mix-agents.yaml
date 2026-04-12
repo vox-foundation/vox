@@ -1,8 +1,11 @@
 # Mix configuration for agents domain
 output: mens/data/train_mixed_agents.jsonl
 sources:
-  - path: target/dogfood/tool_traces.example.jsonl
+  - path: mens/data/mix_sources/dogfood_converted.jsonl
     weight: 5.0
+    optional: true
+  - path: target/dogfood/a2a_traces.jsonl
+    weight: 4.0
     optional: true
   - path: mens/data/mix_sources/autofeedback.jsonl
     weight: 3.0

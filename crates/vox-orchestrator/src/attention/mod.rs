@@ -39,6 +39,8 @@ mod tests {
             successful_outcomes: 20,
             below_tier_streak: 0,
             last_updated_ms: 0,
+            variance: 0.10,
+            is_override: false,
         }
     }
 

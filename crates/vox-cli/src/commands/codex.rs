@@ -14,9 +14,40 @@ fn resolve_config() -> anyhow::Result<DbConfig> {
     DbConfig::resolve_canonical().map_err(anyhow::Error::msg)
 }
 
+fn redacted_canonical_config_summary(config: &DbConfig) -> String {
+    match config {
+        DbConfig::Remote { url, .. } => {
+            let host = url
+                .split("//")
+                .nth(1)
+                .map(|h| h.split('/').next().unwrap_or("?").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            format!("remote(libsql_host={host})")
+        }
+        DbConfig::Local { path } => format!("local(path={path})"),
+        DbConfig::Memory => "memory".to_string(),
+    }
+}
+
 /// Inspect schema version and Codex reactivity tables.
 pub async fn verify() -> anyhow::Result<()> {
     let config = resolve_config()?;
+    println!(
+        "workspace_journey_store: {:?} (repo MCP / interactive default; see VOX_WORKSPACE_JOURNEY_STORE)",
+        vox_db::workspace_journey_store_mode_from_env()
+    );
+    println!(
+        "this_command_uses: canonical user-global Codex ({})",
+        redacted_canonical_config_summary(&config)
+    );
+    println!(
+        "repository_baseline: version={} digest_hex={}",
+        vox_db::schema::BASELINE_VERSION,
+        vox_db::schema::schema_baseline_digest_hex()
+    );
+    println!(
+        "training_telemetry_sidecar: not_probed_here — see docs/src/operations/voxdb-cutover-runbook.md when primary DB is legacy"
+    );
     let db = match Codex::connect(config).await {
         Ok(db) => db,
         Err(StoreError::LegacySchemaChain { max_version }) => {

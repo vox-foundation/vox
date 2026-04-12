@@ -4,6 +4,8 @@ description: "Vox @query decorator: read-only database queries validated against
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # @query

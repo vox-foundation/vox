@@ -1,8 +1,92 @@
-# JJ object store — must not be indexed or modified by AI agents
-# Corruption of .jj/ can cause irreversible history loss (JUNIE-597)
-.jj/
+# .aiignore — DERIVED from .voxignore (SSOT)
+# Consumed by JetBrains AI Assistant (must be enabled in Settings | Tools | AI Assistant)
+# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.
+# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md §3
 
-# Large binary blobs and build artifacts
+# === BUILD ARTIFACTS ===
 target/
+target_*/
+target-*/
+dist/
+build/
+node_modules/
+__pycache__/
+*.pyc
+.cache/
+.cargo-targets/
+crates/*/pkg/
+islands/
+
+# === VCS INTERNALS ===
+# .jj/ MUST be excluded: corruption causes irreversible history loss (JUNIE-597)
+.jj/
+.git/
+
+# === SECRETS AND CREDENTIALS ===
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+.aws/
+.azure/
+*.secret
+
+# === AI/ML MODEL WEIGHTS AND TRAINING DATA ===
+*.bin
+*.gguf
+*.safetensors
+*.pt
+*.pth
+models/
+populi/runs/
+mens/runs/
+*.jsonl
+populi/data/
+.vox-research-data/
+
+# === DATABASE FILES ===
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# === GENERATED / DERIVED FILES ===
+Cargo.lock
+package-lock.json
+*.lock
+*.generated.*
+vox-agent.json
+vox-schema.json
+stub_check_results*.json
+opencode.json
+
+# === SCRATCH / EPHEMERAL / LOGS ===
+scratch/
+tmp/
+.tmp/
+*.tmp
+*.bak
+*.orig
+*.log
+*.log.*
+/artifacts/
+.opencode/
+.coderabbit/
+.mypy_cache/
+
+# === LARGE BINARY BLOBS ===
 *.wasm
 *.rlib
+
+# === IDE ARTIFACTS ===
+.idea/
+.cursor/plans/
+
+# === PYTHON LOCAL TOOLING ===
+scripts/.venv/
+crates/vox-py/.venv/

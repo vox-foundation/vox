@@ -755,6 +755,7 @@ fn curated_entries_from_row(row: &OperationRow) -> Vec<CuratedCapability> {
             mens_planner_visible: row.mens_planner_visible,
             mcp_tool: Some(m.name.clone()),
             cli_path: None,
+            parameters: None,
         });
     }
     if let Some(c) = &row.cli {
@@ -795,6 +796,7 @@ fn curated_entries_from_row(row: &OperationRow) -> Vec<CuratedCapability> {
             mens_planner_visible: row.mens_planner_visible,
             mcp_tool: None,
             cli_path: Some(c.path.clone()),
+            parameters: None,
         });
     }
     out

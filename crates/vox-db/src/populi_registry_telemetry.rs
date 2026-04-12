@@ -11,7 +11,7 @@ use crate::{DbConfig, VoxDb};
 /// True when **`VOX_MESH_CODEX_TELEMETRY`** is `1` or `true`.
 #[must_use]
 pub fn mesh_codex_telemetry_enabled() -> bool {
-    std::env::var("VOX_MESH_CODEX_TELEMETRY")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry).expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
@@ -44,8 +44,8 @@ pub async fn record_local_registry_publish_opt(
         );
         return;
     };
-    let scope_id = std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());
     let details = json!({
@@ -92,8 +92,8 @@ pub async fn record_populi_http_join_opt(
         );
         return;
     };
-    let scope_id = std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());
     let details = json!({

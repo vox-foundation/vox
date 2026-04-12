@@ -5,6 +5,7 @@
 //! **`vox-mcp`** uses the same variable as a **TCP peer address** for `orch.ping` health checks (stdio skipped).
 
 mod client;
+mod dei_dispatch;
 
 pub use client::OrchDaemonClient;
 
@@ -61,6 +62,10 @@ pub async fn dispatch_request(
     orch: Arc<Orchestrator>,
     req: &DispatchRequest,
 ) -> DispatchResponse {
+    if let Some(resp) = dei_dispatch::try_dispatch_dei(repository_id, Arc::clone(&orch), req).await
+    {
+        return resp;
+    }
     match req.method.as_str() {
         orch_daemon_method::PING => response_result(
             &req.id,

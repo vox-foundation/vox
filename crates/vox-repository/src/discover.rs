@@ -75,36 +75,34 @@ pub fn discover_repository(start: &Path) -> Result<RepositoryContext, Repository
     })
 }
 
+fn bare_context_from_root(root: &Path) -> RepositoryContext {
+    let root_canon = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    let git_root = find_git_work_tree(&root_canon);
+    let effective_root = git_root.clone().unwrap_or_else(|| root_canon.clone());
+    let effective_canon = std::fs::canonicalize(&effective_root).unwrap_or(effective_root);
+    let origin = git_root.as_ref().and_then(|g| read_origin_url(g));
+    let caps = probe_capabilities(&effective_canon, git_root.is_some());
+    let repository_id = compute_repository_id(&effective_canon, origin.as_deref());
+    RepositoryContext {
+        root: effective_canon.clone(),
+        git_root,
+        repository_id,
+        origin_url: origin,
+        capabilities: caps,
+        has_vox_agents_dir: effective_canon.join(".vox").join("agents").is_dir(),
+        vox_toml: {
+            let p = effective_canon.join("Vox.toml");
+            if p.is_file() { Some(p) } else { None }
+        },
+    }
+}
+
 /// Same as [`discover_repository`], but never fails: falls back to CWD with tracing.
 pub fn discover_repository_or_fallback(start: &Path) -> RepositoryContext {
     discover_repository(start).unwrap_or_else(|e| {
-        tracing::warn!(target: "vox_repository", "discover_repository failed: {e}");
+        tracing::warn!(target: "vox_repository", "discover_repository failed: {e}; falling back to CWD");
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        discover_repository(&cwd).unwrap_or_else(|e2| {
-            tracing::error!(target: "vox_repository", "discover_repository fallback failed: {e2}");
-            let root = std::fs::canonicalize(&cwd).unwrap_or(cwd);
-            let git_root = find_git_work_tree(&root);
-            let root_canon = git_root.clone().unwrap_or_else(|| root.clone());
-            let root_canon = std::fs::canonicalize(&root_canon).unwrap_or(root_canon);
-            let origin = git_root.as_ref().and_then(|g| read_origin_url(g));
-            let in_git = git_root.is_some();
-            let caps = probe_capabilities(&root_canon, in_git);
-            let repository_id = compute_repository_id(&root_canon, origin.as_deref());
-            let vox_toml = {
-                let p = root_canon.join("Vox.toml");
-                if p.is_file() { Some(p) } else { None }
-            };
-            let has_vox_agents_dir = root_canon.join(".vox").join("agents").is_dir();
-            RepositoryContext {
-                root: root_canon,
-                git_root,
-                repository_id,
-                origin_url: origin,
-                capabilities: caps,
-                has_vox_agents_dir,
-                vox_toml,
-            }
-        })
+        bare_context_from_root(&cwd)
     })
 }
 

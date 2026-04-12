@@ -4,6 +4,8 @@ description: "Official documentation for Oratio & speech SSOT (Candle Whisper, n
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Oratio & speech SSOT (Candle Whisper, no whisper.cpp)
 

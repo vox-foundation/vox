@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+vox-build-meta = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "multipart", "ws"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -21,7 +22,8 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 uuid = { workspace = true }
 hound = { workspace = true }
 
-vox-oratio = { path = "../vox-oratio", features = ["stt-candle", "compiler-rerank"] }
+vox-oratio = { workspace = true, features = ["stt-candle", "compiler-rerank"] }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]
 workspace = true

@@ -1,8 +1,22 @@
 User-agent: *
 Allow: /
 
+# Internal inventory / gap tracking — no user value, wastes crawl budget
 Disallow: /api/DOC_GAPS.html
 Disallow: /reference/doc-inventory.html
 
-Sitemap: https://vox-lang.org/sitemap.xml
+# CI and operations docs — internal, not indexed by users
+Disallow: /ci/
+Disallow: /operations/
 
+# Internal architecture planning artifacts — high volume, low discovery value
+Disallow: /architecture/planning-meta/
+Disallow: /architecture/research-agent-handoff-
+Disallow: /architecture/research-cl-
+Disallow: /architecture/research-grpo-
+Disallow: /architecture/research-ts-hallucination-
+
+# Archived crate docs — prevent duplicate authority dilution
+Disallow: /api/*-ARCHIVED.html
+
+Sitemap: https://vox-lang.org/sitemap.xml

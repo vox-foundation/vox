@@ -4,6 +4,8 @@ description: "Suggested staged training mix for spoken input → Vox code."
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # MENS curriculum (speech-to-code)

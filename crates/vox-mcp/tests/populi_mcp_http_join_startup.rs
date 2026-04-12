@@ -44,7 +44,7 @@ fn restore_env(key: &str, previous: Option<String>) {
     // SAFETY: called only while MESH_ENV_MUTEX is held and the test thread is the sole writer.
     unsafe {
         match previous {
-            Some(v) => unsafe { std::env::set_var(key, v) },
+            Some(v) => std::env::set_var(key, v),
             None => std::env::remove_var(key),
         }
     }
@@ -93,12 +93,12 @@ async fn populi_startup_registers_on_http_control_plane() {
     let base = format!("http://{}", bound);
 
     unsafe {
-        unsafe { std::env::set_var("VOX_MESH_ENABLED", "1") };
+        std::env::set_var("VOX_MESH_ENABLED", "1");
         std::env::remove_var("VOX_MESH_CONTROL_ADDR");
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base) };
-        unsafe { std::env::set_var("VOX_MESH_NODE_ID", "mcp-join-integration") };
-        unsafe { std::env::set_var("VOX_MESH_REGISTRY_PATH", registry_path.to_str().unwrap()) };
-        unsafe { std::env::set_var("VOX_MESH_HTTP_HEARTBEAT_SECS", "0") };
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base);
+        std::env::set_var("VOX_MESH_NODE_ID", "mcp-join-integration");
+        std::env::set_var("VOX_MESH_REGISTRY_PATH", registry_path.to_str().unwrap());
+        std::env::set_var("VOX_MESH_HTTP_HEARTBEAT_SECS", "0");
         std::env::remove_var("VOX_MESH_HTTP_JOIN");
     }
 
@@ -153,7 +153,7 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
 
     unsafe {
         std::env::remove_var("VOX_MESH_CONTROL_ADDR");
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base) };
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base);
         std::env::remove_var("VOX_MESH_TOKEN");
     }
 
@@ -312,7 +312,7 @@ async fn a2a_inbox_source_modes_local_mesh_merged() {
 
     unsafe {
         std::env::remove_var("VOX_MESH_CONTROL_ADDR");
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base) };
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base);
         std::env::remove_var("VOX_MESH_TOKEN");
     }
 
@@ -490,7 +490,7 @@ async fn a2a_inbox_mesh_paging_forwards_limit_and_cursor() {
     // SAFETY: guarded by MESH_ENV_MUTEX for this test process.
     unsafe {
         std::env::remove_var("VOX_MESH_CONTROL_ADDR");
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base) };
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base);
         std::env::remove_var("VOX_MESH_TOKEN");
     }
 
@@ -630,8 +630,8 @@ async fn mcp_federation_poller_auto_revokes_exec_lease_when_holder_left_mesh() {
     assert!(setup.list_nodes().await.unwrap().nodes.is_empty());
 
     unsafe {
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE", "1") };
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE", "1") };
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE", "1");
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE", "1");
     }
 
     let mut cfg = OrchestratorConfig::for_testing();
@@ -712,7 +712,7 @@ async fn mcp_federation_poller_keeps_orphan_exec_lease_without_auto_revoke() {
     assert!(setup.leave("mcp-reconcile-only-holder").await.unwrap());
 
     unsafe {
-        unsafe { std::env::set_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE", "1") };
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE", "1");
         std::env::remove_var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE");
     }
 

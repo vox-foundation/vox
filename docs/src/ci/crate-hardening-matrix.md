@@ -4,6 +4,8 @@ description: "Official documentation for Crate hardening matrix (rolling) for th
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Crate hardening matrix (rolling)

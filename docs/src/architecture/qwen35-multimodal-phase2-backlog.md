@@ -2,6 +2,8 @@
 title: "Qwen3.5 Multimodal Phase 2 Backlog"
 description: "Post–text-only Qwen3.5 work: vision/video tokens, config and TrainingPair/corpus contracts, candle QLoRA train and inference serve, merge metadata, CI fixtures, and phase-2 exit criteria."
 category: "architecture"
+
+schema_type: "TechArticle"
 ---
 
 # Qwen3.5 Multimodal Phase 2 Backlog

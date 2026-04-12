@@ -1,5 +1,10 @@
 ---
-title: Works Cited: AI Agent Context and Handoff
+title: "Works Cited: AI Agent Context and Handoff"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 1. Silent failure when model output is truncated before tool call emission \#27896 \- GitHub, accessed April 8, 2026, [https://github.com/anthropics/claude-code/issues/27896](https://github.com/anthropics/claude-code/issues/27896)  

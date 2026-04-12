@@ -4,6 +4,8 @@ description: "Per-surface and per-platform manual inputs versus derived fields f
 category: "how-to"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # Scientia publication: operator inputs vs system-derived fields

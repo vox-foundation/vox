@@ -61,7 +61,7 @@ impl LlmConfig {
             provider: "openai".into(),
             model: model.into(),
             base_url: Some(vox_config::OPENAI_CHAT_COMPLETIONS_URL.into()),
-            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
             temperature: None,
@@ -100,7 +100,7 @@ impl LlmConfig {
             "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
-            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
             "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)

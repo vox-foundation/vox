@@ -7,6 +7,9 @@ research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: true
 last_updated: 2026-04-09
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # GRPO and VRAM Efficiency: Architectural Comparisons and Small-Batch Dynamics

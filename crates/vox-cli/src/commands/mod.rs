@@ -16,6 +16,8 @@ pub mod auth;
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
+/// Catalog explicit management commands (`vox catalog`).
+pub mod catalog;
 /// Validation and static checking (`vox check`).
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
@@ -91,6 +93,7 @@ pub mod populi_cli;
 pub mod populi_lifecycle;
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;
+pub mod repo_init;
 pub(crate) mod repo_upgrade;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
@@ -127,6 +130,10 @@ pub mod oratio_mic;
 #[cfg(any(feature = "mens-base", feature = "gpu"))]
 pub mod mens;
 
+pub mod grammar;
 /// Training tools (`vox schola`).
 #[cfg(feature = "gpu")]
 pub mod schola;
+
+/// Unified research operations: infrastructure and evaluation.
+pub mod research;

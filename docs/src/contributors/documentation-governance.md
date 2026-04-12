@@ -6,6 +6,8 @@ status: "current"
 sort_order: 10
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Documentation governance
@@ -169,7 +171,7 @@ Use this lightweight review matrix for high-drift surfaces:
 
 Before committing documentation to the repository, verify the following constraints:
 
-1. **Syntax correctness**: Code snippets must parse cleanly under current validation. Prefer `{{#include}}` from `examples/golden/` where policy requires it.
+1. **Syntax correctness**: Code snippets must parse cleanly under current validation. Prefer `{{#include}}` from `examples/golden/` where policy requires it. Machine-checked layout lives in `examples/examples.ssot.v1.yaml` (`mdbook_includes_resolve_to_existing_golden_vox` in `vox-compiler` tests).
 2. **Authority registration**: New canonical pages must be reflected in `contracts/documentation/canonical-map.v1.yaml`; aliases must remain link-only.
 3. **Status marker**: Use `status` only when needed (`current`, `experimental`, `legacy`, `research`, `roadmap`, `deprecated`).
 4. **Terminology**: Use established nomenclature (Codex vs Arca, Mens vs Populi, Islands vs Components).

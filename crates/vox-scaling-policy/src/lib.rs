@@ -5,8 +5,12 @@
 
 use serde::Deserialize;
 
+pub mod cost_defense;
 mod policy_types;
 
+pub use cost_defense::{
+    CostCircuitBreaker, CostDefenseConfig, CostDefenseRejection, CostDefenseState,
+};
 pub use policy_types::{PathLiterals, PerCrateOverride, Thresholds};
 
 const EMBEDDED_YAML: &str = include_str!("../../../contracts/scaling/policy.yaml");

@@ -39,6 +39,8 @@ impl Default for OrchestratorConfig {
             event_bus_capacity: default_event_capacity(),
             default_agent_capabilities: TaskCapabilityHints::default(),
             orchestration_migration: OrchestrationMigrationFlags::default(),
+            execution_time_budget_multiplier: default_execution_time_budget_multiplier(),
+            financial_cost_budget_micros: default_financial_cost_budget_micros(),
             min_agents: default_min_agents(),
             scaling_threshold: default_scaling_threshold(),
             idle_retirement_ms: default_idle_retirement(),
@@ -87,7 +89,14 @@ impl Default for OrchestratorConfig {
             planning_router_enabled: default_false(),
             planning_replan_enabled: default_false(),
             planning_workflow_handoff_enabled: default_false(),
+            planning_llm_synthesis_enabled: vox_clavis::resolve_secret(
+                vox_clavis::SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
+            )
+            .expose()
+            .map(|v| v != "0" && v.to_ascii_lowercase() != "false")
+            .unwrap_or(false),
             planning_shadow_mode: default_false(),
+            research_model_enabled: default_false(),
             planning_auto_mode_enabled: default_false(),
             planning_rollout_percent: 0,
             planning_depth: default_planning_depth(),
@@ -107,6 +116,7 @@ impl Default for OrchestratorConfig {
             attention_alert_threshold: default_attention_alert_threshold(),
             attention_interrupt_cost_ms: default_attention_interrupt_cost_ms(),
             trust_ewma_alpha: default_trust_ewma_alpha(),
+            routing_exploration_epsilon: default_routing_exploration_epsilon(),
             trust_provisional_threshold: default_trust_provisional_threshold(),
             trust_trusted_threshold: default_trust_trusted_threshold(),
             trust_auto_approve_min: default_trust_auto_approve_min(),
@@ -124,6 +134,16 @@ impl Default for OrchestratorConfig {
             observer_enabled: false,
             observer_model: None,
             observer_poll_interval_ms: default_observer_poll_interval_ms(),
+            test_decision_policy: crate::planning::TestDecisionPolicy::default(),
+            exec_time_budget_enabled: default_true(),
+            exec_time_safety_multiplier: default_exec_time_safety_multiplier(),
+            exec_time_timeout_rate_alert: default_exec_time_timeout_rate_alert(),
+            exec_time_default_budget_ms: default_exec_time_default_budget_ms(),
+            exec_time_history_window_days: default_exec_time_history_window_days(),
+            local_breakeven_tokens: super::defaults::default_local_breakeven_tokens(),
+            research_max_hops: super::defaults::default_research_max_hops(),
+            research_quality_gate_enabled: default_true(),
+            research_quality_target: super::defaults::default_research_quality_target(),
         }
     }
 }

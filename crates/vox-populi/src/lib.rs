@@ -15,7 +15,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Whether populi hooks are enabled (`VOX_MESH_ENABLED=1` or `true`).
 #[must_use]
 pub fn populi_enabled_from_env() -> bool {
-    std::env::var("VOX_MESH_ENABLED")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshEnabled)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
@@ -80,7 +81,11 @@ pub fn populi_env_resolved(vox_toml_path: Option<&std::path::Path>) -> PopuliEnv
             env.labels.push(lab);
         }
     }
-    if toml.advertise_gpu == Some(true) && std::env::var("VOX_MESH_ADVERTISE_GPU").is_err() {
+    if toml.advertise_gpu == Some(true)
+        && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdvertiseGpu)
+            .expose()
+            .is_none()
+    {
         // Caller applies gpu via probe merge in node_record; flag via env struct is absent — handled in node_record.
     }
     env
@@ -89,7 +94,8 @@ pub fn populi_env_resolved(vox_toml_path: Option<&std::path::Path>) -> PopuliEnv
 /// Whether `VOX_MESH_ADVERTISE_GPU` is set, or `[populi].advertise_gpu = true` when env is unset.
 #[must_use]
 pub fn populi_advertise_gpu_effective(vox_toml_path: Option<&std::path::Path>) -> bool {
-    if std::env::var("VOX_MESH_ADVERTISE_GPU")
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdvertiseGpu)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
@@ -152,11 +158,12 @@ fn http_control_host_is_bind_all(url: &str) -> bool {
 #[must_use]
 pub fn populi_env() -> PopuliEnv {
     let enabled = populi_enabled_from_env();
-    let node_id = std::env::var("VOX_MESH_NODE_ID")
-        .ok()
+    let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+        .expose()
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let labels = std::env::var("VOX_MESH_LABELS")
-        .ok()
+    let labels = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshLabels)
+        .expose()
         .map(|s| {
             s.split(',')
                 .map(|t| t.trim().to_string())
@@ -164,11 +171,13 @@ pub fn populi_env() -> PopuliEnv {
                 .collect()
         })
         .unwrap_or_default();
-    let control_addr = std::env::var("VOX_MESH_CONTROL_ADDR")
-        .ok()
+    let control_addr = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshControlAddr)
+        .expose()
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let registry_path = std::env::var("VOX_MESH_REGISTRY_PATH")
-        .ok()
+    let registry_path = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshRegistryPath)
+        .expose()
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     let scope_id = populi_scope_id_from_env();
     PopuliEnv {
@@ -184,8 +193,8 @@ pub fn populi_env() -> PopuliEnv {
 /// `VOX_MESH_SCOPE_ID` when set and non-empty after trim.
 #[must_use]
 pub fn populi_scope_id_from_env() -> Option<String> {
-    std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
 }

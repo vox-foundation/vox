@@ -24,6 +24,7 @@ toml = { workspace = true }
 reqwest = { workspace = true }
 vox-reqwest-defaults = { workspace = true }
 glob = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

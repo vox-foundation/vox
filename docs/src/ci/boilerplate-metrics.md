@@ -4,6 +4,8 @@ description: "KPI framework for tracking accidental-complexity and boilerplate r
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Boilerplate metrics and KPI framework

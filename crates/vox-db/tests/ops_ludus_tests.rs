@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS gamify_quests (
     crystal_reward INTEGER NOT NULL DEFAULT 0, target INTEGER NOT NULL DEFAULT 1,
     progress INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active',
     expires_at INTEGER NOT NULL DEFAULT 0, completed INTEGER NOT NULL DEFAULT 0,
-    hint TEXT, modifier TEXT
+    hint TEXT, modifier TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS gamify_battles (
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL, companion_id TEXT NOT NULL,
@@ -105,7 +106,8 @@ CREATE TABLE IF NOT EXISTS gamify_policy_snapshots (
     mode_label TEXT NOT NULL DEFAULT 'balanced', effective_multiplier REAL NOT NULL DEFAULT 1.0,
     awarded_xp INTEGER NOT NULL DEFAULT 0, awarded_crystals INTEGER NOT NULL DEFAULT 0,
     streak_days INTEGER NOT NULL DEFAULT 0, grind_capped INTEGER NOT NULL DEFAULT 0,
-    lumens INTEGER NOT NULL DEFAULT 0
+    lumens INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS agent_locks (
     path TEXT NOT NULL, agent_id TEXT NOT NULL, repository_id TEXT NOT NULL DEFAULT '',
@@ -522,4 +524,123 @@ async fn agent_metrics_upsert() {
         .await
         .unwrap();
     assert_eq!(metrics.len(), 2);
+}
+
+#[tokio::test]
+async fn gamify_periodic_condition_queries() {
+    let store: VoxDb = open().await;
+    store
+        .upsert_gamify_profile(
+            "u_periodic",
+            1,
+            0,
+            0,
+            100,
+            100,
+            0,
+            0,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+        .await
+        .unwrap();
+    let last = store
+        .gamify_periodic_profile_last_active("u_periodic")
+        .await
+        .unwrap();
+    assert!(last.is_some());
+
+    assert_eq!(
+        store
+            .gamify_periodic_daily_quests_completed_today_count("u_periodic")
+            .await
+            .unwrap(),
+        0
+    );
+
+    store
+        .connection()
+        .execute(
+            "INSERT INTO gamify_quests (id, user_id, quest_type, title, description, status) VALUES ('q1', 'u_periodic', 'daily', '', '', 'completed')",
+            (),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        store
+            .gamify_periodic_daily_quests_completed_today_count("u_periodic")
+            .await
+            .unwrap(),
+        1
+    );
+
+    store
+        .connection()
+        .execute(
+            "INSERT INTO gamify_achievements (id, user_id, unlocked_at) VALUES ('ach1', 'u_periodic', 0)",
+            (),
+        )
+        .await
+        .unwrap();
+    assert!(
+        store
+            .gamify_periodic_has_achievement("u_periodic", "ach1")
+            .await
+            .unwrap()
+    );
+
+    assert_eq!(
+        store
+            .gamify_periodic_profile_streak_days("u_periodic")
+            .await
+            .unwrap(),
+        Some(5)
+    );
+
+    store
+        .insert_gamify_policy_snapshot(
+            "u_periodic",
+            "doc_item",
+            0,
+            0,
+            "balanced",
+            1.0,
+            0,
+            0,
+            0,
+            false,
+            0,
+        )
+        .await
+        .unwrap();
+    assert!(
+        store
+            .gamify_periodic_doc_item_count_this_month("u_periodic")
+            .await
+            .unwrap()
+            >= 1
+    );
+
+    assert!(
+        store
+            .gamify_periodic_has_completed_quest("u_periodic", "q1")
+            .await
+            .unwrap()
+    );
+
+    assert!(
+        store
+            .gamify_periodic_perfect_week_completed_count("u_periodic")
+            .await
+            .unwrap()
+            >= 1
+    );
 }

@@ -15,15 +15,38 @@ pub fn resolve_repo_root_for_ci() -> PathBuf {
     if let Ok(p) = std::env::var(VOX_REPO_ROOT_ENV) {
         return PathBuf::from(p);
     }
-    let mut d = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    loop {
-        if d.join("AGENTS.md").is_file() && d.join("Cargo.toml").is_file() {
-            return d;
-        }
-        if !d.pop() {
-            return std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let d = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+    // Priority 2: Vox-self fast-path
+    {
+        let mut probe = d.clone();
+        loop {
+            if probe.join("AGENTS.md").is_file() && probe.join("Cargo.toml").is_file() {
+                return probe;
+            }
+            if !probe.pop() {
+                break;
+            }
         }
     }
+    // Priority 3: any Vox.toml
+    {
+        let mut probe = d.clone();
+        loop {
+            if probe.join("Vox.toml").is_file() {
+                return probe;
+            }
+            if !probe.pop() {
+                break;
+            }
+        }
+    }
+    // Priority 4: nearest Git root
+    if let Some(git_root) = crate::git_root::find_git_work_tree(&d) {
+        return git_root;
+    }
+    // Priority 5: CWD fallback
+    d
 }
 
 /// Walk up from `start` (or CWD if empty) until a directory contains `Vox.toml` or `Cargo.toml`.

@@ -81,6 +81,7 @@ mod tests {
                 }"#
                 .to_string(),
             ),
+            revision_history_json: None,
             content_sha3_256: "digest".to_string(),
             state: "draft".to_string(),
             version: 1,

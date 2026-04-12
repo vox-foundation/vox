@@ -15,7 +15,8 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_cross_entropy_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_f32_linear_lm_logits_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_nf4_dequant_lm_reference_parity] }
-      - { command: cargo, args: [test, -p, vox-cli, merge_] }
+      # Intentional substring filter: `merge_*` GPU merge tests live in `src/commands/mens/` under `#[cfg(all(test, feature = "gpu"))]`.
+      - { command: cargo, args: [test, -p, vox-cli, --features, gpu, merge_] }
       - { command: cargo, args: [test, -p, vox-tensor, --features, gpu, --lib, linear_warmup_sequence_matches] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, merge_v2] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, qlora_preflight] }
@@ -23,6 +24,7 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, qwen35_linear_attention_forward_and_cache_progression] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, resolve_adapter_meta_prefers_v2_then_legacy] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, qwen35_native_parity] }
+      # Substring filter: `tool_trace_*` tests in `crates/vox-corpus/src/corpus/mix/tests.rs`.
       - { command: cargo, args: [test, -p, vox-corpus, --lib, tool_trace_] }
   m1m4:
     steps:
@@ -35,10 +37,12 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, qwen35_linear_attention_forward_and_cache_progression] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, resolve_adapter_meta_prefers_v2_then_legacy] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, qwen35_native_parity] }
-      - { command: cargo, args: [test, -p, vox-cli, merge_] }
+      # Intentional substring filter: `merge_*` GPU merge tests live in `src/commands/mens/` under `#[cfg(all(test, feature = "gpu"))]`.
+      - { command: cargo, args: [test, -p, vox-cli, --features, gpu, merge_] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_f32_matmul_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_f32_linear_lm_logits_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_cross_entropy_parity] }
+      # Substring filter: `tool_trace_*` tests in `crates/vox-corpus/src/corpus/mix/tests.rs`.
       - { command: cargo, args: [test, -p, vox-corpus, --lib, tool_trace_] }
   training:
     steps:
@@ -54,5 +58,6 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_f32_linear_lm_logits_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_nf4_dequant_lm_reference_parity] }
       - { command: cargo, args: [test, -p, vox-tensor, --features, gpu, --lib, linear_warmup_sequence_matches] }
-      - { command: cargo, args: [test, -p, vox-cli, merge_] }
+      # Intentional substring filter: `merge_*` GPU merge tests live in `src/commands/mens/` under `#[cfg(all(test, feature = "gpu"))]`.
+      - { command: cargo, args: [test, -p, vox-cli, --features, gpu, merge_] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, merge_v2] }

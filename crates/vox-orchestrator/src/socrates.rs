@@ -1,7 +1,7 @@
 //! Socrates task gate: evidence-weighted confidence against shared [`vox_socrates_policy`] thresholds.
 
 use serde::{Deserialize, Serialize};
-use vox_socrates_policy::{ConfidencePolicy, RiskBand, RiskDecision};
+use vox_socrates_policy::{ConfidencePolicy, RiskBand, RiskDecision, SocratesResearchDecision};
 
 /// Context-store key prefix for canonical context envelope JSON persisted per session.
 #[must_use]
@@ -127,6 +127,9 @@ impl SessionRetrievalEnvelope {
             recommended_next_action: self.recommended_next_action.clone(),
             retrieval_diagnosis: None,
             fatigue_active: false,
+            orient_report: None,
+            answered_questions: vec![],
+            research_model_enabled: false,
         }
     }
 }
@@ -149,6 +152,17 @@ pub struct RetrievalDiagnosis {
     /// High-level shape of remaining risk for refiners.
     #[serde(default)]
     pub evidence_shape: String,
+}
+
+use crate::types::TaskCategory;
+
+/// The result of the Orient phase evaluating evidence gap, risk, and planning complexity.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct OrientReport {
+    pub evidence_gap: f64,
+    pub risk_band: RiskBand,
+    pub planning_complexity: f64,
+    pub category: Option<TaskCategory>,
 }
 
 /// Structured evidence / risk hints attached to an [`crate::types::AgentTask`].
@@ -200,6 +214,15 @@ pub struct SocratesTaskContext {
     /// Phase 2B: Indicates if human is working while fatigued. Prompts Socratic Verification Lockout.
     #[serde(default)]
     pub fatigue_active: bool,
+    /// Result of the Orient phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orient_report: Option<OrientReport>,
+    /// Questions answered by the user/system to clear evidence gaps.
+    #[serde(default)]
+    pub answered_questions: Vec<String>,
+    /// When true, upstream routing may prefer the dedicated research adapter (Lane G) when wired.
+    #[serde(default)]
+    pub research_model_enabled: bool,
 }
 
 /// Result of applying the completion gate.
@@ -213,6 +236,8 @@ pub struct SocratesGateOutcome {
     pub contradiction_ratio: f64,
     /// Discrete band for dashboards.
     pub band: RiskBand,
+    /// Detailed research guidance ( queries, reason) returned by the policy.
+    pub research_decision: SocratesResearchDecision,
 }
 
 /// Evaluate structured task metadata against `policy`.
@@ -220,6 +245,7 @@ pub struct SocratesGateOutcome {
 pub fn evaluate_socrates_gate(
     ctx: &SocratesTaskContext,
     policy: &ConfidencePolicy,
+    query: &str,
 ) -> SocratesGateOutcome {
     let contradiction_ratio = match ctx.contradiction_hints {
         0 => 0.0,
@@ -275,14 +301,22 @@ pub fn evaluate_socrates_gate(
         confidence = (confidence - 0.40).clamp(0.0, 1.0);
     }
 
-    let band = policy.classify_risk(confidence, contradiction_ratio);
-    let decision = policy.evaluate_risk_decision(confidence, contradiction_ratio);
+    let band = policy.classify_risk(confidence, contradiction_ratio, ctx.citation_coverage);
+    let decision =
+        policy.evaluate_risk_decision(confidence, contradiction_ratio, ctx.citation_coverage);
+    let research_decision = policy.evaluate_research_need(
+        confidence,
+        contradiction_ratio,
+        ctx.citation_coverage,
+        query,
+    );
 
     SocratesGateOutcome {
         decision,
         confidence,
         contradiction_ratio,
         band,
+        research_decision,
     }
 }
 
@@ -408,7 +442,7 @@ mod tests {
             evidence_count: 0,
             ..Default::default()
         };
-        let o = evaluate_socrates_gate(&ctx, &p);
+        let o = evaluate_socrates_gate(&ctx, &p, "dummy query");
         assert_eq!(o.decision, RiskDecision::Abstain);
     }
 
@@ -428,8 +462,8 @@ mod tests {
             evidence_shape: "contradictory".into(),
             ..Default::default()
         });
-        let with = evaluate_socrates_gate(&with_diag, &p);
-        let without = evaluate_socrates_gate(&base_ctx, &p);
+        let with = evaluate_socrates_gate(&with_diag, &p, "dummy query");
+        let without = evaluate_socrates_gate(&base_ctx, &p, "dummy query");
         assert!(with.confidence < without.confidence);
     }
 

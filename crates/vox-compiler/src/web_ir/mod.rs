@@ -73,6 +73,17 @@ impl SourceSpanTable {
     }
 }
 
+/// Lowered `@scheduled("…") fn …` for worker / manifest tooling (WebIR shell; ADR 012).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScheduledJobSpec {
+    /// Function name from source.
+    pub name: String,
+    /// Interval or cron string from `@scheduled("…")`.
+    pub interval: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span: Option<SourceSpanId>,
+}
+
 /// Classify optionality for validator + emit boundary (ADR 012 nullability policy).
 ///
 /// **Fail-fast (OP-0050):** invalid combinations (e.g. `Required` with no initializer where the
@@ -107,6 +118,9 @@ pub struct WebIrModule {
     pub style_nodes: Vec<StyleNode>,
     /// Stage **R**: client [`RouteNode::RouteTree`] plus HTTP loaders and RPC-shaped contracts.
     pub route_nodes: Vec<RouteNode>,
+    /// `@scheduled` jobs from HIR ([`crate::hir::HirFn::schedule_interval`]).
+    #[serde(default)]
+    pub scheduled_jobs: Vec<ScheduledJobSpec>,
     /// External / escape-hatch nodes (Phase 1 may leave empty; reserved for interop audits — OP-S053).
     pub interop_nodes: Vec<InteropNode>,
     /// Lowering-time notes (e.g. unlowered AST); not a substitute for [`validate::validate_web_ir`] diagnostics.
@@ -291,6 +305,8 @@ pub struct WebIrLowerSummary {
     pub route_blocks_with_not_found: usize,
     /// `routes { }` blocks that declare `error:`.
     pub route_blocks_with_error: usize,
+    /// Rows in [`WebIrModule::scheduled_jobs`] from lowering.
+    pub scheduled_jobs_lowered: usize,
 }
 
 /// Populated by [`validate::validate_web_ir_with_metrics`].
@@ -302,6 +318,7 @@ pub struct WebIrValidateMetrics {
     pub behavior_nodes_checked: usize,
     pub style_nodes_checked: usize,
     pub island_mounts_checked: usize,
+    pub scheduled_jobs_checked: usize,
 }
 
 // ---------------------------------------------------------------------------

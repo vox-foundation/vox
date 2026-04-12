@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use Vox in your research or build on its design, please cite it."
+type: software
+title: "Vox: The AI-Native Programming Language"
+abstract: >
+  Vox is an AI-native, full-stack programming language that compiles to Rust (backend)
+  and TypeScript (frontend). It is designed to minimize LLM hallucinations by providing
+  a compiler-enforced, null-free type system where absence is Option[T] and failure is
+  Result[T, E]. The language natively supports MCP (Model Context Protocol) tools,
+  durable workflows, and actor-based concurrency as first-class language keywords.
+authors:
+  - family-names: "Brainerd"
+    given-names: "Bert"
+repository-code: "https://github.com/vox-foundation/vox"
+url: "https://vox-lang.org"
+license: Apache-2.0
+version: "0.4"
+date-released: "2026-04-01"
+keywords:
+  - programming-language
+  - compiler
+  - artificial-intelligence
+  - rust
+  - typescript
+  - actor-model
+  - durable-execution
+  - model-context-protocol
+  - llm-tooling
+  - null-safety
+  - ai-native

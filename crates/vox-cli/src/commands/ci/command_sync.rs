@@ -140,6 +140,24 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         &render_mens_train_defaults_md(default_base_model),
         write,
     )?;
+    let cap_path = repo_root.join("contracts/capability/capability-registry.yaml");
+    if cap_path.exists() {
+        let cap_raw = read_utf8_path_capped(&cap_path).context("read capability-registry.yaml")?;
+        let cap_yaml: serde_yaml::Value =
+            serde_yaml::from_str(&cap_raw).context("parse capability-registry")?;
+        if let Some(curated) = cap_yaml.get("curated").and_then(|v| v.as_sequence()) {
+            for entry in curated {
+                if let Some(id) = entry.get("id").and_then(|v| v.as_str()) {
+                    if id == "cli.build" && entry.get("parameters").is_none() {
+                        return Err(anyhow!(
+                            "CLI arg schema missing. `vox build` has no parameters entry in contracts/capability/capability-registry.yaml"
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
     println!(
         "command-sync OK ({}, {})",
         GENERATED_REL, GENERATED_MENS_DEFAULTS_REL

@@ -4,6 +4,8 @@ description: "Official documentation for TanStack web backlog for the Vox langua
 category: "reference"
 last_updated: 2026-04-08
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # TanStack web backlog

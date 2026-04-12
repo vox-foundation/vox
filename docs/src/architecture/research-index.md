@@ -4,8 +4,11 @@ description: "Guide to the research, findings, and roadmap-heavy documentation i
 category: "architecture"
 status: "research"
 sort_order: 5
-last_updated: 2026-04-09
+last_updated: 2026-04-12
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Research index
@@ -21,6 +24,19 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 | `*-implementation-plan-2026.md` | `roadmap` | ordered implementation proposal |
 | `*-implementation-blueprint.md` | `roadmap` or `experimental` | intended technical design for a future or in-progress path |
 | `planning-meta/*` | `current` process docs or `roadmap` planning docs | contributor planning governance, not public product narrative |
+
+## Pipeline and corpus SSOT (implementation)
+
+- [Vox source → Mens pipeline SSOT](vox-source-to-mens-pipeline-ssot.md) — single map from `.vox` on disk to Mens training inputs (lexer vs HF tokenizer).
+- [Populi data pipeline](populi-data-pipeline.md) — disambiguates mesh runtime data from training JSONL.
+
+### Corpus lab, vision, and Qwen family (research, April 2026)
+
+- **[Vox corpus lab: mass examples, metrics, and eval harness (research 2026)](vox-corpus-lab-research-2026.md)** — Tier A/B/C layout, compiler lanes vs golden parity, Syntax-K and WebIR aggregates, optional UI and vision rubrics, Mens `validate-batch` integration sketch.
+- **[Mens vision and multimodal inputs (research 2026)](mens-vision-multimodal-research-2026.md)** — `TrainingPair` limits, orchestrator hints vs attachments, screenshot-to-JSON pipeline, Candle text-only vs remote VLMs.
+- **[Mens Qwen family migration and native stack (research 2026)](mens-qwen-family-migration-research-2026.md)** — Qwen2 vs Qwen3.5 retention tiers, operator runbook vs code removal, external QwenLM and Hugging Face references.
+- **[GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)](vox-gui-vision-virtuous-cycle-implementation-plan-2026.md)** — 50+ tracked ideas with repo anchors: WebIR, `vox island`, Playwright/MCP screenshots, orchestrator vision, Mens Qwen3.5 text vs optional VL rubric lane, execution waves W0–W5.
+- **[Orchestrator `attachment_manifest` RFC (2026)](orchestrator-attachment-manifest-rfc-2026.md)** — MIME+hash task attachments and vision routing without substring-only hints (spec ahead of types).
 
 ## Suggested reading paths
 
@@ -70,12 +86,26 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Implementation Checklist](research-agent-handoff-checklist-2026.md)
 - [Works Cited: Agent Handoff Continuity](research-agent-handoff-works-cited-2026.md)
 
+#### Autonomous Research Localization & MENS Research Lane (Wave 6)
+- **[Local autonomous research findings 2026](local-autonomous-research-findings-2026.md)** — SearXNG meta-search integration, native Rust scraping stack (`vox-scraper`), DuckDuckGo fallback, and performance tiering.
+- **[MENS Research Track Blueprint 2026](mens-research-track-blueprint-2026.md)** — Lane G (`research-expert`) spec, GRPO+RLVR reward functions, synthetic fact-chain generator, and Socrates integration.
+- **[GraphRAG Iterative Retrieval Research 2026](graphrag-iterative-retrieval-research-2026.md)** — Multi-hop retrieve-reason-retrieve loops, stopping heuristics, and C2RAG constraint checking.
+
+#### Scientia distribution, discovery, and publication surfaces
+
+- **[SCIENTIA multi-platform ranking, discovery, and anti-slop SSOT (research 2026)](scientia-multi-platform-ranking-discovery-research-2026.md)** — Tiered citations for social and scholarly ranking surfaces; ingest vs syndicate posture; manifest-centered projection profiles; operator KPI sketches for signal vs noise. Complements [external discovery](scientia-external-discovery-research-2026.md) and [impact / readership](scientia-impact-readership-research-2026.md).
+
+#### Multi-Repository Context Isolation (Wave 5)
+- **[Multi-repo context isolation: research findings 2026](multi-repo-context-isolation-research-2026.md)** — `.voxignore` SSOT policy, scope guard architecture, agent instruction file hierarchy, IDE workspace isolation, Git worktree patterns, security threats (IDPI, slopsquatting, scope escalation), context engineering guidelines, monorepo/polyrepo AI-readiness analysis, and `vox repo init` scaffold specification. Directly actionable: gaps table, implementation priorities, and cross-references to `cross-repo-query-observability.md` and `context-management-research-findings-2026.md`.
+
 #### Independent Deep Research Tracks
 - [Agent Trust Reliability Evaluation](research-trust-reliability-signals-2026.md)
 - [AI Plan Adequacy Heuristics](research-plan-adequacy-heuristics-2026.md)
+- [AI-Augmented Testing & Hourglass Architecture Research](ai-augmented-testing-hourglass-research-2026.md)
 - [Compiler Testing Research](research-pbt-oracles-compiled-lang-2026.md)
 - [Multi-Agent Mesh Economics](research-multi-agent-mesh-economics-2026.md)
 - [Grammar-Constrained Decoding for Code LLMs](research-grammar-constrained-decoding-2026.md)
+- [LLM Output Mediation and Programmatic Validator Generation](research-llm-output-mediation-validation-2026.md) — Proposes a unified `LlmMediator<T>` architecture connecting `vox-constrained-gen` (Tier 1), `vox-jsonschema-util` (Tier 2), Socrates confidence (Tier 3), and the trust layer into a single composable seam. Covers dynamic finite-response-set schema derivation, MCP reduction strategy, RLVR training alignment, and a four-wave implementation roadmap. Cross-references grammar-constrained decoding, trust reliability, HITL doubt loop, and capability registry.
 
 ### Documentation
 
@@ -108,19 +138,25 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 
 ### Agentic planning and orchestration
 
+- [Research Synthesis: Symphony Conduction vs. Agent Orchestration 2026](orchestrator-symphony-research-2026.md) — Extensive structural mapping of real-world conduction (Ictus, DAGs, HITL) to `vox-dei`
 - [Claude Code Ultraplan research 2026](claude-code-ultraplan-research-2026.md) — architecture deep-dive, cost model, failure modes, and actionable Vox recommendations
 - [Dynamic agentic planning 2026](res_dynamic_agentic_planning_2026.md) — earlier research seed for planning-mode architecture
 - [Orchestrator multi-agent groundwork 2026](orchestrator-multi-agent-groundwork-2026.md)
 - [Context management research findings 2026](context-management-research-findings-2026.md)
 - [Context management implementation blueprint](context-management-implementation-blueprint.md)
 - [Vox agentic loop and MENS plan](vox_agentic_loop_and_mens_plan.md)
+- [VCS for agent state and artifact snapshotting research 2026](vcs-agent-state-research-2026.md) — Using Jujutsu to automate artifact persistence and reversibility over Vox DEI.
 
 ### SCIENTIA novelty / publication ledger (contracts)
 
 - Finding-candidate and novelty-evidence v1 JSON Schemas live under `contracts/scientia/` (`finding-candidate.v1.schema.json`, `novelty-evidence-bundle.v1.schema.json`); example fixtures under `contracts/reports/scientia-*.example.v1.json`. CI: `vox ci scientia-novelty-ledger-contracts` (also nested in `vox ci ssot-drift`). CLI spot-check: `vox scientia finding-candidate-validate`, `vox scientia novelty-evidence-bundle-validate`.
+- **🔴 PRIMARY IMPLEMENTATION SSOT (use this for all implementation work):** [scientia-pipeline-ssot-2026.md](scientia-pipeline-ssot-2026.md) — unified inbound + outbound gap remediation specification. Code-verified against real sources. 28 implementation tasks (G1–G28) organized into 9 dependency-ordered execution groups. Includes canonical data model, DB schema changes, env var registry, Clavis secret registry, and LLM-executor verification ritual. Supersedes gap analysis and wave playbook for implementation decisions.
 - **Impact / readership / citation-adjacent signals (research seed):** [scientia-impact-readership-research-2026.md](scientia-impact-readership-research-2026.md) and tunable weights in [`contracts/scientia/impact-readership-projection.seed.v1.yaml`](../../../contracts/scientia/impact-readership-projection.seed.v1.yaml) (orthogonal to novelty; no default publish gate).
+- **Multi-platform ranking, discovery, and anti-slop SSOT (research 2026):** [scientia-multi-platform-ranking-discovery-research-2026.md](scientia-multi-platform-ranking-discovery-research-2026.md) — social and scholarly feed mechanics (tiered sources), ingest vs syndicate, projection profiles, anti-slop metrics; bridges outbound `vox-publisher` syndication and inbound external discovery.
 - **Publication-worthiness + SSOT unification research plan:** [scientia-publication-worthiness-ssot-unification-research-2026.md](scientia-publication-worthiness-ssot-unification-research-2026.md) (standards-to-signals matrix, canonical metadata graph proposal, detection calibration protocol, Codex research snapshot persistence blueprint, automation boundary ledger).
-- **Implementation wave playbook (roadmap):** [scientia-implementation-wave-playbook-2026.md](scientia-implementation-wave-playbook-2026.md) (232-task execution map, wave outputs, first-30 lock order, and contract inventory).
+- **Implementation wave playbook (historical context):** [scientia-implementation-wave-playbook-2026.md](scientia-implementation-wave-playbook-2026.md) (232-task execution map, wave outputs, first-30 lock order, and contract inventory).
+- **Comprehensive gap analysis (historical context):** [scientia-gap-analysis-2026.md](scientia-gap-analysis-2026.md) — 45 identified problems with solutions, severity ratings, and a 7-wave execution order.
+- **Scientia Worthiness × Socrates Unification (research 2026):** [scientia-socrates-unification-research-2026.md](scientia-socrates-unification-research-2026.md) — deep structural analysis of isomorphisms between the Worthiness publication gate and the Socrates real-time confidence protocol. 38+ integration ideas organized into 8 themes (shared numeric language, inbound pipeline, A2A communication, MENS training, etc.), explicit separation-of-concerns boundaries, risk map, and wave-gated implementation roadmap.
 
 ## Labeling rule
 

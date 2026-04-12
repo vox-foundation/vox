@@ -236,6 +236,21 @@ export class VoxMcpClient {
     async cancelTask(taskId: string): Promise<unknown> {
         return this.call('vox_cancel_task', { task_id: Number(taskId) });
     }
+
+    /** Mark a task as doubted (HITL); `task_id` must parse to a non-negative integer. */
+    async doubtTask(taskId: string, reason?: string): Promise<unknown> {
+        const id = Number(taskId);
+        if (!Number.isFinite(id) || id < 0 || !Number.isInteger(id)) {
+            this.outputChannel.appendLine(`[Vox MCP] doubtTask: invalid task_id "${taskId}"`);
+            return null;
+        }
+        const args: Record<string, unknown> = { task_id: id };
+        if (reason !== undefined && reason.length > 0) {
+            args.reason = reason;
+        }
+        return this.call('vox_doubt_task', args);
+    }
+
     async orchestratorStatus(): Promise<GamifyState | null> {
         return this.call<GamifyState>('vox_orchestrator_status', {});
     }

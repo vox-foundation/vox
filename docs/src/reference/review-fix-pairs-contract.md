@@ -1,3 +1,13 @@
+---
+title: "Review Fix Pairs Contract"
+description: "Stability-first contract for review_fix_pairs_memory rows."
+category: "reference"
+status: "current"
+training_eligible: true
+
+schema_type: "TechArticle"
+---
+
 # Review Fix Pairs Contract
 
 Canonical dataset contract for `review_fix_pairs` rows exported from VoxDB external review findings.

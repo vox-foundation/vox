@@ -1,5 +1,10 @@
 ---
-title: Empirical Evidence for Context Compaction Strategies
+title: "Empirical Evidence for Context Compaction Strategies"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **1\. Empirical Evidence for Context Compaction Strategies**
 

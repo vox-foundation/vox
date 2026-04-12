@@ -1,5 +1,10 @@
 ---
-title: State of the Art for Context-Aware Agent Handoff Protocols
+title: "State of the Art for Context-Aware Agent Handoff Protocols"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **3\. State of the Art for Context-Aware Agent Handoff Protocols**
 

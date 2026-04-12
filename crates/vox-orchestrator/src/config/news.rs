@@ -34,6 +34,18 @@ pub struct NewsConfig {
     pub youtube_client_secret: Option<String>,
     /// YouTube OAuth refresh token.
     pub youtube_refresh_token: Option<String>,
+    /// Bluesky PDS handle (canonical identifier).
+    pub bluesky_handle: Option<String>,
+    /// Bluesky specialized app-password (not main login).
+    pub bluesky_password: Option<String>,
+    /// Mastodon app instance access token.
+    pub mastodon_token: Option<String>,
+    /// Mastodon instance domain, e.g. "mastodon.social".
+    pub mastodon_domain: Option<String>,
+    /// LinkedIn OAuth access token.
+    pub linkedin_token: Option<String>,
+    /// Discord webhook URL for automated news delivery.
+    pub discord_webhook: Option<String>,
     /// Hacker News routing mode (`manual_assist`).
     pub hacker_news_mode: Option<String>,
     /// Global flag to force local testing only without actually calling external publish endpoints.
@@ -88,6 +100,12 @@ impl Default for NewsConfig {
             youtube_client_id: None,
             youtube_client_secret: None,
             youtube_refresh_token: None,
+            bluesky_handle: None,
+            bluesky_password: None,
+            mastodon_token: None,
+            mastodon_domain: None,
+            linkedin_token: None,
+            discord_webhook: None,
             hacker_news_mode: None,
             dry_run: true,
             publish_armed: false,

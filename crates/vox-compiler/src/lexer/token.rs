@@ -138,6 +138,12 @@ pub enum Token {
     AtForall,
     #[token("@fuzz")]
     AtFuzz,
+    #[token("@pure")]
+    AtPure,
+    #[token("@scheduled")]
+    AtScheduled,
+    #[token("@deprecated")]
+    AtDeprecated,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -367,6 +373,9 @@ impl std::fmt::Display for Token {
             Token::AtInvariant => write!(f, "@invariant"),
             Token::AtForall => write!(f, "@forall"),
             Token::AtFuzz => write!(f, "@fuzz"),
+            Token::AtPure => write!(f, "@pure"),
+            Token::AtScheduled => write!(f, "@scheduled"),
+            Token::AtDeprecated => write!(f, "@deprecated"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),

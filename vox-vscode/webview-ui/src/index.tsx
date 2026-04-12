@@ -17,6 +17,7 @@ import { MeshTopology } from './components/MeshTopology';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeBlock } from './components/CodeBlock';
+import { useSoundEffects, SoundType } from './hooks/useSoundEffects';
 
 const vscode = getVsCodeApi();
 
@@ -24,6 +25,7 @@ type TabId = 'speak' | 'command' | 'network' | 'forge';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('speak');
+  const { playSound } = useSoundEffects(true); // Always enabled for now, can be wired to settings later
   
   // Data states
   const [voxStatus, setVoxStatus] = useState<any>(null);
@@ -55,6 +57,15 @@ function App() {
   const [chatProfile, setChatProfile] = useState<'fast' | 'reasoning' | 'creative'>('reasoning');
   const [pinnedFiles, setPinnedFiles] = useState<string[]>([]);
   const [composerVisible, setComposerVisible] = useState(false);
+  const [toasts, setToasts] = useState<any[]>([]);
+
+  const addToast = (toast: any) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts((prev) => [...prev, { ...toast, id }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 8000);
+  };
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -93,6 +104,40 @@ function App() {
           }
           break;
         }
+        case 'playSound':
+          if (typeof parsed.value === 'string') {
+            playSound(parsed.value as SoundType);
+          }
+          break;
+        case 'achievementEarned': {
+          const ach = parsed.value as any;
+          addToast({
+            title: ach.name || 'Achievement Earned',
+            message: ach.description || '',
+            type: 'achievement',
+          });
+          break;
+        }
+        case 'taskDoubted': {
+          const val = parsed.value as any;
+          addToast({
+            title: 'Task Flagged as Suspect',
+            message: `Task ${val.taskId} is being audited by Internal Affairs.`,
+            type: 'warning',
+          });
+          break;
+        }
+        case 'taskResolved': {
+          const { validated } = parsed.value as any;
+          addToast({
+            title: validated ? 'Task Validated' : 'Task Overruled',
+            message: validated
+              ? 'Agent output confirmed as accurate.'
+              : 'Agent over-confidence detected.',
+            type: validated ? 'success' : 'danger',
+          });
+          break;
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -116,6 +161,7 @@ function App() {
   const dashboardStats = {
     activeAgents: String(agentCount),
     queueDepth: tasks.length ? tasks.length.toString() : null,
+    totalDoubted: orch?.total_doubted ? String(orch.total_doubted) : "0",
     latency: voxStatus?.avg_latency_ms ? `${voxStatus.avg_latency_ms}ms` : null,
     budget: voxStatus?.total_cost_usd != null ? `$${voxStatus.total_cost_usd.toFixed(2)}` : null,
   };
@@ -407,10 +453,51 @@ function App() {
             <ErrorBoundary>{renderContent()}</ErrorBoundary>
           </motion.div>
         </AnimatePresence>
+        <div className="fixed bottom-6 right-6 flex flex-col gap-3 pointer-events-none z-[100] w-full items-end pr-4">
+          <AnimatePresence>
+            {toasts.map((t) => (
+              <Toast
+                key={t.id}
+                title={t.title}
+                message={t.message}
+                type={t.type}
+                onClose={() => setToasts((prev) => prev.filter((toast) => toast.id !== t.id))}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
       </main>
     </div>
   );
 }
+
+const Toast = ({ title, message, type, onClose }: any) => (
+  <motion.div
+    initial={{ opacity: 0, x: 50, scale: 0.9 }}
+    animate={{ opacity: 1, x: 0, scale: 1 }}
+    exit={{ opacity: 0, x: 50, scale: 0.9 }}
+    className={`p-4 rounded-lg border shadow-lg max-w-xs pointer-events-auto bg-machine z-[100] ${
+      type === 'achievement'
+        ? 'border-primary shadow-[0_0_15px_var(--vox-amber-glow)]'
+        : type === 'warning'
+          ? 'border-destructive bg-destructive bg-opacity-5 shadow-[0_4px_15px_rgba(239,68,68,0.2)]'
+          : type === 'success'
+            ? 'border-secondary shadow-[0_4px_15px_rgba(22,163,74,0.2)]'
+            : 'border-border'
+    }`}
+  >
+    <div className="flex justify-between items-start mb-1">
+      <h4 className="text-[10px] font-bold uppercase tracking-widest text-brass">{title}</h4>
+      <button onClick={onClose} className="text-steel hover:text-white transition-colors px-1 leading-none text-lg">×</button>
+    </div>
+    <p className="text-[11px] text-zinc-300 font-mono italic leading-relaxed">{message}</p>
+    {type === 'achievement' && (
+      <div className="mt-2 text-[9px] font-bold text-primary flex items-center gap-1 uppercase tracking-widest">
+        <Sparkles size={10} /> Achievement Unlocked
+      </div>
+    )}
+  </motion.div>
+);
 
 const NavIcon = ({ icon, label, subtitle, active, onClick }: any) => (
   <button

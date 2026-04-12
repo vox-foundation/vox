@@ -4,6 +4,8 @@ description: "Live status board for roadmap execution across Wave 1, Wave 2, and
 category: "architecture"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox boilerplate implementation status

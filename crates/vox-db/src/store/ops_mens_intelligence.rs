@@ -198,6 +198,46 @@ impl crate::VoxDb {
         }).await
     }
 
+    pub async fn upsert_corpus_pair(
+        &self,
+        source: &str,
+        errors_json: &str,
+        origin: &str,
+        reward_signal: f64,
+        label: &str,
+    ) -> Result<(), StoreError> {
+        let source = source.to_string();
+        let errors_json = errors_json.to_string();
+        let origin = origin.to_string();
+        let label = label.to_string();
+
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+
+        breaker
+            .call(|| {
+                let source = source.clone();
+                let errors_json = errors_json.clone();
+                let origin = origin.clone();
+                let label = label.clone();
+                async move {
+                    conn.execute(
+                    "INSERT INTO corpus_pairs (source, errors_json, origin, reward_signal, label)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        source.as_str(),
+                        errors_json.as_str(),
+                        origin.as_str(),
+                        reward_signal,
+                        label.as_str()
+                    ]
+                ).await?;
+                    Ok(())
+                }
+            })
+            .await
+    }
+
     /// Insert a MENS/GRPO training step.
     pub async fn insert_grpo_step(
         &self,

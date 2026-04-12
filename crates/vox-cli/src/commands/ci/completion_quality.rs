@@ -462,6 +462,11 @@ fn append_toestub_findings(
     _findings: &mut Vec<AuditFinding>,
     _scan_roots: &[PathBuf],
 ) -> Result<()> {
+    let _ = std::hint::black_box((
+        _repo_root.as_os_str().len(),
+        _findings.len(),
+        _scan_roots.len(),
+    ));
     Ok(())
 }
 

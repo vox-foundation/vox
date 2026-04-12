@@ -35,6 +35,14 @@ pub struct SyndicationResult {
     pub youtube: ChannelOutcome,
     pub crates_io: ChannelOutcome,
     #[serde(default)]
+    pub bluesky: ChannelOutcome,
+    #[serde(default)]
+    pub mastodon: ChannelOutcome,
+    #[serde(default)]
+    pub linkedin: ChannelOutcome,
+    #[serde(default)]
+    pub discord: ChannelOutcome,
+    #[serde(default)]
     pub decision_reasons: BTreeMap<String, String>,
 }
 
@@ -50,6 +58,10 @@ impl SyndicationResult {
             &self.hacker_news,
             &self.youtube,
             &self.crates_io,
+            &self.bluesky,
+            &self.mastodon,
+            &self.linkedin,
+            &self.discord,
         ]
         .iter()
         .any(|o| matches!(o, ChannelOutcome::Failed { .. }))
@@ -74,7 +86,22 @@ impl SyndicationResult {
         let hn_ok = item.syndication.hacker_news.is_none() || ok(&self.hacker_news);
         let yt_ok = item.syndication.youtube.is_none() || ok(&self.youtube);
         let crates_ok = item.syndication.crates_io.is_none() || ok(&self.crates_io);
-        rss_ok && twitter_ok && github_ok && oc_ok && reddit_ok && hn_ok && yt_ok && crates_ok
+        let bsky_ok = item.syndication.bluesky.is_none() || ok(&self.bluesky);
+        let masto_ok = item.syndication.mastodon.is_none() || ok(&self.mastodon);
+        let linkedin_ok = item.syndication.linkedin.is_none() || ok(&self.linkedin);
+        let discord_ok = item.syndication.discord.is_none() || ok(&self.discord);
+        rss_ok
+            && twitter_ok
+            && github_ok
+            && oc_ok
+            && reddit_ok
+            && hn_ok
+            && yt_ok
+            && crates_ok
+            && bsky_ok
+            && masto_ok
+            && linkedin_ok
+            && discord_ok
     }
 
     #[must_use]

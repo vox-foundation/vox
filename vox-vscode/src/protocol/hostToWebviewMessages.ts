@@ -36,6 +36,10 @@ export const hostToWebviewSchema = z.discriminatedUnion('type', [
     entry('ludusProgressSnapshot'),
     entry('attentionStatus'),
     entry('attentionAlert'),
+    entry('playSound'),
+    entry('achievementEarned'),
+    entry('taskDoubted'),
+    entry('taskResolved'),
 ]);
 
 export type HostToWebviewMessage = z.infer<typeof hostToWebviewSchema>;

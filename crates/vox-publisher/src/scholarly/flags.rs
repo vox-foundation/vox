@@ -1,9 +1,9 @@
 //! Kill-switches and coarse feature gates for scholarly adapters (`VOX_SCHOLARLY_*`).
 
 #[must_use]
-fn env_truthy(key: &str) -> bool {
-    std::env::var(key)
-        .ok()
+fn env_truthy(id: vox_clavis::SecretId) -> bool {
+    vox_clavis::resolve_secret(id)
+        .expose()
         .map(|v| {
             let v = v.trim().to_ascii_lowercase();
             matches!(v.as_str(), "1" | "true" | "yes" | "y" | "on")
@@ -14,62 +14,62 @@ fn env_truthy(key: &str) -> bool {
 /// When set, no live scholarly adapter runs (local/echo still allowed — they do not perform I/O).
 #[must_use]
 pub fn scholarly_live_globally_disabled() -> bool {
-    env_truthy("VOX_SCHOLARLY_DISABLE_LIVE")
+    env_truthy(vox_clavis::SecretId::VoxScholarlyDisableLive)
 }
 
 #[must_use]
 pub fn scholarly_globally_disabled() -> bool {
-    env_truthy("VOX_SCHOLARLY_DISABLE")
+    env_truthy(vox_clavis::SecretId::VoxScholarlyDisable)
 }
 
 #[must_use]
 pub fn adapter_live_disabled(adapter: &str) -> bool {
     let a = adapter.trim().to_ascii_lowercase();
     match a.as_str() {
-        "zenodo" => env_truthy("VOX_SCHOLARLY_DISABLE_ZENODO"),
-        "openreview" => env_truthy("VOX_SCHOLARLY_DISABLE_OPENREVIEW"),
+        "zenodo" => env_truthy(vox_clavis::SecretId::VoxScholarlyDisableZenodo),
+        "openreview" => env_truthy(vox_clavis::SecretId::VoxScholarlyDisableOpenReview),
         _ => false,
     }
 }
 
 #[must_use]
 pub fn zenodo_use_sandbox() -> bool {
-    env_truthy("VOX_ZENODO_SANDBOX")
+    env_truthy(vox_clavis::SecretId::VoxZenodoSandbox)
 }
 
 /// Upload `manifest.body_markdown` as `body.md` to the deposition file bucket after draft creation.
 #[must_use]
 pub fn zenodo_attach_manifest_body() -> bool {
-    env_truthy("VOX_ZENODO_ATTACH_MANIFEST_BODY")
+    env_truthy(vox_clavis::SecretId::VoxZenodoAttachManifestBody)
 }
 
 /// Call Zenodo `publish` on the deposition after optional file attach (requires
 /// [`zenodo_attach_manifest_body`] because Zenodo rejects publish with zero files).
 #[must_use]
 pub fn zenodo_publish_deposition() -> bool {
-    env_truthy("VOX_ZENODO_PUBLISH_DEPOSITION")
+    env_truthy(vox_clavis::SecretId::VoxZenodoPublishDeposition)
 }
 
 /// Force draft-only behavior: never call publish (overrides [`zenodo_publish_deposition`] and
 /// [`zenodo_publish_now_profile`]).
 #[must_use]
 pub fn zenodo_draft_only() -> bool {
-    env_truthy("VOX_ZENODO_DRAFT_ONLY")
+    env_truthy(vox_clavis::SecretId::VoxZenodoDraftOnly)
 }
 
 /// Convenience profile: attach `body.md` and publish when the deposition is otherwise valid.
 /// Still respects [`zenodo_draft_only`] when set.
 #[must_use]
 pub fn zenodo_publish_now_profile() -> bool {
-    env_truthy("VOX_ZENODO_PUBLISH_NOW")
+    env_truthy(vox_clavis::SecretId::VoxZenodoPublishNow)
 }
 
 /// Directory written by `publication-scholarly-staging-export` (Zenodo layout). When set, Zenodo
 /// submit uploads existing files from this tree (see [`zenodo_upload_allowlist`]).
 #[must_use]
 pub fn zenodo_staging_dir() -> Option<std::path::PathBuf> {
-    std::env::var("VOX_ZENODO_STAGING_DIR")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoStagingDir)
+        .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .map(std::path::PathBuf::from)
@@ -80,8 +80,8 @@ pub fn zenodo_staging_dir() -> Option<std::path::PathBuf> {
 /// except `arxiv_bundle.tar.gz` / `arxiv_handoff.json`.
 #[must_use]
 pub fn zenodo_upload_allowlist() -> Vec<String> {
-    std::env::var("VOX_ZENODO_UPLOAD_ALLOWLIST")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoUploadAllowlist)
+        .expose()
         .map(|s| {
             s.split(',')
                 .map(|t| t.trim().to_string())
@@ -94,12 +94,12 @@ pub fn zenodo_upload_allowlist() -> Vec<String> {
 /// When uploading from staging, require `staging_checksums.json` and match SHA-256 per file.
 #[must_use]
 pub fn zenodo_verify_staging_checksums() -> bool {
-    env_truthy("VOX_ZENODO_VERIFY_STAGING_CHECKSUMS")
+    env_truthy(vox_clavis::SecretId::VoxZenodoVerifyStagingChecksums)
 }
 
 /// Before deposit create, require `zenodo.json` in [`zenodo_staging_dir`] to list a metadata title
 /// matching the manifest title (normalization: trim / collapse ASCII space).
 #[must_use]
 pub fn zenodo_require_metadata_title_parity() -> bool {
-    env_truthy("VOX_ZENODO_REQUIRE_METADATA_PARITY")
+    env_truthy(vox_clavis::SecretId::VoxZenodoRequireMetadataParity)
 }

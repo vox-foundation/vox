@@ -4,6 +4,8 @@ description: "Canonical English terms, Latin CLI aliases, and legacy identifiers
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Nomenclature migration map (SSOT)

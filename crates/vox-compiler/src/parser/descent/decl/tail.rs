@@ -77,7 +77,7 @@ impl Parser {
         }))
     }
 
-    /// Parse `@v0 "chat-id" fn Name() -> …` or `@v0 from "design.png" fn Name() -> …` (v0 / asset hint).
+    /// Parse `@v0 "chat-id" Name { … }` or `@v0 from "design.png" Name { … }` (v0 island stub body).
     pub(crate) fn parse_v0_component(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @v0
@@ -118,20 +118,24 @@ impl Parser {
                 return Err(());
             }
         };
-        self.expect(&Token::Fn)?;
         let name = self.parse_ident_name()?;
-        self.expect(&Token::LParen)?;
-        self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
-            Some(self.parse_type_expr()?)
-        } else {
-            None
-        };
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let mut props = Vec::new();
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            props.push(self.parse_island_prop_line()?);
+            self.skip_newlines();
+        }
+        self.eat(&Token::RBrace);
         Ok(Decl::V0Component(V0ComponentDecl {
             v0_id,
             image_path,
             name,
-            return_type,
+            props,
             span: start.merge(self.span()),
         }))
     }

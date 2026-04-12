@@ -27,7 +27,7 @@ pub fn with_express_server_enabled<R>(f: impl FnOnce() -> R) -> R {
     }
     let prev = std::env::var_os(KEY);
     unsafe {
-        unsafe { std::env::set_var(KEY, "1") };
+        std::env::set_var(KEY, "1");
     }
     let _guard = Guard { prev };
     f()

@@ -7,8 +7,8 @@ use crate::types::{AgentTask, TaskCategory};
 
 use super::key_guard::provider_secret_is_available;
 use super::spec::{
-    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias,
-    task_category_premium_key, task_category_strength,
+    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_premium_key,
+    task_category_strength,
 };
 
 /// A registry managing available agent models and model routing.
@@ -31,16 +31,16 @@ impl ModelRegistry {
     }
 
     fn min_refresh_interval() -> Duration {
-        let secs = std::env::var("VOX_OPENROUTER_CATALOG_MIN_REFRESH_INTERVAL_SECS")
-            .ok()
+        let secs = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenRouterCatalogMinRefreshIntervalSecs)
+            .expose()
             .and_then(|v| v.parse::<u64>().ok())
             .unwrap_or(3600);
         Duration::from_secs(secs.max(30))
     }
 
     fn jitter_ms() -> u64 {
-        std::env::var("VOX_OPENROUTER_CATALOG_REFRESH_JITTER_MS")
-            .ok()
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenRouterCatalogRefreshJitterMs)
+            .expose()
             .and_then(|v| v.parse::<u64>().ok())
             .unwrap_or(0)
             .min(60_000)
@@ -463,10 +463,10 @@ impl ModelRegistry {
                     ProviderType::Ollama => vox_runtime::llm::LlmConfig {
                         provider: "ollama".to_string(),
                         model: spec.id.clone(),
-                        base_url: std::env::var("OLLAMA_URL")
-                            .ok()
-                            .filter(|s| !s.trim().is_empty())
-                            .map(|u| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
+                        base_url: vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaUrl)
+                            .expose()
+                            .filter(|s: &&str| !s.trim().is_empty())
+                            .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
                         api_key: None,
                         temperature: None,
                         max_tokens: None,

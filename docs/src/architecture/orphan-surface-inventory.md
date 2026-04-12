@@ -4,6 +4,8 @@ description: "Official documentation for Orphan surface inventory for the Vox la
 category: "reference"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Orphan surface inventory
@@ -106,6 +108,7 @@ vox-scaling-policy
 vox-schola
 vox-scientia-api
 vox-scientia-core
+vox-scientia-ingest
 vox-scientia-runtime
 vox-search
 vox-scientia-social

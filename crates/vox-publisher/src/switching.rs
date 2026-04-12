@@ -1,6 +1,6 @@
 //! Shared switching helpers used by CLI/MCP/orchestrator publication surfaces.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
 use crate::types::{SyndicationConfig, UnifiedNewsItem};
@@ -77,6 +77,12 @@ pub fn unified_news_item_from_manifest_parts_notes(
         .filter(|s| !s.is_empty())
         .map(std::string::ToString::to_string);
 
+    let published_at = root
+        .get("published_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.trim().parse::<DateTime<Utc>>().ok())
+        .unwrap_or_else(Utc::now);
+
     let legacy = root.get(LEGACY_METADATA_SYNDICATION_KEY).cloned();
     let canonical = root.get("syndication").cloned();
     if legacy.is_some() {
@@ -105,7 +111,7 @@ pub fn unified_news_item_from_manifest_parts_notes(
         id: publication_id.to_string(),
         title: title.to_string(),
         author: author.to_string(),
-        published_at: Utc::now(),
+        published_at,
         tags,
         content_markdown: body_markdown.to_string(),
         syndication,
@@ -191,6 +197,10 @@ fn normalize_distribution_json_value_with_warnings(
         "reddit",
         "hacker_news",
         "youtube",
+        "bluesky",
+        "mastodon",
+        "linkedin",
+        "discord",
         "crates_io",
     ] {
         if let Some(payload) = payloads.get(key) {
@@ -302,6 +312,18 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
     if !has("crates_io") {
         item.syndication.crates_io = None;
     }
+    if !has("bluesky") {
+        item.syndication.bluesky = None;
+    }
+    if !has("mastodon") {
+        item.syndication.mastodon = None;
+    }
+    if !has("linkedin") {
+        item.syndication.linkedin = None;
+    }
+    if !has("discord") {
+        item.syndication.discord = None;
+    }
 }
 
 /// Return channel ids that failed in a publication result.
@@ -321,6 +343,10 @@ pub fn failed_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
+    maybe("bluesky", &result.bluesky);
+    maybe("mastodon", &result.mastodon);
+    maybe("linkedin", &result.linkedin);
+    maybe("discord", &result.discord);
     out
 }
 
@@ -341,6 +367,10 @@ pub fn successful_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
+    maybe("bluesky", &result.bluesky);
+    maybe("mastodon", &result.mastodon);
+    maybe("linkedin", &result.linkedin);
+    maybe("discord", &result.discord);
     out
 }
 
@@ -379,6 +409,10 @@ fn outcome_for_channel<'a>(result: &'a SyndicationResult, ch: &str) -> Option<&'
         "hacker_news" => &result.hacker_news,
         "youtube" => &result.youtube,
         "crates_io" => &result.crates_io,
+        "bluesky" => &result.bluesky,
+        "mastodon" => &result.mastodon,
+        "linkedin" => &result.linkedin,
+        "discord" => &result.discord,
         _ => return None,
     })
 }
@@ -469,6 +503,7 @@ pub fn failed_channels_from_latest_digest_attempt(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
 
     #[test]
     fn parse_channels_csv_normalizes() {
@@ -495,6 +530,20 @@ mod tests {
         let item =
             unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
         assert!(item.syndication.dry_run);
+    }
+
+    #[test]
+    fn metadata_published_at_parses_rfc3339() {
+        let meta = r#"{
+            "published_at": "2024-01-01T00:00:00Z",
+            "syndication": { "rss": true, "dry_run": true }
+        }"#;
+        let item =
+            unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
+        assert_eq!(
+            item.published_at,
+            Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()
+        );
     }
 
     #[test]

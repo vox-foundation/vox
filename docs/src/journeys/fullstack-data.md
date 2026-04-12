@@ -3,6 +3,8 @@ title: "Journey: One-File Full-Stack Data"
 description: "How to ship a database model and UI component without writing a separate API layer in Vox."
 category: "journey"
 sort_order: 3
+
+schema_type: "HowTo"
 ---
 
 # Journey: One-File Full-Stack Data
@@ -81,6 +83,11 @@ routes {
    ```
 
 3. Vox will instantly compile the `Task` type into a Rust struct, create the SQLite table automatically via Codex, launch the Axum server, and compile the React bundle.
+
+## Maturity and limitations
+
+- **Maturity:** `beta` — web stack and Codex bindings are active development surfaces; verify against golden examples for your compiler version.
+- **Limitation ids:** [L-021](../../../contracts/journeys/limitations.v1.yaml) (workspace-local vs canonical Codex stores can diverge if env paths are mis-set).
 
 ## Deep Dives
 

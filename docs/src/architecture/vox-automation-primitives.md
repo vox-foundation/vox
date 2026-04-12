@@ -4,6 +4,8 @@ description: "Official automation primitive surface for Vox script-mode builtins
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Automation primitives

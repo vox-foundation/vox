@@ -7,8 +7,10 @@ authors.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+vox-build-meta = { workspace = true }
 anyhow = { workspace = true }
 vox-bounded-fs = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]
 workspace = true

@@ -4,6 +4,8 @@ description: "Official documentation for Codex / Arca compatibility boundaries f
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Codex / Arca compatibility boundaries

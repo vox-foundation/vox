@@ -175,6 +175,42 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
     .to_json()
 }
 
+/// Ordered canonical journey steps from Codex (`developer_journey_steps`).
+pub async fn vox_journey_canonical_steps(
+    state: &ServerState,
+    args: serde_json::Value,
+) -> String {
+    let journey_id = args
+        .get("journey_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("canonical_journey.v1.greenfield_vox_mens_devloop");
+
+    let db = match &state.db {
+        Some(db) => db,
+        None => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                "VoxDb is not connected.",
+                REM_VOXDB_SAMPLE,
+            )
+            .to_json();
+        }
+    };
+
+    match db.list_developer_journey_steps(journey_id).await {
+        Ok(steps) => ToolResult::ok(serde_json::json!({
+            "journey_id": journey_id,
+            "steps": steps,
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("DB error (journey steps): {e}"),
+            REM_VOXDB_SAMPLE,
+        )
+        .to_json(),
+    }
+}
+
 /// Use LLM to explain a query/mutation in plain English.
 pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) -> String {
     let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");

@@ -4,6 +4,8 @@ description: "Official documentation for Agent Messaging & Orchestration Roadmap
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Agent Messaging & Orchestration Roadmap (Aspirational)

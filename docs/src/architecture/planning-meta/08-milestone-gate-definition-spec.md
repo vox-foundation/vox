@@ -4,6 +4,8 @@ description: "Normative specification for defining milestones and gates with exp
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Milestone and gate definition spec

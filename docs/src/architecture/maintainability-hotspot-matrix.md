@@ -3,6 +3,8 @@ title: "Maintainability hotspot matrix (baseline)"
 description: "Tracking matrix for the package and maintainability overhaul: duplicates, target consolidation, gating tests, and acceptance criteria."
 category: "architecture"
 last_updated: 2026-03-29
+
+schema_type: "TechArticle"
 ---
 
 # Maintainability hotspot matrix

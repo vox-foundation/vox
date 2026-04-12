@@ -1,23 +1,13 @@
 //! AST-only declaration checks not represented in HIR (`@search_index`, `@index`).
 
-use crate::ast::decl::{ComponentDecl, Decl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::decl::{ComponentDecl, Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::expr::{Expr, StringPart};
+use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppressed};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
-use crate::web_migration_env::legacy_component_fn_allowed;
-
-/// Classic `@component fn` (only present when `VOX_ALLOW_LEGACY_COMPONENT_FN=1` was used during parse)
-/// is a **Warning** under that escape hatch; otherwise it is an **Error** (defense in depth).
-fn legacy_component_fn_lint_severity() -> TypeckSeverity {
-    if legacy_component_fn_allowed() {
-        TypeckSeverity::Warning
-    } else {
-        TypeckSeverity::Error
-    }
-}
-
 fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
     match te {
         TypeExpr::Named { name, .. } => {
@@ -102,6 +92,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             code: Some("lint.search_index_unknown_table".into()),
             fixes: vec![],
             line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
         });
         return;
     };
@@ -122,6 +114,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             code: Some("lint.search_index_not_table".into()),
             fixes: vec![],
             line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
         });
         return;
     };
@@ -142,6 +136,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             code: Some("lint.search_index_unknown_field".into()),
             fixes: vec![],
             line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
         });
         return;
     };
@@ -162,7 +158,147 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             code: Some("lint.search_index_field_type".into()),
             fixes: vec![],
             line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
         });
+    }
+}
+
+fn visit_fn_decl_in_decl(decl: &Decl, visit: &mut impl FnMut(&FnDecl)) {
+    match decl {
+        Decl::Function(f) => visit(f),
+        Decl::Component(c) => visit(&c.func),
+        Decl::McpTool(m) => visit(&m.func),
+        Decl::Test(t) => visit(&t.func),
+        Decl::Forall(f) => visit(&f.func),
+        Decl::ServerFn(s) => visit(&s.func),
+        Decl::Query(q) => visit(&q.func),
+        Decl::Mutation(m) => visit(&m.func),
+        Decl::Skill(s) => visit(&s.func),
+        Decl::AgentDef(ad) => visit(&ad.func),
+        Decl::Scheduled(s) => visit(&s.func),
+        Decl::Hook(h) => visit(&h.func),
+        Decl::Provider(p) => visit(&p.func),
+        Decl::Fixture(f) => visit(&f.func),
+        Decl::Layout(l) => visit(&l.func),
+        Decl::Loading(l) => visit(&l.func),
+        Decl::NotFound(n) => visit(&n.func),
+        Decl::ErrorBoundary(e) => visit(&e.func),
+        Decl::Mock(m) => visit(&m.func),
+        Decl::McpResource(m) => visit(&m.func),
+        _ => {}
+    }
+}
+
+/// Shallow `@pure` hint: obvious I/O-ish calls (`print`, `sleep`, `spawn`) are rejected.
+fn first_shallow_pure_violation_in_expr(e: &Expr) -> Option<crate::ast::span::Span> {
+    match e {
+        Expr::Call { callee, args, span } => {
+            if matches!(
+                callee.as_ref(),
+                Expr::Ident { name, .. } if name == "print" || name == "sleep"
+            ) {
+                return Some(*span);
+            }
+            first_shallow_pure_violation_in_expr(callee).or_else(|| {
+                args.iter()
+                    .find_map(|a| first_shallow_pure_violation_in_expr(&a.value))
+            })
+        }
+        Expr::Spawn { span, .. } => Some(*span),
+        Expr::Unary { operand, .. } => first_shallow_pure_violation_in_expr(operand),
+        Expr::Binary { left, right, .. } => first_shallow_pure_violation_in_expr(left)
+            .or_else(|| first_shallow_pure_violation_in_expr(right)),
+        Expr::MethodCall { object, args, .. } => first_shallow_pure_violation_in_expr(object)
+            .or_else(|| {
+                args.iter()
+                    .find_map(|a| first_shallow_pure_violation_in_expr(&a.value))
+            }),
+        Expr::FieldAccess { object, .. } => first_shallow_pure_violation_in_expr(object),
+        Expr::Match { subject, arms, .. } => {
+            first_shallow_pure_violation_in_expr(subject).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .and_then(|g| first_shallow_pure_violation_in_expr(g))
+                        .or_else(|| first_shallow_pure_violation_in_expr(arm.body.as_ref()))
+                })
+            })
+        }
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => first_shallow_pure_violation_in_expr(condition)
+            .or_else(|| {
+                then_body
+                    .iter()
+                    .find_map(first_shallow_pure_violation_in_stmt)
+            })
+            .or_else(|| {
+                else_body
+                    .as_ref()
+                    .and_then(|b| b.iter().find_map(first_shallow_pure_violation_in_stmt))
+            }),
+        Expr::For { iterable, body, .. } => first_shallow_pure_violation_in_expr(iterable)
+            .or_else(|| first_shallow_pure_violation_in_expr(body)),
+        Expr::Lambda { body, .. } => first_shallow_pure_violation_in_expr(body),
+        Expr::Pipe { left, right, .. } => first_shallow_pure_violation_in_expr(left)
+            .or_else(|| first_shallow_pure_violation_in_expr(right)),
+        Expr::Try { target, .. } => first_shallow_pure_violation_in_expr(target),
+        Expr::With {
+            operand, options, ..
+        } => first_shallow_pure_violation_in_expr(operand)
+            .or_else(|| first_shallow_pure_violation_in_expr(options)),
+        Expr::Block { stmts, .. } => stmts.iter().find_map(first_shallow_pure_violation_in_stmt),
+        Expr::ObjectLit { fields, .. } => fields
+            .iter()
+            .find_map(|(_, v)| first_shallow_pure_violation_in_expr(v)),
+        Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => elements
+            .iter()
+            .find_map(first_shallow_pure_violation_in_expr),
+        Expr::StringInterp { parts, .. } => parts.iter().find_map(|p| match p {
+            StringPart::Literal(_) => None,
+            StringPart::Interpolation(inner) => first_shallow_pure_violation_in_expr(inner),
+        }),
+        Expr::Jsx(el) => el
+            .attributes
+            .iter()
+            .find_map(|a| first_shallow_pure_violation_in_expr(&a.value))
+            .or_else(|| {
+                el.children
+                    .iter()
+                    .find_map(first_shallow_pure_violation_in_expr)
+            }),
+        Expr::JsxSelfClosing(el) => el
+            .attributes
+            .iter()
+            .find_map(|a| first_shallow_pure_violation_in_expr(&a.value)),
+        Expr::IntLit { .. }
+        | Expr::FloatLit { .. }
+        | Expr::StringLit { .. }
+        | Expr::BoolLit { .. }
+        | Expr::DecimalLit { .. }
+        | Expr::Ident { .. } => None,
+    }
+}
+
+fn first_shallow_pure_violation_in_stmt(s: &Stmt) -> Option<crate::ast::span::Span> {
+    match s {
+        Stmt::Let { value, .. } => first_shallow_pure_violation_in_expr(value),
+        Stmt::Assign { target, value, .. } => first_shallow_pure_violation_in_expr(target)
+            .or_else(|| first_shallow_pure_violation_in_expr(value)),
+        Stmt::Return { value, .. } => value
+            .as_ref()
+            .and_then(first_shallow_pure_violation_in_expr),
+        Stmt::Expr { expr, .. } => first_shallow_pure_violation_in_expr(expr),
+        Stmt::While {
+            condition, body, ..
+        } => first_shallow_pure_violation_in_expr(condition)
+            .or_else(|| body.iter().find_map(first_shallow_pure_violation_in_stmt)),
+        Stmt::Loop { body, .. } => body.iter().find_map(first_shallow_pure_violation_in_stmt),
+        Stmt::Break { .. } | Stmt::Continue { .. } => None,
     }
 }
 
@@ -190,7 +326,7 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.component_react_hook".into()),
                 fixes: vec![],
-            line_col: None,
+            line_col: None, missing_cases: vec![], ast_node_kind: None,
 });
         });
     }
@@ -199,7 +335,7 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
 
 /// Run `@table` / `@index` / `@search_index` validation that stays on the AST surface.
 #[must_use]
-pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
+pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     let mut env = TypeEnv::new();
 
@@ -225,7 +361,7 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         category: DiagnosticCategory::Lint,
                         code: Some("lint.table_id_column".into()),
                         fixes: vec![],
-                    line_col: None,
+                    line_col: None, missing_cases: vec![], ast_node_kind: None,
 });
                 }
             }
@@ -235,21 +371,20 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
 
     for decl in &module.declarations {
         if let Decl::Component(c) = decl {
-            let severity = legacy_component_fn_lint_severity();
             diags.push(Diagnostic {
-                severity,
-                message: "Classic `@component fn` syntax is retired. Use Path C `component Name() { ... }` instead (remove `VOX_ALLOW_LEGACY_COMPONENT_FN` once migrated).".to_string(),
+                severity: TypeckSeverity::Error,
+                message: "Classic `@component fn` syntax is retired. Use Path C `component Name() { ... }` instead.".to_string(),
                 span: c.func.span,
                 expected_type: None,
                 found_type: None,
-                context: None,
+                context: Some(Diagnostic::capture_context(source, c.func.span)),
                 suggestions: vec![
-                    "Refactor to Path C standard: `component Name() { ... }`".into(),
+                    format!("component {}() {{ view: ... }}", c.func.name),
                 ],
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.legacy_component_fn".into()),
                 fixes: vec![],
-                line_col: None,
+                line_col: None, missing_cases: vec![], ast_node_kind: None,
             });
             diags.extend(lint_component_react_hooks(c));
         }
@@ -292,6 +427,8 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                 code: Some(code.to_string()),
                 fixes: vec![],
                 line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
             });
         }
     }
@@ -312,12 +449,51 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         code: Some("lint.index_unknown_table".into()),
                         fixes: vec![],
                         line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
                     });
                 }
             }
             Decl::SearchIndex(si) => check_search_index_decl(&env, si, &mut diags),
             _ => {}
         }
+    }
+
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            if !f.is_pure {
+                return;
+            }
+            let span = f
+                .params
+                .iter()
+                .find_map(|p| {
+                    p.default
+                        .as_ref()
+                        .and_then(first_shallow_pure_violation_in_expr)
+                })
+                .or_else(|| f.body.iter().find_map(first_shallow_pure_violation_in_stmt));
+            if let Some(span) = span {
+                diags.push(Diagnostic {
+                    message: "@pure function may not call print/sleep/spawn (shallow purity lint)."
+                        .to_string(),
+                    span,
+                    severity: TypeckSeverity::Warning,
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec![
+                        "Remove the call or drop @pure if side effects are intentional.".into(),
+                    ],
+                    category: DiagnosticCategory::Lint,
+                    code: Some("lint.pure_shallow_violation".into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
+        });
     }
 
     diags

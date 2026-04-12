@@ -1,4 +1,4 @@
-use crate::types::{RedditConfig, RedditPostKind, UnifiedNewsItem};
+﻿use crate::types::{RedditConfig, RedditPostKind, UnifiedNewsItem};
 use anyhow::{Context, Result, anyhow};
 use reqwest::Client;
 use serde::Deserialize;

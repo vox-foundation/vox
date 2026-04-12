@@ -4,6 +4,8 @@ description: "Official documentation for TanStack web roadmap for the Vox langua
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # TanStack web roadmap

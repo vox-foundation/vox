@@ -68,7 +68,6 @@ jobs:
 
       - name: Validate feed.xml (well-formed XML)
         id: validate_feed
-        continue-on-error: true
         run: xmllint --noout docs/src/feed.xml
 
       - name: Warn if feed.xml validation failed
@@ -85,7 +84,14 @@ jobs:
         run: echo "::warning title=SUMMARY drift::SUMMARY drift detected during deploy; proceeding with Pages build."
 
       - name: Build mdBook
+        id: mdbook_build
         run: mdbook build docs
+
+      - name: Run SEO post-build pass
+        run: python docs/scripts/seo_postprocess.py
+
+      - name: Validate deployed feed.xml
+        run: xmllint --noout docs/book/feed.xml
 
       - name: Generate sitemap.xml
         working-directory: docs
@@ -114,3 +120,19 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  sitemap-ping:
+    name: Notify Search Engines
+    needs: deploy-pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Google Search Console
+        run: >
+          curl --fail --silent --show-error
+          "https://www.google.com/ping?sitemap=https%3A%2F%2Fvox-lang.org%2Fsitemap.xml"
+          || echo "Google ping failed (non-blocking)"
+      - name: Ping Bing Webmaster
+        run: >
+          curl --fail --silent --show-error
+          "https://www.bing.com/ping?sitemap=https%3A%2F%2Fvox-lang.org%2Fsitemap.xml"
+          || echo "Bing ping failed (non-blocking)"

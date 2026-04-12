@@ -4,6 +4,8 @@ description: "Official documentation for ADR 008: Mens transport for the Vox lan
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 008: Mens transport

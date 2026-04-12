@@ -18,7 +18,7 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
             timeout_ms: None,
         });
     }
-    let openai_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+    let openai_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
         .expose()
         .unwrap_or_default()
         .to_string();

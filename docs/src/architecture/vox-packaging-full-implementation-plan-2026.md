@@ -4,6 +4,8 @@ description: "Execution-grade implementation plan for Cargo-first Vox package ma
 category: "architecture"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Mission

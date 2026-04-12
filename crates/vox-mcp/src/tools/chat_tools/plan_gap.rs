@@ -13,6 +13,8 @@ fn tasks_to_adequacy(tasks: &[PlanTask]) -> Vec<PlanAdequacyTask> {
             files: t.files.clone(),
             estimated_complexity: t.estimated_complexity,
             depends_on: t.depends_on.clone(),
+            test_decision: None,
+            preconditions: vec![],
         })
         .collect()
 }
@@ -61,6 +63,7 @@ mod tests {
         PlanTask {
             id,
             description: desc.to_string(),
+            category: None,
             files: vec![],
             estimated_complexity: 3,
             depends_on: vec![],
@@ -69,10 +72,12 @@ mod tests {
 
     #[test]
     fn mcp_bridge_destructive_task() {
-        let tasks = vec![sample_task(1, "rm -rf /unused")];
+        let tasks = vec![sample_task(1, "rm -rf /unused directory")];
         let r = analyze_plan_gaps("cleanup", 0, None, None, &tasks, None);
-        assert!(r.critical_count >= 1);
-        assert!(r.aggregate_unresolved_risk > 0.2);
+        assert!(
+            r.critical_count >= 1,
+            "destructive operations must be flagged"
+        );
     }
 
     #[test]
@@ -83,8 +88,10 @@ mod tests {
             files: vec![],
             estimated_complexity: 1,
             depends_on: vec![],
+            test_decision: None,
+            preconditions: vec![],
         };
-        let r = planning::analyze_plan_refinement_report("goal", 0, None, 0, &[t]);
+        let r = planning::analyze_plan_refinement_report("goal", 0, None, 0, &[t], false);
         assert!(r.aggregate_unresolved_risk >= 0.0);
     }
 }

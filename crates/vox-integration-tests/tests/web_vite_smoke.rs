@@ -31,7 +31,7 @@ async fn full_stack_minimal_vite_production_build() {
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let ts_out = tmp.path().join("ts");
-    build::run(&vox_file, &ts_out, None, false)
+    build::run(&vox_file, &ts_out, None, false, false)
         .await
         .expect("vox build");
 

@@ -36,6 +36,7 @@ impl TypeHintStub {
     /// No-op until compiler symbol tables are wired into MCP generation.
     #[must_use]
     pub fn system_prompt_addon(&self) -> &'static str {
+        let _ = std::hint::black_box(std::ptr::from_ref(self) as usize);
         ""
     }
 }

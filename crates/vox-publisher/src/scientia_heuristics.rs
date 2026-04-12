@@ -18,6 +18,8 @@ pub struct ScientiaHeuristics {
     pub rank_weight_supporting: u32,
     pub rank_weight_informational: u32,
     pub rank_bonus_strong_pair: u32,
+    /// Max rank_score points subtracted when prior-art overlap is 1.0 (scaled linearly).
+    pub rank_novelty_overlap_penalty_max: u32,
     pub novelty_blend_lexical: f64,
     pub novelty_blend_semantic: f64,
     pub novelty_moderate_threshold: f64,
@@ -34,6 +36,8 @@ pub struct ScientiaHeuristics {
     pub worthiness_epistemic_abstract_boost: f64,
     pub worthiness_novelty_base: f64,
     pub worthiness_novelty_r_coef: f64,
+    /// Below this [`WorthinessInputs::claim_evidence_coverage`], Socrates contradiction shrink is skipped (coverage paradox).
+    pub worthiness_contradiction_coverage_gate: f64,
     pub confidence_weight_strong: f64,
     pub confidence_weight_supporting: f64,
     pub confidence_weight_informational: f64,
@@ -54,6 +58,7 @@ impl Default for ScientiaHeuristics {
             rank_weight_supporting: 4,
             rank_weight_informational: 1,
             rank_bonus_strong_pair: 5,
+            rank_novelty_overlap_penalty_max: 12,
             novelty_blend_lexical: 0.55,
             novelty_blend_semantic: 0.45,
             novelty_moderate_threshold: 0.45,
@@ -70,6 +75,7 @@ impl Default for ScientiaHeuristics {
             worthiness_epistemic_abstract_boost: 0.06,
             worthiness_novelty_base: 0.35,
             worthiness_novelty_r_coef: 0.38,
+            worthiness_contradiction_coverage_gate: 0.3,
             confidence_weight_strong: 1.0,
             confidence_weight_supporting: 0.55,
             confidence_weight_informational: 0.25,
@@ -135,6 +141,8 @@ struct DiscoveryYaml {
     rank_strength_weights: Option<RankWeightsYaml>,
     #[serde(default)]
     rank_bonus_strong_pair: Option<u32>,
+    #[serde(default)]
+    rank_novelty_overlap_penalty_max: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -187,6 +195,8 @@ struct WorthinessProxyYaml {
     novelty_base: Option<f64>,
     #[serde(default)]
     novelty_readiness_coef: Option<f64>,
+    #[serde(default)]
+    contradiction_coverage_gate: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -230,7 +240,7 @@ impl ScientiaHeuristics {
         Self::try_load_from_repo_root(repo_root).unwrap_or_default()
     }
 
-    fn try_load_from_repo_root(repo_root: &Path) -> anyhow::Result<Self> {
+    pub fn try_load_from_repo_root(repo_root: &Path) -> anyhow::Result<Self> {
         let path = repo_root.join(DYNAMICS_SEED_REL_PATH);
         if !path.is_file() {
             tracing::debug!(
@@ -273,6 +283,9 @@ impl ScientiaHeuristics {
         if let Some(v) = y.discovery.rank_bonus_strong_pair {
             h.rank_bonus_strong_pair = v;
         }
+        if let Some(v) = y.discovery.rank_novelty_overlap_penalty_max {
+            h.rank_novelty_overlap_penalty_max = v.min(100);
+        }
         let no = &y.novelty_overlap;
         if let Some(v) = no.blend_lexical_weight {
             h.novelty_blend_lexical = v;
@@ -314,6 +327,9 @@ impl ScientiaHeuristics {
         }
         if let Some(v) = wp.novelty_readiness_coef {
             h.worthiness_novelty_r_coef = v;
+        }
+        if let Some(v) = wp.contradiction_coverage_gate {
+            h.worthiness_contradiction_coverage_gate = v.clamp(0.0, 1.0);
         }
         let c = &y.confidence;
         if let Some(v) = c.weight_strong {

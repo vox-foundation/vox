@@ -4,6 +4,8 @@ description: "Worked example: dashboard with routes, components, and optional @v
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Example: Dashboard example: full-stack Vox with @v0 + routes + component + http route

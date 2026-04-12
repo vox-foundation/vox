@@ -372,7 +372,7 @@ pub fn attach_autofill_and_doc_hints(body_markdown: &str, evidence: &mut Scienti
     if evidence
         .candidate_note
         .as_ref()
-        .is_some_and(|n| n.starts_with("Draft candidate surfaced"))
+        .is_some_and(|n: &String| n.starts_with("Draft candidate surfaced"))
     {
         prov.push(AutofillProvenanceEntry {
             facet: "candidate_note".into(),
@@ -395,7 +395,7 @@ pub fn attach_autofill_and_doc_hints(body_markdown: &str, evidence: &mut Scienti
             flags.push("ethics_statement_needed");
         }
         if let Some(ref v) = dp.recommended_scholarly_venue
-            && !v.is_empty()
+            && !v.trim().is_empty()
         {
             flags.push("recommended_scholarly_venue");
         }
@@ -911,7 +911,11 @@ pub fn enrich_metadata_json_with_repo_files(
     Ok(Some(serde_json::to_string(&root)?))
 }
 
-fn merge_socrates_aggregate(inputs: &mut WorthinessInputs, agg: &SocratesAggregateSnapshot) {
+fn merge_socrates_aggregate(
+    inputs: &mut WorthinessInputs,
+    agg: &SocratesAggregateSnapshot,
+    h: &crate::scientia_heuristics::ScientiaHeuristics,
+) {
     if agg.parsed_metadata_rows == 0 && agg.sample_size == 0 {
         return;
     }
@@ -921,23 +925,27 @@ fn merge_socrates_aggregate(inputs: &mut WorthinessInputs, agg: &SocratesAggrega
 
     let epistemic_signal = conf * (1.0 - 0.88 * risk);
     inputs.epistemic = clamp01(0.4 * inputs.epistemic + 0.6 * epistemic_signal);
-    inputs.epistemic = clamp01(inputs.epistemic * (1.0 - 0.45 * cr));
+    if inputs.claim_evidence_coverage >= h.worthiness_contradiction_coverage_gate {
+        inputs.epistemic = clamp01(inputs.epistemic * (1.0 - 0.45 * cr));
+    }
 
     let reliability_signal = (1.0 - risk).max(0.0);
     inputs.reliability = clamp01(0.35 * inputs.reliability + 0.65 * reliability_signal);
 
-    if agg.abstain_count >= 2 && cr > 0.2 {
-        inputs.repeated_unresolved_contradiction = true;
-    }
-    if cr > 0.38
-        && !inputs
-            .red_line_violation_ids
-            .iter()
-            .any(|x| x == "unresolved_socrates_contradiction")
-    {
-        inputs
-            .red_line_violation_ids
-            .push("unresolved_socrates_contradiction".to_string());
+    if inputs.claim_evidence_coverage >= h.worthiness_contradiction_coverage_gate {
+        if agg.abstain_count >= 2 && cr > 0.2 {
+            inputs.repeated_unresolved_contradiction = true;
+        }
+        if cr > 0.38
+            && !inputs
+                .red_line_violation_ids
+                .iter()
+                .any(|x| x == "unresolved_socrates_contradiction")
+        {
+            inputs
+                .red_line_violation_ids
+                .push("unresolved_socrates_contradiction".to_string());
+        }
     }
 }
 
@@ -946,9 +954,10 @@ fn merge_socrates_aggregate(inputs: &mut WorthinessInputs, agg: &SocratesAggrega
 pub fn apply_scientia_evidence(
     mut inputs: WorthinessInputs,
     evidence: &ScientiaEvidenceContext,
+    h: &crate::scientia_heuristics::ScientiaHeuristics,
 ) -> WorthinessInputs {
     if let Some(ref agg) = evidence.socrates_aggregate {
-        merge_socrates_aggregate(&mut inputs, agg);
+        merge_socrates_aggregate(&mut inputs, agg, h);
     }
 
     if let Some(ref g) = evidence.eval_gate {
@@ -1064,11 +1073,60 @@ mod tests {
             metadata_policy: 0.75,
             meaningful_advance: false,
         };
-        let merged = apply_scientia_evidence(base, &evidence);
+        let merged = apply_scientia_evidence(base, &evidence, &crate::scientia_heuristics::ScientiaHeuristics::default());
         assert!(merged.meaningful_advance);
         assert_eq!(merged.ai_disclosure_compliance, 1.0);
         assert!(merged.epistemic > 0.65);
         assert!(merged.before_after_pair_integrity >= 0.88);
+    }
+
+    #[test]
+    fn g2_low_citation_coverage_skips_contradiction_epistemic_shrink() {
+        let mut h = crate::scientia_heuristics::ScientiaHeuristics::default();
+        h.worthiness_contradiction_coverage_gate = 0.3;
+        let agg_noisy = SocratesAggregateSnapshot {
+            sample_size: 20,
+            parsed_metadata_rows: 15,
+            mean_hallucination_risk_proxy: 0.1,
+            mean_confidence_estimate: 0.8,
+            mean_contradiction_ratio: 0.9,
+            answer_count: 10,
+            ask_count: 5,
+            abstain_count: 0,
+        };
+        let evidence_noisy = ScientiaEvidenceContext {
+            socrates_aggregate: Some(agg_noisy.clone()),
+            ..Default::default()
+        };
+        let mut agg_clean = agg_noisy.clone();
+        agg_clean.mean_contradiction_ratio = 0.0;
+        let evidence_clean = ScientiaEvidenceContext {
+            socrates_aggregate: Some(agg_clean),
+            ..Default::default()
+        };
+        let base_low_cov = WorthinessInputs {
+            red_line_violation_ids: vec![],
+            repeated_unresolved_contradiction: false,
+            claim_evidence_coverage: 0.1,
+            artifact_replayability: 0.5,
+            before_after_pair_integrity: 0.5,
+            metadata_completeness: 0.5,
+            ai_disclosure_compliance: 1.0,
+            epistemic: 0.5,
+            reproducibility: 0.5,
+            novelty: 0.5,
+            reliability: 0.5,
+            metadata_policy: 0.5,
+            meaningful_advance: false,
+        };
+        let noisy = apply_scientia_evidence(base_low_cov.clone(), &evidence_noisy, &h);
+        let clean = apply_scientia_evidence(base_low_cov, &evidence_clean, &h);
+        assert!(
+            (noisy.epistemic - clean.epistemic).abs() < 1e-9,
+            "below contradiction_coverage_gate, high vs zero contradiction_ratio must not change epistemic (got noisy={} clean={})",
+            noisy.epistemic,
+            clean.epistemic
+        );
     }
 
     #[test]

@@ -4,6 +4,8 @@ description: "Worked example: Vox actor with messages and state patterns for the
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Example: Vox Actor Example

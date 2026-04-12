@@ -78,6 +78,24 @@ routes {
     assert_eq!(hir.reactive_components[0].name, "Home");
 }
 
+/// `@scheduled` HIR metadata lowers into [`WebIrModule::scheduled_jobs`].
+#[test]
+fn web_ir_lowering_scheduled_jobs_from_hir() {
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../examples/golden/scheduled_tick.vox"
+    ));
+    let module = parse(lex(source)).expect("parse scheduled_tick");
+    let hir = lower_module(&module);
+    let (web, summary) = lower_hir_to_web_ir_with_summary(&hir);
+    assert_eq!(summary.scheduled_jobs_lowered, 1, "{summary:?}");
+    assert_eq!(web.scheduled_jobs.len(), 1);
+    assert_eq!(web.scheduled_jobs[0].name, "scheduled_tick");
+    assert_eq!(web.scheduled_jobs[0].interval, "1h");
+    let diags = validate_web_ir(&web);
+    assert!(diags.is_empty(), "{diags:?}");
+}
+
 /// OP-S010 / OP-S012: `WebIrModule` JSON shell keeps stable top-level field names for schema consumers.
 #[test]
 fn web_ir_module_serde_shell_field_names_stable() {
@@ -90,6 +108,7 @@ fn web_ir_module_serde_shell_field_names_stable() {
         "behavior_nodes",
         "style_nodes",
         "route_nodes",
+        "scheduled_jobs",
         "interop_nodes",
         "diagnostic_nodes",
         "spans",
@@ -1484,7 +1503,8 @@ fn syntax_k_artifact_for_parity_chain() {
                 "classic_components_deferred": lower_summary.classic_components_deferred,
                 "style_rules_lowered": lower_summary.style_rules_lowered,
                 "dom_expr_fallbacks": lower_summary.dom_expr_fallbacks,
-                "lowering_diagnostics": lower_summary.lowering_diagnostics
+                "lowering_diagnostics": lower_summary.lowering_diagnostics,
+                "scheduled_jobs_lowered": lower_summary.scheduled_jobs_lowered
             },
             "web_ir_validate_metrics": {
                 "view_roots_walked": validate_metrics.view_roots_walked,
@@ -1492,7 +1512,8 @@ fn syntax_k_artifact_for_parity_chain() {
                 "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
                 "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
                 "style_nodes_checked": validate_metrics.style_nodes_checked,
-                "island_mounts_checked": validate_metrics.island_mounts_checked
+                "island_mounts_checked": validate_metrics.island_mounts_checked,
+                "scheduled_jobs_checked": validate_metrics.scheduled_jobs_checked
             }
         }),
         RepresentabilityPayload {

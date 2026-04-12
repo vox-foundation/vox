@@ -1,5 +1,10 @@
 ---
-title: Architecture Decision Checklist for Implementing Agent Handoff Continuity
+title: "Architecture Decision Checklist for Implementing Agent Handoff Continuity"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **9\. Architecture Decision Checklist for Implementing Agent Handoff Continuity**
 

@@ -29,6 +29,7 @@ regex = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
 xxhash-rust = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [build-dependencies]
 syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }

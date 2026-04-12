@@ -4,17 +4,21 @@ description: "How to use, maintain, and contribute to the machine-verified Golde
 category: "how-to"
 last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # Golden Examples Corpus
 
 The Vox documentation utilizes a "Golden Example" architecture to prevent documentation drift and ensure that all documented code actually compiles against the latest compiler version.
 
+How goldens and docs feed **Mens** training (lexer vs HF tokenizer, corpus roots): [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Pair layout and hygiene: [Mens training data contract](../reference/mens-training-data-contract.md).
+
 ## How Golden Examples Work
 
 Instead of writing raw code blocks directly inside Markdown files, documentation should pull snippets from the `examples/golden/` directory.
 
-The `vox-doc-pipeline` runs as part of the CI process, executing a full `vox build` on every file in `examples/golden/`. If a golden example fails to compile, the documentation build fails, acting as an absolute guardrail against outdated syntax.
+CI enforces goldens in two layers: (1) **`vox-compiler`** integration test `all_golden_vox_examples_parse_and_lower` — every `examples/golden/**/*.vox` must parse, lower to HIR, pass WebIR validation, and emit Syntax-K metrics; (2) **mdBook / doc pipeline** — pages that use `{{#include}}` must resolve to real golden `.vox` files (`examples_ssot` test). A full `vox build` per golden may run in additional doc or integration jobs; do not assume “build-only” is the only gate.
 
 ## Adding a Golden Example
 

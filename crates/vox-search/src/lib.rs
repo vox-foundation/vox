@@ -9,6 +9,8 @@
 pub mod a2a_contract;
 pub mod bundle;
 pub mod context;
+pub mod crag;
+pub mod duckduckgo;
 pub mod embedding_env;
 pub mod embeddings;
 pub mod evaluation;
@@ -18,9 +20,15 @@ mod memory_cache;
 pub mod memory_hybrid;
 pub mod policy;
 mod rrf;
+pub mod scraper;
+mod searxng_defaults;
+pub mod searxng;
+pub mod web_dispatcher;
 
 #[cfg(feature = "tantivy-lexical")]
 pub mod lexical_tantivy;
+#[cfg(feature = "tavily")]
+pub mod tavily;
 #[cfg(feature = "qdrant-vector")]
 pub mod vector_qdrant;
 

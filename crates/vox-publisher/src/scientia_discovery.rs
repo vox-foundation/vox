@@ -73,6 +73,12 @@ pub struct DiscoveryCandidateRank {
     pub prior_art_max_lexical_overlap: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prior_art_max_semantic_overlap: Option<f64>,
+    /// Blended prior-art overlap in \[0,1\] reflected in [`DiscoveryCandidateRank::rank_score`].
+    #[serde(default)]
+    pub novelty_overlap_effective: f32,
+    /// When true, [`Self::novelty_overlap_effective`] defaulted to **0.5** (moderate overlap) because no scan was supplied.
+    #[serde(default)]
+    pub novelty_overlap_assumed_default: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -164,14 +170,24 @@ pub fn evidence_completeness_score(
 }
 
 /// Deterministic rank from evidence block + optional `source_ref` (markdown path).
+///
+/// Pass `novelty_overlap` only when a prior-art scan produced a blended overlap in \[0,1\].
+/// Pass `None` when no scan has run; a **0.5** overlap default is applied (not treated as perfect novelty).
 #[must_use]
 pub fn rank_candidate(
     publication_id: &str,
     source_ref: Option<&str>,
     evidence: &ScientiaEvidenceContext,
+    novelty_overlap: Option<f32>,
 ) -> DiscoveryCandidateRank {
     let default = crate::scientia_heuristics::ScientiaHeuristics::default();
-    rank_candidate_heuristics(publication_id, source_ref, evidence, &default)
+    rank_candidate_heuristics(
+        publication_id,
+        source_ref,
+        evidence,
+        &default,
+        novelty_overlap,
+    )
 }
 
 /// Rank with explicit dynamics seed heuristics.
@@ -181,6 +197,7 @@ pub fn rank_candidate_heuristics(
     source_ref: Option<&str>,
     evidence: &ScientiaEvidenceContext,
     h: &crate::scientia_heuristics::ScientiaHeuristics,
+    novelty_overlap: Option<f32>,
 ) -> DiscoveryCandidateRank {
     let signals = if evidence.discovery_signals.is_empty() {
         scientia_evidence::infer_discovery_signals(source_ref, evidence)
@@ -218,6 +235,12 @@ pub fn rank_candidate_heuristics(
     if strong_n >= 2 {
         score = score.saturating_add(h.rank_bonus_strong_pair);
     }
+
+    let novelty_overlap_assumed_default = novelty_overlap.is_none();
+    let novelty_overlap_effective = novelty_overlap.unwrap_or(0.5_f32).clamp(0.0, 1.0);
+    let overlap_penalty = ((f64::from(novelty_overlap_effective)) * f64::from(h.rank_novelty_overlap_penalty_max))
+        .round() as u32;
+    score = score.saturating_sub(overlap_penalty);
 
     let unresolved_conflicts = !conflicts.is_empty();
     let tier = if strong_n > 0 && !unresolved_conflicts {
@@ -288,6 +311,8 @@ pub fn rank_candidate_heuristics(
         significance_axes,
         prior_art_max_lexical_overlap: None,
         prior_art_max_semantic_overlap: None,
+        novelty_overlap_effective,
+        novelty_overlap_assumed_default,
     }
 }
 
@@ -295,7 +320,11 @@ pub fn rank_candidate_heuristics(
 pub fn merge_novelty_overlap_into_rank(
     rank: &mut DiscoveryCandidateRank,
     bundle: &crate::scientia_finding_ledger::NoveltyEvidenceBundleV1,
+    h: &crate::scientia_heuristics::ScientiaHeuristics,
 ) {
+    rank.novelty_overlap_effective =
+        crate::scientia_finding_ledger::novelty_overlap_blend_01(bundle, h) as f32;
+    rank.novelty_overlap_assumed_default = false;
     if let Some(s) = &bundle.overlap_summary {
         rank.prior_art_max_lexical_overlap = s.max_lexical_score;
         rank.prior_art_max_semantic_overlap = s.max_semantic_score;
@@ -308,12 +337,12 @@ pub fn merge_novelty_overlap_into_rank(
         .normalized_hits
         .iter()
         .filter_map(|h| h.lexical_score)
-        .fold(0.0_f64, f64::max);
+        .fold(0.0_f64, |a: f64, b: f64| a.max(b));
     let max_sem = bundle
         .normalized_hits
         .iter()
         .filter_map(|h| h.semantic_score)
-        .fold(0.0_f64, f64::max);
+        .fold(0.0_f64, |a: f64, b: f64| a.max(b));
     rank.prior_art_max_lexical_overlap = Some(max_lex);
     rank.prior_art_max_semantic_overlap = Some(max_sem);
 }
@@ -491,7 +520,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let r = rank_candidate("p1", None, &ev);
+        let r = rank_candidate("p1", None, &ev, Some(0.0));
         assert!(r.rank_score >= 10);
         assert_eq!(r.intake_tier, DiscoveryIntakeTier::StrongCandidate);
         assert!(r.auto_draft_eligible);
@@ -508,7 +537,7 @@ mod tests {
             human_meaningful_advance: true,
             ..Default::default()
         };
-        let r = rank_candidate("p2", None, &ev);
+        let r = rank_candidate("p2", None, &ev, None);
         assert!(!r.auto_draft_eligible);
         assert!(!r.conflicts.is_empty());
     }
@@ -523,7 +552,7 @@ mod tests {
             human_meaningful_advance: true,
             ..Default::default()
         };
-        let r = rank_candidate("p3", None, &ev);
+        let r = rank_candidate("p3", None, &ev, None);
         assert!(!r.conflicts.is_empty());
     }
 
@@ -537,12 +566,12 @@ mod tests {
             }),
             ..Default::default()
         };
-        let r = rank_candidate("g1", None, &ev);
+        let r = rank_candidate("g1", None, &ev, None);
         assert!(intake_gate_allows(
             DiscoveryIntakeGate::StrongSignalsOnly,
             &r
         ));
-        let low = rank_candidate("g2", None, &ScientiaEvidenceContext::default());
+        let low = rank_candidate("g2", None, &ScientiaEvidenceContext::default(), None);
         assert!(!intake_gate_allows(
             DiscoveryIntakeGate::StrongSignalsOnly,
             &low
@@ -552,5 +581,28 @@ mod tests {
             DiscoveryIntakeGate::AllowReviewSuggested,
             &low
         ));
+    }
+
+    #[test]
+    fn g1_unscanned_novelty_overlap_assumes_moderate_and_penalizes_rank() {
+        let ev = ScientiaEvidenceContext {
+            eval_gate: Some(EvalGateSnapshot {
+                passed: true,
+                gates_failed: 0,
+                gates_total: 3,
+            }),
+            ..Default::default()
+        };
+        let h = crate::scientia_heuristics::ScientiaHeuristics::default();
+        let with_none = rank_candidate_heuristics("x", None, &ev, &h, None);
+        let with_zero = rank_candidate_heuristics("x", None, &ev, &h, Some(0.0));
+        assert!(with_none.novelty_overlap_assumed_default);
+        assert!(!with_zero.novelty_overlap_assumed_default);
+        assert!(
+            with_none.rank_score < with_zero.rank_score,
+            "expected None (assumed 0.5 overlap) to score strictly below confirmed 0.0 overlap; none={} zero={}",
+            with_none.rank_score,
+            with_zero.rank_score
+        );
     }
 }

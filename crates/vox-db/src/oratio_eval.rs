@@ -3,8 +3,8 @@
 //! Provides persistence for Word Error Rate (WER) evaluations and testing
 //! runs against datasets like LibriSpeech and Vox-Code.
 
-use serde::{Deserialize, Serialize};
 use crate::{StoreError, VoxDb};
+use serde::{Deserialize, Serialize};
 
 /// Row returned for an evaluation run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,8 +61,9 @@ fn unix_now() -> i64 {
 impl VoxDb {
     /// Ensure the tables exist (usually handled by auto-migration or baseline, but DDL is embedded here).
     async fn ensure_oratio_eval_tables(&self) -> Result<(), StoreError> {
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS oratio_eval_run (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS oratio_eval_run (
                 run_id             TEXT    NOT NULL PRIMARY KEY,
                 run_type           TEXT    NOT NULL,
                 backend            TEXT    NOT NULL,
@@ -80,11 +81,14 @@ impl VoxDb {
                 created_at         INTEGER NOT NULL,
                 updated_at         INTEGER NOT NULL
             )",
-            (),
-        ).await.map_err(|e| StoreError::Db(e.to_string()))?;
+                (),
+            )
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?;
 
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS oratio_eval_sample (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS oratio_eval_sample (
                 id                 INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id             TEXT    NOT NULL REFERENCES oratio_eval_run(run_id),
                 audio_path         TEXT    NOT NULL,
@@ -97,8 +101,10 @@ impl VoxDb {
                 no_speech_dropped  INTEGER DEFAULT 0,
                 created_at         INTEGER NOT NULL
             )",
-            (),
-        ).await.map_err(|e| StoreError::Db(e.to_string()))?;
+                (),
+            )
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?;
 
         Ok(())
     }
@@ -159,7 +165,7 @@ impl VoxDb {
                 now
             ],
         ).await.map_err(|e| StoreError::NotFound(format!("append_oratio_eval_sample: {e}")))?;
-        
+
         Ok(())
     }
 
@@ -174,23 +180,29 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_oratio_eval_tables().await?;
         let now = unix_now();
-        
-        let mut rows = self.conn.query(
-            "SELECT COUNT(*), SUM(wer) FROM oratio_eval_sample WHERE run_id = ?1",
-            turso::params![run_id]
-        ).await.map_err(|e| StoreError::NotFound(e.to_string()))?;
-        
-        let (sample_count, total_wer_errors) = if let Some(row) = rows.next().await.unwrap_or(None) {
+
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*), SUM(wer) FROM oratio_eval_sample WHERE run_id = ?1",
+                turso::params![run_id],
+            )
+            .await
+            .map_err(|e| StoreError::NotFound(e.to_string()))?;
+
+        let (sample_count, total_wer_errors) = if let Some(row) = rows.next().await.unwrap_or(None)
+        {
             (
                 row.get::<i64>(0).unwrap_or(0),
-                row.get::<f64>(1).unwrap_or(0.0) as i64
+                row.get::<f64>(1).unwrap_or(0.0) as i64,
             )
         } else {
             (0, 0)
         };
 
-        self.conn.execute(
-            "UPDATE oratio_eval_run
+        self.conn
+            .execute(
+                "UPDATE oratio_eval_run
              SET status = 'complete',
                  sample_count = ?2,
                  total_wer_errors = ?3,
@@ -200,17 +212,19 @@ impl VoxDb {
                  avg_timing_offset_ms = ?7,
                  updated_at = ?8
              WHERE run_id = ?1",
-            turso::params![
-                run_id,
-                sample_count,
-                total_wer_errors,
-                global_wer.map(|f| f as f64),
-                global_cer.map(|f| f as f64),
-                avg_latency_ms.map(|f| f as f64),
-                avg_timing_offset_ms.map(|f| f as f64),
-                now
-            ],
-        ).await.map_err(|e| StoreError::NotFound(format!("complete_oratio_eval_run: {e}")))?;
+                turso::params![
+                    run_id,
+                    sample_count,
+                    total_wer_errors,
+                    global_wer.map(|f| f as f64),
+                    global_cer.map(|f| f as f64),
+                    avg_latency_ms.map(|f| f as f64),
+                    avg_timing_offset_ms.map(|f| f as f64),
+                    now
+                ],
+            )
+            .await
+            .map_err(|e| StoreError::NotFound(format!("complete_oratio_eval_run: {e}")))?;
         Ok(())
     }
 

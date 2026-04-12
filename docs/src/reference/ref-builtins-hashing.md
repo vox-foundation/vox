@@ -4,6 +4,8 @@ description: "Official documentation for Hashing & Identity Builtins for the Vox
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Hashing & Identity Builtins
 

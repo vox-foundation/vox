@@ -317,6 +317,30 @@ pub enum ScientiaCmd {
         #[arg(long, default_value_t = PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS)]
         since_hours: i64,
     },
+    /// Run one batch of Scientist RSS/Atom crawling and deduplication tick.
+    #[command(name = "ingest-tick")]
+    IngestTick {
+        /// Optional specific feed id to tick.
+        #[arg(long)]
+        feed_id: Option<String>,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
+    /// Register or update a feed source for inbound intelligence.
+    #[command(name = "feed-source-add")]
+    FeedSourceAdd {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        url: String,
+        #[arg(long, default_value = "rss")]
+        kind: String,
+        #[arg(long, default_value_t = 3600000)]
+        interval_ms: i64,
+    },
+    /// List registered feed sources.
+    #[command(name = "feed-source-list")]
+    FeedSourceList,
 }
 
 /// Dispatch `vox scientia` to the shared `vox db` handlers.
@@ -592,6 +616,21 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                         since_hours,
                     })
                 }
+                ScientiaCmd::IngestTick { feed_id, limit } => {
+                    DbCli::Publication(DbCliPublication::IngestTick { feed_id, limit })
+                }
+                ScientiaCmd::FeedSourceAdd {
+                    id,
+                    url,
+                    kind,
+                    interval_ms,
+                } => DbCli::Publication(DbCliPublication::FeedSourceAdd {
+                    id,
+                    url,
+                    kind,
+                    interval_ms,
+                }),
+                ScientiaCmd::FeedSourceList => DbCli::Publication(DbCliPublication::FeedSourceList),
             };
             db_cli::run(db_cmd).await
         }

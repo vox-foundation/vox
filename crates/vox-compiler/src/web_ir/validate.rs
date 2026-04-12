@@ -286,6 +286,32 @@ fn validate_styles(
     }
 }
 
+fn validate_scheduled_jobs(
+    module: &WebIrModule,
+    out: &mut Vec<WebIrDiagnostic>,
+    metrics: &mut WebIrValidateMetrics,
+) {
+    for job in &module.scheduled_jobs {
+        metrics.scheduled_jobs_checked += 1;
+        if job.name.trim().is_empty() {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.scheduled.empty_name".to_string(),
+                message: "ScheduledJobSpec.name must not be empty".to_string(),
+                span: None,
+                category: Some("scheduled".to_string()),
+            });
+        }
+        if job.interval.trim().is_empty() {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.scheduled.empty_interval".to_string(),
+                message: "ScheduledJobSpec.interval must not be empty".to_string(),
+                span: None,
+                category: Some("scheduled".to_string()),
+            });
+        }
+    }
+}
+
 fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
     for node in &module.interop_nodes {
         match node {
@@ -372,6 +398,7 @@ pub fn validate_web_ir_with_metrics(
     validate_route_families(module, &mut out, &mut metrics);
     validate_behaviors(module, &mut out, &mut metrics);
     validate_styles(module, &mut out, &mut metrics);
+    validate_scheduled_jobs(module, &mut out, &mut metrics);
     validate_interop(module, &mut out);
 
     (out, metrics)

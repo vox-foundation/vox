@@ -410,6 +410,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - gui-smoke
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - line-endings
   status: active
   latin_ns: null
@@ -607,6 +619,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - query-all-guard
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - release-build
   status: active
   latin_ns: null
@@ -754,6 +778,18 @@ operations:
   path:
   - ci
   - toestub-self-apply
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - turso-import-guard
   status: active
   latin_ns: null
   product_lane: platform

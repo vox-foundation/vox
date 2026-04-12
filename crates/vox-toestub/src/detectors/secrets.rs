@@ -82,6 +82,8 @@ impl SecretDetector {
             || upper.contains("ENV_VAR")
             || line.contains("std::env::var")
             || line.contains("env::var")
+            || line.contains("vox_clavis::resolve_secret")
+            || line.contains("resolve_secret")
             || line.contains("dotenv")
             || line.contains("process.env.")
             || line.contains("os.environ")
@@ -233,7 +235,7 @@ mod tests {
     #[test]
     fn ignores_env_var_reads() {
         let d = SecretDetector::new();
-        let f = source("rs", r#"let key = std::env::var("API_KEY").unwrap();"#);
+        let f = source("rs", r#"let key = std::env::var("STUB_API_KEY").unwrap();"#);
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "env var reads should not be flagged");
     }

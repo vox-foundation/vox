@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 vox-checksum-manifest = { workspace = true }
+vox-build-meta = { workspace = true }
 vox-install-policy = { workspace = true }
 clap = { workspace = true }
 flate2 = "1.1.9"
@@ -20,6 +21,7 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 tar = "0.4.45"
 zip = "8.4.0"
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]
 workspace = true

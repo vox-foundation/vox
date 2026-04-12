@@ -38,6 +38,7 @@ impl RoutingService {
         groups: &AffinityGroupRegistry,
         agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         config: &OrchestratorConfig,
+        local_tokens: u64,
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
         task_description: Option<&str>,
@@ -112,7 +113,19 @@ impl RoutingService {
             }
         }
 
-        // 3d. Repo shard workflow specialization and reliability penalties.
+        // 3d. Hardware breakeven: if local token budget exceeded, severely penalize non-local agents.
+        if local_tokens > config.local_breakeven_tokens {
+            for (agent_id, score) in scores.iter_mut() {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
+                    if q.capabilities.routing_tier.as_deref() != Some("local") {
+                        *score -= 50_000.0;
+                    }
+                }
+            }
+        }
+
+        // 3e. Repo shard workflow specialization and reliability penalties.
         Self::apply_repo_shard_phase_signals(&mut scores, agents, config, task_description);
 
         // 3e. Dimension-specific trust floor and utility blend.
@@ -128,13 +141,27 @@ impl RoutingService {
             }
         }
 
-        // 3f. Attention-aware routing: prefer agents with higher EWMA trust score.
+        // 3f. Attention-aware routing: UCB exploration (Task 61) replaces greedy trust selection.
+        //     New/uncertain agents get exploration bonus proportional to sqrt(variance).
         if config.attention_enabled {
+            if rand::random::<f64>() < config.routing_exploration_epsilon {
+                let eligible: Vec<_> = agents
+                    .keys()
+                    .filter(|k| scores.get(k).copied().unwrap_or(0.0) >= -1000.0)
+                    .copied()
+                    .collect();
+                if !eligible.is_empty() {
+                    use rand::Rng;
+                    let idx = rand::thread_rng().gen_range(0..eligible.len());
+                    return RouteResult::Existing(eligible[idx]);
+                }
+            }
+
             if let Some(trust_map) = attention_trust_scores {
-                let w = config.attention_trust_routing_weight;
+                let c = config.attention_trust_routing_weight;
                 for (agent_id, score) in scores.iter_mut() {
                     if let Some(ts) = trust_map.get(agent_id) {
-                        *score += ts.trust_score * w;
+                        *score += ts.ucb_score(c);
                     }
                 }
             }
@@ -591,6 +618,7 @@ mod tests {
 
         let mut config = OrchestratorConfig::for_testing();
         config.socrates_reputation_routing = true;
+        config.routing_exploration_epsilon = 0.0;
 
         let mut rel = HashMap::new();
         rel.insert(a1, 0.15);
@@ -602,6 +630,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             Some(&rel),
             None,
             None,
@@ -668,6 +697,7 @@ mod tests {
             &groups,
             &agents,
             &OrchestratorConfig::default(),
+            0,
             None,
             Some(&hints),
             None,
@@ -736,6 +766,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             Some(&hints),
             None,
@@ -885,6 +916,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             Some(&req),
             None,
@@ -918,7 +950,10 @@ mod tests {
 
         let mut config = OrchestratorConfig::for_testing();
         config.attention_enabled = true;
-        config.attention_trust_routing_weight = 10.0;
+        // Keep weight moderate so UCB trust + exploration does not clamp both agents to the
+        // same ceiling (would make `max_by` tie-break on HashMap order).
+        config.attention_trust_routing_weight = 2.0;
+        config.routing_exploration_epsilon = 0.0;
 
         let mut trust = HashMap::new();
         trust.insert(
@@ -931,6 +966,8 @@ mod tests {
                 successful_outcomes: 2,
                 below_tier_streak: 0,
                 last_updated_ms: 0,
+                variance: 0.10,
+                is_override: false,
             },
         );
         trust.insert(
@@ -943,6 +980,8 @@ mod tests {
                 successful_outcomes: 19,
                 below_tier_streak: 0,
                 last_updated_ms: 0,
+                variance: 0.05,
+                is_override: false,
             },
         );
 
@@ -952,6 +991,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             None,
             None,
@@ -997,6 +1037,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             None,
             None,

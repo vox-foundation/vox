@@ -9,6 +9,7 @@ import { registerVcsCommands, UndoRedoManager } from './vcs/SnapshotProvider';
 import { GamifyManager } from './gamify/GamifyManager';
 import { AgentController } from './agents/AgentController';
 import { registerCommandCatalogCommand } from './commands/commandCatalog';
+import { registerCanonicalJourneyChecklist } from './commands/canonicalJourneyChecklist';
 import { registerModelCommands } from './commands/model';
 import { SidebarProvider } from './SidebarProvider';
 import { registerOratioSpeechCommands } from './speech/registerOratioSpeechCommands';
@@ -64,6 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Model Commands ───────────────────────────────────────────────────
     registerModelCommands(context, mcp);
+    registerCanonicalJourneyChecklist(context, mcp);
     registerCommandCatalogCommand(context);
     registerOratioSpeechCommands(context, mcp);
 

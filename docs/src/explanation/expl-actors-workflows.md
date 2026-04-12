@@ -5,6 +5,8 @@ category: "explanation"
 last_updated: 2026-04-06
 status: "current"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Actors & Workflows
 

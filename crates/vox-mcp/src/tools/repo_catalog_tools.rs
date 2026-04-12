@@ -88,8 +88,35 @@ fn record_catalog_refresh_observation(
     });
 }
 
+async fn get_catalog(
+    state: &ServerState,
+) -> Result<vox_repository::ResolvedRepoCatalog, vox_repository::RepoCatalogError> {
+    let manifest_path = vox_repository::repo_catalog_manifest_path(&state.repository.root);
+    let mtime = std::fs::metadata(&manifest_path)
+        .and_then(|m| m.modified())
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+    {
+        let cache = state.catalog_cache.read().await;
+        if let Some(cached) = &*cache {
+            if cached.manifest_mtime == mtime {
+                return Ok(cached.resolved.clone());
+            }
+        }
+    }
+
+    let resolved = vox_repository::resolve_repo_catalog(&state.repository.root)?;
+    let mut cache = state.catalog_cache.write().await;
+    *cache = Some(crate::server::CachedCatalog {
+        resolved: resolved.clone(),
+        manifest_mtime: mtime,
+    });
+
+    Ok(resolved)
+}
+
 pub async fn repo_catalog_list(state: &ServerState) -> String {
-    match vox_repository::resolve_repo_catalog(&state.repository.root) {
+    match get_catalog(state).await {
         Ok(catalog) => ToolResult::ok(catalog).to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(format!("{e}"), REM_REPO_CATALOG).to_json()
@@ -110,6 +137,8 @@ pub async fn repo_catalog_refresh(state: &ServerState) -> String {
                     "repository_count": result.catalog.repositories.len(),
                 }),
             );
+            // Invalidate the cache by removing it
+            *state.catalog_cache.write().await = None;
             ToolResult::ok(result).to_json()
         }
         Err(e) => {
@@ -130,7 +159,13 @@ pub async fn repo_query_text(
     state: &ServerState,
     params: vox_repository::QueryTextParams,
 ) -> String {
-    match vox_repository::repo_query_text_with_plane(&state.repository.root, &params, "mcp") {
+    let catalog = get_catalog(state).await.ok();
+    match vox_repository::repo_query_text_with_plane(
+        &state.repository.root,
+        &params,
+        "mcp",
+        catalog.as_ref(),
+    ) {
         Ok(response) => {
             record_query_metric(
                 state,
@@ -151,7 +186,13 @@ pub async fn repo_query_file(
     state: &ServerState,
     params: vox_repository::QueryFileParams,
 ) -> String {
-    match vox_repository::repo_query_file_with_plane(&state.repository.root, &params, "mcp") {
+    let catalog = get_catalog(state).await.ok();
+    match vox_repository::repo_query_file_with_plane(
+        &state.repository.root,
+        &params,
+        "mcp",
+        catalog.as_ref(),
+    ) {
         Ok(response) => {
             record_query_metric(
                 state,
@@ -172,7 +213,13 @@ pub async fn repo_query_history(
     state: &ServerState,
     params: vox_repository::QueryHistoryParams,
 ) -> String {
-    match vox_repository::repo_query_history_with_plane(&state.repository.root, &params, "mcp") {
+    let catalog = get_catalog(state).await.ok();
+    match vox_repository::repo_query_history_with_plane(
+        &state.repository.root,
+        &params,
+        "mcp",
+        catalog.as_ref(),
+    ) {
         Ok(response) => {
             record_query_metric(
                 state,

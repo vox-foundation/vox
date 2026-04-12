@@ -3,6 +3,8 @@ title: "Contributing — parser and HIR"
 description: "Onboarding for vox-compiler frontend and HIR lowering"
 category: "how-to"
 last_updated: 2026-03-25
+
+schema_type: "HowTo"
 ---
 
 # Contributing — parser and HIR

@@ -148,6 +148,20 @@ mod tests {
     }
 
     #[test]
+    fn test_pure_scheduled_deprecated_tokens() {
+        let tokens = lex_tokens("@pure @scheduled @deprecated");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::AtPure,
+                Token::AtScheduled,
+                Token::AtDeprecated,
+                Token::Eof,
+            ]
+        );
+    }
+
+    #[test]
     fn test_symbols() {
         let tokens = lex_tokens("( ) [ ] { } : ? , . = -> |> | < >");
         let expected = vec![

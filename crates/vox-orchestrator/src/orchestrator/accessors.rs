@@ -26,6 +26,7 @@ impl Orchestrator {
                     normal_count: queue.depth_by_priority(crate::types::TaskPriority::Normal),
                     background_count: queue
                         .depth_by_priority(crate::types::TaskPriority::Background),
+                    doubted_count: queue.doubted_count(),
                     in_progress: queue.has_in_progress(),
                     completed: queue.completed_count(),
                     paused: queue.is_paused(),
@@ -82,6 +83,7 @@ impl Orchestrator {
             total_queued: agents.iter().map(|a| a.queued).sum(),
             total_in_progress: agents.iter().filter(|a| a.in_progress).count(),
             total_completed: agents.iter().map(|a| a.completed).sum(),
+            total_doubted: agents.iter().map(|a| a.doubted_count).sum(),
             locked_files: self.lock_manager.active_lock_count(),
             total_contention: self.lock_manager.contention_count(),
             total_weighted_load,

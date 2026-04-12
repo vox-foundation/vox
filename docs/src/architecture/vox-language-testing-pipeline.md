@@ -5,6 +5,9 @@ category: "architecture"
 status: "research"
 last_updated: 2026-04-04
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Vox Language Testing Pipeline
@@ -433,7 +436,7 @@ This three-mode model directly addresses your question about whether testing is 
                   │  Generated: @require, @ensure, fn body
                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  FIVE-STAGE DELIVERY GATE (vox-ars skill: vox.testing.validate) │
+│  FIVE-STAGE DELIVERY GATE (vox-skills skill: vox.testing.validate) │
 │                                                                 │
 │  Stage 1: Parse Gate      → AST valid?                         │
 │  Stage 2: Type Gate       → HIR + typeck pass?                 │
@@ -530,7 +533,7 @@ Internally: compile in `dev` mode → collect `TestDecl` nodes → run test harn
 
 ### 7.4 ARS Skill: `vox.testing.validate` (Delivery Gate)
 
-**New skill in `crates/vox-ars/skills/`**
+**New skill in `crates/vox-skills/skills/`**
 
 The five-stage delivery gate as an ARS skill:
 
@@ -699,7 +702,7 @@ vox build --mode=verify  → contracts as recoverable Result errors
 |---|---|
 | General testing research survey | `docs/src/architecture/automated-testing-research-2026.md` |
 | `FnDecl` AST (current state) | `crates/vox-compiler/src/ast/decl/fundecl.rs` |
-| ARS runtime | `crates/vox-ars/src/runtime.rs` |
+| ARS runtime | `crates/vox-skills/src/runtime.rs` |
 | WASI sandbox backend | Greenfield arch → `docs/src/architecture/architecture-index.md` |
 | `vox-test-harness` (Rust harness) | `crates/vox-test-harness/src/lib.rs` |
 | `vox-integration-tests` (pipeline tests) | `crates/vox-integration-tests/README.md` |

@@ -1,4 +1,4 @@
-use crate::PublisherConfig;
+﻿use crate::PublisherConfig;
 use crate::contract::{DEFAULT_TWITTER_API_BASE, TWITTER_TEXT_CHUNK_MAX};
 use crate::types::{TwitterConfig, UnifiedNewsItem};
 use anyhow::{Result, anyhow};

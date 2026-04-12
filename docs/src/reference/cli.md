@@ -4,6 +4,8 @@ description: "Documentation for cli.md"
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 
@@ -168,6 +170,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `workflow-scripts` | Fail if `.github/workflows/*.yml` references `scripts/…` not in `docs/agents/workflow-script-allowlist.txt` |
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
 | `mesh-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/populi/gates.yaml` steps (CLI falls back to `scripts/mens/gates.yaml` if present). **`--isolated-runner`** builds `vox-cli` under OS temp `…/vox-targets/<repo-hash>/mens-gate-safe` by default (override `--gate-build-target-dir`), copies `vox` to a temp path, and re-invokes the gate (**Windows + Unix**; avoids file locks). Hidden alias: `--windows-isolated-runner`. Legacy argv alias: `mens-gate`. Optional `--gate-log-file <path>` tees child output. |
+| `mens-corpus-health`, `grpo-reward-baseline`, `collateral-damage-gate`, `constrained-gen-smoke` | **Placeholders** (print-only; no DB, corpus, or GRPO checks). Prefer **`mesh-gate`** and **`vox mens corpus …`** for real gates. Clap `--help` on each subcommand also marks placeholder intent. |
 | `toestub-self-apply` | `cargo build -p vox-toestub --release` then full-repo `toestub` scan (replaces `scripts/toestub_self_apply.*`) |
 | `toestub-scoped` | Default scan `crates/vox-repository` |
 | `scaling-audit verify \| emit-reports` | Scaling SSOT: validate `contracts/scaling/policy.yaml`; `emit-reports` regenerates per-crate backlog markdown + rollup + TOESTUB JSON on `crates/` |
@@ -175,10 +178,14 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `cuda-release-build` | `cargo build -p vox-cli --bin vox --release --features gpu,mens-candle-cuda` with tee to `mens/runs/logs/cuda_build_<UTC>.log` (same intent as workspace alias **`cargo vox-cuda-release`** / `scripts/populi/cursor_background_cuda_build.ps1`; needs nvcc + MSVC toolchain on Windows) |
 | `data-ssot-guards` | Fast static checks for telemetry / DB SSOT drift: `vox mens watch-telemetry` keys vs Populi schema, required policy docs, and no `COALESCE(metric_value, …)` in codex `research_metrics` paths |
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`, `vox-cli --features oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
-| `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
+| `grammar-export-check` | Emits EBNF/GBNF/Lark/JSON-Schema from `vox-grammar-export`; fails on empty output or zero rules (wired in **main** `.github/workflows/ci.yml`). |
+| `grammar-drift` | Compare/update EBNF SHA-256 vs `mens/data/grammar_fingerprint.txt` (+ Populi twin); `--emit github` / `--emit gitlab` for CI. **Primary workflow:** `.github/workflows/ml_data_extraction.yml` (data/ML lane), not the default Linux `ci.yml` job. |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
 | `nomenclature-guard` | Enforces the English-first crate naming policy (Phase 5). |
 | `secret-env-guard [--all]` | Fails if Rust files add direct managed-secret env reads outside allowed modules (default: `git diff` changed files; set **`VOX_SECRET_GUARD_GIT_REF`** to a merge-base range on clean CI checkouts; `--all` scans all crates). |
+| `sql-surface-guard [--all]` | Fails if sources use `connection().query(` / `connection().execute(` outside [`docs/agents/sql-connection-api-allowlist.txt`](../../../docs/agents/sql-connection-api-allowlist.txt) plus built-in `vox-db` / `vox-compiler` prefixes (see [`docs/agents/database-nomenclature.md`](../../../docs/agents/database-nomenclature.md)). |
+| `query-all-guard [--all]` | Fails if sources call the Codex `query_all` facade escape hatch outside [`docs/agents/query-all-allowlist.txt`](../../../docs/agents/query-all-allowlist.txt) plus `crates/vox-db/` (same nomenclature doc). |
+| `turso-import-guard [--all]` | Fails if sources use the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-pm` / `vox-compiler` prefixes ([codex-turso-allowlist](../architecture/codex-turso-allowlist.md)). |
 | `clavis-parity` | Verifies Clavis managed secret names are synchronized with `docs/src/reference/clavis-ssot.md`. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
@@ -187,6 +194,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `completion-ingest [--report <path>] [--workflow …] [--run-kind …]` | Inserts the audit report into VoxDB **`ci_completion_*`** tables (optional telemetry; requires a working local/default DB) |
 | `rust-ecosystem-policy` | Runs focused rust ecosystem contract parity checks (`cargo test -p vox-compiler --test rust_ecosystem_support_parity`) for faster local iteration than full CI suites |
 | `policy-smoke` | Fast bundle: `cargo check -p vox-orchestrator`, in-process `command-compliance`, and `cargo test -p vox-compiler --test rust_ecosystem_support_parity` (same parity test as `rust-ecosystem-policy`) |
+| `gui-smoke` | GUI regression bundle: always runs `cargo test -p vox-compiler --test web_ir_lower_emit`; when **`VOX_WEB_VITE_SMOKE=1`**, also runs ignored `web_vite_smoke`; when **`VOX_GUI_PLAYWRIGHT=1`**, runs ignored `playwright_golden_route` (requires `pnpm install` + `pnpm exec playwright install chromium` under `crates/vox-integration-tests`) |
 | `coverage-gates` | Compares `cargo llvm-cov report --json --summary-only` output to `.config/coverage-gates.toml`: `--summary-json <path>`, `--config` (default `.config/coverage-gates.toml`), `--mode warn\|enforce` (GitHub/GitLab CI uses **`enforce`** with `workspace_min_lines_percent` in `.config/coverage-gates.toml`). Run this **after** `cargo llvm-cov nextest --workspace --profile ci`; the **`report`** subcommand does not accept `--workspace` (it merges the prior instrumented run’s profraw data). |
 | `command-sync [--write]` | Regenerates or verifies [`cli-command-surface.generated.md`](cli-command-surface.generated.md) from `command-registry.yaml` (after `operations-sync --target cli`, run `--write` to refresh the table) |
 | `operations-verify` | Validates [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) vs committed MCP/CLI/capability registries (strict projections), dispatch + input schemas + read-role governance, inventory JSON |
@@ -198,7 +206,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `openclaw-contract` | Validates OpenClaw protocol fixture contracts under `contracts/openclaw/protocol/` (required event/response shapes). |
 | `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
-| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
@@ -515,7 +523,7 @@ With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** O
 - **Corpus mix `asr_refine`** — in mix YAML, set `record_format: asr_refine` on a source whose JSONL lines match **`mens/schemas/asr_refine_pairs.schema.json`** (`noisy_text` / `corrected_text`); output lines are **`prompt`/`response`** JSON for `train.jsonl`.
 - **Corpus mix `tool_trace`** — set `record_format { tool_trace` for JSONL lines shaped like **`ToolTraceRecord`** in `vox-corpus` (`task_prompt`, `tool_name`, `arguments_json`, `result_json`, `success`, optional `followup_text`); schema **`mens/schemas/tool_trace_record.schema.json`**, example lines **`mens/data/tool_traces.example.jsonl`**. Emitted rows use **`category`: `tool_trace`** for **`--context-filter tool_trace`** during training.
 
-- **`--features mens-dei`**: enables **`vox train`** (local provider **bails** with the canonical **`vox mens train --backend qlora …`** command; Together API; **`--native`** Burn scratch) and `vox mens` surfaces that call **`vox-dei-d`** (generate, review, workflow, check, fix). RPC **method names** are centralized in [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs) (`crate::dei_daemon::method::*`) so CLI and daemon stay aligned. **`vox mens review`** uses `ai.review`; it does **not** embed the old TOESTUB/Fabrica/CodeRabbit tree.
+- **`--features mens-dei`**: enables **`vox train`** (local provider **bails** with the canonical **`vox mens train --backend qlora …`** command; Together API; **`--native`** Burn scratch) and `vox mens` surfaces that call **`vox-orchestrator-d`** (generate, review, workflow, check, fix). RPC **method names** are centralized in [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs) (`crate::dei_daemon::method::*`) so CLI and daemon stay aligned. **`vox mens review`** uses `ai.review`; it does **not** embed the old TOESTUB/Fabrica/CodeRabbit tree.
 - **`--features dei`**: **`vox dei`** (alias **`vox orchestrator`**) — DEI orchestrator CLI (`commands::dei`); build with `cargo build -p vox-cli --features dei`. Subcommands include **`status`**, **`submit <description> [--files …] [--priority urgent|background] [--session-id <id>]`** (session groups context like MCP `session_id`), **`assistant`**: multi-line stdin submit loop with **`--session-id`** (default `cli-assistant`) and optional **`--files`** / **`--priority`**, **`queue`**, **`rebalance`**, **`config`**, **`pause`/`resume`**, **`save`/`load`**, **`undo`/`redo`**. Workspace/snapshot/oplog (JSON on stdout, same payloads as MCP **`vox_workspace_*`**, **`vox_snapshot_*`**, **`vox_oplog`**): **`vox dei workspace create <agent_id>`**, **`vox dei workspace status <agent_id>`**, **`vox dei workspace merge <agent_id>`**, **`vox dei snapshot list [--agent-id <id>] [--limit <n>]`**, **`vox dei snapshot diff <before> <after>`**, **`vox dei snapshot restore <snapshot_id>`** (`S-` prefix optional), **`vox dei oplog list [--agent-id <id>] [--limit <n>]`**, **`vox dei takeover-status [--agent-id <id>] [--human]`** (repo + workspace + short snapshot/oplog tails; **`--human`** prints a short summary before the JSON).
 - **`--features coderabbit`**: enables **`vox review coderabbit`** — GitHub/CodeRabbit batch flows in Rust (`crates/vox-cli/src/commands/review/coderabbit/`). Build: `cargo build -p vox-cli --features coderabbit` (often pair with `mens-base` if you omit default features: `--no-default-features --features coderabbit,mens-base`). Set **`GITHUB_TOKEN`** or **`GH_TOKEN`**.
 
@@ -610,7 +618,7 @@ Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 | `src/templates.rs` | Embedded Vite/React scaffold strings for `bundle` / `run` |
 | `src/fs_utils.rs` | Directory helpers, `resolve_vox_runtime_path`, script-cache GC |
 | `src/dispatch_protocol.rs` | JSON line types shared by `dispatch.rs` and `compilerd` |
-| `src/dei_daemon.rs` | Stable **`vox-dei-d`** RPC method ids + `call()` wrapper (spawn error hints) |
+| `src/dei_daemon.rs` | Stable **`vox-orchestrator-d`** RPC method ids + `call()` wrapper (spawn error hints) |
 | `src/dispatch.rs` | Spawn `vox-compilerd` / named daemons, stream responses; `DAEMON_SPAWN_FAILED_PREFIX` for consistent spawn-failure text (`dei_daemon` enriches errors) |
 | `src/compilerd.rs` | In-process stdio RPC implementation for `vox-compilerd` |
 | `src/watcher.rs` | `notify` watch helper for `compilerd` `dev` rebuilds |
@@ -762,7 +770,7 @@ Daemon dispatch lives in [`crates/vox-cli/src/compilerd.rs`](../../../crates/vox
 
 ## `vox-orchestrator-d` (orchestrator daemon sidecar)
 
-`vox-orchestrator-d` is built from the orchestrator crate (not `vox-cli`) and exposes JSON-line `orch.*` methods for MCP sidecar pilots.
+`vox-orchestrator-d` is built from the orchestrator crate (not `vox-cli`) and exposes JSON-line `orch.*` methods for MCP sidecar pilots. Optional ADR 022 sidecar: **`vox-orchestrator-d`** can run as a long-lived process (`VOX_ORCHESTRATOR_DAEMON_SOCKET` TCP/stdio). MCP currently uses a split-plane transition model: daemon-aligned RPC pilots may own task/agent lifecycle slices, but many VCS/context/event/session features still read embedded stores unless explicitly moved behind daemon contracts.
 
 - Build: `cargo build -p vox-orchestrator --bin vox-orchestrator-d`
 - Run (TCP): `VOX_ORCHESTRATOR_DAEMON_SOCKET=127.0.0.1:9745 target/debug/vox-orchestrator-d`

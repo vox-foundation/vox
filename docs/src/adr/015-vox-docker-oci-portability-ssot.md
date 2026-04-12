@@ -4,6 +4,8 @@ description: "Formalizes Docker/OCI-backed application portability, layered SSOT
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Status

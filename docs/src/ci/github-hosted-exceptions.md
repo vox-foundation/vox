@@ -4,6 +4,8 @@ description: "Official documentation for GitHub-hosted runner exceptions for the
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # GitHub-hosted runner exceptions
@@ -13,6 +15,7 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 | Workflow | Runner | Reason |
 |----------|--------|--------|
 | `docs-deploy.yml` | `ubuntu-latest` | GitHub Pages deploy + mdBook; portable Pages API. |
+| `docs-quality.yml` | `ubuntu-latest` | mdBook + `vox-doc-pipeline --check` + link/SUMMARY gates; no self-hosted pool dependency; matches other docs-advisory jobs. |
 | `link_checker.yml` | `ubuntu-latest` | External link checks; no secrets to self-hosted pool. |
 | `release-binaries.yml` | `windows-latest`, `macos-latest` (×2 targets: x86_64 and aarch64 macOS jobs) | Publish tagged Windows/macOS binaries; Linux **build** lane remains self-hosted; **publish** job runs on Linux self-hosted. |
 

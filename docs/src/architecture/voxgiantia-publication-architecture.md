@@ -4,6 +4,8 @@ description: "Beginner-friendly map of how VoxGiantia turns one manifest into mu
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # VoxGiantia publication architecture (beginner map)

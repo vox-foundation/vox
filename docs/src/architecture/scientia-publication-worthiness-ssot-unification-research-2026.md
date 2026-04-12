@@ -6,6 +6,9 @@ status: "research"
 sort_order: 14
 last_updated: 2026-04-06
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # SCIENTIA publication-worthiness and SSOT unification (research 2026)

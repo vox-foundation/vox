@@ -4,6 +4,8 @@ description: "Execution-grade implementation plan for lock-bound Docker/OCI port
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Mission

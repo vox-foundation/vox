@@ -18,7 +18,7 @@ pub enum RepoAccessMode {
     RemoteSearchService,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "json-schema", derive(JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum RepoCapability {
@@ -74,10 +74,15 @@ impl Default for RepositoryDescriptor {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[cfg_attr(feature = "json-schema", derive(JsonSchema))]
+#[serde(default)]
 pub struct RepoCatalog {
     pub schema_version: u32,
+    /// The canonical working repository for this session. When set, write-capable
+    /// tools must be constrained to this repository's resolved root.
+    /// Defaults to the repository where `.vox/repositories.yaml` lives.
+    pub primary_repository_id: Option<String>,
     pub repositories: Vec<RepositoryDescriptor>,
 }
 
@@ -105,6 +110,8 @@ pub struct ResolvedRepositoryDescriptor {
 pub struct ResolvedRepoCatalog {
     pub schema_version: u32,
     pub manifest_path: String,
+    pub primary_repository_id: Option<String>,
+    pub primary_resolved_root: Option<String>,
     pub repositories: Vec<ResolvedRepositoryDescriptor>,
 }
 

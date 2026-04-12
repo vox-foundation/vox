@@ -36,3 +36,37 @@ fn context_envelope_projection_validates_against_contract_schema() {
         .validate(&instance)
         .expect("validate against schema");
 }
+
+#[test]
+fn context_envelope_sign_and_verify_obo_token() {
+    let retrieval = vox_orchestrator::SessionRetrievalEnvelope {
+        retrieval_tier: "hybrid".to_string(),
+        memory_hit_count: 0,
+        knowledge_hit_count: 0,
+        chunk_hit_count: 0,
+        repo_hit_count: 0,
+        rrf_fused_hit_count: 0,
+        used_vector: false,
+        used_bm25: false,
+        used_lexical_fallback: false,
+        contradiction_count: 0,
+        source_diversity: 0,
+        evidence_quality: 0.0,
+        citation_coverage: 0.0,
+        verification_performed: false,
+        verification_reason: None,
+        recommended_next_action: None,
+    };
+    let envelope =
+        vox_orchestrator::ContextEnvelope::from_session_retrieval("repo", "session", &retrieval);
+    let key = b"my_super_secret_session_key_12345";
+
+    assert!(envelope.obo_token.is_none());
+    assert!(!envelope.verify(key));
+
+    let signed = envelope.sign(key);
+    assert!(signed.obo_token.is_some());
+    assert!(signed.verify(key));
+
+    assert!(!signed.verify(b"wrong_key"));
+}

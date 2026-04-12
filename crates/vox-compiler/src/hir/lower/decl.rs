@@ -25,6 +25,9 @@ impl LowerCtx {
             is_async: false,
             is_pub: f.is_pub,
             is_mobile_native: f.is_mobile_native,
+            is_pure: f.is_pure,
+            is_deprecated: f.is_deprecated,
+            schedule_interval: None,
             span: f.span,
         }
     }

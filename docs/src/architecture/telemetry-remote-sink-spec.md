@@ -4,6 +4,8 @@ description: "Normative behavior for optional vox telemetry upload: transport, a
 category: "architecture"
 last_updated: 2026-04-02
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Telemetry remote sink specification

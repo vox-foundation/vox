@@ -2,11 +2,11 @@
 
 #![cfg(feature = "stt-sherpa")]
 
-use std::sync::Mutex;
-use anyhow::{Context, Result};
-use sherpa_rs::offline_recognizer::{OfflineRecognizer, OfflineRecognizerConfig};
 use super::asr_backend::{AsrBackend, AsrOutput};
 use super::sherpa_model_config::resolve_sherpa_model_paths;
+use anyhow::{Context, Result};
+use sherpa_rs::offline_recognizer::{OfflineRecognizer, OfflineRecognizerConfig};
+use std::sync::Mutex;
 
 /// Oratio Sherpa-ONNX backend. Thread-safe via Mutex; one session per process.
 pub struct SherpaOnnxBackend {
@@ -21,19 +21,23 @@ impl SherpaOnnxBackend {
             paths.model_onnx.to_str().context("model path UTF-8")?,
             paths.tokens_txt.to_str().context("tokens path UTF-8")?,
         );
-        let recognizer = OfflineRecognizer::new(cfg)
-            .map_err(|e| anyhow::anyhow!("Sherpa-ONNX init: {e}"))?;
+        let recognizer =
+            OfflineRecognizer::new(cfg).map_err(|e| anyhow::anyhow!("Sherpa-ONNX init: {e}"))?;
         tracing::info!(
             target: "vox_oratio_sherpa",
             event = "sherpa_backend_init",
             "Sherpa-ONNX backend initialized"
         );
-        Ok(Self { inner: Mutex::new(recognizer) })
+        Ok(Self {
+            inner: Mutex::new(recognizer),
+        })
     }
 }
 
 impl AsrBackend for SherpaOnnxBackend {
-    fn name(&self) -> &'static str { "sherpa-onnx" }
+    fn name(&self) -> &'static str {
+        "sherpa-onnx"
+    }
 
     fn transcribe_pcm(
         &self,
@@ -41,7 +45,9 @@ impl AsrBackend for SherpaOnnxBackend {
         sample_rate: u32,
         _language: Option<&str>,
     ) -> Result<AsrOutput> {
-        let mut rec = self.inner.lock()
+        let mut rec = self
+            .inner
+            .lock()
             .map_err(|_| anyhow::anyhow!("SherpaOnnxBackend mutex poisoned"))?;
 
         // sherpa-rs expects f32 mono PCM at 16 kHz; resample if needed.
@@ -51,7 +57,8 @@ impl AsrBackend for SherpaOnnxBackend {
             std::borrow::Cow::Owned(resample_to_16k(pcm, sample_rate)?)
         };
 
-        let stream = rec.create_stream()
+        let stream = rec
+            .create_stream()
             .map_err(|e| anyhow::anyhow!("create_stream: {e}"))?;
         stream.accept_waveform(16_000, &pcm_16k);
         rec.decode_stream(&stream)
@@ -75,7 +82,8 @@ fn resample_to_16k(pcm: &[f32], from_hz: u32) -> Result<Vec<f32>> {
     let mut pos = 0usize;
     let in_chunk = resampler.input_frames_next();
     while pos + in_chunk <= pcm.len() {
-        let frames = resampler.process(&[&pcm[pos..pos + in_chunk]], None)
+        let frames = resampler
+            .process(&[&pcm[pos..pos + in_chunk]], None)
             .map_err(|e| anyhow::anyhow!("rubato process: {e}"))?;
         out.extend_from_slice(&frames[0]);
         pos += in_chunk;
@@ -84,7 +92,8 @@ fn resample_to_16k(pcm: &[f32], from_hz: u32) -> Result<Vec<f32>> {
     if pos < pcm.len() {
         let mut tail = pcm[pos..].to_vec();
         tail.resize(in_chunk, 0.0);
-        let frames = resampler.process(&[&tail], None)
+        let frames = resampler
+            .process(&[&tail], None)
             .map_err(|e| anyhow::anyhow!("rubato tail: {e}"))?;
         let useful = ((pcm.len() - pos) as f64 * ratio) as usize;
         out.extend_from_slice(&frames[0][..useful.min(frames[0].len())]);

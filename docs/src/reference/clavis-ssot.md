@@ -2,8 +2,10 @@
 title: "Clavis SSOT"
 description: "Canonical secret-management source of truth for Vox Clavis"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: 2026-04-11
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Clavis SSOT
@@ -37,7 +39,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
 | `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
 | `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
-| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
+| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `DATACITE_REPOSITORY`, `DATACITE_PASSWORD`, `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `TAVILY_API_KEY`, `TAVILY_PROJECT`, `X_TAVILY_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` (plus `VOX_*` aliases for DataCite, ORCID, Tavily where listed below) | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref / DataCite / ORCID / Tavily clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
 | `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
 | `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
@@ -53,88 +55,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 
 ## Managed Secret Env Names
 
-- `GEMINI_API_KEY`
-- `VOX_GEMINI_API_KEY`
-- `GOOGLE_AI_STUDIO_KEY`
-- `OPENROUTER_API_KEY`
-- `VOX_OPENROUTER_API_KEY`
-- `OPENAI_API_KEY`
-- `VOX_OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `VOX_ANTHROPIC_API_KEY`
-- `HF_TOKEN`
-- `VOX_HF_TOKEN`
-- `HUGGING_FACE_HUB_TOKEN`
-- `GITHUB_TOKEN`
-- `VOX_GITHUB_TOKEN`
-- `VOX_NEWS_GITHUB_TOKEN`
-- `GH_TOKEN`
-- `FORGE_TOKEN`
-- `VOX_FORGE_TOKEN`
-- `GITLAB_TOKEN`
-- `GL_TOKEN`
-- `VOX_NEWS_TWITTER_TOKEN`
-- `VOX_NEWS_OPENCOLLECTIVE_TOKEN`
-- `VOX_SOCIAL_REDDIT_CLIENT_ID`
-- `VOX_SOCIAL_REDDIT_CLIENT_SECRET`
-- `VOX_SOCIAL_REDDIT_REFRESH_TOKEN`
-- `VOX_SOCIAL_REDDIT_USER_AGENT`
-- `VOX_SOCIAL_YOUTUBE_CLIENT_ID`
-- `VOX_SOCIAL_YOUTUBE_CLIENT_SECRET`
-- `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN`
-- `ZENODO_ACCESS_TOKEN`
-- `VOX_ZENODO_ACCESS_TOKEN`
-- `OPENREVIEW_EMAIL`
-- `VOX_OPENREVIEW_EMAIL`
-- `OPENREVIEW_ACCESS_TOKEN`
-- `VOX_OPENREVIEW_ACCESS_TOKEN`
-- `OPENREVIEW_PASSWORD`
-- `VOX_OPENREVIEW_PASSWORD`
-- `POPULI_API_KEY`
-- `VOX_POPULI_API_KEY`
-- `CROSSREF_PLUS_API_KEY`
-- `VOX_CROSSREF_PLUS_API_KEY`
-- `VOX_ARXIV_ASSIST_HANDOFF_SECRET`
-- `GROQ_API_KEY`
-- `VOX_GROQ_API_KEY`
-- `CEREBRAS_API_KEY`
-- `VOX_CEREBRAS_API_KEY`
-- `MISTRAL_API_KEY`
-- `VOX_MISTRAL_API_KEY`
-- `DEEPSEEK_API_KEY`
-- `VOX_DEEPSEEK_API_KEY`
-- `SAMBANOVA_API_KEY`
-- `VOX_SAMBANOVA_API_KEY`
-- `CUSTOM_OPENAI_API_KEY`
-- `VOX_CUSTOM_OPENAI_API_KEY`
-- `V0_API_KEY`
-- `VOX_V0_API_KEY`
-- `VOX_OPENCLAW_TOKEN`
-- `TOGETHER_API_KEY`
-- `VOX_TOGETHER_API_KEY`
-- `VOX_RUNPOD_API_KEY`
-- `VOX_VAST_API_KEY`
-- `VOX_API_KEY`
-- `VOX_BEARER_TOKEN`
-- `VOX_WEBHOOK_INGRESS_TOKEN`
-- `VOX_WEBHOOK_SIGNING_SECRET`
-- `VOX_DB_URL`
-- `VOX_TURSO_URL`
-- `TURSO_URL`
-- `VOX_DB_TOKEN`
-- `VOX_TURSO_TOKEN`
-- `TURSO_AUTH_TOKEN`
-- `VOX_TELEMETRY_UPLOAD_URL`
-- `VOX_TELEMETRY_UPLOAD_TOKEN`
-- `VOX_SEARCH_QDRANT_API_KEY`
-- `VOX_MESH_TOKEN`
-- `VOX_MESH_WORKER_TOKEN`
-- `VOX_MESH_SUBMITTER_TOKEN`
-- `VOX_MESH_ADMIN_TOKEN`
-- `VOX_MESH_JWT_HMAC_SECRET`
-- `VOX_MESH_WORKER_RESULT_VERIFY_KEY`
-- `VOX_MCP_HTTP_BEARER_TOKEN`
-- `VOX_MCP_HTTP_READ_BEARER_TOKEN`
+{{#include ../../../contracts/clavis/managed-env-names.md}}
 
 ## Resolution Precedence
 

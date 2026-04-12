@@ -24,11 +24,15 @@ pub struct UnifiedNewsItem {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyndicationConfig {
     pub twitter: Option<TwitterConfig>,
+    pub bluesky: Option<BlueskyConfig>,
     pub forge: Option<ForgeConfig>,
     pub open_collective: Option<OpenCollectiveConfig>,
     pub reddit: Option<RedditConfig>,
     pub hacker_news: Option<HackerNewsConfig>,
     pub youtube: Option<YouTubeConfig>,
+    pub mastodon: Option<MastodonConfig>,
+    pub linkedin: Option<LinkedInConfig>,
+    pub discord: Option<DiscordConfig>,
     pub crates_io: Option<CratesIoConfig>,
     #[serde(default)]
     pub distribution_policy: DistributionPolicyConfig,
@@ -96,6 +100,38 @@ pub struct TwitterConfig {
     pub short_text: Option<String>,
     #[serde(default)]
     pub thread: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlueskyConfig {
+    pub text: Option<String>,
+    #[serde(default)]
+    pub link_facet: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MastodonConfig {
+    pub status: Option<String>,
+    #[serde(default)]
+    pub visibility: Option<String>, // public, unlisted, private, direct
+    #[serde(default)]
+    pub sensitive: bool,
+    #[serde(default)]
+    pub spoiler_text: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinkedInConfig {
+    pub text: Option<String>,
+    #[serde(default)]
+    pub visibility: Option<String>, // "PUBLIC" or "CONNECTIONS"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DiscordConfig {
+    pub message: Option<String>,
+    #[serde(default)]
+    pub tts: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

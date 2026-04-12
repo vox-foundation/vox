@@ -5,6 +5,8 @@ category: "reference"
 status: "current"
 last_updated: "2026-04-08"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Reference: Web Model

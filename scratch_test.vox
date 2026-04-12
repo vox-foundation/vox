@@ -1,0 +1,9 @@
+fn main() {
+    let x = 42;
+    ret x;
+}
+
+@table type User {
+    id: int
+    name: str
+}

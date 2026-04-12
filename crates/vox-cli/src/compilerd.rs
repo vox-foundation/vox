@@ -200,7 +200,7 @@ async fn dispatch_one(req: &DispatchRequest) -> anyhow::Result<()> {
 async fn handle_build(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: BuildParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\": \"...\", \"out_dir\": \"...\" }}")?;
-    crate::commands::build::run(&p.file, &p.out_dir, None, false)
+    crate::commands::build::run(&p.file, &p.out_dir, None, false, false)
         .await
         .context("build failed")?;
     finish_ok(&req.id, Value::Null).await
@@ -209,7 +209,13 @@ async fn handle_build(req: &DispatchRequest) -> anyhow::Result<()> {
 async fn handle_check(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: CheckParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\": \"...\" }}")?;
-    crate::commands::check::run(&p.file, None)
+    let args = crate::cli_args::CheckArgs {
+        file: p.file,
+        emit_ir: false,
+        emit_training_jsonl: None,
+        output_format: "text".to_string(), // Human-readable log interleaving is preferred for daemon
+    };
+    crate::commands::check::run(&args)
         .await
         .context("check failed")?;
     finish_ok(&req.id, Value::Null).await
@@ -288,12 +294,18 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
     }
     let out_dir = PathBuf::from("dist");
     let t0 = Instant::now();
-    crate::commands::check::run(&p.file, None)
+    let args = crate::cli_args::CheckArgs {
+        file: p.file.clone(),
+        emit_ir: false,
+        emit_training_jsonl: None,
+        output_format: "text".to_string(),
+    };
+    crate::commands::check::run(&args)
         .await
         .context("check (profile) failed")?;
     let t_check = t0.elapsed();
     let t1 = Instant::now();
-    crate::commands::build::run(&p.file, &out_dir, None, false)
+    crate::commands::build::run(&p.file, &out_dir, None, false, false)
         .await
         .context("build (profile) failed")?;
     let t_build = t1.elapsed();
@@ -332,7 +344,7 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     let out_dir = PathBuf::from(p.out_dir);
     config::set_process_vox_port(p.port);
 
-    crate::commands::build::run(&file, &out_dir, None, false)
+    crate::commands::build::run(&file, &out_dir, None, false, false)
         .await
         .context("initial dev build failed")?;
 
@@ -381,7 +393,7 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
         let out_dir = out_dir.clone();
         let req_id = req_id.clone();
         async move {
-            if let Err(e) = crate::commands::build::run(&file, &out_dir, None, false).await {
+            if let Err(e) = crate::commands::build::run(&file, &out_dir, None, false, false).await {
                 if write_resp(
                     &req_id,
                     DispatchPayload::Log {

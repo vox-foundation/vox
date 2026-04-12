@@ -4,8 +4,11 @@ description: "External landscape for what gets read and cited; feasibility for V
 category: "architecture"
 status: "research"
 sort_order: 12
-last_updated: 2026-04-02
+last_updated: 2026-04-12
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # SCIENTIA impact, readership, and citation-adjacent signals
@@ -15,6 +18,7 @@ This document is the **single research anchor** for extending SCIENTIA beyond **
 - [SCIENTIA publication automation SSOT](scientia-publication-automation-ssot.md) (automation boundaries),
 - Novelty ledger contracts under `contracts/scientia/` (finding-candidate, novelty-evidence-bundle),
 - Tunable parameter seed: [`contracts/scientia/impact-readership-projection.seed.v1.yaml`](../../../contracts/scientia/impact-readership-projection.seed.v1.yaml).
+- [SCIENTIA multi-platform ranking, discovery, and anti-slop SSOT (research 2026)](scientia-multi-platform-ranking-discovery-research-2026.md) — social vs scholarly ranking surfaces, ingest vs syndicate, and operator KPI sketches complementary to impact projection.
 
 **Non-goals:** Vox does not claim to *predict* future citations authoritatively. The feasible product is an **inspectable, contract-weighted projection** used for **prioritization, routing, and operator transparency**, never as a hard publish/deny gate without human review.
 
@@ -33,7 +37,7 @@ Solid, citable references for implementation seeds:
 
 1. **Bibliometric APIs (observed counts, not forecasts)**  
    - **OpenAlex**: open work metadata, citation counts, open citation graph facets—good for **post-hoc** and **comparable-work** baselines.  
-   - **Crossref / DataCite**: DOI-level metadata and event data in some configurations; useful for **discoverability** and **persistence** more than prediction.  
+   - **Crossref / DataCite**: DOI-level metadata; Crossref’s separate **Event Data** mention stream is **sunset 2026-04-23** (see [multi-platform ranking research](scientia-multi-platform-ranking-discovery-research-2026.md) §4.12 / Crossref blog). Useful for **discoverability** and **persistence** more than prediction.  
    - **Semantic Scholar**: citation counts; **highly influential citation** labeling uses ML over full-text citation contexts (useful conceptually; Vox may only see API summaries without full text).
 
 2. **Citation *prediction* (research systems, heavy ML)**  
@@ -86,3 +90,4 @@ This section **does not replace** code review; it records architectural debt to 
 | Date | Change |
 | --- | --- |
 | 2026-04-02 | Initial research seed, external survey, phased feasibility, critique of heuristic novelty work, link to projection seed YAML. |
+| 2026-04-12 | Crossref Event Data sunset note (pointer to multi-platform research §4.12). |

@@ -4,6 +4,8 @@ description: "Official documentation style guide for the Vox language, covering 
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Vox Documentation Style Guide
 

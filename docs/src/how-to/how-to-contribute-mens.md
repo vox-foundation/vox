@@ -3,6 +3,8 @@ title: "Contributing — Mens native training"
 description: "Onboarding for vox-populi tensor / vox mens train paths"
 category: "how-to"
 last_updated: 2026-03-25
+
+schema_type: "HowTo"
 ---
 
 # Contributing — Mens training (native)

@@ -11,4 +11,5 @@ pub mod external_review_replay;
 pub mod synthetic_gen;
 pub mod synthetic_search_gen;
 pub mod tool_workflow_corpus;
+pub mod research_gen;
 pub mod training;

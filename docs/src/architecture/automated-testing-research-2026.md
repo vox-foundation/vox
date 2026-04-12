@@ -5,6 +5,9 @@ category: "architecture"
 status: "research"
 last_updated: 2026-04-04
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Automated Testing Research for the Vox Language
@@ -12,7 +15,7 @@ training_eligible: true
 
 > **Status:** Research Document — April 2026  
 > **Author:** Bert Brainerd
-> **Related:** `vox-test-harness`, `vox-eval`, `vox-integration-tests`, `vox-ars`, `vox-compiler`, `vox-lsp`  
+> **Related:** `vox-test-harness`, `vox-eval`, `vox-integration-tests`, `vox-skills`, `vox-compiler`, `vox-lsp`  
 > **Canonical path:** `docs/src/architecture/automated-testing-research-2026.md`
 
 ---
@@ -24,7 +27,7 @@ This document answers two questions:
 1. **Is automated test generation for the Vox language possible and desirable?** — Yes on both counts, with meaningful nuance.
 2. **What does the state of the art tell us about how to do it well?** — The field has converged on a layered model: language-native test syntax → property/fuzz testing → LLM-guided generation → feedback-driven self-healing within sandboxed execution, all governed by strict budget and safety guardrails.
 
-Vox is in a uniquely strong position to pursue this because it already has a compiler pipeline, a WASI/sandbox backend in its greenfield architecture, an ARS (Automated Reasoning System) for skill orchestration, an existing `vox-test-harness` crate, and a native AI stack (`vox-populi`). The question is not *whether* to build this, but *which layers to build in which order* to avoid overengineering.
+Vox is in a uniquely strong position to pursue this because it already has a compiler pipeline, a WASI/sandbox backend in its greenfield architecture, a skills system (`vox-skills`) for tool orchestration, an existing `vox-test-harness` crate, and a native AI stack (`vox-populi`). The question is not *whether* to build this, but *which layers to build in which order* to avoid overengineering.
 
 ---
 
@@ -227,7 +230,7 @@ The phrase **"use red/green TDD"** in prompts is now a recognized behavioral sig
 | `vox-test-harness` | Shared test infrastructure | HIR builders, span dummies, pipeline helpers, assertions — foundation already exists |
 | `vox-integration-tests` | Full pipeline tests: parse → HIR → typeck → codegen | Covers 10+ test files; the pattern (define Vox source as string → assert on output) is the scaffold for snapshot testing |
 | `vox-eval` | Parse rate, construct coverage metrics for ML | Can be extended for test coverage metrics |
-| `vox-ars` | Skill execution runtime (Pending → Succeeded/Failed) | Natural host for the test synthesis + repair loop |
+| `vox-skills` | Skill execution runtime (Pending → Succeeded/Failed) | Natural host for the test synthesis + repair loop |
 | `vox-populi` | Native LLM training/inference (QLoRA on RTX 4080) | Can be fine-tuned on Vox test patterns; corpus generation for test examples |
 | WASI/Sandbox backend | Greenfield architecture (compiler → WASI output) | Already exists; needs wiring to a controlled execution context for generated code |
 | `vox-lsp` | Language server | Integration point for CodeLens ("Run Test") and publishDiagnostics (test failure inline markers) |
@@ -482,7 +485,7 @@ Given current codebase state (April 2026):
 ## 9. Connections to Existing Vox Architecture Documents
 
 - **Telemetry and observability SSOT:** `docs/src/architecture/telemetry-trust-ssot.md`
-- **ARS runtime:** `crates/vox-ars/src/runtime.rs`
+- **Skills runtime:** `crates/vox-skills/src/runtime.rs`
 - **WASI sandbox backend:** `docs/src/architecture/architecture-index.md` (Greenfield architecture diagram)
 - **TOESTUB enforcement:** `crates/vox-toestub/`
 - **Corpus pipeline:** `crates/vox-corpus/`

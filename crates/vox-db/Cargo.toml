@@ -12,6 +12,7 @@ tokio = { workspace = true }
 thiserror = { workspace = true }
 sha3 = { workspace = true }
 bincode = { workspace = true }
+vox-clavis = { workspace = true }
 vox-repository = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -20,6 +21,8 @@ chrono = { workspace = true }
 blake3 = { workspace = true }
 data-encoding = { workspace = true }
 keyring = { workspace = true }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [features]
 default = ["local"]

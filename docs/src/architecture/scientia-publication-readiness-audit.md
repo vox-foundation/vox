@@ -4,6 +4,8 @@ description: "Architecture audit of SCIENTIA publication workflows against core 
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## SCIENTIA publication readiness audit

@@ -12,6 +12,7 @@ impl crate::VoxDb {
     // ── Agent Events (agent_events) ──────────────────────────────────────────
 
     /// Insert a row into `agent_events` for telemetry tracking.
+    /// Prefers the dedicated writer actor for high-concurrency safety.
     pub async fn record_agent_event(
         &self,
         agent_id: &str,
@@ -19,6 +20,17 @@ impl crate::VoxDb {
         payload_json: &str,
         cli_version: &str,
     ) -> Result<i64, StoreError> {
+        if let Some(writer) = &self.writer {
+            return writer
+                .insert_agent_event(
+                    agent_id.to_string(),
+                    event_type.to_string(),
+                    Some(payload_json.to_string()),
+                    Some(cli_version.to_string()),
+                )
+                .await;
+        }
+
         let agent_id = agent_id.to_string();
         let event_type = event_type.to_string();
         let payload_json = payload_json.to_string();
@@ -195,7 +207,7 @@ impl crate::VoxDb {
         let mut rows = self
             .conn
             .query(
-                "SELECT agent_id, reliability FROM agent_reliability ORDER BY reliability DESC",
+                "SELECT entity_id, reliability FROM reliability_scores WHERE entity_type = 'agent' ORDER BY reliability DESC",
                 (),
             )
             .await?;
@@ -217,7 +229,7 @@ impl crate::VoxDb {
             .call(|| async move {
                 let mut rows = conn
                     .query(
-                        "SELECT reliability FROM agent_reliability WHERE agent_id = ?1 LIMIT 1",
+                        "SELECT reliability FROM reliability_scores WHERE entity_type = 'agent' AND entity_id = ?1 LIMIT 1",
                         params![agent_id.as_str()],
                     )
                     .await?;
@@ -255,12 +267,12 @@ impl crate::VoxDb {
             .call(|| async move {
                 if success {
                     conn.execute(
-                        "INSERT INTO agent_reliability (agent_id, success_count, failure_count,
+                        "INSERT INTO reliability_scores (entity_type, entity_id, success_count, failure_count,
                              reliability, updated_at_ms)
-                         VALUES (?1, 1, 0,
+                         VALUES ('agent', ?1, 1, 0,
                              CAST(2 AS REAL) / CAST(3 AS REAL),
                              ?2)
-                         ON CONFLICT(agent_id) DO UPDATE SET
+                         ON CONFLICT(entity_type, entity_id) DO UPDATE SET
                              success_count  = success_count + 1,
                              reliability    = CAST(success_count + 2 AS REAL)
                                             / CAST(success_count + failure_count + 3 AS REAL),
@@ -270,12 +282,12 @@ impl crate::VoxDb {
                     .await?;
                 } else {
                     conn.execute(
-                        "INSERT INTO agent_reliability (agent_id, success_count, failure_count,
+                        "INSERT INTO reliability_scores (entity_type, entity_id, success_count, failure_count,
                              reliability, updated_at_ms)
-                         VALUES (?1, 0, 1,
+                         VALUES ('agent', ?1, 0, 1,
                              CAST(1 AS REAL) / CAST(3 AS REAL),
                              ?2)
-                         ON CONFLICT(agent_id) DO UPDATE SET
+                         ON CONFLICT(entity_type, entity_id) DO UPDATE SET
                              failure_count  = failure_count + 1,
                              reliability    = CAST(success_count + 1 AS REAL)
                                             / CAST(success_count + failure_count + 3 AS REAL),
@@ -348,8 +360,8 @@ impl crate::VoxDb {
         let mut rows = self
             .conn
             .query(
-                "SELECT agent_id, reliability, success_count, failure_count
-             FROM agent_reliability WHERE reliability >= ?1 ORDER BY reliability DESC LIMIT ?2",
+                "SELECT entity_id, reliability, success_count, failure_count
+             FROM reliability_scores WHERE entity_type = 'agent' AND reliability >= ?1 ORDER BY reliability DESC LIMIT ?2",
                 params![min_reliability, lim],
             )
             .await?;

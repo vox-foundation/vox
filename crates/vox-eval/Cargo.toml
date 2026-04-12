@@ -9,6 +9,7 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 log = "0.4"
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]
 workspace = true

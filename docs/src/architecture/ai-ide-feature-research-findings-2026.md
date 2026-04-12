@@ -5,6 +5,9 @@ category: "architecture"
 status: "research"
 last_updated: 2026-03-31
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # AI IDE feature research findings 2026

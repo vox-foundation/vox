@@ -40,7 +40,9 @@ pub trait LogitProcessor: Send {
     }
 
     /// Called once when a new decode pass starts.
-    fn reset_for_decode(&mut self) {}
+    fn reset_for_decode(&mut self) {
+        let _ = ();
+    }
 
     /// Returns adjusted logits for this step.
     fn apply(&mut self, _ctx: &LogitStepContext, logits: &Tensor) -> Result<Tensor> {
@@ -48,7 +50,9 @@ pub trait LogitProcessor: Send {
     }
 
     /// Observe the selected token so stateful processors can advance.
-    fn on_token_decoded(&mut self, _token: u32) {}
+    fn on_token_decoded(&mut self, _token: u32) {
+        let _ = std::hint::black_box(_token);
+    }
 }
 
 /// No-op processor used by default.
@@ -274,20 +278,13 @@ fn try_load_lexicon_path(path: &Path) -> Option<crate::speech_lexicon::SpeechLex
 
 fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
     let mut acc = crate::speech_lexicon::SpeechLexicon::default();
-    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
+    if let Ok(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSpeechLexiconPath).expose() {
         let path = Path::new(p.trim());
         if let Some(lex) = try_load_lexicon_path(path) {
             acc.merge_from(lex);
         }
     }
-    let repo_root = std::env::var("VOX_REPOSITORY_ROOT")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            std::env::var("VOX_REPO_ROOT")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-        });
+    let repo_root = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose().ok();
     if let Some(root) = repo_root {
         let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
         if let Some(lex) = try_load_lexicon_path(&candidate) {
@@ -309,7 +306,7 @@ fn phrase_list_for_bias() -> Vec<String> {
     if let Some(lex) = load_lexicon_from_env() {
         out.extend(lex.bias_phrases_sorted(256));
     }
-    if let Ok(hot) = std::env::var("VOX_ORATIO_SESSION_HOTWORDS") {
+    if let Ok(hot) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords).expose() {
         out.extend(crate::contextual_bias::parse_hotword_csv(&hot));
     }
     let mut seen = HashSet::new();
@@ -318,7 +315,7 @@ fn phrase_list_for_bias() -> Vec<String> {
 }
 
 fn trie_phrase_list() -> Vec<String> {
-    std::env::var(ENV_CONSTRAINED_PHRASES)
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioConstrainedPhrases)
         .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
         .unwrap_or_default()
 }
@@ -330,11 +327,11 @@ pub fn build_logit_processor(
 ) -> Result<Box<dyn LogitProcessor>> {
     let mut chain: Vec<Box<dyn LogitProcessor>> = Vec::new();
 
-    let bias_strength = std::env::var(ENV_LOGIT_BIAS_STRENGTH)
+    let bias_strength = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitBiasStrength)
         .ok()
         .and_then(|s| s.parse::<f32>().ok())
         .unwrap_or_else(|| cfg.map(|c| c.bias_strength).unwrap_or(0.8));
-    let max_bias_tokens = std::env::var(ENV_LOGIT_BIAS_MAX_TOKENS)
+    let max_bias_tokens = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitBiasMaxTokens)
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(|| cfg.map(|c| c.bias_max_tokens).unwrap_or(256))
@@ -362,7 +359,7 @@ pub fn build_logit_processor(
         }
     }
 
-    let forbidden: Vec<u32> = std::env::var(ENV_LOGIT_FORBID_TOKENS)
+    let forbidden: Vec<u32> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitForbidTokens)
         .ok()
         .map(|s| {
             s.split([',', ';', ' ', '\n'])
@@ -375,11 +372,11 @@ pub fn build_logit_processor(
     }
 
     let trie_on = matches!(
-        std::env::var(ENV_CONSTRAINED_TRIE),
-        Ok(v) if v == "1" || v.eq_ignore_ascii_case("true")
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioConstrainedTrie),
+        Some(v) if v == "1" || v.eq_ignore_ascii_case("true")
     ) || cfg.map(|c| c.constrained_trie).unwrap_or(false);
     if trie_on {
-        let max_stuck = std::env::var(ENV_TRIE_STUCK_STEPS)
+        let max_stuck = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioTrieStuckSteps)
             .ok()
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or_else(|| cfg.map(|c| c.trie_stuck_steps).unwrap_or(2));

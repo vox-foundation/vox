@@ -88,12 +88,6 @@ fn unix_now() -> i64 {
 }
 
 impl VoxDb {
-    /// Ensure the `populi_training_run` table exists.
-    async fn ensure_training_run_table(&self) -> Result<(), StoreError> {
-        // Baseline migration creates `populi_training_run`; keep hook for call sites.
-        Ok(())
-    }
-
     /// **CREATE** — persist a new training run at status `running`.
     ///
     /// Idempotent: if `run_id` already exists (e.g. a previous incomplete run)
@@ -102,7 +96,6 @@ impl VoxDb {
         &self,
         params: &TrainingRunStartParams,
     ) -> Result<(), StoreError> {
-        self.ensure_training_run_table().await?;
         let now = unix_now();
         let run_id = params.run_id.clone();
         let adapter_tag = params.adapter_tag.clone();
@@ -144,7 +137,6 @@ impl VoxDb {
         &self,
         run_id: &str,
     ) -> Result<Option<TrainingRunRecord>, StoreError> {
-        self.ensure_training_run_table().await?;
         let rows = self
             .connection()
             .query(
@@ -181,7 +173,6 @@ impl VoxDb {
         last_loss: Option<f32>,
         checkpoint_path: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.ensure_training_run_table().await?;
         let now = unix_now();
         self.conn
             .execute(
@@ -212,7 +203,6 @@ impl VoxDb {
         global_step: u32,
         final_adapter_path: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.ensure_training_run_table().await?;
         let now = unix_now();
         let run_id = run_id.to_string();
         let final_adapter_path = final_adapter_path.map(str::to_string);
@@ -248,7 +238,6 @@ impl VoxDb {
         run_id: &str,
         global_step: u32,
     ) -> Result<(), StoreError> {
-        self.ensure_training_run_table().await?;
         let now = unix_now();
         let run_id = run_id.to_string();
         let breaker = self.breaker.clone();
@@ -275,7 +264,6 @@ impl VoxDb {
         &self,
         limit: u32,
     ) -> Result<Vec<TrainingRunRecord>, StoreError> {
-        self.ensure_training_run_table().await?;
         let rows = self
             .connection()
             .query(

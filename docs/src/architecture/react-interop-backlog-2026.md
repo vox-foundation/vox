@@ -4,6 +4,8 @@ description: "Granular checklist derived from the mega-plan workstreams (WS01–
 category: "architecture"
 last_updated: 2026-04-08
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # React interop backlog (2026)

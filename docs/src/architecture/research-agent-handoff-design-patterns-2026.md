@@ -1,5 +1,10 @@
 ---
-title: Design Pattern Recommendations for Platform Gaps
+title: "Design Pattern Recommendations for Platform Gaps"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **8\. Design Pattern Recommendations for Platform Gaps**
 

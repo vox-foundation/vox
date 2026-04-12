@@ -1,5 +1,10 @@
 ---
-title: Production Evidence: Context Truncation as a Silent Failure Mode
+title: "Production Evidence: Context Truncation as a Silent Failure Mode"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **6\. Production Evidence: Context Truncation as a Silent Failure Mode**
 

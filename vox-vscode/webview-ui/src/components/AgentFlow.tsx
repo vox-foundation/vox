@@ -49,6 +49,21 @@ const TaskNode = ({ data }: { data: Record<string, unknown> }) => {
     nodeClass = 'node-blocked';
     Icon = ShieldAlert;
     iconClass = 'text-amber-500';
+  } else if (data.status === 'Doubted' || (typeof data.status === 'string' && data.status.includes('Doubted'))) {
+    statusColor = 'rose';
+    nodeClass = 'node-doubted border-double border-4';
+    Icon = AlertCircle;
+    iconClass = 'text-rose-500 animate-pulse';
+  } else if (data.status === 'Validated') {
+    statusColor = 'emerald';
+    nodeClass = 'node-validated';
+    Icon = CheckCircle2;
+    iconClass = 'text-emerald-500';
+  } else if (data.status === 'Overruled') {
+    statusColor = 'rose';
+    nodeClass = 'node-overruled shadow-[0_0_20px_rgba(239,68,68,0.4)]';
+    Icon = ShieldAlert;
+    iconClass = 'text-rose-600';
   }
 
   return (
@@ -62,9 +77,20 @@ const TaskNode = ({ data }: { data: Record<string, unknown> }) => {
         <p className="text-xs font-semibold text-white/90 leading-relaxed mb-4">{String(data.description ?? '')}</p>
         <div className="flex items-center justify-between">
           <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-400 font-mono italic">@{String(data.agent_id ?? '')}</span>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] text-zinc-500 font-mono">{String(data.priority ?? '')}</span>
-            {data.mode ? <span className={`text-[9px] font-bold uppercase text-${statusColor}-500 opacity-80 mt-1`}>{String(data.mode)}</span> : null}
+            {data.mode ? <span className={`text-[9px] font-bold uppercase text-${statusColor}-500 opacity-80`}>{String(data.mode)}</span> : null}
+            {data.status === 'Completed' && (
+                <button
+                    className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-rose-500/50 text-rose-500/80 hover:bg-rose-500 hover:text-white transition-all mt-1"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        vscode.postMessage({ type: 'doubtTask', taskId: String(data.id) });
+                    }}
+                >
+                    🚩 Doubt
+                </button>
+            )}
           </div>
         </div>
       </div>

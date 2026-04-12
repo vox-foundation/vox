@@ -2,6 +2,8 @@
 title: "OpenClaw Discovery and Sidecar SSOT"
 description: "SSOT for OpenClaw endpoint resolution order, discovery env vars and cache behavior, managed openclaw-gateway sidecar install and doctor controls, failure modes, and vox ci openclaw-contract fixture locations."
 category: "reference"
+
+schema_type: "TechArticle"
 ---
 
 # OpenClaw Discovery + Sidecar SSOT
@@ -17,7 +19,7 @@ Vox resolves OpenClaw endpoints in this order:
 3. upstream discovery (`/.well-known/openclaw.json`)
 4. deterministic local defaults
 
-The shared resolver lives in `crates/vox-ars/src/openclaw_discovery.rs` and is consumed by CLI, MCP, and runtime adapter connect paths.
+The shared resolver lives in `crates/vox-skills/src/openclaw_discovery.rs` and is consumed by CLI, MCP, and runtime adapter connect paths.
 
 ## Discovery inputs
 

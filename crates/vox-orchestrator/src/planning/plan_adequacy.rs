@@ -15,6 +15,13 @@ pub struct PlanAdequacyTask {
     pub files: Vec<String>,
     pub estimated_complexity: u8,
     pub depends_on: Vec<usize>,
+    #[serde(default)]
+    pub test_decision: Option<crate::planning::test_decision::TestDecision>,
+    /// Explicit preconditions that must hold before this task executes.
+    /// Research (Plan Adequacy §3) proves state-mutating steps without
+    /// preconditions are a primary source of silent plan failures.
+    #[serde(default)]
+    pub preconditions: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,6 +32,46 @@ pub struct TaskGapFinding {
     pub task_confidence: f32,
 }
 
+/// LLM-as-judge rubric scores from Socrates evaluation (each 0–10).
+/// Research (Plan Adequacy §2) proves regex/keyword vagueness detection is
+/// trivially gamed; structured rubric evaluation catches semantic gaps.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct RubricScores {
+    /// Does the plan cover all goal requirements?
+    pub coverage: u8,
+    /// Are preconditions and dependencies correctly ordered?
+    pub dependency_ordering: u8,
+    /// Are destructive operations properly safeguarded?
+    pub destructive_safety: u8,
+    /// Are action verbs clear, unvague, and distinct?
+    pub concreteness: u8,
+    /// Is there a test, assertion, or validation step?
+    pub verification: u8,
+}
+
+impl RubricScores {
+    /// Weighted aggregate score normalised to `[0.0, 1.0]`.
+    pub fn weighted_score(&self) -> f32 {
+        let raw = (self.coverage as f32 * 0.25)
+            + (self.dependency_ordering as f32 * 0.15)
+            + (self.destructive_safety as f32 * 0.25)
+            + (self.concreteness as f32 * 0.20)
+            + (self.verification as f32 * 0.15);
+        (raw / 10.0).clamp(0.0, 1.0)
+    }
+
+    /// Build from the tuple returned by [`super::orient::SocratesPlanJudge::parse_evaluation_scores`].
+    pub fn from_tuple(t: (u8, u8, u8, u8, u8)) -> Self {
+        Self {
+            coverage: t.0,
+            dependency_ordering: t.1,
+            destructive_safety: t.2,
+            concreteness: t.3,
+            verification: t.4,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PlanAdequacySummary {
     /// 0.0 = structurally thin .. 1.0 = adequate for estimated complexity
@@ -33,6 +80,9 @@ pub struct PlanAdequacySummary {
     pub reason_codes: Vec<String>,
     pub detail_target_min_tasks: usize,
     pub estimated_goal_complexity: u8,
+    /// LLM-as-judge rubric scores (populated when Socrates evaluation is available).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rubric_scores: Option<RubricScores>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -44,76 +94,123 @@ pub struct PlanRefinementReport {
     pub adequacy: PlanAdequacySummary,
 }
 
-/// Word-count heuristic aligned with [`super::intake_router::complexity_heuristic`].
-pub fn estimate_goal_word_complexity(goal: &str) -> u8 {
-    let words = goal.split_whitespace().count() as u8;
-    if words <= 6 {
-        2
-    } else if words <= 16 {
-        5
-    } else if words <= 30 {
-        7
-    } else {
-        9
-    }
-}
-
-/// Optional bump when the router already classified the goal (search intent, etc.).
+/// Replaced word-count proxy. Now relies exclusively on explicit router or Socrates complexity sizing.
 pub fn effective_goal_complexity(goal: &str, router_hint: Option<u8>) -> u8 {
-    let base = estimate_goal_word_complexity(goal);
-    router_hint.map(|h| h.max(base)).unwrap_or(base)
+    vox_socrates_policy::SocratesComplexityJudge::estimate_complexity(goal, router_hint)
 }
 
-fn danger_keywords() -> &'static [&'static str] {
-    &[
-        "rm -rf",
-        "delete all",
-        "drop database",
-        "truncate table",
-        "force push",
-        "chmod 777",
-        "format c:",
-        "mkfs",
-        "dd if=",
-    ]
-}
-
-fn vague_phrases() -> &'static [&'static str] {
-    &[
-        "fix stuff",
-        "clean up",
-        "misc",
-        "various",
-        "todo",
-        "something",
-        "somehow",
-        "refactor everything",
-        "placeholder",
-        "tbd",
-        "stub",
-    ]
-}
-
-/// Single-source text checks for orchestrator [`super::quality_gate`] (no dependency graph / complexity).
+/// Structural text checks for orchestrator [`super::quality_gate`].
+///
+/// Research (Plan Adequacy §2) proves keyword blacklists (`TBD`, `figure out`)
+/// generate mass false negatives. These checks focus on *structural* defects
+/// that are objectively detectable without LLM inference:
+/// - Descriptions too short to be actionable
+/// - Missing action verbs (passive/vague phrasing)
+/// - Unguarded destructive operations
 pub fn orchestrator_node_text_findings(description: &str) -> Vec<&'static str> {
-    let mut out = Vec::new();
-    let dl = description.to_ascii_lowercase();
-    if description.trim().len() < 12 {
-        out.push("vague_short");
+    let mut findings = Vec::new();
+    let trimmed = description.trim();
+    let lower = trimmed.to_ascii_lowercase();
+
+    // ── Too short to be actionable (< 12 chars or < 3 words)
+    if trimmed.len() < 12 || trimmed.split_whitespace().count() < 3 {
+        findings.push("vague_short");
     }
-    for ph in vague_phrases() {
-        if dl.contains(ph) {
-            out.push("vague_phrase");
-            break;
-        }
+
+    // ── Destructive operations without safeguard language
+    let destructive_patterns = [
+        "rm -rf",
+        "drop table",
+        "drop database",
+        "truncate",
+        "delete all",
+        "wipe",
+        "nuke",
+        "format disk",
+        "purge",
+    ];
+    let safeguard_patterns = [
+        "backup",
+        "snapshot",
+        "confirm",
+        "dry-run",
+        "dry_run",
+        "safeguard",
+        "rollback",
+        "revert",
+    ];
+    let has_destructive = destructive_patterns.iter().any(|p| lower.contains(p));
+    let has_safeguard = safeguard_patterns.iter().any(|p| lower.contains(p));
+    if has_destructive && !has_safeguard {
+        findings.push("risk_destructive");
     }
-    for kw in danger_keywords() {
-        if dl.contains(kw) {
-            out.push("risk_destructive");
-            break;
-        }
+
+    // ── No action verb in first 6 words (passive/vague phrasing)
+    let action_verbs = [
+        "add",
+        "create",
+        "implement",
+        "build",
+        "fix",
+        "refactor",
+        "remove",
+        "update",
+        "migrate",
+        "replace",
+        "wire",
+        "integrate",
+        "test",
+        "verify",
+        "validate",
+        "audit",
+        "review",
+        "document",
+        "deploy",
+        "configure",
+        "define",
+        "extend",
+        "extract",
+        "move",
+        "rename",
+        "delete",
+        "run",
+        "check",
+        "ensure",
+        "enforce",
+        "emit",
+        "parse",
+        "generate",
+        "write",
+        "read",
+        "load",
+        "save",
+        "send",
+        "receive",
+        "handle",
+        "process",
+        "transform",
+        "convert",
+        "normalize",
+        "compile",
+        "link",
+        "export",
+        "import",
+        "inject",
+        "wrap",
+        "unwrap",
+        "merge",
+        "split",
+        "set",
+    ];
+    let first_words: Vec<&str> = lower.split_whitespace().take(6).collect();
+    let has_verb = first_words
+        .iter()
+        .any(|w| action_verbs.iter().any(|v| w.starts_with(v)));
+    if !has_verb && trimmed.len() >= 12 {
+        findings.push("vague_phrase");
     }
-    out
+
+    findings
 }
 
 fn tasks_with_nonempty_files(tasks: &[PlanAdequacyTask]) -> usize {
@@ -218,23 +315,6 @@ fn detail_target_min_tasks(complexity: u8, depth_bonus: i8) -> usize {
     t
 }
 
-fn goal_implies_verification_needed(goal: &str) -> bool {
-    let g = goal.to_ascii_lowercase();
-    let coding = [
-        "implement",
-        "refactor",
-        "migrate",
-        "fix bug",
-        "fix the",
-        "add feature",
-        "change api",
-        "deprecat",
-        "schema",
-        "database",
-    ];
-    coding.iter().any(|k| g.contains(k))
-}
-
 fn goal_has_path_like_token(goal: &str) -> bool {
     let exts = [
         ".rs", ".toml", ".md", ".yaml", ".yml", ".json", ".vox", ".tsx", ".ts", ".js",
@@ -254,20 +334,6 @@ fn goal_has_path_like_token(goal: &str) -> bool {
         }
     }
     false
-}
-
-fn plan_has_verification_hint(tasks: &[PlanAdequacyTask]) -> bool {
-    tasks.iter().any(|t| {
-        let d = t.description.to_ascii_lowercase();
-        d.contains("test")
-            || d.contains("verify")
-            || d.contains("validation")
-            || d.contains("assert")
-            || d.contains("regression")
-            || d.contains("cargo test")
-            || d.contains("lint")
-            || d.contains("clippy")
-    })
 }
 
 fn apply_shared_text_gap_codes(
@@ -318,9 +384,28 @@ fn per_task_findings(tasks: &[PlanAdequacyTask]) -> (Vec<TaskGapFinding>, usize)
             codes.push("tbd_placeholder".to_string());
             score *= 0.7;
         }
-        if t.estimated_complexity >= 7 && !dl.contains("test") && !dl.contains("verify") {
-            codes.push("heavy_without_test_hint".to_string());
-            score *= 0.82;
+
+        // ── Precondition check (Task 3.2.2): state-mutating tasks must have preconditions
+        let is_state_mutating = !t.files.is_empty()
+            && t.files
+                .iter()
+                .any(|f| !f.is_empty() && !f.eq_ignore_ascii_case("tbd"))
+            && t.estimated_complexity >= 6;
+        if is_state_mutating && t.preconditions.is_empty() {
+            codes.push("precondition_missing".to_string());
+            score *= 0.70;
+        }
+        if t.test_decision == Some(crate::planning::test_decision::TestDecision::Required) {
+            let looks_like_test = dl.contains("test")
+                || dl.contains("verify")
+                || t.files
+                    .iter()
+                    .any(|f| f.to_ascii_lowercase().contains("test"));
+            if !looks_like_test {
+                codes.push("heavy_without_test_hint".to_string());
+                score *= 0.65; // stricter penalty for defying explicit test requirements
+                task_critical = true;
+            }
         }
         for &d in &t.depends_on {
             if !id_set.contains(&d) || d >= t.id {
@@ -427,13 +512,8 @@ fn compute_adequacy_summary(
         score *= 0.78;
     }
 
-    if goal_implies_verification_needed(goal)
-        && !plan_has_verification_hint(tasks)
-        && !tasks.is_empty()
-    {
-        thin_codes.push("missing_plan_verification".to_string());
-        score *= 0.72;
-    }
+    // Test verification is now evaluated per-task above. We no longer use holistic string math
+    // on the goal description to force verification hints into the plan structure.
 
     if tasks.len() >= 4 && tasks.iter().all(|t| t.depends_on.is_empty()) {
         thin_codes.push("flat_dependency_graph".to_string());
@@ -464,6 +544,7 @@ fn compute_adequacy_summary(
         reason_codes: thin_codes,
         detail_target_min_tasks: detail_target,
         estimated_goal_complexity: estimated,
+        rubric_scores: None, // Populated by callers with LLM access
     }
 }
 
@@ -591,6 +672,8 @@ pub fn plan_nodes_to_adequacy_tasks(nodes: &[super::PlanNode]) -> Vec<PlanAdequa
                 files,
                 estimated_complexity: inferred_cx.max(3),
                 depends_on: deps,
+                test_decision: None,
+                preconditions: vec![],
             }
         })
         .collect()
@@ -607,6 +690,8 @@ mod tests {
             files: vec![],
             estimated_complexity: cx,
             depends_on: vec![],
+            test_decision: None,
+            preconditions: vec![],
         }
     }
 
@@ -641,7 +726,15 @@ mod tests {
             sample_task(1, "audit current auth flows in crates/vox-auth", 5),
             sample_task(2, "finish migration and testing", 8),
         ];
-        let r = analyze_plan_refinement_report_with_prior(goal, 0, None, 0, &shrunk, Some(&prior), false);
+        let r = analyze_plan_refinement_report_with_prior(
+            goal,
+            0,
+            None,
+            0,
+            &shrunk,
+            Some(&prior),
+            false,
+        );
         assert!(
             r.adequacy
                 .reason_codes
@@ -650,6 +743,95 @@ mod tests {
             "{:?}",
             r.adequacy.reason_codes
         );
+    }
+
+    #[test]
+    fn precondition_missing_penalises_complex_mutating_task() {
+        let goal = "migrate database schema across all services";
+        let mut task = sample_task(
+            1,
+            "Update crates/vox-db schema and run migration scripts",
+            7,
+        );
+        task.files = vec!["crates/vox-db/src/schema.rs".to_string()];
+        // No preconditions set — should be flagged
+        let r = analyze_plan_refinement_report(goal, 0, None, 0, &[task], false);
+        assert!(
+            r.per_task[0]
+                .reason_codes
+                .iter()
+                .any(|c| c == "precondition_missing"),
+            "complex mutating task without preconditions should be flagged: {:?}",
+            r.per_task[0].reason_codes
+        );
+    }
+
+    #[test]
+    fn precondition_present_not_penalised() {
+        let goal = "migrate database schema";
+        let mut task = sample_task(
+            1,
+            "Update crates/vox-db schema and run migration scripts",
+            7,
+        );
+        task.files = vec!["crates/vox-db/src/schema.rs".to_string()];
+        task.preconditions = vec!["database_backup_complete == true".to_string()];
+        let r = analyze_plan_refinement_report(goal, 0, None, 0, &[task], false);
+        assert!(
+            !r.per_task[0]
+                .reason_codes
+                .iter()
+                .any(|c| c == "precondition_missing"),
+            "task with preconditions should not be flagged"
+        );
+    }
+
+    #[test]
+    fn rubric_scores_weighted_aggregate() {
+        let scores = RubricScores {
+            coverage: 10,
+            dependency_ordering: 10,
+            destructive_safety: 10,
+            concreteness: 10,
+            verification: 10,
+        };
+        assert!((scores.weighted_score() - 1.0).abs() < 0.01);
+
+        let low = RubricScores {
+            coverage: 0,
+            dependency_ordering: 0,
+            destructive_safety: 0,
+            concreteness: 0,
+            verification: 0,
+        };
+        assert!((low.weighted_score() - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn text_findings_detect_destructive_without_safeguard() {
+        let findings = orchestrator_node_text_findings("rm -rf /unused directory from disk");
+        assert!(findings.contains(&"risk_destructive"));
+    }
+
+    #[test]
+    fn text_findings_allow_destructive_with_safeguard() {
+        let findings = orchestrator_node_text_findings(
+            "rm -rf /unused directory after backup and dry-run verification",
+        );
+        assert!(!findings.contains(&"risk_destructive"));
+    }
+
+    #[test]
+    fn text_findings_detect_vague_short() {
+        let findings = orchestrator_node_text_findings("do stuff");
+        assert!(findings.contains(&"vague_short"));
+    }
+
+    #[test]
+    fn text_findings_detect_vague_phrase_no_verb() {
+        let findings =
+            orchestrator_node_text_findings("the database schema changes for the new version");
+        assert!(findings.contains(&"vague_phrase"));
     }
 
     #[test]

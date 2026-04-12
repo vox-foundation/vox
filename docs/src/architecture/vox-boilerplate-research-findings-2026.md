@@ -4,6 +4,8 @@ description: "Research findings on common boilerplate sources and reduction meth
 category: "architecture"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox boilerplate research findings 2026

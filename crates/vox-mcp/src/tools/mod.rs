@@ -11,6 +11,10 @@ pub mod chat_model_resolve;
 pub mod chat_socrates_meta;
 /// Chat, inline edit, ghost text, planning, and ambient editor decorations.
 pub mod chat_tools;
+/// Clavis credential tools.
+pub mod clavis_tools;
+/// Structured .vox diagnostics and repair tools.
+pub mod code_validator;
 /// Codex relational V17/V16 helpers over connected `VoxDb`.
 pub mod codex_tools;
 /// `cargo`/LSP validation helpers (`vox_validate_file`, `vox_run_tests`, ...).
@@ -18,8 +22,12 @@ pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
 mod dispatch;
+/// Execution time tracking tools.
+pub mod exec_time_tools;
 /// Thin `git` CLI wrappers scoped to the discovered git root.
 pub mod git_tools;
+/// Grammar export tools
+pub mod grammar_tools;
 mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
@@ -44,6 +52,7 @@ pub mod repo_catalog_tools;
 pub mod repo_index;
 /// Scientia publication lifecycle tools (manifest, approval, submission).
 pub mod scientia_tools;
+pub mod scope_guard;
 pub(crate) mod session_identity;
 /// Speech → codegen orchestration (`vox_speech_to_code`).
 pub mod speech_pipeline_tools;

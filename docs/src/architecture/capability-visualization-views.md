@@ -6,6 +6,8 @@ status: "current"
 sort_order: 13
 last_updated: 2026-03-31
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Capability visualization views

@@ -554,6 +554,37 @@ async fn replay_one_entry(db: &std::sync::Arc<vox_db::VoxDb>, entry: &serde_json
                 .await
                 .is_ok()
         }
+        Some("insert_telemetry_flat_raw") => {
+            let Some(agent_id) = replay.get("agent_id").and_then(serde_json::Value::as_str) else {
+                return false;
+            };
+            let Some(session_id) = replay.get("session_id").and_then(serde_json::Value::as_str)
+            else {
+                return false;
+            };
+            let Some(event_kind) = replay.get("event_kind").and_then(serde_json::Value::as_str)
+            else {
+                return false;
+            };
+            let repository_id = crate::lineage::repository_id();
+
+            db.insert_telemetry_flat_raw(
+                agent_id,
+                session_id,
+                &repository_id,
+                event_kind,
+                replay.get("tool_name").and_then(serde_json::Value::as_str),
+                replay.get("model_id").and_then(serde_json::Value::as_str),
+                replay.get("provider").and_then(serde_json::Value::as_str),
+                replay.get("duration_ms").and_then(serde_json::Value::as_i64),
+                replay.get("input_tokens").and_then(serde_json::Value::as_i64),
+                replay.get("output_tokens").and_then(serde_json::Value::as_i64),
+                replay.get("cost_usd").and_then(serde_json::Value::as_f64),
+                replay.get("payload_json").and_then(serde_json::Value::as_str),
+            )
+            .await
+            .is_ok()
+        }
         _ => false,
     }
 }

@@ -8,8 +8,37 @@
 
 </div>
 
+<p align="center">
+  <a href="https://vox-lang.org"><img src="https://img.shields.io/badge/docs-vox--lang.org-blue?style=flat-square" alt="Documentation"/></a>
+  <a href="https://github.com/vox-foundation/vox/releases"><img src="https://img.shields.io/github/v/release/vox-foundation/vox?style=flat-square&label=latest" alt="Latest Release"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License"/></a>
+  <a href="https://vox-lang.org/feed.xml"><img src="https://img.shields.io/badge/RSS-updates-orange?style=flat-square" alt="RSS Feed"/></a>
+</p>
+
 ---
-> **Early project.** The language, compiler, database layer, and MCP tooling work today. The distributed agent mesh and cross-node model routing are being built alongside them.
+<!-- Code examples in this file should mirror examples/golden/*.vox -->
+<!-- Run: vox check examples/golden/*.vox to verify -->
+> **v0.4 — April 2026.** Below is the current status of each major system area.
+>
+> | Area | Status |
+> |------|--------|
+> | Compiler — Vox source to TypeScript + Rust output | ✅ Production |
+> | `@table` / `@server` / `@query` / `@mutation` decorators | ✅ Production |
+> | `@island` UI (React + TanStack, client-side hydration) | ✅ Available |
+> | `workflow` / `actor` / `activity` keywords | ✅ Available |
+> | `@mcp.tool` — expose Vox functions to AI agents | ✅ Production |
+> | LSP server, VS Code extension, Oratio speech-to-code | ✅ Available |
+> | `vox populi` — local GPU inference and multi-provider routing | ✅ Available |
+> | `@v0` — v0.dev component generation (requires `V0_API_KEY`) | ✅ Available |
+> | Agent orchestration with MCP control surface | ✅ Available |
+> | Agent-to-agent messaging (in-process) | ✅ Available |
+> | Agent-to-agent messaging (HTTP relay, `populi-transport`) | ✅ Available (opt-in) |
+> | `vox bundle` — single-binary production build | ✅ Available |
+> | Distributed agent mesh (cross-machine task relay) | 🔄 In progress |
+> | Fine-tuning pipeline (GRPO / MENS) | 🔄 In progress |
+> | Grammar-constrained generation | 🔄 In progress |
+> | Full server-side rendering (TanStack Start, Wave 5+) | 🔄 In progress |
+> | Actor-internal state API | 🔄 In progress (syntax stabilizing) |
 
 <br>
 <p><em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em>
@@ -18,27 +47,51 @@
 
 ## Why Vox Exists
 
-When a language model needs to act on a system — retrieve data, mutate state, call a tool, write a workflow — it usually reaches for Python. Python fails silently at runtime: a generated script that mishandles a missing value won't error until it runs, and the model gets no feedback from the compiler. Vox gives models a compiled, verified surface instead. If generated code mishandles an absent value, drops an error, or mismatches a type, the compiler rejects it before anything executes.
-
-Our telemetry from fine-tuning on Vox shows ~40% fewer hallucinated field names versus equivalent Python generation tasks and ~3× fewer runtime-only failures in generated tool-call sequences.
-
-The same guarantee applies to human-written code — and a single language surface covering schema, server, and UI means developers stop chasing sync bugs between three separate layers.
+Software systems are becoming collaborative — not just between developers, but between developers and AI agents working side by side on the same codebase. Vox is designed for that world: a single compiled language covering database schema, server logic, UI, and agent tools, where both humans and models get immediate, structural feedback from the compiler rather than discovering problems at runtime.
 
 ## Design Principles
 
-- **Compiler as error boundary.** No `null`, no `undefined`. Absence is `Option[T]`; failure is `Result[T]`. Every branch must be handled — generated code that skips error handling does not build.
-- **One source of truth.** `@table`, `@server`, and `@island` live in the same file. The compiler generates the SQL schema, HTTP endpoint, and TypeScript client from one declaration.
+- **Compiler as error boundary.** No `null`, no `undefined`. Absence is `Option[T]`; failure is `Result[T]`. Every branch must be handled — code that skips error handling does not build.
+- **One source of truth.** `@table`, `@server`, and `@island` declared together; the compiler generates the SQL schema, HTTP endpoint, and TypeScript client from one declaration.
 - **Durability without a framework.** `workflow` and `actor` are language keywords, not libraries.
-- **AI-native tooling.** `@mcp.tool` turns any function into a callable tool for Claude, Cursor, or any MCP-compatible agent. The orchestrator, agent mesh, and model routing are built into the platform.
+- **AI-native by design.** `@mcp.tool` exposes any function as a callable tool for Claude, Cursor, or any MCP-compatible agent. Orchestration, agent mesh, and model routing are built into the platform.
 
 ---
 
-## The Language, Step by Step
+## The Language
 
-### Step 1 — Declare your data model once
+Here's a complete Vox program — a task tracker with a database table, a server endpoint, and a page:
 
 ```vox
-@require(len(self.title) > 0)
+@table type Task {      // defines database schema
+    title: str
+    done:  bool
+}
+
+@server fn complete_task(id: Id[Task]) to Result[Unit] {
+    db.Task.delete(id)
+    ret Ok(Unit)        // signals success; the caller must handle failure too
+}
+
+@island TaskList {      // a live, interactive component in the browser
+    tasks: list[Task]
+}
+
+component TaskPage() { // the static page that hosts it
+    view: <div><TaskList tasks=[...] /></div>
+}
+
+routes { "/" to TaskPage }
+```
+
+One file. The compiler generates the SQL schema, the server endpoint, and the browser-side code that connects them. There's no separate ORM configuration, no hand-written API route, no TypeScript interface to keep in sync. The steps below build this up from first principles.
+
+### Step 1 — Declare your data
+
+In most projects, a data type lives in three places at once: a database schema (SQL), a server model (TypeScript or Python class), and a client type. They drift apart silently. Vox collapses all three into one declaration:
+
+```vox
+@require(len(self.title) > 0)    // the compiler rejects empty titles on insert
 @table type Task {
     title:    str
     done:     bool
@@ -46,89 +99,78 @@ The same guarantee applies to human-written code — and a single language surfa
     owner:    str
 }
 
-@index Task.by_owner on (owner)
-@index Task.by_priority on (priority, done)
+@index Task.by_owner on (owner)  // the database index, declared next to the type
 ```
 
-`@require` is a compiler-enforced precondition on the type itself — generated insert paths check it before touching the database. `@index` emits DDL alongside the table migration.
+`@table` tells the compiler this type lives in the database. It generates the SQL table and handles schema migrations — the process of updating a live database when you change the shape of your data — automatically. `@require` is a rule the compiler bakes into every write path: it's not just a runtime check, it can't be bypassed. `@index` creates a database index for fast lookups by owner, declared right next to the type it belongs to.
 
-### Step 2 — Add server logic and queries
+### Step 2 — Write server functions
+
+A web application needs ways to read data, write data, and do custom logic. In Vox, you declare the intent with a decorator rather than wiring up a router by hand:
 
 ```vox
-@mutation
-fn add_task(title: str, owner: str) to Id[Task] {
-    ret db.insert(Task, { title: title, done: false, priority: 0, owner: owner })
-}
-
-@server fn complete_task(id: Id[Task]) to Result[Unit] {
-    db.Task.delete(id)
-    ret Ok(Unit)
-}
-
 @query
-fn recent_incomplete_tasks() to List[Task] {
+fn recent_tasks() to list[Task] {
+    // read-only; becomes a GET /api/query/recent_tasks endpoint automatically
     ret db.Task.where({ done: false }).order_by("priority", "desc").limit(10)
 }
-```
 
-`@mutation` wraps the write in a transaction and exposes `POST /api/mutation/add_task`. `@query` is read-only ( **`GET /api/query/<name>`** + JSON query args) and validated against your schema. `@server` is a general RPC endpoint (**`POST`** + JSON body).
-
-### Step 3 — Build the UI in the same language
-
-`complete_task` is a `@server` function. Vox generates the network call, serialization, and cross-boundary types — no fetch wrapper, no client SDK:
-
-```vox
-import react.use_state
-
-@island
-fn TaskList(tasks: List[Task]) to Element {
-    let (items, set_items) = use_state(tasks)
-
-    <div class="task-list">
-        {items.map(fn(task) {
-            <div class="task-row">
-                <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={fn(_e) complete_task(task.id)}
-                />
-                <span>{task.title}</span>
-            </div>
-        })}
-    </div>
-}
-
-@v0 "A minimal task dashboard with a sidebar nav and priority badges"
-fn TaskDashboard() to Element
-
-routes {
-    "/"         to TaskList
-    "/dashboard" to TaskDashboard
-}
-```
-
-`@v0` calls the v0.dev API at build time and drops normalized TSX into your output directory. Point it at a prompt or a design file (`@v0 from "mockup.png"`).
-
-### Step 4 — Handle absence and failure explicitly
-
-```vox
 @server fn get_task(id: Id[Task]) to Result[Task] {
     let row = db.Task.find(id)
     match row {
-        Some(t) -> Ok(t)
-        None    -> Error("task not found")
+        Some(t) -> Ok(t)           // task found: return it
+        None    -> Error("not found")  // task missing: return an error
     }
+}
+
+@mutation
+fn add_task(title: str, owner: str) to Id[Task] {
+    // writes are wrapped in a transaction automatically
+    ret db.insert(Task, { title: title, done: false, priority: 0, owner: owner })
 }
 ```
 
-### Step 5 — Add durable workflows and stateful actors
+`@query` exposes a read-only endpoint — the kind that should never change data, so Vox enforces that. `@mutation` wraps the write in a database transaction, meaning if something goes wrong partway through, the whole operation is rolled back cleanly. `@server` is for everything else — general-purpose logic with a `POST` endpoint.
+
+The return type `Result[Task]` is where Vox earns its keep: it forces every piece of code that calls `get_task` to handle *both* outcomes — the found case and the not-found case. There's no way to call this function and silently ignore the error. The compiler won't build code that does.
+
+### Step 3 — Build the UI
+
+Modern web apps split into two concerns: the **server**, which renders initial HTML and handles data, and the **browser**, which handles interactivity. In Vox, both live in the same file and share the same types:
 
 ```vox
+// An island is a piece of the page that's interactive in the browser
+@island TaskList {
+    tasks: list[Task]              // same Task type from Step 1 — no duplication
+    on_complete: fn(str) -> Unit   // a callback the browser can call
+}
+
+// A component is server-rendered — fast initial load, no JavaScript needed
+component TaskPage() {
+    view: <div className="task-list">
+        <TaskList tasks=[...] on_complete={complete_task} />
+    </div>
+}
+
+routes { "/" to TaskPage }
+```
+
+`@island` marks the parts of your UI that need to be interactive in the browser — the list that responds to clicks, not the static header. Everything else is `component`: rendered on the server, fast to load, and simple. The compiler generates the browser-side JavaScript for the island, the router configuration for `routes`, and the typed function that lets the island call the server's `complete_task` — you write none of that glue yourself.
+
+> **v0.dev integration:** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the generated component into `islands/src/TaskDashboard/`. The `@v0` build hook triggers this automatically during `vox build`.
+
+### Step 4 — Durable logic and AI tools
+
+Real applications need things that survive a server restart, can be retried on failure, and can be called by people *and* AI agents. Vox builds all three in at the language level:
+
+```vox
+// An activity is a step that can be retried independently if it fails
 activity charge_card(amount: int) to Result[str] {
     if amount > 1000 { ret Error("Amount too large") }
     ret Ok("tx_123")
 }
 
+// A workflow orchestrates activities and survives crashes — its state is durable
 workflow checkout(amount: int) to str {
     let result = charge_card(amount)
     match result {
@@ -136,47 +178,29 @@ workflow checkout(amount: int) to str {
         Error(msg) -> "Failed: " + msg
     }
 }
-```
 
-```vox
-actor RateLimiter {
-    on check(user_id: str) to Result[Unit] {
-        let hits = state_load(user_id) ?? 0
-        if hits >= 100 { ret Error("rate limit exceeded") }
-        state_save(user_id, hits + 1)
-        ret Ok(Unit)
-    }
-}
-```
-
-### Step 6 — Expose functions as AI tools
-
-```vox
-type SearchResult =
-    | Found(text: str, score: int)
-    | NotFound(query: str)
-
-@mcp.tool "Search the knowledge base for documents matching the query"
-fn search_knowledge(query: str, max_results: int) to SearchResult {
-    Found("Result for: " + query, 95)
+// One decorator makes this function callable by Claude, Cursor, or any AI agent
+@mcp.tool "Search the knowledge base"
+fn search_knowledge(query: str) to str {
+    "Result for: " + query
 }
 
+// Tests live in the same file, run with `vox test`
 @test
-fn test_search_returns_result() to Unit {
-    let r = search_knowledge("hello", 5)
-    assert(r is Found)
+fn test_search() to Unit {
+    assert(search_knowledge("hello") is str)
 }
 ```
+
+`workflow` and `actor` are keywords in the language, not third-party frameworks you install. A workflow tracks its own progress — if the server restarts halfway through `checkout`, it picks up where it left off. An `actor` is a named entity that receives typed messages and can hold its own state across many calls.
+
+`@mcp.tool` is one line that connects your function to the [Model Context Protocol](https://modelcontextprotocol.io) — the standard that lets AI assistants call tools in editors and agent pipelines. With one decorator, `search_knowledge` becomes something Claude or Cursor can invoke directly.
 
 More examples: [`examples/golden/`](examples/golden/).
 
-For a side-by-side, same-scenario comparison across C++23, Rust, Python, and Vox with a progressive Vox finale, see [`docs/src/explanation/expl-rosetta-inventory.md`](docs/src/explanation/expl-rosetta-inventory.md).
+For a side-by-side comparison with C++, Rust, and Python solving the same problem, see [`docs/src/explanation/expl-rosetta-inventory.md`](docs/src/explanation/expl-rosetta-inventory.md).
 
 ---
-
-## The CLI
-
-Run `vox commands --recommended` to see curated starter commands. The full command surface lives in [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
 
 ## Quick Start
 
@@ -191,49 +215,57 @@ irm https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps
 ```
 
 ```bash
+# Create your first project
 vox init my-app
 cd my-app
+vox build src/main.vox -o dist
 vox run src/main.vox
 ```
 
 ```text
-vox commands --recommended   List the most useful starter commands
-vox doctor                   Verify toolchain and environment
-vox check <file>             Fast type validation without a full build
-vox build <file>             Compile and inspect generated output
-vox test <file>              Run @test functions
-vox bundle <file>            Produce a deployable binary
+vox init [name]          Scaffold a new project (templates: chatbot, dashboard, api)
+vox build <file>         Compile → TypeScript + Rust output
+vox check <file>         Fast type validation
+vox run <file>           Development server (Axum + TanStack dev proxy)
+vox dev <file>           Hot-reload dev mode
+vox test <file>          Run @test functions
+vox fmt <file>           Format source
+vox bundle <file>        Full production build: codegen → pnpm build → single binary
+vox doctor               Verify toolchain, environment, and secret health
 ```
 
 Full command reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
+
+## The CLI
+
+Run `vox commands --recommended` for a curated first-time map of subcommands. For repository hygiene, `vox ci gui-smoke` runs deterministic WebIR lowering tests and can opt into Vite (`VOX_WEB_VITE_SMOKE=1`) or Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes documented in the same CLI reference.
 
 ---
 
 ## Agent Orchestration & AI Capabilities
 
-> **In progress.** Single-node operation, DEI orchestration, and local GPU routing are available today. Cross-node task relay and cloud-managed training are being actively developed.
-
 ### Multi-agent coordination
 
-The DEI orchestrator (`vox-dei`) routes concurrent tasks by file affinity and role (Builder, Planner, Verifier). Every state transition is persisted and the full control surface is available through MCP tools — usable from the VS Code sidebar or by any agent running in the mesh:
+The **orchestrator** (`vox-orchestrator`) assigns tasks to agents by file affinity and role. **`vox-dei`** handles human-in-the-loop review — pausing, reassigning, or confirming work before it proceeds. The control surface is available as MCP tools, usable from the VS Code sidebar or any MCP-compatible agent:
 
+<!-- tool names sourced from crates/vox-mcp/src/tools/dispatch.rs -->
 ```text
-dei_task_pause       Suspend a running task
-dei_task_resume      Resume a suspended task
-dei_task_cancel      Cancel and release file locks
-dei_task_reassign    Transfer a task atomically between agents
-dei_agent_set_mode   Adjust an agent's execution mode
+vox_pause_agent      Suspend a running agent and queue its tasks
+vox_resume_agent     Resume a paused agent
+vox_retire_agent     Retire an agent and release all locks
+vox_reorder_task     Change dispatch priority of a queued task
+vox_queue_status     Show orchestrator queue and agent states
 ```
 
 ### Agent-to-agent messaging
 
-In most systems, passing structured results from one agent to another means rolling your own protocol — a shared table, a message queue, a webhook. In Vox, A2A is built into the runtime. Agents exchange typed, JWE-encrypted envelopes over a structured bus; because the payload types are Vox types, the receiver gets compile-time shape guarantees. A malformed envelope is a type error, not a runtime parse failure caught three steps later.
+In most systems, passing results between agents means building your own protocol — a shared table, a queue, a webhook. In Vox, agent-to-agent messaging is built into the runtime. Agents exchange typed, encrypted messages; because both sides use the same declared Vox type, the compiler catches mismatches in each codebase before anything runs.
 
-The local in-process bus is active in every session. HTTP relay across mesh nodes is available under the `populi-transport` feature flag.
+The in-process message bus is active in every session. Cross-machine relay is available with the `populi-transport` feature.
 
 ### The Populi mesh
 
-`vox populi` is a node registry for machines running Vox. Each node advertises its hardware — CPU, CUDA, Metal, VRAM — via NVML probing on startup. The orchestrator routes training and inference to where the hardware can support it.
+`vox populi` is a node registry for machines running Vox. Each node detects and advertises its hardware — CPU, CUDA, Metal, VRAM — on startup. The orchestrator routes training and inference jobs to the machines that can handle them.
 
 ```bash
 VOX_MESH_ENABLED=1 VOX_MESH_NODE_ID=my-node vox populi serve
@@ -283,6 +315,11 @@ vox populi serve --model mens/runs/latest/model_final.bin --port 8080
 | **Syntax guide** | [Examples & style](examples/STYLE.md) |
 
 ---
+
+## Community
+
+- **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelog and doc updates
+- **GitHub Discussions**: Architecture questions, language design feedback, and roadmap input
 
 ## License
 

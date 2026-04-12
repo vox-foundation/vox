@@ -67,7 +67,7 @@ pub fn worthiness_score_for_row(row: &vox_db::PublicationManifestRow) -> Option<
 
 pub fn mcp_social_worthiness_enforce(state: &ServerState) -> bool {
     state.orchestrator_config.news.worthiness_enforce
-        || std::env::var("VOX_SOCIAL_WORTHINESS_ENFORCE")
+        || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessEnforce).expose()
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false)
 }
@@ -78,8 +78,7 @@ pub fn mcp_social_worthiness_score_min(state: &ServerState) -> f64 {
         .news
         .worthiness_score_min
         .or_else(|| {
-            std::env::var("VOX_SOCIAL_WORTHINESS_SCORE_MIN")
-                .ok()
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessScoreMin).expose()
                 .and_then(|v| v.parse().ok())
         })
         .unwrap_or(0.85)

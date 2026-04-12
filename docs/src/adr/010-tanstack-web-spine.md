@@ -4,6 +4,8 @@ description: "Official documentation for ADR 010 — TanStack as the Vox web spi
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 010 — TanStack as the Vox web spine

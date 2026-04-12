@@ -1,4 +1,4 @@
-use crate::types::{YouTubeConfig, YouTubePrivacyStatus};
+﻿use crate::types::{YouTubeConfig, YouTubePrivacyStatus};
 use anyhow::{Context, Result, anyhow};
 use reqwest::Client;
 use serde::Deserialize;

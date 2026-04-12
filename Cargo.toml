@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*","crates/workspace-hack"]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
@@ -29,6 +29,7 @@ vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
 vox-browser               = { path = "crates/vox-browser" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
+vox-dei                   = { path = "crates/vox-dei" }
 vox-container             = { path = "crates/vox-container" }
 vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
 vox-install-policy        = { path = "crates/vox-install-policy" }
@@ -38,7 +39,26 @@ vox-db                    = { path = "crates/vox-db" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-forge                 = { path = "crates/vox-forge" }
 
+vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
+vox-bootstrap             = { path = "crates/vox-bootstrap" }
+vox-build-meta            = { path = "crates/vox-build-meta" }
+vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
+vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
+vox-integration-tests     = { path = "crates/vox-integration-tests" }
+vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
+vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
+vox-schola                = { path = "crates/vox-schola" }
+vox-scientia-api          = { path = "crates/vox-scientia-api" }
+vox-scientia-core         = { path = "crates/vox-scientia-core" }
+vox-scientia-runtime      = { path = "crates/vox-scientia-runtime" }
+vox-scientia-social       = { path = "crates/vox-scientia-social" }
+vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
+vox-test-harness          = { path = "crates/vox-test-harness" }
+vox-tools                 = { path = "crates/vox-tools" }
+vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
+vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
+vox-grammar-export        = { path = "crates/vox-grammar-export" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
 vox-populi                  = { path = "crates/vox-populi" }
@@ -126,7 +146,10 @@ openapiv3          = "2"
 governor           = "0.10"
 strum              = { version = "0.26", features = ["derive"] }
 serial_test        = "3"
+wiremock           = "0.6"
 tantivy            = "0.22"
+scraper            = "0.20"
+html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
 nvml-wrapper       = { version = "0.11", default-features = false }
 # Wave 5: Async mesh results

@@ -1,3 +1,13 @@
+---
+title: "Architecture: ASR Speech-to-Code"
+description: "Detailed system design for integrating high-fidelity speech-to-code dictation into the Vox MENS pipeline."
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
+---
+
 # Vox Speech-to-Code Architecture Research — April 2026
 <!-- SSOT: docs/src/architecture/asr-speech-to-code-architecture-2026.md -->
 <!-- Related: asr-speech-to-code-findings-2026.md (initial scouting), telemetry-trust-ssot.md -->
@@ -240,7 +250,7 @@ NEW: asr-voice-adapter domain
   └── Evaluation: dictation WER on Vox codebase holdout
 ```
 
-The ASR domain adapter lives in `crates/vox-mens/src/domains/asr_voice/` and is selected by `vox populi train --domain asr-voice`.
+The ASR domain adapter lives in `crates/vox-populi/src/domains/asr_voice/` and is selected by `vox populi train --domain asr-voice`.
 
 ---
 
@@ -374,7 +384,7 @@ Three viable architectures, ordered by investment:
 
 | Where | What changes |
 |---|---|
-| `crates/vox-mens/src/domains/` | Add `asr_voice` domain with QLoRA recipe |
+| `crates/vox-populi/src/domains/` | Add `asr_voice` domain with QLoRA recipe |
 | `crates/vox-voice/` | **New crate** — owns VAD, ASR backends, post-processor |
 | `crates/vox-cli/src/commands/` | Add `vox voice start` / `vox voice calibrate` / `vox voice status` |
 | `crates/vox-clavis/src/spec.rs` | No new secrets if fully local; add `VOX_DEEPGRAM_API_KEY` only for optional cloud fallback |

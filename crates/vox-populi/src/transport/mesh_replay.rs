@@ -79,16 +79,16 @@ fn persist_maps(path: &Path, maps: &MeshReplayMaps) -> Result<(), PopuliRegistry
 
 #[must_use]
 pub(super) fn mesh_replay_persist_path(a2a_store: Option<&PathBuf>) -> Option<PathBuf> {
-    if std::env::var("VOX_MESH_REPLAY_PERSIST")
-        .ok()
-        .is_some_and(|v| {
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayPersist)
+        .expose()
+        .is_some_and(|v: &str| {
             let t = v.trim();
             t == "0" || t.eq_ignore_ascii_case("false")
         })
     {
         return None;
     }
-    if let Ok(v) = std::env::var("VOX_MESH_REPLAY_STATE_PATH") {
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayStatePath).expose() {
         let t = v.trim();
         if !t.is_empty() {
             return Some(PathBuf::from(t.to_string()));

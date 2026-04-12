@@ -35,6 +35,13 @@ pub enum HandoffInvariantError {
     /// Receiver context resolution lacks opaque routing metadata.
     #[error("handoff to a remote agent requires a2a_context_uri and obo_token payloads")]
     MissingOpaqueRoutingContext,
+    /// Raw conversational transcript detected in handoff content.
+    ///
+    /// Research (Context Handoff §4) proves passing full conversational history
+    /// across agent boundaries causes context bleed and identity smuggling.
+    /// Handoffs must use structured `ContextEnvelope` payloads, not raw text.
+    #[error("transcript bleed: raw conversational content detected in handoff field '{field}'")]
+    TranscriptBleed { field: String },
 }
 
 /// A single step in the execution history preserved during handoff.
@@ -261,6 +268,33 @@ impl HandoffPayload {
     }
 }
 
+/// Heuristic markers for raw conversational transcripts that should never
+/// cross agent boundaries. Research (Context Handoff §4) proves these leak
+/// identity, session state, and prompt-injection vectors.
+const TRANSCRIPT_MARKERS: &[&str] = &[
+    "<|im_start|>",
+    "<|im_end|>",
+    "<|system|>",
+    "<|user|>",
+    "<|assistant|>",
+    "Human:",
+    "Assistant:",
+    "### Human",
+    "### Assistant",
+    "[INST]",
+    "[/INST]",
+];
+
+/// Returns `Some(marker)` if `text` contains a raw transcript marker.
+fn detect_transcript_bleed(text: &str) -> Option<&'static str> {
+    for &marker in TRANSCRIPT_MARKERS {
+        if text.contains(marker) {
+            return Some(marker);
+        }
+    }
+    None
+}
+
 /// Ensure pending work always carries explicit verification steps for the receiver.
 pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), HandoffInvariantError> {
     if !payload.pending_tasks.is_empty() && payload.verification_criteria.is_empty() {
@@ -271,10 +305,32 @@ pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), Hando
     {
         return Err(HandoffInvariantError::MissingExecutionRoleMetadata);
     }
-    
+
     if payload.to_agent.is_some() {
         if payload.a2a_context_uri.is_none() || payload.obo_token.is_none() {
             return Err(HandoffInvariantError::MissingOpaqueRoutingContext);
+        }
+    }
+
+    // Task 3.3.1: Transcript bleed guard — block raw conversational content.
+    if let Some(_marker) = detect_transcript_bleed(&payload.context_notes) {
+        return Err(HandoffInvariantError::TranscriptBleed {
+            field: "context_notes".to_string(),
+        });
+    }
+    if let Some(_marker) = detect_transcript_bleed(&payload.plan_summary) {
+        return Err(HandoffInvariantError::TranscriptBleed {
+            field: "plan_summary".to_string(),
+        });
+    }
+    for (key, value) in &payload.metadata {
+        if key == CONTEXT_ENVELOPE_JSON_METADATA_KEY || key == HARNESS_SPEC_JSON_METADATA_KEY {
+            continue; // structured payloads are allowed
+        }
+        if let Some(_marker) = detect_transcript_bleed(value) {
+            return Err(HandoffInvariantError::TranscriptBleed {
+                field: format!("metadata[{key}]"),
+            });
         }
     }
 
@@ -649,6 +705,38 @@ mod tests {
             }
             other => panic!("unexpected event: {other:?}"),
         }
+    }
+
+    #[test]
+    fn transcript_bleed_blocks_raw_transcript_in_context_notes() {
+        let payload = HandoffPayload::new(AgentId(1), None, "Clean plan")
+            .with_context("<|im_start|>user\nPlease fix the parser<|im_end|>")
+            .with_metadata("execution_role", "builder")
+            .with_pending(vec![TaskId(1)])
+            .with_verification_criteria(vec!["verify".to_string()]);
+        let err = validate_handoff_invariants(&payload).unwrap_err();
+        assert!(matches!(err, HandoffInvariantError::TranscriptBleed { .. }));
+    }
+
+    #[test]
+    fn transcript_bleed_blocks_raw_transcript_in_metadata() {
+        let payload = HandoffPayload::new(AgentId(1), None, "Clean plan")
+            .with_metadata("execution_role", "builder")
+            .with_metadata("raw_history", "Human: fix it\nAssistant: ok")
+            .with_pending(vec![TaskId(1)])
+            .with_verification_criteria(vec!["verify".to_string()]);
+        let err = validate_handoff_invariants(&payload).unwrap_err();
+        assert!(matches!(err, HandoffInvariantError::TranscriptBleed { .. }));
+    }
+
+    #[test]
+    fn transcript_bleed_allows_clean_context() {
+        let payload = HandoffPayload::new(AgentId(1), None, "Fix parser")
+            .with_context("The parser has 3 failing tests in descent/mod.rs")
+            .with_metadata("execution_role", "builder")
+            .with_pending(vec![TaskId(1)])
+            .with_verification_criteria(vec!["cargo test -p vox-compiler".to_string()]);
+        assert!(validate_handoff_invariants(&payload).is_ok());
     }
 
     #[test]

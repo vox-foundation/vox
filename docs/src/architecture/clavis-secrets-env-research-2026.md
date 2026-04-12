@@ -5,6 +5,9 @@ category: "architecture"
 status: "research"
 last_updated: 2026-04-06
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Clavis secrets, env vars, and API key strategy research 2026

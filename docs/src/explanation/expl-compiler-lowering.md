@@ -4,6 +4,8 @@ description: "Official documentation for Explanation: Compiler Lowering Phases f
 category: "explanation"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Explanation: Compiler Lowering Phases
 
@@ -13,7 +15,7 @@ Implementation note: current production code keeps these stages under `crates/vo
 
 ## 1. Syntax to AST (Abstract Syntax Tree)
 
-The `vox-parser` converts the raw `.vox` file into a tree of declarations. This phase ensures the code is syntactically valid but does not yet understand types or decorators.
+The **parser** converts the raw `.vox` file into a tree of declarations. This phase ensures the code is syntactically valid but does not yet understand types or decorators.
 
 ## 2. AST to HIR (High-level Intermediate Representation)
 
@@ -67,4 +69,4 @@ By having multiple intermediate representations, Vox can perform complex archite
 
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
-- [API Reference: vox-hir](../api/vox-hir.md) — Details on the HIR data structures.
+- [API Reference: vox-hir (Archived)](../api/vox-hir-ARCHIVED.md) — Details on the HIR data structures.

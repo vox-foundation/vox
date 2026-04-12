@@ -312,4 +312,20 @@ pub enum DbCliCore {
         #[arg(long)]
         min_score: Option<f64>,
     },
+    /// Query historical execution time for tools
+    #[command(name = "exec-history")]
+    ExecHistory {
+        /// Optional tool key to filter by
+        #[arg(long)]
+        tool_key: Option<String>,
+        /// Optional repository ID to filter by
+        #[arg(long)]
+        repo: Option<String>,
+        /// Row limit for listing
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+        /// Output raw JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
 }

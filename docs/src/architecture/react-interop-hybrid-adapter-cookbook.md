@@ -4,6 +4,8 @@ description: "How user-owned adapters consume routes.manifest.ts and vox-client.
 category: "architecture"
 last_updated: 2026-04-07
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Hybrid adapter cookbook (SPA + SSR)

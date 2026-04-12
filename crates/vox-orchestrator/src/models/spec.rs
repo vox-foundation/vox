@@ -17,6 +17,7 @@ fn default_true() -> bool {
 pub enum ModelTier {
     #[default]
     Unknown,
+    Local,
     Light,
     Pro,
     Elite,
@@ -208,7 +209,7 @@ pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
     let sonnet_id = "anthropic/claude-sonnet-4.6".to_string();
     let pro_planning_id = "google/gemini-2.5-pro-preview".to_string();
     let r1_id = "deepseek/deepseek-r1".to_string();
-    
+
     map.insert("codegen".to_string(), mythos_id.clone());
     map.insert("debugging".to_string(), mythos_id.clone());
     map.insert("security".to_string(), mythos_id.clone());
@@ -253,7 +254,9 @@ pub fn provider_family_strengths(provider_prefix: &str) -> &'static [&'static st
 }
 
 fn premium_alias_toml_default() -> HashMap<String, String> {
-    HashMap::new()
+    let m = HashMap::new();
+    let _ = std::hint::black_box(m.capacity());
+    m
 }
 
 /// Configuration wrapper for models.
@@ -268,10 +271,11 @@ pub struct ModelConfig {
 
 impl Default for ModelConfig {
     fn default() -> Self {
-        let local_model = std::env::var("POPULI_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| "default-model".to_string());
+        let local_model = vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+            .expose()
+            .filter(|s: &&str| !s.trim().is_empty())
+            .unwrap_or("default-model")
+            .to_string();
         Self {
             models: vec![
                 // ── Local Ollama / Mens (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
@@ -286,7 +290,10 @@ impl Default for ModelConfig {
                     cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                    capabilities: ModelCapabilities::default(),
+                    capabilities: ModelCapabilities {
+                        tier: ModelTier::Local,
+                        ..Default::default()
+                    },
                     supported_parameters: vec![],
                 },
                 // ── Fast / Free Tier ──
@@ -404,7 +411,12 @@ impl Default for ModelConfig {
                     cost_per_1k_input: 3.0,
                     cost_per_1k_output: 15.0,
                     is_free: false,
-                    strengths: vec!["codegen".to_string(), "review".to_string(), "debugging".to_string(), "security".to_string()],
+                    strengths: vec![
+                        "codegen".to_string(),
+                        "review".to_string(),
+                        "debugging".to_string(),
+                        "security".to_string(),
+                    ],
                     capabilities: ModelCapabilities {
                         supports_vision: true,
                         tier: ModelTier::Pro,

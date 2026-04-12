@@ -14,6 +14,12 @@ pub enum RepoCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Scaffold a new Vox-compatible repository structure (.voxignore, AGENTS.md, etc.)
+    Init {
+        /// Project name to initialize repository metadata with
+        #[arg(long)]
+        name: Option<String>,
+    },
     /// Explicit repository catalog operations (`.vox/repositories.yaml`).
     Catalog {
         #[command(subcommand)]
@@ -108,6 +114,9 @@ fn current_repo_root() -> Result<std::path::PathBuf> {
 pub async fn run(cmd: RepoCmd) -> Result<()> {
     let repo_root = current_repo_root()?;
     match cmd {
+        RepoCmd::Init { name } => {
+            crate::commands::repo_init::run(name.as_deref()).await?;
+        }
         RepoCmd::Status { json } => {
             let cwd = std::env::current_dir()?;
             let payload: RepoWorkspaceStatus = vox_repository::repo_workspace_status_for_cwd(&cwd);
@@ -183,6 +192,7 @@ pub async fn run(cmd: RepoCmd) -> Result<()> {
                         conversation_id: None,
                     },
                     "cli",
+                    None,
                 )?;
                 print_value(&response)?;
             }
@@ -200,6 +210,7 @@ pub async fn run(cmd: RepoCmd) -> Result<()> {
                         conversation_id: None,
                     },
                     "cli",
+                    None,
                 )?;
                 print_value(&response)?;
             }
@@ -219,6 +230,7 @@ pub async fn run(cmd: RepoCmd) -> Result<()> {
                         conversation_id: None,
                     },
                     "cli",
+                    None,
                 )?;
                 print_value(&response)?;
             }

@@ -267,6 +267,14 @@ pub async fn process_event_rewards(
                             ach.crystal_reward,
                         )
                         .await;
+
+                        let notif = Notification::new(
+                            user_id,
+                            NotificationType::AchievementUnlocked,
+                            ach.name.clone(),
+                            format!("Achievement Unlocked: {}", ach.description),
+                        );
+                        let _ = insert_notification(db, &notif).await;
                     }
                 }
             }
@@ -284,6 +292,14 @@ pub async fn process_event_rewards(
                         ach.crystal_reward,
                     )
                     .await;
+
+                    let notif = Notification::new(
+                        user_id,
+                        NotificationType::AchievementUnlocked,
+                        ach.name.clone(),
+                        format!("Achievement Unlocked: {}", ach.description),
+                    );
+                    let _ = insert_notification(db, &notif).await;
                 }
             }
 
@@ -304,6 +320,14 @@ pub async fn process_event_rewards(
                             ach.crystal_reward,
                         )
                         .await;
+
+                        let notif = Notification::new(
+                            user_id,
+                            NotificationType::AchievementUnlocked,
+                            ach.name.clone(),
+                            format!("Achievement Unlocked: {}", ach.description),
+                        );
+                        let _ = insert_notification(db, &notif).await;
                     }
                 }
             }

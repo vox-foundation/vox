@@ -11,9 +11,9 @@ const vscode = getVsCodeApi();
 function opRowTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
     const normalized = status.toLowerCase();
     if (normalized.includes('run')) return 'info';
-    if (normalized.includes('success') || normalized.includes('complete')) return 'success';
-    if (normalized.includes('fail') || normalized.includes('error')) return 'danger';
-    if (normalized.includes('queue') || normalized.includes('block')) return 'warning';
+    if (normalized.includes('success') || normalized.includes('complete') || normalized.includes('validated')) return 'success';
+    if (normalized.includes('fail') || normalized.includes('error') || normalized.includes('overruled')) return 'danger';
+    if (normalized.includes('queue') || normalized.includes('block') || normalized.includes('suspect') || normalized.includes('doubt')) return 'warning';
     return 'neutral';
 }
 
@@ -47,6 +47,8 @@ export const UnifiedDashboard = ({
                     <span className="flex items-center gap-1"><Cpu size={12} className="text-primary"/> Agents: {stats.activeAgents ?? "0"}</span>
                     <span className="flex items-center gap-1 text-steel">|</span>
                     <span className="flex items-center gap-1"><Layers size={12} className="text-primary"/> Queue: {stats.queueDepth ?? "0"}</span>
+                    <span className="flex items-center gap-1 text-steel">|</span>
+                    <span className="flex items-center gap-1 text-destructive"><AlertCircle size={12}/> Doubted: {stats.totalDoubted ?? "0"}</span>
                     {stats.budget && (
                         <>
                             <span className="flex items-center gap-1 text-steel">|</span>
@@ -198,13 +200,37 @@ export const UnifiedDashboard = ({
                                     className="flex items-center justify-between p-3 rounded bg-machine border border-border hover:border-cyan hover:shadow-[inset_0_0_8px_var(--vox-cyan-glow)] transition-all"
                                 >
                                     <div className="flex-1 min-w-0 pr-4">
-                                        <div className="text-xs font-mono text-cyan truncate mb-1 uppercase tracking-wide">{entry.description || entry.op_type}</div>
+                                        <div className="text-xs font-mono text-cyan truncate mb-1 uppercase tracking-wide">
+                                            {entry.status === 'Doubted' && <span className="text-destructive font-bold mr-2">[SUSPECT]</span>}
+                                            {entry.status === 'Validated' && <span className="text-primary font-bold mr-2">[VALIDATED]</span>}
+                                            {entry.status === 'Overruled' && <span className="text-secondary font-bold mr-2">[OVERRULED]</span>}
+                                            {entry.description || entry.op_type}
+                                        </div>
                                         {entry.agent_id && (
                                             <div className="text-[9px] font-mono text-steel uppercase tracking-widest">AGENT {entry.agent_id}</div>
+                                        )}
+                                        {entry.audit_report && (
+                                            <div className="mt-2 p-2 bg-void border border-border border-opacity-50 rounded text-[10px] font-mono text-steel italic">
+                                                <span className="text-secondary opacity-70 uppercase font-bold mr-1">Audit:</span>
+                                                {entry.audit_report}
+                                            </div>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-4 shrink-0">
                                         {entry.duration_ms && <span className="text-[10px] font-mono text-steel">{entry.duration_ms}ms</span>}
+                                        {entry.status !== 'Doubted' && entry.status !== 'Validated' && entry.status !== 'Overruled' && (
+                                            <button
+                                                title="Flag this task as suspect for audit"
+                                                className="p-1.5 rounded border border-destructive bg-machine text-destructive hover:bg-destructive hover:text-white transition-all transform hover:scale-110"
+                                                onClick={() => {
+                                                    if (entry.id) {
+                                                        vscode.postMessage({ type: 'doubtTask', taskId: entry.id });
+                                                    }
+                                                }}
+                                            >
+                                                <AlertCircle size={14} />
+                                            </button>
+                                        )}
                                         <StateChip label={entry.status || "Completed"} tone={opRowTone(entry.status || "Completed")} />
                                     </div>
                                 </div>

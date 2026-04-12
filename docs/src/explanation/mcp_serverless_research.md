@@ -4,6 +4,8 @@ description: "Official documentation for Research Notes: Achieving Serverless-li
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Research Notes: Achieving Serverless-like Performance with MCP
 

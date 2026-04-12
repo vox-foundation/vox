@@ -49,9 +49,10 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .try_init();
 
-    let bind_raw = std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET").map_err(|_| {
-        anyhow::anyhow!("VOX_ORCHESTRATOR_DAEMON_SOCKET is required (e.g. 127.0.0.1:9745 or stdio)")
-    })?;
+    let bind_raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket)
+        .expose()
+        .ok_or_else(|| anyhow::anyhow!("VOX_ORCHESTRATOR_DAEMON_SOCKET is required (e.g. 127.0.0.1:9745 or stdio)"))?
+        .to_string();
 
     let cfg = load_config();
     let build = build_repo_scoped_orchestrator(cfg, None);

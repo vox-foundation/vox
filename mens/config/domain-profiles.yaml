@@ -91,3 +91,13 @@ profiles:
     min_rating: 4
     ce_last_k: 64
 
+  research-expert:
+    description: "Lane G: Evidence synthesis, multi-hop reasoning, and contradiction resolution"
+    context_filter:
+      categories: [vox_research_expert, multi_hop, retrieve_and_synthesize]
+    mix_config: mens/config/mix-research-expert.yaml
+    min_rating: 4
+    ce_last_k: 128 # larger context window for evidence
+    reward_hook: "research_synthesis_eval" # GRPO+RLVR harness
+    trajectory_weighting: true
+

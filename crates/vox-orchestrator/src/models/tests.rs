@@ -107,7 +107,7 @@ mod llm_usage_key_tests {
 #[cfg(test)]
 mod key_guard_tests {
     use crate::config::CostPreference;
-    use crate::models::{ModelRegistry};
+    use crate::models::ModelRegistry;
     use crate::types::TaskCategory;
 
     #[test]
@@ -119,10 +119,13 @@ mod key_guard_tests {
             std::env::remove_var("VOX_ANTHROPIC_API_KEY");
         }
         let registry = ModelRegistry::new(); // uses default which has Mythos (Anthropic) for codegen
-        
+
         let best = registry.best_for(TaskCategory::CodeGen, 5, CostPreference::Performance);
-        assert!(best.is_some(), "Should find a fallback model even if key is missing");
-        
+        assert!(
+            best.is_some(),
+            "Should find a fallback model even if key is missing"
+        );
+
         // Default router logic falls back from Mythos to the cheapest rank-matched paid model that is present,
         // or a default fallback if none. If we wired sonnet 4.6 correctly, without anthropic key,
         // it shouldn't pick Mythos. Wait, Sonnet is OpenRouter.

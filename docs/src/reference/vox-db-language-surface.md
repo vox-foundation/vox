@@ -4,6 +4,8 @@ description: "Canonical @table, @query, @mutation, and db.* operations for Turso
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox database language surface (canonical)

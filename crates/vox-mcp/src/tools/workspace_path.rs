@@ -185,7 +185,7 @@ mod tests {
         fs::create_dir_all(root.join("deep")).expect("mkdir");
         fs::write(root.join("deep").join("t.vox"), "fn main() {}\n").expect("write");
         let state = test_state_with_root(root);
-        let json = compiler_tools::validate_file(
+        let json = crate::tools::code_validator::validate_file(
             &state,
             crate::params::ValidateFileParams {
                 path: "deep/t.vox".into(),

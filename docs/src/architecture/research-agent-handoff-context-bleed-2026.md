@@ -1,5 +1,10 @@
 ---
-title: Documented Failure Modes: Context Bleed and Session Identity Confusion
+title: "Documented Failure Modes: Context Bleed and Session Identity Confusion"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **2\. Documented Failure Modes: Context Bleed and Session Identity Confusion**
 

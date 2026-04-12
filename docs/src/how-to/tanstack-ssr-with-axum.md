@@ -4,6 +4,8 @@ description: "Official documentation for TanStack SSR with Axum (development top
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # TanStack SSR with Axum (development topology)

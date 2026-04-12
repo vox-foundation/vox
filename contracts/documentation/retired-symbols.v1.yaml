@@ -1,0 +1,64 @@
+# Vox Documentation: Retired Symbols and Canonical Replacements
+# Used by `vox ci retired-symbol-check` to prevent hallucination-prone identifiers from appearing in docs.
+
+symbols:
+  - id: vox-dei-old-crate
+    pattern: "\\bvox-dei\\b"
+    replacement: "vox-orchestrator"
+    rationale: "Old large orchestrator crate. The new small vox-dei crate is for HITL only. If referring to HITL, ensure context is clear."
+  - id: vox-ars-crate
+    pattern: "\\bvox-ars\\b"
+    replacement: "vox-skills"
+    rationale: "Crate renamed to vox-skills; vox-ars is now a CLI namespace only."
+  - id: vox-gamify-crate
+    pattern: "\\bvox-gamify\\b"
+    replacement: "vox-ludus"
+    rationale: "Consolidated into vox-ludus crate."
+  - id: vox-lexer-crate
+    pattern: "\\bvox-lexer\\b"
+    replacement: "vox-compiler"
+    rationale: "Merged into vox-compiler monolith."
+  - id: vox-parser-crate
+    pattern: "\\bvox-parser\\b"
+    replacement: "vox-compiler"
+    rationale: "Merged into vox-compiler monolith."
+  - id: vox-hir-crate
+    pattern: "\\bvox-hir\\b"
+    replacement: "vox-compiler"
+    rationale: "Merged into vox-compiler monolith."
+  - id: vox-typeck-crate
+    pattern: "\\bvox-typeck\\b"
+    replacement: "vox-compiler"
+    rationale: "Merged into vox-compiler monolith."
+  - id: component-fn-decorator
+    pattern: "@component fn"
+    replacement: "component Name() {}"
+    rationale: "Retired syntax form. Use the native component keyword."
+  - id: turso-url-env
+    pattern: "TURSO_URL"
+    replacement: "VOX_DB_URL"
+    rationale: "Legacy Turso env var. Use VOX_DB_URL for Codex."
+  - id: turso-token-env
+    pattern: "TURSO_AUTH_TOKEN"
+    replacement: "VOX_DB_TOKEN"
+    rationale: "Legacy Turso env var. Use VOX_DB_TOKEN for Codex."
+  - id: vox-turso-url-env
+    pattern: "VOX_TURSO_URL"
+    replacement: "VOX_DB_URL"
+    rationale: "Retired compatibility alias. Use VOX_DB_URL."
+  - id: vox-turso-token-env
+    pattern: "VOX_TURSO_TOKEN"
+    replacement: "VOX_DB_TOKEN"
+    rationale: "Retired compatibility alias. Use VOX_DB_TOKEN."
+  - id: sync-recall-api
+    pattern: "\\brecall\\("
+    replacement: "recall_async()"
+    rationale: "Deprecated synchronous memory recall. Use recall_async()."
+  - id: persist-fact-api
+    pattern: "persist_fact\\("
+    replacement: "sync_to_db()"
+    rationale: "Renamed to sync_to_db() for clarity."
+  - id: vox-mens-standalone
+    pattern: "vox-mens"
+    replacement: "vox-populi"
+    rationale: "Now part of vox-populi."

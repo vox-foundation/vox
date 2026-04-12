@@ -4,6 +4,8 @@ description: "Categories for Vox compiler diagnostics (parse, lowering, typechec
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Diagnostic taxonomy

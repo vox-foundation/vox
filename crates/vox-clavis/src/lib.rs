@@ -21,6 +21,108 @@ pub use spec::{
 };
 pub use types::{ResolutionStatus, ResolvedSecret, SecretSource};
 
+pub const OPERATOR_CLAVIS_CUTOVER_PHASE: &str = "VOX_CLAVIS_CUTOVER_PHASE";
+pub const OPERATOR_CLAVIS_MIGRATION_PHASE: &str = "VOX_CLAVIS_MIGRATION_PHASE";
+pub const OPERATOR_CLAVIS_HARD_CUT: &str = "VOX_CLAVIS_HARD_CUT";
+pub const OPERATOR_CLAVIS_AUTO_PREFER_VAULT: &str = "VOX_CLAVIS_AUTO_PREFER_VAULT";
+pub const OPERATOR_CLAVIS_KEK_REF: &str = "VOX_CLAVIS_KEK_REF";
+pub const OPERATOR_CLAVIS_KEK_VERSION: &str = "VOX_CLAVIS_KEK_VERSION";
+pub const OPERATOR_CLAVIS_AUTO_VAULT: &str = "VOX_CLAVIS_AUTO_VAULT";
+pub const OPERATOR_CLAVIS_VAULT_URL: &str = "VOX_CLAVIS_VAULT_URL";
+pub const OPERATOR_CLAVIS_VAULT_PATH: &str = "VOX_CLAVIS_VAULT_PATH";
+pub const OPERATOR_CLAVIS_VAULT_TOKEN: &str = "VOX_CLAVIS_VAULT_TOKEN";
+pub const OPERATOR_ACCOUNT_ID: &str = "VOX_ACCOUNT_ID";
+pub const OPERATOR_CLAVIS_PROFILE: &str = "VOX_CLAVIS_PROFILE";
+pub const OPERATOR_CLAVIS_BACKEND: &str = "VOX_CLAVIS_BACKEND";
+pub const OPERATOR_INFISICAL_TOKEN: &str = "INFISICAL_TOKEN";
+pub const OPERATOR_INFISICAL_SERVICE_TOKEN: &str = "INFISICAL_SERVICE_TOKEN";
+pub const OPERATOR_VAULT_ADDR: &str = "VAULT_ADDR";
+pub const OPERATOR_VAULT_TOKEN: &str = "VAULT_TOKEN";
+pub const OPERATOR_TURSO_URL: &str = "VOX_TURSO_URL";
+pub const OPERATOR_TURSO_TOKEN: &str = "VOX_TURSO_TOKEN";
+
+pub const OPERATOR_SCIENTIA_CROSSREF_MAILTO: &str = "VOX_SCIENTIA_CROSSREF_MAILTO";
+pub const OPERATOR_SCHOLARLY_ADAPTER: &str = "VOX_SCHOLARLY_ADAPTER";
+pub const OPERATOR_SCHOLARLY_JOB_LOCK_OWNER: &str = "VOX_SCHOLARLY_JOB_LOCK_OWNER";
+pub const OPERATOR_ZENODO_HTTP_MAX_ATTEMPTS: &str = "VOX_ZENODO_HTTP_MAX_ATTEMPTS";
+pub const OPERATOR_ZENODO_API_BASE: &str = "VOX_ZENODO_API_BASE";
+pub const OPERATOR_OPENREVIEW_HTTP_MAX_ATTEMPTS: &str = "VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS";
+pub const OPERATOR_ZENODO_STAGING_DIR: &str = "VOX_ZENODO_STAGING_DIR";
+pub const OPERATOR_ZENODO_UPLOAD_ALLOWLIST: &str = "VOX_ZENODO_UPLOAD_ALLOWLIST";
+pub const OPERATOR_SYNDICATION_TEMPLATE_PROFILE: &str = "VOX_SYNDICATION_TEMPLATE_PROFILE";
+pub const OPERATOR_NEWS_PUBLISH_ARMED: &str = "VOX_NEWS_PUBLISH_ARMED";
+pub const OPERATOR_NEWS_SITE_BASE_URL: &str = "VOX_NEWS_SITE_BASE_URL";
+pub const OPERATOR_NEWS_RSS_FEED_PATH: &str = "VOX_NEWS_RSS_FEED_PATH";
+
+/// Array of system operator tuning environment variables.
+pub const OPERATOR_TUNING_ENVS: &[&str] = &[
+    OPERATOR_CLAVIS_CUTOVER_PHASE,
+    OPERATOR_CLAVIS_MIGRATION_PHASE,
+    OPERATOR_CLAVIS_HARD_CUT,
+    OPERATOR_CLAVIS_AUTO_PREFER_VAULT,
+    OPERATOR_CLAVIS_KEK_REF,
+    OPERATOR_CLAVIS_KEK_VERSION,
+    OPERATOR_CLAVIS_AUTO_VAULT,
+    OPERATOR_CLAVIS_VAULT_URL,
+    OPERATOR_CLAVIS_VAULT_PATH,
+    OPERATOR_CLAVIS_VAULT_TOKEN,
+    OPERATOR_ACCOUNT_ID,
+    OPERATOR_CLAVIS_PROFILE,
+    OPERATOR_CLAVIS_BACKEND,
+    OPERATOR_INFISICAL_TOKEN,
+    OPERATOR_INFISICAL_SERVICE_TOKEN,
+    OPERATOR_VAULT_ADDR,
+    OPERATOR_VAULT_TOKEN,
+    OPERATOR_TURSO_URL,
+    OPERATOR_TURSO_TOKEN,
+    OPERATOR_SCIENTIA_CROSSREF_MAILTO,
+    OPERATOR_SCHOLARLY_ADAPTER,
+    OPERATOR_SCHOLARLY_JOB_LOCK_OWNER,
+    OPERATOR_ZENODO_HTTP_MAX_ATTEMPTS,
+    OPERATOR_ZENODO_API_BASE,
+    OPERATOR_OPENREVIEW_HTTP_MAX_ATTEMPTS,
+    OPERATOR_ZENODO_STAGING_DIR,
+    OPERATOR_ZENODO_UPLOAD_ALLOWLIST,
+    OPERATOR_SYNDICATION_TEMPLATE_PROFILE,
+    OPERATOR_NEWS_PUBLISH_ARMED,
+    OPERATOR_NEWS_SITE_BASE_URL,
+    OPERATOR_NEWS_RSS_FEED_PATH,
+    "VOX_DB_URL",
+    "VOX_DB_TOKEN",
+    "VOX_ACCOUNT_ID",
+    "VOX_MODEL",
+    "VOX_BUDGET_USD",
+    "VOX_DATA_DIR",
+    "VOX_MCP_BINARY",
+    "VOX_GAMIFY_ENABLED",
+    "VOX_GAMIFY_MODE",
+    "VOX_WEB_RUN_MODE",
+    "VOX_WEB_TANSTACK_START",
+    "VOX_MESH_ENABLED",
+    "VOX_MESH_MODE",
+    "VOX_MESH_NODE_ID",
+    "VOX_MESH_LABELS",
+    "VOX_MESH_CONTROL_ADDR",
+    "VOX_MESH_REGISTRY_PATH",
+    "VOX_MESH_ADVERTISE_GPU",
+    "VOX_MESH_SCOPE_ID",
+    "VOX_MESH_BOOTSTRAP_TOKEN",
+    "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
+    "VOX_MESH_SERVER_STALE_PRUNE_MS",
+    "VOX_MESH_A2A_MAX_MESSAGES",
+    "VOX_MESH_A2A_LEASE_MS",
+    "VOX_ORCHESTRATOR_MESH_CONTROL_URL",
+    "VOX_OPENCLAW_URL",
+    "VOX_OPENCLAW_WS_URL",
+    "OPENROUTER_MODEL",
+    "OPENAI_MODEL",
+    "OPENAI_BASE_URL",
+    "GEMINI_MODEL",
+    "OLLAMA_URL",
+    "OLLAMA_MODEL",
+    "VOX_ORCHESTRATOR_PLAN_LLM_SYNTHESIS",
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendMode {
     Auto,
@@ -42,8 +144,8 @@ enum CutoverPhase {
 impl CutoverPhase {
     #[must_use]
     fn from_env() -> Self {
-        match std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
-            .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
+        match std::env::var(crate::OPERATOR_CLAVIS_CUTOVER_PHASE)
+            .or_else(|_| std::env::var(crate::OPERATOR_CLAVIS_MIGRATION_PHASE))
             .ok()
             .map(|s| s.trim().to_ascii_lowercase())
             .as_deref()
@@ -74,7 +176,7 @@ impl CutoverPhase {
 impl BackendMode {
     #[must_use]
     pub fn from_env() -> Self {
-        match std::env::var("VOX_CLAVIS_BACKEND")
+        match std::env::var(crate::OPERATOR_CLAVIS_BACKEND)
             .ok()
             .map(|s| s.trim().to_ascii_lowercase())
             .as_deref()
@@ -122,20 +224,41 @@ pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
         BackendMode::Vault => resolve_vault(id, profile),
         BackendMode::VoxCloud => resolve_vox_cloud(id, cloudless_options),
         BackendMode::Auto => {
-            if std::env::var("VOX_TURSO_URL").is_ok() {
+            let prefer_vault = std::env::var(crate::OPERATOR_CLAVIS_AUTO_PREFER_VAULT)
+                .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+                .unwrap_or(false);
+
+            if prefer_vault
+                || std::env::var(crate::OPERATOR_CLAVIS_AUTO_VAULT).is_ok()
+                || std::env::var(crate::OPERATOR_CLAVIS_VAULT_URL).is_ok()
+                || std::env::var(crate::OPERATOR_CLAVIS_VAULT_PATH).is_ok()
+            {
                 return resolve_vox_cloud(id, cloudless_options);
             }
-            if std::env::var("INFISICAL_TOKEN").is_ok()
-                || std::env::var("INFISICAL_SERVICE_TOKEN").is_ok()
+
+            // Legacy compat check for Auto trigger (mirroring vox_vault's compat check).
+            // NOTE: Do NOT add VOX_DB_URL here—Codex and Vault are separate planes (env-vars.md).
+            // This fallback is deprecated and will be removed once users migrate to explicit Clavis signals.
+            let legacy_turso_fallback = legacy_allowed && (std::env::var("VOX_TURSO_URL").is_ok() || std::env::var("TURSO_URL").is_ok());
+            if legacy_turso_fallback {
+                eprintln!("warning: Clavis is falling back to vox_cloud based on legacy VOX_TURSO_URL signal. This is DEPRECATED.");
+                eprintln!("remediation: Set VOX_CLAVIS_VAULT_URL or VOX_CLAVIS_AUTO_VAULT instead.");
+                return resolve_vox_cloud(id, cloudless_options);
+            }
+
+            if std::env::var(crate::OPERATOR_INFISICAL_TOKEN).is_ok()
+                || std::env::var(crate::OPERATOR_INFISICAL_SERVICE_TOKEN).is_ok()
             {
                 return resolve_infisical(id, profile);
             }
-            if std::env::var("VAULT_ADDR").is_ok() && std::env::var("VAULT_TOKEN").is_ok() {
+            if std::env::var(crate::OPERATOR_VAULT_ADDR).is_ok() && std::env::var(crate::OPERATOR_VAULT_TOKEN).is_ok() {
                 return resolve_vault(id, profile);
             }
-            // fallback to cloud automatically if keyring has a master key
-            if keyring::Entry::new("vox-clavis-vault", "master").is_ok() {
-                return resolve_vox_cloud(id, cloudless_options);
+            // fallback to cloud automatically if keyring has a master key with a set value
+            if let Ok(entry) = keyring::Entry::new("vox-clavis-vault", "master") {
+                if entry.get_password().is_ok() {
+                    return resolve_vox_cloud(id, cloudless_options);
+                }
             }
             resolve_with_backend(backend::NoopBackend, id, default_options)
         }

@@ -4,6 +4,9 @@ description: "Why Python and TypeScript fail for LLM code generation, and how th
 category: "explanation"
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
+keywords: ["AI code generation LLM", "LLM hallucination prevention", "compiler verified AI code", "type safe AI language"]
 ---
 
 # Why Vox: Compiler-Verified AI Code

@@ -70,10 +70,11 @@ impl<'a> Checker<'a> {
         }
     }
 
-    pub fn check_module(&mut self, module: &HirModule) {
-        self.diags.extend(register_hir_module(self.env, module));
+    pub fn check_module(&mut self, module: &mut HirModule) {
+        self.diags
+            .extend(register_hir_module(self.env, module, Some(self.uf)));
 
-        for f in &module.functions {
+        for f in &mut module.functions {
             self.check_function(f);
         }
         for a in &module.actors {
@@ -85,24 +86,24 @@ impl<'a> Checker<'a> {
         for act in &module.activities {
             self.check_activity(act);
         }
-        for sf in &module.server_fns {
+        for sf in &mut module.server_fns {
             self.check_server_fn(sf);
         }
-        for sf in &module.query_fns {
+        for sf in &mut module.query_fns {
             self.check_server_fn(sf);
             self.enforce_query_read_only(sf);
         }
-        for sf in &module.mutation_fns {
+        for sf in &mut module.mutation_fns {
             self.check_server_fn(sf);
         }
-        for t in &module.tests {
+        for t in &mut module.tests {
             self.check_function(t);
         }
-        for t in &module.mcp_tools {
-            self.check_function(&t.func);
+        for t in &mut module.mcp_tools {
+            self.check_function(&mut t.func);
         }
-        for r in &module.mcp_resources {
-            self.check_function(&r.func);
+        for r in &mut module.mcp_resources {
+            self.check_function(&mut r.func);
         }
         for r in &module.routes {
             self.check_route(r);
@@ -158,6 +159,8 @@ impl<'a> Checker<'a> {
                                 code: Some("typecheck.reactive.state".into()),
                                 fixes: vec![],
                             line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
 });
                         }
                         t
@@ -191,6 +194,8 @@ impl<'a> Checker<'a> {
                                 code: Some("typecheck.reactive.derived".into()),
                                 fixes: vec![],
                             line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
 });
                         }
                         t
@@ -225,11 +230,15 @@ impl<'a> Checker<'a> {
         self.env.pop_scope();
     }
 
-    fn check_function(&mut self, f: &HirFn) {
-        let ret_ty = f
+    fn check_function(&mut self, f: &mut HirFn) {
+        let was_inferred = f.return_type.is_none();
+        let mut ret_ty = f
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -255,6 +264,13 @@ impl<'a> Checker<'a> {
         }
         let _ = self.uf.unify(&last_ty, &ret_ty);
 
+        if was_inferred {
+            let resolved = self.uf.resolve(&ret_ty);
+            if !matches!(resolved, Ty::TypeVar(_)) {
+                f.return_type = Some(resolved.to_hir_type());
+            }
+        }
+
         self.env.pop_return_type();
         self.env.pop_scope();
     }
@@ -266,40 +282,17 @@ impl<'a> Checker<'a> {
     }
 
     fn check_actor_handler(&mut self, h: &HirActorHandler) {
-        let ret_ty = h
-            .return_type
-            .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &h.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-        for stmt in &h.body {
-            let _ = self.check_stmt(stmt);
-        }
-        self.env.pop_return_type();
-        self.env.pop_scope();
+        self.check_db_scoped_handler(&h.return_type, &h.params, &h.body);
     }
 
     fn check_workflow(&mut self, w: &HirWorkflow) {
-        let ret_ty = w
+        let mut ret_ty = w
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -333,10 +326,13 @@ impl<'a> Checker<'a> {
                 self.source,
             ));
         }
-        let ret_ty = a
+        let mut ret_ty = a
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         if let Some(rt) = &a.return_type {
             let declared = resolve_hir_type(rt, self.env);
             if !matches!(declared, Ty::Result(_)) {
@@ -372,11 +368,15 @@ impl<'a> Checker<'a> {
         self.env.pop_scope();
     }
 
-    fn check_server_fn(&mut self, sf: &HirServerFn) {
-        let ret_ty = sf
+    fn check_server_fn(&mut self, sf: &mut HirServerFn) {
+        let was_inferred = sf.return_type.is_none();
+        let mut ret_ty = sf
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -395,9 +395,20 @@ impl<'a> Checker<'a> {
                 Binding::new(p_ty, false, BindingKind::Parameter),
             );
         }
+
+        let mut last_ty = Ty::Unit;
         for stmt in &sf.body {
-            let _ = self.check_stmt(stmt);
+            last_ty = self.check_stmt(stmt);
         }
+        let _ = self.uf.unify(&last_ty, &ret_ty);
+
+        if was_inferred {
+            let resolved = self.uf.resolve(&ret_ty);
+            if !matches!(resolved, Ty::TypeVar(_)) {
+                sf.return_type = Some(resolved.to_hir_type());
+            }
+        }
+
         self.env.pop_return_type();
         self.env.pop_scope();
     }
@@ -412,10 +423,22 @@ impl<'a> Checker<'a> {
     }
 
     fn check_agent_handler(&mut self, h: &HirAgentHandler) {
-        let ret_ty = h
-            .return_type
+        self.check_db_scoped_handler(&h.return_type, &h.params, &h.body);
+    }
+
+    /// Shared body for actor/agent handlers: `db` binding plus param scope and statement typecheck.
+    fn check_db_scoped_handler(
+        &mut self,
+        return_type: &Option<HirType>,
+        params: &[HirParam],
+        body: &[HirStmt],
+    ) {
+        let mut ret_ty = return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -424,7 +447,7 @@ impl<'a> Checker<'a> {
             Binding::new(Ty::Database, false, BindingKind::Variable),
         );
 
-        for p in &h.params {
+        for p in params {
             let p_ty = p
                 .type_ann
                 .as_ref()
@@ -434,7 +457,7 @@ impl<'a> Checker<'a> {
                 Binding::new(p_ty, false, BindingKind::Parameter),
             );
         }
-        for stmt in &h.body {
+        for stmt in body {
             let _ = self.check_stmt(stmt);
         }
         self.env.pop_return_type();
@@ -483,6 +506,8 @@ impl<'a> Checker<'a> {
                 code: Some("lint.query_not_readonly".into()),
                 fixes: vec![],
             line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
 });
         }
     }
@@ -595,10 +620,13 @@ impl<'a> Checker<'a> {
     }
 
     fn check_route(&mut self, r: &HirRoute) {
-        let ret_ty = r
+        let mut ret_ty = r
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
         // Align with AST `check::typecheck_module` HTTP scope: `request` + `db`.
@@ -811,7 +839,7 @@ impl<'a> Checker<'a> {
 }
 
 pub fn typecheck_hir(
-    module: &HirModule,
+    module: &mut HirModule,
     env: &mut TypeEnv,
     builtins: &BuiltinTypes,
     source: &str,

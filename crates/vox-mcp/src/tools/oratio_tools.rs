@@ -440,8 +440,9 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
 }
 
 fn stream_ws_url() -> String {
-    let host = std::env::var("VOX_DASH_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("VOX_DASH_PORT").unwrap_or_else(|_| "3847".to_string());
+    let host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashHost).expose()
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+    let port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashPort).expose().unwrap_or_else(|| "3847".to_string());
     format!("ws://{host}:{port}/api/audio/transcribe/stream")
 }
 

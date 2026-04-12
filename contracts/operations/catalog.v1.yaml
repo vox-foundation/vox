@@ -538,6 +538,25 @@ operations:
     name: vox_benchmark_list
     http_read_role_eligible: false
   cli: null
+- id: clavis.doctor
+  title: Clavis Doctor
+  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_clavis_doctor
+    http_read_role_eligible: false
+  cli: null
 - id: benchmark.record
   title: Benchmark Record
   description: Record a new benchmark observation (e.g. wall-clock time for a build phase). Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
@@ -1042,7 +1061,9 @@ operations:
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
-  mcp: null
+  mcp:
+    name: vox_check
+    http_read_role_eligible: false
   cli:
     path:
     - check
@@ -1840,6 +1861,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.gui-smoke
+  title: Ci Gui-smoke
+  description: CLI operation `vox ci gui-smoke`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - gui-smoke
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.grammar-drift
   title: Ci Grammar-drift
   description: CLI operation `vox ci grammar-drift`
@@ -2572,6 +2620,60 @@ operations:
     path:
     - ci
     - sql-surface-guard
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.query-all-guard
+  title: Ci Query-all-guard
+  description: CLI operation `vox ci query-all-guard`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - query-all-guard
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.turso-import-guard
+  title: Ci Turso-import-guard
+  description: CLI operation `vox ci turso-import-guard`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - turso-import-guard
     status: active
     latin_ns: null
     handler_rust: null
@@ -5735,6 +5837,25 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: mens.journey.steps
+  title: Mens Journey Steps
+  description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_journey_canonical_steps
+    http_read_role_eligible: true
+  cli: null
 - id: mens.probe
   title: Mens Probe
   description: CLI operation `vox mens probe`
@@ -6846,6 +6967,22 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_plan
+    http_read_role_eligible: false
+  cli: null
+- id: plan.list.sessions
+  title: Plan List Sessions
+  description: List active and recent plan sessions.
+  product_lane: ai
+  mcp:
+    name: vox_plan_list_sessions
+    http_read_role_eligible: false
+  cli: null
+- id: plan.resume
+  title: Plan Resume
+  description: Resume a suspended or pending plan session.
+  product_lane: ai
+  mcp:
+    name: vox_plan_resume
     http_read_role_eligible: false
   cli: null
 - id: plan.status
@@ -10210,6 +10347,25 @@ operations:
     name: vox_task_status
     http_read_role_eligible: true
   cli: null
+- id: task.doubt
+  title: Task Doubt
+  description: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_doubt_task
+    http_read_role_eligible: false
+  cli: null
 - id: telemetry
   title: Telemetry
   description: CLI operation `vox telemetry`
@@ -10639,6 +10795,82 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_workspace_status
+    http_read_role_eligible: false
+  cli: null
+- id: export.grammar.ebnf
+  title: Export Grammar Ebnf
+  description: Export the Vox EBNF grammar.
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_export_grammar_ebnf
+    http_read_role_eligible: false
+  cli: null
+- id: test.decision
+  title: Test Decision
+  description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_test_decision
+    http_read_role_eligible: true
+  cli: null
+- id: exec.time.query
+  title: Exec Time Query
+  description: Query historical execution time for a tool.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_exec_time_query
+    http_read_role_eligible: true
+  cli: null
+- id: exec.time.record
+  title: Exec Time Record
+  description: Record an execution duration and outcome.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_exec_time_record
     http_read_role_eligible: false
   cli: null
 exemptions:

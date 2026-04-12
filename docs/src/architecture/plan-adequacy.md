@@ -4,6 +4,8 @@ description: "Why IDE and API planners produce underspecified plans, how Vox det
 category: "architecture"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Plan adequacy — research synthesis and Vox behavior
@@ -75,7 +77,7 @@ Codex / JSON metadata SHOULD include where possible:
 2. **Auto-expand MCP** — Default on via `auto_expand_thin_plan` and Auto loop OR `is_too_thin`.
 3. **Enforce native plans (opt-in)** — `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` blocks goal enqueue when the rule-based synthesized DAG is still thin.
 4. **Enforce MCP plans (same flag)** — When the flag is on, `vox_plan` returns a tool error if the plan is still `is_too_thin` **after** refinement (telemetry DB updates are skipped on that path).
-5. **Stricter MCP / post-refine policy (future)** — Optional extra gates (e.g. max aggregate gap risk) or questioning-first flows when facts are missing.
+5. **Stricter MCP / post-refine policy (future)** — Optional extra gates (e.g. max aggregate gap risk) or questioning-first flows when facts are missing. Governance for when planning MUST ask before generating a plan is specified in [`planning-meta/12-question-gate-standard.md`](planning-meta/12-question-gate-standard.md).
 
 ### Example SQL (Codex SQLite)
 

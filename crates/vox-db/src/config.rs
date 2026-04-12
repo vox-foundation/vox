@@ -32,6 +32,10 @@ pub enum DbConfig {
     },
 }
 
+use vox_clavis::SecretId;
+
+static LEGACY_TURSO_ENV_WARN: std::sync::Once = std::sync::Once::new();
+
 fn try_remote_from_compat_env() -> Option<DbConfig> {
     let hard_cut_strict = std::env::var("VOX_CLAVIS_HARD_CUT")
         .ok()
@@ -48,16 +52,20 @@ fn try_remote_from_compat_env() -> Option<DbConfig> {
     if hard_cut_strict || cutover_phase_blocks_compat {
         return None;
     }
-    if let (Ok(url), Ok(token)) = (
-        std::env::var("VOX_TURSO_URL"),
-        std::env::var("VOX_TURSO_TOKEN"),
-    ) {
-        return Some(DbConfig::remote(url, token));
-    }
-    if let (Ok(url), Ok(token)) = (
-        std::env::var("TURSO_URL"),
-        std::env::var("TURSO_AUTH_TOKEN"),
-    ) {
+
+    let res_url = vox_clavis::resolve_secret(SecretId::VoxDbUrl);
+    let res_token = vox_clavis::resolve_secret(SecretId::VoxDbToken);
+
+    if let (Some(url), Some(token)) = (res_url.expose(), res_token.expose()) {
+        if matches!(res_url.status, vox_clavis::ResolutionStatus::DeprecatedAliasUsed) 
+           || matches!(res_token.status, vox_clavis::ResolutionStatus::DeprecatedAliasUsed) {
+            LEGACY_TURSO_ENV_WARN.call_once(|| {
+                tracing::warn!(
+                    target: "vox_db::config",
+                    "Legacy TURSO_* env vars are deprecated; set VOX_DB_URL and VOX_DB_TOKEN (see docs/src/reference/env-vars.md)"
+                );
+            });
+        }
         return Some(DbConfig::remote(url, token));
     }
     None
@@ -101,8 +109,8 @@ impl DbConfig {
     /// Read config from `VOX_DB_URL` + `VOX_DB_TOKEN` (remote), or `VOX_DB_PATH` (local), or all
     /// three for embedded replica when `replication` is enabled. Empty env + `local` → [`Self::Memory`].
     pub fn from_env() -> Result<Self, String> {
-        let url = std::env::var("VOX_DB_URL").ok();
-        let token = std::env::var("VOX_DB_TOKEN").ok();
+        let url = vox_clavis::resolve_secret(SecretId::VoxDbUrl).expose().map(String::from);
+        let token = vox_clavis::resolve_secret(SecretId::VoxDbToken).expose().map(String::from);
         let path = std::env::var("VOX_DB_PATH").ok();
 
         match (url, token, path) {
@@ -225,8 +233,8 @@ impl DbConfig {
     /// - If only `VOX_DB_URL` + `VOX_DB_TOKEN` are set, use [`Self::Remote`].
     /// - Otherwise, fall back to [`Self::resolve_standalone`] (local file).
     pub fn resolve_for_mesh() -> Result<Self, String> {
-        let url = std::env::var("VOX_DB_URL").ok();
-        let token = std::env::var("VOX_DB_TOKEN").ok();
+        let url = vox_clavis::resolve_secret(SecretId::VoxDbUrl).expose().map(String::from);
+        let token = vox_clavis::resolve_secret(SecretId::VoxDbToken).expose().map(String::from);
         let path = std::env::var("VOX_DB_PATH").ok();
 
         match (url, token, path) {
@@ -254,6 +262,7 @@ impl DbConfig {
 #[cfg(test)]
 mod tests {
     use super::{DbConfig, try_remote_from_compat_env};
+    use vox_clavis::SecretId;
     use std::sync::Mutex;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -263,12 +272,12 @@ mod tests {
     fn hard_cut_disables_compat_remote_aliases() {
         let _guard = ENV_LOCK.lock().expect("env lock");
         let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
-        let prev_url = std::env::var("VOX_TURSO_URL").ok();
-        let prev_token = std::env::var("VOX_TURSO_TOKEN").ok();
+        let prev_url = std::env::var(SecretId::VoxDbUrl.spec().canonical_env).ok();
+        let prev_token = std::env::var(SecretId::VoxDbToken.spec().canonical_env).ok();
         unsafe {
             std::env::set_var("VOX_CLAVIS_HARD_CUT", "1");
-            std::env::set_var("VOX_TURSO_URL", "libsql://example.turso.io");
-            std::env::set_var("VOX_TURSO_TOKEN", "token");
+            std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, "libsql://example.turso.io");
+            std::env::set_var(SecretId::VoxDbToken.spec().canonical_env, "token");
         }
         assert!(try_remote_from_compat_env().is_none());
         unsafe {
@@ -277,12 +286,12 @@ mod tests {
                 None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
             }
             match prev_url {
-                Some(v) => std::env::set_var("VOX_TURSO_URL", v),
-                None => std::env::remove_var("VOX_TURSO_URL"),
+                Some(v) => std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, v),
+                None => std::env::remove_var(SecretId::VoxDbUrl.spec().canonical_env),
             }
             match prev_token {
-                Some(v) => std::env::set_var("VOX_TURSO_TOKEN", v),
-                None => std::env::remove_var("VOX_TURSO_TOKEN"),
+                Some(v) => std::env::set_var(SecretId::VoxDbToken.spec().canonical_env, v),
+                None => std::env::remove_var(SecretId::VoxDbToken.spec().canonical_env),
             }
         }
     }
@@ -292,12 +301,12 @@ mod tests {
     fn lenient_mode_allows_compat_remote_aliases() {
         let _guard = ENV_LOCK.lock().expect("env lock");
         let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
-        let prev_url = std::env::var("VOX_TURSO_URL").ok();
-        let prev_token = std::env::var("VOX_TURSO_TOKEN").ok();
+        let prev_url = std::env::var(SecretId::VoxDbUrl.spec().canonical_env).ok();
+        let prev_token = std::env::var(SecretId::VoxDbToken.spec().canonical_env).ok();
         unsafe {
             std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
-            std::env::set_var("VOX_TURSO_URL", "libsql://example.turso.io");
-            std::env::set_var("VOX_TURSO_TOKEN", "token");
+            std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, "libsql://example.turso.io");
+            std::env::set_var(SecretId::VoxDbToken.spec().canonical_env, "token");
         }
         let cfg = try_remote_from_compat_env().expect("compat alias should resolve");
         assert!(matches!(cfg, DbConfig::Remote { .. }));
@@ -307,12 +316,12 @@ mod tests {
                 None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
             }
             match prev_url {
-                Some(v) => std::env::set_var("VOX_TURSO_URL", v),
-                None => std::env::remove_var("VOX_TURSO_URL"),
+                Some(v) => std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, v),
+                None => std::env::remove_var(SecretId::VoxDbUrl.spec().canonical_env),
             }
             match prev_token {
-                Some(v) => std::env::set_var("VOX_TURSO_TOKEN", v),
-                None => std::env::remove_var("VOX_TURSO_TOKEN"),
+                Some(v) => std::env::set_var(SecretId::VoxDbToken.spec().canonical_env, v),
+                None => std::env::remove_var(SecretId::VoxDbToken.spec().canonical_env),
             }
         }
     }
@@ -324,14 +333,14 @@ mod tests {
         let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
         let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
         let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
-        let prev_url = std::env::var("VOX_TURSO_URL").ok();
-        let prev_token = std::env::var("VOX_TURSO_TOKEN").ok();
+        let prev_url = std::env::var(SecretId::VoxDbUrl.spec().canonical_env).ok();
+        let prev_token = std::env::var(SecretId::VoxDbToken.spec().canonical_env).ok();
         unsafe {
             std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
             std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "enforce");
             std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE");
-            std::env::set_var("VOX_TURSO_URL", "libsql://example.turso.io");
-            std::env::set_var("VOX_TURSO_TOKEN", "token");
+            std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, "libsql://example.turso.io");
+            std::env::set_var(SecretId::VoxDbToken.spec().canonical_env, "token");
         }
         assert!(try_remote_from_compat_env().is_none());
         unsafe {
@@ -348,12 +357,12 @@ mod tests {
                 None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
             }
             match prev_url {
-                Some(v) => std::env::set_var("VOX_TURSO_URL", v),
-                None => std::env::remove_var("VOX_TURSO_URL"),
+                Some(v) => std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, v),
+                None => std::env::remove_var(SecretId::VoxDbUrl.spec().canonical_env),
             }
             match prev_token {
-                Some(v) => std::env::set_var("VOX_TURSO_TOKEN", v),
-                None => std::env::remove_var("VOX_TURSO_TOKEN"),
+                Some(v) => std::env::set_var(SecretId::VoxDbToken.spec().canonical_env, v),
+                None => std::env::remove_var(SecretId::VoxDbToken.spec().canonical_env),
             }
         }
     }

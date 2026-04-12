@@ -80,11 +80,20 @@ pub fn preprocess_audio_pcm_f32_reported(
 
     let out: Vec<f32> = if mode == "rms_normalize" {
         let target_rms_dbfs: f32 = std::env::var("VOX_ORATIO_RMS_TARGET_DBFS")
-            .ok().and_then(|s| s.parse().ok()).unwrap_or(-18.0_f32);
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(-18.0_f32);
         let target_rms_linear = 10.0_f32.powf(target_rms_dbfs / 20.0);
         rms_before = (samples.iter().map(|x| x * x).sum::<f32>() / samples.len() as f32).sqrt();
-        let gain = if rms_before > 1e-6 { target_rms_linear / rms_before } else { 1.0 };
-        let processed: Vec<f32> = samples.iter().map(|x| (x * gain).clamp(-1.0, 1.0)).collect();
+        let gain = if rms_before > 1e-6 {
+            target_rms_linear / rms_before
+        } else {
+            1.0
+        };
+        let processed: Vec<f32> = samples
+            .iter()
+            .map(|x| (x * gain).clamp(-1.0, 1.0))
+            .collect();
         rms_after = (processed.iter().map(|x| x * x).sum::<f32>() / processed.len() as f32).sqrt();
         processed
     } else if peak_before > 0.0 {
@@ -153,7 +162,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         // SAFETY: tests are single-threaded here; env is restored after the assertion.
         unsafe {
-            unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize") };
+            std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize");
         }
         let quiet: Vec<f32> = vec![0.01, -0.01, 0.005];
         let (out, d) = preprocess_audio_pcm_f32_reported(&quiet, 100);

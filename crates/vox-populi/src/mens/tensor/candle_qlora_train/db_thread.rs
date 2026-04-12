@@ -30,7 +30,7 @@ pub(super) fn spawn_training_db_writer(
                 }
             };
             rt.block_on(async move {
-                let db = match vox_db::VoxDb::connect_default_with_training_fallback().await {
+                let db = match vox_db::VoxDb::connect_default().await {
                     Ok(d) => {
                         tracing::info!(
                             target: "vox_db::training_telemetry",
@@ -44,8 +44,8 @@ pub(super) fn spawn_training_db_writer(
                             run_id = %db_run_id,
                             error = %err,
                             error_debug = ?err,
-                            "VoxDB unavailable — training telemetry will not be persisted (open failed after primary + sidecar fallback); disk checkpoints are unaffected. \
-                             For a legacy main database run `vox codex export-legacy` then import into a fresh DB, or remove a corrupted `vox_training_telemetry.db` under your Vox data dir."
+                            "VoxDB unavailable — training telemetry will not be persisted; disk checkpoints are unaffected. \
+                             If the error is LegacySchemaChain, migrate the main database: `vox codex export-legacy`, fresh init, `vox codex import-legacy` (see docs/src/operations/voxdb-cutover-runbook.md)."
                         );
                         return;
                     }

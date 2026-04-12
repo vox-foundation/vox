@@ -4,6 +4,8 @@ description: "Single operator story for serving Candle QLoRA training outputs: v
 category: "reference"
 last_updated: 2026-04-07
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Mens local serving SSOT (Schola + orchestrator)

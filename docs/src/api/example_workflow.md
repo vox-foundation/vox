@@ -4,6 +4,8 @@ description: "Worked example: workflow keyword with activities and durable repla
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Example: Vox Workflow Example

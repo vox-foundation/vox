@@ -28,7 +28,13 @@ pub fn mcp_agent_fleet_env_enabled() -> bool {
 }
 
 fn spawn_embedded_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
-    vox_orchestrator::runtime::spawn_agent_fleet_if_enabled(orchestrator);
+    vox_orchestrator::runtime::spawn_agent_fleet_if_enabled(orchestrator.clone());
+
+    // Spawn Resolution Agent for Doubted tasks (Vox DEI)
+    tokio::spawn(async move {
+        let agent = vox_dei::ResolutionAgent::new(orchestrator).await;
+        agent.run().await;
+    });
 }
 
 /// Chosen orchestrator backend for the current MCP operation.
@@ -86,6 +92,15 @@ pub struct ServerState {
     ///
     /// Cleared on workspace re-root. Used for optional IPC-first pilots (e.g. **`VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC`**).
     orch_daemon_repo_id_aligned: Arc<AtomicBool>,
+    /// Process-level observer for structural health evaluation (Wave 2 Task 53).
+    pub observer: Arc<vox_orchestrator::Observer>,
+    /// Cache for the resolved repo catalog to prevent disk/git reads on every query
+    pub catalog_cache: Arc<tokio::sync::RwLock<Option<CachedCatalog>>>,
+}
+
+pub struct CachedCatalog {
+    pub resolved: vox_repository::ResolvedRepoCatalog,
+    pub manifest_mtime: std::time::SystemTime,
 }
 
 impl ServerState {
@@ -109,7 +124,7 @@ impl ServerState {
     /// Classification: **local operator diagnostics** (pilot attention budgeting), scoped by MCP/orchestrator policy —
     /// not general-purpose usage telemetry unless explicitly treated as such in SSOT (`docs/src/architecture/telemetry-trust-ssot.md`).
     pub fn record_attention_event(&self, mut event: vox_orchestrator::AttentionEvent) {
-        let disable_mirror = std::env::var("VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION")
+        let disable_mirror = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMirrorGlobalAttention)
             .map(|v| v == "0" || v.eq_ignore_ascii_case("false"))
             .unwrap_or(false);
         if disable_mirror {
@@ -183,6 +198,8 @@ impl ServerState {
             clarification_db_inbox_poll_join: Arc::new(SyncMutex::new(None)),
             questioning_attention_spent_ms: Arc::new(RwLock::new(HashMap::new())),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
+            observer: Arc::new(vox_orchestrator::Observer::with_default_policy()),
+            catalog_cache: Arc::new(tokio::sync::RwLock::new(None)),
         };
 
         state.spawn_populi_federation_poller();
@@ -197,7 +214,7 @@ impl ServerState {
     /// Compares **`repository_id`** from **`orch.ping`** with this embed's [`vox_repository::RepositoryContext::repository_id`].
     /// Mismatch logs **WARN** (or **ERROR** when **`VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`** is truthy) to surface split-brain setups while MCP still uses an in-process [`Orchestrator`]. Full tool delegation over RPC remains ADR 022 **IPC-first** follow-up.
     pub async fn probe_external_orchestrator_daemon_if_configured(&self) {
-        let Ok(raw) = std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET") else {
+        let Ok(raw) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket).expose() else {
             return;
         };
         let addr = raw.trim();
@@ -211,7 +228,7 @@ impl ServerState {
             );
             return;
         }
-        let strict_repo = std::env::var("VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT")
+        let strict_repo = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict)
             .map(|v| {
                 let t = v.trim();
                 t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
@@ -321,8 +338,8 @@ impl ServerState {
         }
     }
 
-    fn mcp_env_truthy(var: &str) -> bool {
-        std::env::var(var)
+    fn mcp_env_truthy(id: vox_clavis::SecretId) -> bool {
+        vox_clavis::resolve_secret(id)
             .map(|v| {
                 let t = v.trim();
                 t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
@@ -331,15 +348,15 @@ impl ServerState {
     }
 
     /// **`VOX_MCP_ORCHESTRATOR_RPC_READS`**: umbrella to enable all repo-aligned daemon **read** RPC pilots (same effect as truthy **`VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC`**, **`START_RPC`**, **`STATUS_TOOL_RPC`** together).
-    fn mcp_orch_daemon_reads_pilot_enabled(specific_flag: &str) -> bool {
-        Self::mcp_env_truthy("VOX_MCP_ORCHESTRATOR_RPC_READS")
-            || Self::mcp_env_truthy(specific_flag)
+    fn mcp_orch_daemon_reads_pilot_enabled(id: vox_clavis::SecretId) -> bool {
+        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcReads)
+            || Self::mcp_env_truthy(id)
     }
 
     /// **`VOX_MCP_ORCHESTRATOR_RPC_WRITES`**: umbrella to enable aligned daemon write pilots.
-    fn mcp_orch_daemon_writes_pilot_enabled(specific_flag: &str) -> bool {
-        Self::mcp_env_truthy("VOX_MCP_ORCHESTRATOR_RPC_WRITES")
-            || Self::mcp_env_truthy(specific_flag)
+    fn mcp_orch_daemon_writes_pilot_enabled(id: vox_clavis::SecretId) -> bool {
+        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcWrites)
+            || Self::mcp_env_truthy(id)
     }
 
     /// TCP client to **`vox-orchestrator-d`** when startup probe found matching non-empty **`repository_id`**.
@@ -349,7 +366,7 @@ impl ServerState {
         if !self.orch_daemon_repo_id_aligned.load(Ordering::SeqCst) {
             return None;
         }
-        let raw = std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET").ok()?;
+        let raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket).expose().ok()?;
         let addr = raw.trim();
         if addr.is_empty() || vox_orchestrator::orch_daemon::is_stdio_transport(addr) {
             return None;
@@ -363,7 +380,7 @@ impl ServerState {
     pub fn orch_daemon_client_for_task_status_rpc(
         &self,
     ) -> Option<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-        if !Self::mcp_orch_daemon_reads_pilot_enabled("VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC") {
+        if !Self::mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorTaskStatusRpc) {
             return None;
         }
         let c = self.orch_daemon_tcp_client_when_repo_aligned();
@@ -380,7 +397,7 @@ impl ServerState {
     pub(crate) fn orch_daemon_client_for_start_rpc(
         &self,
     ) -> Option<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-        if !Self::mcp_orch_daemon_reads_pilot_enabled("VOX_MCP_ORCHESTRATOR_START_RPC") {
+        if !Self::mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorStartRpc) {
             return None;
         }
         self.orch_daemon_tcp_client_when_repo_aligned()
@@ -390,7 +407,7 @@ impl ServerState {
     pub(crate) fn orch_daemon_client_for_status_tool_rpc(
         &self,
     ) -> Option<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-        if !Self::mcp_orch_daemon_reads_pilot_enabled("VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC") {
+        if !Self::mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorStatusToolRpc) {
             return None;
         }
         self.orch_daemon_tcp_client_when_repo_aligned()
@@ -400,7 +417,7 @@ impl ServerState {
     pub(crate) fn orch_daemon_client_for_task_writes_rpc(
         &self,
     ) -> Option<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-        if !Self::mcp_orch_daemon_writes_pilot_enabled("VOX_MCP_ORCHESTRATOR_TASK_WRITES_RPC") {
+        if !Self::mcp_orch_daemon_writes_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorTaskWritesRpc) {
             return None;
         }
         self.orch_daemon_tcp_client_when_repo_aligned()
@@ -410,7 +427,7 @@ impl ServerState {
     pub(crate) fn orch_daemon_client_for_agent_writes_rpc(
         &self,
     ) -> Option<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-        if !Self::mcp_orch_daemon_writes_pilot_enabled("VOX_MCP_ORCHESTRATOR_AGENT_WRITES_RPC") {
+        if !Self::mcp_orch_daemon_writes_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorAgentWritesRpc) {
             return None;
         }
         self.orch_daemon_tcp_client_when_repo_aligned()
@@ -419,7 +436,7 @@ impl ServerState {
     /// Select write backend based on env + daemon alignment.
     pub fn orchestrator_backend_mode_for_writes(&self) -> OrchestratorBackendMode {
         if self.orch_daemon_tcp_client_when_repo_aligned().is_some()
-            && Self::mcp_env_truthy("VOX_MCP_ORCHESTRATOR_RPC_WRITES")
+            && Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcWrites)
         {
             OrchestratorBackendMode::DaemonAlignedTcp
         } else {
@@ -521,6 +538,18 @@ impl ServerState {
         }
         self.orchestrator
             .cancel_task(task_id)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Flag a task as suspect against the embedded orchestrator (backend).
+    /// Note: Remote RPC write pilot is not yet implemented for this experimental tool.
+    pub async fn doubt_task_backend(
+        &self,
+        task_id: TaskId,
+        reason: Option<String>,
+    ) -> Result<(), String> {
+        self.orchestrator
+            .doubt_task(task_id, reason)
             .map_err(|e| e.to_string())
     }
 
@@ -687,7 +716,7 @@ impl ServerState {
             return;
         };
         *g.entry(session_key.to_string()).or_insert(0) += delta_ms;
-        let disable_mirror = std::env::var("VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION")
+        let disable_mirror = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMirrorGlobalAttention)
             .map(|v| v == "0" || v.eq_ignore_ascii_case("false"))
             .unwrap_or(false);
         if !disable_mirror {
@@ -722,7 +751,7 @@ impl ServerState {
 
     pub fn questioning_attention_bounds(&self, session_key: &str) -> (u64, u64) {
         let spent = self.questioning_attention_spent(session_key);
-        let max = std::env::var("VOX_QUESTIONING_MAX_ATTENTION_MS")
+        let max = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMaxAttentionMs)
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or_else(|| QuestioningPolicy::default().max_clarification_attention_ms);
@@ -876,6 +905,8 @@ impl ServerState {
             clarification_db_inbox_poll_join: Arc::new(SyncMutex::new(None)),
             questioning_attention_spent_ms: Arc::new(RwLock::new(HashMap::new())),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
+            observer: Arc::new(vox_orchestrator::Observer::with_default_policy()),
+            catalog_cache: Arc::new(tokio::sync::RwLock::new(None)),
         }
     }
 
@@ -1081,5 +1112,38 @@ impl ServerState {
         self.spawn_clarification_db_inbox_poller_if_db();
 
         self
+    }
+
+    /// Retrieve the path for MENS tool trace dogfooding (`dogfood_traces.jsonl` by default).
+    pub fn dogfood_trace_path(&self) -> Option<PathBuf> {
+        std::env::var("VOX_DOGFOOD_TRACE_PATH")
+            .map(PathBuf::from)
+            .ok()
+            .or_else(|| {
+                self.workspace_root
+                    .as_ref()
+                    .map(|r| r.join("target/dogfood/dogfood_traces.jsonl"))
+            })
+    }
+
+    /// Retrieve the path for a specific MENS trace dogfooding file in the same directory.
+    /// Resets all Socrates questioning attention for a given session.
+    pub fn reset_questioning_attention_for_session(&self, session_key: &str) {
+        if let Ok(mut map) = self.questioning_attention_spent_ms.write() {
+            map.remove(session_key);
+        }
+    }
+
+    /// Resets all Socrates questioning attention for all sessions.
+    pub fn reset_all_questioning_attention(&self) {
+        if let Ok(mut map) = self.questioning_attention_spent_ms.write() {
+            map.clear();
+        }
+    }
+
+    pub fn dogfood_trace_path_for(&self, name: &str) -> Option<PathBuf> {
+        let mut base = self.dogfood_trace_path()?;
+        base.set_file_name(name);
+        Some(base)
     }
 }

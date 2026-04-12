@@ -75,6 +75,7 @@ impl VoxDb {
             body_markdown: artifact.body_markdown,
             citations_json: artifact.citations_json,
             metadata_json: artifact.metadata_json,
+            revision_history_json: None,
             content_sha3_256: &content_sha3_256,
             state: artifact.state,
         })

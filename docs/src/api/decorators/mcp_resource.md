@@ -4,6 +4,8 @@ description: "Vox @mcp.resource decorator: exposes read-only MCP resources with 
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # @mcp.resource

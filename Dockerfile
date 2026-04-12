@@ -33,7 +33,7 @@ RUN apt-get update \
 
 COPY --from=builder /app/target/release/vox /usr/local/bin/vox
 # Tiny script for mesh compose worker (`vox run --mode script`); see examples/mesh-compose.yml.
-COPY examples/mesh/noop.vox /opt/vox/mesh-noop.vox
+COPY examples/golden/mesh/noop.vox /opt/vox/mesh-noop.vox
 COPY infra/containers/entrypoints/vox-entrypoint.sh /usr/local/bin/vox-entrypoint.sh
 RUN chmod +x /usr/local/bin/vox-entrypoint.sh
 

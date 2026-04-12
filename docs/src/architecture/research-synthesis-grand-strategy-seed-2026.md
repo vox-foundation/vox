@@ -6,6 +6,9 @@ status: "research"
 research_date: "2026-04-08"
 training_eligible: true
 last_updated: 2026-04-08
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Research Synthesis: Grand Strategy Seed (April 2026)

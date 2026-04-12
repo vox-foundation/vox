@@ -3,7 +3,7 @@
 //! Surfaces choose one of:
 //! - **Strict** — propagate [`crate::StoreError`]; no silent drops.
 //! - **Degraded optional** — Codex features off; log structured remediation (MCP, optional CLI paths).
-//! - **Training sidecar fallback** — only [`crate::VoxDb::connect_default_with_training_fallback`].
+//! - **Legacy schema** — [`crate::VoxDb::connect_default`] returns [`crate::StoreError::LegacySchemaChain`]; migrate per cutover runbook (no automatic sidecar DB).
 //!
 //! Human-oriented inventory: `docs/src/architecture/voxdb-connect-policy.md`.
 
@@ -23,7 +23,7 @@ pub enum DbConnectSurface {
     Runtime,
     /// CLI paths that require Codex.
     CliStrict,
-    /// Mens training DB thread (may use training sidecar).
+    /// Mens training DB thread (canonical connect; fails on legacy primary until migration).
     MensTraining,
     /// Repo-scoped CLI commands (`vox agent`, `vox snippet`, …) using workspace journey resolution.
     CliWorkspace,

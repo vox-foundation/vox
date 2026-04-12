@@ -4,6 +4,8 @@ description: "Vox @mcp.tool decorator: exposes typed functions as MCP tools with
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # @mcp.tool

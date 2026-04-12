@@ -4,6 +4,8 @@ description: "Normative portability contract for Docker/OCI-backed `.vox` deploy
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 This page defines the normative portability contract for deployed `.vox` applications.

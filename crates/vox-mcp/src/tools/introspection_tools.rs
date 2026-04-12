@@ -19,13 +19,9 @@ const MCP_ROADMAP_DECORATORS: &[&str] = &[
     "@trace",
     "@health",
     "@metric",
-    "@scheduled",
     "@agent_def",
     "@skill",
     "@py_import",
-    "@deprecated",
-    "@pure",
-    "@require",
     "@theme",
     "@keyframes",
 ];

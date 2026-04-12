@@ -4,6 +4,8 @@ description: "Hard-cut research findings for Cargo-first Vox package management,
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Decision context

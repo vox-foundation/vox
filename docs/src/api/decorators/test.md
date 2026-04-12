@@ -4,6 +4,8 @@ description: "Vox @test decorator: declares unit tests executed by vox test and 
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # @test

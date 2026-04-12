@@ -162,17 +162,18 @@ pub struct CloudProviderConfig {
 
 impl Default for CloudProviderConfig {
     fn default() -> Self {
-        let max_budget = std::env::var("VOX_CLOUD_MAX_BUDGET")
+        let max_budget = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxBudget)
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(10.0_f64);
-        let cache_ttl = std::env::var("VOX_CLOUD_PRICE_TTL")
+        let cache_ttl = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudPriceTtl)
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(30_u64);
-        let image =
-            std::env::var("VOX_CLOUD_IMAGE").unwrap_or_else(|_| DEFAULT_CLOUD_IMAGE.to_string());
-        let abs_max = std::env::var("VOX_CLOUD_MAX_RUNTIME")
+        let image = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudImage)
+            .expose()
+            .unwrap_or_else(|| DEFAULT_CLOUD_IMAGE.to_string());
+        let abs_max = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxRuntime)
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(3600_u64);

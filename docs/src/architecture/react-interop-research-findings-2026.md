@@ -4,6 +4,8 @@ description: "Comprehensive research findings (20+ web searches) on the React ec
 category: "architecture"
 last_updated: 2026-04-07
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox React / v0 Interop: Research Findings
@@ -47,6 +49,7 @@ tailwind.config.ts ← updated with any new theme tokens
 A typical v0 component:
 
 ```tsx
+// vox:skip
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -221,6 +224,7 @@ export const voxRoutes: VoxRoute[] = [
 Then a **user-owned, once-generated `App.tsx`** consumes this manifest:
 
 ```tsx
+// vox:skip
 // app/App.tsx (scaffold — written once, never overwritten)
 // This file is yours to modify. Vox never overwrites it.
 // It adapts the voxRoutes manifest to your chosen router.

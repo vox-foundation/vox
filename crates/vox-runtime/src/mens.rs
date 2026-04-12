@@ -67,14 +67,17 @@ impl MensConfig {
             api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliApiKey)
                 .expose()
                 .map(|s| s.to_string()),
-            model: std::env::var("POPULI_MODEL").unwrap_or_else(|_| "default-model".to_string()),
-            temperature: std::env::var("POPULI_TEMPERATURE")
-                .ok()
-                .and_then(|s| s.parse().ok())
+            model: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliModel)
+                .expose()
+                .unwrap_or("default-model")
+                .to_string(),
+            temperature: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliTemperature)
+                .expose()
+                .and_then(|s: &str| s.parse().ok())
                 .unwrap_or(0.7),
-            max_tokens: std::env::var("POPULI_MAX_TOKENS")
-                .ok()
-                .and_then(|s| s.parse().ok())
+            max_tokens: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliMaxTokens)
+                .expose()
+                .and_then(|s: &str| s.parse().ok())
                 .unwrap_or(2048),
         }
     }

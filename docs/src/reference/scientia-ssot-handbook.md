@@ -4,6 +4,8 @@ description: "Single reference for SCIENTIA lifecycle terms, status vocabulary, 
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # SCIENTIA SSOT handbook

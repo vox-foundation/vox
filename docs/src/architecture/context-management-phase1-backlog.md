@@ -5,6 +5,9 @@ category: "architecture"
 status: "roadmap"
 last_updated: 2026-03-30
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Context management phase 1 backlog

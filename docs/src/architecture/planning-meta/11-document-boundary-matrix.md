@@ -4,6 +4,8 @@ description: "Boundary and ownership matrix for planning-meta documents to preve
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Document boundary matrix

@@ -43,20 +43,25 @@ pub fn spawn_populi_federation_poller(
         orchestrator_config.populi_rebalance_on_remote_schedulable_drop;
     let populi_replay_queued_routes_on_remote_schedulable_drop =
         orchestrator_config.populi_replay_queued_routes_on_remote_schedulable_drop;
-    let reconcile_exec_leases = std::env::var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE")
-        .map(|v| {
-            let t = v.trim();
-            t == "1" || t.eq_ignore_ascii_case("true")
-        })
-        .unwrap_or(false);
-    let auto_revoke_exec_leases = std::env::var("VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE")
-        .map(|v| {
-            let t = v.trim();
-            t == "1" || t.eq_ignore_ascii_case("true")
-        })
-        .unwrap_or(false);
-    let codex_mesh_telemetry = std::env::var("VOX_MESH_CODEX_TELEMETRY")
-        .map(|v| {
+    let reconcile_exec_leases =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshExecLeaseReconcile)
+            .expose()
+            .map(|v: &str| {
+                let t = v.trim();
+                t == "1" || t.eq_ignore_ascii_case("true")
+            })
+            .unwrap_or(false);
+    let auto_revoke_exec_leases =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshExecLeaseAutoRevoke)
+            .expose()
+            .map(|v: &str| {
+                let t = v.trim();
+                t == "1" || t.eq_ignore_ascii_case("true")
+            })
+            .unwrap_or(false);
+    let codex_mesh_telemetry = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+        .expose()
+        .map(|v: &str| {
             let t = v.trim();
             t == "1" || t.eq_ignore_ascii_case("true")
         })

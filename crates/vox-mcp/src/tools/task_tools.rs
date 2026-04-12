@@ -522,7 +522,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         }
     }
 
-    let bypass_questioning_gate = std::env::var("VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE")
+    let bypass_questioning_gate = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSubmitTaskBypassQuestioningGate).expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     if !bypass_questioning_gate {
@@ -902,6 +902,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 let pseudo = vec![crate::tools::chat_tools::params::PlanTask {
                     id: 1,
                     description: description.clone(),
+                    category: None,
                     files: params.files.iter().map(|f| f.path.clone()).collect(),
                     estimated_complexity: params.complexity.unwrap_or(5).clamp(1, 10),
                     depends_on: vec![],
@@ -1011,6 +1012,33 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
     }
 }
 
+/// Retrieve the Testing Decision Engine output for a given task.
+pub async fn test_decision(state: &ServerState, params: TaskStatusParams) -> String {
+    let task_id_str = params.task_id.to_string();
+    if let Some(db) = state.orchestrator.db() {
+        match db.load_test_decision(&task_id_str).await {
+            Ok(Some((decision, rationale))) => {
+                let res = serde_json::json!({
+                    "decision": decision,
+                    "rationale": rationale
+                });
+                return ToolResult::ok(res).to_json();
+            }
+            Ok(None) => {}
+            Err(e) => {
+                tracing::warn!("test_decision query failed: {e}");
+            }
+        }
+    }
+
+    // Fallback if not evaluated or DB unavailable
+    ToolResult::ok(serde_json::json!({
+        "decision": "Unknown",
+        "rationale": "No test decision recorded for this task."
+    }))
+    .to_json()
+}
+
 /// Mark a task as completed, releasing its file locks (async).
 pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> String {
     let task_id = TaskId(params.task_id);
@@ -1023,6 +1051,7 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
         declared_non_placeholder: params.declared_non_placeholder,
         force_risky: params.force_risky,
         force_risky_reason: params.force_risky_reason,
+        observation_summary: None,
     };
     let res = state
         .complete_task_with_attestation_backend(task_id, Some(attestation))
@@ -1114,6 +1143,43 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
         .await
     {
         Ok(()) => ToolResult::ok("Task reordered successfully".to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
+    }
+}
+
+/// Flag a task as suspect by the user, triggering a resolution loop.
+pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskParams) -> String {
+    let task_id = TaskId(params.task_id);
+    let assigned = state.orchestrator.agent_assigned_to_task(task_id);
+    let res = state.doubt_task_backend(task_id, params.reason).await;
+
+    match res {
+        Ok(()) => {
+            // Gamification: suspecting is a habit-building interaction.
+            if let (Some(db), Some(aid)) = (&state.db, assigned) {
+                let uid = vox_ludus::db::canonical_user_id();
+                let id = format!("agent-{}", aid.0);
+                let mut companion = match vox_ludus::db::list_companions(db, &uid).await {
+                    Ok(comps) => comps
+                        .into_iter()
+                        .find(|c: &vox_ludus::companion::Companion| c.id == id),
+                    Err(_) => None,
+                }
+                .unwrap_or_else(|| {
+                    vox_ludus::companion::Companion::new(
+                        &id,
+                        &uid,
+                        format!("Agent {}", aid.0),
+                        "vox",
+                    )
+                });
+
+                companion.interact(vox_ludus::companion::Interaction::TaskDoubted);
+                let _ = vox_ludus::db::upsert_companion(db, &companion).await;
+            }
+            ToolResult::ok("task flagged as suspect; resolution agent escalated".to_string())
+                .to_json()
+        }
         Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }

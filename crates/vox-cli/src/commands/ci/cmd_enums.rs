@@ -42,6 +42,9 @@ pub enum CiCmd {
     /// Validate `publication-worthiness.default.yaml` against its JSON Schema + numeric invariants.
     #[command(name = "scientia-worthiness-contract")]
     ScientiaWorthinessContract,
+    /// Validate `scientia-heuristics.default.yaml` against its struct defaults.
+    #[command(name = "scientia-heuristics-parity")]
+    ScientiaHeuristicsParity,
     /// Validate SCIENTIA finding-candidate + novelty-evidence example JSON against v1 schemas.
     #[command(name = "scientia-novelty-ledger-contracts")]
     ScientiaNoveltyLedgerContracts,
@@ -171,13 +174,26 @@ pub enum CiCmd {
         #[arg(long, default_value = "dev")]
         profile: String,
     },
-    /// Compare grammar taxonomy fingerprint (`generate_system_prompt` SHA-256) to `mens/data/grammar_fingerprint.txt`; update file on drift.
+    /// Compare grammar taxonomy fingerprint (`emit_ebnf` SHA-256) to `mens/data/grammar_fingerprint.txt`; update file on drift.
     #[command(name = "grammar-drift")]
     GrammarDrift {
         /// Emit machine-readable `drift=true|false` for CI (e.g. append to `GITHUB_OUTPUT`).
         #[arg(long, value_enum)]
         emit: Option<GrammarDriftEmit>,
     },
+    /// Audit K-complexity budget: verify compressed sizes of golden outputs vs `contracts/eval/complexity-budget.v1.json`.
+    #[command(name = "k-complexity-budget")]
+    KComplexityBudget {
+        /// Fail if any fixture exceeds its budget by more than this percentage (default 0%).
+        #[arg(long, default_value_t = 0.0)]
+        tolerance_percent: f64,
+        /// Update baseline budgets in `contracts/eval/complexity-budget.v1.json` (Wave 11 Task 211).
+        #[arg(long)]
+        update: bool,
+    },
+    /// Validate grammar export crate: emit all formats, verify rule counts are non-zero, assert semver alignment.
+    #[command(name = "grammar-export-check")]
+    GrammarExportCheck,
     /// Histogram of AST decl kinds across `examples/golden` (requires `vox-corpus/ast-extract`).
     #[command(name = "corpus-decl-coverage", visible_alias = "corpus-coverage")]
     CorpusDeclCoverage,
@@ -185,6 +201,13 @@ pub enum CiCmd {
     #[command(name = "repo-guards")]
     RepoGuards,
     /// Fail when changed files add direct secret env reads outside Clavis-owned modules.
+    /// Fail when changed files use environment variables not registered in Clavis or Operator Registry.
+    #[command(name = "operator-env-guard")]
+    OperatorEnvGuard {
+        /// Scan all crate Rust files instead of only changed files.
+        #[arg(long)]
+        all: bool,
+    },
     #[command(name = "secret-env-guard")]
     SecretEnvGuard {
         /// Scan all crate Rust files instead of only changed files.
@@ -198,9 +221,26 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Fail when unknown crates call `query_all(` on Codex (transitional allowlist in docs).
+    #[command(name = "query-all-guard")]
+    QueryAllGuard {
+        /// Scan all `crates/**/*.rs` instead of only `git diff` changed files.
+        #[arg(long)]
+        all: bool,
+    },
+    /// Fail when unknown crates use the Turso Rust path prefix (transitional allowlist in docs).
+    #[command(name = "turso-import-guard")]
+    TursoImportGuard {
+        /// Scan all `crates/**/*.rs` instead of only `git diff` changed files.
+        #[arg(long)]
+        all: bool,
+    },
     /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
     #[command(name = "clavis-parity")]
     ClavisParity,
+    /// Generate Clavis SSOT manifest.
+    #[command(name = "clavis-contracts")]
+    ClavisContracts,
     /// Machine-checkable Clavis cutover promotion/rollback gates for shadow/canary/enforce/decommission.
     #[command(name = "clavis-cutover-gates")]
     ClavisCutoverGates,
@@ -247,6 +287,9 @@ pub enum CiCmd {
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
+    /// GUI smoke: `web_ir_lower_emit` always; optional Vite (`VOX_WEB_VITE_SMOKE=1`) and Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.
+    #[command(name = "gui-smoke")]
+    GuiSmoke,
     /// Compare `cargo llvm-cov report --json --summary-only` to `.config/coverage-gates.toml`.
     #[command(name = "coverage-gates")]
     CoverageGates {
@@ -328,6 +371,39 @@ pub enum CiCmd {
         /// Print a JSON array of violations instead of prose (for tooling).
         #[arg(long)]
         json: bool,
+    },
+    /// Scan for retired symbols inside `docs/` using the list in `contracts/documentation/retired-symbols.v1.yaml`.
+    #[command(name = "retired-symbol-check")]
+    RetiredSymbolCheck,
+    /// **Placeholder:** prints a message only (no DB/corpus checks). Prefer `vox ci mesh-gate` and `vox mens corpus …` for real gates.
+    #[command(name = "mens-corpus-health")]
+    MensCorpusHealth {
+        #[arg(long, default_value_t = 1000)]
+        min_pairs: usize,
+        #[arg(long, default_value_t = 0.15)]
+        min_human_ratio: f64,
+    },
+    /// **Placeholder:** prints a message only (no GRPO validation).
+    #[command(name = "grpo-reward-baseline")]
+    GrpoRewardBaseline,
+    /// **Placeholder:** prints a message only (no eval suite).
+    #[command(name = "collateral-damage-gate")]
+    CollateralDamageGate {
+        #[arg(long, default_value_t = 0.05)]
+        max_damage_rate: f64,
+    },
+    /// **Placeholder:** prints a message only (no constrained generation).
+    #[command(name = "constrained-gen-smoke")]
+    ConstrainedGenSmoke {
+        #[arg(long, default_value_t = 50)]
+        n_samples: usize,
+    },
+    /// Sync derived IDE ignore files (.cursorignore, .aiignore, .aiexclude) from .voxignore SSOT.
+    #[command(name = "sync-ignore-files")]
+    SyncIgnoreFiles {
+        /// If true, fail CI if derived files are out of sync instead of regenerating them.
+        #[arg(long)]
+        verify: bool,
     },
 }
 

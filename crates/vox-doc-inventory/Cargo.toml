@@ -8,14 +8,16 @@ authors.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+vox-build-meta = { workspace = true }
 anyhow.workspace = true
-vox-repository = { path = "../vox-repository" }
+vox-repository = { workspace = true }
 chrono = { workspace = true, default-features = false, features = ["clock", "std"] }
 regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 walkdir = "2"
 vox-bounded-fs = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [[bin]]
 name = "doc-inventory-generate"

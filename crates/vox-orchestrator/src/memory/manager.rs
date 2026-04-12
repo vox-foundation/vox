@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write as FmtWrite;
 use std::fs;
+use std::io::Write;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -37,7 +38,7 @@ pub struct MemoryFact {
 ///
 /// When a `VoxDb` is attached via [`MemoryManager::with_db`], every `persist_fact` also
 /// writes to Codex `memories`. Recall order: **in-memory cache** (recent `persist_fact`),
-/// **MEMORY.md**, then **Codex** (via [`Self::recall_async`] — sync [`Self::recall`] stops after file).
+/// **MEMORY.md**, then **Codex** (via [`Self::lookup_fact_by_key`] — sync [`Self::recall`] stops after file).
 pub struct MemoryManager {
     pub(super) config: MemoryConfig,
     pub(super) long_term: LongTermMemory,
@@ -109,6 +110,18 @@ impl MemoryManager {
 
     /// Append a note to today's daily log.
     pub fn log(&self, entry: &str) -> Result<(), MemoryError> {
+        let path = self.config.log_dir.join(format!("{}.md", today_str()));
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(MemoryError::Io)?;
+        }
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(MemoryError::Io)?;
+        writeln!(f, "{entry}").map_err(MemoryError::Io)?;
+        f.sync_all().map_err(MemoryError::Io)?;
+
         if let Some(db) = &self.db {
             let db = db.clone();
             let entry = entry.to_string();
@@ -142,7 +155,7 @@ impl MemoryManager {
     ) -> Result<(), MemoryError> {
         let key = key.into();
         let value = value.into();
-        // Removed `self.long_term.set(&key, &value)?` to collapse active MEMORY.md writes.
+        self.long_term.set(&key, &value)?;
 
         // Dual-write to VoxDB (fire-and-forget via spawn)
         if let Some(db) = &self.db {
@@ -220,7 +233,42 @@ impl MemoryManager {
         Ok(())
     }
 
-    /// Retrieve a fact: **cache** → **MEMORY.md**. For Codex fallback use [`Self::recall_async`].
+    /// Exact key lookup: **cache** → **MEMORY.md** → Codex `memories` (`global` / type `fact`).
+    ///
+    /// Used by MCP and other tooling that needs a durable key-value hit. Broader context retrieval
+    /// should use the RAG / retrieval bundle path where appropriate.
+    pub async fn lookup_fact_by_key(&self, key: &str) -> Result<Option<String>, MemoryError> {
+        for fact in self.cache.iter().rev() {
+            if fact.key == key {
+                return Ok(Some(fact.value.clone()));
+            }
+        }
+        if let Ok(Some(v)) = self.long_term.get(key) {
+            return Ok(Some(v));
+        }
+        let Some(db) = &self.db else {
+            return Ok(None);
+        };
+        let entries = db
+            .recall_memory("global", Some("fact"), 500, None)
+            .await
+            .unwrap_or_default();
+        for entry in entries {
+            if let Some((k, v)) = entry.content.split_once(": ") {
+                if k == key {
+                    tracing::debug!(
+                        target: "vox_orchestrator::memory",
+                        key,
+                        "lookup_fact_by_key: hit Codex memories"
+                    );
+                    return Ok(Some(v.to_string()));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Retrieve a fact: **cache** → **MEMORY.md**. Does not query Codex; use [`Self::lookup_fact_by_key`] for DB fallback.
     #[deprecated(
         since = "0.3.0",
         note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation."
@@ -238,34 +286,11 @@ impl MemoryManager {
     /// Cache → **MEMORY.md** → Codex `memories` (agent `global`, type `fact`).
     #[deprecated(
         since = "0.3.0",
-        note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation."
+        note = "Use `lookup_fact_by_key` instead; this alias remains for external callers."
     )]
-    #[allow(deprecated)] // We call the deprecated synchronous recall() inside.
     pub async fn recall_async(&self, key: &str) -> Result<Option<String>, MemoryError> {
         tracing::warn!("Deprecated recall_async() called for key: {}", key);
-        if let Ok(Some(v)) = self.recall(key) {
-            return Ok(Some(v));
-        }
-        let Some(db) = &self.db else {
-            return Ok(None);
-        };
-        let entries = db
-            .recall_memory("global", Some("fact"), 500, None)
-            .await
-            .unwrap_or_default();
-        for entry in entries {
-            if let Some((k, v)) = entry.content.split_once(": ") {
-                if k == key {
-                    tracing::debug!(
-                        target: "vox_orchestrator::memory",
-                        key,
-                        "recall_async: hit Codex memories"
-                    );
-                    return Ok(Some(v.to_string()));
-                }
-            }
-        }
-        Ok(None)
+        self.lookup_fact_by_key(key).await
     }
 
     /// Sync all MEMORY.md sections to VoxDB.
@@ -444,6 +469,20 @@ impl MemoryManager {
                     line: i + 1,
                     content: line.to_string(),
                 });
+            }
+        }
+
+        let log_name = format!("{}.md", today_str());
+        let log_path = self.config.log_dir.join(&log_name);
+        if let Ok(log_content) = vox_bounded_fs::read_utf8_path_capped(&log_path) {
+            for (i, line) in log_content.lines().enumerate() {
+                if line.to_lowercase().contains(&q) {
+                    hits.push(SearchHit {
+                        source: log_name.clone(),
+                        line: i + 1,
+                        content: line.to_string(),
+                    });
+                }
             }
         }
 

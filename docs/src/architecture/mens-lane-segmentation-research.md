@@ -4,6 +4,8 @@ description: "Research groundwork for separating code-only, docs QA, chat, tool,
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens lane segmentation research
 
@@ -192,15 +194,13 @@ Relevant existing foundations:
 - MCP-oriented infrastructure.
 
 ### Lane E: Speech-to-code and modality bridge
-
+...
+### Lane G: Research and evidence synthesis
 Primary objective:
-
-- convert speech or multimodal input into Vox-oriented representations,
-- eventually route into code-only generation, docs QA, or tool lanes.
-
-This should remain its own lane because modality normalization and ambiguity handling are materially different from typed code generation.
-
-### Lane F: Future multimodal lane
+- synthesize evidence from disparate corpora.
+- resolve contradictions between local and web evidence.
+- calibrate confidence for Socrates gates.
+- multi-hop reasoning over fictional knowledge for composition skill.
 
 Primary objective:
 
@@ -223,6 +223,7 @@ Each training example should eventually carry explicit fields such as:
   - `vox_chat`
   - `vox_tool_trace`
   - `vox_speech_codegen`
+  - `vox_research_expert`
   - `vox_multimodal`
 - `response_mode`
   - `code_only`

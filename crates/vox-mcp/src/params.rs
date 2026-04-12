@@ -341,6 +341,18 @@ pub struct FailTaskParams {
     pub reason: String,
 }
 
+/// Mark a task as "Doubted" by the human, triggering a high-audit resolution loop.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct DoubtTaskParams {
+    /// Task id to doubt.
+    pub task_id: u64,
+    /// Optional context or specific suspicion reason.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub reason: Option<String>,
+}
+
 /// Cancel a queued or in-progress task.
 #[derive(Debug, Deserialize)]
 pub struct CancelTaskParams {
@@ -763,4 +775,24 @@ pub struct ValidateResponse {
     /// Optional correlation ID for speech-to-code / MCP tracing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<String>,
+}
+
+/// Arguments for `vox_check` (machine-readable diagnostics).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct VoxCheckParams {
+    /// Workspace-relative path to the `.vox` file.
+    #[schemars(length(min = 1))]
+    pub path: String,
+}
+
+/// Result of checking a `.vox` file (exact parity with CLI --output-format json).
+#[derive(Debug, Serialize)]
+pub struct VoxCheckResponse {
+    /// List of structured diagnostics.
+    pub diagnostics: Vec<vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload>,
+    /// Whether any error-severity diagnostic was found.
+    pub has_errors: bool,
+    /// Total diagnostic count.
+    pub count: usize,
 }

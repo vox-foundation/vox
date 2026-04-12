@@ -4,6 +4,8 @@ description: "Authoritative guide for installing the Vox CLI, toolchain, and AI 
 category: "reference"
 last_updated: 2026-04-05
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Installation Reference

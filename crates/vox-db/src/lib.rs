@@ -75,8 +75,7 @@ mod codex_conversation_graph;
 pub mod connect_policy;
 /// Explicit namespace for migration-era and cutover-only pathways.
 pub mod legacy;
-/// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
-mod ludus_schema_cutover;
+/// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
 pub mod research_metrics_contract;
 pub mod schema;
 /// Idempotent schema extensions (FTS).
@@ -97,6 +96,8 @@ pub mod ddl;
 pub mod error_enrichment;
 /// Parameters for [`VoxDb::record_eval_run`].
 mod eval_params;
+pub mod exec_time_telemetry;
+pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
 pub mod hash;
 pub mod learning;
 pub mod legacy_import_extras;
@@ -106,6 +107,8 @@ mod mens_scorecard_trust;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
+pub mod writer_actor;
+pub use writer_actor::{DbWriteCmd, VoxWriteHandle};
 pub mod paths;
 pub mod pool;
 pub use pool::VoxDbPool;
@@ -133,6 +136,7 @@ pub mod training_run;
 mod trust_drift;
 mod trust_propagation;
 mod trust_telemetry;
+pub mod types;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
 /// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
@@ -159,12 +163,12 @@ pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
-pub use project_store::{open_project_db, open_project_db_at_root};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
+pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{
-    CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,
-    RetrievalDiagnostics, retrieval_diagnostics,
+    CapabilityMapRecord, ExternalResearchPacket, ResearchEvalRunRecord, ResearchEvalSampleRecord,
+    ResearchIngestRequest, ResearchIngestResult, RetrievalDiagnostics, retrieval_diagnostics,
 };
 pub use retrieval::{
     RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, SearchBackend,
@@ -208,6 +212,7 @@ pub use toestub_store::{
 pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
 pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
 pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRollupGroupSummary};
+pub use types::now_unix_ms;
 pub use workspace_journey_store::{
     WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
     connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
@@ -239,13 +244,14 @@ pub enum ReadConsistency {
 pub struct VoxDb {
     pub(crate) conn: turso::Connection,
     pub(crate) sync_db: Option<turso::sync::Database>,
+    pub(crate) writer: Option<crate::VoxWriteHandle>,
     pub(crate) breaker: std::sync::Arc<DbCircuitBreaker>,
     /// Lazily filled by [`VoxDb::sqlite_capabilities_snapshot`](crate::VoxDb::sqlite_capabilities_snapshot).
     pub(crate) sqlite_probe_cache:
         std::sync::Arc<tokio::sync::RwLock<Option<capabilities::SqliteProbeSnapshot>>>,
 }
 
-mod facade;
+pub mod facade;
 
 #[cfg(test)]
 mod codex_contract {

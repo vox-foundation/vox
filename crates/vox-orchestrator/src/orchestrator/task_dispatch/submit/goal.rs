@@ -117,6 +117,9 @@ fn socrates_task_from_search_pass(
             evidence_shape: evidence_shape.to_string(),
         }),
         fatigue_active: false,
+        orient_report: None,
+        answered_questions: vec![],
+        research_model_enabled: false,
     }
 }
 
@@ -180,7 +183,10 @@ impl Orchestrator {
         true
     }
 
-    fn generate_goal_search_heuristic_only(&self, description: &str) -> crate::socrates::SocratesTaskContext {
+    fn generate_goal_search_heuristic_only(
+        &self,
+        description: &str,
+    ) -> crate::socrates::SocratesTaskContext {
         let plan = vox_db::heuristic_search_plan(description, false, None);
         let recommended_next_action = match plan.intent {
             vox_db::SearchIntent::CodeNavigation => Some("focus_repo".to_string()),
@@ -206,6 +212,9 @@ impl Orchestrator {
             recommended_next_action,
             retrieval_diagnosis: None,
             fatigue_active: false,
+            orient_report: None,
+            answered_questions: vec![],
+            research_model_enabled: false,
         };
         ctx
     }
@@ -219,6 +228,34 @@ impl Orchestrator {
         if self.db().is_none() {
             return self.generate_goal_search_heuristic_only(description);
         }
+
+        match crate::retrieval::crag::CragRouter::evaluate_query(description) {
+            crate::retrieval::crag::CragRoute::InContext => {
+                tracing::info!("CRAG routing decided InContext; bypassing vector retrieval.");
+                return self.generate_goal_search_heuristic_only(description);
+            }
+            crate::retrieval::crag::CragRoute::WebSearch => {
+                tracing::info!("CRAG routing decided WebSearch; triggering autonomous research.");
+                let results = self
+                    .perform_autonomous_research(
+                        None,
+                        None,
+                        vec![description.to_string()],
+                        "crag_proactive_web_search",
+                    )
+                    .await
+                    .unwrap_or_default();
+                if !results.is_empty() {
+                    let mut s_ctx = self.generate_goal_search_heuristic_only(description);
+                    self.inject_research_results(&mut s_ctx, results);
+                    return s_ctx;
+                }
+            }
+            crate::retrieval::crag::CragRoute::Retrieve => {
+                tracing::info!("CRAG routing decided Retrieve; delegating to hybrid search.");
+            }
+        }
+
         let policy = vox_search::SearchPolicy::from_env();
         let repo_root =
             infer_repo_root_from_manifest(file_manifest).unwrap_or_else(|| PathBuf::from("."));
@@ -229,7 +266,10 @@ impl Orchestrator {
             mem_cfg.log_dir.clone(),
             mem_cfg.memory_md_path.clone(),
         )
-        .with_trace_id(Some(format!("orchestrator-goal-task-{}", uuid::Uuid::new_v4())));
+        .with_trace_id(Some(format!(
+            "orchestrator-goal-task-{}",
+            uuid::Uuid::new_v4()
+        )));
         let fallback: Option<Box<dyn vox_search::LexicalMemoryFallback>> = if mem_cfg.enabled {
             Some(Box::new(crate::search_bridge::MemorySubstringFallback(
                 mem_cfg.clone(),
@@ -238,18 +278,92 @@ impl Orchestrator {
             None
         };
         let lex = fallback.as_deref();
-        let Ok((execution, diagnostics, plan)) = vox_search::run_search_with_verification(
+        let Ok((mut execution, mut diagnostics, plan)) = vox_search::run_search_with_verification(
             &ctx,
             description,
             vox_search::RetrievalTriggerMode::AutoChatPreamble,
             8,
             &policy,
             lex,
+            None,
         )
         .await
         else {
             return self.generate_goal_search_heuristic_only(description);
         };
+
+        let mut fused_text = String::new();
+        for chunk in &execution.chunk_lines {
+            fused_text.push_str(chunk);
+            fused_text.push('\n');
+        }
+        for chunk in &execution.repo_lines {
+            fused_text.push_str(chunk);
+            fused_text.push('\n');
+        }
+
+        if !fused_text.is_empty() {
+            #[cfg(feature = "runtime")]
+            let maybe_llm_cfg = crate::sync_lock::rw_read(&*self.models).get_llm_config(
+                crate::types::TaskCategory::Research,
+                2,
+                crate::config::CostPreference::Economy,
+            );
+
+            #[cfg(feature = "runtime")]
+            if let Some(mut llm_cfg) = maybe_llm_cfg {
+                llm_cfg.temperature = Some(0.0);
+                let rel = crate::retrieval::crag::CragRouter::evaluate_document_relevance(
+                    description,
+                    &fused_text,
+                    |sys, user| {
+                        let sys_msg = vox_runtime::llm::LlmChatMessage {
+                            role: "system".into(),
+                            content: sys.into(),
+                        };
+                        let user_msg = vox_runtime::llm::LlmChatMessage {
+                            role: "user".into(),
+                            content: user.into(),
+                        };
+                        let cfg = llm_cfg.clone();
+                        async move {
+                            let opts = vox_runtime::ActivityOptions::new().with_timeout_secs(10);
+                            match vox_runtime::llm::llm_chat(&opts, vec![sys_msg, user_msg], cfg)
+                                .await
+                            {
+                                vox_runtime::ActivityResult::Ok(Ok(res)) => Ok(res.content),
+                                vox_runtime::ActivityResult::Ok(Err(e)) => Err(e),
+                                _ => Err("activity_failed".to_string()),
+                            }
+                        }
+                    },
+                )
+                .await;
+
+                if rel == crate::retrieval::crag::DocumentRelevance::Irrelevant {
+                    tracing::info!(
+                        "CRAG Evaluator marked local context as IRRELEVANT. Clearing poor evidence."
+                    );
+                    execution.evidence_quality = 0.0;
+                    execution.chunk_lines.clear();
+                    execution.repo_lines.clear();
+                    execution.memory_lines.clear();
+                    diagnostics
+                        .notes
+                        .push("crag_eval=irrelevant (evidence stripped)".to_string());
+                } else if rel == crate::retrieval::crag::DocumentRelevance::Ambiguous {
+                    tracing::debug!("CRAG Evaluator marked local context as AMBIGUOUS.");
+                    execution.evidence_quality *= 0.5;
+                    diagnostics
+                        .notes
+                        .push("crag_eval=ambiguous (quality halved)".to_string());
+                } else {
+                    tracing::debug!("CRAG Evaluator marked local context as RELEVANT.");
+                    diagnostics.notes.push("crag_eval=relevant".to_string());
+                }
+            }
+        }
+
         socrates_task_from_search_pass(&execution, &diagnostics, &plan, &policy)
     }
 
@@ -259,7 +373,9 @@ impl Orchestrator {
         description: &str,
         file_manifest: &[FileAffinity],
     ) {
-        let ctx = self.generate_goal_search_context(description, file_manifest).await;
+        let ctx = self
+            .generate_goal_search_context(description, file_manifest)
+            .await;
         if let Err(e) = self.attach_socrates_context(task_id, ctx) {
             tracing::debug!(
                 task_id = task_id.0,
@@ -349,9 +465,11 @@ impl Orchestrator {
                 .await;
         }
 
-        let socrates_ctx = self.generate_goal_search_context(&goal, &file_manifest).await;
+        let socrates_ctx = self
+            .generate_goal_search_context(&goal, &file_manifest)
+            .await;
 
-        let cost_ms = {
+        let _cost_ms = {
             let bm = crate::sync_lock::rw_read(&*self.budget_manager);
             if bm.attention_snapshot().spent_ratio() > 1.0 {
                 return Err(OrchestratorError::ApprovalBlocked(
@@ -380,11 +498,68 @@ impl Orchestrator {
 
         let plan_session_id = format!("plan-{}", uuid::Uuid::new_v4());
         let plan_version = 1_u32;
-        let mut nodes = crate::planning::synthesizer::synthesize_plan_nodes(&goal);
+        let mut nodes = if cfg.planning_llm_synthesis_enabled {
+            #[cfg(feature = "runtime")]
+            {
+                let maybe_llm_cfg = crate::sync_lock::rw_read(&*self.models).get_llm_config(
+                    crate::types::TaskCategory::Planning,
+                    2,
+                    crate::config::CostPreference::Performance,
+                );
+                if let Some(mut llm_cfg) = maybe_llm_cfg {
+                    llm_cfg.temperature = Some(0.2);
+                    let depth_str = format!("{:?}", cfg.planning_depth);
+                    crate::planning::synthesizer::synthesize_plan_nodes_with_llm(
+                        &goal,
+                        &depth_str,
+                        |sys, user| {
+                            let sys_msg = vox_runtime::llm::LlmChatMessage {
+                                role: "system".into(),
+                                content: sys.into(),
+                            };
+                            let user_msg = vox_runtime::llm::LlmChatMessage {
+                                role: "user".into(),
+                                content: user.into(),
+                            };
+                            let cfg_clone = llm_cfg.clone();
+                            async move {
+                                let opts =
+                                    vox_runtime::ActivityOptions::new().with_timeout_secs(45);
+                                match vox_runtime::llm::llm_chat(
+                                    &opts,
+                                    vec![sys_msg, user_msg],
+                                    cfg_clone,
+                                )
+                                .await
+                                {
+                                    vox_runtime::ActivityResult::Ok(Ok(res)) => Ok(res.content),
+                                    vox_runtime::ActivityResult::Ok(Err(e)) => Err(e),
+                                    _ => Err("activity_failed".to_string()),
+                                }
+                            }
+                        },
+                    )
+                    .await
+                } else {
+                    crate::planning::synthesizer::synthesize_plan_nodes(&goal)
+                }
+            }
+            #[cfg(not(feature = "runtime"))]
+            {
+                crate::planning::synthesizer::synthesize_plan_nodes(&goal)
+            }
+        } else {
+            crate::planning::synthesizer::synthesize_plan_nodes(&goal)
+        };
+        let cfg_research = cfg.research_model_enabled;
         let socrates_ctx_clone = socrates_ctx.clone();
         for n in &mut nodes {
             let mut h = enqueue_hints.clone().unwrap_or_default();
-            h.socrates_context = Some(socrates_ctx_clone.clone());
+            let mut soc = socrates_ctx_clone.clone();
+            if cfg_research {
+                soc.research_model_enabled = true;
+            }
+            h.socrates_context = Some(soc);
             n.execution_policy.enqueue_hints = Some(h);
             if !file_manifest.is_empty() {
                 merge_file_affinities(&mut n.execution_policy.file_manifest, &file_manifest);

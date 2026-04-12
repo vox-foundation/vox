@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS publication_manifests (
     body_markdown TEXT NOT NULL,
     citations_json TEXT,
     metadata_json TEXT,
+    revision_history_json TEXT,
     content_sha3_256 TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     state TEXT NOT NULL DEFAULT 'draft',
@@ -274,4 +275,33 @@ CREATE TABLE IF NOT EXISTS publication_external_revisions (
 
 CREATE INDEX IF NOT EXISTS idx_publication_external_revisions_pub_digest
     ON publication_external_revisions(publication_id, content_sha3_256);
+
+CREATE TABLE IF NOT EXISTS scientia_external_intelligence (
+    id TEXT PRIMARY KEY,
+    source_url TEXT NOT NULL,
+    source_kind TEXT NOT NULL,  
+    title TEXT NOT NULL,
+    abstract_text TEXT,
+    embedding_id TEXT,
+    provenance_json TEXT DEFAULT '[]',
+    ingest_status TEXT NOT NULL DEFAULT 'pending',
+    preflight_score REAL,
+    ingested_at_ms INTEGER NOT NULL,
+    reviewed_at_ms INTEGER,
+    -- Wave 1: Socrates + Worthiness enrichment
+    socrates_risk_band TEXT,
+    socrates_confidence REAL,
+    worthiness_score REAL,
+    claim_evidence_coverage REAL
+);
+
+CREATE TABLE IF NOT EXISTS scientia_feed_sources (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    source_kind TEXT NOT NULL,
+    crawl_interval_ms INTEGER NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_crawled_at_ms INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
 "#;

@@ -97,14 +97,9 @@ fn normalize_capabilities(
         };
     }
     let mut seen = HashSet::new();
-    let mut out = Vec::new();
-    for cap in caps {
-        let key = format!("{cap:?}");
-        if seen.insert(key) {
-            out.push(cap);
-        }
-    }
-    out
+    caps.into_iter()
+        .filter(|c| seen.insert(c.clone()))
+        .collect()
 }
 
 fn detect_provider(origin_url: Option<&str>, existing: Option<&str>) -> Option<String> {
@@ -123,13 +118,21 @@ fn detect_provider(origin_url: Option<&str>, existing: Option<&str>) -> Option<S
     }
 }
 
-fn resolve_descriptor_root(workspace_root: &Path, root_path: &str) -> PathBuf {
+fn resolve_descriptor_root(workspace_root: &Path, root_path: &str) -> Result<PathBuf, String> {
     let path = Path::new(root_path);
-    if path.is_absolute() {
+    for component in path.components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(format!(
+                "root_path '{root_path}' contains '..'; use an absolute path or a workspace-relative path without parent traversal"
+            ));
+        }
+    }
+    let raw = if path.is_absolute() {
         path.to_path_buf()
     } else {
         workspace_root.join(path)
-    }
+    };
+    Ok(std::fs::canonicalize(&raw).unwrap_or(raw))
 }
 
 fn resolved_local_descriptor(
@@ -259,15 +262,25 @@ pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, Rep
                     ));
                     continue;
                 };
-                let root_candidate = resolve_descriptor_root(&workspace.root, &root_path);
-                match crate::discover_repository(&root_candidate) {
-                    Ok(resolved) => repositories.push(resolved_local_descriptor(
-                        repo,
-                        declared_id,
-                        root_path,
-                        capabilities,
-                        resolved,
-                    )),
+                match resolve_descriptor_root(&workspace.root, &root_path) {
+                    Ok(root_candidate) => match crate::discover_repository(&root_candidate) {
+                        Ok(resolved) => repositories.push(resolved_local_descriptor(
+                            repo,
+                            declared_id,
+                            root_path,
+                            capabilities,
+                            resolved,
+                        )),
+                        Err(e) => repositories.push(unresolved_local_descriptor(
+                            repo,
+                            declared_id,
+                            Some(root_path),
+                            capabilities,
+                            provider,
+                            "local_resolution_failed",
+                            e.to_string(),
+                        )),
+                    },
                     Err(e) => repositories.push(unresolved_local_descriptor(
                         repo,
                         declared_id,
@@ -275,7 +288,7 @@ pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, Rep
                         capabilities,
                         provider,
                         "local_resolution_failed",
-                        e.to_string(),
+                        e,
                     )),
                 }
             }
@@ -288,9 +301,25 @@ pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, Rep
         }
     }
 
+    let primary_repository_id = catalog
+        .primary_repository_id
+        .clone()
+        .or_else(|| workspace.repository_id.clone().into());
+    let primary_resolved_root = primary_repository_id.as_deref().and_then(|primary_id| {
+        repositories
+            .iter()
+            .find(|r| {
+                r.repository_id.as_deref() == Some(primary_id)
+                    && r.resolution_status == "resolved_local"
+            })
+            .and_then(|r| r.resolved_root.clone())
+    });
+
     Ok(ResolvedRepoCatalog {
         schema_version: catalog.schema_version.max(REPO_CATALOG_SCHEMA_VERSION),
         manifest_path: manifest_path.display().to_string(),
+        primary_repository_id,
+        primary_resolved_root,
         repositories,
     })
 }

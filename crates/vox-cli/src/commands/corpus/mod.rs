@@ -178,6 +178,28 @@ pub enum CorpusAction {
         )]
         input: std::path::PathBuf,
     },
+    /// Convert dogfood interaction JSONL (produced live by MCP tools) into train-ready format.
+    DogfoodConvert {
+        /// Input JSONL file.
+        #[arg(required = true)]
+        input: std::path::PathBuf,
+        /// Output JSONL file.
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/dogfood_converted.jsonl"
+        )]
+        output: std::path::PathBuf,
+    },
+    /// Generate synthetic research multi-hop chains
+    ResearchGen {
+        /// Output JSONL file
+        #[arg(short, long, default_value = "mens/data/research-lane-sft.jsonl")]
+        output: std::path::PathBuf,
+        /// Number of chains to generate
+        #[arg(short, long, default_value_t = 1000)]
+        count: usize,
+    },
 }
 
 /// Execute the native training data extraction or validation logic.
@@ -371,5 +393,74 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             Ok(())
         }
         CorpusAction::ReviewStats { input } => stats::run_review_stats(&input).await,
+        CorpusAction::DogfoodConvert { input, output } => {
+            let raw = read_utf8_path_capped_async(&input).await?;
+            let mut out = String::new();
+            let mut converted = 0;
+            // Best effort parse as Vox ToolTraceRecord
+            for line in raw.lines() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let Some(_msgs) = value.get("messages") {
+                        // Already formatted
+                        out.push_str(line);
+                        out.push('\n');
+                        converted += 1;
+                        continue;
+                    }
+                    if let Some(tool) = value.get("tool").and_then(|t| t.as_str()) {
+                        let ok = value
+                            .get("success")
+                            .and_then(|t| t.as_bool())
+                            .unwrap_or(false);
+                        if !ok {
+                            continue;
+                        }
+                        let args = value.get("args_json").unwrap_or(&serde_json::Value::Null);
+                        let user = format!("Call tool `{}` with: {}", tool, args);
+                        let asst = value
+                            .get("result_preview")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("[ok]");
+                        let chatml = serde_json::json!({
+                            "messages": [
+                                {"role": "user", "content": user},
+                                {"role": "assistant", "content": asst}
+                            ],
+                            "category": "tool_trace",
+                            "tool": tool,
+                        });
+                        out.push_str(&serde_json::to_string(&chatml)?);
+                        out.push('\n');
+                        converted += 1;
+                    }
+                }
+            }
+            if let Some(p) = output.parent() {
+                tokio::fs::create_dir_all(p).await?;
+            }
+            tokio::fs::write(&output, out).await?;
+            println!(
+                "✓ Converted {} dogfood traces -> {}",
+                converted,
+                output.display()
+            );
+            Ok(())
+        }
+        CorpusAction::ResearchGen { output, count } => {
+            if let Some(p) = output.parent() {
+                tokio::fs::create_dir_all(p).await?;
+            }
+            let mut file = std::fs::File::create(&output)?;
+            let actual = vox_corpus::research_gen::generate_research_chains(&mut file, count)?;
+            println!(
+                "✓ Generated {} research multi-hop chains -> {}",
+                actual,
+                output.display()
+            );
+            Ok(())
+        }
     }
 }

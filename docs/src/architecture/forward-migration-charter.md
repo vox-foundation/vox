@@ -4,6 +4,8 @@ description: "Official documentation for Forward-only migration charter for the 
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Forward-only migration charter

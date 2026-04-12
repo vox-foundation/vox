@@ -253,4 +253,20 @@ impl crate::VoxDb {
         let orphan_thread_deleted = 0u64;
         Ok((deadletter_deleted, orphan_thread_deleted))
     }
+
+    /// Prune CRAG loop web results (`source_uri` starting with `tavily:`) older than 7 days.
+    pub async fn retention_prune_tavily_search_documents(&self) -> Result<u64, StoreError> {
+        // We do not have time_ms on this table, search_documents uses ingested_at (TEXT) or id based ordering.
+        let sql = "DELETE FROM search_documents 
+                   WHERE source_uri LIKE 'tavily:%' 
+                     AND ingested_at < datetime('now', '-7 day')";
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn.execute(&sql, ()).await?;
+                Ok::<_, StoreError>(n)
+            })
+            .await
+    }
 }

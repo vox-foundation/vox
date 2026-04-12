@@ -194,29 +194,44 @@ pub fn apply_context_lifecycle_policy(
 
     let now_ms = crate::types::now_unix_ms();
     let res = validate_context_envelope_ingest(envelope, expectations, now_ms);
-    let err_text = match res {
-        Ok(()) => {
-            if cfg.context_lifecycle_shadow {
-                tracing::info!(
-                    target: "vox_orchestrator::context_lifecycle",
-                    event = "context.capture",
-                    ?source,
-                    repository_id = expectations.repository_id,
-                    session_id = expectations.session_id,
-                    envelope_id = %envelope.envelope_id,
-                    envelope_type = ?envelope.envelope_type,
-                    merge_strategy = ?envelope.conflict_policy.merge_strategy,
-                    harness_id = harness_id_from_context(envelope),
-                    trace_id = envelope.provenance.trace_id.as_deref(),
-                    correlation_id = envelope.provenance.correlation_id.as_deref(),
-                    "context envelope passed lifecycle validation",
-                );
-            }
-            return Ok(());
-        }
-        Err(v) => v.join("; "),
+
+    // Add OBO token validation to the error list if enforcement is on
+    let mut errs = match res {
+        Ok(()) => Vec::new(),
+        Err(errs) => errs,
     };
 
+    if cfg.context_lifecycle_enforce {
+        let session_key = expectations
+            .session_id
+            .unwrap_or("anonymous_session")
+            .as_bytes();
+        if !envelope.verify(session_key) {
+            errs.push("obo_token missing or invalid".to_string());
+        }
+    }
+
+    if errs.is_empty() {
+        if cfg.context_lifecycle_shadow {
+            tracing::info!(
+                target: "vox_orchestrator::context_lifecycle",
+                event = "context.capture",
+                ?source,
+                repository_id = expectations.repository_id,
+                session_id = expectations.session_id,
+                envelope_id = %envelope.envelope_id,
+                envelope_type = ?envelope.envelope_type,
+                merge_strategy = ?envelope.conflict_policy.merge_strategy,
+                harness_id = harness_id_from_context(envelope),
+                trace_id = envelope.provenance.trace_id.as_deref(),
+                correlation_id = envelope.provenance.correlation_id.as_deref(),
+                "context envelope passed lifecycle validation",
+            );
+        }
+        return Ok(());
+    }
+
+    let err_text = errs.join("; ");
     tracing::warn!(
         target: "vox_orchestrator::context_lifecycle",
         ?source,
@@ -227,6 +242,10 @@ pub fn apply_context_lifecycle_policy(
     );
 
     if cfg.context_lifecycle_enforce {
+        // Return exactly what the task requests if obo fails independently
+        if err_text.contains("obo_token missing or invalid") {
+            return Err("obo_token missing or invalid".to_string());
+        }
         return Err(err_text);
     }
     Ok(())
@@ -499,6 +518,7 @@ mod tests {
                 must_refresh_before_use: None,
             },
             safety: None,
+            obo_token: None,
         }
     }
 

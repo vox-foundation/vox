@@ -7,6 +7,7 @@ use turso::Connection;
 pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
+    let _ = conn.execute_batch("UPDATE agent_trust_scores SET _data = json_set(_data, '$.variance', 1.0) WHERE json_type(json_extract(_data, '$.variance')) IS NULL;").await;
     Ok(())
 }
 

@@ -1,7 +1,7 @@
 //! Voice Activity Detection for pre-segmenting audio before STT.
 
-pub mod passthrough;
 pub mod energy_vad;
+pub mod passthrough;
 
 /// One contiguous voiced segment (sample indices, inclusive start / exclusive end).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +20,9 @@ impl VadSegment {
     }
     /// Whether the segment is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// Synchronous VAD backend trait.

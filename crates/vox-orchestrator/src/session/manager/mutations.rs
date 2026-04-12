@@ -1,5 +1,3 @@
-use std::fs;
-
 use crate::types::AgentId;
 
 use super::super::errors::SessionError;
@@ -11,7 +9,7 @@ impl SessionManager {
     /// Create a new `SessionManager` (file-only mode).
     pub fn new(config: super::super::config::SessionConfig) -> Result<Self, SessionError> {
         if config.persist {
-            fs::create_dir_all(&config.sessions_dir)?;
+            std::fs::create_dir_all(&config.sessions_dir)?;
         }
         Ok(Self {
             config,

@@ -2,15 +2,14 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    ComponentDecl, Decl, EffectDecl, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
-    IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    Decl, EffectDecl, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
+    IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport,
-    ServerFnDecl, TestDecl,
+    ScheduledDecl, ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
-use crate::web_migration_env::legacy_component_fn_allowed;
 
 impl Parser {
     pub(crate) fn parse_import(&mut self) -> Result<Decl, ()> {
@@ -179,6 +178,12 @@ impl Parser {
                     segments.push(name);
                     self.advance();
                 }
+                // `http` is a dedicated keyword for route headers, but it must still parse as a
+                // path segment after `.` (e.g. `import std.http`, `std.http.get_text(...)`).
+                Token::Http => {
+                    self.advance();
+                    segments.push("http".to_string());
+                }
                 _ => break,
             }
         }
@@ -202,20 +207,14 @@ impl Parser {
         self.skip_newlines();
         match self.peek().clone() {
             Token::Fn => {
-                if !legacy_component_fn_allowed() {
-                    self.errors.push(ParseError::classified(
-                        self.span(),
-                        "Retired classic `@component fn`. Use Path C `component Name() { ... }` (or prefix: `@component Name() { ... }`). \
-                         Transitional opt-in: set `VOX_ALLOW_LEGACY_COMPONENT_FN=1` to parse legacy sources while migrating.",
-                        vec!["component Counter() { state n: int = 0; view: <span>{n}</span> }".into()],
-                        Some("fn".into()),
-                        ParseErrorClass::Declaration,
-                    ));
-                    return Err(());
-                }
-                let f = self.parse_fn_decl(false)?;
-                let styles = self.parse_style_blocks();
-                Ok(Decl::Component(ComponentDecl { func: f, styles }))
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Retired classic `@component fn`. Use Path C `component Name() { ... }` (or prefix: `@component Name() { ... }`).",
+                    vec!["component Counter() { state n: int = 0; view: <span>{n}</span> }".into()],
+                    Some("fn".into()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
             }
             Token::Ident(_) | Token::TypeIdent(_) => {
                 let name = self.parse_ident_name()?;
@@ -226,7 +225,7 @@ impl Parser {
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Unsupported head after `@component`: use an identifier for Path C (`@component Name(...)`). Classic `@component fn` is retired unless `VOX_ALLOW_LEGACY_COMPONENT_FN=1`.",
+                    "Unsupported head after `@component`: use an identifier for Path C (`@component Name(...)`). Classic `@component fn` is retired.",
                     vec!["ComponentName".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
@@ -266,21 +265,35 @@ impl Parser {
                         span: eff_start.merge(self.span()),
                     }));
                 }
-                Token::Mount => {
-                    let m_start = self.span();
-                    let body = self.parse_reactive_block()?;
-                    members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
-                        body,
-                        span: m_start.merge(self.span()),
-                    }));
-                }
-                Token::Cleanup => {
-                    let c_start = self.span();
-                    let body = self.parse_reactive_block()?;
-                    members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
-                        body,
-                        span: c_start.merge(self.span()),
-                    }));
+                Token::On => {
+                    let on_start = self.span();
+                    self.advance();
+                    match self.peek().clone() {
+                        Token::Mount => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        Token::Cleanup => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected `mount` or `cleanup` after `on` in reactive component block.",
+                                vec!["mount".into(), "cleanup".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
                 }
                 Token::View => {
                     self.advance();
@@ -508,6 +521,44 @@ impl Parser {
         }))
     }
 
+    /// `@scheduled("1h") fn name(...) { ... }` — interval string is retained on [`ScheduledDecl`].
+    pub(crate) fn parse_scheduled(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @scheduled
+        self.skip_newlines();
+        let interval = if self.eat(&Token::LParen) {
+            let s = match self.peek().clone() {
+                Token::StringLit(s) => {
+                    self.advance();
+                    s
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected string literal schedule in @scheduled(\"...\")",
+                        vec!["@scheduled(\"1h\") fn tick() -> Unit { ret Unit }".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            self.expect(&Token::RParen)?;
+            s
+        } else {
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "Expected `(` after @scheduled",
+                vec!["@scheduled(\"1h\") fn tick() -> Unit { ret Unit }".into()],
+                Some(self.peek().to_string()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        };
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Scheduled(ScheduledDecl { interval, func: f }))
+    }
+
     pub(crate) fn parse_server_fn(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @server
         self.skip_newlines();
@@ -535,6 +586,8 @@ impl Parser {
         let mut postconditions = Vec::new();
         let mut invariants = Vec::new();
         let mut is_mobile_native = false;
+        let mut is_pure = false;
+        let mut is_deprecated = false;
 
         loop {
             self.skip_newlines();
@@ -556,6 +609,14 @@ impl Parser {
                     self.expect(&Token::LParen)?;
                     invariants.push(self.parse_expr()?);
                     self.expect(&Token::RParen)?;
+                }
+                Token::AtPure => {
+                    self.advance();
+                    is_pure = true;
+                }
+                Token::AtDeprecated => {
+                    self.advance();
+                    is_deprecated = true;
                 }
                 Token::AtFuzz | Token::AtMobileNative => {
                     self.advance();
@@ -599,8 +660,8 @@ impl Parser {
             return_type,
             body,
             is_async: false,
-            is_deprecated: false,
-            is_pure: false,
+            is_deprecated,
+            is_pure,
             is_traced: false,
             is_pub,
             auth_provider: None,
@@ -657,6 +718,10 @@ impl Parser {
             Token::Component => {
                 self.advance();
                 Ok("component".to_string())
+            }
+            Token::Http => {
+                self.advance();
+                Ok("http".to_string())
             }
             _ => {
                 self.errors.push(ParseError::classified(

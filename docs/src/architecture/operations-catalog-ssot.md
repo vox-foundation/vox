@@ -5,6 +5,8 @@ category: "architecture"
 status: "current"
 last_updated: 2026-04-02
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Operations catalog SSOT

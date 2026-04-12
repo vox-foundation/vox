@@ -4,6 +4,8 @@ description: "KPI contract draft and metric-gap analysis for VoxMens `.vox` accu
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens measurement gap analysis
 

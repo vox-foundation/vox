@@ -4,6 +4,8 @@ description: "Walkthrough stub for a first full-stack Vox app: scaffold, build, 
 category: "how-to"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "HowTo"
 ---
 
 # First Full Stack App

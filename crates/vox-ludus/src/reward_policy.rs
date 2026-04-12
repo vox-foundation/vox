@@ -112,6 +112,8 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         // Queued work (orchestrator bus) — policy-first; companion/counters in `process_rewards`.
         "task_submitted" => BaseReward::new(8, 1),
         "task_failed" => BaseReward::new(0, 0),
+        "task_doubted" => BaseReward::new(10, 2),
+        "task_resolved" => BaseReward::new(20, 4), // Base resolution reward
 
         // Agent lifecycle
         "agent_spawned" => BaseReward::new(25, 2),

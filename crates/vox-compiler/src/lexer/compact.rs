@@ -99,6 +99,9 @@ fn is_word(t: &Token) -> bool {
             | Token::AtIndex
             | Token::AtV0
             | Token::AtIsland
+            | Token::AtPure
+            | Token::AtScheduled
+            | Token::AtDeprecated
             | Token::Ident(_)
             | Token::TypeIdent(_)
             | Token::IntLit(_)

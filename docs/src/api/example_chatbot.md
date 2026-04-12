@@ -4,6 +4,8 @@ description: "Worked example: conversational UI and server integration for chatb
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Example: Vox Chatbot Demo

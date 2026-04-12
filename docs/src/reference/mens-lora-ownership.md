@@ -4,6 +4,8 @@ description: "Official documentation for Mens LoRA / adapter ownership (vox-tens
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Mens LoRA / adapter ownership (vox-tensor vs vox-populi)

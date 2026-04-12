@@ -1,4 +1,7 @@
-//! External **DeI daemon** (`vox-dei-d`) integration boundary.
+//! External **DeI JSON-line RPC** integration boundary.
+//!
+//! The resolved process binary is **`vox-orchestrator-d`** ([`BINARY`]); docs and hints may still
+//! say `vox-dei-d` as the logical service name for the same wire protocol.
 //!
 //! The staging `crates/vox-dei` library is not linked into `vox-cli` (see `vox ci no-vox-dei-import`). All DeI RPC that the
 //! slim CLI performs goes through the same JSON-line [`DispatchRequest`] / [`DispatchResponse`]
@@ -7,9 +10,9 @@
 use serde_json::Value;
 
 /// Resolved daemon binary name (no `.exe`; Windows resolution adds it in [`crate::dispatch`]).
-pub const BINARY: &str = "vox-dei-d";
+pub const BINARY: &str = "vox-orchestrator-d";
 
-/// Stable RPC method strings shared with `vox-dei-d` / MCP tool wiring.
+/// Stable RPC method strings shared with `vox-orchestrator-d` / MCP tool wiring.
 pub mod method {
     /// `ai.check` — static review / verify-style pass over a file.
     pub const AI_CHECK: &str = "ai.check";
@@ -45,7 +48,7 @@ fn enrich_dei_daemon_error(err: anyhow::Error) -> anyhow::Error {
     if display.contains(crate::dispatch::DAEMON_SPAWN_FAILED_PREFIX) {
         anyhow::anyhow!(
             "{display}\n\
-             Hint: install `vox-dei-d` on `PATH`, or place the binary next to `vox` (see `docs/src/reference/cli.md` and DeI daemon docs)."
+             Hint: install **`vox-orchestrator-d`** on `PATH` (logical name: `vox-dei-d`), or place the binary next to `vox` (see `docs/src/reference/cli.md`)."
         )
     } else {
         err

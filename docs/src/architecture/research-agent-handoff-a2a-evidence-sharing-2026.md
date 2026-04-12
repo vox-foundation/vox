@@ -1,5 +1,10 @@
 ---
-title: Cross-Agent Evidence Sharing in A2A Protocol Implementations
+title: "Cross-Agent Evidence Sharing in A2A Protocol Implementations"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **5\. Cross-Agent Evidence Sharing in A2A Protocol Implementations**
 

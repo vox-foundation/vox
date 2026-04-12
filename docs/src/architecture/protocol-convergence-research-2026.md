@@ -6,6 +6,9 @@ status: "research"
 sort_order: 6
 last_updated: 2026-03-29
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Protocol convergence research 2026

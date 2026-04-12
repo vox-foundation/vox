@@ -4,6 +4,8 @@ description: "Stub language reference page; prefer ref-syntax.md and the languag
 category: "reference"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Ref Language

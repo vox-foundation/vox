@@ -106,7 +106,7 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
             (q.len(), q.completed_count(), q.is_empty())
         };
         let markdown = format!(
-            "### 🤖 Agent {} Status\n\n**{}**\n\n**Stats:**\n- Queue Depth: `{}`\n- Tasks Done: `{}`\n\n**Activity:** {}",
+            "### 🤖 Agent {} Status\n\n**{}**\n\n**Stats:**\n- Queue Depth: `{}`\n- Tasks finished: `{}`\n\n**Activity:** {}",
             params.agent_id,
             hp_bar,
             q_len,

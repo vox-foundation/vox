@@ -11,6 +11,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 100,
             crystal_reward: 20,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_island".into()),
@@ -20,6 +22,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 150,
             crystal_reward: 30,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_migration".into()),
@@ -29,6 +33,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 150,
             crystal_reward: 30,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_seed".into()),
@@ -38,6 +44,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 50,
             crystal_reward: 10,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_workflow".into()),
@@ -47,6 +55,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_actor".into()),
@@ -56,6 +66,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 100,
             crystal_reward: 20,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_mcp_tool".into()),
@@ -65,6 +77,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_openapi".into()),
@@ -74,6 +88,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 150,
             crystal_reward: 30,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("five_islands".into()),
@@ -83,6 +99,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 400,
             crystal_reward: 80,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_pkg_publish".into()),
@@ -92,6 +110,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 300,
             crystal_reward: 60,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         // ── Security ──────────────────────────────────────────
         Achievement {
@@ -102,6 +122,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Security,
             xp_reward: 150,
             crystal_reward: 30,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("no_null_violations".into()),
@@ -111,6 +133,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Security,
             xp_reward: 500,
             crystal_reward: 100,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("perf_regression_caught".into()),
@@ -120,6 +144,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Security,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         // ── Daily Quest Milestones ─────────────────────────────
         Achievement {
@@ -130,6 +156,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 75,
             crystal_reward: 15,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("daily_quest_streak_3".into()),
@@ -139,6 +167,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Streaks,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("daily_quest_streak_7".into()),
@@ -148,6 +178,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Streaks,
             xp_reward: 600,
             crystal_reward: 100,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("daily_quest_streak_30".into()),
@@ -157,6 +189,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Streaks,
             xp_reward: 3_000,
             crystal_reward: 500,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("perfect_daily_3".into()),
@@ -166,6 +200,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 350,
             crystal_reward: 70,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("perfect_week".into()),
@@ -175,6 +211,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 2_500,
             crystal_reward: 400,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("legendary_quest_complete".into()),
@@ -184,6 +222,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 1_000,
             crystal_reward: 200,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("chains_quest_complete".into()),
@@ -193,6 +233,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 500,
             crystal_reward: 80,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         // ── Level & Prestige Milestones ────────────────────────
         Achievement {
@@ -203,6 +245,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 100,
             crystal_reward: 20,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("reach_level_25".into()),
@@ -212,6 +256,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 300,
             crystal_reward: 60,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("reach_level_50".into()),
@@ -221,6 +267,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 700,
             crystal_reward: 120,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("reach_level_100".into()),
@@ -230,6 +278,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 2_000,
             crystal_reward: 350,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("reach_level_200".into()),
@@ -239,6 +289,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 5_000,
             crystal_reward: 800,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("reach_level_500".into()),
@@ -248,6 +300,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 15_000,
             crystal_reward: 2_500,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("reach_level_1000".into()),
@@ -257,6 +311,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 50_000,
             crystal_reward: 8_000,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_prestige".into()),
@@ -266,6 +322,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 8_000,
             crystal_reward: 1_200,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("prestige_5".into()),
@@ -275,6 +333,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 25_000,
             crystal_reward: 5_000,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("prestige_10".into()),
@@ -284,6 +344,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 100_000,
             crystal_reward: 20_000,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         // ── First-Time Actions ─────────────────────────────────
         Achievement {
@@ -294,6 +356,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 80,
             crystal_reward: 16,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_test_written".into()),
@@ -303,6 +367,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 50,
             crystal_reward: 10,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_research_ingest".into()),
@@ -312,6 +378,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 30,
             crystal_reward: 6,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_adr".into()),
@@ -321,6 +389,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 300,
             crystal_reward: 60,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_bug_battle".into()),
@@ -330,6 +400,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 30,
             crystal_reward: 8,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_battle_won".into()),
@@ -339,6 +411,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 75,
             crystal_reward: 18,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_corpus_rating".into()),
@@ -348,6 +422,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::AiCorpus,
             xp_reward: 25,
             crystal_reward: 5,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_handoff_received".into()),
@@ -357,6 +433,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Collaboration,
             xp_reward: 40,
             crystal_reward: 10,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_peer_teach".into()),
@@ -366,6 +444,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Collaboration,
             xp_reward: 150,
             crystal_reward: 30,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_unsafe_removed".into()),
@@ -375,6 +455,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Security,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_v0_import".into()),
@@ -384,6 +466,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 100,
             crystal_reward: 20,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_scheduled_job".into()),
@@ -393,6 +477,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 120,
             crystal_reward: 25,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_turso_query".into()),
@@ -402,6 +488,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::LangExplorer,
             xp_reward: 100,
             crystal_reward: 20,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_populi_serve".into()),
@@ -411,6 +499,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::AiCorpus,
             xp_reward: 500,
             crystal_reward: 100,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         // ── Social / Foundation ───────────────────────────────
         Achievement {
@@ -421,6 +511,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Collaboration,
             xp_reward: 1_000,
             crystal_reward: 200,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("vox_foundation_contributor".into()),
@@ -430,6 +522,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Collaboration,
             xp_reward: 5_000,
             crystal_reward: 800,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("million_lifetime_xp".into()),
@@ -439,6 +533,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::Tasks,
             xp_reward: 10_000,
             crystal_reward: 2_000,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("balanced_feedback_week".into()),
@@ -448,6 +544,8 @@ pub(super) fn part_c() -> Vec<Achievement> {
             category: AchievementCategory::AiCorpus,
             xp_reward: 80,
             crystal_reward: 20,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
     ]
 }

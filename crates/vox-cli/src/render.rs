@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn render_markdown_no_fence_leakage_in_prose() {
-        let md = "# Overview\n\nThis plan has **bold** text and `inline code`.\n\n- task one\n- [x] done\n- [ ] pending";
+        let md = "# Overview\n\nThis plan has **bold** text and `inline code`.\n\n- task one\n- [x] complete\n- [ ] pending";
         let out = render_markdown(md);
         assert!(!out.contains("```"), "fence in prose output");
         // Heading normalized to uppercase

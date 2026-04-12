@@ -4,6 +4,8 @@ description: "Official documentation for Migration metrics (script → `vox ci`)
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Migration metrics (script → `vox ci`)

@@ -539,30 +539,22 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
     });
 
     if route_ok {
-        let trace_data = serde_json::json!({
-            "prompt": format!("Sender: {}\nReceiver: {}\nMsgType: {}", params.sender_id, params.receiver_id, msg_type_wire(&msg_type)),
-            "response": params.payload,
-            "category": "a2a_trace",
-            "schema_version": "vox_dogfood_v1",
-        });
-
-        tokio::spawn(async move {
-            let path = std::path::PathBuf::from("target/dogfood/a2a_traces.jsonl");
-            if let Some(parent) = path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            if let Ok(line) = serde_json::to_string(&trace_data) {
-                use tokio::io::AsyncWriteExt;
-                if let Ok(mut f) = tokio::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)
-                    .await
-                {
-                    let _ = f.write_all(format!("{line}\n").as_bytes()).await;
-                }
-            }
-        });
+        if let Some(db) = &state.db {
+            let trace_data = serde_json::json!({
+                "prompt": format!("Sender: {}\nReceiver: {}\nMsgType: {}", params.sender_id, params.receiver_id, msg_type_wire(&msg_type)),
+                "response": params.payload,
+                "category": "a2a_trace",
+                "schema_version": "vox_dogfood_v1",
+            });
+            let agent_str = params.sender_id.to_string();
+            let _ = vox_ludus::db::insert_event(
+                db,
+                &agent_str,
+                "a2a_trace",
+                Some(&trace_data.to_string()),
+            )
+            .await;
+        }
     }
 
     if let Some(obj) = data.as_object_mut() {
@@ -882,7 +874,34 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
         }
     }
 
-    let msg_id = orch.broadcast_a2a(sender, msg_type, params.payload);
+    let msg_id = orch.broadcast_a2a(sender, msg_type.clone(), params.payload.clone());
+
+    // Optional local JSONL for dogfood / debugging only — **not** an audit or delivery SSOT.
+    // Durable A2A audit uses Codex `a2a_messages` when route=db; see docs/agents/database-nomenclature.md.
+    if let Some(path) = state.dogfood_trace_path_for("a2a_traces.jsonl") {
+        let trace_data = serde_json::json!({
+            "prompt": format!("Sender: {}\nBroadcast: true\nMsgType: {}", params.sender_id, msg_type_wire(&msg_type)),
+            "response": params.payload,
+            "category": "a2a_trace",
+            "schema_version": "vox_dogfood_v1",
+        });
+        tokio::spawn(async move {
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(line) = serde_json::to_string(&trace_data) {
+                use tokio::io::AsyncWriteExt;
+                if let Ok(mut f) = tokio::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .await
+                {
+                    let _ = f.write_all(format!("{line}\n").as_bytes()).await;
+                }
+            }
+        });
+    }
 
     let mut data = serde_json::json!({
         "message_id": msg_id.0,

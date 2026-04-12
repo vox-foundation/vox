@@ -227,6 +227,104 @@ impl Orchestrator {
             (t, cfg.scope_enforcement)
         };
 
+        // Phase 2: Socratic execution limits (Risk-based policies)
+        let socrates_gate_enforce = {
+            let cfg = crate::sync_lock::rw_read(&*self.config);
+            cfg.socrates_gate_enforce
+        };
+        if socrates_gate_enforce {
+            if let Some(ref soc_ctx) = task.socrates {
+                let policy = {
+                    let cfg = crate::sync_lock::rw_read(&*self.config);
+                    cfg.effective_socrates_policy()
+                };
+                let mut augmented = soc_ctx.clone();
+                if crate::sync_lock::rw_read(&*self.budget_manager).is_fatigued() {
+                    augmented.fatigue_active = true;
+                }
+                let outcome = crate::socrates::evaluate_socrates_gate(
+                    &augmented,
+                    &policy,
+                    task.description.as_str(),
+                );
+                if outcome.decision == vox_socrates_policy::RiskDecision::Abstain {
+                    return Err(OrchestratorError::ScopeDenied(format!(
+                        "Socratic Gate blocked execution of task {} due to Abstain risk policy (band: {:?})",
+                        task.id, outcome.band
+                    )));
+                }
+
+                if outcome.research_decision.should_research {
+                    let queries = outcome
+                        .research_decision
+                        .suggested_query
+                        .clone()
+                        .map(|q| vec![q])
+                        .unwrap_or_else(|| vec![task.description.clone()]);
+                    let results = self
+                        .perform_autonomous_research(
+                            Some(agent_id),
+                            Some(task.id),
+                            queries,
+                            &outcome.research_decision.trigger,
+                        )
+                        .await
+                        .unwrap_or_default();
+                    if !results.is_empty() {
+                        let old_quality = augmented.evidence_quality;
+                        self.inject_research_results(&mut augmented, results);
+                        task.socrates = Some(augmented.clone());
+
+                        tracing::info!(
+                            target: "vox_orchestrator::socrates",
+                            task_id = task.id.0,
+                            quality_improvement = augmented.evidence_quality - old_quality,
+                            "proactive autonomous research injected; evidence quality boosted"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Budget evaluation for autonomous self-correction
+        let budget_signal =
+            crate::sync_lock::rw_read(&*self.budget_manager).agent_budget_signal(agent_id);
+        match budget_signal {
+            crate::budget::BudgetSignal::CostExceeded {
+                cost_usd,
+                limit_usd,
+            } => {
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::BudgetAlert {
+                        agent_id,
+                        signal: budget_signal,
+                    });
+                return Err(OrchestratorError::BudgetExceeded(format!(
+                    "Cost cap of ${:.2} exceeded (${:.2})",
+                    limit_usd, cost_usd
+                )));
+            }
+            crate::budget::BudgetSignal::Critical { usage_ratio, .. } => {
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::BudgetAlert {
+                        agent_id,
+                        signal: budget_signal,
+                    });
+                return Err(OrchestratorError::BudgetExceeded(format!(
+                    "Token cap reached ({:.1}%)",
+                    usage_ratio * 100.0
+                )));
+            }
+            crate::budget::BudgetSignal::HighLoad { .. } => {
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::BudgetAlert {
+                        agent_id,
+                        signal: budget_signal,
+                    });
+            }
+            _ => {}
+        }
+
         // Pre-queue policy check (locks; scope when enforcement enabled).
         // The scope READ guard must not overlap `assign_file`, which takes a WRITE lock on the
         // same `RwLock` — that self-deadlocks on typical OS RwLock implementations.

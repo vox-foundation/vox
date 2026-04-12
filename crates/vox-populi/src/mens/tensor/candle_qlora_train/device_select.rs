@@ -14,7 +14,7 @@ pub(super) fn select_candle_device(
     kind: DeviceKind,
     allow_cpu_fallback: bool,
 ) -> Result<(Device, String)> {
-    if std::env::var(ENV_CANDLE_DEVICE)
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCandleDevice)
         .map(|v| v.trim().to_lowercase() == "cpu")
         .unwrap_or(false)
     {

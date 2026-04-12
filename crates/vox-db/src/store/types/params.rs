@@ -138,6 +138,7 @@ pub struct PublicationManifestParams<'a> {
     pub citations_json: Option<&'a str>,
     /// Optional serialized metadata payload.
     pub metadata_json: Option<&'a str>,
+    pub revision_history_json: Option<&'a str>,
     /// Immutable digest for approval and publication checks.
     pub content_sha3_256: &'a str,
     /// Lifecycle status (`draft`, `approved`, `submitted`, `published`, ...).

@@ -226,7 +226,7 @@ pub fn auto_score_model(
         + f64::from(w.availability) * availability_score
         + f64::from(w.balance) * balance_bias
         + f64::from(w.mobile) * mobile_score(m);
-        
+
     let mens_bonus = if m.provider_type == crate::models::ProviderType::PopuliMesh {
         // Find if we are currently parsing or doing inter-agent
         if *m.id == *"mens/vox-language-model" {
@@ -237,7 +237,7 @@ pub fn auto_score_model(
     } else {
         0.0
     };
-    
+
     (score / total_w) + fim_bias + mens_bonus
 }
 

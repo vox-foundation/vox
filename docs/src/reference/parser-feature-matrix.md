@@ -4,6 +4,8 @@ description: "Current parser coverage matrix for Vox declarations and expression
 category: "reference"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Parser feature matrix

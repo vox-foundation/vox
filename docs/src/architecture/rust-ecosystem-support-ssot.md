@@ -4,6 +4,8 @@ description: "Canonical support matrix and debt model for Rust crate families us
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Rust ecosystem support SSOT

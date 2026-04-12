@@ -1,0 +1,33 @@
+/// Reactive counter demo (current `component` surface). Uses `on mount` / `on cleanup`
+/// (not bare `mount:` / `cleanup:`). See `crates/vox-compiler/tests/reactive_smoke.rs`.
+
+component Counter(initial: int) {
+    state count: int = initial
+
+    derived double = count * 2
+
+    derived label = "Count is " + str(count)
+
+    effect: {
+        print("count changed to " + str(count))
+    }
+
+    on mount: {
+        print("Counter mounted with initial=" + str(initial))
+    }
+
+    on cleanup: {
+        print("Counter unmounted")
+    }
+
+    view: (
+        <div class="counter">
+            <h2>"Count: {count}"</h2>
+            <p>"Doubled: {double}"</p>
+            <p>"Label: {label}"</p>
+            <button on:click={count = count + 1}>"Increment"</button>
+            <button on:click={count = count - 1}>"Decrement"</button>
+            <button on:click={count = 0}>"Reset"</button>
+        </div>
+    )
+}

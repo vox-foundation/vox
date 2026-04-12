@@ -115,6 +115,8 @@ pub mod mesh_federation_poll;
 pub mod models;
 /// Lightweight AI usage / behavior monitor hooks.
 pub mod monitor;
+/// File and task observer: real-time structural health evaluation (Wave 2).
+pub mod observer;
 /// Append-only operation log for durable orchestration history.
 pub mod oplog;
 /// TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers.
@@ -137,6 +139,7 @@ pub mod queue;
 pub mod rebalance;
 /// Reconstruction campaign tiers, evidence scoring, and resumable campaign state.
 pub mod reconstruction;
+pub mod retrieval;
 /// JSON schemas for persisted orchestrator artifacts.
 pub mod schema;
 /// Task path scopes and enforcement guards.
@@ -170,6 +173,9 @@ pub mod workspace;
 /// TOESTUB-based output validation gate integration.
 #[cfg(feature = "toestub-gate")]
 pub mod validation;
+
+/// Aggregate multi-tier verification signals.
+pub mod victory;
 
 /// Tokio scheduler bridge for running tasks against a live `crate::Orchestrator`.
 #[cfg(feature = "runtime")]
@@ -234,6 +240,7 @@ pub use heartbeat::{
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
 pub use memory::{LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
 pub use monitor::AiMonitor;
+pub use observer::{ObservationSummary, Observer, ObserverPolicy};
 pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
 pub use orchestrator::{Orchestrator, TaskTraceStep};
 pub use planning::{
@@ -275,6 +282,7 @@ pub use types::{
     MessageEnvelope, MessageId, MessagePriority, TaskCategory, TaskDescriptor, TaskEnqueueHints,
     TaskId, TaskIdGenerator, TaskPriority, TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
+pub use vox_db::store::types::VictoryCondition;
 pub use vox_db::store::{
     ObservationReport, ObserverAction, TestDecision, TestDecisionPolicy, TierResult, VictoryVerdict,
 };

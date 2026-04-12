@@ -298,13 +298,9 @@ pub fn build_finding_candidate(
     }
 }
 
-/// Merge overlap summary into novelty proxy for worthiness; returns `(novelty_proxy, notes)`.
+/// Max lexical / semantic overlap scores from a novelty bundle (each in \[0,1\]).
 #[must_use]
-pub fn novelty_inputs_adjustment(
-    bundle: &NoveltyEvidenceBundleV1,
-    h: &ScientiaHeuristics,
-) -> (f64, Vec<String>) {
-    let mut reasons = Vec::new();
+pub fn bundle_max_overlap_scores(bundle: &NoveltyEvidenceBundleV1) -> (f64, f64) {
     let max_lex = bundle
         .overlap_summary
         .as_ref()
@@ -313,8 +309,8 @@ pub fn novelty_inputs_adjustment(
             bundle
                 .normalized_hits
                 .iter()
-                .filter_map(|h| h.lexical_score)
-                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .filter_map(|h: &NormalizedPriorArtHit| h.lexical_score)
+                .max_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         })
         .unwrap_or(0.0)
         .clamp(0.0, 1.0);
@@ -326,15 +322,32 @@ pub fn novelty_inputs_adjustment(
             bundle
                 .normalized_hits
                 .iter()
-                .filter_map(|h| h.semantic_score)
-                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .filter_map(|h: &NormalizedPriorArtHit| h.semantic_score)
+                .max_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         })
         .unwrap_or(max_lex)
         .clamp(0.0, 1.0);
+    (max_lex, max_sem)
+}
 
+/// Blended prior-art overlap in \[0,1\] (used by discovery rank + worthiness novelty proxy).
+#[must_use]
+pub fn novelty_overlap_blend_01(bundle: &NoveltyEvidenceBundleV1, h: &ScientiaHeuristics) -> f64 {
+    let (max_lex, max_sem) = bundle_max_overlap_scores(bundle);
     let w_lex = h.novelty_blend_lexical.clamp(0.0, 1.0);
     let w_sem = h.novelty_blend_semantic.clamp(0.0, 1.0);
-    let overlap = (max_lex * w_lex + max_sem * w_sem).clamp(0.0, 1.0);
+    (max_lex * w_lex + max_sem * w_sem).clamp(0.0, 1.0)
+}
+
+/// Merge overlap summary into novelty proxy for worthiness; returns `(novelty_proxy, notes)`.
+#[must_use]
+pub fn novelty_inputs_adjustment(
+    bundle: &NoveltyEvidenceBundleV1,
+    h: &ScientiaHeuristics,
+) -> (f64, Vec<String>) {
+    let mut reasons = Vec::new();
+    let (max_lex, max_sem) = bundle_max_overlap_scores(bundle);
+    let overlap = novelty_overlap_blend_01(bundle, h);
     let novelty_proxy = (1.0 - overlap).clamp(0.0, 1.0);
     if overlap >= h.novelty_high_threshold {
         reasons.push(format!(

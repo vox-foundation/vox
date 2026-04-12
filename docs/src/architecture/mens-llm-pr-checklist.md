@@ -4,6 +4,8 @@ description: "Official documentation for Mens / HF fine-tune — LLM PR checklis
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Mens / HF fine-tune — LLM PR checklist
 

@@ -244,6 +244,39 @@ pub async fn run_train(
         "Dispatching training payload to native orchestra"
     );
 
+    // ── P2-009: Corpus threshold gate (research: CL minimum corpus) ────────
+    // Refuse to start training if the corpus has fewer than the minimum viable
+    // pairs. Current corpus is ~340 (Gap G-11); research proves <500 pairs
+    // guarantees catastrophic overfitting.
+    // Reference: docs/src/architecture/research-cl-qlora-minimum-corpus-2026.md
+    const MIN_CORPUS_PAIRS: usize = 1000;
+    {
+        let train_jsonl = data_dir.join("train.jsonl");
+        if train_jsonl.exists() {
+            let pair_count = std::fs::read_to_string(&train_jsonl)
+                .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count())
+                .unwrap_or(0);
+            if pair_count < MIN_CORPUS_PAIRS {
+                anyhow::bail!(
+                    "Corpus has {} validated pairs (minimum: {}). \
+                     Fine-tuning with fewer than {} pairs risks catastrophic overfitting \
+                     (see research-cl-qlora-minimum-corpus-2026.md).\n\
+                     Use `vox mens serve --rag` for in-context learning until the corpus \
+                     reaches the threshold, or generate more pairs with \
+                     `vox mens corpus extract` + `vox mens corpus pairs`.",
+                    pair_count,
+                    MIN_CORPUS_PAIRS,
+                    MIN_CORPUS_PAIRS
+                );
+            }
+            tracing::info!(
+                pair_count,
+                min = MIN_CORPUS_PAIRS,
+                "Corpus threshold gate: PASS"
+            );
+        }
+    }
+
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
     eprintln!("{}", "║   VoxMens — native fine-tuning (QLoRA)  ║".cyan());
     eprintln!("{}", "╚══════════════════════════════════════════╝".cyan());

@@ -95,14 +95,14 @@ fn vendor_from_model(model: &str) -> String {
 /// Probe GPU metadata. Override with **`VOX_GPU_MODEL`** + **`VOX_GPU_VRAM_MB`** for CI or headless hosts.
 #[must_use]
 pub fn probe_gpu() -> GpuInfo {
-    if let (Ok(model), Ok(vram_s)) = (
-        std::env::var("VOX_GPU_MODEL"),
-        std::env::var("VOX_GPU_VRAM_MB"),
+    if let (Some(model), Some(vram_s)) = (
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuModel).expose(),
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuVramMb).expose(),
     ) && let Ok(vram_mb) = vram_s.parse::<u64>()
     {
-        let vendor = vendor_from_model(&model);
+        let vendor = vendor_from_model(model);
         return GpuInfo {
-            model_name: model,
+            model_name: model.to_string(),
             vram_mb,
             vendor,
         };
@@ -321,6 +321,7 @@ pub fn print_gpu_summary_for(prefix: &str) {
 /// VRAM currently in use — not available without driver APIs; returns **`None`**.
 #[must_use]
 pub fn sample_vram_used_mb() -> Option<u64> {
+    let _ = std::hint::black_box(());
     None
 }
 

@@ -313,6 +313,7 @@ pub struct PublicationManifestRow {
     pub body_markdown: String,
     pub citations_json: Option<String>,
     pub metadata_json: Option<String>,
+    pub revision_history_json: Option<String>,
     pub content_sha3_256: String,
     pub version: i64,
     pub state: String,
@@ -466,7 +467,7 @@ pub struct WarningRow {
 }
 
 /// One row from `plan_sessions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanSessionRow {
     pub plan_session_id: String,
     pub origin_session_id: Option<String>,
@@ -477,7 +478,7 @@ pub struct PlanSessionRow {
 }
 
 /// One row from `plan_versions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanVersionRow {
     pub plan_session_id: String,
     pub version: i64,
@@ -489,7 +490,7 @@ pub struct PlanVersionRow {
 }
 
 /// One row from `plan_nodes`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanNodeRow {
     pub plan_session_id: String,
     pub version: i64,
@@ -499,6 +500,20 @@ pub struct PlanNodeRow {
     pub execution_policy_json: String,
     pub status: String,
     pub workflow_invocation: Option<String>,
+}
+
+/// One row from `plan_node_attempts`.
+#[derive(Debug, Clone)]
+pub struct PlanNodeAttemptRow {
+    pub plan_session_id: String,
+    pub version: i64,
+    pub node_id: String,
+    pub attempt_no: i64,
+    pub task_id: Option<String>,
+    pub outcome: String,
+    pub error_text: Option<String>,
+    pub latency_ms: Option<i64>,
+    pub created_at: String,
 }
 
 /// One row from `gamify_policy_snapshots` for Ludus KPI / audit lists.

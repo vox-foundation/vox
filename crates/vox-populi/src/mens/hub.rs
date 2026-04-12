@@ -5,24 +5,16 @@ use std::path::PathBuf;
 use hf_hub::api::tokio::Api;
 
 fn normalize_hf_token_env() {
-    let hf_token = std::env::var("HF_TOKEN")
-        .ok()
-        .filter(|v| !v.trim().is_empty());
-    let hub_token = std::env::var("HUGGING_FACE_HUB_TOKEN")
-        .ok()
-        .filter(|v| !v.trim().is_empty());
-    // Keep both vars aligned so hf-hub auth works regardless of which one operators set.
-    if let (Some(token), None) = (hf_token.as_deref(), hub_token.as_deref()) {
+    let token = vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken).expose();
+
+    if let Some(token) = token {
+        // hf-hub defaults to HF_TOKEN then HUGGING_FACE_HUB_TOKEN.
+        // We set both to ensure the crate finds it regardless of its internal priority.
         #[allow(unsafe_code)]
         // SAFETY: Called sequentially before spawning HF requests.
         unsafe {
-            std::env::set_var("HUGGING_FACE_HUB_TOKEN", token);
-        }
-    } else if let (None, Some(token)) = (hf_token.as_deref(), hub_token.as_deref()) {
-        #[allow(unsafe_code)]
-        // SAFETY: Called sequentially before spawning HF requests.
-        unsafe {
-            std::env::set_var("HF_TOKEN", token);
+            std::env::set_var("HF_TOKEN", &token);
+            std::env::set_var("HUGGING_FACE_HUB_TOKEN", &token);
         }
     }
 }
@@ -141,7 +133,7 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            std::env::var("HUGGING_FACE_HUB_TOKEN").expect("hub token"),
+            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken).expose().expect("hub token"),
             "from-hf-only"
         );
         unsafe {
@@ -160,7 +152,7 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            std::env::var("HF_TOKEN").expect("hf token"),
+            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken).expose().expect("hf token"),
             "from-hub-only"
         );
         unsafe {

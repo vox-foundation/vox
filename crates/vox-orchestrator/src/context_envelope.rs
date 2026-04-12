@@ -312,9 +312,57 @@ pub struct ContextEnvelope {
     pub budget: ContextBudget,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety: Option<ContextSafety>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub obo_token: Option<String>,
 }
 
 impl ContextEnvelope {
+    /// Sign this envelope using HMAC-SHA256, assigning an `obo_token`.
+    #[must_use]
+    pub fn sign(mut self, key: &[u8]) -> Self {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
+        let msg = format!(
+            "{}:{}:{}",
+            self.subject.task_id.as_deref().unwrap_or(""),
+            self.subject.thread_id.as_deref().unwrap_or(""),
+            self.created_at_unix_ms
+        );
+        mac.update(msg.as_bytes());
+        let result = mac.finalize().into_bytes();
+        self.obo_token = Some(base64::Engine::encode(
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+            result,
+        ));
+        self
+    }
+
+    /// Verify the OBO token using HMAC-SHA256.
+    #[must_use]
+    pub fn verify(&self, key: &[u8]) -> bool {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let Some(token) = &self.obo_token else {
+            return false;
+        };
+        let Ok(decoded) =
+            base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, token)
+        else {
+            return false;
+        };
+
+        let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
+        let msg = format!(
+            "{}:{}:{}",
+            self.subject.task_id.as_deref().unwrap_or(""),
+            self.subject.thread_id.as_deref().unwrap_or(""),
+            self.created_at_unix_ms
+        );
+        mac.update(msg.as_bytes());
+        mac.verify_slice(&decoded).is_ok()
+    }
+
     /// Build a retrieval envelope projection from the orchestrator session retrieval bridge shape.
     #[must_use]
     pub fn from_session_retrieval(
@@ -432,6 +480,7 @@ impl ContextEnvelope {
                 factual_mode: Some(true),
                 required_citations: Some(if hit_count == 0 { 1 } else { 0 }),
             }),
+            obo_token: None,
         }
     }
 
@@ -532,6 +581,7 @@ impl ContextEnvelope {
                 factual_mode: Some(ctx.factual_mode),
                 required_citations: Some(ctx.required_citations as u32),
             }),
+            obo_token: None,
         }
     }
 }

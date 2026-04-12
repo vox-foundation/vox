@@ -3,6 +3,8 @@ title: "SCIENTIA A2A evidence-gathering tasks"
 description: "Bounded remote task envelopes for read-heavy scientia_evidence hydration (no autonomous claim generation)."
 category: "architecture"
 last_updated: 2026-03-28
+
+schema_type: "TechArticle"
 ---
 
 # SCIENTIA A2A evidence-gathering tasks

@@ -4,6 +4,8 @@ description: "Go/no-go criteria, kill-switch validation, and rollback steps befo
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Populi remote execution rollout checklist

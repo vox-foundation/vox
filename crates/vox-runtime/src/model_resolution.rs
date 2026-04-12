@@ -133,9 +133,10 @@ impl Default for RouteResolutionInput {
             manual_bearer: None,
             prefer_populi_when_gpu: true,
             populi_probe: None,
-            mens_chat_model: std::env::var("POPULI_MODEL")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
+            mens_chat_model: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliModel)
+                .expose()
+                .filter(|s: &&str| !s.trim().is_empty())
+                .map(|s: &str| s.to_string())
                 .unwrap_or_else(|| "default-model".to_string()),
             hf_dedicated_chat_url: vox_config::inference::hf_dedicated_chat_completions_url(),
             hf_dedicated_chat_model: vox_config::inference::hf_dedicated_chat_model(),

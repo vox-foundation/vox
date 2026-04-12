@@ -20,6 +20,7 @@ pub struct VoxDbPool {
     breaker: Arc<DbCircuitBreaker>,
     // Shared sqlite probe cache across all handles from this pool.
     sqlite_probe_cache: Arc<tokio::sync::RwLock<Option<crate::capabilities::SqliteProbeSnapshot>>>,
+    writer: Arc<tokio::sync::OnceCell<crate::VoxWriteHandle>>,
 }
 
 impl VoxDbPool {
@@ -79,6 +80,7 @@ impl VoxDbPool {
             backend,
             breaker: Arc::new(DbCircuitBreaker::from_env()),
             sqlite_probe_cache: Arc::new(tokio::sync::RwLock::new(None)),
+            writer: Arc::new(tokio::sync::OnceCell::new()),
         };
 
         // Bootstrap: perform schema check / migrations via a temporary connection
@@ -107,11 +109,7 @@ impl VoxDbPool {
         // Let's just create the exact type `VoxDb` expects.
 
         let sync_db_out = match &*self.backend {
-            DbBackend::Sync(_sdb) => {
-                // If it can't be safely cloned, VoxDb's `sync_db` field just holds Option<turso::sync::Database>.
-                // We'll see if rustc complains.
-                None // fallback for a moment while checking types
-            }
+            DbBackend::Sync(sdb) => Some((**sdb).clone()),
             #[cfg(feature = "local")]
             _ => None,
         };
@@ -119,8 +117,21 @@ impl VoxDbPool {
         Ok(VoxDb {
             conn,
             sync_db: sync_db_out,
+            writer: self.writer.get().cloned(),
             breaker: Arc::clone(&self.breaker),
             sqlite_probe_cache: Arc::clone(&self.sqlite_probe_cache),
         })
+    }
+
+    /// Obtain a handle to the dedicated database writer task.
+    /// Spawns the actor on first access if not already running.
+    pub async fn writer(&self) -> Result<crate::VoxWriteHandle, StoreError> {
+        self.writer
+            .get_or_try_init(|| async {
+                let db = self.get().await?;
+                Ok(crate::writer_actor::spawn_writer(db))
+            })
+            .await
+            .cloned()
     }
 }

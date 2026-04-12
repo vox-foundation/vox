@@ -41,7 +41,7 @@ fn cache() -> &'static Mutex<Option<Session>> {
 }
 
 fn pick_device() -> Result<Device> {
-    if std::env::var(ENV_CUDA).ok().as_deref() == Some("1") {
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose().ok().as_deref() == Some("1") {
         #[cfg(feature = "cuda")]
         {
             return Device::new_cuda(0).map_err(|e| anyhow::anyhow!("CUDA: {e}"));
@@ -203,10 +203,10 @@ fn ensure_session(model_id: &str, revision: &str) -> Result<()> {
 
 /// JSON-friendly status for CLI / tools (weights path is HF cache, not printed).
 pub fn candle_backend_status_json() -> serde_json::Value {
-    let model = std::env::var(ENV_MODEL).unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
-    let rev = std::env::var(ENV_REVISION)
+    let model = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel).expose().unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
+    let rev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision).expose()
         .unwrap_or_else(|_| default_revision_for_model(&model).to_string());
-    let cuda_requested = std::env::var(ENV_CUDA).ok().as_deref() == Some("1");
+    let cuda_requested = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose().ok().as_deref() == Some("1");
     let cuda_feature = cfg!(feature = "cuda");
     let inference_note = if cuda_feature && !cuda_requested {
         Some(format!(
@@ -243,7 +243,7 @@ impl LanguageEnvOverride {
     /// transcription should run per process at a time, or callers must serialize access.
     #[must_use]
     pub fn set(language: Option<&str>) -> Self {
-        let previous = std::env::var("VOX_ORATIO_LANGUAGE").ok();
+        let previous = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().ok();
         // SAFETY: single-threaded Whisper session lock is held for the duration of
         // `transcribe_audio_file`; no concurrent readers of `VOX_ORATIO_LANGUAGE` in that window.
         #[allow(unsafe_code)]
@@ -419,9 +419,9 @@ fn build_decoder(
 /// Transcribe an audio file using Candle Whisper (downloads weights on first use).
 pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     let pcm = pcm_decode_to_16k_mono(path)?;
-    let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
-        .ok()
-        .and_then(|s| s.parse().ok())
+    let budget_ms = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+        .expose()
+        .and_then(|s: &str| s.parse().ok())
         .unwrap_or(25u64);
     let (pcm, pre_diag) =
         crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
@@ -435,31 +435,35 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     if pcm.is_empty() {
         anyhow::bail!("no audio samples decoded from {}", path.display());
     }
-    
-    let language_override = std::env::var("VOX_ORATIO_LANGUAGE").ok();
+
+    let language_override = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().ok();
     let (text, _) = transcribe_pcm_internal(&pcm, language_override.as_deref())?;
     Ok(text)
 }
 
 /// Core inference loop taking PCM directly. Returns (text, timed_segments).
-pub fn transcribe_pcm_internal(pcm: &[f32], language_override: Option<&str>) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
+pub fn transcribe_pcm_internal(
+    pcm: &[f32],
+    language_override: Option<&str>,
+) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
     let model_id =
-        std::env::var(ENV_MODEL).unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
-    let revision = std::env::var(ENV_REVISION)
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel).expose().unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
+    let revision = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision).expose()
         .unwrap_or_else(|_| default_revision_for_model(&model_id).to_string());
 
-    let chunk_sec_requested = std::env::var(ENV_CHUNK_SEC)
-        .ok()
-        .and_then(|s| s.parse::<f64>().ok())
+    let chunk_sec_requested = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkSec)
+        .expose()
+        .and_then(|s: &str| s.parse::<f64>().ok())
         .filter(|&x| x > 0.0);
 
-    let overlap_sec: f64 = std::env::var(ENV_CHUNK_OVERLAP_SEC)
-        .ok()
-        .and_then(|s| s.parse().ok())
+    let overlap_sec: f64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkOverlapSec)
+        .expose()
+        .and_then(|s: &str| s.parse().ok())
         .filter(|&x| x >= 0.0)
         .unwrap_or(0.5);
 
-    let emit_partial = std::env::var(ENV_EMIT_PARTIAL_PATH)
+    let emit_partial = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioEmitPartialPath)
+        .expose()
         .ok()
         .filter(|s| !s.trim().is_empty())
         .map(|s| std::path::PathBuf::from(s.trim().to_string()));
@@ -490,7 +494,9 @@ pub fn transcribe_pcm_internal(pcm: &[f32], language_override: Option<&str>) -> 
     };
 
     let multilingual = model_is_multilingual(&model_id);
-    let lang = language_override.map(|s| s.to_string()).or_else(|| std::env::var("VOX_ORATIO_LANGUAGE").ok());
+    let lang = language_override
+        .map(|s| s.to_string())
+        .or_else(|| vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().ok());
 
     let lang_pcm_slice: &[f32] = if windows.len() > 1 {
         let prefix = 30usize.saturating_mul(SAMPLE_RATE);
@@ -560,15 +566,16 @@ pub fn transcribe_pcm_internal(pcm: &[f32], language_override: Option<&str>) -> 
         }
     };
 
-    let seed: u64 = std::env::var("VOX_ORATIO_SEED")
-        .ok()
-        .and_then(|s| s.parse().ok())
+    let seed: u64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSeed)
+        .expose()
+        .and_then(|s: &str| s.parse().ok())
         .unwrap_or(299_792_458);
-    let verbose = std::env::var("VOX_ORATIO_VERBOSE").ok().as_deref() == Some("1");
+    let verbose = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioVerbose).expose().as_deref() == Some("1");
 
-    let task = match std::env::var("VOX_ORATIO_TASK").ok().as_deref() {
-        Some("translate") => Some(DecodeTask::Translate),
-        Some("transcribe") | None => Some(DecodeTask::Transcribe),
+    let task = match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioTask).expose().as_deref() {
+        Some(v) if v.trim() == "translate" => Some(DecodeTask::Translate),
+        Some(v) if v.trim() == "transcribe" || v.trim().is_empty() => Some(DecodeTask::Transcribe),
+        None => Some(DecodeTask::Transcribe),
         Some(other) => {
             sess.whisper = Some(whisper);
             anyhow::bail!("VOX_ORATIO_TASK must be transcribe or translate, got {other}");
@@ -577,8 +584,8 @@ pub fn transcribe_pcm_internal(pcm: &[f32], language_override: Option<&str>) -> 
 
     let tokenizer_clone = sess.tokenizer.clone();
     let emit_tokens = matches!(
-        std::env::var(ENV_STREAM_TOKENS),
-        Ok(v) if v == "1" || v.eq_ignore_ascii_case("true")
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioStreamTokens),
+        Some(v) if v == "1" || v.eq_ignore_ascii_case("true")
     );
 
     let mut output_segments = Vec::new();
@@ -686,7 +693,7 @@ pub fn transcribe_pcm_internal(pcm: &[f32], language_override: Option<&str>) -> 
                 if let Some(ep) = emit_partial.as_ref() {
                     let _ = append_partial_transcript_jsonl(ep, ordinal, windows.len(), text);
                 }
-                
+
                 // For chunks, frames are relative to the chunk. Add w0 (in samples / 160)
                 let chunk_start_frames = w0 / 160;
                 output_segments.push(crate::backends::asr_backend::TimedSegment {
@@ -764,17 +771,27 @@ mod chunk_tests {
     }
 
     #[test]
+    #[allow(unsafe_code)]
     fn test_silence_hallucination_prevention() {
         // A dummy test representing the silence hallucination test requested.
         // It provides completely silent PCM f32 array -> Expects no text due to thresholding.
-        std::env::set_var("VOX_ORATIO_NO_SPEECH_THRESHOLD", "0.6");
+        let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioNoSpeechThreshold).expose().ok();
+        unsafe {
+            std::env::set_var("VOX_ORATIO_NO_SPEECH_THRESHOLD", "0.6");
+        }
         let silent_pcm = vec![0.0f32; 16000 * 5]; // 5 seconds of silence
-        
+
         // Pseudo assertion because the raw `transcribe_pcm_internal` requires a heavy pre-loaded model.
         // let backend = CandleWhisperBackend::new(model_path);
         // let text = backend.transcribe_pcm(&silent_pcm, 16000, None)?;
         // assert!(text.segments.is_empty(), "Expected empty segments for pure silence");
         assert_eq!(silent_pcm.len(), 80000);
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_ORATIO_NO_SPEECH_THRESHOLD", v),
+                None => std::env::remove_var("VOX_ORATIO_NO_SPEECH_THRESHOLD"),
+            }
+        }
     }
 }
 
@@ -797,7 +814,10 @@ impl AsrBackend for CandleWhisperBackend {
         language_override: Option<&str>,
     ) -> anyhow::Result<AsrOutput> {
         if sample_rate != 16_000 {
-            anyhow::bail!("CandleWhisperBackend requires 16000Hz PCM input, got {}", sample_rate);
+            anyhow::bail!(
+                "CandleWhisperBackend requires 16000Hz PCM input, got {}",
+                sample_rate
+            );
         }
         let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
             .ok()
@@ -814,4 +834,3 @@ impl AsrBackend for CandleWhisperBackend {
         })
     }
 }
-

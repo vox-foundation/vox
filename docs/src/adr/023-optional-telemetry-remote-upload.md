@@ -4,6 +4,8 @@ description: "Opt-in local spool and explicit upload; no default transmission; C
 category: "reference"
 last_updated: 2026-04-02
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 023: Optional telemetry remote upload

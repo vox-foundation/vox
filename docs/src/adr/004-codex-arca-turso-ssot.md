@@ -4,9 +4,14 @@ description: "Official documentation for ADR 004: Codex over Arca over Turso for
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 004: Codex over Arca over Turso
+
+> [!NOTE]
+> Historical note: the `TURSO_*` env var names in this ADR are superseded by `VOX_DB_URL` / `VOX_DB_TOKEN`. ADR text is preserved for context.
 
 ## Status
 

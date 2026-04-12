@@ -229,6 +229,13 @@ pub enum PopuliAction {
         max_runtime_secs: Option<u64>,
     },
 
+    #[cfg(not(feature = "gpu"))]
+    #[command(name = "train")]
+    TrainStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
+    },
+
     /// Dogfood training alias. A zero-config command to execute the canonical Qwen QLoRA training pipeline.
     #[cfg(feature = "gpu")]
     Dogfood {
@@ -241,6 +248,13 @@ pub enum PopuliAction {
         /// Ignore existing resume state and force a fresh run from step 0.
         #[arg(long)]
         force_restart: bool,
+    },
+
+    #[cfg(not(feature = "gpu"))]
+    #[command(name = "dogfood")]
+    DogfoodStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
 
     /// Retired: UV/Python quantized training path removed; dispatch prints migration guidance.
@@ -303,6 +317,13 @@ pub enum PopuliAction {
         /// Absolute hard cap for runtime in seconds
         #[arg(long)]
         max_runtime_secs: Option<u64>,
+    },
+
+    #[cfg(not(feature = "gpu"))]
+    #[command(name = "serve")]
+    ServeStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
 
     /// Training data pipeline: extract, validate, mix, eval, audit…

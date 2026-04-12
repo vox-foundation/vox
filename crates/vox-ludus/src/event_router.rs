@@ -159,6 +159,42 @@ pub async fn route_event(
         }
     }
 
+    // 7. Doubt Resolution Achievements
+    if event_type == "task_resolved" {
+        let validated = event_json
+            .get("validated")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let report = event_json
+            .get("report")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        let mut bonus_slugs = Vec::new();
+        if !validated {
+            bonus_slugs.push("healthy_skepticism");
+            if report.to_lowercase().contains("obsequious") {
+                bonus_slugs.push("internal_affairs");
+            }
+        } else {
+            bonus_slugs.push("blind_faith");
+        }
+
+        for slug in bonus_slugs {
+            let bonus_ev = serde_json::json!({"type": slug});
+            if let Ok(bonus_res) = process_event_rewards(db, user_id, &bonus_ev).await {
+                if let (Some(rw), Some(bonus_rw)) = (&mut route_res.reward, bonus_res.reward) {
+                    rw.xp = rw.xp.saturating_add(bonus_rw.xp);
+                    rw.crystals = rw.crystals.saturating_add(bonus_rw.crystals);
+                }
+                tracing::info!(
+                    "[ludus] Doubt resolution achievement '{}' awarded for user {user_id}",
+                    slug
+                );
+            }
+        }
+    }
+
     let _ = teaching_hook(db, user_id, event_type).await;
 
     Ok(route_res)
@@ -269,15 +305,26 @@ async fn sync_companion_lifecycle(
                 let _ = upsert_companion(db, &c).await;
             }
         }
-        "agent_retired" | "task_failed" => {
+        "agent_retired" | "task_failed" | "task_doubted" => {
             if let Ok(Some(mut c)) = get_companion(db, &companion_id).await {
                 c.mood = if event_type == "task_failed" {
                     Mood::Sad
+                } else if event_type == "task_doubted" {
+                    Mood::Neutral
                 } else {
                     Mood::Tired
                 };
-                c.energy = 0;
-                let sprite = generate_svg(character_for_agent(agent_id), AgentPose::Exhausted);
+                if event_type == "task_doubted" {
+                    c.energy = (c.energy - 10).max(0);
+                } else {
+                    c.energy = 0;
+                }
+                let pose = if event_type == "task_doubted" {
+                    AgentPose::Alert
+                } else {
+                    AgentPose::Exhausted
+                };
+                let sprite = generate_svg(character_for_agent(agent_id), pose);
                 c.ascii_sprite = Some(sprite.svg_body);
                 let _ = upsert_companion(db, &c).await;
             }

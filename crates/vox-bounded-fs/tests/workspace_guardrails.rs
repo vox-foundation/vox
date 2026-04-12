@@ -45,6 +45,10 @@ fn bounded_fs_wrapper_modules_stay_removed_in_converged_crates() {
 fn legacy_mcp_extract_script_stays_explicitly_gated() {
     let root = workspace_root();
     let script = root.join("scripts/extract_mcp_tool_registry.py");
+    if !script.exists() {
+        // Preferred: legacy Python helper removed (AGENTS.md — no new `scripts/*.py`).
+        return;
+    }
     let body = std::fs::read_to_string(&script)
         .unwrap_or_else(|e| panic!("read {}: {e}", script.display()));
     assert!(

@@ -1,48 +1,59 @@
 ---
 title: "Vox Memory System"
-description: "Persistent, searchable long-term storage architecture for agent knowledge with three-layer design."
+description: "Persistent, searchable long-term storage for agent knowledge with tiered primaries per concern."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: 2026-04-11
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox Memory System
 
-The Vox memory system provides persistent, searchable long-term storage for agent knowledge, structured around three layers.
+The memory system combines **Codex (VoxDB)** for structured, queryable data with **workspace files** for human-edited logs and optional exports. There is no single on-disk file for “all memory”; use the table below to pick the right tier.
 
-## Architecture
+## Tiered persistence (SSOT by concern)
+
+| Concern | Primary store | Notes |
+|---------|---------------|--------|
+| Structured memory facts (`vox_memory_save_db`, `agent_memory` / related tables) | **Codex** ([`VoxDb`](../../../crates/vox-db/src/lib.rs)) — user-global or workspace journey per [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md) | Resolved like other Codex data (`VOX_DB_*`, `.vox/store.db` default for repo MCP). |
+| Tool-facing flat store (`vox_memory_store` → `memory/MEMORY.md`) | **Markdown under workspace `memory/`** | Human-readable; not a substitute for relational queries. |
+| Daily narrative logs (`vox_memory_log`) | **`memory/logs/YYYY-MM-DD.md`** | Append-only prose; retention is operator-managed. |
+| Orchestrator MCP sessions (replay) | **Codex** when a DB handle is attached | See [database-nomenclature](../../agents/database-nomenclature.md) RAM vs DB matrix. |
+
+For RAM vs database vs JSONL tradeoffs across the whole stack (A2A, sessions, training corpora), use **[Database nomenclature — agent SSOT](../../agents/database-nomenclature.md)**.
+
+## Architecture (high level)
 
 ```
-┌─────────────────────────────────────────┐
-│             VoxDB (SQLite)              │  ← Single source of truth
-│   agent_memory, preferences, sessions  │
-└─────────────────┬───────────────────────┘
-                  │
-        ┌─────────┴─────────┐
-        ▼                   ▼
-┌──────────────┐    ┌─────────────────┐
-│  MemoryManager│    │ SessionManager  │
-│  (daily logs) │    │ (conversations) │
-└──────────────┘    └─────────────────┘
-        │                   │
-        ▼                   ▼
- MEMORY.md              sessions/*.jsonl
- logs/YYYY-MM-DD.md
+┌─────────────────────────────────────────────────────────────┐
+│  Codex (VoxDB): structured memory, knowledge, sessions      │
+│  (tier: canonical vox.db vs repo .vox/store.db — see how-to)│
+└────────────────────────────┬────────────────────────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+    ┌──────────────────┐         ┌─────────────────┐
+    │ MemoryManager    │         │ SessionManager  │
+    │ (markdown logs)  │         │ (Codex events)  │
+    └────────┬─────────┘         └─────────────────┘
+             ▼
+   memory/MEMORY.md, memory/logs/*.md
 ```
 
 ## MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `vox_memory_store` | Persist a key-value fact to long-term memory (MEMORY.md) |
+| `vox_memory_store` | Persist a typed memory fact to workspace markdown (`MEMORY.md` path) |
 | `vox_memory_recall` | Retrieve a fact from long-term memory by key |
 | `vox_memory_search` | Unified retrieval pipeline: hybrid (BM25+vector) when available, with deterministic fallback to BM25-only and lexical substring scan |
 | `vox_memory_log` | Append an entry to today's daily memory log |
 | `vox_memory_list_keys` | List all section keys from MEMORY.md |
 | `vox_knowledge_query` | Query the knowledge graph for related concepts |
-| `vox_memory_save_db` | Persist a typed memory fact to VoxDb agent_memory table |
-| `vox_memory_recall_db` | Recall typed memory facts from VoxDb |
+| `vox_memory_save_db` | Persist a typed memory fact to Codex (`agent_memory` and related tables) |
+| `vox_memory_recall_db` | Recall typed memory facts from Codex |
 
 ## Usage
 
@@ -66,12 +77,17 @@ let results = db.search_memories("indentation").await?;
 
 When context gets large, use `vox_compaction_status` to check token budget.
 The `CompactionEngine` supports three strategies:
+
 - **Summarize** — condense history into a summary block
 - **Drop Oldest** — drop oldest entries until under budget
 - **Hybrid** — summarize, then drop if still over
 
-## Persistence
+## Persistence (summary)
 
-- Facts stored via `vox_memory_store` go to `memory/MEMORY.md`
-- Daily logs via `vox_memory_log` go to `memory/logs/YYYY-MM-DD.md`
-- VoxDb entries go to the `agent_memory` table for structured queries
+- **`vox_memory_store`** → flat text in `memory/MEMORY.md` (workspace).
+- **`vox_memory_log`** → `memory/logs/YYYY-MM-DD.md`.
+- **`vox_memory_save_db` / DB-backed tools** → Codex relational tables for structured queries and search.
+
+## Storage and domain persistence
+
+Prefer **Arca-governed** `VoxDb` operations in `crates/vox-db` for gamification (`vox-ludus`), schedules, and telemetry rather than duplicating state in unstructured logs. Markdown remains appropriate for human-curated narratives alongside Codex.

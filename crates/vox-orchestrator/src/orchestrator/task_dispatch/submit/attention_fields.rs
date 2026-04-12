@@ -88,6 +88,12 @@ pub(super) fn populate_task_attention_fields(
 
 #[must_use]
 pub(super) fn submission_approval_block_reason(task: &AgentTask) -> Option<String> {
+    if matches!(task.status, crate::types::TaskStatus::BlockedOnApproval) {
+        return Some(format!(
+            "task {} requires explicit approval before execution (plan.execution_mode = RequiresApproval)",
+            task.id
+        ));
+    }
     match task.approval_tier {
         Some(ApprovalTier::Blocked) => Some(format!(
             "task {} was classified as Blocked by approval policy (attention_weight={:.2})",
@@ -111,6 +117,19 @@ mod tests {
         let reason = submission_approval_block_reason(&t);
         assert!(reason.is_some());
         assert!(reason.unwrap_or_default().contains("Blocked"));
+    }
+
+    #[test]
+    fn blocked_on_approval_returns_reason() {
+        let mut t = AgentTask::new(TaskId(43), "deploy", TaskPriority::Urgent, vec![]);
+        t.status = crate::types::TaskStatus::BlockedOnApproval;
+        let reason = submission_approval_block_reason(&t);
+        assert!(reason.is_some());
+        assert!(
+            reason
+                .unwrap_or_default()
+                .contains("requires explicit approval")
+        );
     }
 
     #[test]

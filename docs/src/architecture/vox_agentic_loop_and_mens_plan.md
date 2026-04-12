@@ -5,6 +5,9 @@ category: "architecture"
 status: "roadmap"
 last_updated: 2026-04-05
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint

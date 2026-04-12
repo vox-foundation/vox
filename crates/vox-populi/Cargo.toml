@@ -74,6 +74,8 @@ tracing = { workspace = true }
 vox-repository = { workspace = true }
 vox-primitives = { workspace = true }
 vox-clavis = { workspace = true }
+vox-constrained-gen = { workspace = true }
+vox-grammar-export = { workspace = true }
 
 # Populi transport
 axum = { version = "0.8", optional = true }
@@ -112,6 +114,7 @@ peft-rs = { workspace = true, optional = true }
 async-trait = { version = "0.1", optional = true }
 futures = { version = "0.3", optional = true }
 vox-eval = { workspace = true, optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }

@@ -4,6 +4,8 @@ description: "Vox @table decorator: canonical schema DDL, Rust types, and Codex 
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # @table

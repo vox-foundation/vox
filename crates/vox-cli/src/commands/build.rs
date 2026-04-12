@@ -18,6 +18,7 @@ pub async fn run(
     out_dir: &Path,
     target: Option<String>,
     emit_scaffold: bool,
+    emit_ir: bool,
 ) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
@@ -177,6 +178,16 @@ pub async fn run(
         fs::write(&path, content)
             .with_context(|| format!("Failed to write output file: {}", path.display()))?;
         println!("  wrote {}", path.display());
+    }
+
+    if emit_ir {
+        let web_ir = vox_compiler::web_ir::lower::lower_hir_to_web_ir(&hir);
+        let ir_json =
+            serde_json::to_string_pretty(&web_ir).context("Failed to serialize WebIR to JSON")?;
+        let ir_path = out_dir.join("web-ir.v1.json");
+        fs::write(&ir_path, ir_json)
+            .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
+        println!("  wrote {}", ir_path.display());
     }
 
     let public_dir = generated_dir.join("public").join("ssg-shells");

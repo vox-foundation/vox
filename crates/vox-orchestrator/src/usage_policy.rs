@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use vox_clavis::{resolve_secret, SecretId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderLimitOwned {
@@ -36,12 +37,12 @@ fn parse_limit_json(raw: &str) -> Vec<ProviderLimitOwned> {
 }
 
 fn default_limits() -> Vec<ProviderLimitOwned> {
-    let default_cloud_limit = std::env::var("VOX_PROVIDER_DAILY_LIMIT_DEFAULT")
-        .ok()
+    let default_cloud_limit = resolve_secret(SecretId::VoxProviderDailyLimitDefault)
+        .expose()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(100);
-    let providers = std::env::var("VOX_PROVIDER_LIMIT_PROVIDERS")
-        .ok()
+    let providers = resolve_secret(SecretId::VoxProviderLimitProviders)
+        .expose()
         .map(|v| {
             v.split(',')
                 .map(str::trim)
@@ -49,7 +50,6 @@ fn default_limits() -> Vec<ProviderLimitOwned> {
                 .map(str::to_string)
                 .collect::<Vec<_>>()
         })
-        .filter(|v| !v.is_empty())
         .unwrap_or_else(|| {
             vec![
                 "google".to_string(),
@@ -73,7 +73,7 @@ fn default_limits() -> Vec<ProviderLimitOwned> {
         out.push(ProviderLimitOwned {
             provider,
             model,
-            daily_limit: daily_limit.max(1),
+            daily_limit,
         });
     }
     out
@@ -85,7 +85,7 @@ pub fn resolve_provider_limits() -> Vec<ProviderLimitOwned> {
         merged.insert((d.provider, d.model), d.daily_limit);
     }
 
-    if let Ok(path) = std::env::var("VOX_PROVIDER_DAILY_LIMITS_FILE") {
+    if let Some(path) = resolve_secret(SecretId::VoxProviderDailyLimitsFile).expose() {
         let p = std::path::PathBuf::from(path);
         if let Ok(raw) = vox_bounded_fs::read_utf8_path_capped(&p) {
             for d in parse_limit_json(&raw) {
@@ -93,8 +93,8 @@ pub fn resolve_provider_limits() -> Vec<ProviderLimitOwned> {
             }
         }
     }
-    if let Ok(raw) = std::env::var("VOX_PROVIDER_DAILY_LIMITS_JSON") {
-        for d in parse_limit_json(&raw) {
+    if let Some(raw) = resolve_secret(SecretId::VoxProviderDailyLimitsJson).expose() {
+        for d in parse_limit_json(raw) {
             merged.insert((d.provider, d.model), d.daily_limit);
         }
     }

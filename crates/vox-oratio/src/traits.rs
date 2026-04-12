@@ -16,20 +16,13 @@ fn try_load_lexicon_path(path: &Path) -> Option<crate::speech_lexicon::SpeechLex
 /// `<VOX_REPOSITORY_ROOT or VOX_REPO_ROOT>/.vox/speech_lexicon.json` when those roots are set.
 fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
     let mut acc = crate::speech_lexicon::SpeechLexicon::default();
-    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
+    if let Ok(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSpeechLexiconPath).expose() {
         let path = Path::new(p.trim());
         if let Some(lex) = try_load_lexicon_path(path) {
             acc.merge_from(lex);
         }
     }
-    let repo_root = std::env::var("VOX_REPOSITORY_ROOT")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            std::env::var("VOX_REPO_ROOT")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-        });
+    let repo_root = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose().ok();
     if let Some(root) = repo_root {
         let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
         if let Some(lex) = try_load_lexicon_path(&candidate) {
@@ -43,13 +36,13 @@ fn contextual_bias_phrases_with_lex(
     lex: Option<&crate::speech_lexicon::SpeechLexicon>,
 ) -> Vec<String> {
     const DEFAULT_MAX: usize = 256;
-    let max_phrases: usize = std::env::var("VOX_ORATIO_MAX_BIAS_PHRASES")
+    let max_phrases: usize = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioMaxBiasPhrases)
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_MAX);
     let contextual_on = !matches!(
-        std::env::var("VOX_ORATIO_CONTEXTUAL_BIAS"),
-        Ok(s) if s == "0" || s.eq_ignore_ascii_case("false")
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioContextualBias),
+        Some(s) if s == "0" || s.eq_ignore_ascii_case("false")
     );
     if !contextual_on {
         return Vec::new();
@@ -57,7 +50,7 @@ fn contextual_bias_phrases_with_lex(
     let lex_phrases = lex
         .map(|l| l.bias_phrases_sorted(max_phrases))
         .unwrap_or_default();
-    let extra: Vec<String> = std::env::var("VOX_ORATIO_SESSION_HOTWORDS")
+    let extra: Vec<String> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords)
         .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
         .unwrap_or_default();
     crate::contextual_bias::merge_bias_phrases(lex_phrases, &extra, max_phrases)
@@ -185,8 +178,19 @@ pub fn transcribe_path_detailed(
 
     let is_audio_or_video = matches!(
         ext.as_str(),
-        "wav" | "mp3" | "flac" | "ogg" | "oga" | "aac" | "m4a" | "opus"
-            | "mp4" | "mkv" | "avi" | "webm" | "mov"
+        "wav"
+            | "mp3"
+            | "flac"
+            | "ogg"
+            | "oga"
+            | "aac"
+            | "m4a"
+            | "opus"
+            | "mp4"
+            | "mkv"
+            | "avi"
+            | "webm"
+            | "mov"
     );
 
     if is_audio_or_video {
@@ -198,7 +202,9 @@ pub fn transcribe_path_detailed(
                     tracing::info!("audio_io failed: {}, attempting ffmpeg fallback", e);
                     match crate::subtitle::ffmpeg_extract::extract_audio_ffmpeg(path) {
                         Ok(res) => (res, 16_000),
-                        Err(e2) => anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2),
+                        Err(e2) => {
+                            anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2)
+                        }
                     }
                 } else {
                     anyhow::bail!("audio decode failed: {}", e);
@@ -207,18 +213,19 @@ pub fn transcribe_path_detailed(
         };
 
         // Allow acoustic preprocess via AsrBackend path
-        let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
+        let budget_ms = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(25u64);
         // Note: preprocess_audio_pcm_f32_reported returns (Vec<f32>, AcousticsPreprocessDiagnostics)
-        let (pcm, _diag) = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
+        let (pcm, _diag) =
+            crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
 
         let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
-        
+
         let backend = crate::backend_dispatch::create_backend()?;
         let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
-        
+
         let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
         return Ok(finalize_after_refine(out.raw_text, refined));
     }

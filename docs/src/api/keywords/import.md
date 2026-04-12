@@ -4,6 +4,8 @@ description: "Vox keyword import: brings symbols from modules, Rust crates, or P
 category: "api-keyword"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # import

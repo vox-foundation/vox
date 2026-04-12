@@ -1,4 +1,4 @@
-//! Contract-backed **topic packs** (`contracts/scientia/distribution.topic-packs.yaml`) merged into
+﻿//! Contract-backed **topic packs** (`contracts/scientia/distribution.topic-packs.yaml`) merged into
 //! [`crate::types::SyndicationConfig`] when `metadata_json` contains `"topic_pack": "<id>"`.
 
 use std::collections::{BTreeMap, HashSet};

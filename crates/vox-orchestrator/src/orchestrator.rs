@@ -111,4 +111,6 @@ pub struct Orchestrator {
         std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemotePopuliRoutingHint>>>,
     /// Global stop flag to halt dispatch and execution.
     pub stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Cumulative Tavily search credits used in the current session.
+    pub tavily_credits_used: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }

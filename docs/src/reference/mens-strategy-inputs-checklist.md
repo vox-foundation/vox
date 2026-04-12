@@ -4,6 +4,8 @@ description: "Handoff checklist for the second-pass implementation-planning phas
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens strategy inputs checklist
 

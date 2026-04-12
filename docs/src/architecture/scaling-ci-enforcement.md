@@ -2,6 +2,8 @@
 title: "Scaling CI enforcement rollout"
 description: "Documents toestub-scoped modes (legacy, audit, enforce-warn, enforce-strict), phased rollout from warnings to stricter gates, vox ci scaling-audit commands, PR CI JSON caps, and SSOT pointers to scaling policy and contracts."
 category: "architecture"
+
+schema_type: "TechArticle"
 ---
 
 # Scaling CI enforcement rollout

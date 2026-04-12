@@ -53,6 +53,7 @@ heuristics:
       supporting: 4
       informational: 1
     rank_bonus_strong_pair: 5
+    rank_novelty_overlap_penalty_max: 12
   novelty_overlap:
     blend_lexical_weight: 0.55
     blend_semantic_weight: 0.45
@@ -70,6 +71,7 @@ heuristics:
     epistemic_abstract_boost: 0.06
     novelty_base: 0.35
     novelty_readiness_coef: 0.38
+    contradiction_coverage_gate: 0.3
   confidence:
     weight_strong: 1.0
     weight_supporting: 0.55

@@ -4,6 +4,8 @@ description: "Official documentation for Feasibility: full-graph Candle training
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Feasibility: full-graph Candle training (qlora-rs)
 

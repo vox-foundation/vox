@@ -62,6 +62,7 @@ pub async fn vox_scientia_publication_discovery_scan(
             row.source_ref.as_deref(),
             &evidence,
             &scientia_h,
+            None,
         );
         candidates.push(serde_json::json!({
             "publication_id": row.publication_id,
@@ -119,17 +120,25 @@ pub async fn vox_scientia_publication_discovery_explain(
     let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
         &state.repository.root,
     );
+    let novelty_bundle = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        row.metadata_json.as_deref(),
+    );
+    let overlap_for_rank = novelty_bundle.as_ref().map(|b| {
+        vox_publisher::scientia_finding_ledger::novelty_overlap_blend_01(b, &scientia_h) as f32
+    });
     let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         params.publication_id.as_str(),
         row.source_ref.as_deref(),
         &evidence,
         &scientia_h,
-    );
-    let novelty_bundle = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
-        row.metadata_json.as_deref(),
+        overlap_for_rank,
     );
     if let Some(ref b) = novelty_bundle {
-        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, b);
+        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(
+            &mut rank,
+            b,
+            &scientia_h,
+        );
     }
     let completion = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
     let preview = vox_publisher::scientia_discovery::destination_transform_previews(
@@ -265,6 +274,7 @@ pub async fn vox_scientia_publication_discovery_refresh_evidence(
             body_markdown: &manifest.body_markdown,
             citations_json: manifest.citations_json.as_deref(),
             metadata_json: manifest.metadata_json.as_deref(),
+            revision_history_json: None,
             content_sha3_256: &digest,
             state: row.state.as_str(),
         })
@@ -287,6 +297,7 @@ pub async fn vox_scientia_publication_discovery_refresh_evidence(
         manifest.source_ref.as_deref(),
         &evidence,
         &scientia_h,
+        None,
     );
     let detail = serde_json::json!({ "digest": digest, "rank": rank });
     if let Err(e) = db

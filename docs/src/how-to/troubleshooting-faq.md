@@ -5,6 +5,8 @@ category: "how-to"
 status: "current"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # Troubleshooting FAQ — Vox ↔ AI Agents Integration

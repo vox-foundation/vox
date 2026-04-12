@@ -4,6 +4,8 @@ description: "SSOT for GitHub Release binary names, archive layout, checksum man
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Binary release artifact contract

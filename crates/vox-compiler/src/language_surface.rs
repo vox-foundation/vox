@@ -87,6 +87,18 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
     ),
     ("@forall", "Marks a test for property-based generation."),
     ("@fuzz", "Marks a test for fuzzing iteration bounds."),
+    (
+        "@pure",
+        "Marks a function as side-effect free (optimization / tooling contracts).",
+    ),
+    (
+        "@scheduled",
+        "Declares a periodic job with an interval or cron string before `fn`.",
+    ),
+    (
+        "@deprecated",
+        "Marks a declaration as deprecated for diagnostics and documentation.",
+    ),
 ];
 
 /// Keywords that have dedicated single-word lexer tokens (speech / strict introspection).
@@ -139,9 +151,12 @@ pub const LEXER_KEYWORDS: &[&str] = &[
 /// `@decorator` spellings from the lexer (stable order).
 pub const LEXER_DECORATORS: &[&str] = &[
     "@component",
+    "@deprecated",
     "@mcp.tool",
     "@mcp.resource",
+    "@pure",
     "@require",
+    "@scheduled",
     "@ensure",
     "@invariant",
     "@forall",
@@ -153,6 +168,7 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@table",
     "@index",
     "@v0",
+    "@mobile.native",
     "@island",
     "@loading",
 ];

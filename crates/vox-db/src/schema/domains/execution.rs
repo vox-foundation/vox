@@ -226,4 +226,12 @@ CREATE TABLE IF NOT EXISTS mens_observer_observations (
     recorded_at_ms INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_mens_obs_agent ON mens_observer_observations(agent_id);
+
+-- Test decisions from Orient Phase policy
+CREATE TABLE IF NOT EXISTS plan_test_decisions (
+    task_id TEXT PRIMARY KEY,
+    decision TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    recorded_at_ms INTEGER NOT NULL
+);
 ";

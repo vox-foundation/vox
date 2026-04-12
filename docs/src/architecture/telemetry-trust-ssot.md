@@ -5,6 +5,8 @@ category: "architecture"
 status: "current"
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Telemetry trust boundary and SSOT map
@@ -42,6 +44,7 @@ The first telemetry-trust **research** pass was correct to defer code and schema
 | Taxonomy and event families (rollout) | [telemetry-taxonomy-contracts-ssot](telemetry-taxonomy-contracts-ssot.md) | contracts under `contracts/telemetry/` |
 | Client disclosure and debug | [telemetry-client-disclosure-ssot](telemetry-client-disclosure-ssot.md) | vox-vscode README |
 | Build timing + `build_*` observability | [telemetry-metric-contract](../reference/telemetry-metric-contract.md), [crate-build-lanes-migration](crate-build-lanes-migration.md), [`ops_build.rs`](../../../crates/vox-db/src/store/ops_build.rs) | `vox ci build-timings`; MCP `vox_benchmark_list` (`source` for `build_*`); CI may set `VOX_BENCHMARK_TELEMETRY` |
+| `agent_exec_history` timing | [`exec_time_telemetry.rs`](../../../crates/vox-db/src/exec_time_telemetry.rs) (S1) | `agent_exec_time` |
 | Secrets for any future upload endpoint | [AGENTS.md](../../../AGENTS.md), Clavis | — |
 
 ## Trust planes (normative vocabulary)
@@ -54,6 +57,8 @@ Use these terms consistently in docs and code comments:
 | **Diagnostics** | Support bundles, debug logs, user-reviewed export | Explicit action; never default remote |
 | **ContentPersistence** | Chat, tool args, retrieval, transcripts | Local / operator store; **not** “telemetry” without separate consent story |
 | **OperationalTracing** | Structured logs and local JSONL | Local; treat as sensitive if identifiers or content leak |
+
+**A2A dogfood JSONL:** MCP may append optional `a2a_traces.jsonl` under a dogfood trace directory. That file is **OperationalTracing**-class convenience only; it is not interchangeable with Codex `a2a_messages` or mesh delivery logs.
 
 ## Contributor rule
 

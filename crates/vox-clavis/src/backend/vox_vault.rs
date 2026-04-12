@@ -1,3 +1,15 @@
+//! Cloudless Clavis vault (encrypted secret rows in SQLite / libSQL).
+//!
+//! **Connection env (precedence):**
+//! 1. `VOX_CLAVIS_VAULT_PATH` — local store path; opened as a `file:` URL.
+//! 2. `VOX_CLAVIS_VAULT_URL` — explicit URL (`file:…` or `libsql://…`).
+//! 3. When compatibility aliases are allowed (not `VOX_CLAVIS_HARD_CUT` and not cutover
+//!    `enforce` / `decommission`): `VOX_TURSO_URL` then `TURSO_URL`.
+//! 4. Default: `file:.vox/clavis_vault.db`.
+//!
+//! **Remote token:** `VOX_CLAVIS_VAULT_TOKEN`, then compat `VOX_TURSO_TOKEN` / `TURSO_AUTH_TOKEN`
+//! when allowed. Codex uses `VOX_DB_URL` / `VOX_DB_TOKEN`; do not conflate with this vault plane.
+
 use std::sync::Mutex;
 use std::{future::Future, panic};
 
@@ -45,11 +57,11 @@ impl VoxCloudBackend {
     pub fn new() -> Result<Self, SecretError> {
         let conn = run_clavis_future(open_cloudless_connection())?;
         run_clavis_future(ensure_schema(&conn))?;
-        let account_id = std::env::var("VOX_ACCOUNT_ID")
+        let account_id = std::env::var(crate::OPERATOR_ACCOUNT_ID)
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| "default-account".to_string());
-        let kek_ref = std::env::var("VOX_CLAVIS_KEK_REF")
+        let kek_ref = std::env::var(crate::OPERATOR_CLAVIS_KEK_REF)
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| "local-master".to_string());
@@ -411,11 +423,153 @@ impl SecretBackend for VoxCloudBackend {
     }
 }
 
-async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
-    let db_url = std::env::var("VOX_TURSO_URL")
+fn clavis_vault_compat_aliases_allowed() -> bool {
+    let hard_cut_strict = std::env::var("VOX_CLAVIS_HARD_CUT")
         .ok()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "file:.vox/clavis_vault.db".to_string());
+        .map(|v| {
+            let t = v.trim().to_ascii_lowercase();
+            matches!(t.as_str(), "1" | "true" | "yes" | "on")
+        })
+        .unwrap_or(false);
+    let cutover_phase_blocks_compat = std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
+        .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .is_some_and(|phase| matches!(phase.as_str(), "enforce" | "decommission"));
+    !(hard_cut_strict || cutover_phase_blocks_compat)
+}
+
+fn path_to_vault_file_url(path: &str) -> String {
+    let t = path.trim();
+    if t.starts_with("file:") {
+        return t.to_string();
+    }
+    let norm = t.replace('\\', "/");
+    format!("file:{norm}")
+}
+
+fn resolve_cloudless_db_url() -> String {
+    if let Ok(p) = std::env::var("VOX_CLAVIS_VAULT_PATH") {
+        let t = p.trim();
+        if !t.is_empty() {
+            return path_to_vault_file_url(t);
+        }
+    }
+    if let Ok(u) = std::env::var("VOX_CLAVIS_VAULT_URL") {
+        let t = u.trim();
+        if !t.is_empty() {
+            return t.to_string();
+        }
+    }
+    if clavis_vault_compat_aliases_allowed() {
+        if let Ok(u) = std::env::var(concat!("VOX_", "TURSO", "_URL")) {
+            let t = u.trim();
+            if !t.is_empty() {
+                return t.to_string();
+            }
+        }
+        if let Ok(u) = std::env::var(concat!("TURSO", "_URL")) {
+            let t = u.trim();
+            if !t.is_empty() {
+                return t.to_string();
+            }
+        }
+    }
+    "file:.vox/clavis_vault.db".to_string()
+}
+
+fn resolve_cloudless_auth_token() -> String {
+    if let Ok(t) = std::env::var("VOX_CLAVIS_VAULT_TOKEN") {
+        if !t.trim().is_empty() {
+            return t;
+        }
+    }
+    if clavis_vault_compat_aliases_allowed() {
+        if let Ok(t) = std::env::var(concat!("VOX_", "TURSO", "_TOKEN")) {
+            if !t.trim().is_empty() {
+                return t;
+            }
+        }
+        if let Ok(t) = std::env::var(concat!("TURSO", "_AUTH_TOKEN")) {
+            if !t.trim().is_empty() {
+                return t;
+            }
+        }
+    }
+    String::new()
+}
+
+/// One-line summary for `vox clavis doctor` (no secret material).
+#[must_use]
+pub fn cloudless_vault_env_diagnostic() -> String {
+    let url = resolve_cloudless_db_url();
+    let token_present = !resolve_cloudless_auth_token().trim().is_empty();
+    let mode = if url.starts_with("file:") {
+        "local_file"
+    } else {
+        "remote"
+    };
+    let url_source = if std::env::var("VOX_CLAVIS_VAULT_PATH")
+        .ok()
+        .is_some_and(|v| !v.trim().is_empty())
+    {
+        "VOX_CLAVIS_VAULT_PATH"
+    } else if std::env::var("VOX_CLAVIS_VAULT_URL")
+        .ok()
+        .is_some_and(|v| !v.trim().is_empty())
+    {
+        "VOX_CLAVIS_VAULT_URL"
+    } else if clavis_vault_compat_aliases_allowed()
+        && std::env::var(concat!("VOX_", "TURSO", "_URL"))
+            .ok()
+            .is_some_and(|v| !v.trim().is_empty())
+    {
+        "VOX_TURSO_URL"
+    } else if clavis_vault_compat_aliases_allowed()
+        && std::env::var(concat!("TURSO", "_URL"))
+            .ok()
+            .is_some_and(|v| !v.trim().is_empty())
+    {
+        "TURSO_URL"
+    } else {
+        "default_file"
+    };
+    let token_src = if std::env::var("VOX_CLAVIS_VAULT_TOKEN")
+        .ok()
+        .is_some_and(|v| !v.trim().is_empty())
+    {
+        "VOX_CLAVIS_VAULT_TOKEN"
+    } else if clavis_vault_compat_aliases_allowed()
+        && std::env::var(concat!("VOX_", "TURSO", "_TOKEN"))
+            .ok()
+            .is_some_and(|v| !v.trim().is_empty())
+    {
+        "VOX_TURSO_TOKEN"
+    } else if clavis_vault_compat_aliases_allowed()
+        && std::env::var(concat!("TURSO", "_AUTH_TOKEN"))
+            .ok()
+            .is_some_and(|v| !v.trim().is_empty())
+    {
+        "TURSO_AUTH_TOKEN"
+    } else {
+        "unset"
+    };
+    let host_hint = if url.starts_with("file:") {
+        "local".to_string()
+    } else {
+        url.split("//")
+            .nth(1)
+            .map_or("remote", |h| h.split('/').next().unwrap_or("remote"))
+            .to_string()
+    };
+    format!(
+        "mode={mode}; url_source={url_source}; url_host_hint={host_hint}; token_source={token_src}; token_present={token_present}; compat_aliases_allowed={}",
+        clavis_vault_compat_aliases_allowed()
+    )
+}
+
+async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
+    let db_url = resolve_cloudless_db_url();
     if db_url.starts_with("file:") {
         let db = turso::Builder::new_local(&db_url)
             .build()
@@ -425,7 +579,7 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
             .connect()
             .map_err(|e| SecretError::BackendMisconfigured(e.to_string()));
     }
-    let token = std::env::var("VOX_TURSO_TOKEN").unwrap_or_default();
+    let token = resolve_cloudless_auth_token();
     let db = turso::sync::Builder::new_remote(":memory:")
         .with_remote_url(&db_url)
         .with_auth_token(token)

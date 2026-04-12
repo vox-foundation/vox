@@ -8,7 +8,10 @@ pub fn spawn_populi_remote_worker_poller(
     _orchestrator: Arc<crate::orchestrator::Orchestrator>,
     _join_slot: Arc<Mutex<Option<JoinHandle<()>>>>,
 ) {
+    let _ = ();
 }
 
 /// No-op when Populi mesh transport is not compiled in.
-pub async fn populi_remote_worker_tick_once(_orchestrator: &crate::orchestrator::Orchestrator) {}
+pub async fn populi_remote_worker_tick_once(_orchestrator: &crate::orchestrator::Orchestrator) {
+    let _ = std::hint::black_box(_orchestrator as *const _ as usize);
+}

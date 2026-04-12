@@ -40,10 +40,10 @@ fn tool_trace_normalizes_to_training_pair_shape() {
 
 #[test]
 fn tool_trace_uses_followup_when_present() {
-    let raw = r#"{"task_prompt":"x","tool_name":"t","arguments_json":"{}","result_json":"{}","success":true,"followup_text":"Done."}"#;
+    let raw = r#"{"task_prompt":"x","tool_name":"t","arguments_json":"{}","result_json":"{}","success":true,"followup_text":"Ready."}"#;
     let out = normalize_training_jsonl_line(raw, Some("tool_trace")).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
-    assert_eq!(v["response"].as_str(), Some("Done."));
+    assert_eq!(v["response"].as_str(), Some("Ready."));
 }
 
 #[test]

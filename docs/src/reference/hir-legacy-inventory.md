@@ -4,6 +4,8 @@ description: "AST-retained HIR nodes and migration targets (Path C)"
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # HIR legacy inventory

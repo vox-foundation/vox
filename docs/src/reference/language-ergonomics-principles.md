@@ -4,6 +4,8 @@ description: "Principles for reducing boilerplate in Vox while preserving readab
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Language ergonomics principles

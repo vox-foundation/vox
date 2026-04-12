@@ -27,9 +27,9 @@ const POPULI_DEFAULT_MAX_BODY_BYTES: usize = 512 * 1024;
 fn populi_max_body_limit_bytes() -> usize {
     const MIN: usize = 2 * 1024;
     const MAX: usize = 8 * 1024 * 1024;
-    std::env::var("VOX_MESH_HTTP_MAX_BODY_BYTES")
-        .ok()
-        .and_then(|s| s.parse().ok())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshHttpMaxBodyBytes)
+        .expose()
+        .and_then(|s: &str| s.parse().ok())
         .filter(|&n| (MIN..=MAX).contains(&n))
         .unwrap_or(POPULI_DEFAULT_MAX_BODY_BYTES)
 }

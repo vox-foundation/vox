@@ -14,6 +14,16 @@ async fn pragma_columns(db: &VoxDb, table: &str) -> Vec<String> {
 }
 
 #[tokio::test]
+async fn developer_journey_seed_present() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    let steps = db
+        .list_developer_journey_steps("canonical_journey.v1.greenfield_vox_mens_devloop")
+        .await
+        .expect("list_developer_journey_steps");
+    assert_eq!(steps.len(), 8, "expected seeded canonical journey steps");
+}
+
+#[tokio::test]
 async fn plan_sessions_has_iterative_telemetry_columns() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     let cols = pragma_columns(&db, "plan_sessions").await;

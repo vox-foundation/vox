@@ -254,6 +254,11 @@
         "title": "Vox: Planning Mode — Generate PLAN.md"
       },
       {
+        "command": "vox.journey.canonicalChecklist",
+        "title": "Vox: Open canonical MENS dev journey (from Codex)",
+        "category": "Vox"
+      },
+      {
         "command": "vox.debugMode",
         "title": "Vox: Enable Agent Debug Mode"
       },

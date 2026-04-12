@@ -246,6 +246,16 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
         ));
     }
 
+    let retention_policy = root.join("contracts/db/retention-policy.yaml");
+    let retention_txt = read_utf8_path_capped(&retention_policy)
+        .with_context(|| format!("read {}", retention_policy.display()))?;
+    if !retention_txt.contains("agent_exec_history") {
+        return Err(anyhow!(
+            "{} must define retention policy for `agent_exec_history`",
+            retention_policy.display()
+        ));
+    }
+
     println!("data-ssot-guards: OK");
     Ok(())
 }

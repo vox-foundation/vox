@@ -55,7 +55,7 @@ pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> Str
 /// Retrieve a fact from long-term memory by key.
 ///
 /// Uses the same [`MemoryConfig`] as [`memory_store`] (`state.orchestrator_config.memory`).
-/// When `state.db` is set, recall includes Codex `memories` after file miss ([`MemoryManager::recall_async`]).
+/// When `state.db` is set, recall includes Codex `memories` after file miss ([`MemoryManager::lookup_fact_by_key`]).
 pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> String {
     let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
@@ -63,7 +63,7 @@ pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> S
             if let Some(ref db) = state.db {
                 mgr.set_db(db.clone());
             }
-            match mgr.recall_async(&params.key).await {
+            match mgr.lookup_fact_by_key(&params.key).await {
                 Ok(Some(val)) => ToolResult::ok(val).to_json(),
                 Ok(None) => ToolResult::<String>::err_with_remediation(
                     format!("Key '{}' not found", params.key),

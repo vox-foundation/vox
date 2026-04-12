@@ -2,6 +2,8 @@
 title: "Scaling audit baseline (workspace map)"
 description: "Workspace scaling map keyed to contracts/scaling/policy.yaml baseline_id; high-level crate/subsystem notes and refresh via vox ci scaling-audit emit-reports."
 category: "architecture"
+
+schema_type: "TechArticle"
 ---
 
 # Scaling audit baseline (workspace map)

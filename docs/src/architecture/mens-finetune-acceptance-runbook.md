@@ -4,6 +4,8 @@ description: "Official documentation for Acceptance runbook — Mens HF fine-tun
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Acceptance runbook — Mens HF fine-tune convergence
 

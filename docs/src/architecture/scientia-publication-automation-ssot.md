@@ -4,6 +4,8 @@ description: "Research-grounded SSOT for what Vox should automate, assist, or ne
 category: "reference"
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## SCIENTIA publication automation SSOT

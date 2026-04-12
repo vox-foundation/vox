@@ -5,6 +5,9 @@ category: "architecture"
 status: "roadmap"
 last_updated: 2026-04-02
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Telemetry retention and sensitivity SSOT
@@ -56,6 +59,10 @@ Completion ingest persists workspace-adjacent rows ([`ci_completion.rs`](../../.
 ### Other adjacent tables
 
 Tables such as `conversation_messages`, `agent_events`, `behavior_events`, `llm_interactions` (see [`agents.rs` schema](../../../crates/vox-db/src/schema/domains/agents.rs)) are **content or behavior** stores. They MUST NOT be folded into “telemetry” naming without a separate data-class chapter in [telemetry-trust-ssot](telemetry-trust-ssot.md).
+
+### Today: `agent_exec_history`
+
+Execution time telemetry records for agentic budgeting ([exec_time_telemetry](../../../crates/vox-db/src/exec_time_telemetry.rs)). Classified **S1** (tool names, IDs, duration, costs). Retention is set to **90 days** in [retention-policy.yaml](../../../contracts/db/retention-policy.yaml) because budgeting models only need a recent trailing window to detect anomalies; stale execution timings become irrelevant quickly.
 
 ## Orchestrator and Populi sidecars
 

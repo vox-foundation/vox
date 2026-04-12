@@ -621,19 +621,7 @@ mod tests {
             risk_budget: String::new(),
             factual_mode: true,
             required_citations: 1,
-            evidence_count: 0,
-            contradiction_hints: 0,
-            retrieval_tier: None,
-            retrieval_used_vector: false,
-            retrieval_used_lexical_fallback: false,
-            source_diversity: 0,
-            evidence_quality: 0.0,
-            citation_coverage: 0.0,
-            verification_performed: false,
-            verification_reason: None,
-            recommended_next_action: None,
-            retrieval_diagnosis: None,
-            fatigue_active: false,
+            ..Default::default()
         };
         let att = CompletionAttestation {
             completion_summary: Some(
@@ -651,19 +639,7 @@ mod tests {
             risk_budget: String::new(),
             factual_mode: true,
             required_citations: 1,
-            evidence_count: 0,
-            contradiction_hints: 0,
-            retrieval_tier: None,
-            retrieval_used_vector: false,
-            retrieval_used_lexical_fallback: false,
-            source_diversity: 0,
-            evidence_quality: 0.0,
-            citation_coverage: 0.0,
-            verification_performed: false,
-            verification_reason: None,
-            recommended_next_action: None,
-            retrieval_diagnosis: None,
-            fatigue_active: false,
+            ..Default::default()
         };
         let att = CompletionAttestation {
             completion_summary: Some(
@@ -682,19 +658,7 @@ mod tests {
             risk_budget: String::new(),
             factual_mode: true,
             required_citations: 1,
-            evidence_count: 0,
-            contradiction_hints: 0,
-            retrieval_tier: None,
-            retrieval_used_vector: false,
-            retrieval_used_lexical_fallback: false,
-            source_diversity: 0,
-            evidence_quality: 0.0,
-            citation_coverage: 0.0,
-            verification_performed: false,
-            verification_reason: None,
-            recommended_next_action: None,
-            retrieval_diagnosis: None,
-            fatigue_active: false,
+            ..Default::default()
         };
         let att = CompletionAttestation {
             completion_summary: Some("Run cargo test; then submit the patch for review.".into()),

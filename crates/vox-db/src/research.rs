@@ -94,6 +94,34 @@ pub struct CapabilityMapRecord {
     pub metadata: serde_json::Value,
 }
 
+/// Consolidated metrics for a research evaluation run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchEvalRunRecord {
+    pub run_id: String,
+    pub model_id: String,
+    pub config: serde_json::Value,
+    pub metrics: serde_json::Value,
+    pub latency_p50_ms: Option<i64>,
+    pub latency_p99_ms: Option<i64>,
+    pub tier_distribution: serde_json::Value,
+    pub created_at_ms: i64,
+}
+
+/// Single query sample from a research evaluation run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchEvalSampleRecord {
+    pub run_id: String,
+    pub query: String,
+    pub gold_answer: Option<String>,
+    pub model_answer: String,
+    pub recall_at_5: Option<f64>,
+    pub groundedness: Option<f64>,
+    pub quality_score: Option<f64>,
+    pub latency_ms: Option<i64>,
+    pub evidence: serde_json::Value,
+    pub recorded_at_ms: i64,
+}
+
 fn blake3_hex(data: &[u8]) -> String {
     blake3::hash(data).to_hex().to_string()
 }
@@ -120,11 +148,6 @@ fn chunk_text(body: &str, max_chunk: usize) -> Vec<String> {
         out.push(String::new());
     }
     out
-}
-
-async fn ensure_cap_table(_db: &VoxDb) -> Result<(), StoreError> {
-    // Baseline (`crate::schema::spec::CODEX_CAPABILITY_MAP_DDL`) creates `codex_capability_map`.
-    Ok(())
 }
 
 impl VoxDb {
@@ -347,7 +370,6 @@ impl VoxDb {
         rec: &CapabilityMapRecord,
     ) -> Result<i64, StoreError> {
         self.block_on(async {
-            ensure_cap_table(self).await?;
             let linked = serde_json::to_string(&rec.linked_paths)
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
             let meta = serde_json::to_string(&rec.metadata)
@@ -394,7 +416,6 @@ impl VoxDb {
         let vendor = vendor.map(str::to_string);
         let topic = topic.map(str::to_string);
         self.block_on(async {
-            ensure_cap_table(self).await?;
             let mut rows = match (&vendor, &topic) {
                 (Some(v), Some(t)) => {
                     self
@@ -464,6 +485,106 @@ impl VoxDb {
             }
             Ok(out)
         })
+    }
+
+    /// Persist a consolidated research evaluation run record.
+    pub async fn record_research_eval_run(
+        &self,
+        rec: &ResearchEvalRunRecord,
+    ) -> Result<i64, StoreError> {
+        let config_str = serde_json::to_string(&rec.config)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let metrics_str = serde_json::to_string(&rec.metrics)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let tier_str = serde_json::to_string(&rec.tier_distribution)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+
+        let rec = rec.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_eval_runs (
+                        run_id, model_id, config_json, metrics_json,
+                        latency_p50_ms, latency_p99_ms, tier_distribution_json, created_at_ms
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        rec.run_id,
+                        rec.model_id,
+                        config_str,
+                        metrics_str,
+                        rec.latency_p50_ms,
+                        rec.latency_p99_ms,
+                        tier_str,
+                        rec.created_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Persist a single research evaluation sample.
+    pub async fn record_research_eval_sample(
+        &self,
+        rec: &ResearchEvalSampleRecord,
+    ) -> Result<i64, StoreError> {
+        let evidence_str = serde_json::to_string(&rec.evidence)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+
+        let rec_cl = rec.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_eval_samples (
+                        run_id, query, gold_answer, model_answer,
+                        recall_at_5, groundedness, quality_score, latency_ms,
+                        evidence_json, recorded_at_ms
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        rec_cl.run_id,
+                        rec_cl.query,
+                        rec_cl.gold_answer,
+                        rec_cl.model_answer,
+                        rec_cl.recall_at_5,
+                        rec_cl.groundedness,
+                        rec_cl.quality_score,
+                        rec_cl.latency_ms,
+                        evidence_str,
+                        rec_cl.recorded_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+
+        // Also populate the flat telemetry table for evaluation SSOT consistency
+        let _ = self.insert_telemetry_flat_raw(
+            "eval-harness",
+            &rec.run_id,
+            "vox-research",
+            "ResearchEvalSample",
+            Some("eval-search"),
+            Some("localized-dispatcher-0.1"),
+            Some("local"),
+            rec.latency_ms,
+            None,
+            None,
+            None,
+            Some(&serde_json::to_string(&serde_json::json!({
+                "query": rec.query,
+                "quality_score": rec.quality_score,
+                "groundedness": rec.groundedness,
+            })).unwrap_or_default()),
+        ).await.ok();
+
+        Ok(self.conn.last_insert_rowid())
     }
 }
 

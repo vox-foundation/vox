@@ -15,6 +15,7 @@
 //! ```
 
 mod cli;
+pub mod curator;
 mod forward;
 mod merge;
 mod probe;

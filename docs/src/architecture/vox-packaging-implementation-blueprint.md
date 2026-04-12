@@ -4,6 +4,8 @@ description: "Tactical migration blueprint for hard Python retirement, hybrid Vo
 category: "architecture"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Purpose

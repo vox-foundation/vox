@@ -281,6 +281,38 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: journeys-canonical-definition-v1-schema
+    path: contracts/journeys/canonical-journey-definition.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for canonical journey definition rows (journey_id, version, title).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: journeys-canonical-step-v1-schema
+    path: contracts/journeys/canonical-journey-step.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for canonical journey step rows (actor, maturity, limitation_ids).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: journeys-limitation-v1-schema
+    path: contracts/journeys/journey-limitation.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for journey limitation registry entries (L-### ids).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: journeys-limitations-registry-v1
+    path: contracts/journeys/limitations.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: SSOT registry of limitation ids referenced by canonical MENS dev journey steps.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: workflow-journal-v1-schema
     path: contracts/workflow/workflow-journal.v1.schema.json
     owner: workflow-runtime
@@ -326,6 +358,14 @@ contracts:
     owner: mens
     kind: json-schema
     description: JSON Schema for syntax_k_event telemetry payloads in research_metrics.metadata_json.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: eval-vision-rubric-output-schema
+    path: contracts/eval/vision-rubric-output.schema.json
+    owner: mens
+    kind: json-schema
+    description: Stub JSON Schema for vision/DOM rubric tool outputs (CI + future Mens ingest).
     enforced_by:
       - vox ci contracts-index
 
@@ -595,6 +635,22 @@ contracts:
     owner: scientia
     kind: yaml
     description: Tunable seed for impact/readership projection weights, horizons, and field buckets (orthogonal to novelty prior-art); rationale in scientia-impact-readership-research-2026.md.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-searxng-query-defaults-v1
+    path: contracts/scientia/searxng-query.defaults.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Default SearXNG engines and language query parameters for vox-search (embedded at compile time); override via VOX_SEARCH_SEARXNG_ENGINES and VOX_SEARCH_SEARXNG_LANGUAGE.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-projection-profiles-v1
+    path: contracts/scientia/projection-profiles.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Per-template projection caps for vox-publisher distribution_compile; topic_pack template_profile ids must exist here.
     enforced_by:
       - vox ci contracts-index
 

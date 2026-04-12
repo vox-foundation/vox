@@ -85,13 +85,13 @@ impl NewsSiteConfig {
 
     /// Apply `VOX_NEWS_SITE_BASE_URL` and `VOX_NEWS_RSS_FEED_PATH` when non-empty.
     pub fn merge_operator_env_overrides(&mut self) {
-        if let Ok(v) = std::env::var("VOX_NEWS_SITE_BASE_URL") {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsSiteBaseUrl).expose() {
             let t = v.trim().trim_end_matches('/').to_string();
             if !t.is_empty() {
                 self.base_url = t;
             }
         }
-        if let Ok(v) = std::env::var("VOX_NEWS_RSS_FEED_PATH") {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsRssFeedPath).expose() {
             let t = v.trim();
             if !t.is_empty() {
                 self.rss_feed_path = std::path::PathBuf::from(t);

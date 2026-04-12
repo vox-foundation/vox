@@ -11,7 +11,8 @@
 // ---
 // @training_prompt: Wire a v0 chat-id stub into a routed shell; authors replace TSX via v0 CLI / islands.
 
-@v0 "golden-v0-shadcn-stub" fn ShadcnCard() -> Element
+@v0 "golden-v0-shadcn-stub" ShadcnCard {
+}
 
 component Shell() {
     state n: int = 0

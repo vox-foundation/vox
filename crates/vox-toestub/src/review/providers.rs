@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use vox_clavis::{SecretId, resolve_secret};
 
 /// AI provider for code review — superset of `AiProvider`, with OpenRouter
 /// and OpenAI-compatible endpoints added.
@@ -120,11 +121,16 @@ impl ReviewProvider {
 pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     let mut providers = Vec::new();
 
+    fn clavis_opt(id: SecretId) -> Option<String> {
+        resolve_secret(id)
+            .expose()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    }
+
     // 1. OpenRouter (supports Claude, free models, etc.)
-    let or_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_default();
-    if !or_key.is_empty() {
-        let model =
-            std::env::var("OPENROUTER_MODEL").unwrap_or_else(|_| default_openrouter_model());
+    if let Some(or_key) = clavis_opt(SecretId::OpenRouterApiKey) {
+        let model = clavis_opt(SecretId::OpenRouterModel).unwrap_or_else(default_openrouter_model);
         providers.push(ReviewProvider::OpenRouter {
             api_key: or_key,
             model,
@@ -133,11 +139,9 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 2. OpenAI-compatible
-    let oai_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
-    if !oai_key.is_empty() {
-        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| default_openai_model());
-        let base_url =
-            std::env::var("OPENAI_BASE_URL").unwrap_or_else(|_| default_openai_base_url());
+    if let Some(oai_key) = clavis_opt(SecretId::OpenaiApiKey) {
+        let model = clavis_opt(SecretId::OpenaiModel).unwrap_or_else(default_openai_model);
+        let base_url = clavis_opt(SecretId::OpenaiBaseUrl).unwrap_or_else(default_openai_base_url);
         providers.push(ReviewProvider::OpenAi {
             api_key: oai_key,
             model,
@@ -146,9 +150,8 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 3. Gemini
-    let gem_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
-    if !gem_key.is_empty() {
-        let model = std::env::var("GEMINI_MODEL").unwrap_or_else(|_| default_gemini_model());
+    if let Some(gem_key) = clavis_opt(SecretId::GeminiApiKey) {
+        let model = clavis_opt(SecretId::GeminiModel).unwrap_or_else(default_gemini_model);
         providers.push(ReviewProvider::Gemini {
             api_key: gem_key,
             model,
@@ -156,9 +159,9 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 4. Ollama (probe with a short timeout)
-    let ollama_url = std::env::var("OLLAMA_URL").unwrap_or_else(|_| default_ollama_url());
+    let ollama_url = clavis_opt(SecretId::OllamaUrl).unwrap_or_else(default_ollama_url);
     if probe_ollama(&ollama_url) {
-        let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| default_ollama_model());
+        let model = clavis_opt(SecretId::OllamaModel).unwrap_or_else(default_ollama_model);
         providers.push(ReviewProvider::Ollama {
             url: ollama_url,
             model,

@@ -45,7 +45,12 @@ pub fn parse_review_result(raw: &str) -> Result<ReviewResult, serde_json::Error>
     // Strip fences
     let trimmed = raw.trim();
     let json_text = if trimmed.starts_with("```json") {
-        trimmed.strip_prefix("```json").unwrap_or(trimmed).strip_suffix("```").unwrap_or(trimmed).trim()
+        trimmed
+            .strip_prefix("```json")
+            .unwrap_or(trimmed)
+            .strip_suffix("```")
+            .unwrap_or(trimmed)
+            .trim()
     } else {
         trimmed
     };

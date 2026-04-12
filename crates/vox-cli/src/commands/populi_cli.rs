@@ -180,10 +180,10 @@ pub enum PopuliNodeCmd {
 fn resolve_populi_control_base(url_override: Option<String>) -> anyhow::Result<String> {
     let raw = if let Some(u) = url_override {
         u
-    } else if let Ok(u) = std::env::var("VOX_ORCHESTRATOR_MESH_CONTROL_URL") {
+    } else if let Some(u) =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose()
+    {
         u.trim().to_string()
-    } else if let Some(u) = vox_populi::populi_env().control_addr {
-        u
     } else {
         anyhow::bail!(
             "set --control-url or VOX_ORCHESTRATOR_MESH_CONTROL_URL or VOX_MESH_CONTROL_ADDR"

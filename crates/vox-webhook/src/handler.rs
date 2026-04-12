@@ -1,7 +1,6 @@
 //! Inbound webhook handler — parses, verifies and routes incoming webhook events.
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use crate::WebhookError;
 
@@ -135,11 +134,11 @@ mod tests {
 
     fn make_payload(source: &str, event_type: &str) -> InboundPayload {
         InboundPayload {
-            source: Arc::from(source),
-            event_type: Arc::from(event_type),
+            source: source.to_string(),
+            event_type: event_type.to_string(),
             body: serde_json::json!({"ref": "refs/heads/main"}),
             signature: None,
-            timestamp: 0,
+            timestamp: None,
         }
     }
 
@@ -174,15 +173,15 @@ mod tests {
         let signing_key = "test-secret";
         let body = serde_json::json!({"ref": "refs/heads/main"});
         let body_str = serde_json::to_string(&body).unwrap();
-        let sig = crate::signing::sign_payload(signing_key, body_str.as_bytes());
+        let sig = crate::signing::sign_hmac_sha256(signing_key, body_str.as_bytes());
 
         let h = WebhookHandler::new().with_secret(signing_key);
         let p = InboundPayload {
-            source: Arc::from("github"),
-            event_type: Arc::from("push"),
+            source: "github".to_string(),
+            event_type: "push".to_string(),
             body,
-            signature: Some(sig.to_string()),
-            timestamp: 0,
+            signature: Some(format!("sha256={sig}")),
+            timestamp: None,
         };
         assert!(h.handle(&p).is_ok());
     }

@@ -144,7 +144,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     let out_dir = PathBuf::from("dist");
 
     println!("Building {}...", file.display());
-    build::run(file, &out_dir, None, false).await?;
+    build::run(file, &out_dir, None, false, false).await?;
 
     // 2. Check if we have frontend components to bundle
     let has_frontend = fs::read_dir(&out_dir)

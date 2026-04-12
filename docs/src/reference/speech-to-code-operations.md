@@ -4,6 +4,8 @@ description: "Dashboards, privacy, canary, and release gates for spoken Vox code
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Operations

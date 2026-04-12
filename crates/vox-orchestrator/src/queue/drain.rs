@@ -22,6 +22,23 @@ impl AgentQueue {
         Some(task)
     }
 
+    /// Dequeue a task that is currently in Doubted status.
+    pub fn dequeue_doubted(&mut self) -> Option<AgentTask> {
+        if self.paused {
+            return None;
+        }
+        let pos = self
+            .tasks
+            .iter()
+            .position(|t| matches!(t.status, TaskStatus::Doubted(_)))?;
+        let mut task = self.tasks.remove(pos)?;
+        task.status = TaskStatus::InProgress;
+        task.start();
+        self.in_progress = Some(task.clone());
+        self.last_active = std::time::Instant::now();
+        Some(task)
+    }
+
     /// Peek at the next task without removing it.
     pub fn peek(&self) -> Option<&AgentTask> {
         self.tasks.front()
@@ -95,6 +112,14 @@ impl AgentQueue {
         self.completed.len()
     }
 
+    /// Number of tasks in Doubted state.
+    pub fn doubted_count(&self) -> usize {
+        self.tasks
+            .iter()
+            .filter(|t| matches!(t.status, TaskStatus::Doubted(_)))
+            .count()
+    }
+
     /// Whether there is a task currently in progress.
     pub fn has_in_progress(&self) -> bool {
         self.in_progress.is_some()
@@ -108,6 +133,16 @@ impl AgentQueue {
     /// Get the currently in-progress task.
     pub fn current_task(&self) -> Option<&AgentTask> {
         self.in_progress.as_ref()
+    }
+
+    /// Get a mutable reference to the currently in-progress task.
+    pub fn current_task_mut(&mut self) -> Option<&mut AgentTask> {
+        self.in_progress.as_mut()
+    }
+
+    /// Find a task by ID in the queue and return a mutable reference.
+    pub fn find_task_mut(&mut self, task_id: TaskId) -> Option<&mut AgentTask> {
+        self.tasks.iter_mut().find(|t| t.id == task_id)
     }
 
     /// Hold a task as in-progress for Populi remote execution without dequeuing from [`Self::tasks`].
@@ -131,6 +166,15 @@ impl AgentQueue {
     pub fn take_in_progress_if(&mut self, task_id: TaskId) -> Option<AgentTask> {
         if self.in_progress.as_ref().is_some_and(|t| t.id == task_id) {
             self.in_progress.take()
+        } else {
+            None
+        }
+    }
+
+    /// Remove a queued task if it matches `task_id`.
+    pub fn take_queued(&mut self, task_id: TaskId) -> Option<AgentTask> {
+        if let Some(pos) = self.tasks.iter().position(|t| t.id == task_id) {
+            self.tasks.remove(pos)
         } else {
             None
         }

@@ -4,6 +4,8 @@ description: "Severity-ranked critique of prior Vox planning artifacts with root
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Planning critique and gap analysis

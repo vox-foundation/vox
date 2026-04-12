@@ -4,8 +4,10 @@ description: "Authoritative plan for unifying Vox language-surface metadata acro
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-03-29
+last_updated: 2026-04-12
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Language surface SSOT
@@ -25,7 +27,7 @@ The same **keyword, decorator, and surface-syntax** information is maintained in
 
 ## Implemented SSOT (code)
 
-- [`crates/vox-compiler/src/language_surface.rs`](../../../crates/vox-compiler/src/language_surface.rs) — `LSP_KEYWORD_SNIPPETS`, `LSP_DECORATOR_DOCS`, `LEXER_KEYWORDS`, `LEXER_DECORATORS`, builtin/type name slices.
+- [`crates/vox-compiler/src/language_surface.rs`](../../../crates/vox-compiler/src/language_surface.rs) — `LSP_KEYWORD_SNIPPETS`, `LSP_DECORATOR_DOCS`, `LEXER_KEYWORDS`, `LEXER_DECORATORS`, builtin/type name slices. **Lexer-first decorators** now include `@pure`, `@scheduled`, and `@deprecated` (see [`token.rs`](../../../crates/vox-compiler/src/lexer/token.rs)); MCP merges [`MCP_ROADMAP_DECORATORS`](../../../crates/vox-mcp/src/tools/introspection_tools.rs) for spellings not yet promoted to dedicated tokens.
 - [`crates/vox-lsp/src/completions.rs`](../../../crates/vox-lsp/src/completions.rs) — reads `vox_compiler::language_surface`.
 - [`crates/vox-mcp/src/tools/introspection_tools.rs`](../../../crates/vox-mcp/src/tools/introspection_tools.rs) — merges lexer lists with `MCP_ROADMAP_DECORATORS` for agent-facing extras.
 - Test [`crates/vox-compiler/tests/language_surface_ssot.rs`](../../../crates/vox-compiler/tests/language_surface_ssot.rs) — every `LSP_DECORATOR_DOCS` entry must appear in `LEXER_DECORATORS`.

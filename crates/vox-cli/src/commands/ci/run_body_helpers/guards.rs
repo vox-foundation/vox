@@ -59,6 +59,148 @@ pub(crate) fn run_sql_surface_guard(root: &Path, all: bool) -> Result<()> {
     Ok(())
 }
 
+/// True when `text` contains a **call** to [`vox_db::VoxDb::query_all`] (dot + `query_all` + `(`),
+/// e.g. on `db` or `self`, not merely a `fn query_all` definition.
+#[must_use]
+pub(crate) fn source_contains_query_all_call_site(text: &str) -> bool {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| regex::Regex::new(r"\.query_all\s*\(").expect("query_all call-site regex"))
+        .is_match(text)
+}
+
+fn load_query_all_allowlist(root: &Path) -> Result<Vec<String>> {
+    let mut out = vec!["crates/vox-db/".to_string()];
+    let p = root.join("docs/agents/query-all-allowlist.txt");
+    if p.is_file() {
+        let text = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let norm = line.replace('\\', "/");
+            let norm = if norm.ends_with('/') {
+                norm
+            } else {
+                format!("{norm}/")
+            };
+            out.push(norm);
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
+fn query_all_path_allowed(rel: &str, allow: &[String]) -> bool {
+    allow.iter().any(|prefix| rel.starts_with(prefix.as_str()))
+}
+
+/// Fail when Rust sources outside `vox-db` (and the transitional allowlist) call
+/// [`vox_db::VoxDb::query_all`]: arbitrary SQL bypasses `store/ops_*.rs` ownership.
+///
+/// See `docs/agents/database-nomenclature.md` and `docs/agents/query-all-allowlist.txt`.
+pub(crate) fn run_query_all_guard(root: &Path, all: bool) -> Result<()> {
+    let allow = load_query_all_allowlist(root)?;
+    let mut offenders = Vec::new();
+    for rel in scan_targets(root, all)? {
+        let rel_norm = rel.replace('\\', "/");
+        if query_all_path_allowed(&rel_norm, &allow) {
+            continue;
+        }
+        let path = root.join(&rel);
+        if !path.exists() {
+            continue;
+        }
+        let text = read_utf8_path_capped(&path)?;
+        if source_contains_query_all_call_site(&text) {
+            offenders.push(rel_norm);
+        }
+    }
+    if !offenders.is_empty() {
+        return Err(anyhow!(
+            "query-all-guard: disallowed Codex `query_all` call sites outside allowlist in {} file(s): {} — add typed methods in vox-db store/ops_*.rs or extend docs/agents/query-all-allowlist.txt while migrating (see docs/agents/database-nomenclature.md)",
+            offenders.len(),
+            offenders.join(", ")
+        ));
+    }
+    println!("query-all-guard OK");
+    Ok(())
+}
+
+/// True when `text` contains a Turso crate path prefix (`turso` + `::`, word-bounded)
+/// (regex built from fragments so this file does not self-match the guard scan).
+#[must_use]
+pub(crate) fn source_contains_turso_path_prefix(text: &str) -> bool {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let pat = concat!(r"\b", "tur", "so", "::");
+    RE.get_or_init(|| regex::Regex::new(pat).expect("turso path-prefix regex"))
+        .is_match(text)
+}
+
+fn load_turso_import_allowlist(root: &Path) -> Result<Vec<String>> {
+    let mut out = vec![
+        "crates/vox-db/".to_string(),
+        "crates/vox-pm/".to_string(),
+        "crates/vox-compiler/".to_string(),
+    ];
+    let p = root.join("docs/agents/turso-import-allowlist.txt");
+    if p.is_file() {
+        let text = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let norm = line.replace('\\', "/");
+            let norm = if norm.ends_with('/') {
+                norm
+            } else {
+                format!("{norm}/")
+            };
+            out.push(norm);
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
+fn turso_import_path_allowed(rel: &str, allow: &[String]) -> bool {
+    allow.iter().any(|prefix| rel.starts_with(prefix.as_str()))
+}
+
+/// Fail when Rust sources outside the Turso data-plane allowlist use the Turso crate path prefix.
+///
+/// See `docs/agents/codex-turso-allowlist.md` and `docs/agents/turso-import-allowlist.txt`.
+pub(crate) fn run_turso_import_guard(root: &Path, all: bool) -> Result<()> {
+    let allow = load_turso_import_allowlist(root)?;
+    let mut offenders = Vec::new();
+    for rel in scan_targets(root, all)? {
+        let rel_norm = rel.replace('\\', "/");
+        if turso_import_path_allowed(&rel_norm, &allow) {
+            continue;
+        }
+        let path = root.join(&rel);
+        if !path.exists() {
+            continue;
+        }
+        let text = read_utf8_path_capped(&path)?;
+        if source_contains_turso_path_prefix(&text) {
+            offenders.push(rel_norm);
+        }
+    }
+    if !offenders.is_empty() {
+        return Err(anyhow!(
+            "turso-import-guard: disallowed Turso crate path prefix outside allowlist in {} file(s): {} — keep Turso usage in vox-db / vox-pm or extend docs/agents/turso-import-allowlist.txt while migrating (see docs/agents/codex-turso-allowlist.md)",
+            offenders.len(),
+            offenders.join(", ")
+        ));
+    }
+    println!("turso-import-guard OK");
+    Ok(())
+}
+
 fn load_sql_connection_allowlist(root: &Path) -> Result<Vec<String>> {
     let mut out = vec![
         "crates/vox-db/".to_string(),
@@ -163,6 +305,81 @@ impl ClavisCutoverPhase {
     const fn scan_all(self) -> bool {
         matches!(self, Self::Enforce | Self::Decommission)
     }
+}
+
+pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
+    let mut names: std::collections::BTreeSet<String> = vox_clavis::managed_secret_env_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    names.extend(
+        vox_config::operator_registry::all_operator_env_names()
+            .iter()
+            .map(|s| s.to_string()),
+    );
+    // Common system envs allowlist
+    const SYSTEM_ALLOWLIST: &[&str] = &[
+        "PATH",
+        "HOME",
+        "USER",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "SHELL",
+        "PWD",
+        "LANG",
+        "EDITOR",
+        "PAGER",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PROGRAMFILES",
+        "CARGO_MANIFEST_DIR",
+        "CARGO_PKG_VERSION",
+        "CARGO_PKG_NAME",
+        "OUT_DIR",
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "TERM",
+        "COLORTERM",
+    ];
+    for s in SYSTEM_ALLOWLIST {
+        names.insert((*s).to_string());
+    }
+
+    let mut offenders = Vec::new();
+
+    // Regex to find potential env var strings in Rust files: "NAME" inside std::env::var(...)
+    // or similar looking uppercase strings.
+    let re = regex::Regex::new(r#"(?:std::env::var(?:_os)?\s*\(\s*["'](?P<name>[A-Z0-9_]{3,})["']\s*\))"#)
+        .expect("env var regex");
+
+    for rel in scan_targets(root, all)? {
+        let path = root.join(&rel);
+        if !path.exists() {
+            continue;
+        }
+        let text = read_utf8_path_capped(&path)?;
+        for cap in re.captures_iter(&text) {
+            let name = &cap["name"];
+            if !names.contains(name) {
+                offenders.push(format!("{} usage of unregistered env: {}", rel, name));
+            }
+        }
+    }
+
+    if !offenders.is_empty() {
+        offenders.sort();
+        offenders.dedup();
+        return Err(anyhow!(
+            "operator-env-guard: found {} usage(s) of unregistered environment variables:\n{}\n\nRegister in `crates/vox-clavis/src/spec.rs` (secrets) or `crates/vox-config/src/operator_registry.rs` (tuning).",
+            offenders.len(),
+            offenders.join("\n")
+        ));
+    }
+
+    println!("operator-env-guard OK");
+    Ok(())
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -392,6 +609,74 @@ pub(crate) fn run_secret_env_guard(root: &Path, all: bool) -> Result<()> {
 }
 
 pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
+    let contract_path = root.join("contracts/clavis/managed-env-names.v1.json");
+    if contract_path.exists() {
+        use std::collections::BTreeSet;
+        let json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&contract_path)?)?;
+        let contract_names: BTreeSet<String> = json["secrets"]
+            .as_array()
+            .ok_or_else(|| anyhow!("clavis-parity: malformed contract JSON"))?
+            .iter()
+            .flat_map(|s| {
+                let mut names = vec![s["canonical_env"].as_str().unwrap_or("").to_string()];
+                names.extend(
+                    s["aliases"]
+                        .as_array()
+                        .unwrap_or(&vec![])
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .map(str::to_string),
+                );
+                names.extend(
+                    s["deprecated_aliases"]
+                        .as_array()
+                        .unwrap_or(&vec![])
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .map(str::to_string),
+                );
+                names
+            })
+            .filter(|n| !n.is_empty())
+            .collect();
+        let live_names: BTreeSet<String> = vox_clavis::managed_secret_env_names()
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        let missing_in_contract: Vec<_> = live_names.difference(&contract_names).collect();
+        let extra_in_contract: Vec<_> = contract_names.difference(&live_names).collect();
+        if !missing_in_contract.is_empty() || !extra_in_contract.is_empty() {
+            return Err(anyhow!(
+                "clavis-parity: contract drift (secrets) — missing={:?} extra={:?} (re-run `vox ci clavis-contracts`)",
+                missing_in_contract,
+                extra_in_contract
+            ));
+        }
+
+        let contract_tuning_names: BTreeSet<String> = json["operator_tuning_envs"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(str::to_string)
+            .collect();
+        let live_tuning_names: BTreeSet<String> = vox_clavis::OPERATOR_TUNING_ENVS
+            .iter()
+            .map(|&s| s.to_string())
+            .collect();
+        let missing_tuning_in_contract: Vec<_> = live_tuning_names.difference(&contract_tuning_names).collect();
+        let extra_tuning_in_contract: Vec<_> = contract_tuning_names.difference(&live_tuning_names).collect();
+        if !missing_tuning_in_contract.is_empty() || !extra_tuning_in_contract.is_empty() {
+            return Err(anyhow!(
+                "clavis-parity: contract drift (operator tuning) — missing={:?} extra={:?} (re-run `vox ci clavis-contracts`)",
+                missing_tuning_in_contract,
+                extra_tuning_in_contract
+            ));
+        }
+    } else {
+        return Err(anyhow!("clavis-parity: missing contracts/clavis/managed-env-names.v1.json. Run `vox ci clavis-contracts`"));
+    }
+
     let docs = root
         .join("docs")
         .join("src")
@@ -403,16 +688,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
         ));
     }
     let content = read_utf8_path_capped(&docs)?;
-    let missing: Vec<&str> = vox_clavis::managed_secret_env_names()
-        .into_iter()
-        .filter(|name| !content.contains(name))
-        .collect();
-    if !missing.is_empty() {
-        return Err(anyhow!(
-            "clavis-parity: docs/src/reference/clavis-ssot.md missing managed env names: {}",
-            missing.join(", ")
-        ));
-    }
+    
     let missing_bundles: Vec<&str> = vox_clavis::all_bundle_doc_names()
         .iter()
         .copied()
@@ -429,6 +705,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             "clavis-parity: docs/src/reference/clavis-ssot.md must document DeprecatedAliasUsed lifecycle"
         ));
     }
+
     println!("clavis-parity OK");
     Ok(())
 }
@@ -605,6 +882,31 @@ mod sql_surface_tests {
     fn ignores_execute_batch() {
         let src = concat!("db", ".connection().", "execute_batch", "(\"PRAGMA x\")");
         assert!(!sql_surface_contains_raw_connection_api(src));
+    }
+
+    #[test]
+    fn query_all_detects_call_sites() {
+        // Split literals so this file does not contain the guard's dot + query_all + open-paren pattern
+        // (would false-positive when scanning `guards.rs`).
+        let db_call = concat!("db", ".query", "_all(", "\"SELECT 1\", ()).await");
+        assert!(super::source_contains_query_all_call_site(db_call));
+        let self_call = concat!("self", ".query", "_all(", "sql, params).await");
+        assert!(super::source_contains_query_all_call_site(self_call));
+    }
+
+    #[test]
+    fn query_all_ignores_fn_definition() {
+        let src = concat!(
+            "pub async fn quer",
+            "y_all(\n        &self,\n        sql: &str,\n    )"
+        );
+        assert!(!super::source_contains_query_all_call_site(src));
+    }
+
+    #[test]
+    fn turso_import_detects_path_prefix() {
+        let s = concat!("db", ".conn", "ect(); tur", "so::", "params![]");
+        assert!(super::source_contains_turso_path_prefix(s));
     }
 
     #[test]

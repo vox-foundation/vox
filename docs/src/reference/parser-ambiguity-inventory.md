@@ -4,6 +4,8 @@ description: "Known parse edge cases, error classes, and fixture locations for t
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Parser ambiguity and robustness inventory

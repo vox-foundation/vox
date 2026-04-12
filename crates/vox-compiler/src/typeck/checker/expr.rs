@@ -171,6 +171,8 @@ impl<'a> Checker<'a> {
                             code: Some("typecheck.deprecated_ident".into()),
                             fixes: vec![],
                             line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
                         });
                     }
                     binding.ty.clone()
@@ -331,6 +333,46 @@ impl<'a> Checker<'a> {
                         ));
                         Ty::Error
                     }
+                } else if let Ty::Named(n) = &obj_ty {
+                    let ns = match n.as_str() {
+                        "StdHttpNs" => Some("http"),
+                        "StdLogNs" => Some("log"),
+                        "StdJsonNs" => Some("json"),
+                        "StdFsNs" => Some("fs"),
+                        "StdEnvNs" => Some("env"),
+                        "StdProcessNs" => Some("process"),
+                        "StdCryptoNs" => Some("crypto"),
+                        "StdTimeNs" => Some("time"),
+                        "StdMobileNs" => Some("mobile"),
+                        _ => None,
+                    };
+                    if let Some(ns) = ns {
+                        if let Some(method_ty) =
+                            crate::builtin_registry::std_namespace_method_ty(ns, method)
+                        {
+                            let method_ty = self.uf.instantiate(&method_ty);
+                            if let Ty::Fn(params, ret) = method_ty {
+                                self.check_arguments(&params, args, *span);
+                                ret.as_ref().clone()
+                            } else {
+                                Ty::Error
+                            }
+                        } else {
+                            self.diags.push(Diagnostic::error(
+                                format!("Method '{method}' not found on {obj_ty:?}"),
+                                *span,
+                                self.source,
+                            ));
+                            Ty::Error
+                        }
+                    } else {
+                        self.diags.push(Diagnostic::error(
+                            format!("Method '{method}' not found on {obj_ty:?}"),
+                            *span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
                 } else {
                     self.diags.push(Diagnostic::error(
                         format!("Method '{method}' not found on {obj_ty:?}"),
@@ -372,6 +414,8 @@ impl<'a> Checker<'a> {
                         code: Some("lint.db_unsafe_query".into()),
                         fixes: vec![],
                         line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
                     });
                 }
                 let Some(binding) = self.env.lookup(table) else {

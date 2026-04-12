@@ -281,16 +281,23 @@ pub(super) async fn run_stats(input: &Path) -> Result<()> {
         anyhow::bail!("Input file not found: {}", input.display());
     }
 
-    let content = read_utf8_path_capped_async(input).await?;
-    let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
-    let total = lines.len();
+    let file = tokio::fs::File::open(input).await?;
+    use tokio::io::AsyncBufReadExt;
+    let mut lines = tokio::io::BufReader::new(file).lines();
+
+    let mut total = 0usize;
 
     let mut source_counts: std::collections::HashMap<String, u32> =
         std::collections::HashMap::new();
     let mut category_counts: std::collections::HashMap<String, u32> =
         std::collections::HashMap::new();
 
-    for line in &lines {
+    while let Some(line) = lines.next_line().await? {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        total += 1;
         if let Ok(record) = serde_json::from_str::<serde_json::Value>(line) {
             if let Some(src) = record.get("source").and_then(|v| v.as_str()) {
                 *source_counts.entry(src.to_string()).or_insert(0) += 1;
@@ -333,7 +340,11 @@ pub(super) async fn run_review_stats(input: &Path) -> Result<()> {
     if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
-    let content = read_utf8_path_capped_async(input).await?;
+
+    let file = tokio::fs::File::open(input).await?;
+    use tokio::io::AsyncBufReadExt;
+    let mut lines = tokio::io::BufReader::new(file).lines();
+
     let mut total = 0usize;
     let mut sample_kind: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
@@ -341,8 +352,9 @@ pub(super) async fn run_review_stats(input: &Path) -> Result<()> {
     let mut correctness: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
 
-    for line in content.lines() {
-        if line.trim().is_empty() {
+    while let Some(line) = lines.next_line().await? {
+        let line = line.trim();
+        if line.is_empty() {
             continue;
         }
         let row: vox_corpus::external_review_replay::ExternalReviewReplayRow =

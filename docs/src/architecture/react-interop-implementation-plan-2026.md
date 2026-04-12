@@ -4,6 +4,8 @@ description: "Complete implementation plan for Vox's minimal-surface, framework-
 category: "architecture"
 last_updated: 2026-04-08
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox Web: Minimal React Interop — Implementation Plan
@@ -111,6 +113,7 @@ app/ (scaffold — written once, never overwritten)
 **No change.** Path C emission is canonical. Named export, pure React TSX.
 
 ```tsx
+// vox:skip
 export function PostList(): React.ReactElement {
   return <div className="posts">...</div>
 }
@@ -122,6 +125,7 @@ export function PostList(): React.ReactElement {
 
 **Before (broken TanStack virtual files):**
 ```tsx
+// vox:skip
 // __root.tsx  ← framework-specific, brittle
 export const Route = createRootRoute({ ... })
 
@@ -231,6 +235,7 @@ export async function createPost(data: { title: string; body: string }): Promise
 
 #### `app/main.tsx`
 ```tsx
+// vox:skip
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./App"
@@ -243,6 +248,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 #### `app/App.tsx` — The Adapter
 ```tsx
+// vox:skip
 // This file is yours to modify. Vox generated it once and will never overwrite it.
 // To use a different router (TanStack Router, Next.js, etc.), replace the body of this file.
 import { BrowserRouter, Routes, Route, Navigate } from "react-router"
@@ -384,6 +390,7 @@ export default defineConfig({
 
 ### Current (must still parse):
 ```vox
+// vox:skip
 routes {
   "/" to Home
   "/posts" to PostList
@@ -395,6 +402,7 @@ routes {
 > **Parser status:** `with loader` / `with pending` / **nested** `{ ... }` child routes / `not_found:` / `error:` **parse and emit** into `routes.manifest.ts`. **`"/path" as layout Name { ... }`**, **HTTP redirects**, and **wildcard route lines** are **not** implemented yet (see `RouteEntry.redirect` / `is_wildcard` placeholders in the AST).
 
 ```vox
+// vox:skip
 @loading fn GlobalSpinner() to Element {
   ret <div class="spinner">"Loading…"</div>
 }
@@ -603,6 +611,7 @@ Scaffold vs compiler vs doctor — **\[scaffold]** items are written by `scaffol
 ### `@component fn` → `component Name() { }`
 
 ```vox
+// vox:skip
 // BEFORE (error after migration)
 @component fn MyButton(label: str) {
   view: <button>{{ label }}</button>
@@ -640,6 +649,7 @@ export function Counter({ initial }: { initial: number }) {
 ### `@provider fn ThemeProvider()` → Move to scaffold App.tsx
 
 ```tsx
+// vox:skip
 // app/App.tsx — add your providers here
 import { ThemeProvider } from "./providers/theme"
 ...

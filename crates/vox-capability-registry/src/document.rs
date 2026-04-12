@@ -49,6 +49,8 @@ pub struct CuratedCapability {
     pub mcp_tool: Option<String>,
     #[serde(default)]
     pub cli_path: Option<Vec<String>>,
+    #[serde(default)]
+    pub parameters: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

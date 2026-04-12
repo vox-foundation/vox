@@ -16,7 +16,9 @@ vox-bounded-fs = { workspace = true }
 schemars = { workspace = true, optional = true }
 nvml-wrapper = { workspace = true, optional = true }
 regex = { workspace = true }
+glob = { workspace = true }
 walkdir = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [features]
 default = []

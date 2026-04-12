@@ -1,0 +1,18 @@
+[package]
+name = "vox-dei"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+vox-orchestrator = { path = "../vox-orchestrator" }
+vox-populi = { path = "../vox-populi" }
+vox-config = { path = "../vox-config" }
+vox-repository = { path = "../vox-repository" }
+vox-ludus = { path = "../vox-ludus" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }

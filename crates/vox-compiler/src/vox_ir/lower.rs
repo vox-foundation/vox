@@ -1,0 +1,45 @@
+use super::{VoxIrContent, VoxIrMetadata, VoxIrModule};
+use crate::hir::HirModule;
+use chrono::Utc;
+
+use sha3::{Digest, Sha3_256};
+
+/// Lower a HirModule into the stable VoxIrModule representation.
+pub fn lower_hir_to_vox_ir(hir: &HirModule, source: Option<&str>) -> VoxIrModule {
+    let source_hash = if let Some(src) = source {
+        let mut hasher = Sha3_256::new();
+        hasher.update(src.as_bytes());
+        format!("{:x}", hasher.finalize())
+    } else {
+        "".to_string()
+    };
+
+    let web_ir = crate::web_ir::lower::lower_hir_to_web_ir(hir);
+
+    VoxIrModule {
+        version: "2.0.0".to_string(),
+        metadata: VoxIrMetadata {
+            compiler_version: env!("CARGO_PKG_VERSION").to_string(),
+            generated_at: Utc::now().to_rfc3339(),
+            source_hash,
+        },
+        module: VoxIrContent {
+            imports: hir.imports.clone(),
+            rust_imports: hir.rust_imports.clone(),
+            functions: hir.functions.clone(),
+            types: hir.types.clone(),
+            routes: hir.routes.clone(),
+            actors: hir.actors.clone(),
+            workflows: hir.workflows.clone(),
+            activities: hir.activities.clone(),
+            server_fns: hir.server_fns.clone(),
+            query_fns: hir.query_fns.clone(),
+            mutation_fns: hir.mutation_fns.clone(),
+            tables: hir.tables.clone(),
+            mcp_tools: hir.mcp_tools.clone(),
+            mcp_resources: hir.mcp_resources.clone(),
+            agents: hir.agents.clone(),
+            web_ir: Some(web_ir),
+        },
+    }
+}

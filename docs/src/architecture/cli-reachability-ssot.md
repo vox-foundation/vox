@@ -2,6 +2,8 @@
 title: "CLI reachability SSOT"
 description: "Stable anchor to reference/cli.md for the top-level command reachability matrix; extend the table when the CLI registry marks reachability_required and run command-compliance."
 category: "architecture"
+
+schema_type: "TechArticle"
 ---
 
 # CLI reachability SSOT

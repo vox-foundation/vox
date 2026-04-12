@@ -2,9 +2,18 @@
 
 Working code examples demonstrating Vox language features. Each `.vox` file is a complete, self-contained program.
 
+## Golden vs other `.vox` trees
+
+Layout policy lives in **[`examples.ssot.v1.yaml`](examples.ssot.v1.yaml)**. CI enforces: every `examples/**/*.vox` is either under `examples/golden/` (full golden pipeline) or `examples/parser-inventory/` (negative fixtures). mdBook `{{#include}}` paths under `docs/src` must resolve to `.vox` files under `examples/golden/`.
+
+| Location | CI / contract | Notes |
+|----------|-----------------|-------|
+| `golden/**/*.vox` | **Yes** — `all_golden_vox_examples_parse_and_lower` + WebIR validate + Syntax-K metrics | Doc `{{#include}}` SSOT ([AGENTS.md](../AGENTS.md)); Mens-friendly. |
+| `parser-inventory/*.vox` | Parser recovery / negative fixtures only | Intentionally invalid; never include in training mix. |
+
 ## Golden Examples
 
-The `golden/` directory contains validated, current-syntax examples suitable for learning and for the **Mens** ML training corpus. Every file in `golden/` passes `vox check` in CI.
+The `golden/` directory contains validated, current-syntax examples suitable for learning and for the **Mens** ML training corpus. Every file under `golden/` (including nested dirs such as `golden/mesh/`) is covered by the same CI pipeline as top-level goldens.
 
 | Example | Description | Difficulty |
 |---------|-------------|------------|
@@ -41,7 +50,10 @@ See [PARSE_STATUS.md](PARSE_STATUS.md) for the CI-generated parse result matrix.
 
 ## Interop and wrapper examples
 
-- [std_http_wrappers.vox](std_http_wrappers.vox) — narrow `std.http` wrapper usage (`get_text` / `post_json`) with explicit rust-import pinning.
+- [std_http_wrappers.vox](golden/std_http_wrappers.vox) — narrow `std.http` usage (`get_text` / `post_json`).
+- [reactive_counter.vox](golden/reactive_counter.vox) — reactive `component` demo (`effect`, `on mount`, `on cleanup`).
+- [mobile_test.vox](golden/mobile_test.vox) — `std.mobile`-style handlers.
+- [mesh/noop.vox](golden/mesh/noop.vox) — minimal script bundled for mesh compose / Docker worker default.
 
 ## Style Guide
 

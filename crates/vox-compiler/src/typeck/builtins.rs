@@ -556,9 +556,10 @@ impl BuiltinTypes {
     }
 
     /// Look up a variable in builtins (legacy interface, used by old infer code).
-    pub fn lookup_var(&self, _name: &str) -> Option<Ty> {
+    pub fn lookup_var(&self, name: &str) -> Option<Ty> {
         // This is now handled by TypeEnv, so this method is a no-op.
         // Kept for backward compatibility during migration.
+        let _ = std::hint::black_box(name.as_ptr() as usize);
         None
     }
 }

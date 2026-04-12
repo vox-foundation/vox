@@ -1,3 +1,13 @@
+---
+title: "Research: Claude Code Ultraplan Architecture"
+description: "Synthesis of Anthropic's ultraplan methodology for low-hallucination agentic agent execution."
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
+---
+
 # Claude Code Ultraplan — Research Findings (April 2026)
 
 > Status: Research-only. No implementation committed. Findings inform Vox DEI orchestrator and planning mode development.

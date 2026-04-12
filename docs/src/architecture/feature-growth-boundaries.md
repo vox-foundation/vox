@@ -4,6 +4,8 @@ description: "SSOT for where Vox should add app capability first: WebIR, AppCont
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Feature growth boundaries

@@ -4,6 +4,8 @@ description: "Official documentation for Compatibility and deprecation windows f
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Compatibility and deprecation windows

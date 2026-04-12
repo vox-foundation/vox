@@ -1160,7 +1160,8 @@ pub(super) async fn execute_on_worker(
     }
 
     // Phase 4: Policy Gating
-    let policy = std::env::var("VOX_MESH_EXEC_POLICY").unwrap_or_else(|_| "permissive".into());
+    let secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecPolicy);
+    let policy = secret.expose().unwrap_or("permissive");
     if req.is_bundle && policy == "source-only" {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
@@ -1310,7 +1311,10 @@ pub(super) async fn execute_on_worker(
                 } else {
                     Some(format!("Exit code: {:?}", out.status.code()))
                 },
-                node_id: std::env::var("VOX_MESH_NODE_ID").unwrap_or_else(|_| "unknown".into()),
+                node_id: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+                    .expose()
+                    .unwrap_or("unknown")
+                    .to_string(),
                 expires_unix_ms: None,
             }))
         }
@@ -1321,7 +1325,10 @@ pub(super) async fn execute_on_worker(
             duration_ms,
             exit_code: None,
             error: Some(format!("Failed to execute vox: {}", e)),
-            node_id: std::env::var("VOX_MESH_NODE_ID").unwrap_or_else(|_| "unknown".into()),
+            node_id: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+                .expose()
+                .unwrap_or("unknown")
+                .to_string(),
             expires_unix_ms: None,
         })),
     }

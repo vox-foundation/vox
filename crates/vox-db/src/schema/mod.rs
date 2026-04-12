@@ -65,5 +65,10 @@ mod migration_chain_tests {
                 && sql.contains("idx_news_publish_attempts_news"),
             "baseline_sql must embed former cutover performance indexes (domain DDL SSOT)"
         );
+        assert!(
+            sql.contains("agent_exec_history"),
+            "DEBUG_ASSERT: agent_exec_history must be in baseline_sql. SQL is:\n{}",
+            sql
+        );
     }
 }

@@ -4,6 +4,8 @@ description: "Official documentation for ADR 012 — Internal Web IR strategy fo
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 012 — Internal Web IR strategy for Vox

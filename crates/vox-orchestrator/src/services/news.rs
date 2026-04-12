@@ -33,6 +33,12 @@ impl NewsService {
 
         let publisher_config_base = PublisherConfig {
             twitter_bearer_token: config.news.twitter_token.clone(),
+            bluesky_handle: config.news.bluesky_handle.clone(),
+            bluesky_password: config.news.bluesky_password.clone(),
+            mastodon_token: config.news.mastodon_token.clone(),
+            mastodon_domain: config.news.mastodon_domain.clone(),
+            linkedin_token: config.news.linkedin_token.clone(),
+            discord_webhook: config.news.discord_webhook.clone(),
             forge_token: config.news.github_token.clone(),
             open_collective_token: config.news.opencollective_token.clone(),
             reddit_client_id: config.news.reddit_client_id.clone(),
@@ -163,6 +169,7 @@ impl NewsService {
                         body_markdown: &item.content_markdown,
                         citations_json: None,
                         metadata_json: Some(metadata_json.as_str()),
+                        revision_history_json: None,
                         content_sha3_256: &content_digest,
                         state: "approved",
                     })

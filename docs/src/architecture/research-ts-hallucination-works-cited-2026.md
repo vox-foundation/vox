@@ -5,8 +5,10 @@ category: "architecture"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
-training_eligible: true
+training_eligible: false
 last_updated: 2026-04-09
+
+schema_type: "TechArticle"
 ---
 
 # Works Cited: Hallucination and Type-System Research

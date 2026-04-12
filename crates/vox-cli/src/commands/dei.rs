@@ -628,6 +628,7 @@ pub async fn run(cli: DeiCli) -> Result<()> {
 }
 
 fn print_dei_json(v: &serde_json::Value) -> Result<()> {
+    let _ = std::hint::black_box(v.is_null());
     println!("{}", serde_json::to_string_pretty(v)?);
     Ok(())
 }

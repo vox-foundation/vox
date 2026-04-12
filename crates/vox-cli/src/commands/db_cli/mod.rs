@@ -155,6 +155,12 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliCore::ReliabilityAgents { limit, min_score } => {
                 db::reliability_agents(limit, min_score).await
             }
+            DbCliCore::ExecHistory {
+                tool_key,
+                repo,
+                limit,
+                json,
+            } => db::exec_history(tool_key.as_deref(), repo.as_deref(), limit, json).await,
         },
         DbCli::Publication(cmd) => match cmd {
             DbCliPublication::PublicationPrepare {
@@ -419,6 +425,16 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 db::publication_retry_failed(&publication_id, channel.as_deref(), dry_run, json)
                     .await
             }
+            DbCliPublication::IngestTick { feed_id, limit } => {
+                db::ingest_tick(feed_id.as_deref(), limit).await
+            }
+            DbCliPublication::FeedSourceAdd {
+                id,
+                url,
+                kind,
+                interval_ms,
+            } => db::feed_source_add(&id, &url, &kind, interval_ms).await,
+            DbCliPublication::FeedSourceList => db::feed_source_list().await,
         },
     }
 }

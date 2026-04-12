@@ -17,6 +17,12 @@ impl OrchestratorConfig {
         }
     }
 
+    /// Effective web search policy (environment-driven fallback).
+    #[must_use]
+    pub fn effective_search_policy(&self) -> vox_search::policy::SearchPolicy {
+        vox_search::policy::SearchPolicy::from_env()
+    }
+
     /// Load configuration from a TOML file.
     ///
     /// Looks for an `[orchestrator]` section in the given file.

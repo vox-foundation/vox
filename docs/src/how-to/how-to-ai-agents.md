@@ -4,6 +4,9 @@ description: "Expand your Vox logic into reusable tools for AI assistants and de
 category: "how-to"
 last_updated: 2026-04-05
 training_eligible: true
+
+schema_type: "HowTo"
+keywords: ["MCP tools Vox", "AI agents tutorial", "Model Context Protocol programming", "build AI agents Rust"]
 ---
 
 # How-To: Build AI Agents and MCP Tools

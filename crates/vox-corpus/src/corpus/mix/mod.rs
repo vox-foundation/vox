@@ -313,6 +313,38 @@ fn default_task_family_from_lane(lane: &str) -> &'static str {
     }
 }
 
+/// Infer corpus origin from row metadata when not explicitly set.
+///
+/// Research (Continual Learning §mode-collapse) proves that synthetic data
+/// must never *replace* human ground-truth. Every row must carry an explicit
+/// `origin` so batches can be validated against `min_human_ratio`.
+fn infer_origin(obj: &serde_json::Map<String, serde_json::Value>) -> &'static str {
+    if let Some(v) = obj.get("origin").and_then(|x| x.as_str()) {
+        // Already set — don't overwrite.
+        return match v {
+            "human" => "human",
+            "synthetic" => "synthetic",
+            "agent" => "agent",
+            _ => "synthetic", // conservative default
+        };
+    }
+    // Heuristic: rows from extract_rs / extract_vox are human-written crate source.
+    if let Some(src) = obj.get("source").and_then(|x| x.as_str()) {
+        if src.contains("crates/") || src.ends_with(".rs") || src.ends_with(".vox") {
+            return "human";
+        }
+        if src.starts_with("tool_trace:") || src.starts_with("agent:") {
+            return "agent";
+        }
+    }
+    if let Some(cat) = obj.get("category").and_then(|x| x.as_str()) {
+        if cat == "tool_trace" || cat == "speech_to_code" {
+            return "agent";
+        }
+    }
+    "synthetic"
+}
+
 fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
     let mut v: serde_json::Value =
         serde_json::from_str(line).map_err(|e| format!("invalid training row json: {e}"))?;
@@ -338,6 +370,14 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
         obj.insert(
             "task_family".to_string(),
             serde_json::Value::String(default_task_family_from_lane(&lane).to_string()),
+        );
+    }
+    // Task 2.3.2: ensure every row carries an origin tag for batch validation.
+    if !obj.contains_key("origin") {
+        let origin = infer_origin(obj);
+        obj.insert(
+            "origin".to_string(),
+            serde_json::Value::String(origin.to_string()),
         );
     }
     serde_json::to_string(&v)

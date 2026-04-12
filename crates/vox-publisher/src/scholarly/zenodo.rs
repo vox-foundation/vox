@@ -22,8 +22,8 @@ const ZENODO_API_SANDBOX: &str = "https://sandbox.zenodo.org/api";
 
 #[must_use]
 fn zenodo_http_max_attempts() -> u32 {
-    std::env::var("VOX_ZENODO_HTTP_MAX_ATTEMPTS")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoHttpMaxAttempts)
+        .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|&n| (1..=10).contains(&n))
         .unwrap_or(3)
@@ -58,8 +58,8 @@ impl ZenodoHttpClient {
                 message: "Zenodo access token is empty".into(),
             });
         }
-        let base = std::env::var("VOX_ZENODO_API_BASE")
-            .ok()
+        let base = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoApiBase)
+            .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {

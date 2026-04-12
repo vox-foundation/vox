@@ -729,6 +729,7 @@ mod tests {
                 name: "Author".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -760,6 +761,7 @@ mod tests {
                 name: "Author".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -793,6 +795,7 @@ mod tests {
                 name: "Author".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()

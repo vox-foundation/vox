@@ -1,8 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::build_system_prompt;
 use super::params::{
-    PlanDepth, PlanLoopMode, PlanParams, PlanReplanParams, PlanResult, PlanStatusParams, PlanTask,
+    PlanDepth, PlanListSessionsParams, PlanLoopMode, PlanParams, PlanReplanParams, PlanResult,
+    PlanResumeParams, PlanStatusParams, PlanTask,
 };
 use super::plan_gap;
 use super::plan_loop;
@@ -208,6 +210,7 @@ Generate a comprehensive, ordered task list to achieve this goal. You MUST outpu
     {{
       "id": 1,
       "description": "Short imperative description of what to implement.",
+      "category": "CodeGen",
       "files": ["path/to/file.rs"],
       "estimated_complexity": 5,
       "depends_on": []
@@ -217,6 +220,7 @@ Generate a comprehensive, ordered task list to achieve this goal. You MUST outpu
 
 Rules:
 - Every task must be atomic and independently verifiable.
+- "category" must be one of: "CodeGen", "Refactor", "Test", "Documentation", "Research", or "InfraConfig".
 - "estimated_complexity" must be an integer from 1 (trivial edit) to 10 (full subsystem build).
 - "depends_on" must be an array of prior task IDs that must complete first.
 - If files are unknown, leave the array empty or use `["TBD"]`.
@@ -480,6 +484,33 @@ Invalid prior output (may be truncated):
                     Some(&meta.to_string()),
                 )
                 .await;
+
+            // Persist plan nodes to DB for live tracking (T-019)
+            let head = db.load_plan_head(pid).await.unwrap_or(None).unwrap_or(0);
+            let ver = if head == 0 { 1 } else { head };
+            if head == 0 {
+                let _ = db
+                    .append_plan_version(pid, 1, None, Some("initial"), None)
+                    .await;
+            }
+            for t in &tasks {
+                let policy = serde_json::json!({
+                    "file_manifest": t.files,
+                    "estimated_complexity": t.estimated_complexity
+                });
+                let _ = db
+                    .upsert_plan_node(
+                        pid,
+                        ver,
+                        &t.id.to_string(),
+                        &t.description,
+                        &serde_json::to_string(&t.depends_on).unwrap_or_default(),
+                        &policy.to_string(),
+                        "pending",
+                        None,
+                    )
+                    .await;
+            }
         }
     }
 
@@ -659,93 +690,349 @@ Invalid prior output (may be truncated):
     ToolResult::ok(v).to_json()
 }
 
-/// Replan an existing DeI plan session (`vox-dei-d` on PATH or next to the MCP binary).
+/// Replan an existing DeI plan session.
 pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> String {
-    let body = serde_json::json!({
-        "session_id": params.session_id,
-        "delta_hint": params.delta_hint,
-        "write_to_disk": params.write_to_disk,
-        "mode": params.mode,
-    });
-    match crate::dei_ipc::call_dei_daemon("ai.plan.replan", body).await {
-        Ok(mut v) => {
-            let pol = state.orchestrator_config.effective_socrates_policy();
-            let session_key =
-                mcp_questioning_session_key(state, "vox_replan", Some(params.session_id.as_str()));
-            let turn = clarification_turn_for_session(state, &session_key).await;
-            let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
-            let soc = socrates_tool_meta(&pol, 0.62, false, turn, spent_att, max_att, None);
-            spawn_socrates_telemetry_with_meta(
-                state,
-                "vox_replan",
-                soc.clone(),
-                None,
-                Some(socrates_surface_tags("planning", &["planning", "replan"])),
-            );
-            if should_emit_plan_interrupt(state, "vox_replan", &session_key, 0.14, 0.24, false) {
-                spawn_questioning_trace_from_socrates(
-                    state,
-                    "vox_replan",
-                    soc.clone(),
-                    Some(session_key.clone()),
-                    Some(params.delta_hint.clone()),
-                );
+    let mut v = if state.orchestrator_config.planning_llm_synthesis_enabled {
+        if let Some(db) = state.db.as_ref() {
+            if let Ok(sessions) = db.list_plan_sessions(50, None).await {
+                if let Some(sess) = sessions
+                    .into_iter()
+                    .find(|s| s.plan_session_id == params.session_id)
+                {
+                    let goal = sess.goal_text;
+                    let prompt = format!(
+                        "REPLAN GOAL: {}\n\nDELTA HINT: {}\n\nOutput a new full plan in JSON.",
+                        goal, params.delta_hint
+                    );
+                    let resolution = McpChatModelResolution {
+                        complexity: 8,
+                        ..Default::default()
+                    };
+
+                    let (model, free_only) = match resolve_chat_llm_model(
+                        state,
+                        &prompt,
+                        resolution.clone(),
+                        Some(&params.session_id),
+                    )
+                    .await
+                    {
+                        Ok(pair) => pair,
+                        Err(e) => {
+                            return ToolResult::<serde_json::Value>::err_with_remediation(
+                                e,
+                                REM_DEI_DAEMON,
+                            )
+                            .to_json();
+                        }
+                    };
+
+                    let routing = McpInferRouting {
+                        user_prompt: &prompt,
+                        sticky_model_pref: None,
+                        resolution_template: resolution,
+                        free_only,
+                        allow_cloud_ollama_fallback: true,
+                        user_id: Some(&params.session_id),
+                    };
+
+                    let system_prompt = crate::tools::chat_tools::build_system_prompt(state).await;
+                    match mcp_infer_completion(
+                        state,
+                        model,
+                        "vox_plan_replan_fallback",
+                        &system_prompt,
+                        &routing,
+                        4096,
+                        0.2,
+                        true,
+                    )
+                    .await
+                    {
+                        Ok((rj, _, _)) => {
+                            serde_json::from_str::<serde_json::Value>(strip_plan_json_fence(&rj))
+                                .unwrap_or_else(
+                                    |_| serde_json::json!({ "summary": "error", "tasks": [] }),
+                                )
+                        }
+                        Err(e) => {
+                            return ToolResult::<serde_json::Value>::err_with_remediation(
+                                e.to_string(),
+                                REM_DEI_DAEMON,
+                            )
+                            .to_json();
+                        }
+                    }
+                } else {
+                    return ToolResult::<serde_json::Value>::err_with_remediation(
+                        "Session not found in DB".to_string(),
+                        REM_DEI_DAEMON,
+                    )
+                    .to_json();
+                }
+            } else {
+                return ToolResult::<serde_json::Value>::err_with_remediation(
+                    "Failed to list plan sessions".to_string(),
+                    REM_DEI_DAEMON,
+                )
+                .to_json();
             }
-            if let Some(obj) = v.as_object_mut() {
-                obj.insert("socrates".to_string(), soc);
+        } else {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                "Codex DB not attached".to_string(),
+                REM_DEI_DAEMON,
+            )
+            .to_json();
+        }
+    } else {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "Planning LLM synthesis disabled".to_string(),
+            REM_DEI_DAEMON,
+        )
+        .to_json();
+    };
+
+    // DB Persistence for the new plan version (T-023)
+    if let Some(db) = state.db.as_ref() {
+        if let Ok(Some(old_ver)) = db.load_plan_head(&params.session_id).await {
+            let new_ver = old_ver + 1;
+            let _ = db
+                .append_plan_version(
+                    &params.session_id,
+                    new_ver,
+                    Some(old_ver),
+                    Some("replan"),
+                    Some(&params.delta_hint),
+                )
+                .await;
+
+            if let Some(tasks) = v.get("tasks").and_then(|t| t.as_array()) {
+                for t_val in tasks {
+                    if let Ok(node) = serde_json::from_value::<vox_orchestrator::planning::PlanNode>(
+                        t_val.clone(),
+                    ) {
+                        let _ = db
+                            .upsert_plan_node(
+                                &params.session_id,
+                                new_ver,
+                                &node.node_id,
+                                &node.description,
+                                &serde_json::to_string(&node.depends_on).unwrap_or_default(),
+                                &serde_json::to_string(&node.execution_policy).unwrap_or_default(),
+                                match node.status {
+                                    vox_orchestrator::planning::PlanStatus::Pending => "pending",
+                                    vox_orchestrator::planning::PlanStatus::Queued => "queued",
+                                    vox_orchestrator::planning::PlanStatus::InProgress => {
+                                        "in_progress"
+                                    }
+                                    vox_orchestrator::planning::PlanStatus::Completed => {
+                                        "completed"
+                                    }
+                                    vox_orchestrator::planning::PlanStatus::Failed => "failed",
+                                    vox_orchestrator::planning::PlanStatus::Cancelled => {
+                                        "cancelled"
+                                    }
+                                    vox_orchestrator::planning::PlanStatus::Superseded => {
+                                        "superseded"
+                                    }
+                                },
+                                node.workflow_invocation.as_deref(),
+                            )
+                            .await;
+                    }
+                }
             }
-            ToolResult::ok(v).to_json()
         }
-        Err(e) => {
-            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
-                .to_json()
+    }
+
+    let pol = state.orchestrator_config.effective_socrates_policy();
+    let session_key =
+        mcp_questioning_session_key(state, "vox_replan", Some(params.session_id.as_str()));
+    let turn = clarification_turn_for_session(state, &session_key).await;
+    let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+    let soc = socrates_tool_meta(&pol, 0.62, false, turn, spent_att, max_att, None);
+    spawn_socrates_telemetry_with_meta(
+        state,
+        "vox_replan",
+        soc.clone(),
+        None,
+        Some(socrates_surface_tags("planning", &["planning", "replan"])),
+    );
+    if should_emit_plan_interrupt(state, "vox_replan", &session_key, 0.14, 0.24, false) {
+        spawn_questioning_trace_from_socrates(
+            state,
+            "vox_replan",
+            soc.clone(),
+            Some(session_key.clone()),
+            Some(params.delta_hint.clone()),
+        );
+    }
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("socrates".to_string(), soc);
+    }
+    ToolResult::ok(v).to_json()
+}
+
+/// Read structured plan session status.
+pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> String {
+    let mut v = serde_json::json!({ "session_id": params.session_id, "status": "active", "source": "codex_db" });
+
+    // DB Enrichment: Load live node rows if DB is available.
+    if let Some(db) = state.db.as_ref() {
+        if let Ok(Some(ver)) = db.load_plan_head(&params.session_id).await {
+            if let Ok(nodes) = db
+                .load_plan_nodes_with_status(&params.session_id, ver)
+                .await
+            {
+                let completed = nodes.iter().filter(|n| n.status == "completed").count();
+                let failed = nodes.iter().filter(|n| n.status == "failed").count();
+                let mut node_details = Vec::new();
+                for n in nodes {
+                    let attempts = db
+                        .list_plan_node_attempts(&params.session_id, &n.node_id)
+                        .await
+                        .unwrap_or_default();
+                    node_details.push(serde_json::json!({
+                        "node_id": n.node_id,
+                        "status": n.status,
+                        "description": n.description.chars().take(200).collect::<String>(),
+                        "workflow": n.workflow_invocation,
+                        "attempts_count": attempts.len(),
+                        "last_outcome": attempts.last().map(|a| a.outcome.clone()),
+                        "last_error": attempts.last().and_then(|a| a.error_text.clone()),
+                    }));
+                }
+                if let Some(obj) = v.as_object_mut() {
+                    obj.insert("nodes".to_string(), serde_json::json!(node_details));
+                    obj.insert(
+                        "progress".to_string(),
+                        serde_json::json!({
+                            "total": node_details.len(),
+                            "completed": completed,
+                            "failed": failed,
+                        }),
+                    );
+                    obj.insert("plan_version".to_string(), serde_json::json!(ver));
+                }
+            }
         }
+    }
+
+    let pol = state.orchestrator_config.effective_socrates_policy();
+    let session_key =
+        mcp_questioning_session_key(state, "vox_plan_status", Some(params.session_id.as_str()));
+    let turn = clarification_turn_for_session(state, &session_key).await;
+    let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+    let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att, None);
+    spawn_socrates_telemetry_with_meta(
+        state,
+        "vox_plan_status",
+        soc.clone(),
+        None,
+        Some(socrates_surface_tags(
+            "planning_status",
+            &["planning", "status"],
+        )),
+    );
+    if should_emit_plan_interrupt(state, "vox_plan_status", &session_key, 0.10, 0.18, false) {
+        spawn_questioning_trace_from_socrates(
+            state,
+            "vox_plan_status",
+            soc.clone(),
+            Some(session_key.clone()),
+            None,
+        );
+    }
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("socrates".to_string(), soc);
+    }
+    ToolResult::ok(v).to_json()
+}
+
+/// List all planning sessions stored in the Codex DB.
+pub async fn plan_list_sessions(state: &ServerState, params: PlanListSessionsParams) -> String {
+    if let Some(db) = state.db.as_ref() {
+        match db
+            .list_plan_sessions(params.limit.unwrap_or(50), params.status_filter.as_deref())
+            .await
+        {
+            Ok(sessions) => ToolResult::ok(serde_json::json!(sessions)).to_json(),
+            Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        }
+    } else {
+        ToolResult::<serde_json::Value>::err("Codex DB not attached".to_string()).to_json()
     }
 }
 
-/// Read structured plan session status from `vox-dei-d`.
-pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> String {
-    let body = serde_json::json!({ "session_id": params.session_id });
-    match crate::dei_ipc::call_dei_daemon("ai.plan.status", body).await {
-        Ok(mut v) => {
-            let pol = state.orchestrator_config.effective_socrates_policy();
-            let session_key = mcp_questioning_session_key(
-                state,
-                "vox_plan_status",
-                Some(params.session_id.as_str()),
-            );
-            let turn = clarification_turn_for_session(state, &session_key).await;
-            let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
-            let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att, None);
-            spawn_socrates_telemetry_with_meta(
-                state,
-                "vox_plan_status",
-                soc.clone(),
-                None,
-                Some(socrates_surface_tags(
-                    "planning_status",
-                    &["planning", "status"],
-                )),
-            );
-            if should_emit_plan_interrupt(state, "vox_plan_status", &session_key, 0.10, 0.18, false)
+/// Resume a planning session from the Codex DB, optionally re-writing PLAN.md.
+pub async fn plan_resume(state: &ServerState, params: PlanResumeParams) -> String {
+    if let Some(db) = state.db.as_ref() {
+        if let Ok(Some(ver)) = db.load_plan_head(&params.session_id).await {
+            match db
+                .load_plan_nodes_with_status(&params.session_id, ver)
+                .await
             {
-                spawn_questioning_trace_from_socrates(
-                    state,
-                    "vox_plan_status",
-                    soc.clone(),
-                    Some(session_key.clone()),
-                    None,
-                );
+                Ok(nodes) => {
+                    let tasks: Vec<PlanTask> = nodes
+                        .iter()
+                        .map(|n| PlanTask {
+                            id: n.node_id.parse().unwrap_or(0),
+                            description: n.description.clone(),
+                            category: None,
+                            files: serde_json::from_str::<Value>(&n.execution_policy_json)
+                                .map(|v| {
+                                    v.get("file_manifest")
+                                        .and_then(|f| f.as_array())
+                                        .map(|arr| {
+                                            arr.iter()
+                                                .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                                                .collect()
+                                        })
+                                        .unwrap_or_default()
+                                })
+                                .unwrap_or_default(),
+                            estimated_complexity: serde_json::from_str::<Value>(
+                                &n.execution_policy_json,
+                            )
+                            .ok()
+                            .and_then(|v| v.get("estimated_complexity").and_then(|c| c.as_u64()))
+                            .unwrap_or(5) as u8,
+                            depends_on: serde_json::from_str(&n.dependencies_json)
+                                .unwrap_or_default(),
+                        })
+                        .collect();
+
+                    if params.write_to_disk {
+                        // Re-synthesize PLAN.md if requested (best effort)
+                        let mut md = format!("# Vox Plan Resume: {}\n\n", params.session_id);
+                        for t in &tasks {
+                            md.push_str(&format!(
+                                "{}. **{}** — [files: {}]\n\n",
+                                t.id,
+                                t.description,
+                                t.files.join(", ")
+                            ));
+                        }
+                        if let Some(root) = state.workspace_root.as_deref() {
+                            let _ = std::fs::write(root.join("PLAN.md"), md);
+                        }
+                    }
+
+                    ToolResult::ok(serde_json::json!({
+                        "session_id": params.session_id,
+                        "version": ver,
+                        "tasks": tasks,
+                    }))
+                    .to_json()
+                }
+                Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
             }
-            if let Some(obj) = v.as_object_mut() {
-                obj.insert("socrates".to_string(), soc);
-            }
-            ToolResult::ok(v).to_json()
-        }
-        Err(e) => {
-            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
+        } else {
+            ToolResult::<serde_json::Value>::err("Plan session not found in DB".to_string())
                 .to_json()
         }
+    } else {
+        ToolResult::<serde_json::Value>::err("Codex DB not attached".to_string()).to_json()
     }
 }
 
@@ -760,6 +1047,7 @@ mod adequacy_enforce_tests {
         vec![PlanTask {
             id: 1,
             description: "do the work".into(),
+            category: None,
             files: vec![],
             estimated_complexity: 8,
             depends_on: vec![],
@@ -795,6 +1083,7 @@ mod adequacy_enforce_tests {
                 description: format!(
                     "Step {id}: concrete change in crates/vox-auth or vox-mcp; run cargo test to verify"
                 ),
+                category: None,
                 files: if id % 2 == 0 {
                     vec!["crates/vox-auth/src/lib.rs".into()]
                 } else {

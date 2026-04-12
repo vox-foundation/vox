@@ -649,6 +649,8 @@ async fn e2e_batch_submission() {
                     capability_requirements: None,
                     session_id: None,
                     thread_id: None,
+                    requires_approval: false,
+                    test_decision: None,
                 },
                 TaskDescriptor {
                     description: "Batch 2".to_string(),
@@ -659,6 +661,8 @@ async fn e2e_batch_submission() {
                     capability_requirements: None,
                     session_id: None,
                     thread_id: None,
+                    requires_approval: false,
+                    test_decision: None,
                 },
             ],
         )

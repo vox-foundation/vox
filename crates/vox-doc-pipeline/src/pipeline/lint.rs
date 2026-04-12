@@ -195,6 +195,9 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
     };
     let yaml = &after_dash[..end];
     let mut saw_category = false;
+    let mut status: Option<String> = None;
+    let mut training_eligible = false;
+    let mut saw_training_rationale = false;
 
     for (idx, raw_line) in yaml.lines().enumerate() {
         let line_no = idx + 2;
@@ -213,6 +216,7 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             }
         } else if let Some(value) = line.strip_prefix("status:") {
             let value = value.trim().trim_matches(|c| c == '"' || c == '\'');
+            status = Some(value.to_string());
             if !VALID_STATUS.contains(&value) {
                 errors.push(LintError {
                     file: path.to_owned(),
@@ -222,6 +226,26 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
                     },
                 });
             }
+        } else if let Some(value) = line.strip_prefix("schema_type:") {
+            let val = value.trim().trim_matches(|c| c == '"' || c == '\'');
+            const VALID_SCHEMA_TYPES: &[&str] =
+                &["HowTo", "FAQPage", "TechArticle", "SoftwareSourceCode"];
+            if !VALID_SCHEMA_TYPES.contains(&val) {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: line_no,
+                    kind: LintKind::UnknownSchemaType {
+                        value: val.to_string(),
+                    },
+                });
+            }
+        } else if let Some(value) = line.strip_prefix("training_eligible:") {
+            let value = value.trim().trim_matches(|c| c == '"' || c == '\'');
+            if value == "true" {
+                training_eligible = true;
+            }
+        } else if line.starts_with("training_rationale:") {
+            saw_training_rationale = true;
         }
     }
 
@@ -231,6 +255,18 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             line: 1,
             kind: LintKind::MissingCategory,
         });
+    }
+
+    if training_eligible && !saw_training_rationale {
+        if let Some(st) = status {
+            if st == "research" || st == "roadmap" {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: 1,
+                    kind: LintKind::MissingTrainingRationale,
+                });
+            }
+        }
     }
 }
 

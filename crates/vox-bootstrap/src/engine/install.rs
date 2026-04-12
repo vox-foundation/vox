@@ -84,8 +84,7 @@ fn maybe_install_openclaw_sidecar(
     install_dir: &Path,
     w: &mut impl Write,
 ) -> io::Result<()> {
-    if std::env::var(vox_install_policy::VOX_OPENCLAW_SIDECAR_DISABLE_ENV)
-        .ok()
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenclawSidecarDisable).expose()
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
     {
         writeln!(
@@ -172,7 +171,7 @@ fn find_sidecar_asset_name(checksums_txt: &str, target: &str, ext: &str) -> Opti
 
 fn resolve_vox_repo_root() -> io::Result<PathBuf> {
     let marker = PathBuf::from(vox_install_policy::SOURCE_INSTALL_CLI_REL_PATH).join("Cargo.toml");
-    if let Ok(p) = std::env::var("VOX_REPO_ROOT") {
+    if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose() {
         let pb = PathBuf::from(p.trim());
         if pb.join(&marker).is_file() {
             return Ok(pb);

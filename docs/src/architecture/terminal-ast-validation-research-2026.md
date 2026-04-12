@@ -4,6 +4,8 @@ description: "Resolving IDE allowlist/denylist brittleness with a single-source-
 category: "architecture"
 status: "research"
 last_updated: 2026-04-02
+
+schema_type: "TechArticle"
 ---
 
 # Terminal AST Validation Research 2026

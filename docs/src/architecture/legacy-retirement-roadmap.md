@@ -5,6 +5,8 @@ category: "architecture"
 status: "current"
 last_updated: 2026-04-10
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Legacy retirement roadmap (2026)

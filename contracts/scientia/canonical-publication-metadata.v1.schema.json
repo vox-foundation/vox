@@ -19,6 +19,10 @@
       "type": "string",
       "const": "v1"
     },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0", "1.1"]
+    },
     "identity": {
       "type": "object",
       "additionalProperties": false,
@@ -72,7 +76,9 @@
         "manifest_digest": { "type": "string", "minLength": 16 },
         "evidence_pack_digest": { "type": "string" },
         "repository_id": { "type": "string" },
-        "commit_sha": { "type": "string" }
+        "commit_sha": { "type": "string" },
+        "supersedes_publication_id": { "type": "string" },
+        "corrects_publication_id": { "type": "string" }
       }
     },
     "policy": {
@@ -138,7 +144,13 @@
             "type": "string",
             "enum": ["crossref", "datacite", "zenodo", "arxiv_handoff", "openreview", "social"]
           }
-        }
+        },
+        "primary_doi": { "type": "string" },
+        "canonical_repo_url": { "type": "string" },
+        "og_image_url": { "type": "string" },
+        "preferred_citation": { "type": "string" },
+        "embargo_lift_utc": { "type": "string", "format": "date-time" },
+        "distribution_policy_ref": { "type": "string" }
       }
     },
     "evidence": { "type": "object" }

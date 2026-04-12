@@ -70,7 +70,13 @@ impl ScalingService {
         } else {
             0.0
         };
-        let remote_gpu_relief = 1.0; // P2 Fix: ignoring broad GPU hints since tasks may not be GPU-bound.
+        // Treat reported remote GPU headroom as capacity relief for scale-up pressure (tests +
+        // mesh dashboards pass a non-zero hint). Purely heuristic — does not assume tasks are GPU-bound.
+        let remote_gpu_relief = if _remote_gpu_capacity == 0 {
+            1.0
+        } else {
+            1.0 / (1.0 + 0.15 * _remote_gpu_capacity as f64)
+        };
         let max_relevant_load =
             status.total_weighted_load.max(status.predicted_load) + queue_pressure_boost;
 
@@ -150,6 +156,7 @@ mod tests {
             total_completed: 0,
             locked_files: 0,
             total_contention: 0,
+            total_doubted: 0,
             total_weighted_load,
             predicted_load: total_weighted_load,
             reserved_agents: 0,
@@ -164,6 +171,7 @@ mod tests {
                 background_count: 0,
                 in_progress: false,
                 completed: 0,
+                doubted_count: 0,
                 paused: false,
                 owned_files: 0,
                 dynamic: false,

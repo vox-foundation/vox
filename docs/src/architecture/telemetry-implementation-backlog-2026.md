@@ -5,6 +5,9 @@ category: "architecture"
 status: "roadmap"
 last_updated: 2026-04-02
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Telemetry implementation backlog 2026

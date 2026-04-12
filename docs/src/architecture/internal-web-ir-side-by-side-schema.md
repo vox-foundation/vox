@@ -4,6 +4,8 @@ description: "Parser-grounded current-vs-target WebIR mapping for one full-stack
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Internal Web IR Side-by-Side Schema

@@ -50,6 +50,9 @@ pub struct TaskCapabilityHints {
     /// Soft routing hint: deprioritize agents without any GPU capability (Mens-style training intent).
     #[serde(default)]
     pub prefer_gpu_compute: bool,
+    /// Hardware/inference tier (e.g., "local").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routing_tier: Option<String>,
 }
 
 /// Markers for tooling gates (Cargo, Node, etc.).
@@ -159,6 +162,9 @@ pub fn merge_agent_capabilities(
     }
     if out.min_cpu_cores.is_none() {
         out.min_cpu_cores = probed.min_cpu_cores;
+    }
+    if out.routing_tier.is_none() {
+        out.routing_tier = probed.routing_tier;
     }
     out
 }

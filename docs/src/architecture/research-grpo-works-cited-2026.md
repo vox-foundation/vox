@@ -1,5 +1,10 @@
 ---
-title: Works Cited: GRPO Reward Shaping
+title: "Works Cited: GRPO Reward Shaping"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 1. Awesome RLVR — Reinforcement Learning with Verifiable Rewards \- GitHub, accessed April 8, 2026, [https://github.com/opendilab/awesome-RLVR](https://github.com/opendilab/awesome-RLVR)  

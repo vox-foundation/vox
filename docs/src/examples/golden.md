@@ -4,6 +4,8 @@ description: "Complete, validated Vox code examples demonstrating server functio
 category: "example"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Golden Examples
@@ -108,6 +110,46 @@ Typed configuration blocks and named environment definitions. `config` generates
 
 ```vox
 {{#include ../../../examples/golden/config_deploy.vox:display}}
+```
+
+---
+
+## Reactive component — state, derived, effect, lifecycle
+
+Counter demo using the current `component` surface: `state`, `derived`, `effect`, `on mount`, `on cleanup`, and a `view` with click handlers.
+
+```vox
+{{#include ../../../examples/golden/reactive_counter.vox}}
+```
+
+---
+
+## std.http — `get_text` / `post_json`
+
+Narrow host HTTP helpers on `std.http` (dotted path; see parser tests). Suitable for scripting and smoke tests against real endpoints.
+
+```vox
+{{#include ../../../examples/golden/std_http_wrappers.vox}}
+```
+
+---
+
+## Mobile handlers (`std.mobile` surface)
+
+Small UI handlers using the mobile namespace pattern (`onclick={fn() { … }}`).
+
+```vox
+{{#include ../../../examples/golden/mobile_test.vox}}
+```
+
+---
+
+## Mesh worker script (minimal `main`)
+
+Bundled as `/opt/vox/mesh-noop.vox` in the Docker image for compose-based workers (`vox run --mode script`).
+
+```vox
+{{#include ../../../examples/golden/mesh/noop.vox}}
 ```
 
 ---

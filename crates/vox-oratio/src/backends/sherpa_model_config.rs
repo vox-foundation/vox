@@ -4,8 +4,8 @@
 
 #![cfg(feature = "stt-sherpa")]
 
-use std::path::PathBuf;
 use anyhow::{Context, Result};
+use std::path::PathBuf;
 
 /// Resolved paths to Sherpa-ONNX model artifacts.
 pub struct SherpaModelPaths {
@@ -25,24 +25,36 @@ pub fn resolve_sherpa_model_paths() -> Result<SherpaModelPaths> {
         let tokens_txt = dir.join("tokens.txt");
         // Often sherpa model has tiny-encoder.onnx, tiny-decoder.onnx...
         // For simplicity:
-        return Ok(SherpaModelPaths { model_onnx, tokens_txt });
+        return Ok(SherpaModelPaths {
+            model_onnx,
+            tokens_txt,
+        });
     }
 
     // HF Hub download (hf-hub crate already in deps via stt-candle, re-use it)
-    let model_id = std::env::var("VOX_ORATIO_SHERPA_HF_MODEL")
-        .unwrap_or_else(|_| std::env::var("VOX_ORATIO_SHERPA_MODEL").unwrap_or_else(|_| DEFAULT_SHERPA_HF_MODEL.to_string()));
+    let model_id = std::env::var("VOX_ORATIO_SHERPA_HF_MODEL").unwrap_or_else(|_| {
+        std::env::var("VOX_ORATIO_SHERPA_MODEL")
+            .unwrap_or_else(|_| DEFAULT_SHERPA_HF_MODEL.to_string())
+    });
     let revision = "main";
     let api = hf_hub::api::sync::Api::new().context("HF API init")?;
     let repo = api.repo(hf_hub::Repo::with_revision(
-        model_id.clone(), hf_hub::RepoType::Model, revision.to_string(),
+        model_id.clone(),
+        hf_hub::RepoType::Model,
+        revision.to_string(),
     ));
 
     // Try whisper-tiny.en style mapping for Sherpa
-    let model_onnx = repo.get("tiny.en-encoder.int8.onnx")
+    let model_onnx = repo
+        .get("tiny.en-encoder.int8.onnx")
         .or_else(|_| repo.get("model.onnx"))
         .with_context(|| format!("fetch model.onnx/encoder from {model_id}"))?;
-    let tokens_txt = repo.get("tiny.en-tokens.txt")
+    let tokens_txt = repo
+        .get("tiny.en-tokens.txt")
         .or_else(|_| repo.get("tokens.txt"))
         .with_context(|| format!("fetch tokens.txt from {model_id}"))?;
-    Ok(SherpaModelPaths { model_onnx, tokens_txt })
+    Ok(SherpaModelPaths {
+        model_onnx,
+        tokens_txt,
+    })
 }

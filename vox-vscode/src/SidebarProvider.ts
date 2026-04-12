@@ -265,6 +265,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 }
+                case 'doubtTask': {
+                    if (this._mcp.isToolAvailable('vox_doubt_task')) {
+                        await this._mcp.doubtTask(parsed.taskId);
+                        void vscode.window.showInformationMessage(`Doubt flagged for task ${parsed.taskId}. Audit initiated.`);
+                    } else {
+                         void vscode.window.showInformationMessage('Doubt requires `vox_doubt_task` on the connected MCP server.');
+                    }
+                    break;
+                }
                 case 'runTerminalCommand': {
                     let terminal = vscode.window.terminals.find(t => t.name === 'Vox Backend');
                     if (!terminal) {
@@ -393,12 +402,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     void this._sendFullState();
                 }, SIDEBAR_WS_DEBOUNCE_MS);
 
-                // Check for AttentionBudgetAlert push from server directly
+                // Check for high-signal events push from server directly
                 if (typeof event.data === 'string') {
                     try {
                         const evtData = JSON.parse(event.data);
-                        if (evtData && (evtData.type === 'AttentionBudgetAlert' || evtData.kind === 'AttentionBudgetAlert')) {
-                            const payload = evtData.payload || evtData;
+                        const kind = evtData.kind || evtData.type;
+                        const payload = evtData.payload || evtData;
+
+                        if (kind === 'AttentionBudgetAlert') {
                             const signal = payload.signal || (payload.focus_depth === 'Deep' ? 'critical' : 'high');
                             const spentRatio = payload.spent_ratio || payload.spent_ratio_estimate || 1.0;
                             
@@ -419,6 +430,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                                     }
                                 });
                             }
+                        } else if (kind === 'task_doubted') {
+                            void vscode.window.showInformationMessage(`🚩 [SUSPECT] Task ${payload.task_id} flagged for audit. Resolution Agent inbound.`);
+                            this.postMessage({ type: 'playSound', value: 'doubt_start' });
+                            this.postMessage({ type: 'taskDoubted', value: { taskId: payload.task_id } });
+                        } else if (kind === 'task_resolved') {
+                            const validated = payload.validated;
+                            const report = payload.report;
+                            if (validated) {
+                                void vscode.window.showInformationMessage(`✅ [VALIDATED] Task ${payload.task_id} audit complete. AI was correct.`);
+                                this.postMessage({ type: 'playSound', value: 'validated' });
+                            } else {
+                                void vscode.window.showWarningMessage(`❌ [OVERRULED] Task ${payload.task_id} audit complete. Hallucination caught!`);
+                                this.postMessage({ type: 'playSound', value: 'overruled' });
+                            }
+                            this.postMessage({ type: 'taskResolved', value: { taskId: payload.task_id, validated, report } });
+                        } else if (kind === 'achievement_earned' || kind === 'achievementEarned') {
+                             const achievement = payload.achievement;
+                             this.postMessage({ type: 'achievementEarned', value: achievement });
+                             this.postMessage({ type: 'playSound', value: 'achievement' });
                         }
                     } catch (e) {
                         // ignore malformed JSON or non-vox event structures

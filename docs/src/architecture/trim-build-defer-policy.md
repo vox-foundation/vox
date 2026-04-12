@@ -4,6 +4,8 @@ description: "Official documentation for Trim, build, and defer (feature lifecyc
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Trim, build, and defer (feature lifecycle)

@@ -64,8 +64,8 @@ pub fn now_unix_ms_strict() -> i64 {
 fn tokenize(s: &str, min_len: usize) -> HashSet<String> {
     s.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|t| t.len() > min_len)
-        .map(std::string::ToString::to_string)
+        .filter(|t: &&str| t.len() > min_len)
+        .map(|s: &str| std::string::ToString::to_string(s))
         .collect()
 }
 
@@ -117,7 +117,7 @@ fn recency_from_years(years: &[Option<i32>]) -> NoveltyRecencyBucket {
     let cy = system_time_map_or(SystemTime::now(), 2026, |d| {
         1970 + (d.as_secs() / 31_536_000) as i32
     });
-    let Some(ym) = years.iter().filter_map(|y| *y).max() else {
+    let Some(ym) = years.iter().filter_map(|y: &Option<i32>| *y).max() else {
         return NoveltyRecencyBucket::Unknown;
     };
     let age = cy - ym;
@@ -330,12 +330,12 @@ fn finalize_bundle(
     let years: Vec<Option<i32>> = hits.iter().map(|h| h.year).collect();
     let max_lex = hits
         .iter()
-        .filter_map(|h| h.lexical_score)
-        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        .filter_map(|h: &NormalizedPriorArtHit| h.lexical_score)
+        .max_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let max_sem = hits
         .iter()
-        .filter_map(|h| h.semantic_score)
-        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        .filter_map(|h: &NormalizedPriorArtHit| h.semantic_score)
+        .max_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     sources.sort_by_key(|s| format!("{s:?}"));
     sources.dedup_by_key(|s| format!("{s:?}"));
     NoveltyEvidenceBundleV1 {
@@ -423,7 +423,11 @@ pub async fn fetch_prior_art_federated(
     let mail: String = options
         .mailto_for_crossref
         .map(std::string::ToString::to_string)
-        .or_else(|| std::env::var("VOX_SCIENTIA_CROSSREF_MAILTO").ok())
+        .or_else(|| {
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScientiaCrossrefMailto)
+                .expose()
+                .map(std::string::ToString::to_string)
+        })
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "opensource@vox-lang.org".into());
     let mail_ref = mail.as_str();

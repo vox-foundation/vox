@@ -106,7 +106,7 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
     if ctx.domain == crate::refine::DomainMode::Code {
         confusion.extend(code_confusion_map());
     }
-    
+
     let mut domain_lexicon = default_domain_lexicon();
     for item in &ctx.domain_lexicon {
         domain_lexicon.insert(item.to_ascii_lowercase());

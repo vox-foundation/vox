@@ -339,6 +339,18 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
 
 fn validate_fn(f: &HirFn, kind: &str, errors: &mut Vec<HirValidationError>) {
     validate_name_and_params(&f.name, &f.params, f.span, kind, errors);
+    if let Some(iv) = &f.schedule_interval {
+        if iv.trim().is_empty() {
+            errors.push(HirValidationError {
+                message: format!(
+                    "{kind} `{}`: @scheduled interval must be a non-empty string",
+                    f.name
+                ),
+                span: f.span,
+                correction_hint: Some(r#"use @scheduled("1h") or a cron-like string"#.into()),
+            });
+        }
+    }
 }
 
 fn validate_name_and_params(

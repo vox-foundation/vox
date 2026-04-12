@@ -8,11 +8,13 @@ use crate::budget::BudgetManager;
 use crate::types::AgentId;
 use crate::usage::{DEFAULT_RATE_LIMIT_RETRY_SECS, LlmUsageKey, UsageTracker};
 use async_trait::async_trait;
+#[cfg(not(test))]
 use tracing::info;
 
 /// A localized inter-agent lock strictly for managing OS disk contention
 /// when spinning up heavy Node.js or Cargo tests which rely on singular
 /// target/ or node_modules/ caches. Populi node execution will queue here.
+#[cfg(not(test))]
 static BEHAVIORAL_TEST_LOCK: tokio::sync::OnceCell<tokio::sync::Mutex<()>> =
     tokio::sync::OnceCell::const_new();
 
@@ -77,57 +79,71 @@ impl BehavioralGate {
     }
 
     /// Evaluates `cargo test` for passing.
+    #[cfg_attr(test, allow(unused_variables))]
     pub async fn check_behavior(&self, module_path: Option<&str>) -> GateResult {
         if !self.require_tests {
             return GateResult::Allowed;
         }
-        let mut is_js = false;
-        if let Ok(cwd) = std::env::current_dir() {
-            if cwd.join("package.json").exists() {
-                is_js = true;
-            }
+        // `orch_smoke` and similar unit tests complete tasks through the real completion path,
+        // which would otherwise spawn a nested workspace `cargo test` here. That re-enters the
+        // same crate, fights for the target directory lock, and often loses MSVC/nvcc env — so
+        // skip only while this crate is built for its own `cargo test` (`cfg(test)` on the lib).
+        #[cfg(test)]
+        {
+            return GateResult::Allowed;
         }
 
-        let mut cmd = if is_js {
-            let mut c = tokio::process::Command::new(if cfg!(windows) { "npm.cmd" } else { "npm" });
-            c.arg("test");
-            c
-        } else {
-            let mut c = tokio::process::Command::new("cargo");
-            c.arg("test");
-            if let Some(p) = module_path {
-                c.arg(p);
-            }
-            c.arg("--color=never").arg("--message-format=json");
-            c
-        };
-
-        // Acquire the static inter-agent lock to ensure Cargo/npm OS caches don't collide
-        info!(
-            "BehavioralGate: Agent {} requesting OS test lock...",
-            "agent"
-        );
-        let mtx = BEHAVIORAL_TEST_LOCK
-            .get_or_init(|| async { tokio::sync::Mutex::new(()) })
-            .await;
-        let _lock = mtx.lock().await;
-        info!("BehavioralGate: Lock acquired. Executing tests...");
-
-        if let Ok(output) = cmd.output().await {
-            if output.status.success() {
-                GateResult::Allowed
-            } else {
-                let msg = String::from_utf8_lossy(&output.stderr);
-                GateResult::BehavioralTestFailed {
-                    message: format!(
-                        "Behavioral Gate Failed: Process tests failed to pass.\n{}",
-                        msg
-                    ),
+        #[cfg(not(test))]
+        {
+            let mut is_js = false;
+            if let Ok(cwd) = std::env::current_dir() {
+                if cwd.join("package.json").exists() {
+                    is_js = true;
                 }
             }
-        } else {
-            GateResult::BehavioralTestFailed {
-                message: "Behavioral Gate Failed: Failed to execute test runner.".to_string(),
+
+            let mut cmd = if is_js {
+                let mut c =
+                    tokio::process::Command::new(if cfg!(windows) { "npm.cmd" } else { "npm" });
+                c.arg("test");
+                c
+            } else {
+                let mut c = tokio::process::Command::new("cargo");
+                c.arg("test");
+                if let Some(p) = module_path {
+                    c.arg(p);
+                }
+                c.arg("--color=never").arg("--message-format=json");
+                c
+            };
+
+            // Acquire the static inter-agent lock to ensure Cargo/npm OS caches don't collide
+            info!(
+                "BehavioralGate: Agent {} requesting OS test lock...",
+                "agent"
+            );
+            let mtx = BEHAVIORAL_TEST_LOCK
+                .get_or_init(|| async { tokio::sync::Mutex::new(()) })
+                .await;
+            let _lock = mtx.lock().await;
+            info!("BehavioralGate: Lock acquired. Executing tests...");
+
+            if let Ok(output) = cmd.output().await {
+                if output.status.success() {
+                    GateResult::Allowed
+                } else {
+                    let msg = String::from_utf8_lossy(&output.stderr);
+                    GateResult::BehavioralTestFailed {
+                        message: format!(
+                            "Behavioral Gate Failed: Process tests failed to pass.\n{}",
+                            msg
+                        ),
+                    }
+                }
+            } else {
+                GateResult::BehavioralTestFailed {
+                    message: "Behavioral Gate Failed: Failed to execute test runner.".to_string(),
+                }
             }
         }
     }
@@ -389,8 +405,8 @@ mod budget_gate_tests {
 
     #[test]
     fn check_attention_snapshot_allows_when_disabled_even_if_spent_high() {
-        let cfg = OrchestratorConfig::default();
-        assert!(!cfg.attention_enabled);
+        let mut cfg = OrchestratorConfig::default();
+        cfg.attention_enabled = false;
         let mgr = BudgetManager::new(None);
         mgr.init_attention(100);
         mgr.add_questioning_attention_debit_ms(500);

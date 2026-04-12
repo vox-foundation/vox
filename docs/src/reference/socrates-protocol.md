@@ -4,6 +4,8 @@ description: "Official documentation for Socrates protocol — single source of 
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Socrates protocol — single source of truth

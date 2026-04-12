@@ -174,6 +174,18 @@ pub enum BudgetSignal {
         spent_ratio: f64,
         attention_remaining_ms: u64,
     },
+    /// A tool's historical timeout rate is above the alert threshold.
+    ToolLatencyHigh {
+        tool_key: String,
+        recommended_budget_ms: u64,
+        p90_ms: f64,
+        timeout_rate: f64,
+    },
+    /// No execution history exists for this tool; a conservative default is suggested.
+    ToolLatencyUnknown {
+        tool_key: String,
+        default_budget_ms: u64,
+    },
 }
 
 /// Tracks agent context budgets globally.
@@ -183,10 +195,16 @@ pub struct BudgetManager {
     pub db: Option<Arc<vox_db::VoxDb>>,
     /// Phase 15: session-level attention budget.
     attention: Arc<std::sync::RwLock<AttentionBudget>>,
+    attention_events: Arc<std::sync::RwLock<std::collections::VecDeque<AttentionEvent>>>,
     /// Phase 15: per-agent EWMA trust scores.
     trust_scores: Arc<std::sync::RwLock<HashMap<AgentId, AgentTrustScore>>>,
     /// Phase 16: continuous developer fatigue pacing.
     fatigue: Arc<std::sync::RwLock<FatigueMonitor>>,
+    // Wave 11: Holistic Budget
+    max_financial_cost_micros: Arc<std::sync::atomic::AtomicI64>,
+    global_financial_cost_micros: Arc<std::sync::atomic::AtomicI64>,
+    execution_time_budget_multiplier: Arc<std::sync::atomic::AtomicU64>,
+    local_inference_tokens: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl BudgetManager {
@@ -195,15 +213,46 @@ impl BudgetManager {
         Self {
             inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
             attention: Arc::new(std::sync::RwLock::new(AttentionBudget::default())),
+            attention_events: Arc::new(std::sync::RwLock::new(std::collections::VecDeque::new())),
             trust_scores: Arc::new(std::sync::RwLock::new(HashMap::new())),
             fatigue: Arc::new(std::sync::RwLock::new(FatigueMonitor::new())),
+            max_financial_cost_micros: Arc::new(std::sync::atomic::AtomicI64::new(50_000)),
+            global_financial_cost_micros: Arc::new(std::sync::atomic::AtomicI64::new(0)),
+            execution_time_budget_multiplier: Arc::new(std::sync::atomic::AtomicU64::new(
+                1.5f64.to_bits(),
+            )),
+            local_inference_tokens: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             db,
         }
+    }
+
+    /// Initialise the holistic budget configuration (attention, cost, execution multiplier).
+    pub fn init_holistic_budgets(
+        &self,
+        max_attention_ms: u64,
+        financial_cost_budget_micros: i64,
+        execution_time_multiplier: f64,
+    ) {
+        self.init_attention(max_attention_ms);
+        self.max_financial_cost_micros.store(
+            financial_cost_budget_micros,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        self.execution_time_budget_multiplier.store(
+            execution_time_multiplier.to_bits(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 
     /// Initialise the attention budget with a custom ceiling (call once at startup).
     pub fn init_attention(&self, max_attention_ms: u64) {
         sync_lock::rw_write(&*self.attention).max_attention_ms = max_attention_ms;
+    }
+
+    /// Resets attention spend to 0 without modifying the maximum allowed budget.
+    pub fn reset_attention(&self) {
+        let mut att = sync_lock::rw_write(&*self.attention);
+        att.spent_ms = 0;
     }
 
     /// Register or reset an agent's budget.
@@ -249,6 +298,38 @@ impl BudgetManager {
         }
     }
 
+    /// Access the raw underlying Execution Time Multiplier.
+    pub fn execution_time_budget_multiplier(&self) -> f64 {
+        f64::from_bits(
+            self.execution_time_budget_multiplier
+                .load(std::sync::atomic::Ordering::Relaxed),
+        )
+    }
+
+    /// Maximum allowed financial cost across the system.
+    pub fn max_financial_cost_micros(&self) -> i64 {
+        self.max_financial_cost_micros
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Current aggregated global financial cost.
+    pub fn global_financial_cost_micros(&self) -> i64 {
+        self.global_financial_cost_micros
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Add to the local inference token count.
+    pub fn record_local_inference_tokens(&self, tokens: u64) {
+        self.local_inference_tokens
+            .fetch_add(tokens, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Current amount of session-local inference tokens used.
+    pub fn local_inference_tokens(&self) -> u64 {
+        self.local_inference_tokens
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Record suppressed messages in the A2A Deep focus filter.
     pub fn record_inbox_suppression(&self, count: u32) {
         let mut att = sync_lock::rw_write(&*self.attention);
@@ -277,6 +358,9 @@ impl BudgetManager {
             budget.cost_usd = cost_usd;
             map.insert(agent_id, budget);
         }
+        let inc_micros = (cost_usd * 1_000_000.0).round() as i64;
+        self.global_financial_cost_micros
+            .fetch_add(inc_micros, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Check an agent's remaining budget.
@@ -300,6 +384,40 @@ impl BudgetManager {
             .filter(|b| b.token_alert() || b.cost_alert())
             .map(|b| (b.agent_id, b.token_alert(), b.cost_alert()))
             .collect()
+    }
+
+    /// Implement BudgetManager logic to check thresholds during task dispatch and emit BudgetSignal variants for autonomous self-correction.
+    pub fn agent_budget_signal(&self, agent_id: AgentId) -> BudgetSignal {
+        let map = sync_lock::rw_read(&*self.inner);
+        if let Some(b) = map.get(&agent_id) {
+            let ratio = b.tokens_used as f64 / b.effective_max_tokens().max(1) as f64;
+            if b.cost_exceeded() {
+                BudgetSignal::CostExceeded {
+                    cost_usd: b.cost_usd,
+                    limit_usd: b.allocation.as_ref().map(|a| a.max_cost_usd).unwrap_or(0.0),
+                }
+            } else if ratio >= 1.0 {
+                BudgetSignal::Critical {
+                    usage_ratio: ratio,
+                    tokens_remaining: 0,
+                }
+            } else if b.token_alert() {
+                BudgetSignal::HighLoad {
+                    usage_ratio: ratio,
+                    tokens_remaining: b.tokens_available(),
+                }
+            } else if b.cost_alert() {
+                // Return high load if cost is alerting but not exceeded
+                BudgetSignal::HighLoad {
+                    usage_ratio: ratio,
+                    tokens_remaining: b.tokens_available(),
+                }
+            } else {
+                BudgetSignal::Normal { usage_ratio: ratio }
+            }
+        } else {
+            BudgetSignal::Normal { usage_ratio: 0.0 }
+        }
     }
 
     /// Trigger a period rollover for all agents.
@@ -347,6 +465,19 @@ impl BudgetManager {
         if event.outcome != ApprovalOutcome::AutoApproved {
             att.last_interrupt_ms = event.timestamp_ms;
         }
+        drop(att);
+
+        let mut ring = sync_lock::rw_write(&*self.attention_events);
+        if ring.len() >= 100 {
+            ring.pop_back();
+        }
+        ring.push_front(event.clone());
+    }
+
+    /// Snapshot of recent attention events.
+    pub fn attention_events_snapshot(&self, limit: usize) -> Vec<AttentionEvent> {
+        let ring = sync_lock::rw_read(&*self.attention_events);
+        ring.iter().take(limit).cloned().collect()
     }
 
     /// Current budget signal including the attention dimension.
@@ -408,6 +539,16 @@ impl BudgetManager {
         sync_lock::rw_read(&*self.trust_scores).clone()
     }
 
+    /// Force a specific trust score for an agent, bypassing standard EWMA updates.
+    pub fn force_trust_score(&self, agent_id: AgentId, score: f64) {
+        let mut scores = sync_lock::rw_write(&*self.trust_scores);
+        let entry = scores
+            .entry(agent_id)
+            .or_insert_with(|| AgentTrustScore::new(agent_id));
+        entry.trust_score = score.clamp(0.0, 1.0);
+        entry.is_override = true;
+    }
+
     // ── Phase 16: Fatigue and Pacing ───────────────────────────────────────────
 
     /// Record an IDE context switch. Evaluates cognitive thrashing and burnout.
@@ -425,6 +566,76 @@ impl BudgetManager {
         let f_mon = sync_lock::rw_read(&*self.fatigue);
         let att = sync_lock::rw_read(&*self.attention);
         f_mon.evaluate_fatigue(att.spent_ratio()).is_some()
+    }
+
+    pub async fn query_tool_latency_signal(
+        &self,
+        tool_key: &str,
+        repository_id: &str,
+        timeout_rate_alert_threshold: f64,
+        window_days: u32,
+        safety_multiplier: f64,
+        default_budget_ms: u64,
+    ) -> BudgetSignal {
+        let Some(ref db) = self.db else {
+            return BudgetSignal::ToolLatencyUnknown {
+                tool_key: tool_key.to_string(),
+                default_budget_ms,
+            };
+        };
+
+        match db
+            .query_tool_latency(tool_key, repository_id, window_days, safety_multiplier)
+            .await
+        {
+            Ok(Some(profile)) => {
+                if profile.timeout_rate > timeout_rate_alert_threshold {
+                    BudgetSignal::ToolLatencyHigh {
+                        tool_key: tool_key.to_string(),
+                        recommended_budget_ms: profile.recommended_budget_ms,
+                        p90_ms: profile.p90_ms,
+                        timeout_rate: profile.timeout_rate,
+                    }
+                } else {
+                    BudgetSignal::Normal {
+                        usage_ratio: profile.timeout_rate,
+                    }
+                }
+            }
+            _ => BudgetSignal::ToolLatencyUnknown {
+                tool_key: tool_key.to_string(),
+                default_budget_ms,
+            },
+        }
+    }
+
+    pub async fn record_tool_execution_outcome(
+        &self,
+        tool_key: &str,
+        repository_id: &str,
+        duration_ms: u64,
+        timed_out: bool,
+        attempted_budget_ms: Option<u64>,
+    ) {
+        if let Some(ref db) = self.db {
+            if timed_out {
+                let _ = db
+                    .record_exec_timeout(tool_key, repository_id, duration_ms)
+                    .await;
+            } else {
+                let record = vox_db::ExecTimeRecord {
+                    tool_key,
+                    repository_id,
+                    duration_ms,
+                    timeout_budget_ms: attempted_budget_ms,
+                    compute_tokens_used: None,
+                    vendor_cost_usd_micros: None,
+                    attention_cost_ms: None,
+                    outcome: vox_db::ExecOutcome::Success,
+                };
+                let _ = db.record_exec_time(&record).await;
+            }
+        }
     }
 }
 
@@ -573,5 +784,63 @@ mod tests {
             score > 0.3,
             "trust score should increase after successes, got {score:.3}"
         );
+    }
+
+    #[test]
+    fn reset_attention_zeroes_spent_ms() {
+        let mgr = BudgetManager::new(None);
+        mgr.add_questioning_attention_debit_ms(500);
+        assert_eq!(mgr.attention_snapshot().spent_ms, 500);
+        mgr.reset_attention();
+        assert_eq!(mgr.attention_snapshot().spent_ms, 0);
+    }
+
+    #[test]
+    fn force_trust_score_ignores_updates() {
+        let mgr = BudgetManager::new(None);
+        let agent = AgentId(43);
+        mgr.force_trust_score(agent, 0.95);
+        for _ in 0..10 {
+            mgr.record_trust_outcome(agent, false, 0.2, 5, 20);
+        }
+        let snap = mgr.trust_snapshot();
+        assert_eq!(snap[&agent].trust_score, 0.95);
+    }
+
+    #[test]
+    fn attention_events_ring_buffer() {
+        use crate::attention::{ApprovalTier, AttentionEventType};
+        let mgr = BudgetManager::new(None);
+        for i in 1..=5 {
+            let event = AttentionEvent {
+                agent_id: AgentId(1),
+                task_id: None,
+                event_type: AttentionEventType::CodeReview,
+                tier: ApprovalTier::Review,
+                cost_ms: i * 100,
+                outcome: ApprovalOutcome::Approved,
+                trust_score_at_time: 0.5,
+                effective_complexity: 5.0,
+                decision_entropy_bits: 0.5,
+                timestamp_ms: 1_000_000 + i,
+                channel: None,
+                policy_reason: None,
+            };
+            mgr.record_attention(&event);
+        }
+        let events = mgr.attention_events_snapshot(3);
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].cost_ms, 500);
+        assert_eq!(events[1].cost_ms, 400);
+        assert_eq!(events[2].cost_ms, 300);
+    }
+
+    #[tokio::test]
+    async fn tool_time_unknown_when_no_db() {
+        let mgr = BudgetManager::new(None);
+        let signal = mgr
+            .query_tool_latency_signal("t", "r", 0.5, 90, 1.5, 5000)
+            .await;
+        assert!(matches!(signal, BudgetSignal::ToolLatencyUnknown { .. }));
     }
 }

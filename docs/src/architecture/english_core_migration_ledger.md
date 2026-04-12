@@ -5,6 +5,8 @@ category: "architecture"
 status: "legacy"
 last_updated: 2026-04-05
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # English-Core + Latin Alias Migration Ledger

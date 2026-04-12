@@ -5,6 +5,8 @@ category: "adr"
 status: "current"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 002 — Diátaxis Three-Tier Documentation Architecture

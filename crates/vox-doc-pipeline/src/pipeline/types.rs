@@ -9,6 +9,8 @@ pub(crate) struct Page {
     pub sort_order: i32,
     pub description: Option<String>,
     pub last_updated: Option<String>,
+    pub status: Option<String>,
+    pub schema_type: Option<String>,
 }
 
 #[derive(Debug)]
@@ -26,8 +28,10 @@ pub(crate) enum LintKind {
     GenericDescription,
     MissingFrontmatter,
     MissingCategory,
+    MissingTrainingRationale,
     UnknownCategory { value: String },
     UnknownStatus { value: String },
+    UnknownSchemaType { value: String },
     RawVoxCodeBlock,
     BrokenIncludeAnchor { file: String, anchor: String },
     WholeFileIncludeHasTrainingHeader { file: String },

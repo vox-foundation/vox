@@ -4,6 +4,8 @@ description: "Single source of truth for user-global vox.db, project-local store
 category: "how-to"
 last_updated: 2026-03-27
 training_eligible: false
+
+schema_type: "HowTo"
 ---
 
 # Canonical VoxDB / Codex store
@@ -35,11 +37,9 @@ If `vox codex verify` or normal `connect` reports a non-baseline schema:
 
 Details: [codex-legacy-migration](../architecture/codex-legacy-migration.md).
 
-## Training telemetry sidecar
+## Historical `vox_training_telemetry.db`
 
-When the **main** `vox.db` is legacy, [`VoxDb::connect_default_with_training_fallback`](../../../crates/vox-db/src/facade/connect.rs) may open `vox_training_telemetry.db` next to `vox.db` so Mens training can still persist run rows. That file may be **reset to baseline** automatically if it is also stale (telemetry-only data loss).
-
-**Convergence:** after you cut over the main DB to baseline, training uses the same canonical store; remove or ignore the sidecar.
+Mens training uses [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/connect.rs) on the **canonical** store. If `vox.db` is still on a legacy `schema_version` chain, connect fails with `LegacySchemaChain` until you complete export / fresh baseline / import (see [codex-legacy-migration](../architecture/codex-legacy-migration.md)). A leftover `vox_training_telemetry.db` from older releases can be archived after primary cutover.
 
 ## Deprecation stance
 

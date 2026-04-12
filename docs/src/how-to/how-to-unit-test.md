@@ -5,6 +5,8 @@ category: "how-to"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 # How-To: Test Your Logic
 

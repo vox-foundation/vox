@@ -2,8 +2,10 @@
 title: "CI runner contract"
 description: "Official documentation for CI runner contract for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-04-12
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # CI runner contract
@@ -33,6 +35,10 @@ Do **not** depend on git history to recover the root `Cargo.toml`. SSOT and repa
 
 Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scripts under `scripts/` are **optional thin delegates** for local POSIX ergonomics; **prefer `vox ci …`** when the `vox` binary is on `PATH`. Mapping table: [scripts/README.md](../adr/index.md). Machine-readable registry: [`docs/agents/script-registry.json`](../../agents/script-registry.json).
 
+## Pre-push validation (Linux CI mirror)
+
+For a **copy-paste subset** of the default [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) job (`cargo fmt`, `cargo clippy --workspace`, `vox ci ssot-drift`, TOESTUB on touched paths, and merge-blocking **`check-codex-ssot` / `check-docs-ssot`**), see [Contributor hub — Pre-push local CI parity](../contributors/contributor-hub.md#pre-push-local-ci-parity).
+
 ## Line endings (cross-platform)
 
 - **Policy:** LF for tracked source/docs/config (see root [`.gitattributes`](../../../.gitattributes) and [`.editorconfig`](../../../.editorconfig)). **`*.ps1`** uses CRLF on checkout / in editors that respect EditorConfig.
@@ -41,7 +47,8 @@ Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scri
 
 **ML / repo hygiene (Rust, not shell):**
 
-- **`vox ci grammar-drift`** — SHA-256 of the generated system prompt vs `mens/data/grammar_fingerprint.txt`; updates the file when drift is detected. Use **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`) or **`--emit gitlab`** (writes `drift.env` in the repo root).
+- **`vox ci grammar-export-check`** — wired in the default **`.github/workflows/ci.yml`** Linux job after the CLI feature matrix; asserts grammar exports are non-empty (EBNF/GBNF/Lark/JSON-Schema).
+- **`vox ci grammar-drift`** — SHA-256 of the EBNF export vs `mens/data/grammar_fingerprint.txt` (and Populi twin); updates the file when drift is detected. The **`ml_data_extraction.yml`** workflow runs this with **`--emit github`**. Use **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`) or **`--emit gitlab`** (writes `drift.env` in the repo root) when wiring other pipelines.
 - **`vox ci repo-guards`** — replaces ad-hoc `grep`/`find` blocks: no `TypeVar(0)` in **`vox-codegen-rust` / `vox-codegen-ts` sources** (typechecker uses that sentinel legitimately), filtered `opencode` references under `crates/`, and no stray root clutter files (same policy as the former GitLab `guards` job).
 
 ## Build timings (wall-clock `cargo check`)

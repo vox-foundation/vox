@@ -4,6 +4,8 @@ description: "Official documentation for Architecture Decision Records (ADR) for
 category: "reference"
 last_updated: 2026-04-01
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Architecture Decision Records (ADR)
 

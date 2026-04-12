@@ -10,7 +10,7 @@ pub struct V0ComponentDecl {
     #[serde(default)]
     pub image_path: Option<String>,
     pub name: String,
-    pub return_type: Option<TypeExpr>,
+    pub props: Vec<IslandProp>,
     pub span: Span,
 }
 

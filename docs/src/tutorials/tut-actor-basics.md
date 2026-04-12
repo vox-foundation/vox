@@ -4,6 +4,8 @@ description: "Master stateful concurrency in Vox. Learn to define, spawn, and pe
 category: "tutorial"
 last_updated: 2026-04-05
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # Tutorial: Persistent Actors & State

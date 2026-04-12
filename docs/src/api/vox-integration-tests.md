@@ -4,6 +4,8 @@ description: "Rust crate vox-integration-tests: cross-crate integration and smok
 category: "api-crate"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # Crate API: vox-integration-tests

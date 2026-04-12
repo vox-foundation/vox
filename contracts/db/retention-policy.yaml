@@ -57,3 +57,7 @@ tables:
   trusted_evidence_bundles:
     kind: expires_lt_now
     time_column: expires_at
+  agent_exec_history:
+    kind: ms_days
+    days: 90
+    time_column: recorded_at

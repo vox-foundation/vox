@@ -133,7 +133,8 @@ impl ProviderAdapter for AnthropicNativeAdapter {
         client: &'a reqwest::Client,
         model: &'a ModelSpec,
         req: InferRequest<'a>,
-    ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>>
+    {
         Box::pin(async move {
             use super::providers::http_anthropic_direct;
             let url = endpoint_for(model)?;

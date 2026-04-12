@@ -142,7 +142,7 @@ fn policy_serious_mode_halves_rewards() {
 
 #[test]
 fn policy_grind_cap_kicks_in() {
-    use vox_ludus::reward_policy::{BaseReward, GRIND_THRESHOLD, SessionState, apply_policy};
+    use vox_ludus::reward_policy::{BaseReward, GRIND_ZERO_THRESHOLD, SessionState, apply_policy};
     let base = BaseReward {
         xp: 10,
         crystals: 2,
@@ -151,14 +151,14 @@ fn policy_grind_cap_kicks_in() {
     };
     let mut session = SessionState::default();
 
-    for _ in 0..=GRIND_THRESHOLD {
+    for _ in 0..=GRIND_ZERO_THRESHOLD {
         let _ = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
     }
     let r = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
     assert!(
         r.grind_capped,
         "grind cap should trigger after {} repetitions",
-        GRIND_THRESHOLD
+        GRIND_ZERO_THRESHOLD
     );
     assert_eq!(r.xp, 0, "grind-capped reward should be 0 XP");
 }

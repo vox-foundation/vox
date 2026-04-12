@@ -57,6 +57,17 @@ CREATE TABLE IF NOT EXISTS mens_corpus_quality (
 
 CREATE INDEX IF NOT EXISTS idx_mens_corpus_quality_split ON mens_corpus_quality(split);
 
+-- MENS training corpus pairs.
+CREATE TABLE IF NOT EXISTS corpus_pairs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    errors_json TEXT NOT NULL,
+    origin TEXT NOT NULL,
+    reward_signal REAL NOT NULL DEFAULT 0.0,
+    label TEXT NOT NULL DEFAULT 'negative',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- GRPO training run telemetry and reward tracking.
 CREATE TABLE IF NOT EXISTS grpo_training_run (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

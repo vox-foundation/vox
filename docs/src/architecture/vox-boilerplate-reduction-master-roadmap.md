@@ -4,6 +4,8 @@ description: "Execution roadmap for reducing accidental complexity and boilerpla
 category: "architecture"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox boilerplate reduction master roadmap

@@ -1,12 +1,14 @@
 //! Golden snapshot: stable `SyndicationResult` for route simulation (hourglass — few integration tests).
 
-use chrono::Utc;
+use chrono::{TimeZone, Utc};
 use serde::Deserialize;
 use vox_publisher::types::{SyndicationConfig, UnifiedNewsItem};
 use vox_publisher::{Publisher, PublisherConfig};
 
 #[derive(Deserialize)]
 struct MetadataFixture {
+    #[serde(default)]
+    published_at: Option<chrono::DateTime<Utc>>,
     tags: Vec<String>,
     syndication: SyndicationConfig,
 }
@@ -19,7 +21,9 @@ fn golden_item() -> UnifiedNewsItem {
         id: "golden-route-001".to_string(),
         title: "Golden route item".to_string(),
         author: "Vox".to_string(),
-        published_at: Utc::now(),
+        published_at: meta.published_at.unwrap_or_else(|| {
+            Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()
+        }),
         tags: meta.tags,
         content_markdown: "Hello world for golden route.".to_string(),
         syndication: meta.syndication,

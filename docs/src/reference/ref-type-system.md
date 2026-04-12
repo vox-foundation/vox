@@ -4,6 +4,9 @@ description: "Deep dive into the Vox type system: ADTs, generics, zero-null disc
 category: "reference"
 last_updated: 2026-04-05
 training_eligible: true
+
+schema_type: "TechArticle"
+keywords: ["Vox type system", "Option type Vox", "Result type Vox", "null-free language types"]
 ---
 
 # Reference: Type System

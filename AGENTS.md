@@ -14,6 +14,25 @@ Primary navigation:
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
+- Research index: [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+
+## Research and Documentation Storage (IDE Agent Directive)
+
+When working under the Vox repository, ALL research findings, architecture documents, and knowledge artifacts MUST be written to `docs/src/architecture/` (or the appropriate `docs/src/` subdirectory) in this repository — **not** to any IDE-private knowledge base (e.g., Antigravity's `~/.gemini/antigravity/knowledge/`). The Vox `docs/` tree is the single source of truth for all project knowledge.
+
+- Research docs follow the naming pattern: `*-research-2026.md`, `*-findings-2026.md`
+- Architecture SSoT docs: `*-ssot.md` or descriptive names in `docs/src/architecture/`
+- After writing to `docs/`, update [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+- Do not store Vox-specific research in IDE knowledge bases that are only accessible to one tool
+
+## AI Context Exclusion (SSOT)
+
+`.voxignore` is the **single source of truth** for what files and directories should be excluded from AI context.
+
+- Edit `.voxignore`; derive `.cursorignore`, `.aiignore`, `.aiexclude` via `vox ci sync-ignore-files`
+- Do **not** edit derived ignore files directly — they are regenerated and tracked for drift
+- GitHub Copilot exclusions must be configured separately in GitHub Settings → Copilot → Content exclusion; see [`docs/agents/copilot-exclusions.md`](docs/agents/copilot-exclusions.md)
+- Research: [`docs/src/architecture/multi-repo-context-isolation-research-2026.md`](docs/src/architecture/multi-repo-context-isolation-research-2026.md)
 
 ## Telemetry trust (SSOT)
 
@@ -55,6 +74,21 @@ API key lifecycle checklist:
 Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md).
 
 Research synthesis (IDE matchers, PowerShell-first, SSOT terminal policy): [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](docs/src/architecture/terminal-exec-policy-research-findings-2026.md). Machine-checked policy entrypoint: [`docs/src/architecture/terminal-ast-validation-research-2026.md`](docs/src/architecture/terminal-ast-validation-research-2026.md).
+
+## Retired Surfaces (LLM Guard)
+
+Do **NOT** use the following retired symbols, crates, or env vars. Using them will result in hallucinations and broken integration:
+
+| Retired / Deprecated | Canonical Replacement (Use Instead) |
+|---|---|
+| `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
+| `vox-ars` (crate) | `vox-skills` |
+| `vox-gamify` | `vox-ludus` |
+| `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
+| `@component fn Name()` | `component Name() {}` |
+| `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
+| `recall()` (synchronous memory read) | `recall_async()` |
+| `persist_fact()` | `sync_to_db()` |
 
 ## Structural Limits & Code Quality
 

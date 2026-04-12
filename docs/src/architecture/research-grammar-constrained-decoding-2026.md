@@ -7,6 +7,9 @@ description: "Research on grammar-constrained decoding for LLM code generation a
 research_date: "2026-04-08"
 status: "research"
 training_eligible: true
+training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
+
+schema_type: "TechArticle"
 ---
 
 # Research Synthesis: Grammar-Constrained Decoding for LLM Code Generation

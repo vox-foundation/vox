@@ -69,7 +69,7 @@ pub(crate) fn check_hir_match_exhaustiveness(
     }
 
     if !missing.is_empty() {
-        diags.push(Diagnostic::error(
+        let mut d = Diagnostic::error(
             format!(
                 "Non-exhaustive match on type '{}'. Missing variant(s): {}",
                 type_name,
@@ -77,6 +77,10 @@ pub(crate) fn check_hir_match_exhaustiveness(
             ),
             span,
             source,
-        ));
+        );
+        d.missing_cases = missing.iter().map(|s| s.to_string()).collect();
+        d.ast_node_kind = Some("MatchExpr".to_string());
+        d.code = Some("E0301".into());
+        diags.push(d);
     }
 }

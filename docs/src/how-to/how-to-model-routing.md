@@ -4,6 +4,8 @@ description: "Official documentation for Model Routing & Provider Cascade for th
 category: "how-to"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 <!-- markdownlint-disable MD025 -->

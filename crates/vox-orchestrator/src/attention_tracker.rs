@@ -159,6 +159,7 @@ impl<'a> AttentionTracker<'a> {
             "successful_outcomes": trust.successful_outcomes,
             "below_tier_streak": trust.below_tier_streak,
             "last_updated_ms": trust.last_updated_ms,
+            "is_override": trust.is_override,
         });
 
         if let Some((id, _)) = existing.into_iter().next() {
@@ -185,12 +186,15 @@ impl<'a> AttentionTracker<'a> {
         if let Some((_id, doc)) = rows.into_iter().next() {
             Ok(Some(AgentTrustScore {
                 agent_id,
-                trust_score: doc["trust_score"].as_f64().unwrap_or(0.3),
+                trust_score: doc["trust_score"].as_f64().unwrap_or(0.5),
                 tier: serde_json::from_value(doc["tier"].clone()).unwrap_or(TrustTier::Untrusted),
                 total_outcomes: doc["total_outcomes"].as_u64().unwrap_or(0) as u32,
                 successful_outcomes: doc["successful_outcomes"].as_u64().unwrap_or(0) as u32,
                 below_tier_streak: doc["below_tier_streak"].as_u64().unwrap_or(0) as u32,
                 last_updated_ms: doc["last_updated_ms"].as_u64().unwrap_or(0),
+                // Variance not yet persisted in DB — hydrate from EB prior on load.
+                variance: doc["variance"].as_f64().unwrap_or(0.10),
+                is_override: doc["is_override"].as_bool().unwrap_or(false),
             }))
         } else {
             Ok(None)
@@ -215,12 +219,14 @@ impl<'a> AttentionTracker<'a> {
             let aid = AgentId(doc["agent_id"].as_u64().unwrap_or(0));
             let ts = AgentTrustScore {
                 agent_id: aid,
-                trust_score: doc["trust_score"].as_f64().unwrap_or(0.3),
+                trust_score: doc["trust_score"].as_f64().unwrap_or(0.5),
                 tier: serde_json::from_value(doc["tier"].clone()).unwrap_or(TrustTier::Untrusted),
                 total_outcomes: doc["total_outcomes"].as_u64().unwrap_or(0) as u32,
                 successful_outcomes: doc["successful_outcomes"].as_u64().unwrap_or(0) as u32,
                 below_tier_streak: doc["below_tier_streak"].as_u64().unwrap_or(0) as u32,
                 last_updated_ms: doc["last_updated_ms"].as_u64().unwrap_or(0),
+                variance: doc["variance"].as_f64().unwrap_or(0.10),
+                is_override: doc["is_override"].as_bool().unwrap_or(false),
             };
             result.insert(aid, ts);
         }

@@ -57,7 +57,7 @@ pub(crate) fn walk_dir(
 
                 let content =
                     vox_bounded_fs::read_utf8_path_capped(&path).unwrap_or_else(|_| String::new());
-                let (title, category, sort_order, description, last_updated) =
+                let (title, category, sort_order, description, last_updated, status, schema_type) =
                     parse_frontmatter(&content, &path)?;
 
                 let page = Page {
@@ -66,6 +66,8 @@ pub(crate) fn walk_dir(
                     sort_order,
                     description,
                     last_updated,
+                    status: status.clone(),
+                    schema_type: schema_type.clone(),
                 };
                 let page2 = Page {
                     title,
@@ -73,6 +75,8 @@ pub(crate) fn walk_dir(
                     sort_order,
                     description: None,
                     last_updated: None,
+                    status,
+                    schema_type: None,
                 };
                 all_pages.push(page);
                 let inferred_category = category.or_else(|| infer_category_from_path(&rel_path));
@@ -90,7 +94,15 @@ pub(crate) fn walk_dir(
 fn parse_frontmatter(
     content: &str,
     path: &Path,
-) -> anyhow::Result<(String, Option<String>, i32, Option<String>, Option<String>)> {
+) -> anyhow::Result<(
+    String,
+    Option<String>,
+    i32,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+)> {
     let mut title = path
         .file_stem()
         .with_context(|| format!("path has no file stem: {}", path.display()))?
@@ -101,6 +113,8 @@ fn parse_frontmatter(
     let mut sort_order = 100i32;
     let mut description: Option<String> = None;
     let mut last_updated: Option<String> = None;
+    let mut status: Option<String> = None;
+    let mut schema_type: Option<String> = None;
     let mut saw_title = false;
 
     if let Some(after_dash) = content.strip_prefix("---") {
@@ -129,6 +143,22 @@ fn parse_frontmatter(
                     category = Some(normalize_category(cat)?);
                 } else if let Some(s) = line.strip_prefix("sort_order:") {
                     sort_order = s.trim().parse().unwrap_or(100);
+                } else if let Some(st) = line.strip_prefix("status:") {
+                    let raw = st
+                        .trim()
+                        .trim_matches(|c| c == '"' || c == '\'')
+                        .to_string();
+                    if !raw.is_empty() {
+                        status = Some(raw);
+                    }
+                } else if let Some(st) = line.strip_prefix("schema_type:") {
+                    let raw = st
+                        .trim()
+                        .trim_matches(|c| c == '"' || c == '\'')
+                        .to_string();
+                    if !raw.is_empty() {
+                        schema_type = Some(raw);
+                    }
                 }
             }
         }
@@ -142,7 +172,15 @@ fn parse_frontmatter(
         }
     }
 
-    Ok((title, category, sort_order, description, last_updated))
+    Ok((
+        title,
+        category,
+        sort_order,
+        description,
+        last_updated,
+        status,
+        schema_type,
+    ))
 }
 
 fn normalize_category(cat: &str) -> anyhow::Result<String> {

@@ -4,6 +4,8 @@ description: "Official documentation for Codex BaaS scaffolding for the Vox lang
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Codex BaaS scaffolding

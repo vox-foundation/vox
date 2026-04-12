@@ -2,6 +2,8 @@
 title: MCP tool registry contract
 description: Canonical MCP tool registry contract, metadata, and compliance checks.
 category: reference
+
+schema_type: "TechArticle"
 ---
 
 # MCP tool registry (contract SSOT)

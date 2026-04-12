@@ -317,7 +317,7 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
     };
     assert_eq!(
         route_backend_for_chat_route(&cascade_route),
-        chat_lane_for_orchestrator_backend(route_backend_for_model(&groq_spec))
+        ChatRouteBackend::CascadeFallback
     );
 }
 

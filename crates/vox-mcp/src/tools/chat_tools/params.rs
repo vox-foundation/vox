@@ -1,5 +1,4 @@
-//! Deserialize/Serialize shapes for chat, inline edit, planning, ghost text, and ambient tools.
-
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -234,6 +233,23 @@ pub struct PlanStatusParams {
     pub session_id: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PlanListSessionsParams {
+    #[serde(default)]
+    pub session_id_filter: Option<String>,
+    #[serde(default)]
+    pub status_filter: Option<String>,
+    #[serde(default)]
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PlanResumeParams {
+    pub session_id: String,
+    #[serde(default)]
+    pub write_to_disk: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// One row inside a generated plan (dependencies + complexity estimate).
 pub struct PlanTask {
@@ -241,6 +257,9 @@ pub struct PlanTask {
     pub id: usize,
     /// Short imperative description.
     pub description: String,
+    /// The specific task category, mapping to `TaskCategory`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
     /// Related file paths for affinity routing.
     pub files: Vec<String>,
     /// Heuristic difficulty on a 1-10 scale.

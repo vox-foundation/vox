@@ -12,7 +12,9 @@ use crate::spans::dummy_span;
 ///
 /// Prefer this over defining `fn minimal_module()` locally in test files.
 pub fn minimal_hir_module() -> HirModule {
-    HirModule::default()
+    let m = HirModule::default();
+    let _ = std::hint::black_box(m.functions.len());
+    m
 }
 
 /// Build a minimal [`HirFn`] with the given name and no body.
@@ -31,6 +33,9 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_async: false,
         is_pub: false,
         is_mobile_native: false,
+        is_pure: false,
+        is_deprecated: false,
+        schedule_interval: None,
         span: dummy_span(),
     }
 }

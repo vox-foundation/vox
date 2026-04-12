@@ -172,7 +172,63 @@ fn burst_long_monolithic_clause(text: &str) -> Vec<String> {
         .collect()
 }
 
+pub fn parse_llm_plan_response(raw: &str) -> Result<Vec<PlanNode>, String> {
+    if let Some(start) = raw.find("<execute>") {
+        if let Some(end) = raw[start + 9..].find("</execute>") {
+            let json_str = raw[start + 9..start + 9 + end].trim();
+            if let Ok(nodes) = serde_json::from_str::<Vec<PlanNode>>(json_str) {
+                if !nodes.is_empty() {
+                    return Ok(nodes);
+                }
+            }
+        }
+    }
+    let stripped = raw
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+    if let Ok(nodes) = serde_json::from_str::<Vec<PlanNode>>(stripped) {
+        if !nodes.is_empty() {
+            return Ok(nodes);
+        }
+    }
+    Err("Failed to parse LLM plan response".to_string())
+}
+
+pub fn build_goal_user_prompt(goal: &str, depth: &str) -> String {
+    format!(
+        "GOAL: {}\nPLANNING DEPTH: {}\n\n{}",
+        goal,
+        depth,
+        include_str!("prompts/synthesize_nodes_v2.txt")
+    )
+}
+
+pub async fn synthesize_plan_nodes_with_llm<F, Fut>(
+    goal: &str,
+    depth: &str,
+    llm_fn: F,
+) -> Vec<PlanNode>
+where
+    F: Fn(&str, &str) -> Fut,
+    Fut: std::future::Future<Output = Result<String, String>>,
+{
+    // Note: PLANNER_SYSTEM_PROMPT is in crate::planning::prompts
+    use crate::planning::prompts::PLANNER_SYSTEM_PROMPT;
+    let user_prompt = build_goal_user_prompt(goal, depth);
+    match llm_fn(PLANNER_SYSTEM_PROMPT, &user_prompt).await {
+        Ok(raw) => parse_llm_plan_response(&raw).unwrap_or_else(|_| synthesize_plan_nodes(goal)),
+        Err(_) => synthesize_plan_nodes(goal),
+    }
+}
+
 pub fn synthesize_plan_nodes(goal: &str) -> Vec<PlanNode> {
+    if let Ok(nodes) = parse_llm_plan_response(goal) {
+        return nodes;
+    }
+
     let mut parts = split_goal_clauses(goal);
     if parts.is_empty() {
         let trimmed = goal.trim();

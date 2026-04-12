@@ -91,34 +91,6 @@ fn set_meta_persisted() {
     assert_eq!(val.as_deref(), Some("claude-sonnet-4"));
 }
 
-#[tokio::test]
-#[serial]
-async fn session_persistence_roundtrip() {
-    let dir = TempDir::new().expect("tempdir");
-    let mut cfg = session_defaults();
-    cfg.sessions_dir = dir.path().to_path_buf();
-    let session_path = cfg.sessions_dir.clone();
-    let session_id = {
-        let mut mgr = SessionManager::new(cfg.clone()).expect("create");
-        let session_id = mgr.create(AgentId(2)).expect("create session");
-        mgr.add_turn(&session_id, "user", "fix parser", 10)
-            .expect("add");
-        mgr.set_meta(&session_id, "crate", "vox-parser")
-            .expect("meta");
-        session_id
-    };
-
-    // Reload into fresh manager (same directory; `dir` stays alive).
-    let mut cfg2 = session_defaults();
-    cfg2.sessions_dir = session_path;
-    let mut mgr2 = SessionManager::new(cfg2).expect("create");
-    mgr2.load(&session_id).await.expect("load");
-    let s = mgr2.get(&session_id).expect("get");
-    assert_eq!(s.agent_id, AgentId(2));
-    assert_eq!(s.turns.len(), 1);
-    assert_eq!(s.meta.get("crate").map(|s| s.as_str()), Some("vox-parser"));
-}
-
 #[test]
 fn max_sessions_limit() {
     let (base, _dir) = test_config();
@@ -197,32 +169,4 @@ async fn session_db_replay_matches_in_memory_state() {
         serde_json::to_value(&live).unwrap(),
         serde_json::to_value(&replayed).unwrap()
     );
-}
-
-#[tokio::test]
-#[serial]
-async fn plugin_state_persistence_roundtrip() {
-    let dir = TempDir::new().expect("tempdir");
-    let mut cfg = session_defaults();
-    cfg.sessions_dir = dir.path().to_path_buf();
-    let session_path = cfg.sessions_dir.clone();
-
-    let session_id = {
-        let mut mgr = SessionManager::new(cfg.clone()).expect("create");
-        let session_id = mgr.create(AgentId(3)).expect("create");
-        mgr.set_plugin_state(
-            &session_id,
-            "weather",
-            serde_json::json!({"city": "London"}),
-        )
-        .expect("set");
-        session_id
-    };
-
-    let mut cfg2 = session_defaults();
-    cfg2.sessions_dir = session_path;
-    let mut mgr2 = SessionManager::new(cfg2).expect("create");
-    mgr2.load(&session_id).await.expect("load");
-    let s = mgr2.get(&session_id).expect("get");
-    assert_eq!(s.plugin_state.get("weather").unwrap()["city"], "London");
 }

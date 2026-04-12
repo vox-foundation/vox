@@ -5,6 +5,9 @@ category: "explanation"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "TechArticle"
+keywords: ["Vox vs Python", "Vox vs Rust comparison", "AI-native language comparison", "programming language benchmark"]
 ---
 
 # Rosetta Inventory: One Scenario, Four Languages

@@ -1,0 +1,19 @@
+[package]
+name = "vox-build-meta"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Build-time metadata generator for feature capability manifest."
+
+[dependencies]
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[build-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

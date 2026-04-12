@@ -273,7 +273,7 @@ impl AgentHarnessSpec {
             state: HarnessState {
                 state_root: "runtime/".to_string(),
                 child_workspace_root: Some("children/".to_string()),
-                task_history_path: Some("state/task_history.jsonl".to_string()),
+                task_history_path: None,
                 artifact_manifest_path: Some("artifacts/manifest.json".to_string()),
                 path_addressable: true,
                 compaction_stable: true,

@@ -4,6 +4,8 @@ description: "Normative target model for single-owner lease semantics, A2A trans
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 017: Populi lease-based authoritative remote execution

@@ -61,8 +61,14 @@ pub fn symbol_error_rate(reference: &str, hypothesis: &str) -> f64 {
         false
     };
 
-    let r: Vec<String> = tokenize_words(reference).into_iter().filter(|s| is_ident(s)).collect();
-    let h: Vec<String> = tokenize_words(hypothesis).into_iter().filter(|s| is_ident(s)).collect();
+    let r: Vec<String> = tokenize_words(reference)
+        .into_iter()
+        .filter(|s| is_ident(s))
+        .collect();
+    let h: Vec<String> = tokenize_words(hypothesis)
+        .into_iter()
+        .filter(|s| is_ident(s))
+        .collect();
 
     if r.is_empty() && h.is_empty() {
         return 0.0;

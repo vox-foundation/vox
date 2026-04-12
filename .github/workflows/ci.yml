@@ -45,27 +45,19 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Codex SSOT documentation guard
-        id: codex_docs_guard
-        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci check-codex-ssot
 
-      - name: Warn if Codex SSOT documentation guard failed
-        if: steps.codex_docs_guard.outcome == 'failure'
-        run: echo "::warning title=Codex docs guard::check-codex-ssot failed; warning only."
-
       - name: Docs migration SSOT guard
-        id: docs_ssot_guard
-        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci check-docs-ssot
 
-      - name: Warn if docs migration SSOT guard failed
-        if: steps.docs_ssot_guard.outcome == 'failure'
-        run: echo "::warning title=Docs SSOT guard::check-docs-ssot failed; warning only."
+      - name: Retired symbol documentation guard
+        run: cargo run -p vox-cli --quiet -- ci retired-symbol-check
+
 
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance
 
-      - name: SSOT drift bundle (operations-verify, sql-surface --all, capability-sync, nested guards)
+      - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
         run: cargo run -p vox-cli --quiet -- ci ssot-drift
 
       - name: Data / telemetry SSOT guards
@@ -169,6 +161,18 @@ jobs:
       - name: TOESTUB (scoped)
         run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
 
+      - name: Architecture / Code Drift Guard (TOESTUB)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1 || true
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^docs/src/architecture/"; then
+            echo "Architecture docs changed. Running full crates TOESTUB..."
+            cargo run -p vox-cli --quiet -- ci toestub-scoped crates --mode legacy
+          else
+            echo "No architecture docs changed. Skipping full strict TOESTUB."
+          fi
+
       - name: Repository SSOT + MCP smoke
         run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
 
@@ -185,6 +189,9 @@ jobs:
 
       - name: vox-cli feature matrix + no vox_orchestrator imports
         run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
+
+      - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
+        run: cargo run -p vox-cli --quiet -- ci grammar-export-check
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
         run: cargo run -p vox-cli --quiet -- ci cuda-features
@@ -360,3 +367,44 @@ jobs:
         env:
           VOX_BROWSER_NO_SANDBOX: "1"
         run: cargo test -p vox-browser -- --ignored --nocapture
+
+  gui-playwright-smoke:
+    name: GUI Playwright golden route (full_stack_minimal)
+    runs-on: [self-hosted, linux, x64, browser]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-gui-playwright-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-gui-playwright-
+            ${{ runner.os }}-cargo-
+
+      - name: Install Playwright deps + Chromium
+        run: |
+          cd crates/vox-integration-tests
+          pnpm install --prefer-offline
+          pnpm exec playwright install chromium
+
+      - name: Golden route (ignored integration test)
+        env:
+          VOX_GUI_PLAYWRIGHT: "1"
+        run: cargo test -p vox-integration-tests --test playwright_golden_route -- --ignored --nocapture

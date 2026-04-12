@@ -61,6 +61,7 @@ repositories:
             query: "alpha".to_string(),
             ..QueryTextParams::default()
         },
+        None,
     )
     .expect("query");
     assert_eq!(response.result_count, 1);

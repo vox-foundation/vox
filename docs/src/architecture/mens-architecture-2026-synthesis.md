@@ -4,6 +4,8 @@ description: "Official documentation for Mens Architecture 2026 Synthesis for th
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Mens Architecture 2026 Synthesis
@@ -60,6 +62,10 @@ As we analyze the trends from late 2025 and 2026 (e.g., the introduction of Qwen
 ### D. Export Pipelines for External Runtimes
 **The Gap:** Mens's `merge-qlora` command outputs raw `.safetensors`, but we cannot serve nested qlora adapters within our own `vox mens serve`. Users are forced to eject the pipeline into an external runtime (Ollama, vLLM).
 **The Fix:** Expand our native Candle execution server or extend Burn's inference loaders to interpret `QloraAdapterMetaV2` and `v3` schemas, creating a seamless "Train-in-Candle, Serve-in-Vox" pipeline for large open-weight models.
+
+### E. Dedicated Research Reasoning Adapter (Lane G)
+**The Gap:** Research synthesis is currently performed by code-generation models, leading to low-quality evidence summaries and poor contradiction resolution.
+**The Fix:** Train Lane G (research-expert) via GRPO+RLVR to specialize in evidence synthesis and multi-hop reasoning.
 
 ## 5. Provenance and attribution as first-class training metadata
 

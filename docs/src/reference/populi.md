@@ -4,6 +4,8 @@ description: "Official documentation for mesh (Populi) runtime, env vars, and HT
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Mesh / Populi SSOT (CPU-first)

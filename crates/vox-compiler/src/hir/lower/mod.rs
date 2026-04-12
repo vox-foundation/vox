@@ -36,20 +36,34 @@ mod lowering_expr;
 #[path = "stmt.rs"]
 mod lowering_stmt;
 
+/// Configuration for HIR lowering.
+#[derive(Debug, Clone, Default)]
+pub struct LowerConfig {
+    /// If true, `@test` declarations will be omitted from the output.
+    pub strip_tests: bool,
+}
+
 /// Lower an AST Module to a HirModule.
 pub fn lower_module(module: &Module) -> HirModule {
-    let mut ctx = LowerCtx::new();
+    lower_module_with_config(module, &LowerConfig::default())
+}
+
+/// Lower an AST Module to a HirModule with explicit configuration.
+pub fn lower_module_with_config(module: &Module, config: &LowerConfig) -> HirModule {
+    let mut ctx = LowerCtx::new(config.clone());
     ctx.lower(module)
 }
 
 struct LowerCtx {
     def_map: DefMap,
+    config: LowerConfig,
 }
 
 impl LowerCtx {
-    fn new() -> Self {
+    fn new(config: LowerConfig) -> Self {
         Self {
             def_map: DefMap::new(),
+            config,
         }
     }
 
@@ -170,7 +184,9 @@ impl LowerCtx {
                     });
                 }
                 Decl::Test(t) => {
-                    hir.tests.push(self.lower_fn(&t.func, false));
+                    if !self.config.strip_tests {
+                        hir.tests.push(self.lower_fn(&t.func, false));
+                    }
                 }
                 Decl::Forall(f) => {
                     let func = self.lower_fn(&f.func, false);
@@ -300,6 +316,11 @@ impl LowerCtx {
                 Decl::Environment(e) => {
                     hir.environments.push(self.lower_environment(e));
                 }
+                Decl::Scheduled(s) => {
+                    let mut lowered = self.lower_fn(&s.func, false);
+                    lowered.schedule_interval = Some(s.interval.clone());
+                    hir.functions.push(lowered);
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }
@@ -352,7 +373,7 @@ fn collect_pattern_binding_names(pat: &Pattern, out: &mut HashSet<String>) {
 #[must_use]
 pub fn lower_classic_component_view(comp: &HirComponent) -> Option<(HirExpr, HashSet<String>)> {
     let func = &comp.0.func;
-    let mut ctx = LowerCtx::new();
+    let mut ctx = LowerCtx::new(LowerConfig::default());
     let mut state_names = HashSet::new();
 
     for p in &func.params {

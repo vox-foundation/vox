@@ -59,7 +59,12 @@ fn validate_document_impl(text: &str, include_hir: bool) -> Vec<Diagnostic> {
             if include_hir {
                 let hir = vox_compiler::hir::lower_module(&module);
                 for e in vox_compiler::hir::validate_module(&hir) {
-                    type_errors.push(TypeckDiagnostic::hir_invariant(e.message, e.span, text, e.correction_hint));
+                    type_errors.push(TypeckDiagnostic::hir_invariant(
+                        e.message,
+                        e.span,
+                        text,
+                        e.correction_hint,
+                    ));
                 }
             }
             diagnostics.extend(
@@ -113,8 +118,9 @@ pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
 }
 
 fn vox_populi_enabled_from_env() -> bool {
-    std::env::var("VOX_MESH_ENABLED")
-        .map(|v| {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshEnabled)
+        .expose()
+        .map(|v: &str| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
         })

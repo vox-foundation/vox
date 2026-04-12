@@ -4,6 +4,8 @@ description: "Old-to-new command mappings for Cargo-first Vox PM, retired instal
 category: "reference"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Package management migration (2026)

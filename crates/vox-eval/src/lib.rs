@@ -190,6 +190,7 @@ fn get_vox_constructs() -> &'static HashMap<&'static str, Regex> {
 }
 
 /// Returns construct names whose regex matches at least once in `code`.
+#[deprecated(since = "0.4.0", note = "Use ast_eval() for parser-backed evaluation")]
 pub fn detect_constructs(code: &str) -> Vec<&'static str> {
     let mut found = Vec::new();
     for (&name, re) in get_vox_constructs() {
@@ -201,10 +202,20 @@ pub fn detect_constructs(code: &str) -> Vec<&'static str> {
 }
 
 /// Maps number of distinct constructs matched to `[0, 1]` with a saturating denominator.
+#[deprecated(
+    since = "0.4.0",
+    note = "Use ast_eval().coverage_score() for parser-backed evaluation"
+)]
 pub fn construct_coverage_score(code: &str) -> f64 {
+    #[allow(deprecated)]
     let found = detect_constructs(code);
     (found.len() as f64 / 5.0).min(1.0)
 }
+
+// Parser-backed AST evaluation moved to `vox_compiler::ast_eval` (P0-008).
+// Use `vox_compiler::ast_eval(code)` or `vox_compiler::AstEvalReport` directly.
+// The `detect_constructs` and `construct_coverage_score` functions above are deprecated
+// in favor of the parser-backed path.
 
 /// Bounded-domain heuristic for docs / examples: `1.0` when no high-risk escape patterns appear.
 ///
@@ -242,6 +253,89 @@ mod scope_tests {
             0.0
         );
     }
+}
+
+// ── Collateral Damage Rate Monitoring (Task 2.4.2) ───────────────────────────
+
+/// Result of evaluating collateral damage on a held-out benchmark.
+#[derive(Debug, Clone)]
+pub struct CollateralDamageReport {
+    /// Name of the benchmark suite.
+    pub benchmark_name: String,
+    /// Score before the training run (0.0–1.0).
+    pub pre_training_score: f64,
+    /// Score after the training run (0.0–1.0).
+    pub post_training_score: f64,
+    /// Absolute degradation (positive = regression).
+    pub degradation: f64,
+    /// Degradation as a fraction of the pre-training score.
+    pub degradation_rate: f64,
+    /// Whether degradation exceeds the configured threshold.
+    pub exceeds_threshold: bool,
+}
+
+/// Configuration for collateral damage evaluation.
+#[derive(Debug, Clone)]
+pub struct CollateralDamageConfig {
+    /// Maximum allowed degradation rate before blocking model promotion (default 0.05 = 5%).
+    pub max_degradation_rate: f64,
+}
+
+impl Default for CollateralDamageConfig {
+    fn default() -> Self {
+        Self {
+            max_degradation_rate: 0.05,
+        }
+    }
+}
+
+/// Evaluate collateral damage by comparing pre/post training scores on a held-out benchmark.
+///
+/// Research (Continual Learning §catastrophic-forgetting) proves that fine-tuning
+/// without held-out evaluation hides regression. This function computes the
+/// degradation rate and recommends blocking promotion if it exceeds the threshold.
+///
+/// `eval_fn` is a caller-supplied closure that evaluates the model against the
+/// benchmark and returns a score in `[0.0, 1.0]`.
+pub fn eval_collateral_damage(
+    benchmark_name: &str,
+    pre_training_score: f64,
+    post_training_score: f64,
+    config: &CollateralDamageConfig,
+) -> CollateralDamageReport {
+    let degradation = (pre_training_score - post_training_score).max(0.0);
+    let degradation_rate = if pre_training_score > f64::EPSILON {
+        degradation / pre_training_score
+    } else {
+        0.0
+    };
+    let exceeds_threshold = degradation_rate > config.max_degradation_rate;
+
+    CollateralDamageReport {
+        benchmark_name: benchmark_name.to_string(),
+        pre_training_score,
+        post_training_score,
+        degradation,
+        degradation_rate,
+        exceeds_threshold,
+    }
+}
+
+/// Evaluate collateral damage across multiple benchmarks.
+/// Returns `Err` with the first benchmark that exceeds the threshold.
+pub fn eval_collateral_damage_suite(
+    scores: &[(&str, f64, f64)], // (name, pre, post)
+    config: &CollateralDamageConfig,
+) -> Result<Vec<CollateralDamageReport>, CollateralDamageReport> {
+    let mut reports = Vec::with_capacity(scores.len());
+    for &(name, pre, post) in scores {
+        let report = eval_collateral_damage(name, pre, post, config);
+        if report.exceeds_threshold {
+            return Err(report);
+        }
+        reports.push(report);
+    }
+    Ok(reports)
 }
 
 /// Compilation-driven feedback for Rust code.
@@ -325,5 +419,59 @@ edition = "2021"
     match output {
         Ok(out) if out.status.success() => 1.0,
         _ => 0.0,
+    }
+}
+
+#[cfg(test)]
+mod collateral_damage_tests {
+    use super::*;
+
+    #[test]
+    fn no_degradation_passes() {
+        let r = eval_collateral_damage("mmlu", 0.80, 0.80, &CollateralDamageConfig::default());
+        assert!(!r.exceeds_threshold);
+        assert!((r.degradation - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn small_degradation_passes() {
+        let r = eval_collateral_damage("mmlu", 0.80, 0.77, &CollateralDamageConfig::default());
+        assert!(!r.exceeds_threshold);
+        assert!(r.degradation_rate < 0.05);
+    }
+
+    #[test]
+    fn large_degradation_fails() {
+        let r = eval_collateral_damage("gsm8k", 0.80, 0.70, &CollateralDamageConfig::default());
+        assert!(r.exceeds_threshold);
+        assert!(r.degradation_rate > 0.05);
+    }
+
+    #[test]
+    fn improvement_never_fails() {
+        let r = eval_collateral_damage("mmlu", 0.70, 0.85, &CollateralDamageConfig::default());
+        assert!(!r.exceeds_threshold);
+        assert!((r.degradation - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn suite_returns_err_on_first_failure() {
+        let scores = &[
+            ("mmlu", 0.80, 0.78),  // ok: 2.5%
+            ("gsm8k", 0.80, 0.70), // fail: 12.5%
+            ("arc", 0.90, 0.88),   // ok: 2.2%
+        ];
+        let result = eval_collateral_damage_suite(scores, &CollateralDamageConfig::default());
+        assert!(result.is_err());
+        let failing = result.unwrap_err();
+        assert_eq!(failing.benchmark_name, "gsm8k");
+    }
+
+    #[test]
+    fn suite_passes_when_all_ok() {
+        let scores = &[("mmlu", 0.80, 0.78), ("arc", 0.90, 0.88)];
+        let result = eval_collateral_damage_suite(scores, &CollateralDamageConfig::default());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 2);
     }
 }

@@ -4,6 +4,8 @@ description: "Research-backed architecture blueprint for evolving TOESTUB into a
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## TOESTUB self-healing architecture 2026

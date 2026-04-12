@@ -232,6 +232,15 @@ pub enum Cmd {
         #[arg(long)]
         output: PathBuf,
     },
+    /// Filter train.jsonl offline using the Curator API.
+    CuratorGate {
+        /// Input train.jsonl file path.
+        #[arg(long, default_value = "target/dogfood/train.jsonl")]
+        data_file: PathBuf,
+        /// Optional output file path (defaults to overwriting input).
+        #[arg(long)]
+        out_file: Option<PathBuf>,
+    },
 }
 
 impl Cmd {
@@ -302,5 +311,9 @@ pub async fn run() -> Result<()> {
         Cmd::Probe => crate::probe::run(),
         Cmd::Status { run_dir } => crate::status::run(run_dir),
         cmd @ Cmd::Merge { .. } => crate::merge::run(Args { cmd, verbose, json }),
+        Cmd::CuratorGate {
+            data_file,
+            out_file,
+        } => crate::curator::run_gate(data_file, out_file).await,
     }
 }

@@ -127,6 +127,8 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
+        /// Optional audit report (from Doubt resolution).
+        audit_report: Option<String>,
     },
     /// A task failed.
     TaskFailed {
@@ -135,6 +137,8 @@ pub enum AgentEventKind {
         error: String,
         /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
+        /// Optional audit report (from Doubt resolution).
+        audit_report: Option<String>,
     },
 
     /// A task was delegated (handed off) from one agent to another.
@@ -143,6 +147,26 @@ pub enum AgentEventKind {
         child_agent_id: AgentId,
         task_id: TaskId,
         reason: String,
+    },
+    /// A task was flagged as suspect by a human user.
+    TaskDoubted {
+        task_id: TaskId,
+        agent_id: AgentId,
+        reason: Option<String>,
+    },
+    /// A suspect task was resolved by the Resolution Agent.
+    TaskResolved {
+        task_id: TaskId,
+        agent_id: AgentId,
+        validated: bool,
+        report: String,
+    },
+
+    /// A tool execution timed out autonomously.
+    ToolTimedOut {
+        agent_id: AgentId,
+        tool_key: String,
+        attempted_budget_ms: u64,
     },
 
     /// A file lock was acquired.
@@ -434,6 +458,11 @@ pub enum AgentEventKind {
         spent_ms: u64,
         max_ms: u64,
     },
+    /// A general budget alert for tokens/cost self-correction
+    BudgetAlert {
+        agent_id: AgentId,
+        signal: crate::budget::BudgetSignal,
+    },
     /// Attention budget was explicitly reset
     AttentionBudgetReset {
         agent_id: AgentId,
@@ -448,20 +477,55 @@ pub enum AgentEventKind {
     },
     /// Attention policy configuration was hot-reloaded
     AttentionConfigReloaded,
-    
+
     /// Warning emitted when context bytes are dropped due to limits
     ContextTruncated {
         session_id: String,
         section: String,
         chars_dropped: usize,
     },
-    
+
     /// LLM request completed inside planning or context phases
     LlmCallCompleted {
         session_id: String,
         duration_ms: u64,
         prompt_tokens: u32,
         completion_tokens: u32,
+    },
+    /// Observer recorded a structural health report for a file (Task 56).
+    ObservationRecorded {
+        agent_id: AgentId,
+        task_id: TaskId,
+        file_path: std::path::PathBuf,
+        lsp_error_count: usize,
+        parse_rate: f32,
+        construct_coverage: f32,
+        recommended_action: String,
+    },
+    /// The Orient phase completed its risk analysis.
+    OrientCompleted {
+        agent_id: AgentId,
+        task_id: TaskId,
+        risk_band: String,
+        evidence_gap: f64,
+    },
+    /// Autonomous research was performed (Tavily).
+    ResearchExecuted {
+        agent_id: Option<AgentId>,
+        task_id: Option<TaskId>,
+        queries: Vec<String>,
+        results_count: usize,
+    },
+    /// Lane G synthesized research evidence.
+    ResearchSynthesisExecuted {
+        agent_id: Option<AgentId>,
+        task_id: Option<TaskId>,
+        model_id: String,
+        provider: String,
+        input_tokens: u32,
+        output_tokens: u32,
+        cost_usd: f64,
+        content_preview: String,
     },
 }
 

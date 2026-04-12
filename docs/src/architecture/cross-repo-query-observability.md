@@ -6,6 +6,8 @@ status: "current"
 sort_order: 0
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Cross-repo querying and observability
@@ -233,3 +235,5 @@ The trust layer already recognizes `repository` as an entity type. Cross-repo qu
 - [Protocol convergence research 2026](protocol-convergence-research-2026.md)
 - [Trust Reliability Layer (SSOT)](trust-reliability-layer.md)
 - [Telemetry and research_metrics contract](../reference/telemetry-metric-contract.md)
+- [Multi-repo context isolation: research findings 2026](multi-repo-context-isolation-research-2026.md) — security model, scope guard, `.voxignore` SSOT, IDE isolation, and agent instruction file hierarchy
+

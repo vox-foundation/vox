@@ -4,6 +4,8 @@ description: "Architectural strategy for supporting the React ecosystem (includi
 category: "architecture"
 last_updated: 2026-04-07
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Minimal React Interop Shell Strategy
@@ -34,6 +36,7 @@ Instead of Vox generating `__root.tsx`, `routes.ts`, and full TanStack configura
 ### A. The Presentation Layer (Vox Path C → Pure React)
 When a user writes a Path C component:
 ```vox
+// vox:skip
 component Sidebar() {
   view: <div class="sidebar">...</div>
 }

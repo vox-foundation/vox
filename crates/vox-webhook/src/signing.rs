@@ -192,20 +192,20 @@ mod tests {
         let signing_key = "my-webhook-secret";
         let payload = b"hello world";
         let sig = sign_payload(signing_key, payload);
-        assert!(verify_payload(signing_key, payload, &sig.to_string()).is_ok());
+        assert!(verify_payload(signing_key, payload, &sig.to_string(), &None, "custom").is_ok());
     }
 
     #[test]
     fn wrong_secret_fails_verification() {
         let sig = sign_payload("correct-secret", b"data");
-        let result = verify_payload("wrong-secret", b"data", &sig.to_string());
+        let result = verify_payload("wrong-secret", b"data", &sig.to_string(), &None, "custom");
         assert!(result.is_err());
     }
 
     #[test]
     fn tampered_payload_fails_verification() {
         let sig = sign_payload("secret", b"original");
-        let result = verify_payload("secret", b"tampered", &sig.to_string());
+        let result = verify_payload("secret", b"tampered", &sig.to_string(), &None, "custom");
         assert!(result.is_err());
     }
 

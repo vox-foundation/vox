@@ -9,11 +9,11 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 
 use super::{
-    benchmark_tools, browser_tools, chat_tools, codex_tools, compiler_tools, db_tools, git_tools,
-    introspection_tools, news_tools, openclaw_tools, oratio_tools, persistence_tools, populi_tools,
-    project_init_tools, questioning_tools, repo_catalog_tools, repo_index, scientia_tools,
-    speech_pipeline_tools, task_tools, toestub_tools, tool_aliases, training_tools, trust_tools,
-    vcs_tools,
+    benchmark_tools, browser_tools, chat_tools, code_validator, codex_tools, compiler_tools,
+    db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, news_tools,
+    openclaw_tools, oratio_tools, persistence_tools, populi_tools, project_init_tools,
+    questioning_tools, repo_catalog_tools, repo_index, scientia_tools, speech_pipeline_tools,
+    task_tools, toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, clavis_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
@@ -42,7 +42,59 @@ pub async fn handle_tool_call(
                 .map(ToString::to_string)
         });
 
-    let result = handle_tool_call_inner(state, name_canonical, args.clone()).await;
+    // Check Budget limits for explicit Tool interception (Agent Self-Correction)
+    let b_signal = {
+        let aid = agent_id.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+        let bm = state.orchestrator.budget_manager_handle();
+        vox_orchestrator::sync_lock::rw_read(&*bm)
+            .agent_budget_signal(vox_orchestrator::types::AgentId(aid))
+    };
+
+    if matches!(
+        b_signal,
+        vox_orchestrator::budget::BudgetSignal::CostExceeded { .. }
+            | vox_orchestrator::budget::BudgetSignal::Critical { .. }
+    ) {
+        return Ok(crate::params::ToolResult::<()>::err("SYSTEM_INTERVENTION: You have exceeded your global task budget. Proceed to finalize and abort immediately.").to_json_compact());
+    }
+
+    // Unenforced LLM "Laziness" Ingestion Gate
+    if matches!(
+        name_canonical,
+        "vox_write_file"
+            | "vox_patch_file"
+            | "vox_inline_edit_file"
+            | "vox_multi_replace"
+            | "vox_multi_replace_file"
+    ) {
+        let args_str = args.to_string();
+        if args_str.contains("todo!()")
+            || args_str.contains("unimplemented!()")
+            || args_str.contains("// TODO")
+        {
+            return Ok(crate::params::ToolResult::<()>::err("LAZY_GENERATION_DETECTED: The system intercepted a TOESTUB pattern (e.g. todo!(), unimplemented!(), or // TODO) in your code output. You must emit the complete, fully-implemented code. Re-run your action with the actual logic.").to_json_compact());
+        }
+    }
+
+    if let Some(rejection) =
+        crate::tools::scope_guard::check_scope(state, name_canonical, agent_id, &args)
+    {
+        return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
+    }
+
+    let db_opt = state.db.as_ref().map(|db| (**db).clone());
+    let te = vox_db::TimedExecution::new(
+        format!("mcp:{}", name_canonical),
+        &state.repository.repository_id,
+        None,
+        db_opt,
+    )
+    .with_costs(None, None, None);
+
+    let result = te
+        .run(|| async { handle_tool_call_inner(state, name_canonical, args.clone()).await })
+        .await;
+
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
     if let Some(ref tid) = trace_for_telemetry {
@@ -101,7 +153,6 @@ pub async fn handle_tool_call(
 
     result
 }
-
 async fn handle_tool_call_inner(
     state: &ServerState,
     name: &str,
@@ -113,6 +164,9 @@ async fn handle_tool_call_inner(
         }
         "vox_task_status" => {
             Ok(task_tools::task_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_test_decision" => {
+            Ok(task_tools::test_decision(state, serde_json::from_value(args)?).await)
         }
         "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
         "vox_orchestrator_persistence_outbox_lifecycle" => {
@@ -138,6 +192,7 @@ async fn handle_tool_call_inner(
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
+        "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
         "vox_check_file_owner" => Ok(crate::dei_tools::check_file_owner(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
@@ -145,8 +200,45 @@ async fn handle_tool_call_inner(
         .await),
 
         "vox_validate_file" => {
-            Ok(compiler_tools::validate_file(state, serde_json::from_value(args)?).await)
+            let path_opt = args.get("path").and_then(|v| v.as_str());
+            let s_id = args
+                .get("session_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let t_id = args
+                .get("task_id")
+                .and_then(|v| v.as_str())
+                .or_else(|| args.get("agent_id").and_then(|v| v.as_str()))
+                .unwrap_or(s_id);
+
+            // Intercept path and run observer
+            if let Some(p) = path_opt {
+                let resolved =
+                    crate::tools::workspace_path::resolve_existing_path_in_repository(state, p)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(p));
+                let report = if resolved.extension().and_then(|s| s.to_str()) == Some("rs")
+                    || resolved.extension().and_then(|s| s.to_str()) == Some("vox")
+                {
+                    state.observer.observe_rust_file(s_id, t_id, &resolved)
+                } else {
+                    state.observer.observe_file(s_id, t_id, &resolved)
+                };
+                state.orchestrator.event_bus().emit(
+                    vox_orchestrator::AgentEventKind::ObservationRecorded {
+                        agent_id: vox_orchestrator::types::AgentId(t_id.parse().unwrap_or(0)),
+                        task_id: vox_orchestrator::types::TaskId(t_id.parse().unwrap_or(0)),
+                        file_path: resolved.clone(),
+                        lsp_error_count: report.lsp_error_count,
+                        parse_rate: report.parse_rate,
+                        construct_coverage: report.construct_coverage,
+                        recommended_action: format!("{:?}", report.recommended_action),
+                    },
+                );
+            }
+
+            Ok(code_validator::validate_file(state, serde_json::from_value(args)?).await)
         }
+        "vox_check" => Ok(code_validator::vox_check(state, serde_json::from_value(args)?).await),
         "vox_run_tests" => {
             Ok(compiler_tools::run_tests(state, serde_json::from_value(args)?).await)
         }
@@ -227,6 +319,7 @@ async fn handle_tool_call_inner(
             .await?
             .to_string()),
         "vox_a2a_tasks" => Ok(introspection_tools::a2a_tasks(state).await?.to_string()),
+        "vox_export_grammar_ebnf" => Ok(grammar_tools::export_grammar_ebnf(state).await),
 
         "vox_snapshot_list" => Ok(vcs_tools::snapshot_list(state, args).await),
         "vox_snapshot_diff" => Ok(vcs_tools::snapshot_diff(state, args).await),
@@ -248,8 +341,10 @@ async fn handle_tool_call_inner(
         "vox_db_relationships" => Ok(db_tools::vox_db_relationships(args)),
         "vox_db_data_flow" => Ok(db_tools::vox_db_data_flow(args)),
         "vox_db_sample_data" => Ok(db_tools::vox_db_sample_data(state, args).await),
+        "vox_journey_canonical_steps" => Ok(db_tools::vox_journey_canonical_steps(state, args).await),
         "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(state, args).await),
         "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(state, args).await),
+        "vox_clavis_doctor" => Ok(clavis_tools::clavis_doctor(state, args).await),
 
         "vox_db_research_session_upsert" => {
             Ok(codex_tools::codex_research_session_upsert(state, args).await)
@@ -302,6 +397,10 @@ async fn handle_tool_call_inner(
         )
         .await),
 
+        // Execution Budget
+        "vox_exec_time_query" => Ok(exec_time_tools::exec_time_query(state, args).await),
+        "vox_exec_time_record" => Ok(exec_time_tools::exec_time_record(state, args).await),
+
         // ── Chat & Inline AI ──────────────────────────────────────────────
         "vox_chat_message" => {
             Ok(chat_tools::chat_message(state, serde_json::from_value(args)?).await)
@@ -330,6 +429,12 @@ async fn handle_tool_call_inner(
         "vox_replan" => Ok(chat_tools::plan_replan(state, serde_json::from_value(args)?).await),
         "vox_plan_status" => {
             Ok(chat_tools::plan_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_plan_list_sessions" => {
+            Ok(chat_tools::plan_list_sessions(state, serde_json::from_value(args)?).await)
+        }
+        "vox_plan_resume" => {
+            Ok(chat_tools::plan_resume(state, serde_json::from_value(args)?).await)
         }
 
         "vox_schola_submit" => {
@@ -686,15 +791,41 @@ async fn handle_tool_call_inner(
             Ok(crate::dei_tools::attention_summary(state, serde_json::from_value(args)?).await)
         }
         "vox_attention_history" => {
-            Ok(crate::params::ToolResult::ok("Budget History".to_string()).to_json())
+            let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
+            let bm = state.orchestrator.budget_manager_handle();
+            let events =
+                vox_orchestrator::sync_lock::rw_read(&*bm).attention_events_snapshot(limit);
+            Ok(crate::params::ToolResult::ok(serde_json::to_value(&events)?).to_json())
         }
         "vox_attention_reset" => {
-            // TODO: implement budget reset proper
-            Ok(crate::params::ToolResult::ok("Budget Reset".to_string()).to_json())
+            let bm = state.orchestrator.budget_manager_handle();
+            vox_orchestrator::sync_lock::rw_read(&*bm).reset_attention();
+            // T-001: Also reset MCP-level Socrates attention tracking
+            state.reset_all_questioning_attention();
+            Ok(crate::params::ToolResult::ok(serde_json::json!({
+                "reset": true,
+                "message": "Attention budget spend and Socrates focus zeroed process-wide."
+            }))
+            .to_json())
         }
         "vox_trust_override" => {
-            // TODO: implement trust override proper
-            Ok(crate::params::ToolResult::ok("Trust Override".to_string()).to_json())
+            let agent_id = args
+                .get("agent_id")
+                .and_then(|v| v.as_u64())
+                .map(|id| vox_orchestrator::types::AgentId(id as _))
+                .unwrap_or(vox_orchestrator::types::AgentId(0));
+            let trust_score = args
+                .get("trust_score")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(1.0);
+            let bm = state.orchestrator.budget_manager_handle();
+            vox_orchestrator::sync_lock::rw_read(&*bm).force_trust_score(agent_id, trust_score);
+            Ok(crate::params::ToolResult::ok(serde_json::json!({
+                "agent_id": agent_id.0,
+                "trust_score": trust_score,
+                "message": "Trust score overridden."
+            }))
+            .to_json())
         }
         "vox_handoff_lineage" => {
             Ok(crate::dei_tools::handoff_lineage(state, serde_json::from_value(args)?).await)
@@ -712,9 +843,9 @@ async fn handle_tool_call_inner(
             Ok(crate::dei_tools::cost_history(state, serde_json::from_value(args)?).await)
         }
         "vox_file_graph" => Ok(crate::dei_tools::file_graph(state).await),
-        "vox_config_get" | "vox_get_config" => Ok(crate::dei_tools::config_get(state).await),
-        "vox_config_set" | "vox_set_config" => Ok(crate::dei_tools::config_set(state, args).await),
-        "vox_map_agent_session" | "vox_map_opencode_session" | "vox_map_vscode_session" => {
+        "vox_config_get" => Ok(crate::dei_tools::config_get(state).await),
+        "vox_config_set" => Ok(crate::dei_tools::config_set(state, args).await),
+        "vox_map_agent_session" => {
             Ok(crate::dei_tools::map_agent_session(state, serde_json::from_value(args)?).await)
         }
         "vox_poll_events" => {
@@ -832,7 +963,6 @@ async fn handle_tool_call_inner(
         "vox_toestub_findings_upsert" => {
             Ok(toestub_tools::toestub_findings_upsert(state, serde_json::from_value(args)?).await)
         }
-
         _ => {
             // Check skill macro tools
             let skills = state.skill_registry.list(None);

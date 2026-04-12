@@ -287,6 +287,7 @@ mod tests {
             declared_non_placeholder: true,
             force_risky: false,
             force_risky_reason: None,
+            ..Default::default()
         };
         let r = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att));
         assert!(r.is_allowed());
@@ -307,6 +308,7 @@ mod tests {
             declared_non_placeholder: true,
             force_risky: false,
             force_risky_reason: None,
+            ..Default::default()
         };
         let r1 = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att_missing));
         assert!(!r1.is_allowed());
@@ -319,6 +321,7 @@ mod tests {
             declared_non_placeholder: true,
             force_risky: false,
             force_risky_reason: None,
+            ..Default::default()
         };
         let r2 = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att_present));
         assert!(r2.is_allowed());

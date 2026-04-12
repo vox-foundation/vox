@@ -410,7 +410,7 @@ async fn evaluate_task(
             .all(|needle| raw_best.contains(needle));
     let placeholder_hits = placeholder_marker_hits(&raw_best);
     let trivial_placeholder_output = is_trivial_placeholder_output(&raw_best);
-    let construct_richness_score = vox_compiler::eval::construct_coverage_score(&raw_best);
+    let construct_richness_score = vox_compiler::ast_eval(&raw_best).coverage_score();
     let anti_stub_pass = placeholder_hits == 0
         && !trivial_placeholder_output
         && construct_richness_score >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS;

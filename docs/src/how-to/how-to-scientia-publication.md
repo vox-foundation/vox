@@ -4,6 +4,8 @@ description: "Prepare, approve, and submit scientific findings from Vox Scientia
 category: "how-to"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # How-To: Publish Scientia findings

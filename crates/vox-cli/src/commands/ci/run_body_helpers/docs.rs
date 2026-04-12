@@ -71,6 +71,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
 
     let listed = parse_workspace_crate_block(&inv_text);
     let crates_dir = root.join("crates");
+    let mut actual_crates = std::collections::HashSet::new();
     for entry in
         fs::read_dir(&crates_dir).with_context(|| format!("read {}", crates_dir.display()))?
     {
@@ -83,11 +84,119 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
             continue;
         }
         let name = read_package_name(&toml)?;
+        actual_crates.insert(name.clone());
         if !listed.contains(&name) {
             return Err(anyhow!(
                 "orphan inventory workspace crate list missing: {name} (from {})",
                 toml.display()
             ));
+        }
+    }
+
+    for listed_crate in &listed {
+        if !actual_crates.contains(listed_crate) {
+            return Err(anyhow!(
+                "orphan inventory workspace crate list contains stale entry: {listed_crate} is not found in crates/*/Cargo.toml"
+            ));
+        }
+    }
+
+    let api_dir = root.join("docs/src/api");
+    if api_dir.is_dir() {
+        for entry in fs::read_dir(&api_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().map_or(false, |e| e == "md") {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    // Check if the filename looks like a crate name or matches an existing crate
+                    if stem.starts_with("vox-") || actual_crates.contains(stem) {
+                        let md = read_utf8_path_capped(&path)?;
+                        let is_deprecated = md.contains("status: deprecated");
+                        let is_live = actual_crates.contains(stem);
+
+                        // Treat special aliases/clusters cautiously, but if it doesn't exist and isn't deprecated, error in DOC-036
+                        // Using a simple heuristic: if it looks like a crate and isn't live, expect deprecation.
+                        // Wait, some files might just be `vox-mcp.md` (live). Some might be `vox-gamify.md` (deprecated).
+                        // There may be exception files like `vox-sandbox.md`. Let's just strictly enforce.
+                        if !is_live && !is_deprecated {
+                            // Let's verify whether the title or content specifically claims to represent a crate by checking if stem matches actual crates
+                            // actually `!is_live` implies it's NOT an actual crate. So it's a phantom crate page!
+                            // Exempting DOC_GAPS.md explicitly.
+                            if stem != "DOC_GAPS" {
+                                return Err(anyhow!(
+                                    "zombie API stub {}: crate {} is not a live workspace member and status is not deprecated",
+                                    path.display(),
+                                    stem
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let arch_idx_path = root.join("docs/src/architecture/architecture-index.md");
+    if arch_idx_path.is_file() {
+        let arch_idx_text = read_utf8_path_capped(&arch_idx_path)?;
+        let arch_dir = root.join("docs/src/architecture");
+        for entry in fs::read_dir(&arch_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().map_or(false, |e| e == "md") {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    if stem == "architecture-index" {
+                        continue;
+                    }
+                    let md = read_utf8_path_capped(&path)?;
+                    if md.contains("\nstatus: current") || md.contains("\nstatus: \"current\"") {
+                        if !arch_idx_text.contains(stem) {
+                            return Err(anyhow!(
+                                "unlinked authority page: {} has 'status: current' but is not mentioned in {}",
+                                path.display(),
+                                arch_idx_path.display()
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut src_files = Vec::new();
+    let src_dir = root.join("docs/src");
+    if src_dir.is_dir() {
+        collect_text_files_under(&src_dir, &mut src_files)?;
+        let now = chrono::Utc::now().naive_utc();
+
+        for p in src_files {
+            if p.extension().map_or(false, |e| e == "md") {
+                if let Ok(md) = read_utf8_path_capped(&p) {
+                    if md.contains("\ntraining_eligible: true")
+                        || md.contains("\ntraining_eligible: \"true\"")
+                    {
+                        if let Some(pos) = md.find("\nlast_updated: ") {
+                            let start = pos + 15;
+                            let end = start + 10;
+                            if end <= md.len() {
+                                let date_str = &md[start..end];
+                                if let Ok(dt) =
+                                    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                                {
+                                    if now.date().signed_duration_since(dt).num_days() > 90 {
+                                        let rel = p.strip_prefix(root).unwrap_or(&p);
+                                        println!(
+                                            "::warning file={},line=1::Stale training_eligible page: last_updated {} is over 90 days ago.",
+                                            rel.display(),
+                                            date_str
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -303,6 +412,8 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     check_codex_ssot(root)?;
     // Full-workspace scan; transitional allowlist in docs/agents/sql-connection-api-allowlist.txt
     run_sql_surface_guard(root, true)?;
+    super::guards::run_query_all_guard(root, true)?;
+    super::guards::run_turso_import_guard(root, true)?;
     crate::commands::ci::nomenclature_guard::run(root, false)?;
     crate::commands::ci::operations_catalog::verify(root)?;
     command_compliance::run(root)?;

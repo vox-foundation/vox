@@ -13,6 +13,8 @@ domains:
       - docs/src/reference/mens-train-defaults.generated.md
     aliases:
       - docs/src/architecture/mens-training-ssot.md
+      - docs/src/architecture/vox-source-to-mens-pipeline-ssot.md
+      - docs/src/architecture/populi-data-pipeline.md
     owning_crate_globs:
       - crates/vox-populi/src/mens/**/*.rs
       - crates/vox-cli/src/commands/mens/**/*.rs
@@ -101,3 +103,26 @@ domains:
     owning_crate_globs:
       - crates/vox-orchestrator/src/**/*.rs
       - crates/vox-cli/src/commands/ci/**/*.rs
+
+  - id: vox-ir
+    title: Vox Intermediate Representation
+    tier: B-canon
+    status: current
+    spec_paths:
+      - docs/src/reference/vox-ir.schema.json
+    canon_doc: docs/src/reference/vox-ir-specification.md
+    aliases:
+      - docs/src/architecture/compiler-ir-pipeline.md
+    owning_crate_globs:
+      - crates/vox-compiler/**
+
+  - id: hitl-doubt
+    title: HITL Doubt Flow and Resolution
+    tier: B-canon
+    status: current
+    spec_paths: []
+    canon_doc: docs/src/architecture/hitl-doubt-loop-ssot.md
+    aliases:
+      - docs/src/reference/hitl-and-doubt.md
+    owning_crate_globs:
+      - crates/vox-dei/**

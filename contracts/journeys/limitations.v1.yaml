@@ -1,0 +1,47 @@
+version: 1
+limitations:
+  - id: L-001
+    title: "Journey docs may oversell partial @mcp surfaces"
+    category: docs
+    severity: warn
+    mitigation_wave: "wave_2"
+  - id: L-005
+    title: "Default vox-cli build lacks gpu train/serve paths"
+    category: mens
+    severity: info
+    mitigation_wave: "wave_2"
+  - id: L-010
+    title: "CLI plan scope_files historically dropped (now forwarded)"
+    category: planning
+    severity: info
+    mitigation_wave: "wave_2"
+  - id: L-015
+    title: "DeI ai.* must be implemented on vox-orchestrator-d stdio"
+    category: rpc
+    severity: blocker
+    mitigation_wave: "wave_0"
+  - id: L-016
+    title: "research_model_enabled config exists; Lane G endpoint still product work"
+    category: research
+    severity: warn
+    mitigation_wave: "wave_3"
+  - id: L-021
+    title: "Workspace vs canonical Codex split-brain risk"
+    category: persistence
+    severity: warn
+    mitigation_wave: "wave_1"
+  - id: L-022
+    title: "routing_decisions stores coarse metadata only"
+    category: telemetry
+    severity: info
+    mitigation_wave: "wave_4"
+  - id: L-023
+    title: "MCP tool registry parity maintenance cost"
+    category: ide
+    severity: info
+    mitigation_wave: "wave_4"
+  - id: L-028
+    title: "Completion policy spans multiple CI commands"
+    category: ci
+    severity: info
+    mitigation_wave: "wave_4"

@@ -4,6 +4,8 @@ description: "How-to index of example-oriented pages and pointers into golden ex
 category: "how-to"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "HowTo"
 ---
 
 # Examples

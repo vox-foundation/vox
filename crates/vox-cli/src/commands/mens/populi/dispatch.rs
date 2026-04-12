@@ -252,6 +252,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             .await
         }
 
+        #[cfg(not(feature = "gpu"))]
+        PopuliAction::TrainStub { .. }
+        | PopuliAction::DogfoodStub { .. }
+        | PopuliAction::ServeStub { .. } => {
+            vox_build_meta::require("gpu", "cargo build -p vox-cli --features gpu")
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            unreachable!()
+        }
+
         #[cfg(feature = "gpu")]
         PopuliAction::Serve {
             model,

@@ -722,8 +722,8 @@ impl AgentFleet {
 /// Disable with **`VOX_MCP_AGENT_FLEET`**=`0`, `false`, `no`, or `off`.
 #[must_use]
 pub fn agent_fleet_env_enabled() -> bool {
-    match std::env::var("VOX_MCP_AGENT_FLEET") {
-        Ok(v) => {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpAgentFleet).expose() {
+        Some(v) => {
             let v = v.trim();
             if v.is_empty() {
                 return true;
@@ -733,7 +733,7 @@ pub fn agent_fleet_env_enabled() -> bool {
                 || v.eq_ignore_ascii_case("no")
                 || v.eq_ignore_ascii_case("off"))
         }
-        Err(_) => true,
+        None => true,
     }
 }
 

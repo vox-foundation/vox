@@ -124,6 +124,7 @@ pub async fn vox_scientia_publication_novelty_fetch(
                 body_markdown: &manifest.body_markdown,
                 citations_json: manifest.citations_json.as_deref(),
                 metadata_json: manifest.metadata_json.as_deref(),
+                revision_history_json: None,
                 content_sha3_256: &digest,
                 state: row.state.as_str(),
             })
@@ -306,16 +307,25 @@ pub async fn vox_scientia_publication_decision_explain(
         manifest.metadata_json.as_deref(),
     )
     .unwrap_or_default();
+    let novelty_bundle = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        manifest.metadata_json.as_deref(),
+    );
+    let overlap_for_rank = novelty_bundle.as_ref().map(|b| {
+        vox_publisher::scientia_finding_ledger::novelty_overlap_blend_01(b, &scientia_h) as f32
+    });
     let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         pid,
         manifest.source_ref.as_deref(),
         &evidence,
         &scientia_h,
+        overlap_for_rank,
     );
-    if let Some(b) = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
-        manifest.metadata_json.as_deref(),
-    ) {
-        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, &b);
+    if let Some(ref b) = novelty_bundle {
+        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(
+            &mut rank,
+            b,
+            &scientia_h,
+        );
     }
     let impact_readership_projection =
         vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
@@ -454,13 +464,21 @@ pub async fn vox_scientia_publication_novelty_happy_path(
     } else {
         evidence.discovery_signals.clone()
     };
+    let overlap_for_rank =
+        vox_publisher::scientia_finding_ledger::novelty_overlap_blend_01(&bundle, &scientia_h)
+            as f32;
     let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
         pid,
         manifest.source_ref.as_deref(),
         &evidence,
         &scientia_h,
+        Some(overlap_for_rank),
     );
-    vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(&mut rank, &bundle);
+    vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(
+        &mut rank,
+        &bundle,
+        &scientia_h,
+    );
     let now = vox_publisher::scientia_prior_art::now_unix_ms_strict();
     let mut candidate = vox_publisher::scientia_finding_ledger::build_finding_candidate(
         Some(pid),

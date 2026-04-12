@@ -13,20 +13,25 @@ use crate::scholarly_remote_status::{
     ScholarlyRemoteStatusMap, map_scholarly_remote_to_job_status,
 };
 
-/// `VOX_SCHOLARLY_ADAPTER` (default `local_ledger`), or non-empty `adapter_override` (trimmed, ASCII lowercased).
+/// Resolve [`VOX_SCHOLARLY_ADAPTER`] or explicit override.
 pub fn resolve_scholarly_adapter_kind(adapter_override: Option<&str>) -> String {
-    if let Some(s) = adapter_override {
-        let t = s.trim();
-        if !t.is_empty() {
-            return t.to_ascii_lowercase();
+    let k = if let Some(s) = adapter_override {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "zenodo" => vox_config::scholarly::ScholarlyAdapterKind::Zenodo,
+            "openreview" => vox_config::scholarly::ScholarlyAdapterKind::OpenReview,
+            "echo_ledger" | "echo" => vox_config::scholarly::ScholarlyAdapterKind::EchoLedger,
+            "arxiv_assist" | "arxiv" => vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist,
+            _ => vox_config::scholarly::ScholarlyAdapterKind::LocalLedger,
         }
-    }
-    let raw = std::env::var("VOX_SCHOLARLY_ADAPTER").unwrap_or_default();
-    let k = raw.trim();
-    if k.is_empty() {
-        "local_ledger".to_string()
     } else {
-        k.to_ascii_lowercase()
+        vox_config::scholarly::scholarly_adapter_from_env()
+    };
+    match k {
+        vox_config::scholarly::ScholarlyAdapterKind::Zenodo => "zenodo".to_string(),
+        vox_config::scholarly::ScholarlyAdapterKind::OpenReview => "openreview".to_string(),
+        vox_config::scholarly::ScholarlyAdapterKind::EchoLedger => "echo_ledger".to_string(),
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => "arxiv_assist".to_string(),
+        vox_config::scholarly::ScholarlyAdapterKind::LocalLedger => "local_ledger".to_string(),
     }
 }
 
@@ -384,9 +389,8 @@ pub async fn run_external_submit_jobs_tick_loop(
     }))
 }
 
-/// Default lock owner: `VOX_SCHOLARLY_JOB_LOCK_OWNER` or `vox:<pid>`.
 pub fn default_scholarly_job_lock_owner() -> String {
-    if let Ok(s) = std::env::var("VOX_SCHOLARLY_JOB_LOCK_OWNER") {
+    if let Some(s) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyJobLockOwner).expose() {
         let t = s.trim();
         if !t.is_empty() {
             return t.to_string();
@@ -615,6 +619,7 @@ fn scholarly_job_preflight_profile_label(adapter: &str) -> &'static str {
         crate::publication_preflight::PreflightProfile::DoubleBlind => "double_blind",
         crate::publication_preflight::PreflightProfile::MetadataComplete => "metadata_complete",
         crate::publication_preflight::PreflightProfile::ArxivAssist => "arxiv_assist",
+        crate::publication_preflight::PreflightProfile::NewsInbound => "news_inbound",
     }
 }
 

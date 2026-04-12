@@ -16,7 +16,7 @@ pub async fn record_local_registry_publish_opt(registry_path: &Path, node_id: Op
 }
 
 fn discovery_start() -> PathBuf {
-    if let Ok(p) = std::env::var("VOX_REPOSITORY_ROOT") {
+    if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose() {
         let p = p.trim();
         if !p.is_empty() {
             return PathBuf::from(p);

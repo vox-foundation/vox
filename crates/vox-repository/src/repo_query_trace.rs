@@ -12,8 +12,9 @@ pub fn repo_query_text_with_plane(
     workspace_root: &Path,
     params: &QueryTextParams,
     source_plane: &str,
+    cached_catalog: Option<&crate::ResolvedRepoCatalog>,
 ) -> Result<RepoTextSearchResponse, RepoCatalogError> {
-    let mut r = repo_query_text(workspace_root, params)?;
+    let mut r = repo_query_text(workspace_root, params, cached_catalog)?;
     r.trace.source_plane = source_plane.to_string();
     Ok(r)
 }
@@ -22,8 +23,9 @@ pub fn repo_query_file_with_plane(
     workspace_root: &Path,
     params: &QueryFileParams,
     source_plane: &str,
+    cached_catalog: Option<&crate::ResolvedRepoCatalog>,
 ) -> Result<RepoFileReadResponse, RepoCatalogError> {
-    let mut r = repo_query_file(workspace_root, params)?;
+    let mut r = repo_query_file(workspace_root, params, cached_catalog)?;
     r.trace.source_plane = source_plane.to_string();
     Ok(r)
 }
@@ -32,8 +34,9 @@ pub fn repo_query_history_with_plane(
     workspace_root: &Path,
     params: &QueryHistoryParams,
     source_plane: &str,
+    cached_catalog: Option<&crate::ResolvedRepoCatalog>,
 ) -> Result<RepoHistoryResponse, RepoCatalogError> {
-    let mut r = repo_query_history(workspace_root, params)?;
+    let mut r = repo_query_history(workspace_root, params, cached_catalog)?;
     r.trace.source_plane = source_plane.to_string();
     Ok(r)
 }
@@ -71,6 +74,7 @@ repositories:
                 ..QueryTextParams::default()
             },
             "integration-plane",
+            None,
         )
         .expect("query");
         assert_eq!(response.trace.source_plane, "integration-plane");

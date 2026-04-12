@@ -10,7 +10,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 229
+**schema_version:** `1` · **vox-cli operations:** 232
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -48,6 +48,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci exec-policy-contract` | active | — | — | platform | — |
 | `vox ci feature-matrix` | active | — | — | platform | — |
 | `vox ci grammar-drift` | active | — | — | platform | — |
+| `vox ci gui-smoke` | active | — | — | platform | — |
 | `vox ci line-endings` | active | — | — | platform | — |
 | `vox ci manifest` | active | — | — | platform | — |
 | `vox ci mens-scorecard` | active | — | — | platform | — |
@@ -64,6 +65,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci operations-verify` | active | — | — | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
+| `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
 | `vox ci rust-ecosystem-policy` | active | — | — | platform | — |
@@ -77,6 +79,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci ssot-drift` | active | — | — | platform | — |
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
+| `vox ci turso-import-guard` | active | — | — | platform | — |
 | `vox ci workflow-scripts` | active | — | — | platform | — |
 | `vox clavis` | active | — | ars | platform | — |
 | `vox clavis backend-status` | active | — | ars | platform | — |

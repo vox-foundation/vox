@@ -105,8 +105,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     )
     .ok();
 
-    let max_stale_ms: Option<u64> = std::env::var("VOX_MESH_MAX_STALE_MS")
-        .ok()
+    let max_stale_ms: Option<u64> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshMaxStaleMs)
+        .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|n| *n > 0);
 
@@ -286,7 +286,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
 }
 
 fn mesh_codex_telemetry_enabled() -> bool {
-    std::env::var("VOX_MESH_CODEX_TELEMETRY")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry).expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")

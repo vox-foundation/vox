@@ -4,6 +4,8 @@ description: "Official documentation for Vox Web Architecture Analysis for the V
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox Web Architecture Analysis
@@ -317,12 +319,12 @@ Path B scores highest but has the highest implementation risk. **Path C is recom
 
 ```mermaid
 graph TD
-    VoxSource[".vox source<br/>(pure Vox syntax)"] --> Parser[vox-parser]
-    Parser --> AST[vox-ast]
-    AST --> HIR[vox-hir<br/>state/derived/effect/view nodes"]
-    HIR --> ReactBackend["vox-codegen-ts<br/>(React + TanStack)"]
-    HIR --> VanillaBackend["vox-codegen-vanilla<br/>(Signals + DOM, future)"]
-    HIR --> RustBackend["vox-codegen-rust<br/>(Axum API + server)"]
+    VoxSource[".vox source<br/>(pure Vox syntax)"] --> Parser[Vox Parser]
+    Parser --> AST[Vox AST]
+    AST --> HIR[Vox HIR<br/>state/derived/effect/view nodes"]
+    HIR --> ReactBackend["vox-compiler::codegen_ts<br/>(React + TanStack)"]
+    HIR --> VanillaBackend["vox-compiler::codegen_vanilla<br/>(Signals + DOM, future)"]
+    HIR --> RustBackend["vox-compiler::codegen_rust<br/>(Axum API + server)"]
     
     ReactBackend --> ReactApp["React App<br/>(.tsx, App.tsx, etc.)"]
     VanillaBackend --> VanillaApp["Vanilla JS App<br/>(signals.js, DOM ops)"]
@@ -420,14 +422,14 @@ Result:
 ## 6. Implementation Roadmap
 
 ### Phase 0 { Hygiene (1-2 weeks)
-- [ ] Mark HTMX/Pico.css KI artifacts as **superseded** in metadata
-- [ ] Audit `vox-corpus` codegen to ensure TS artifacts use `codegen_output` category
-- [ ] Add `context_filter: "vox_source"` guard to `training_contract.yaml`
-- [ ] Remove dead HTMX token definitions from lexer/parser
+- [x] Mark HTMX/Pico.css KI artifacts as **superseded** in metadata
+- [x] Audit `vox-corpus` codegen to ensure TS artifacts use `codegen_output` category
+- [x] Add `context_filter: "vox_source"` guard to `training_contract.yaml`
+- [x] Remove dead HTMX token definitions from lexer/parser
 
 ### Phase 1: Vox Reactivity Syntax (3-4 weeks)
-- [ ] Add `state`, `derived`, `effect`, `on mount`, `on cleanup` to parser grammar
-- [ ] Create `HirState`, `HirDerived`, `HirEffect`, `HirOnMount`, `HirOnCleanup` HIR nodes
+- [x] Add `state`, `derived`, `effect`, `on mount`, `on cleanup` to parser grammar
+- [x] Create `HirState`, `HirDerived`, `HirEffect`, `HirOnMount`, `HirOnCleanup` HIR nodes
 - [ ] Implement automatic dependency detection for `derived` and `effect`
 - [ ] Update `codegen_ts/component.rs` to emit React hooks from new HIR nodes
 
@@ -437,14 +439,14 @@ Result:
 - [ ] Update `codegen_ts/jsx.rs` to accept both syntaxes during migration
 
 ### Phase 3: Training Pipeline (1 week)
-- [ ] Verify `context_filter` correctly excludes generated TS from Mens training
-- [ ] Generate golden `.vox` examples using new syntax for training corpus
-- [ ] Validate Mens parse success on clean Vox corpus
+- [x] Verify `context_filter` correctly excludes generated TS from Mens training
+- [x] Generate golden `.vox` examples using new syntax for training corpus
+- [x] Validate Mens parse success on clean Vox corpus
 
 ### Phase 4: Documentation Convergence (1 week)
-- [ ] Update `vox-web-stack.md` to reflect new reactive component model
-- [ ] Retire old KI artifacts (HTMX interactivity, Pico CSS, classless baseline)
-- [ ] Document `@island` as the official React ecosystem escape hatch
+- [x] Update `vox-web-stack.md` to reflect new reactive component model
+- [x] Retire old KI artifacts (HTMX interactivity, Pico CSS, classless baseline)
+- [x] Document `@island` as the official React ecosystem escape hatch
 
 ---
 

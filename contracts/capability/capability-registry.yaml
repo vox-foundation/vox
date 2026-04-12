@@ -21,6 +21,7 @@ curated:
   mcp_tool: null
   cli_path:
   - add
+  parameters: null
 - id: cli.architect
   title: Architect
   description_human: null
@@ -37,6 +38,7 @@ curated:
   mcp_tool: null
   cli_path:
   - architect
+  parameters: null
 - id: cli.ars
   title: Ars
   description_human: null
@@ -53,6 +55,7 @@ curated:
   mcp_tool: null
   cli_path:
   - ars
+  parameters: null
 - id: cli.build
   title: Build
   description_human: null
@@ -69,6 +72,7 @@ curated:
   mcp_tool: null
   cli_path:
   - build
+  parameters: null
 - id: cli.bundle
   title: Bundle
   description_human: null
@@ -85,10 +89,11 @@ curated:
   mcp_tool: null
   cli_path:
   - bundle
+  parameters: null
 - id: cli.check
   title: Check
-  description_human: null
-  description_model: CLI operation `vox check`
+  description_human: CLI operation `vox check`
+  description_model: null
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -101,6 +106,7 @@ curated:
   mcp_tool: null
   cli_path:
   - check
+  parameters: null
 - id: cli.ci
   title: Ci
   description_human: null
@@ -117,6 +123,7 @@ curated:
   mcp_tool: null
   cli_path:
   - ci
+  parameters: null
 - id: cli.ci.artifact-audit
   title: Ci Artifact-audit
   description_human: null
@@ -134,6 +141,7 @@ curated:
   cli_path:
   - ci
   - artifact-audit
+  parameters: null
 - id: cli.ci.artifact-prune
   title: Ci Artifact-prune
   description_human: null
@@ -151,6 +159,7 @@ curated:
   cli_path:
   - ci
   - artifact-prune
+  parameters: null
 - id: cli.ci.build-docs
   title: Ci Build-docs
   description_human: null
@@ -168,6 +177,7 @@ curated:
   cli_path:
   - ci
   - build-docs
+  parameters: null
 - id: cli.ci.build-timings
   title: Ci Build-timings
   description_human: null
@@ -185,6 +195,7 @@ curated:
   cli_path:
   - ci
   - build-timings
+  parameters: null
 - id: cli.ci.capability-sync
   title: Ci Capability-sync
   description_human: null
@@ -202,6 +213,7 @@ curated:
   cli_path:
   - ci
   - capability-sync
+  parameters: null
 - id: cli.ci.check-codex-ssot
   title: Ci Check-codex-ssot
   description_human: null
@@ -219,6 +231,7 @@ curated:
   cli_path:
   - ci
   - check-codex-ssot
+  parameters: null
 - id: cli.ci.check-docs-ssot
   title: Ci Check-docs-ssot
   description_human: null
@@ -236,6 +249,7 @@ curated:
   cli_path:
   - ci
   - check-docs-ssot
+  parameters: null
 - id: cli.ci.check-links
   title: Ci Check-links
   description_human: null
@@ -253,6 +267,7 @@ curated:
   cli_path:
   - ci
   - check-links
+  parameters: null
 - id: cli.ci.check-summary-drift
   title: Ci Check-summary-drift
   description_human: null
@@ -270,6 +285,7 @@ curated:
   cli_path:
   - ci
   - check-summary-drift
+  parameters: null
 - id: cli.ci.clavis-parity
   title: Ci Clavis-parity
   description_human: null
@@ -287,6 +303,7 @@ curated:
   cli_path:
   - ci
   - clavis-parity
+  parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
   description_human: null
@@ -304,6 +321,7 @@ curated:
   cli_path:
   - ci
   - command-compliance
+  parameters: null
 - id: cli.ci.command-sync
   title: Ci Command-sync
   description_human: null
@@ -321,6 +339,7 @@ curated:
   cli_path:
   - ci
   - command-sync
+  parameters: null
 - id: cli.ci.completion-audit
   title: Ci Completion-audit
   description_human: null
@@ -338,6 +357,7 @@ curated:
   cli_path:
   - ci
   - completion-audit
+  parameters: null
 - id: cli.ci.completion-gates
   title: Ci Completion-gates
   description_human: null
@@ -355,6 +375,7 @@ curated:
   cli_path:
   - ci
   - completion-gates
+  parameters: null
 - id: cli.ci.completion-ingest
   title: Ci Completion-ingest
   description_human: null
@@ -372,6 +393,7 @@ curated:
   cli_path:
   - ci
   - completion-ingest
+  parameters: null
 - id: cli.ci.contracts-index
   title: Ci Contracts-index
   description_human: null
@@ -389,6 +411,7 @@ curated:
   cli_path:
   - ci
   - contracts-index
+  parameters: null
 - id: cli.ci.coverage-gates
   title: Ci Coverage-gates
   description_human: null
@@ -406,6 +429,7 @@ curated:
   cli_path:
   - ci
   - coverage-gates
+  parameters: null
 - id: cli.ci.cuda-features
   title: Ci Cuda-features
   description_human: null
@@ -423,6 +447,7 @@ curated:
   cli_path:
   - ci
   - cuda-features
+  parameters: null
 - id: cli.ci.cuda-release-build
   title: Ci Cuda-release-build
   description_human: null
@@ -440,6 +465,7 @@ curated:
   cli_path:
   - ci
   - cuda-release-build
+  parameters: null
 - id: cli.ci.data-ssot-guards
   title: Ci Data-ssot-guards
   description_human: null
@@ -457,6 +483,7 @@ curated:
   cli_path:
   - ci
   - data-ssot-guards
+  parameters: null
 - id: cli.ci.doc-inventory
   title: Ci Doc-inventory
   description_human: null
@@ -474,6 +501,7 @@ curated:
   cli_path:
   - ci
   - doc-inventory
+  parameters: null
 - id: cli.ci.eval-matrix
   title: Ci Eval-matrix
   description_human: null
@@ -491,6 +519,7 @@ curated:
   cli_path:
   - ci
   - eval-matrix
+  parameters: null
 - id: cli.ci.eval-matrix.run
   title: Ci Eval-matrix Run
   description_human: null
@@ -509,6 +538,7 @@ curated:
   - ci
   - eval-matrix
   - run
+  parameters: null
 - id: cli.ci.eval-matrix.verify
   title: Ci Eval-matrix Verify
   description_human: null
@@ -527,6 +557,7 @@ curated:
   - ci
   - eval-matrix
   - verify
+  parameters: null
 - id: cli.ci.exec-policy-contract
   title: Ci Exec-policy-contract
   description_human: null
@@ -544,6 +575,7 @@ curated:
   cli_path:
   - ci
   - exec-policy-contract
+  parameters: null
 - id: cli.ci.feature-matrix
   title: Ci Feature-matrix
   description_human: null
@@ -561,6 +593,7 @@ curated:
   cli_path:
   - ci
   - feature-matrix
+  parameters: null
 - id: cli.ci.grammar-drift
   title: Ci Grammar-drift
   description_human: null
@@ -578,6 +611,25 @@ curated:
   cli_path:
   - ci
   - grammar-drift
+  parameters: null
+- id: cli.ci.gui-smoke
+  title: Ci Gui-smoke
+  description_human: null
+  description_model: CLI operation `vox ci gui-smoke`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - gui-smoke
+  parameters: null
 - id: cli.ci.line-endings
   title: Ci Line-endings
   description_human: null
@@ -595,6 +647,7 @@ curated:
   cli_path:
   - ci
   - line-endings
+  parameters: null
 - id: cli.ci.manifest
   title: Ci Manifest
   description_human: null
@@ -612,6 +665,7 @@ curated:
   cli_path:
   - ci
   - manifest
+  parameters: null
 - id: cli.ci.mens-scorecard
   title: Ci Mens-scorecard
   description_human: null
@@ -629,6 +683,7 @@ curated:
   cli_path:
   - ci
   - mens-scorecard
+  parameters: null
 - id: cli.ci.mens-scorecard.burn-rnd
   title: Ci Mens-scorecard Burn-rnd
   description_human: null
@@ -647,6 +702,7 @@ curated:
   - ci
   - mens-scorecard
   - burn-rnd
+  parameters: null
 - id: cli.ci.mens-scorecard.decide
   title: Ci Mens-scorecard Decide
   description_human: null
@@ -665,6 +721,7 @@ curated:
   - ci
   - mens-scorecard
   - decide
+  parameters: null
 - id: cli.ci.mens-scorecard.ingest-trust
   title: Ci Mens-scorecard Ingest-trust
   description_human: null
@@ -683,6 +740,7 @@ curated:
   - ci
   - mens-scorecard
   - ingest-trust
+  parameters: null
 - id: cli.ci.mens-scorecard.run
   title: Ci Mens-scorecard Run
   description_human: null
@@ -701,6 +759,7 @@ curated:
   - ci
   - mens-scorecard
   - run
+  parameters: null
 - id: cli.ci.mens-scorecard.verify
   title: Ci Mens-scorecard Verify
   description_human: null
@@ -719,6 +778,7 @@ curated:
   - ci
   - mens-scorecard
   - verify
+  parameters: null
 - id: cli.ci.mesh-gate
   title: Ci Mesh-gate
   description_human: null
@@ -736,6 +796,7 @@ curated:
   cli_path:
   - ci
   - mesh-gate
+  parameters: null
 - id: cli.ci.no-dei-import
   title: Ci No-dei-import
   description_human: null
@@ -753,6 +814,7 @@ curated:
   cli_path:
   - ci
   - no-dei-import
+  parameters: null
 - id: cli.ci.nomenclature-guard
   title: Ci Nomenclature-guard
   description_human: Enforces the English-first crate naming policy. Scans `crates/` and fails if any `vox-<latin>` directory exists outside the historical allowlist.
@@ -773,6 +835,7 @@ curated:
   cli_path:
   - ci
   - nomenclature-guard
+  parameters: null
 - id: cli.ci.openclaw-contract
   title: Ci Openclaw-contract
   description_human: null
@@ -790,6 +853,7 @@ curated:
   cli_path:
   - ci
   - openclaw-contract
+  parameters: null
 - id: cli.ci.operations-sync
   title: Ci Operations-sync
   description_human: null
@@ -807,6 +871,7 @@ curated:
   cli_path:
   - ci
   - operations-sync
+  parameters: null
 - id: cli.ci.operations-verify
   title: Ci Operations-verify
   description_human: null
@@ -824,6 +889,7 @@ curated:
   cli_path:
   - ci
   - operations-verify
+  parameters: null
 - id: cli.ci.pm-provenance
   title: Ci Pm-provenance
   description_human: null
@@ -841,6 +907,7 @@ curated:
   cli_path:
   - ci
   - pm-provenance
+  parameters: null
 - id: cli.ci.policy-smoke
   title: Ci Policy-smoke
   description_human: null
@@ -858,6 +925,25 @@ curated:
   cli_path:
   - ci
   - policy-smoke
+  parameters: null
+- id: cli.ci.query-all-guard
+  title: Ci Query-all-guard
+  description_human: null
+  description_model: CLI operation `vox ci query-all-guard`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - query-all-guard
+  parameters: null
 - id: cli.ci.release-build
   title: Ci Release-build
   description_human: null
@@ -875,6 +961,7 @@ curated:
   cli_path:
   - ci
   - release-build
+  parameters: null
 - id: cli.ci.repo-guards
   title: Ci Repo-guards
   description_human: null
@@ -892,6 +979,7 @@ curated:
   cli_path:
   - ci
   - repo-guards
+  parameters: null
 - id: cli.ci.rust-ecosystem-policy
   title: Ci Rust-ecosystem-policy
   description_human: null
@@ -909,6 +997,7 @@ curated:
   cli_path:
   - ci
   - rust-ecosystem-policy
+  parameters: null
 - id: cli.ci.scaling-audit
   title: Ci Scaling-audit
   description_human: null
@@ -926,6 +1015,7 @@ curated:
   cli_path:
   - ci
   - scaling-audit
+  parameters: null
 - id: cli.ci.scaling-audit.emit-reports
   title: Ci Scaling-audit Emit-reports
   description_human: null
@@ -944,6 +1034,7 @@ curated:
   - ci
   - scaling-audit
   - emit-reports
+  parameters: null
 - id: cli.ci.scaling-audit.verify
   title: Ci Scaling-audit Verify
   description_human: null
@@ -962,6 +1053,7 @@ curated:
   - ci
   - scaling-audit
   - verify
+  parameters: null
 - id: cli.ci.scientia-novelty-ledger-contracts
   title: Ci Scientia-novelty-ledger-contracts
   description_human: null
@@ -979,6 +1071,7 @@ curated:
   cli_path:
   - ci
   - scientia-novelty-ledger-contracts
+  parameters: null
 - id: cli.ci.scientia-worthiness-contract
   title: Ci Scientia-worthiness-contract
   description_human: null
@@ -996,6 +1089,7 @@ curated:
   cli_path:
   - ci
   - scientia-worthiness-contract
+  parameters: null
 - id: cli.ci.secret-env-guard
   title: Ci Secret-env-guard
   description_human: null
@@ -1013,6 +1107,7 @@ curated:
   cli_path:
   - ci
   - secret-env-guard
+  parameters: null
 - id: cli.ci.sql-surface-guard
   title: Ci Sql-surface-guard
   description_human: null
@@ -1030,6 +1125,7 @@ curated:
   cli_path:
   - ci
   - sql-surface-guard
+  parameters: null
 - id: cli.ci.ssot-drift
   title: Ci Ssot-drift
   description_human: null
@@ -1047,6 +1143,7 @@ curated:
   cli_path:
   - ci
   - ssot-drift
+  parameters: null
 - id: cli.ci.toestub-scoped
   title: Ci Toestub-scoped
   description_human: null
@@ -1064,6 +1161,7 @@ curated:
   cli_path:
   - ci
   - toestub-scoped
+  parameters: null
 - id: cli.ci.toestub-self-apply
   title: Ci Toestub-self-apply
   description_human: null
@@ -1081,6 +1179,25 @@ curated:
   cli_path:
   - ci
   - toestub-self-apply
+  parameters: null
+- id: cli.ci.turso-import-guard
+  title: Ci Turso-import-guard
+  description_human: null
+  description_model: CLI operation `vox ci turso-import-guard`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - turso-import-guard
+  parameters: null
 - id: cli.ci.workflow-scripts
   title: Ci Workflow-scripts
   description_human: null
@@ -1098,6 +1215,7 @@ curated:
   cli_path:
   - ci
   - workflow-scripts
+  parameters: null
 - id: cli.clavis
   title: Clavis
   description_human: null
@@ -1114,6 +1232,7 @@ curated:
   mcp_tool: null
   cli_path:
   - clavis
+  parameters: null
 - id: cli.clavis.backend-status
   title: Clavis Backend-status
   description_human: null
@@ -1131,6 +1250,7 @@ curated:
   cli_path:
   - clavis
   - backend-status
+  parameters: null
 - id: cli.clavis.get
   title: Clavis Get
   description_human: null
@@ -1148,6 +1268,7 @@ curated:
   cli_path:
   - clavis
   - get
+  parameters: null
 - id: cli.clavis.migrate-auth-store
   title: Clavis Migrate-auth-store
   description_human: null
@@ -1165,6 +1286,7 @@ curated:
   cli_path:
   - clavis
   - migrate-auth-store
+  parameters: null
 - id: cli.clavis.set
   title: Clavis Set
   description_human: null
@@ -1182,6 +1304,7 @@ curated:
   cli_path:
   - clavis
   - set
+  parameters: null
 - id: cli.clavis.status
   title: Clavis Status
   description_human: null
@@ -1199,6 +1322,7 @@ curated:
   cli_path:
   - clavis
   - status
+  parameters: null
 - id: cli.codex
   title: Codex
   description_human: null
@@ -1215,6 +1339,7 @@ curated:
   mcp_tool: null
   cli_path:
   - codex
+  parameters: null
 - id: cli.codex.cutover
   title: Codex Cutover
   description_human: null
@@ -1232,6 +1357,7 @@ curated:
   cli_path:
   - codex
   - cutover
+  parameters: null
 - id: cli.codex.export-legacy
   title: Codex Export-legacy
   description_human: null
@@ -1249,6 +1375,7 @@ curated:
   cli_path:
   - codex
   - export-legacy
+  parameters: null
 - id: cli.codex.import-legacy
   title: Codex Import-legacy
   description_human: null
@@ -1266,6 +1393,7 @@ curated:
   cli_path:
   - codex
   - import-legacy
+  parameters: null
 - id: cli.codex.import-orchestrator-memory
   title: Codex Import-orchestrator-memory
   description_human: null
@@ -1283,6 +1411,7 @@ curated:
   cli_path:
   - codex
   - import-orchestrator-memory
+  parameters: null
 - id: cli.codex.import-skill-bundle
   title: Codex Import-skill-bundle
   description_human: null
@@ -1300,6 +1429,7 @@ curated:
   cli_path:
   - codex
   - import-skill-bundle
+  parameters: null
 - id: cli.codex.socrates-eval-snapshot
   title: Codex Socrates-eval-snapshot
   description_human: null
@@ -1317,6 +1447,7 @@ curated:
   cli_path:
   - codex
   - socrates-eval-snapshot
+  parameters: null
 - id: cli.codex.socrates-metrics
   title: Codex Socrates-metrics
   description_human: null
@@ -1334,6 +1465,7 @@ curated:
   cli_path:
   - codex
   - socrates-metrics
+  parameters: null
 - id: cli.codex.verify
   title: Codex Verify
   description_human: null
@@ -1351,6 +1483,7 @@ curated:
   cli_path:
   - codex
   - verify
+  parameters: null
 - id: cli.commands
   title: Commands
   description_human: null
@@ -1367,6 +1500,7 @@ curated:
   mcp_tool: null
   cli_path:
   - commands
+  parameters: null
 - id: cli.completions
   title: Completions
   description_human: null
@@ -1383,6 +1517,7 @@ curated:
   mcp_tool: null
   cli_path:
   - completions
+  parameters: null
 - id: cli.db
   title: Db
   description_human: null
@@ -1399,6 +1534,7 @@ curated:
   mcp_tool: null
   cli_path:
   - db
+  parameters: null
 - id: cli.db.audit
   title: Db Audit
   description_human: null
@@ -1416,6 +1552,7 @@ curated:
   cli_path:
   - db
   - audit
+  parameters: null
 - id: cli.db.mirror-search-corpus
   title: Db Mirror-search-corpus
   description_human: null
@@ -1433,6 +1570,7 @@ curated:
   cli_path:
   - db
   - mirror-search-corpus
+  parameters: null
 - id: cli.db.prune-apply
   title: Db Prune-apply
   description_human: null
@@ -1450,6 +1588,7 @@ curated:
   cli_path:
   - db
   - prune-apply
+  parameters: null
 - id: cli.db.prune-plan
   title: Db Prune-plan
   description_human: null
@@ -1467,6 +1606,7 @@ curated:
   cli_path:
   - db
   - prune-plan
+  parameters: null
 - id: cli.db.publication-decision-explain
   title: Db Publication-decision-explain
   description_human: null
@@ -1484,6 +1624,7 @@ curated:
   cli_path:
   - db
   - publication-decision-explain
+  parameters: null
 - id: cli.db.publication-discovery-explain
   title: Db Publication-discovery-explain
   description_human: null
@@ -1501,6 +1642,7 @@ curated:
   cli_path:
   - db
   - publication-discovery-explain
+  parameters: null
 - id: cli.db.publication-discovery-refresh-evidence
   title: Db Publication-discovery-refresh-evidence
   description_human: null
@@ -1518,6 +1660,7 @@ curated:
   cli_path:
   - db
   - publication-discovery-refresh-evidence
+  parameters: null
 - id: cli.db.publication-discovery-scan
   title: Db Publication-discovery-scan
   description_human: null
@@ -1535,6 +1678,7 @@ curated:
   cli_path:
   - db
   - publication-discovery-scan
+  parameters: null
 - id: cli.db.publication-novelty-fetch
   title: Db Publication-novelty-fetch
   description_human: null
@@ -1552,6 +1696,7 @@ curated:
   cli_path:
   - db
   - publication-novelty-fetch
+  parameters: null
 - id: cli.db.publication-novelty-happy-path
   title: Db Publication-novelty-happy-path
   description_human: null
@@ -1569,6 +1714,7 @@ curated:
   cli_path:
   - db
   - publication-novelty-happy-path
+  parameters: null
 - id: cli.db.publication-transform-preview
   title: Db Publication-transform-preview
   description_human: null
@@ -1586,6 +1732,7 @@ curated:
   cli_path:
   - db
   - publication-transform-preview
+  parameters: null
 - id: cli.dei
   title: Dei
   description_human: null
@@ -1602,6 +1749,7 @@ curated:
   mcp_tool: null
   cli_path:
   - dei
+  parameters: null
 - id: cli.dei.oplog.list
   title: Dei Oplog List
   description_human: null
@@ -1620,6 +1768,7 @@ curated:
   - dei
   - oplog
   - list
+  parameters: null
 - id: cli.dei.snapshot.diff
   title: Dei Snapshot Diff
   description_human: null
@@ -1638,6 +1787,7 @@ curated:
   - dei
   - snapshot
   - diff
+  parameters: null
 - id: cli.dei.snapshot.list
   title: Dei Snapshot List
   description_human: null
@@ -1656,6 +1806,7 @@ curated:
   - dei
   - snapshot
   - list
+  parameters: null
 - id: cli.dei.snapshot.restore
   title: Dei Snapshot Restore
   description_human: null
@@ -1674,6 +1825,7 @@ curated:
   - dei
   - snapshot
   - restore
+  parameters: null
 - id: cli.dei.takeover-status
   title: Dei Takeover-status
   description_human: null
@@ -1691,6 +1843,7 @@ curated:
   cli_path:
   - dei
   - takeover-status
+  parameters: null
 - id: cli.dei.workspace.create
   title: Dei Workspace Create
   description_human: null
@@ -1709,6 +1862,7 @@ curated:
   - dei
   - workspace
   - create
+  parameters: null
 - id: cli.dei.workspace.merge
   title: Dei Workspace Merge
   description_human: null
@@ -1727,6 +1881,7 @@ curated:
   - dei
   - workspace
   - merge
+  parameters: null
 - id: cli.dei.workspace.status
   title: Dei Workspace Status
   description_human: null
@@ -1745,6 +1900,7 @@ curated:
   - dei
   - workspace
   - status
+  parameters: null
 - id: cli.deploy
   title: Deploy
   description_human: null
@@ -1761,6 +1917,7 @@ curated:
   mcp_tool: null
   cli_path:
   - deploy
+  parameters: null
 - id: cli.dev
   title: Dev
   description_human: null
@@ -1777,6 +1934,7 @@ curated:
   mcp_tool: null
   cli_path:
   - dev
+  parameters: null
 - id: cli.diag
   title: Diag
   description_human: null
@@ -1793,6 +1951,7 @@ curated:
   mcp_tool: null
   cli_path:
   - diag
+  parameters: null
 - id: cli.doctor
   title: Doctor
   description_human: null
@@ -1809,6 +1968,7 @@ curated:
   mcp_tool: null
   cli_path:
   - doctor
+  parameters: null
 - id: cli.fabrica
   title: Fabrica
   description_human: null
@@ -1825,6 +1985,7 @@ curated:
   mcp_tool: null
   cli_path:
   - fabrica
+  parameters: null
 - id: cli.fmt
   title: Fmt
   description_human: null
@@ -1841,6 +2002,7 @@ curated:
   mcp_tool: null
   cli_path:
   - fmt
+  parameters: null
 - id: cli.init
   title: Init
   description_human: vox init scaffolds a new project or skill file in the current directory (shared logic with vox_project_init).
@@ -1861,6 +2023,7 @@ curated:
   mcp_tool: null
   cli_path:
   - init
+  parameters: null
 - id: cli.island
   title: Island
   description_human: null
@@ -1877,6 +2040,7 @@ curated:
   mcp_tool: null
   cli_path:
   - island
+  parameters: null
 - id: cli.live
   title: Live
   description_human: null
@@ -1893,6 +2057,7 @@ curated:
   mcp_tool: null
   cli_path:
   - live
+  parameters: null
 - id: cli.lock
   title: Lock
   description_human: null
@@ -1909,6 +2074,7 @@ curated:
   mcp_tool: null
   cli_path:
   - lock
+  parameters: null
 - id: cli.lsp
   title: Lsp
   description_human: null
@@ -1925,6 +2091,7 @@ curated:
   mcp_tool: null
   cli_path:
   - lsp
+  parameters: null
 - id: cli.ludus
   title: Ludus
   description_human: null
@@ -1941,6 +2108,7 @@ curated:
   mcp_tool: null
   cli_path:
   - ludus
+  parameters: null
 - id: cli.ludus.hud
   title: Ludus Hud
   description_human: null
@@ -1958,6 +2126,7 @@ curated:
   cli_path:
   - ludus
   - hud
+  parameters: null
 - id: cli.mens
   title: Mens
   description_human: null
@@ -1974,6 +2143,7 @@ curated:
   mcp_tool: null
   cli_path:
   - mens
+  parameters: null
 - id: cli.mens.bench-completion
   title: Mens Bench-completion
   description_human: null
@@ -1991,6 +2161,7 @@ curated:
   cli_path:
   - mens
   - bench-completion
+  parameters: null
 - id: cli.mens.check
   title: Mens Check
   description_human: null
@@ -2008,6 +2179,7 @@ curated:
   cli_path:
   - mens
   - check
+  parameters: null
 - id: cli.mens.corpus
   title: Mens Corpus
   description_human: null
@@ -2025,6 +2197,7 @@ curated:
   cli_path:
   - mens
   - corpus
+  parameters: null
 - id: cli.mens.eval-gate
   title: Mens Eval-gate
   description_human: null
@@ -2042,6 +2215,7 @@ curated:
   cli_path:
   - mens
   - eval-gate
+  parameters: null
 - id: cli.mens.eval-local
   title: Mens Eval-local
   description_human: null
@@ -2059,6 +2233,7 @@ curated:
   cli_path:
   - mens
   - eval-local
+  parameters: null
 - id: cli.mens.fix
   title: Mens Fix
   description_human: null
@@ -2076,6 +2251,7 @@ curated:
   cli_path:
   - mens
   - fix
+  parameters: null
 - id: cli.mens.generate
   title: Mens Generate
   description_human: null
@@ -2093,6 +2269,7 @@ curated:
   cli_path:
   - mens
   - generate
+  parameters: null
 - id: cli.mens.merge-qlora
   title: Mens Merge-qlora
   description_human: null
@@ -2110,6 +2287,7 @@ curated:
   cli_path:
   - mens
   - merge-qlora
+  parameters: null
 - id: cli.mens.merge-weights
   title: Mens Merge-weights
   description_human: null
@@ -2127,6 +2305,7 @@ curated:
   cli_path:
   - mens
   - merge-weights
+  parameters: null
 - id: cli.mens.pipeline
   title: Mens Pipeline
   description_human: null
@@ -2144,6 +2323,7 @@ curated:
   cli_path:
   - mens
   - pipeline
+  parameters: null
 - id: cli.mens.plan
   title: Mens Plan
   description_human: null
@@ -2161,6 +2341,7 @@ curated:
   cli_path:
   - mens
   - plan
+  parameters: null
 - id: cli.mens.probe
   title: Mens Probe
   description_human: null
@@ -2178,6 +2359,7 @@ curated:
   cli_path:
   - mens
   - probe
+  parameters: null
 - id: cli.mens.review
   title: Mens Review
   description_human: null
@@ -2195,6 +2377,7 @@ curated:
   cli_path:
   - mens
   - review
+  parameters: null
 - id: cli.mens.serve
   title: Mens Serve
   description_human: null
@@ -2212,6 +2395,7 @@ curated:
   cli_path:
   - mens
   - serve
+  parameters: null
 - id: cli.mens.status
   title: Mens Status
   description_human: null
@@ -2229,6 +2413,7 @@ curated:
   cli_path:
   - mens
   - status
+  parameters: null
 - id: cli.mens.system-prompt-template
   title: Mens System-prompt-template
   description_human: null
@@ -2246,6 +2431,7 @@ curated:
   cli_path:
   - mens
   - system-prompt-template
+  parameters: null
 - id: cli.mens.train
   title: Mens Train
   description_human: null
@@ -2263,6 +2449,7 @@ curated:
   cli_path:
   - mens
   - train
+  parameters: null
 - id: cli.mens.watch-telemetry
   title: Mens Watch-telemetry
   description_human: null
@@ -2280,6 +2467,7 @@ curated:
   cli_path:
   - mens
   - watch-telemetry
+  parameters: null
 - id: cli.mens.workflow.check
   title: Mens Workflow Check
   description_human: null
@@ -2298,6 +2486,7 @@ curated:
   - mens
   - workflow
   - check
+  parameters: null
 - id: cli.mens.workflow.inspect
   title: Mens Workflow Inspect
   description_human: null
@@ -2316,6 +2505,7 @@ curated:
   - mens
   - workflow
   - inspect
+  parameters: null
 - id: cli.mens.workflow.list
   title: Mens Workflow List
   description_human: null
@@ -2334,6 +2524,7 @@ curated:
   - mens
   - workflow
   - list
+  parameters: null
 - id: cli.mens.workflow.run
   title: Mens Workflow Run
   description_human: null
@@ -2352,6 +2543,7 @@ curated:
   - mens
   - workflow
   - run
+  parameters: null
 - id: cli.migrate.web
   title: Migrate Web Sources
   description_human: null
@@ -2369,6 +2561,7 @@ curated:
   cli_path:
   - migrate
   - web
+  parameters: null
 - id: cli.openclaw
   title: Openclaw
   description_human: null
@@ -2385,6 +2578,7 @@ curated:
   mcp_tool: null
   cli_path:
   - openclaw
+  parameters: null
 - id: cli.openclaw.doctor
   title: Openclaw Doctor
   description_human: null
@@ -2402,6 +2596,7 @@ curated:
   cli_path:
   - openclaw
   - doctor
+  parameters: null
 - id: cli.openclaw.gateway-call
   title: Openclaw Gateway-call
   description_human: null
@@ -2419,6 +2614,7 @@ curated:
   cli_path:
   - openclaw
   - gateway-call
+  parameters: null
 - id: cli.openclaw.search-remote
   title: Openclaw Search-remote
   description_human: null
@@ -2436,6 +2632,7 @@ curated:
   cli_path:
   - openclaw
   - search-remote
+  parameters: null
 - id: cli.openclaw.sidecar
   title: Openclaw Sidecar
   description_human: null
@@ -2453,6 +2650,7 @@ curated:
   cli_path:
   - openclaw
   - sidecar
+  parameters: null
 - id: cli.openclaw.sidecar.start
   title: Openclaw Sidecar Start
   description_human: null
@@ -2471,6 +2669,7 @@ curated:
   - openclaw
   - sidecar
   - start
+  parameters: null
 - id: cli.openclaw.sidecar.status
   title: Openclaw Sidecar Status
   description_human: null
@@ -2489,6 +2688,7 @@ curated:
   - openclaw
   - sidecar
   - status
+  parameters: null
 - id: cli.openclaw.sidecar.stop
   title: Openclaw Sidecar Stop
   description_human: null
@@ -2507,6 +2707,7 @@ curated:
   - openclaw
   - sidecar
   - stop
+  parameters: null
 - id: cli.oratio
   title: Oratio
   description_human: null
@@ -2523,6 +2724,7 @@ curated:
   mcp_tool: null
   cli_path:
   - oratio
+  parameters: null
 - id: cli.pm
   title: Pm
   description_human: null
@@ -2539,6 +2741,7 @@ curated:
   mcp_tool: null
   cli_path:
   - pm
+  parameters: null
 - id: cli.pm.cache
   title: Pm Cache
   description_human: null
@@ -2556,6 +2759,7 @@ curated:
   cli_path:
   - pm
   - cache
+  parameters: null
 - id: cli.pm.cache.clear
   title: Pm Cache Clear
   description_human: null
@@ -2574,6 +2778,7 @@ curated:
   - pm
   - cache
   - clear
+  parameters: null
 - id: cli.pm.cache.status
   title: Pm Cache Status
   description_human: null
@@ -2592,6 +2797,7 @@ curated:
   - pm
   - cache
   - status
+  parameters: null
 - id: cli.pm.info
   title: Pm Info
   description_human: null
@@ -2609,6 +2815,7 @@ curated:
   cli_path:
   - pm
   - info
+  parameters: null
 - id: cli.pm.mirror
   title: Pm Mirror
   description_human: null
@@ -2626,6 +2833,7 @@ curated:
   cli_path:
   - pm
   - mirror
+  parameters: null
 - id: cli.pm.publish
   title: Pm Publish
   description_human: null
@@ -2643,6 +2851,7 @@ curated:
   cli_path:
   - pm
   - publish
+  parameters: null
 - id: cli.pm.search
   title: Pm Search
   description_human: null
@@ -2660,6 +2869,7 @@ curated:
   cli_path:
   - pm
   - search
+  parameters: null
 - id: cli.pm.vendor
   title: Pm Vendor
   description_human: null
@@ -2677,6 +2887,7 @@ curated:
   cli_path:
   - pm
   - vendor
+  parameters: null
 - id: cli.pm.verify
   title: Pm Verify
   description_human: null
@@ -2694,6 +2905,7 @@ curated:
   cli_path:
   - pm
   - verify
+  parameters: null
 - id: cli.pm.yank
   title: Pm Yank
   description_human: null
@@ -2711,6 +2923,7 @@ curated:
   cli_path:
   - pm
   - yank
+  parameters: null
 - id: cli.populi
   title: Populi
   description_human: null
@@ -2727,6 +2940,7 @@ curated:
   mcp_tool: null
   cli_path:
   - populi
+  parameters: null
 - id: cli.populi.down
   title: Populi Down
   description_human: null
@@ -2744,6 +2958,7 @@ curated:
   cli_path:
   - populi
   - down
+  parameters: null
 - id: cli.populi.registry-snapshot
   title: Populi Registry-snapshot
   description_human: null
@@ -2761,6 +2976,7 @@ curated:
   cli_path:
   - populi
   - registry-snapshot
+  parameters: null
 - id: cli.populi.serve
   title: Populi Serve
   description_human: null
@@ -2778,6 +2994,7 @@ curated:
   cli_path:
   - populi
   - serve
+  parameters: null
 - id: cli.populi.status
   title: Populi Status
   description_human: null
@@ -2795,6 +3012,7 @@ curated:
   cli_path:
   - populi
   - status
+  parameters: null
 - id: cli.populi.up
   title: Populi Up
   description_human: null
@@ -2812,6 +3030,7 @@ curated:
   cli_path:
   - populi
   - up
+  parameters: null
 - id: cli.recensio
   title: Recensio
   description_human: null
@@ -2828,6 +3047,7 @@ curated:
   mcp_tool: null
   cli_path:
   - recensio
+  parameters: null
 - id: cli.remove
   title: Remove
   description_human: null
@@ -2844,6 +3064,7 @@ curated:
   mcp_tool: null
   cli_path:
   - remove
+  parameters: null
 - id: cli.repo
   title: Repo
   description_human: null
@@ -2860,6 +3081,7 @@ curated:
   mcp_tool: null
   cli_path:
   - repo
+  parameters: null
 - id: cli.repo.catalog
   title: Repo Catalog
   description_human: null
@@ -2877,6 +3099,7 @@ curated:
   cli_path:
   - repo
   - catalog
+  parameters: null
 - id: cli.repo.catalog.list
   title: Repo Catalog List
   description_human: Resolve the explicit `.vox/repositories.yaml` catalog and return local plus remote repository descriptors.
@@ -2898,6 +3121,7 @@ curated:
   - repo
   - catalog
   - list
+  parameters: null
 - id: cli.repo.catalog.refresh
   title: Repo Catalog Refresh
   description_human: Re-resolve the explicit repo catalog and write a snapshot cache for the current workspace repository.
@@ -2916,6 +3140,7 @@ curated:
   - repo
   - catalog
   - refresh
+  parameters: null
 - id: cli.repo.query
   title: Repo Query
   description_human: null
@@ -2933,6 +3158,7 @@ curated:
   cli_path:
   - repo
   - query
+  parameters: null
 - id: cli.repo.query.file
   title: Repo Query File
   description_human: Read a path across cataloged local repositories with per-repository path sandboxing.
@@ -2951,6 +3177,7 @@ curated:
   - repo
   - query
   - file
+  parameters: null
 - id: cli.repo.query.history
   title: Repo Query History
   description_human: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
@@ -2969,6 +3196,7 @@ curated:
   - repo
   - query
   - history
+  parameters: null
 - id: cli.repo.query.text
   title: Repo Query Text
   description_human: Search cataloged local repositories for text or regex matches and group results by repository_id.
@@ -2987,6 +3215,7 @@ curated:
   - repo
   - query
   - text
+  parameters: null
 - id: cli.repo.status
   title: Repo Status
   description_human: Prints discovered repo root, stable id, and capability markers (vox repo status).
@@ -3007,6 +3236,7 @@ curated:
   cli_path:
   - repo
   - status
+  parameters: null
 - id: cli.review
   title: Review
   description_human: null
@@ -3023,6 +3253,7 @@ curated:
   mcp_tool: null
   cli_path:
   - review
+  parameters: null
 - id: cli.run
   title: Run
   description_human: null
@@ -3039,6 +3270,7 @@ curated:
   mcp_tool: null
   cli_path:
   - run
+  parameters: null
 - id: cli.scientia
   title: Scientia
   description_human: null
@@ -3055,6 +3287,7 @@ curated:
   mcp_tool: null
   cli_path:
   - scientia
+  parameters: null
 - id: cli.scientia.collection-transform-preview
   title: Scientia Collection-transform-preview
   description_human: null
@@ -3072,6 +3305,7 @@ curated:
   cli_path:
   - scientia
   - collection-transform-preview
+  parameters: null
 - id: cli.scientia.finding-candidate-validate
   title: Scientia Finding-candidate-validate
   description_human: null
@@ -3089,6 +3323,7 @@ curated:
   cli_path:
   - scientia
   - finding-candidate-validate
+  parameters: null
 - id: cli.scientia.mirror-search-corpus
   title: Scientia Mirror-search-corpus
   description_human: null
@@ -3106,6 +3341,7 @@ curated:
   cli_path:
   - scientia
   - mirror-search-corpus
+  parameters: null
 - id: cli.scientia.novelty-evidence-bundle-validate
   title: Scientia Novelty-evidence-bundle-validate
   description_human: null
@@ -3123,6 +3359,7 @@ curated:
   cli_path:
   - scientia
   - novelty-evidence-bundle-validate
+  parameters: null
 - id: cli.scientia.publication-approve
   title: Scientia Publication-approve
   description_human: null
@@ -3140,6 +3377,7 @@ curated:
   cli_path:
   - scientia
   - publication-approve
+  parameters: null
 - id: cli.scientia.publication-arxiv-handoff-record
   title: Scientia Publication-arxiv-handoff-record
   description_human: null
@@ -3157,6 +3395,7 @@ curated:
   cli_path:
   - scientia
   - publication-arxiv-handoff-record
+  parameters: null
 - id: cli.scientia.publication-decision-explain
   title: Scientia Publication-decision-explain
   description_human: null
@@ -3174,6 +3413,7 @@ curated:
   cli_path:
   - scientia
   - publication-decision-explain
+  parameters: null
 - id: cli.scientia.publication-discovery-explain
   title: Scientia Publication-discovery-explain
   description_human: null
@@ -3191,6 +3431,7 @@ curated:
   cli_path:
   - scientia
   - publication-discovery-explain
+  parameters: null
 - id: cli.scientia.publication-discovery-scan
   title: Scientia Publication-discovery-scan
   description_human: null
@@ -3208,6 +3449,7 @@ curated:
   cli_path:
   - scientia
   - publication-discovery-scan
+  parameters: null
 - id: cli.scientia.publication-external-jobs-dead-letter
   title: Scientia Publication-external-jobs-dead-letter
   description_human: null
@@ -3225,6 +3467,7 @@ curated:
   cli_path:
   - scientia
   - publication-external-jobs-dead-letter
+  parameters: null
 - id: cli.scientia.publication-external-jobs-due
   title: Scientia Publication-external-jobs-due
   description_human: null
@@ -3242,6 +3485,7 @@ curated:
   cli_path:
   - scientia
   - publication-external-jobs-due
+  parameters: null
 - id: cli.scientia.publication-external-jobs-replay
   title: Scientia Publication-external-jobs-replay
   description_human: null
@@ -3259,6 +3503,7 @@ curated:
   cli_path:
   - scientia
   - publication-external-jobs-replay
+  parameters: null
 - id: cli.scientia.publication-external-jobs-tick
   title: Scientia Publication-external-jobs-tick
   description_human: null
@@ -3276,6 +3521,7 @@ curated:
   cli_path:
   - scientia
   - publication-external-jobs-tick
+  parameters: null
 - id: cli.scientia.publication-external-pipeline-metrics
   title: Scientia Publication-external-pipeline-metrics
   description_human: null
@@ -3293,6 +3539,7 @@ curated:
   cli_path:
   - scientia
   - publication-external-pipeline-metrics
+  parameters: null
 - id: cli.scientia.publication-novelty-fetch
   title: Scientia Publication-novelty-fetch
   description_human: null
@@ -3310,6 +3557,7 @@ curated:
   cli_path:
   - scientia
   - publication-novelty-fetch
+  parameters: null
 - id: cli.scientia.publication-novelty-happy-path
   title: Scientia Publication-novelty-happy-path
   description_human: null
@@ -3327,6 +3575,7 @@ curated:
   cli_path:
   - scientia
   - publication-novelty-happy-path
+  parameters: null
 - id: cli.scientia.publication-openreview-profile
   title: Scientia Publication-openreview-profile
   description_human: null
@@ -3344,6 +3593,7 @@ curated:
   cli_path:
   - scientia
   - publication-openreview-profile
+  parameters: null
 - id: cli.scientia.publication-preflight
   title: Scientia Publication-preflight
   description_human: null
@@ -3361,6 +3611,7 @@ curated:
   cli_path:
   - scientia
   - publication-preflight
+  parameters: null
 - id: cli.scientia.publication-prepare
   title: Scientia Publication-prepare
   description_human: null
@@ -3378,6 +3629,7 @@ curated:
   cli_path:
   - scientia
   - publication-prepare
+  parameters: null
 - id: cli.scientia.publication-prepare-validated
   title: Scientia Publication-prepare-validated
   description_human: null
@@ -3395,6 +3647,7 @@ curated:
   cli_path:
   - scientia
   - publication-prepare-validated
+  parameters: null
 - id: cli.scientia.publication-scholarly-pipeline-run
   title: Scientia Publication-scholarly-pipeline-run
   description_human: null
@@ -3412,6 +3665,7 @@ curated:
   cli_path:
   - scientia
   - publication-scholarly-pipeline-run
+  parameters: null
 - id: cli.scientia.publication-scholarly-remote-status
   title: Scientia Publication-scholarly-remote-status
   description_human: null
@@ -3429,6 +3683,7 @@ curated:
   cli_path:
   - scientia
   - publication-scholarly-remote-status
+  parameters: null
 - id: cli.scientia.publication-scholarly-remote-status-sync-all
   title: Scientia Publication-scholarly-remote-status-sync-all
   description_human: null
@@ -3446,6 +3701,7 @@ curated:
   cli_path:
   - scientia
   - publication-scholarly-remote-status-sync-all
+  parameters: null
 - id: cli.scientia.publication-scholarly-remote-status-sync-batch
   title: Scientia Publication-scholarly-remote-status-sync-batch
   description_human: null
@@ -3463,6 +3719,7 @@ curated:
   cli_path:
   - scientia
   - publication-scholarly-remote-status-sync-batch
+  parameters: null
 - id: cli.scientia.publication-scholarly-staging-export
   title: Scientia Publication-scholarly-staging-export
   description_human: null
@@ -3480,6 +3737,7 @@ curated:
   cli_path:
   - scientia
   - publication-scholarly-staging-export
+  parameters: null
 - id: cli.scientia.publication-status
   title: Scientia Publication-status
   description_human: null
@@ -3497,6 +3755,7 @@ curated:
   cli_path:
   - scientia
   - publication-status
+  parameters: null
 - id: cli.scientia.publication-submit-local
   title: Scientia Publication-submit-local
   description_human: null
@@ -3514,6 +3773,7 @@ curated:
   cli_path:
   - scientia
   - publication-submit-local
+  parameters: null
 - id: cli.scientia.publication-transform-preview
   title: Scientia Publication-transform-preview
   description_human: null
@@ -3531,6 +3791,7 @@ curated:
   cli_path:
   - scientia
   - publication-transform-preview
+  parameters: null
 - id: cli.scientia.publication-worthiness-evaluate
   title: Scientia Publication-worthiness-evaluate
   description_human: null
@@ -3548,6 +3809,7 @@ curated:
   cli_path:
   - scientia
   - publication-worthiness-evaluate
+  parameters: null
 - id: cli.scientia.publication-zenodo-metadata
   title: Scientia Publication-zenodo-metadata
   description_human: null
@@ -3565,6 +3827,7 @@ curated:
   cli_path:
   - scientia
   - publication-zenodo-metadata
+  parameters: null
 - id: cli.script
   title: Script
   description_human: null
@@ -3581,6 +3844,7 @@ curated:
   mcp_tool: null
   cli_path:
   - script
+  parameters: null
 - id: cli.share
   title: Share
   description_human: null
@@ -3597,6 +3861,7 @@ curated:
   mcp_tool: null
   cli_path:
   - share
+  parameters: null
 - id: cli.shell.check
   title: Shell Check
   description_human: null
@@ -3614,6 +3879,7 @@ curated:
   cli_path:
   - shell
   - check
+  parameters: null
 - id: cli.shell.repl
   title: Shell Repl
   description_human: null
@@ -3631,6 +3897,7 @@ curated:
   cli_path:
   - shell
   - repl
+  parameters: null
 - id: cli.skill
   title: Skill
   description_human: null
@@ -3647,6 +3914,7 @@ curated:
   mcp_tool: null
   cli_path:
   - skill
+  parameters: null
 - id: cli.snippet
   title: Snippet
   description_human: null
@@ -3663,6 +3931,7 @@ curated:
   mcp_tool: null
   cli_path:
   - snippet
+  parameters: null
 - id: cli.stub-check
   title: Stub-check
   description_human: null
@@ -3679,6 +3948,7 @@ curated:
   mcp_tool: null
   cli_path:
   - stub-check
+  parameters: null
 - id: cli.sync
   title: Sync
   description_human: null
@@ -3695,6 +3965,7 @@ curated:
   mcp_tool: null
   cli_path:
   - sync
+  parameters: null
 - id: cli.telemetry
   title: Telemetry
   description_human: null
@@ -3711,6 +3982,7 @@ curated:
   mcp_tool: null
   cli_path:
   - telemetry
+  parameters: null
 - id: cli.telemetry.enqueue
   title: Telemetry Enqueue
   description_human: null
@@ -3728,6 +4000,7 @@ curated:
   cli_path:
   - telemetry
   - enqueue
+  parameters: null
 - id: cli.telemetry.export
   title: Telemetry Export
   description_human: null
@@ -3745,6 +4018,7 @@ curated:
   cli_path:
   - telemetry
   - export
+  parameters: null
 - id: cli.telemetry.status
   title: Telemetry Status
   description_human: null
@@ -3762,6 +4036,7 @@ curated:
   cli_path:
   - telemetry
   - status
+  parameters: null
 - id: cli.telemetry.upload
   title: Telemetry Upload
   description_human: null
@@ -3779,6 +4054,7 @@ curated:
   cli_path:
   - telemetry
   - upload
+  parameters: null
 - id: cli.test
   title: Test
   description_human: null
@@ -3795,6 +4071,7 @@ curated:
   mcp_tool: null
   cli_path:
   - test
+  parameters: null
 - id: cli.update
   title: Update
   description_human: null
@@ -3811,6 +4088,7 @@ curated:
   mcp_tool: null
   cli_path:
   - update
+  parameters: null
 - id: cli.upgrade
   title: Upgrade
   description_human: null
@@ -3827,6 +4105,7 @@ curated:
   mcp_tool: null
   cli_path:
   - upgrade
+  parameters: null
 - id: mcp.vox_a2a_ack
   title: A2a Ack
   description_human: null
@@ -3842,6 +4121,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_a2a_ack
   cli_path: null
+  parameters: null
 - id: mcp.vox_a2a_broadcast
   title: A2a Broadcast
   description_human: null
@@ -3857,6 +4137,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_a2a_broadcast
   cli_path: null
+  parameters: null
 - id: mcp.vox_a2a_history
   title: A2a History
   description_human: null
@@ -3872,6 +4153,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_a2a_history
   cli_path: null
+  parameters: null
 - id: mcp.vox_a2a_inbox
   title: A2a Inbox
   description_human: null
@@ -3887,6 +4169,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_a2a_inbox
   cli_path: null
+  parameters: null
 - id: mcp.vox_a2a_send
   title: A2a Send
   description_human: null
@@ -3902,6 +4185,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_a2a_send
   cli_path: null
+  parameters: null
 - id: mcp.vox_a2a_tasks
   title: A2a Tasks
   description_human: null
@@ -3917,6 +4201,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_a2a_tasks
   cli_path: null
+  parameters: null
 - id: mcp.vox_agent_assess
   title: Agent Assess
   description_human: null
@@ -3932,6 +4217,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_agent_assess
   cli_path: null
+  parameters: null
 - id: mcp.vox_agent_continue
   title: Agent Continue
   description_human: null
@@ -3947,6 +4233,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_agent_continue
   cli_path: null
+  parameters: null
 - id: mcp.vox_agent_events
   title: Agent Events
   description_human: null
@@ -3962,6 +4249,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_agent_events
   cli_path: null
+  parameters: null
 - id: mcp.vox_agent_handoff
   title: Agent Handoff
   description_human: null
@@ -3977,6 +4265,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_agent_handoff
   cli_path: null
+  parameters: null
 - id: mcp.vox_agent_status
   title: Agent Status
   description_human: null
@@ -3992,6 +4281,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_agent_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_answer_question
   title: Answer Question
   description_human: null
@@ -4007,6 +4297,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_answer_question
   cli_path: null
+  parameters: null
 - id: mcp.vox_apply_structured_edit
   title: Apply Structured Edit
   description_human: null
@@ -4022,6 +4313,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_apply_structured_edit
   cli_path: null
+  parameters: null
 - id: mcp.vox_ask_agent
   title: Ask Agent
   description_human: null
@@ -4037,6 +4329,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ask_agent
   cli_path: null
+  parameters: null
 - id: mcp.vox_attention_history
   title: Attention History
   description_human: null
@@ -4052,6 +4345,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_attention_history
   cli_path: null
+  parameters: null
 - id: mcp.vox_attention_reset
   title: Attention Reset
   description_human: null
@@ -4067,6 +4361,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_attention_reset
   cli_path: null
+  parameters: null
 - id: mcp.vox_attention_summary
   title: Attention Summary
   description_human: null
@@ -4082,6 +4377,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_attention_summary
   cli_path: null
+  parameters: null
 - id: mcp.vox_behavior_record
   title: Behavior Record
   description_human: null
@@ -4097,6 +4393,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_behavior_record
   cli_path: null
+  parameters: null
 - id: mcp.vox_behavior_summary
   title: Behavior Summary
   description_human: null
@@ -4112,6 +4409,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_behavior_summary
   cli_path: null
+  parameters: null
 - id: mcp.vox_benchmark_list
   title: Benchmark List
   description_human: null
@@ -4127,6 +4425,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_benchmark_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_benchmark_record
   title: Benchmark Record
   description_human: null
@@ -4142,6 +4441,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_benchmark_record
   cli_path: null
+  parameters: null
 - id: mcp.vox_broadcast
   title: Broadcast
   description_human: null
@@ -4157,6 +4457,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_broadcast
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_act
   title: Browser Act
   description_human: null
@@ -4172,6 +4473,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_act
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_click
   title: Browser Click
   description_human: null
@@ -4187,6 +4489,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_click
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_close
   title: Browser Close
   description_human: null
@@ -4202,6 +4505,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_close
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_extract
   title: Browser Extract
   description_human: null
@@ -4217,6 +4521,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_extract
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_extract_json
   title: Browser Extract Json
   description_human: null
@@ -4232,6 +4537,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_extract_json
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_fill
   title: Browser Fill
   description_human: null
@@ -4247,6 +4553,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_fill
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_goto
   title: Browser Goto
   description_human: null
@@ -4262,6 +4569,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_goto
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_html
   title: Browser Html
   description_human: null
@@ -4277,6 +4585,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_html
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_open
   title: Browser Open
   description_human: null
@@ -4292,6 +4601,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_open
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_screenshot
   title: Browser Screenshot
   description_human: null
@@ -4307,6 +4617,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_screenshot
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_text
   title: Browser Text
   description_human: null
@@ -4322,6 +4633,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_text
   cli_path: null
+  parameters: null
 - id: mcp.vox_browser_wait_for
   title: Browser Wait For
   description_human: null
@@ -4337,6 +4649,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_browser_wait_for
   cli_path: null
+  parameters: null
 - id: mcp.vox_budget_status
   title: Budget Status
   description_human: null
@@ -4352,6 +4665,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_budget_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_build_crate
   title: Build Crate
   description_human: null
@@ -4367,6 +4681,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_build_crate
   cli_path: null
+  parameters: null
 - id: mcp.vox_builtin_registry
   title: Builtin Registry
   description_human: null
@@ -4382,6 +4697,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_builtin_registry
   cli_path: null
+  parameters: null
 - id: mcp.vox_cancel_task
   title: Cancel Task
   description_human: null
@@ -4397,6 +4713,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_cancel_task
   cli_path: null
+  parameters: null
 - id: mcp.vox_capability_model_manifest
   title: Capability Model Manifest
   description_human: null
@@ -4412,6 +4729,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_capability_model_manifest
   cli_path: null
+  parameters: null
 - id: mcp.vox_change_create
   title: Change Create
   description_human: null
@@ -4427,6 +4745,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_change_create
   cli_path: null
+  parameters: null
 - id: mcp.vox_change_log
   title: Change Log
   description_human: null
@@ -4442,6 +4761,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_change_log
   cli_path: null
+  parameters: null
 - id: mcp.vox_chat_history
   title: Chat History
   description_human: null
@@ -4457,6 +4777,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_chat_history
   cli_path: null
+  parameters: null
 - id: mcp.vox_chat_message
   title: Chat Message
   description_human: null
@@ -4472,6 +4793,23 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_chat_message
   cli_path: null
+  parameters: null
+- id: mcp.vox_check
+  title: Check
+  description_human: null
+  description_model: CLI operation `vox check`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_check
+  cli_path: null
+  parameters: null
 - id: mcp.vox_check_file_owner
   title: Check File Owner
   description_human: null
@@ -4487,6 +4825,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_check_file_owner
   cli_path: null
+  parameters: null
 - id: mcp.vox_check_mood
   title: Check Mood
   description_human: null
@@ -4502,6 +4841,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_check_mood
   cli_path: null
+  parameters: null
 - id: mcp.vox_check_workspace
   title: Check Workspace
   description_human: null
@@ -4517,6 +4857,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_check_workspace
   cli_path: null
+  parameters: null
 - id: mcp.vox_claim_file
   title: Claim File
   description_human: null
@@ -4532,6 +4873,23 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_claim_file
   cli_path: null
+  parameters: null
+- id: mcp.vox_clavis_doctor
+  title: Clavis Doctor
+  description_human: null
+  description_model: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_clavis_doctor
+  cli_path: null
+  parameters: null
 - id: mcp.vox_compaction_status
   title: Compaction Status
   description_human: null
@@ -4547,6 +4905,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_compaction_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_compiler::ast_inspect
   title: Compiler::ast Inspect
   description_human: null
@@ -4562,6 +4921,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_compiler::ast_inspect
   cli_path: null
+  parameters: null
 - id: mcp.vox_complete_task
   title: Complete Task
   description_human: null
@@ -4577,6 +4937,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_complete_task
   cli_path: null
+  parameters: null
 - id: mcp.vox_config_get
   title: Config Get
   description_human: null
@@ -4592,6 +4953,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_config_get
   cli_path: null
+  parameters: null
 - id: mcp.vox_config_set
   title: Config Set
   description_human: null
@@ -4607,6 +4969,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_config_set
   cli_path: null
+  parameters: null
 - id: mcp.vox_conflict_diff
   title: Conflict Diff
   description_human: null
@@ -4622,6 +4985,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_conflict_diff
   cli_path: null
+  parameters: null
 - id: mcp.vox_conflicts
   title: Conflicts
   description_human: null
@@ -4637,6 +5001,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_conflicts
   cli_path: null
+  parameters: null
 - id: mcp.vox_context_budget
   title: Context Budget
   description_human: null
@@ -4652,6 +5017,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_context_budget
   cli_path: null
+  parameters: null
 - id: mcp.vox_cost_history
   title: Cost History
   description_human: null
@@ -4667,6 +5033,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_cost_history
   cli_path: null
+  parameters: null
 - id: mcp.vox_coverage_report
   title: Coverage Report
   description_human: null
@@ -4682,6 +5049,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_coverage_report
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_conversation_edge_insert
   title: Db Conversation Edge Insert
   description_human: null
@@ -4697,6 +5065,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_conversation_edge_insert
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_conversation_version_append
   title: Db Conversation Version Append
   description_human: null
@@ -4712,6 +5081,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_conversation_version_append
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_data_flow
   title: Db Data Flow
   description_human: null
@@ -4727,6 +5097,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_data_flow
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_explain_query
   title: Db Explain Query
   description_human: null
@@ -4742,6 +5113,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_explain_query
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_relationships
   title: Db Relationships
   description_human: null
@@ -4757,6 +5129,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_relationships
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_research_metric_linked
   title: Db Research Metric Linked
   description_human: null
@@ -4772,6 +5145,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_research_metric_linked
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_research_session_upsert
   title: Db Research Session Upsert
   description_human: null
@@ -4787,6 +5161,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_research_session_upsert
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_sample_data
   title: Db Sample Data
   description_human: null
@@ -4802,6 +5177,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_sample_data
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_schema
   title: Db Schema
   description_human: null
@@ -4817,6 +5193,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_schema
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_suggest_query
   title: Db Suggest Query
   description_human: null
@@ -4832,6 +5209,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_suggest_query
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_topic_evolution_append
   title: Db Topic Evolution Append
   description_human: null
@@ -4847,6 +5225,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_topic_evolution_append
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_trust_drift
   title: Db Trust Drift
   description_human: null
@@ -4862,6 +5241,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_trust_drift
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_trust_propagate
   title: Db Trust Propagate
   description_human: null
@@ -4877,6 +5257,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_trust_propagate
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_trust_rollups
   title: Db Trust Rollups
   description_human: null
@@ -4892,6 +5273,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_trust_rollups
   cli_path: null
+  parameters: null
 - id: mcp.vox_db_trust_summary
   title: Db Trust Summary
   description_human: null
@@ -4907,6 +5289,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_db_trust_summary
   cli_path: null
+  parameters: null
 - id: mcp.vox_decorator_registry
   title: Decorator Registry
   description_human: null
@@ -4922,6 +5305,23 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_decorator_registry
   cli_path: null
+  parameters: null
+- id: mcp.vox_doubt_task
+  title: Task Doubt
+  description_human: null
+  description_model: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_doubt_task
+  cli_path: null
+  parameters: null
 - id: mcp.vox_drain_agent
   title: Drain Agent
   description_human: null
@@ -4937,6 +5337,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_drain_agent
   cli_path: null
+  parameters: null
 - id: mcp.vox_emergency_stop
   title: Emergency Stop
   description_human: null
@@ -4952,6 +5353,55 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_emergency_stop
   cli_path: null
+  parameters: null
+- id: mcp.vox_exec_time_query
+  title: Exec Time Query
+  description_human: null
+  description_model: Query historical execution time for a tool.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_exec_time_query
+  cli_path: null
+  parameters: null
+- id: mcp.vox_exec_time_record
+  title: Exec Time Record
+  description_human: null
+  description_model: Record an execution duration and outcome.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_exec_time_record
+  cli_path: null
+  parameters: null
+- id: mcp.vox_export_grammar_ebnf
+  title: Export Grammar Ebnf
+  description_human: null
+  description_model: Export the Vox EBNF grammar.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_export_grammar_ebnf
+  cli_path: null
+  parameters: null
 - id: mcp.vox_fail_task
   title: Fail Task
   description_human: null
@@ -4967,6 +5417,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_fail_task
   cli_path: null
+  parameters: null
 - id: mcp.vox_file_graph
   title: File Graph
   description_human: null
@@ -4982,6 +5433,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_file_graph
   cli_path: null
+  parameters: null
 - id: mcp.vox_generate_code
   title: Generate Code
   description_human: null
@@ -5000,6 +5452,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_generate_code
   cli_path: null
+  parameters: null
 - id: mcp.vox_get_active_model
   title: Get Active Model
   description_human: null
@@ -5015,6 +5468,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_get_active_model
   cli_path: null
+  parameters: null
 - id: mcp.vox_get_context
   title: Get Context
   description_human: null
@@ -5030,6 +5484,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_get_context
   cli_path: null
+  parameters: null
 - id: mcp.vox_git_blame
   title: Git Blame
   description_human: null
@@ -5045,6 +5500,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_git_blame
   cli_path: null
+  parameters: null
 - id: mcp.vox_git_diff
   title: Git Diff
   description_human: null
@@ -5060,6 +5516,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_git_diff
   cli_path: null
+  parameters: null
 - id: mcp.vox_git_log
   title: Git Log
   description_human: null
@@ -5075,6 +5532,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_git_log
   cli_path: null
+  parameters: null
 - id: mcp.vox_git_status
   title: Git Status
   description_human: null
@@ -5090,6 +5548,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_git_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_handoff_context
   title: Handoff Context
   description_human: null
@@ -5105,6 +5564,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_handoff_context
   cli_path: null
+  parameters: null
 - id: mcp.vox_handoff_lineage
   title: Handoff Lineage
   description_human: null
@@ -5120,6 +5580,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_handoff_lineage
   cli_path: null
+  parameters: null
 - id: mcp.vox_heartbeat
   title: Heartbeat
   description_human: null
@@ -5135,6 +5596,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_heartbeat
   cli_path: null
+  parameters: null
 - id: mcp.vox_inline_edit
   title: Inline Edit
   description_human: null
@@ -5150,6 +5612,23 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_inline_edit
   cli_path: null
+  parameters: null
+- id: mcp.vox_journey_canonical_steps
+  title: Mens Journey Steps
+  description_human: null
+  description_model: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_journey_canonical_steps
+  cli_path: null
+  parameters: null
 - id: mcp.vox_knowledge_query
   title: Knowledge Query
   description_human: null
@@ -5165,6 +5644,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_knowledge_query
   cli_path: null
+  parameters: null
 - id: mcp.vox_language_surface
   title: Language Surface
   description_human: null
@@ -5180,6 +5660,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_language_surface
   cli_path: null
+  parameters: null
 - id: mcp.vox_learn_pattern
   title: Learn Pattern
   description_human: null
@@ -5195,6 +5676,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_learn_pattern
   cli_path: null
+  parameters: null
 - id: mcp.vox_lint_crate
   title: Lint Crate
   description_human: null
@@ -5210,6 +5692,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_lint_crate
   cli_path: null
+  parameters: null
 - id: mcp.vox_list_context
   title: List Context
   description_human: null
@@ -5225,6 +5708,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_list_context
   cli_path: null
+  parameters: null
 - id: mcp.vox_list_models
   title: List Models
   description_human: null
@@ -5240,6 +5724,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_list_models
   cli_path: null
+  parameters: null
 - id: mcp.vox_lock_status
   title: Lock Status
   description_human: null
@@ -5255,6 +5740,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_lock_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_battle_start
   title: Ludus Battle Start
   description_human: null
@@ -5270,6 +5756,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_battle_start
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_battle_submit
   title: Ludus Battle Submit
   description_human: null
@@ -5285,6 +5772,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_battle_submit
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_collegium_join
   title: Ludus Collegium Join
   description_human: null
@@ -5300,6 +5788,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_collegium_join
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_notification_ack
   title: Ludus Notification Ack
   description_human: null
@@ -5315,6 +5804,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_notification_ack
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_notifications_ack_all
   title: Ludus Notifications Ack All
   description_human: null
@@ -5330,6 +5820,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_notifications_ack_all
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_notifications_list
   title: Ludus Notifications List
   description_human: null
@@ -5345,6 +5836,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_notifications_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_progress_snapshot
   title: Ludus Progress Snapshot
   description_human: null
@@ -5360,6 +5852,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_progress_snapshot
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_quest_list
   title: Ludus Quest List
   description_human: null
@@ -5375,6 +5868,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_quest_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_shop_buy
   title: Ludus Shop Buy
   description_human: null
@@ -5390,6 +5884,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_shop_buy
   cli_path: null
+  parameters: null
 - id: mcp.vox_ludus_shop_catalog
   title: Ludus Shop Catalog
   description_human: null
@@ -5405,6 +5900,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_ludus_shop_catalog
   cli_path: null
+  parameters: null
 - id: mcp.vox_map_agent_session
   title: Map Agent Session
   description_human: null
@@ -5420,6 +5916,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_map_agent_session
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_list_keys
   title: Memory List Keys
   description_human: null
@@ -5435,6 +5932,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_list_keys
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_log
   title: Memory Log
   description_human: null
@@ -5450,6 +5948,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_log
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_recall
   title: Memory Recall
   description_human: null
@@ -5465,6 +5964,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_recall
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_recall_db
   title: Memory Recall Db
   description_human: null
@@ -5480,6 +5980,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_recall_db
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_save_db
   title: Memory Save Db
   description_human: null
@@ -5495,6 +5996,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_save_db
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_search
   title: Memory Search
   description_human: null
@@ -5510,6 +6012,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_search
   cli_path: null
+  parameters: null
 - id: mcp.vox_memory_store
   title: Memory Store
   description_human: null
@@ -5525,6 +6028,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_memory_store
   cli_path: null
+  parameters: null
 - id: mcp.vox_my_files
   title: My Files
   description_human: null
@@ -5540,6 +6044,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_my_files
   cli_path: null
+  parameters: null
 - id: mcp.vox_news_approval_status
   title: News Approval Status
   description_human: null
@@ -5555,6 +6060,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_news_approval_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_news_approve
   title: News Approve
   description_human: null
@@ -5570,6 +6076,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_news_approve
   cli_path: null
+  parameters: null
 - id: mcp.vox_news_draft_research
   title: News Draft Research
   description_human: null
@@ -5585,6 +6092,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_news_draft_research
   cli_path: null
+  parameters: null
 - id: mcp.vox_news_simulate_publish_gate
   title: News Simulate Publish Gate
   description_human: null
@@ -5600,6 +6108,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_news_simulate_publish_gate
   cli_path: null
+  parameters: null
 - id: mcp.vox_news_test_syndicate
   title: News Test Syndicate
   description_human: null
@@ -5615,6 +6124,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_news_test_syndicate
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_discover
   title: Openclaw Discover
   description_human: null
@@ -5630,6 +6140,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_discover
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_gateway_call
   title: Openclaw Gateway Call
   description_human: null
@@ -5645,6 +6156,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_gateway_call
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_health
   title: Openclaw Health
   description_human: null
@@ -5660,6 +6172,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_health
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_import_skill
   title: Openclaw Import Skill
   description_human: null
@@ -5675,6 +6188,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_import_skill
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_list_remote
   title: Openclaw List Remote
   description_human: null
@@ -5690,6 +6204,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_list_remote
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_notify
   title: Openclaw Notify
   description_human: null
@@ -5705,6 +6220,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_notify
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_search_remote
   title: Openclaw Search Remote
   description_human: null
@@ -5720,6 +6236,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_search_remote
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_subscribe
   title: Openclaw Subscribe
   description_human: null
@@ -5735,6 +6252,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_subscribe
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_subscriptions
   title: Openclaw Subscriptions
   description_human: null
@@ -5750,6 +6268,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_subscriptions
   cli_path: null
+  parameters: null
 - id: mcp.vox_openclaw_unsubscribe
   title: Openclaw Unsubscribe
   description_human: null
@@ -5765,6 +6284,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_openclaw_unsubscribe
   cli_path: null
+  parameters: null
 - id: mcp.vox_oplog
   title: Oplog
   description_human: null
@@ -5780,6 +6300,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_oplog
   cli_path: null
+  parameters: null
 - id: mcp.vox_oratio_listen
   title: Oratio Listen
   description_human: null
@@ -5798,6 +6319,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_oratio_listen
   cli_path: null
+  parameters: null
 - id: mcp.vox_oratio_status
   title: Oratio Status
   description_human: null
@@ -5816,6 +6338,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_oratio_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_oratio_transcribe
   title: Oratio Transcribe
   description_human: null
@@ -5834,6 +6357,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_oratio_transcribe
   cli_path: null
+  parameters: null
 - id: mcp.vox_orchestrator_persistence_outbox_lifecycle
   title: Orchestrator Persistence Outbox Lifecycle
   description_human: null
@@ -5849,6 +6373,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_orchestrator_persistence_outbox_lifecycle
   cli_path: null
+  parameters: null
 - id: mcp.vox_orchestrator_persistence_outbox_queue
   title: Orchestrator Persistence Outbox Queue
   description_human: null
@@ -5864,6 +6389,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_orchestrator_persistence_outbox_queue
   cli_path: null
+  parameters: null
 - id: mcp.vox_orchestrator_start
   title: Orchestrator Start
   description_human: null
@@ -5879,6 +6405,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_orchestrator_start
   cli_path: null
+  parameters: null
 - id: mcp.vox_orchestrator_status
   title: Orchestrator Status
   description_human: null
@@ -5894,6 +6421,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_orchestrator_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_pause_agent
   title: Pause Agent
   description_human: null
@@ -5909,6 +6437,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_pause_agent
   cli_path: null
+  parameters: null
 - id: mcp.vox_pending_questions
   title: Pending Questions
   description_human: null
@@ -5924,6 +6453,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_pending_questions
   cli_path: null
+  parameters: null
 - id: mcp.vox_pipeline_status
   title: Pipeline Status
   description_human: null
@@ -5939,6 +6469,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_pipeline_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_plan
   title: Plan
   description_human: null
@@ -5954,6 +6485,39 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_plan
   cli_path: null
+  parameters: null
+- id: mcp.vox_plan_list_sessions
+  title: Plan List Sessions
+  description_human: null
+  description_model: List active and recent plan sessions.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plan_list_sessions
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plan_resume
+  title: Plan Resume
+  description_human: null
+  description_model: Resume a suspended or pending plan session.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plan_resume
+  cli_path: null
+  parameters: null
 - id: mcp.vox_plan_status
   title: Plan Status
   description_human: null
@@ -5969,6 +6533,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_plan_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_poll_events
   title: Poll Events
   description_human: null
@@ -5984,6 +6549,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_poll_events
   cli_path: null
+  parameters: null
 - id: mcp.vox_populi_local_status
   title: Populi Local Status
   description_human: null
@@ -5999,6 +6565,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_populi_local_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_preference_get
   title: Preference Get
   description_human: null
@@ -6014,6 +6581,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_preference_get
   cli_path: null
+  parameters: null
 - id: mcp.vox_preference_list
   title: Preference List
   description_human: null
@@ -6029,6 +6597,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_preference_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_preference_set
   title: Preference Set
   description_human: null
@@ -6044,6 +6613,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_preference_set
   cli_path: null
+  parameters: null
 - id: mcp.vox_project_init
   title: Project Init
   description_human: null
@@ -6062,6 +6632,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_project_init
   cli_path: null
+  parameters: null
 - id: mcp.vox_publish_message
   title: Publish Message
   description_human: null
@@ -6077,6 +6648,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_publish_message
   cli_path: null
+  parameters: null
 - id: mcp.vox_questioning_pending
   title: Questioning Pending
   description_human: null
@@ -6092,6 +6664,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_questioning_pending
   cli_path: null
+  parameters: null
 - id: mcp.vox_questioning_submit_answer
   title: Questioning Submit Answer
   description_human: null
@@ -6107,6 +6680,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_questioning_submit_answer
   cli_path: null
+  parameters: null
 - id: mcp.vox_questioning_sync_ssot
   title: Questioning Sync Ssot
   description_human: null
@@ -6122,6 +6696,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_questioning_sync_ssot
   cli_path: null
+  parameters: null
 - id: mcp.vox_queue_status
   title: Queue Status
   description_human: null
@@ -6137,6 +6712,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_queue_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_rebalance
   title: Rebalance
   description_human: null
@@ -6152,6 +6728,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_rebalance
   cli_path: null
+  parameters: null
 - id: mcp.vox_record_cost
   title: Record Cost
   description_human: null
@@ -6167,6 +6744,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_record_cost
   cli_path: null
+  parameters: null
 - id: mcp.vox_redo
   title: Redo
   description_human: null
@@ -6182,6 +6760,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_redo
   cli_path: null
+  parameters: null
 - id: mcp.vox_reorder_task
   title: Reorder Task
   description_human: null
@@ -6197,6 +6776,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_reorder_task
   cli_path: null
+  parameters: null
 - id: mcp.vox_replan
   title: Replan
   description_human: null
@@ -6212,6 +6792,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_replan
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_catalog_list
   title: Repo Catalog List
   description_human: null
@@ -6230,6 +6811,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_repo_catalog_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_catalog_refresh
   title: Repo Catalog Refresh
   description_human: null
@@ -6245,6 +6827,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_repo_catalog_refresh
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_index_refresh
   title: Repo Index Refresh
   description_human: null
@@ -6260,6 +6843,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_repo_index_refresh
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_index_status
   title: Repo Index Status
   description_human: null
@@ -6275,6 +6859,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_repo_index_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_query_file
   title: Repo Query File
   description_human: null
@@ -6290,6 +6875,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_repo_query_file
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_query_history
   title: Repo Query History
   description_human: null
@@ -6305,6 +6891,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_repo_query_history
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_query_text
   title: Repo Query Text
   description_human: null
@@ -6320,6 +6907,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_repo_query_text
   cli_path: null
+  parameters: null
 - id: mcp.vox_repo_status
   title: Repo Status
   description_human: Prints discovered repo root, stable id, and capability markers (vox repo status).
@@ -6338,6 +6926,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_repo_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_resolve_conflict
   title: Resolve Conflict
   description_human: null
@@ -6353,6 +6942,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_resolve_conflict
   cli_path: null
+  parameters: null
 - id: mcp.vox_resume_agent
   title: Resume Agent
   description_human: null
@@ -6368,6 +6958,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_resume_agent
   cli_path: null
+  parameters: null
 - id: mcp.vox_retire_agent
   title: Retire Agent
   description_human: null
@@ -6383,6 +6974,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_retire_agent
   cli_path: null
+  parameters: null
 - id: mcp.vox_run_tests
   title: Run Tests
   description_human: null
@@ -6398,6 +6990,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_run_tests
   cli_path: null
+  parameters: null
 - id: mcp.vox_schola_submit
   title: Schola Submit
   description_human: null
@@ -6413,6 +7006,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_schola_submit
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_assist_suggestions
   title: Scientia Assist Suggestions
   description_human: null
@@ -6428,6 +7022,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_assist_suggestions
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_approve
   title: Scientia Publication Approve
   description_human: null
@@ -6443,6 +7038,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_approve
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_arxiv_handoff_record
   title: Scientia Publication Arxiv Handoff Record
   description_human: null
@@ -6458,6 +7054,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_arxiv_handoff_record
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_decision_explain
   title: Scientia Publication Decision Explain
   description_human: null
@@ -6473,6 +7070,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_decision_explain
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_discovery_explain
   title: Scientia Publication Discovery Explain
   description_human: null
@@ -6488,6 +7086,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_discovery_explain
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_discovery_refresh_evidence
   title: Scientia Publication Discovery Refresh Evidence
   description_human: null
@@ -6503,6 +7102,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_discovery_refresh_evidence
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_discovery_scan
   title: Scientia Publication Discovery Scan
   description_human: null
@@ -6518,6 +7118,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_discovery_scan
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_external_jobs_dead_letter
   title: Scientia Publication External Jobs Dead Letter
   description_human: null
@@ -6533,6 +7134,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_external_jobs_dead_letter
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_external_jobs_due
   title: Scientia Publication External Jobs Due
   description_human: null
@@ -6548,6 +7150,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_external_jobs_due
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_external_jobs_replay
   title: Scientia Publication External Jobs Replay
   description_human: null
@@ -6563,6 +7166,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_external_jobs_replay
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_external_jobs_tick
   title: Scientia Publication External Jobs Tick
   description_human: null
@@ -6578,6 +7182,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_external_jobs_tick
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_external_pipeline_metrics
   title: Scientia Publication External Pipeline Metrics
   description_human: null
@@ -6593,6 +7198,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_external_pipeline_metrics
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_media_delete
   title: Scientia Publication Media Delete
   description_human: null
@@ -6608,6 +7214,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_media_delete
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_media_list
   title: Scientia Publication Media List
   description_human: null
@@ -6623,6 +7230,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_media_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_media_upsert
   title: Scientia Publication Media Upsert
   description_human: null
@@ -6638,6 +7246,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_media_upsert
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_novelty_fetch
   title: Scientia Publication Novelty Fetch
   description_human: null
@@ -6653,6 +7262,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_novelty_fetch
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_novelty_happy_path
   title: Scientia Publication Novelty Happy Path
   description_human: null
@@ -6668,6 +7278,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_novelty_happy_path
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_preflight
   title: Scientia Publication Preflight
   description_human: null
@@ -6683,6 +7294,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_preflight
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_prepare
   title: Scientia Publication Prepare
   description_human: null
@@ -6698,6 +7310,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_prepare
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_publish
   title: Scientia Publication Publish
   description_human: null
@@ -6713,6 +7326,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_publish
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_retry_failed
   title: Scientia Publication Retry Failed
   description_human: null
@@ -6728,6 +7342,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_retry_failed
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_route_simulate
   title: Scientia Publication Route Simulate
   description_human: null
@@ -6743,6 +7358,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_route_simulate
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_scholarly_pipeline_run
   title: Scientia Publication Scholarly Pipeline Run
   description_human: null
@@ -6758,6 +7374,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_scholarly_pipeline_run
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_scholarly_remote_status
   title: Scientia Publication Scholarly Remote Status
   description_human: null
@@ -6773,6 +7390,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_scholarly_remote_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_scholarly_remote_status_sync_all
   title: Scientia Publication Scholarly Remote Status Sync All
   description_human: null
@@ -6788,6 +7406,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_scholarly_remote_status_sync_all
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_scholarly_remote_status_sync_batch
   title: Scientia Publication Scholarly Remote Status Sync Batch
   description_human: null
@@ -6803,6 +7422,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_scholarly_remote_status_sync_batch
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_scholarly_staging_export
   title: Scientia Publication Scholarly Staging Export
   description_human: null
@@ -6818,6 +7438,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_scholarly_staging_export
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_status
   title: Scientia Publication Status
   description_human: null
@@ -6833,6 +7454,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_submit_local
   title: Scientia Publication Submit Local
   description_human: null
@@ -6848,6 +7470,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_submit_local
   cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_worthiness_evaluate
   title: Scientia Worthiness Evaluate
   description_human: null
@@ -6863,6 +7486,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_scientia_worthiness_evaluate
   cli_path: null
+  parameters: null
 - id: mcp.vox_session_cleanup
   title: Session Cleanup
   description_human: null
@@ -6878,6 +7502,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_session_cleanup
   cli_path: null
+  parameters: null
 - id: mcp.vox_session_compact
   title: Session Compact
   description_human: null
@@ -6893,6 +7518,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_session_compact
   cli_path: null
+  parameters: null
 - id: mcp.vox_session_create
   title: Session Create
   description_human: null
@@ -6908,6 +7534,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_session_create
   cli_path: null
+  parameters: null
 - id: mcp.vox_session_info
   title: Session Info
   description_human: null
@@ -6923,6 +7550,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_session_info
   cli_path: null
+  parameters: null
 - id: mcp.vox_session_list
   title: Session List
   description_human: null
@@ -6938,6 +7566,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_session_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_session_reset
   title: Session Reset
   description_human: null
@@ -6953,6 +7582,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_session_reset
   cli_path: null
+  parameters: null
 - id: mcp.vox_set_active_model
   title: Set Active Model
   description_human: null
@@ -6968,6 +7598,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_set_active_model
   cli_path: null
+  parameters: null
 - id: mcp.vox_set_agent_budget
   title: Set Agent Budget
   description_human: null
@@ -6983,6 +7614,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_set_agent_budget
   cli_path: null
+  parameters: null
 - id: mcp.vox_set_context
   title: Set Context
   description_human: null
@@ -6998,6 +7630,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_set_context
   cli_path: null
+  parameters: null
 - id: mcp.vox_set_model
   title: Set Model
   description_human: null
@@ -7013,6 +7646,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_set_model
   cli_path: null
+  parameters: null
 - id: mcp.vox_skill_info
   title: Skill Info
   description_human: null
@@ -7028,6 +7662,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_skill_info
   cli_path: null
+  parameters: null
 - id: mcp.vox_skill_install
   title: Skill Install
   description_human: null
@@ -7043,6 +7678,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_skill_install
   cli_path: null
+  parameters: null
 - id: mcp.vox_skill_list
   title: Skill List
   description_human: null
@@ -7058,6 +7694,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_skill_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_skill_parse
   title: Skill Parse
   description_human: null
@@ -7073,6 +7710,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_skill_parse
   cli_path: null
+  parameters: null
 - id: mcp.vox_skill_search
   title: Skill Search
   description_human: null
@@ -7088,6 +7726,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_skill_search
   cli_path: null
+  parameters: null
 - id: mcp.vox_skill_uninstall
   title: Skill Uninstall
   description_human: null
@@ -7103,6 +7742,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_skill_uninstall
   cli_path: null
+  parameters: null
 - id: mcp.vox_snapshot_diff
   title: Snapshot Diff
   description_human: null
@@ -7118,6 +7758,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_snapshot_diff
   cli_path: null
+  parameters: null
 - id: mcp.vox_snapshot_list
   title: Snapshot List
   description_human: null
@@ -7133,6 +7774,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_snapshot_list
   cli_path: null
+  parameters: null
 - id: mcp.vox_snapshot_restore
   title: Snapshot Restore
   description_human: null
@@ -7151,6 +7793,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_snapshot_restore
   cli_path: null
+  parameters: null
 - id: mcp.vox_spawn_agent
   title: Spawn Agent
   description_human: null
@@ -7166,6 +7809,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_spawn_agent
   cli_path: null
+  parameters: null
 - id: mcp.vox_speech_to_code
   title: Speech To Code
   description_human: null
@@ -7181,6 +7825,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_speech_to_code
   cli_path: null
+  parameters: null
 - id: mcp.vox_submit_task
   title: Submit Task
   description_human: null
@@ -7196,6 +7841,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_submit_task
   cli_path: null
+  parameters: null
 - id: mcp.vox_suggest_model
   title: Suggest Model
   description_human: null
@@ -7211,6 +7857,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_suggest_model
   cli_path: null
+  parameters: null
 - id: mcp.vox_task_status
   title: Task Status
   description_human: null
@@ -7226,6 +7873,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_task_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_test_all
   title: Test All
   description_human: null
@@ -7241,6 +7889,23 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_test_all
   cli_path: null
+  parameters: null
+- id: mcp.vox_test_decision
+  title: Test Decision
+  description_human: null
+  description_model: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_test_decision
+  cli_path: null
+  parameters: null
 - id: mcp.vox_toestub_findings_upsert
   title: Toestub Findings Upsert
   description_human: null
@@ -7256,6 +7921,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_toestub_findings_upsert
   cli_path: null
+  parameters: null
 - id: mcp.vox_transfer_file
   title: Transfer File
   description_human: null
@@ -7271,6 +7937,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_transfer_file
   cli_path: null
+  parameters: null
 - id: mcp.vox_trust_override
   title: Attention Trust Override
   description_human: null
@@ -7286,6 +7953,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_trust_override
   cli_path: null
+  parameters: null
 - id: mcp.vox_undo
   title: Undo
   description_human: null
@@ -7301,6 +7969,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_undo
   cli_path: null
+  parameters: null
 - id: mcp.vox_validate_file
   title: Validate File
   description_human: null
@@ -7316,6 +7985,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_validate_file
   cli_path: null
+  parameters: null
 - id: mcp.vox_vcs_status
   title: Vcs Status
   description_human: null
@@ -7331,6 +8001,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_vcs_status
   cli_path: null
+  parameters: null
 - id: mcp.vox_workspace_create
   title: Workspace Create
   description_human: null
@@ -7349,6 +8020,7 @@ curated:
   mens_planner_visible: true
   mcp_tool: vox_workspace_create
   cli_path: null
+  parameters: null
 - id: mcp.vox_workspace_merge
   title: Workspace Merge
   description_human: null
@@ -7364,6 +8036,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_workspace_merge
   cli_path: null
+  parameters: null
 - id: mcp.vox_workspace_modules
   title: Workspace Modules
   description_human: null
@@ -7379,6 +8052,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_workspace_modules
   cli_path: null
+  parameters: null
 - id: mcp.vox_workspace_status
   title: Workspace Status
   description_human: null
@@ -7394,6 +8068,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: vox_workspace_status
   cli_path: null
+  parameters: null
 runtime_builtin_maps:
 - namespace: fs
   method: read

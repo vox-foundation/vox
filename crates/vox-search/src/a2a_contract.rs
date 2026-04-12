@@ -82,6 +82,8 @@ mod tests {
             tantivy_doc_lines: vec!["[tantivy:p] y".into()],
             qdrant_lines: vec!["[qdrant:9] z".into()],
             rrf_fused_lines: vec!["fused".into()],
+            web_lines: vec![],
+            warnings: Vec::new(),
             used_vector: false,
             used_bm25: true,
             lexical_fallback_used: false,
@@ -92,7 +94,6 @@ mod tests {
             evidence_quality: 0.5,
             citation_coverage: 0.5,
             recommended_next_action: None,
-            warnings: Vec::new(),
         };
         let r = A2ARetrievalResponse::from_search_pass(
             "r1",

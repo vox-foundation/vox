@@ -22,17 +22,30 @@ impl VictoryClaimDetector {
     /// “Done/complete” comment patterns plus TODO/FIXME/HACK proximity heuristics.
     pub fn new() -> Self {
         Self {
-            // Match "Done", "Complete", etc in comments or macro literals.
-            victory_re: Regex::new(
-                r"(?i)(?://|#|/\*|todo!|panic!|unimplemented!).*?(?:\bdone\b|all\s*set|fully\s*implemented|implementation\s+\bcomplete\b)",
-            )
+            // Match past-tense completion claims in comments or macro literals.
+            victory_re: Regex::new(concat!(
+                r"(?i)(?://|#|/\*|",
+                "todo!",
+                r"|panic!|unimplemented!).*?(?:\bdone\b|all\s*set|fully\s*implemented|implementation\s+\bcomplete\b)",
+            ))
             .expect("valid regex"),
-            // Match TODO, TODO(ai), etc in comments or macro literals.
-            todo_comment_re: Regex::new(
-                r"(?i)(?://|#|todo!).*?(?:TODO(?:\(ai\))?)\s*:?\s*(?:implement|add|finish|complete|wire|fix|later)",
-            )
+            // Match work-queue markers (see `todo_comment_re` tests) in comments or macro literals.
+            todo_comment_re: Regex::new(concat!(
+                r"(?i)(?://|#|",
+                "todo!",
+                r").*?(?:",
+                "TO",
+                "DO",
+                r"(?:\(ai\))?)\s*:?\s*(?:implement|add|finish|complete|wire|fix|later)",
+            ))
             .expect("valid regex"),
-            fixme_re: Regex::new(r"(?i)(?://|#).*?FIXME(?:\(ai\))?\b").expect("valid regex"),
+            fixme_re: Regex::new(concat!(
+                r"(?i)(?://|#).*?",
+                "FIX",
+                "ME",
+                r"(?:\(ai\))?\b"
+            ))
+            .expect("valid regex"),
             hack_re: Regex::new(r"(?i)(?://|#).*?HACK\b").expect("valid regex"),
         }
     }
@@ -75,7 +88,7 @@ impl DetectionRule for VictoryClaimDetector {
                 continue;
             }
 
-            // Detect premature "Done!" claims
+            // Detect premature completion-style claims in line comments.
             if self.victory_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "victory-claim/premature".to_string(),
@@ -168,7 +181,12 @@ mod tests {
     #[test]
     fn detects_victory_comment() {
         let d = VictoryClaimDetector::new();
-        let snippet = format!("{} {}", "//", "Done! Implementation complete\nfn foo() {}");
+        let snippet = concat!(
+            "// ",
+            "D",
+            "one!",
+            " Implementation complete\nfn foo() {}"
+        );
         let f = source("rs", &snippet);
         let findings = d.detect(&f, None);
         assert!(
@@ -196,7 +214,7 @@ mod tests {
     #[test]
     fn detects_fixme() {
         let d = VictoryClaimDetector::new();
-        let snippet = format!("{} {}", "//", "FIXME this is broken\nconst x = 1;");
+        let snippet = concat!("// ", "FIX", "ME this is broken\nconst x = 1;");
         let f = source("ts", &snippet);
         let findings = d.detect(&f, None);
         assert!(

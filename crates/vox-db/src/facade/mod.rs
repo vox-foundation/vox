@@ -1,7 +1,9 @@
 //! [`crate::VoxDb`] inherent methods (split from `lib.rs`).
 
-mod connect;
-mod memory;
-mod migrations;
-mod schema;
-mod workflow;
+pub mod connect;
+pub mod memory;
+pub mod migrations;
+pub mod schema;
+pub mod scientia;
+pub mod workflow;
+pub mod writer_raw;

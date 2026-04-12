@@ -41,6 +41,9 @@ struct ChatRequest {
     temperature: Option<f64>,
     /// Top-p nucleus sampling threshold.
     top_p: Option<f64>,
+    /// Optional structured output forcing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<serde_json::Value>,
 }
 
 /// Ollama-compatible `POST /api/chat` request.
@@ -169,6 +172,14 @@ async fn chat_completions(
     let max_tokens = req.max_tokens.unwrap_or(state.config.max_tokens);
     let temperature = req.temperature.unwrap_or(state.config.temperature);
     let top_p = req.top_p;
+    let json_mode = req
+        .response_format
+        .and_then(|v| {
+            v.get("type")
+                .and_then(|t| t.as_str())
+                .map(|t| t == "json_object")
+        })
+        .unwrap_or(false);
 
     let prompt = build_prompt(&req.messages);
     let result = tokio::task::spawn_blocking({
@@ -192,6 +203,7 @@ async fn chat_completions(
                 max_tokens,
                 temperature,
                 top_p,
+                json_mode,
             )
         }
     })
@@ -266,7 +278,17 @@ async fn ollama_generate(
         }
         let device = state.config.device.clone();
         let prompt = req.prompt.clone();
-        move || generate_response(&model_dir, &prompt, &device, max_tokens, temperature, None)
+        move || {
+            generate_response(
+                &model_dir,
+                &prompt,
+                &device,
+                max_tokens,
+                temperature,
+                None,
+                false,
+            )
+        }
     })
     .await;
 
@@ -373,6 +395,7 @@ async fn ollama_chat(
                 max_tokens,
                 temperature,
                 None,
+                false,
             )
         }
     })
@@ -467,7 +490,13 @@ fn generate_response(
     max_new_tokens: usize,
     temperature: f64,
     top_p: Option<f64>,
+    json_mode: bool,
 ) -> Result<String> {
+    let grammar_mode = if json_mode {
+        vox_constrained_gen::GrammarMode::Json
+    } else {
+        vox_constrained_gen::GrammarMode::None
+    };
     // Resolve device
     let device_kind =
         vox_populi::mens::normalize_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -490,7 +519,7 @@ fn generate_response(
         model_dir,
         &device_kind,
     )?;
-    engine.generate(prompt, max_new_tokens, temperature, top_p)
+    engine.generate(prompt, max_new_tokens, temperature, top_p, &grammar_mode)
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────

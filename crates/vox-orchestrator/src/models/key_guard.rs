@@ -15,7 +15,7 @@ pub fn provider_secret_is_available(ptype: &ProviderType) -> bool {
         ProviderType::DeepSeek => SecretId::DeepSeekApiKey,
         ProviderType::SambaNova => SecretId::SambaNovaApiKey,
         ProviderType::Anthropic => SecretId::AnthropicApiKey,
-        ProviderType::Custom(_) => SecretId::CustomOpenAiApiKey,
+        ProviderType::Custom(_) => SecretId::CustomOpenaiApiKey,
         ProviderType::Ollama | ProviderType::PopuliMesh => {
             // Local endpoints don't strictly require a clavis secret in the same way,
             // or use environment variables instead.

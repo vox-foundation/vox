@@ -4,8 +4,10 @@ description: "Start here for contributor-facing Vox documentation, governance, i
 category: "contributor"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-03
+last_updated: 2026-04-12
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Contributor hub
@@ -18,6 +20,7 @@ If you are evaluating Vox as a language or product, start with the [site landing
 
 - [AGENTS.md](../../../AGENTS.md) - required contributor and agent policy entry point, with Clavis as the secret-management SSOT.
 - [Agent instruction architecture](agent-instruction-architecture.md) - instruction layering model (`AGENTS.md`, tool overlays, continuation prompts, CI gates).
+- [Coding Agents Guide](coding-agents.md) - heuristics and rules for agents, including god object constraints and stale docs guidelines.
 - [Documentation governance](documentation-governance.md) - where docs live, which surface owns what, status vocabulary, and review cadence.
 - [CI runner contract](../ci/runner-contract.md) - canonical `vox ci` guidance, runner labels, and line-ending policy.
 - [Doc inventory verifier](../reference/doc-inventory.md) - machine-readable doc inventory workflow and drift expectations.
@@ -39,12 +42,42 @@ Use these surfaces intentionally:
 | Architecture or roadmap context | [Architecture index](../architecture/architecture-index.md), [Research index](../architecture/research-index.md) |
 | Contracts and schema-backed behavior | [contracts/README.md](../../../contracts/README.md), related reference pages under `docs/src/reference/` |
 | MCP, HTTP, Populi mesh, SSE, WebSockets | [Communication protocols](../reference/communication-protocols.md), [protocol catalog](../../../contracts/communication/protocol-catalog.yaml); research [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) |
-| CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Architectural governance (TOESTUB)](../../agents/governance.md) |
+| CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Pre-push local CI parity](#pre-push-local-ci-parity) (below), [Architectural governance (TOESTUB)](../../agents/governance.md) |
 | VS Code / Cursor extension, MCP tool calls from the editor, Oratio speech UX | [`vox-vscode/README.md`](../../../vox-vscode/README.md), [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md), [Speech capture architecture](../reference/speech-capture-architecture.md) |
 
 Fast local policy rerun for this lane:
 
 - `vox ci policy-smoke` runs `cargo check -p vox-orchestrator`, then command-compliance and the same rust ecosystem parity test used by `vox ci rust-ecosystem-policy` in one command.
+
+## Pre-push: local CI parity
+
+CI on `main` / PRs is defined in [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml). The job does **not** rely on a lone `cargo check -p vox-cli`; it runs **`cargo clippy --workspace --all-targets`**, **`cargo doc --workspace --no-deps`** (with warnings denied), **`cargo llvm-cov nextest --workspace`**, and many **`vox ci *`** guards. Before pushing, run a **high-signal subset** so failures match CI instead of showing up only on the runner.
+
+**Suggested commands** (from repo root; use full `cargo` path on Windows agents if `PATH` is minimal — see [AGENTS.md](../../../AGENTS.md)):
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo run -p vox-cli --quiet -- ci ssot-drift
+```
+
+Then run **tests for crates you changed** (faster than a full workspace test pass):
+
+```bash
+cargo test -p vox-db --test schema_contract_tests   # example; pick your crates
+```
+
+**TOESTUB** on changed directories (requires the `stub-check` feature on `vox-cli`):
+
+```bash
+cargo run -p vox-cli --features stub-check --quiet -- stub-check crates/vox-mcp
+```
+
+Use a **single** positional path per invocation (repeat for each directory). See [Architectural governance (TOESTUB)](../../agents/governance.md).
+
+**`vox_db::legacy_schema` warnings during `stub-check`:** if stderr mentions `schema_version chain is not the current baseline`, the harness opened the **canonical Codex store** resolved from your environment (usually the platform default `vox.db` when `VOX_DB_PATH` is unset). Fix by either completing **Stage 1** in the [VoxDB cutover runbook](../operations/voxdb-cutover-runbook.md) for that file, or — when you do not need to keep data — point **`VOX_DB_PATH`** at a **fresh scratch `.db`** per the runbook section *Contributors / local tooling — fresh canonical DB* (`connect_default` does not use `:memory:` when env is empty). Do not lower `BASELINE_VERSION` to silence the log.
+
+**Codex + docs SSOT:** `vox ci check-codex-ssot` and `vox ci check-docs-ssot` are **merge-blocking** in CI (see [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)). Run `check-codex-ssot` locally after changing [`contracts/db/baseline-version-policy.yaml`](../../../contracts/db/baseline-version-policy.yaml) or [`crates/vox-db/src/schema/manifest.rs`](../../../crates/vox-db/src/schema/manifest.rs). Run `check-docs-ssot` when you change doc inventories, canonical maps, or migration-facing docs.
 
 ## Contributor expectations
 

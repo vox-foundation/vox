@@ -3,6 +3,8 @@ title: "Journey: Reliable Background Workflows"
 description: "How to escape brittle external job queues using Vox's native Durable Execution for microservice reliability."
 category: "journey"
 sort_order: 2
+
+schema_type: "HowTo"
 ---
 
 # Journey: Reliable Background Workflows
@@ -62,6 +64,11 @@ workflow process_order(customer: str, amount: int, card_tok: str) -> Result[str]
    ```
 
    Will automatically start the journal layer mapped to your local storage.
+
+## Maturity and limitations
+
+- **Maturity:** `spec_plus_runtime` — durable journal v1 is contract-first; operator UX and every language keyword path should be checked against the latest ADR and compiler release notes.
+- **Limitation ids:** [L-028](../../../contracts/journeys/limitations.v1.yaml) (completion and skeleton policy span multiple CI commands, not a single switch).
 
 ## Deep Dives
 

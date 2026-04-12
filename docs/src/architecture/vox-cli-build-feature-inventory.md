@@ -4,11 +4,19 @@ description: "Official documentation for vox-cli build and feature inventory for
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # vox-cli build and feature inventory
 
 Single place to see **which Cargo features pull which dependency blocks** and how that affects compile time. Use with [CLI scope policy](cli-scope-policy.md), [trim-build-defer policy](trim-build-defer-policy.md), and `vox ci build-timings`.
+
+## Capability Discovery (`vox-build-meta`)
+
+Starting in v0.1.0, the `vox-build-meta` crate generates a `FEATURES_JSON` manifest at build time capturing the exact `CARGO_FEATURE_*` variables compiled into the binary. 
+
+When a user attempts to run a disconnected feature (e.g. `vox oratio` on a build missing the `oratio` feature, or `vox mens train` missing `gpu`), the CLI dispatches this to a fallback stub. The stub uses `vox_build_meta::require("feature_name", "cargo build ...")` to gracefully intercept the command and print actionable, copy-pasteable rebuild instructions, rather than crashing with an unhelpful "unrecognized subcommand" error.
 
 ## Default features (minimal compiler loop)
 

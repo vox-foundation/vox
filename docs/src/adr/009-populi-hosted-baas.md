@@ -4,6 +4,8 @@ description: "Official documentation for ADR 009: Hosted mens / BaaS (future sco
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 009: Hosted mens / BaaS (future scope)

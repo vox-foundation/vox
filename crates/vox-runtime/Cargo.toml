@@ -33,6 +33,7 @@ which = "8"
 xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
 rust_decimal = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]
 workspace = true

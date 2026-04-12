@@ -354,6 +354,14 @@
       "title": "Chat Message"
     },
     {
+      "capability_id": "mcp.vox_check",
+      "curated": true,
+      "description_model": "CLI operation `vox check`",
+      "implicit": false,
+      "mcp_tool": "vox_check",
+      "title": "Check"
+    },
+    {
       "capability_id": "mcp.vox_check_file_owner",
       "curated": true,
       "description_model": "Check which agent currently owns a given file path.",
@@ -594,6 +602,14 @@
       "title": "Decorator Registry"
     },
     {
+      "capability_id": "mcp.vox_doubt_task",
+      "curated": true,
+      "description_model": "Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.",
+      "implicit": false,
+      "mcp_tool": "vox_doubt_task",
+      "title": "Task Doubt"
+    },
+    {
       "capability_id": "mcp.vox_drain_agent",
       "curated": true,
       "description_model": "Remove all queued tasks from an agent without retiring it.",
@@ -608,6 +624,30 @@
       "implicit": false,
       "mcp_tool": "vox_emergency_stop",
       "title": "Emergency Stop"
+    },
+    {
+      "capability_id": "mcp.vox_exec_time_query",
+      "curated": true,
+      "description_model": "Query historical execution time for a tool.",
+      "implicit": false,
+      "mcp_tool": "vox_exec_time_query",
+      "title": "Exec Time Query"
+    },
+    {
+      "capability_id": "mcp.vox_exec_time_record",
+      "curated": true,
+      "description_model": "Record an execution duration and outcome.",
+      "implicit": false,
+      "mcp_tool": "vox_exec_time_record",
+      "title": "Exec Time Record"
+    },
+    {
+      "capability_id": "mcp.vox_export_grammar_ebnf",
+      "curated": true,
+      "description_model": "Export the Vox EBNF grammar.",
+      "implicit": false,
+      "mcp_tool": "vox_export_grammar_ebnf",
+      "title": "Export Grammar Ebnf"
     },
     {
       "capability_id": "mcp.vox_fail_task",
@@ -1184,6 +1224,22 @@
       "implicit": false,
       "mcp_tool": "vox_plan",
       "title": "Plan"
+    },
+    {
+      "capability_id": "mcp.vox_plan_list_sessions",
+      "curated": true,
+      "description_model": "List active and recent plan sessions.",
+      "implicit": false,
+      "mcp_tool": "vox_plan_list_sessions",
+      "title": "Plan List Sessions"
+    },
+    {
+      "capability_id": "mcp.vox_plan_resume",
+      "curated": true,
+      "description_model": "Resume a suspended or pending plan session.",
+      "implicit": false,
+      "mcp_tool": "vox_plan_resume",
+      "title": "Plan Resume"
     },
     {
       "capability_id": "mcp.vox_plan_status",
@@ -1914,6 +1970,14 @@
       "title": "Test All"
     },
     {
+      "capability_id": "mcp.vox_test_decision",
+      "curated": true,
+      "description_model": "Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.",
+      "implicit": false,
+      "mcp_tool": "vox_test_decision",
+      "title": "Test Decision"
+    },
+    {
       "capability_id": "mcp.vox_toestub_findings_upsert",
       "curated": true,
       "description_model": "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).",
@@ -2564,6 +2628,17 @@
       "title": "Ci Policy-smoke"
     },
     {
+      "capability_id": "cli.ci.query-all-guard",
+      "cli_path": [
+        "ci",
+        "query-all-guard"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci query-all-guard`",
+      "implicit": false,
+      "title": "Ci Query-all-guard"
+    },
+    {
       "capability_id": "cli.ci.release-build",
       "cli_path": [
         "ci",
@@ -2707,6 +2782,17 @@
       "description_model": "CLI operation `vox ci toestub-self-apply`",
       "implicit": false,
       "title": "Ci Toestub-self-apply"
+    },
+    {
+      "capability_id": "cli.ci.turso-import-guard",
+      "cli_path": [
+        "ci",
+        "turso-import-guard"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci turso-import-guard`",
+      "implicit": false,
+      "title": "Ci Turso-import-guard"
     },
     {
       "capability_id": "cli.ci.workflow-scripts",

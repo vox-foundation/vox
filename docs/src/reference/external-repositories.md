@@ -4,6 +4,8 @@ description: "Official documentation for External repositories & workspace SSOT 
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # External repositories & workspace SSOT

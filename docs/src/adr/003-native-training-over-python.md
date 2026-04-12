@@ -4,6 +4,8 @@ description: "Historical move off Python/Unsloth; current Mens training is nativ
 category: "reference"
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 003 — Native Rust Training Over Python

@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use crate::publication::PublicationManifest;
 use crate::publication_preflight::parse_scientific_from_metadata_json;
+use crate::scientific_metadata::ScientificPublicationMetadata;
 
 #[derive(Serialize)]
 struct CitationCffAuthor {
@@ -35,9 +36,10 @@ struct CitationCffRoot {
 /// Authors are taken from `metadata_json.scientific_publication.authors` when present; otherwise a
 /// single author uses [`PublicationManifest::author`].
 pub fn render_citation_cff(manifest: &PublicationManifest) -> Result<String, serde_yaml::Error> {
-    let scientific = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
-        .ok()
-        .flatten();
+    let scientific: Option<ScientificPublicationMetadata> =
+        parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
+            .ok()
+            .flatten();
 
     let authors: Vec<CitationCffAuthor> = if let Some(ref sci) = scientific {
         if sci.authors.is_empty() {
@@ -54,14 +56,18 @@ pub fn render_citation_cff(manifest: &PublicationManifest) -> Result<String, ser
                     orcid: a
                         .orcid
                         .as_deref()
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
+                        .and_then(|s| {
+                            let t = s.trim();
+                            (!t.is_empty()).then_some(t)
+                        })
                         .map(std::string::ToString::to_string),
                     affiliation: a
                         .affiliation
                         .as_deref()
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
+                        .and_then(|s| {
+                            let t = s.trim();
+                            (!t.is_empty()).then_some(t)
+                        })
                         .map(std::string::ToString::to_string),
                 })
                 .collect()
@@ -77,23 +83,29 @@ pub fn render_citation_cff(manifest: &PublicationManifest) -> Result<String, ser
     let license = scientific
         .as_ref()
         .and_then(|s| s.license_spdx.as_deref())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim();
+            (!t.is_empty()).then_some(t)
+        })
         .map(std::string::ToString::to_string);
 
     let repository_code = scientific
         .as_ref()
         .and_then(|s| s.reproducibility.as_ref())
         .and_then(|r| r.code_repository_url.as_deref())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim();
+            (!t.is_empty()).then_some(t)
+        })
         .map(std::string::ToString::to_string);
 
     let r#abstract = manifest
         .abstract_text
         .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim();
+            (!t.is_empty()).then_some(t)
+        })
         .map(std::string::ToString::to_string);
 
     let root = CitationCffRoot {
@@ -130,12 +142,14 @@ mod tests {
                 name: "A. Person".to_string(),
                 orcid: Some("0000-0002-1825-0097".to_string()),
                 affiliation: Some("Example Univ".to_string()),
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             funding_statement: None,
             competing_interests_statement: None,
             reproducibility: None,
             ethics_and_impact: None,
+            ..Default::default()
         };
         let meta =
             crate::scientific_metadata::build_scientia_metadata_json("t", None, Some(&sci), None)

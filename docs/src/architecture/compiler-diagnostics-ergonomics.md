@@ -6,6 +6,8 @@ status: "current"
 sort_order: 0
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Compiler diagnostics and Rust codegen ergonomics

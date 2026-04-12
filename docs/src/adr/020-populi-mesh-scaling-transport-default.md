@@ -4,6 +4,8 @@ description: "Records the decision to keep the HTTP control plane as the default
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 020: Populi mesh scaling — default transport posture

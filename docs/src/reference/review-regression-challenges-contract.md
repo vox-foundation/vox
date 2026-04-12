@@ -1,3 +1,13 @@
+---
+title: "Review Regression Challenges Contract"
+description: "Stability-first contract for review_regression_memory rows."
+category: "reference"
+status: "current"
+training_eligible: true
+
+schema_type: "TechArticle"
+---
+
 # Review Regression Challenges Contract
 
 Canonical contract for `review_regression_challenges` rows.

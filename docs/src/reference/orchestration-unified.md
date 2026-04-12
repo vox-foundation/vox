@@ -4,6 +4,8 @@ description: "Official documentation for Unified orchestration — SSOT for the 
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Unified orchestration — SSOT
@@ -18,6 +20,10 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 
 **Journey envelope (v1):** [`contracts/orchestration/journey-envelope.v1.schema.json`](../../../contracts/orchestration/journey-envelope.v1.schema.json) is the machine SSOT for per-request metadata (`journey_id`, `session_id`, `thread_id`, trace/correlation ids, `repository_id`, `origin_surface`). MCP `vox_chat_message` embeds this shape in structured transcript payloads; CLI and daemon surfaces wire fields incrementally.
 
+**Canonical MENS dev journey (Codex):** Tables `developer_journey_definitions` / `developer_journey_steps` (baseline fragment `developer_journeys`) seed `canonical_journey.v1.greenfield_vox_mens_devloop`. MCP **`vox_journey_canonical_steps`** returns ordered `step_json` rows when `VoxDb` is attached. Human-readable limitation ids for journey maturity live in [`contracts/journeys/limitations.v1.yaml`](../../../contracts/journeys/limitations.v1.yaml).
+
+**DeI planning on the daemon:** JSON-line DeI methods `ai.plan.new`, `ai.plan.replan`, `ai.plan.status`, and `ai.plan.execute` are handled on the **`vox-orchestrator-d`** stdio surface (`orch_daemon::dei_dispatch`); docs may still say `vox-dei-d` as the logical stdio peer. Persistent plan rows require the same Codex `VoxDb` handle the orchestrator was built with.
+
 ## Ownership: who writes what
 
 | Concern | Embedded MCP (`vox-mcp`) | `vox-orchestrator-d` (daemon) | VoxDb / Turso |
@@ -28,6 +34,10 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 | Workspace journey attach / diagnostics | `connect_workspace_journey_optional`, MCP tooling | JSON-RPC `orch.workspace_journey` | journey + repo bind rows |
 | Routing decisions (`routing_decisions`) | MCP chat / codegen tools; **orchestrator `AiTaskProcessor`** when DB attached | Same table when daemon shares DB | local-first SQLite |
 | Unified routing experiment flag | — | — | `VOX_UNIFIED_ROUTING` (telemetry reason shape in `vox-runtime::routing_telemetry`) |
+
+## HITL Doubt Flow
+
+The unified orchestrator integrates seamlessly with the `vox-dei` Human-In-The-Loop (HITL) crate. When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event. The `ResolutionAgent` inside `vox-dei` then takes over to resolve the doubt with the user, submitting an audit report that hooks into the gamification system (`vox-ludus`). For structural details, see the canonical [HITL Doubt Loop SSOT](../architecture/hitl-doubt-loop-ssot.md).
 
 ## Contract surfaces
 

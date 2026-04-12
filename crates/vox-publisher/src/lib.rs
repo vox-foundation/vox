@@ -7,17 +7,18 @@ pub mod openreview_api_types;
 pub mod publication;
 pub mod publication_preflight;
 pub mod publication_worthiness;
-pub mod scholarly;
-#[cfg(feature = "scholarly-external-jobs")]
-pub mod scholarly_external_jobs;
-#[cfg(feature = "scholarly-external-jobs")]
-pub mod scholarly_remote_status;
 pub mod scientia_contracts;
 pub mod scientia_discovery;
 pub mod scientia_evidence;
 pub mod scientia_finding_ledger;
 pub mod scientia_heuristics;
 pub mod scientia_prior_art;
+
+pub mod scholarly;
+#[cfg(feature = "scholarly-external-jobs")]
+pub mod scholarly_external_jobs;
+#[cfg(feature = "scholarly-external-jobs")]
+pub mod scholarly_remote_status;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scientia_worthiness_enrich;
 pub mod scientific_metadata;
@@ -25,6 +26,7 @@ pub mod submission_package;
 pub mod switching;
 pub mod templates;
 pub mod topic_packs;
+pub mod distribution_compile;
 pub mod types;
 pub mod zenodo_api_types;
 pub mod zenodo_metadata;
@@ -34,6 +36,9 @@ mod syndication_outcome;
 
 pub use syndication_outcome::{ChannelOutcome, SyndicationResult};
 pub use topic_packs::{apply_topic_pack_from_metadata_json, hydrate_syndication_from_pack_id};
+pub use distribution_compile::{
+    compile_for_publish, ChannelPlan, DistributionCompileReport,
+};
 
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -52,7 +57,7 @@ fn summarize_for_social(raw: &str, max_chars: usize) -> String {
 
 #[must_use]
 fn syndication_template_profile_enabled() -> bool {
-    std::env::var("VOX_SYNDICATION_TEMPLATE_PROFILE")
+    PublisherConfig::syndication_secret(vox_clavis::SecretId::VoxSyndicationTemplateProfileEnabled)
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
@@ -248,6 +253,12 @@ fn policy_block_reason(
 pub struct PublisherConfig {
     pub twitter_bearer_token: Option<String>,
     pub forge_token: Option<String>,
+    pub bluesky_handle: Option<String>,
+    pub bluesky_password: Option<String>,
+    pub mastodon_token: Option<String>,
+    pub mastodon_domain: Option<String>,
+    pub linkedin_token: Option<String>,
+    pub discord_webhook: Option<String>,
     pub open_collective_token: Option<String>,
     pub dry_run: bool,
     pub site: NewsSiteConfig,
@@ -277,6 +288,12 @@ impl Default for PublisherConfig {
         Self {
             twitter_bearer_token: None,
             forge_token: None,
+            bluesky_handle: None,
+            bluesky_password: None,
+            mastodon_token: None,
+            mastodon_domain: None,
+            linkedin_token: None,
+            discord_webhook: None,
             open_collective_token: None,
             dry_run: true,
             site: NewsSiteConfig::default(),
@@ -311,6 +328,8 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_NEWS_SITE_BASE_URL",
     "VOX_NEWS_RSS_FEED_PATH",
     "VOX_NEWS_TWITTER_TOKEN",
+    "VOX_SOCIAL_BLUESKY_HANDLE",
+    "VOX_SOCIAL_BLUESKY_PASSWORD",
     "VOX_NEWS_FORGE_TOKEN",
     "VOX_NEWS_OPENCOLLECTIVE_TOKEN",
     "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
@@ -389,36 +408,28 @@ impl PublisherConfig {
         youtube_repo_root: Option<std::path::PathBuf>,
         site: NewsSiteConfig,
     ) -> Self {
-        let env_opt = |k: &str| {
-            std::env::var(k)
-                .ok()
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty())
-        };
-        let env_usize = |k: &str| {
-            env_opt(k).and_then(|v| match v.parse::<usize>() {
-                Ok(n) => Some(n),
-                Err(_) => {
-                    warn!(
-                        target: "vox.publisher.config",
-                        key = k,
-                        value = v,
-                        "invalid usize env override; ignoring"
-                    );
-                    None
-                }
-            })
-        };
         Self {
             twitter_bearer_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsTwitterBearer,
             ),
+            bluesky_handle: Self::syndication_secret(vox_clavis::SecretId::VoxSocialBlueskyHandle),
+            bluesky_password: Self::syndication_secret(vox_clavis::SecretId::VoxSocialBlueskyPassword),
+            mastodon_token: Self::syndication_secret(vox_clavis::SecretId::VoxSocialMastodonToken),
+            mastodon_domain: Self::syndication_secret(vox_clavis::SecretId::VoxSocialMastodonDomain),
+            linkedin_token: Self::syndication_secret(vox_clavis::SecretId::VoxSocialLinkedinAccessToken),
+            discord_webhook: Self::syndication_secret(vox_clavis::SecretId::VoxSocialDiscordWebhook),
             forge_token: Self::syndication_secret(vox_clavis::SecretId::ForgeToken),
             open_collective_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
             ),
-            twitter_summary_margin_chars: env_usize("VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS"),
-            reddit_selfpost_summary_max: env_usize("VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX"),
+            twitter_summary_margin_chars: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialTwitterSummaryMarginChars,
+            )
+            .and_then(|v| v.parse().ok()),
+            reddit_selfpost_summary_max: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditSelfpostSummaryMax,
+            )
+            .and_then(|v| v.parse().ok()),
             reddit_client_id: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialRedditClientId,
             ),
@@ -440,10 +451,17 @@ impl PublisherConfig {
             youtube_refresh_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
             ),
-            hacker_news_mode: env_opt("VOX_SOCIAL_HN_MODE"),
-            youtube_default_category_id: env_opt("VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID"),
-            twitter_text_chunk_max: env_usize("VOX_NEWS_TWITTER_TEXT_CHUNK_MAX"),
-            twitter_truncation_suffix: env_opt("VOX_NEWS_TWITTER_TRUNCATION_SUFFIX"),
+            hacker_news_mode: Self::syndication_secret(vox_clavis::SecretId::VoxSocialHnMode),
+            youtube_default_category_id: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeDefaultCategoryId,
+            ),
+            twitter_text_chunk_max: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsTwitterTextChunkMax,
+            )
+            .and_then(|v| v.parse().ok()),
+            twitter_truncation_suffix: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsTwitterTruncationSuffix,
+            ),
             youtube_repo_root,
             dry_run,
             site,
@@ -465,6 +483,19 @@ impl Publisher {
         item.validate()?;
         info!("Starting syndication for news item: {}", item.id);
         let mut result = SyndicationResult::default();
+        let dist_report = crate::distribution_compile::compile_for_publish(item);
+        for w in &dist_report.warnings {
+            warn!(target: "vox.publisher.distribution_compile", "{}", w);
+        }
+        result.decision_reasons.insert(
+            "distribution_derivation_digest".to_string(),
+            dist_report.derivation_digest_hex.clone(),
+        );
+        if let Ok(json) = serde_json::to_string(&dist_report.channel_plans) {
+            result
+                .decision_reasons
+                .insert("distribution_compile_channel_plans".to_string(), json);
+        }
         if let Some(ref rp) = item.syndication.distribution_policy.retry_profile {
             let t = rp.trim();
             if !t.is_empty() {
@@ -701,6 +732,164 @@ impl Publisher {
                 result.twitter = ChannelOutcome::Failed {
                     code: "missing_twitter_token".to_string(),
                     message: "Twitter config present but no API token.".to_string(),
+                    retryable: false,
+                };
+            }
+        }
+
+        if let Some(bluesky) = &item.syndication.bluesky {
+            if let Some(reason) = policy_block_reason(item, "bluesky", &self.config) {
+                result.bluesky = ChannelOutcome::Disabled;
+                result
+                    .decision_reasons
+                    .insert("bluesky".to_string(), reason);
+            } else if is_dry_run {
+                info!("[DRY RUN] Would post to Bluesky: {:?}", bluesky);
+                result.bluesky = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-bsky-{}", item.id)),
+                };
+            } else if let (Some(handle), Some(password)) = (
+                &self.config.bluesky_handle,
+                &self.config.bluesky_password,
+            ) {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::bluesky::post(&self.config, handle.as_str(), password.as_str(), item, bluesky)
+                })
+                .await
+                {
+                    Ok(id) => {
+                        result.bluesky = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to Bluesky.");
+                    }
+                    Err(e) => {
+                        result.bluesky = ChannelOutcome::Failed {
+                            code: "bluesky_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
+            } else {
+                warn!("Bluesky config present but missing handle or password.");
+                result.bluesky = ChannelOutcome::Failed {
+                    code: "missing_bluesky_auth".to_string(),
+                    message: "Bluesky config present but missing handle or password.".to_string(),
+                    retryable: false,
+                };
+            }
+        }
+
+        if let Some(masto) = &item.syndication.mastodon {
+            if let Some(reason) = policy_block_reason(item, "mastodon", &self.config) {
+                result.mastodon = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("mastodon".to_string(), reason);
+            } else if is_dry_run {
+                result.mastodon = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-mastodon-{}", item.id)),
+                };
+            } else if let (Some(_token), Some(_domain)) = (
+                &self.config.mastodon_token,
+                &self.config.mastodon_domain,
+            ) {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::mastodon::post(&self.config, item, masto, false)
+                })
+                .await
+                {
+                    Ok(id) => {
+                        result.mastodon = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to Mastodon.");
+                    }
+                    Err(e) => {
+                        result.mastodon = ChannelOutcome::Failed {
+                            code: "mastodon_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
+            } else {
+                result.mastodon = ChannelOutcome::Failed {
+                    code: "missing_mastodon_auth".to_string(),
+                    message: "Mastodon config present but missing token or domain.".to_string(),
+                    retryable: false,
+                };
+            }
+        }
+
+        if let Some(linkedin) = &item.syndication.linkedin {
+            if let Some(reason) = policy_block_reason(item, "linkedin", &self.config) {
+                result.linkedin = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("linkedin".to_string(), reason);
+            } else if is_dry_run {
+                result.linkedin = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-linkedin-{}", item.id)),
+                };
+            } else if let Some(_token) = &self.config.linkedin_token {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::linkedin::post(&self.config, item, linkedin, false)
+                })
+                .await
+                {
+                    Ok(id) => {
+                        result.linkedin = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to LinkedIn.");
+                    }
+                    Err(e) => {
+                        result.linkedin = ChannelOutcome::Failed {
+                            code: "linkedin_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
+            } else {
+                result.linkedin = ChannelOutcome::Failed {
+                    code: "missing_linkedin_auth".to_string(),
+                    message: "LinkedIn config present but missing token.".to_string(),
+                    retryable: false,
+                };
+            }
+        }
+
+        if let Some(discord) = &item.syndication.discord {
+            if let Some(reason) = policy_block_reason(item, "discord", &self.config) {
+                result.discord = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("discord".to_string(), reason);
+            } else if is_dry_run {
+                result.discord = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-discord-{}", item.id)),
+                };
+            } else if let Some(_webhook) = &self.config.discord_webhook {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::discord::post(&self.config, item, discord, false)
+                })
+                .await
+                {
+                    Ok(id) => {
+                        result.discord = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to Discord.");
+                    }
+                    Err(e) => {
+                        result.discord = ChannelOutcome::Failed {
+                            code: "discord_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
+            } else {
+                result.discord = ChannelOutcome::Failed {
+                    code: "missing_discord_webhook".to_string(),
+                    message: "Discord config present but missing webhook URL.".to_string(),
                     retryable: false,
                 };
             }

@@ -175,6 +175,10 @@ tools:
   description: Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history.
   product_lane: ai
   http_read_role_eligible: false
+- name: vox_check
+  description: CLI operation `vox check`
+  product_lane: app
+  http_read_role_eligible: false
 - name: vox_check_file_owner
   description: Check which agent currently owns a given file path.
   product_lane: ai
@@ -190,6 +194,10 @@ tools:
 - name: vox_claim_file
   description: Request ownership of a specific file.
   product_lane: ai
+  http_read_role_eligible: false
+- name: vox_clavis_doctor
+  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  product_lane: platform
   http_read_role_eligible: false
 - name: vox_compaction_status
   description: Get current context token usage and whether compaction is recommended.
@@ -295,6 +303,10 @@ tools:
   description: Return detailed metadata for all @decorators in the Vox language.
   product_lane: app
   http_read_role_eligible: false
+- name: vox_doubt_task
+  description: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
+  product_lane: ai
+  http_read_role_eligible: false
 - name: vox_drain_agent
   description: Remove all queued tasks from an agent without retiring it.
   product_lane: ai
@@ -302,6 +314,18 @@ tools:
 - name: vox_emergency_stop
   description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
   product_lane: ai
+  http_read_role_eligible: false
+- name: vox_exec_time_query
+  description: Query historical execution time for a tool.
+  product_lane: ai
+  http_read_role_eligible: true
+- name: vox_exec_time_record
+  description: Record an execution duration and outcome.
+  product_lane: ai
+  http_read_role_eligible: false
+- name: vox_export_grammar_ebnf
+  description: Export the Vox EBNF grammar.
+  product_lane: app
   http_read_role_eligible: false
 - name: vox_fail_task
   description: Mark a task as failed with a reason string.
@@ -355,6 +379,10 @@ tools:
   description: AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement.
   product_lane: ai
   http_read_role_eligible: false
+- name: vox_journey_canonical_steps
+  description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
+  product_lane: ai
+  http_read_role_eligible: true
 - name: vox_knowledge_query
   description: Query the knowledge graph (VoxDB) for related concepts by keyword.
   product_lane: data
@@ -565,6 +593,14 @@ tools:
   http_read_role_eligible: false
 - name: vox_plan
   description: Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root.
+  product_lane: ai
+  http_read_role_eligible: false
+- name: vox_plan_list_sessions
+  description: List active and recent plan sessions.
+  product_lane: ai
+  http_read_role_eligible: false
+- name: vox_plan_resume
+  description: Resume a suspended or pending plan session.
   product_lane: ai
   http_read_role_eligible: false
 - name: vox_plan_status
@@ -907,6 +943,10 @@ tools:
   description: Run cargo test for the entire workspace.
   product_lane: app
   http_read_role_eligible: false
+- name: vox_test_decision
+  description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
+  product_lane: ai
+  http_read_role_eligible: true
 - name: vox_toestub_findings_upsert
   description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
   product_lane: platform

@@ -4,6 +4,8 @@ description: "Official documentation for Compiler Architecture for the Vox langu
 category: "explanation"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Compiler Architecture
@@ -20,44 +22,44 @@ Current implementation note: the practical pipeline is currently consolidated un
 Source Code (.vox)
     │
     ▼
-┌──────────────┐
-│  vox-lexer   │  Tokenization (logos)
-└──────┬───────┘
+┌────────────────┐
+│     Lexer      │  Tokenization (logos)
+└──────┬─────────┘
        │ Vec<Token>
        ▼
-┌──────────────┐
-│  vox-parser  │  Recursive descent parser → AST Module
-└──────┬───────┘
+┌────────────────┐
+│     Parser     │  Recursive descent parser → AST Module
+└──────┬─────────┘
        │ Module (AST root)
        ▼
-┌──────────────┐
-│   vox-ast    │  Strongly-typed AST wrappers
-└──────┬───────┘
+┌────────────────┐
+│      AST       │  Strongly-typed AST wrappers
+└──────┬─────────┘
        │ Module (Decl, Expr, Stmt, Pattern)
        ▼
-┌──────────────┐
-│   vox-hir    │  Desugaring + name resolution + dead code detection
-└──────┬───────┘
+┌────────────────┐
+│      HIR       │  Desugaring + name resolution + dead code detection
+└──────┬─────────┘
        │ HirModule
        ▼
-┌──────────────┐
-│  vox-typeck  │  Bidirectional type checking + HM inference
-└──────┬───────┘
+┌────────────────┐
+│    Typeck      │  Bidirectional type checking + HM inference
+└──────┬─────────┘
        │ Typed HIR + Vec<Diagnostic>
        ▼
-┌──────────────┐
-│   web_ir     │  HIR→WebIR lower + validate
-└──────┬───────┘
+┌────────────────┐
+│     Web IR     │  HIR→WebIR lower + validate
+└──────┬─────────┘
        │ WebIrModule
        ▼
-┌──────────────┐
-│ app_contract │  HIR→AppContract (HTTP/RPC/islands/server config)
-└──────┬───────┘
+┌────────────────┐
+│  App Contract  │  HIR→AppContract (HTTP/RPC/islands/server config)
+└──────┬─────────┘
        │ AppContractModule
        ▼
-┌──────────────┐
-│ runtime_proj │  HIR→RuntimeProjection (DB/task capability hints)
-└──────┬───────┘
+┌────────────────┐
+│ Runtime Proj   │  HIR→RuntimeProjection (DB/task capability hints)
+└──────┬─────────┘
        │ RuntimeProjectionModule
        ▼
 ┌──────────────────┬─────────────────────┐
@@ -189,7 +191,7 @@ Reproducible per-token-class computation:
 | `vox-runtime` | Tokio/Axum runtime: actors, scheduler, subscriptions, storage |
 | `vox-pm` | Package manager: CAS store, dependency resolution, caching |
 | `vox-db` | Database abstraction layer |
-| `vox-gamify` | Gamification system |
+| `vox-ludus` | Gamification system |
 | `vox-orchestrator` | Multi-agent orchestration |
 | `vox-toestub` | AI anti-pattern detector |
 | `vox-tensor` | Native ML tensors via Burn 0.19 (Wgpu/NdArray backends) |

@@ -190,9 +190,9 @@ async fn join_ok_when_scope_matches() {
 #[allow(unsafe_code)]
 async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = std::env::var("VOX_MESH_SERVER_STALE_PRUNE_MS").ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshServerStalePruneMs).expose();
     unsafe {
-        unsafe { std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5") };
+        std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5");
     }
 
     let state = PopuliTransportState::new();
@@ -222,7 +222,7 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     server.abort();
     unsafe {
         match prev {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", v) },
+            Some(v) => std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", v),
             None => std::env::remove_var("VOX_MESH_SERVER_STALE_PRUNE_MS"),
         }
     }
@@ -233,9 +233,9 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
 #[allow(unsafe_code)]
 async fn a2a_deliver_respects_in_memory_cap() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = std::env::var("VOX_MESH_A2A_MAX_MESSAGES").ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aMaxMessages).expose();
     unsafe {
-        unsafe { std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3") };
+        std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3");
     }
 
     let state = PopuliTransportState::new();
@@ -277,7 +277,7 @@ async fn a2a_deliver_respects_in_memory_cap() {
     server.abort();
     unsafe {
         match prev {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", v) },
+            Some(v) => std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", v),
             None => std::env::remove_var("VOX_MESH_A2A_MAX_MESSAGES"),
         }
     }
@@ -361,21 +361,21 @@ async fn oversized_json_body_returns_413() {
 #[allow(unsafe_code)]
 async fn bootstrap_exchange_works_once() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev_bootstrap = std::env::var("VOX_MESH_BOOTSTRAP_TOKEN").ok();
-    let prev_expires = std::env::var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS").ok();
-    let prev_token = std::env::var("VOX_MESH_TOKEN").ok();
-    let prev_scope = std::env::var("VOX_MESH_SCOPE_ID").ok();
+    let prev_bootstrap = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapToken).expose();
+    let prev_expires = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapExpiresUnixMs).expose();
+    let prev_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose();
+    let prev_scope = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId).expose();
 
     let bootstrap = "bootstrap-unit-test-token";
     // SAFETY: serialized by `ENV_MUTEX`, restored at test end.
     unsafe {
-        unsafe { std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", bootstrap) };
+        std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", bootstrap);
         std::env::set_var(
             "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
             (vox_populi::wall_clock_unix_ms() + 120_000).to_string(),
         );
-        unsafe { std::env::set_var("VOX_MESH_TOKEN", "mesh-unit-token") };
-        unsafe { std::env::set_var("VOX_MESH_SCOPE_ID", "scope-unit") };
+        std::env::set_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env, "mesh-unit-token");
+        std::env::set_var("VOX_MESH_SCOPE_ID", "scope-unit");
     }
 
     let state = PopuliTransportState::new_for_serve();
@@ -412,19 +412,19 @@ async fn bootstrap_exchange_works_once() {
     server.abort();
     unsafe {
         match prev_bootstrap {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", v) },
+            Some(v) => std::env::set_var("VOX_MESH_BOOTSTRAP_TOKEN", v),
             None => std::env::remove_var("VOX_MESH_BOOTSTRAP_TOKEN"),
         }
         match prev_expires {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS", v) },
+            Some(v) => std::env::set_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS", v),
             None => std::env::remove_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS"),
         }
         match prev_token {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_TOKEN", v) },
-            None => std::env::remove_var("VOX_MESH_TOKEN"),
+            Some(v) => std::env::set_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env, v),
+            None => std::env::remove_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env),
         }
         match prev_scope {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_SCOPE_ID", v) },
+            Some(v) => std::env::set_var("VOX_MESH_SCOPE_ID", v),
             None => std::env::remove_var("VOX_MESH_SCOPE_ID"),
         }
     }
@@ -1234,11 +1234,11 @@ async fn a2a_inbox_pager_next_page_walks_until_empty() {
 #[allow(unsafe_code)]
 async fn exec_lease_store_survives_restart_when_path_configured() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = std::env::var("VOX_MESH_EXEC_LEASE_STORE_PATH").ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecLeaseStorePath).expose().ok();
     let dir = tempfile::tempdir().expect("tempdir");
     let lease_path = dir.path().join("exec-leases.json");
     unsafe {
-        unsafe { std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", &lease_path) };
+        std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", &lease_path);
     }
 
     let lease_id = {
@@ -1299,7 +1299,7 @@ async fn exec_lease_store_survives_restart_when_path_configured() {
 
     unsafe {
         match prev {
-            Some(v) => unsafe { std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", v) },
+            Some(v) => std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", v),
             None => std::env::remove_var("VOX_MESH_EXEC_LEASE_STORE_PATH"),
         }
     }
@@ -1427,7 +1427,7 @@ async fn job_result_attestation_accepts_valid_signature() {
     tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
     let http = PopuliHttpClient::new(&base);
-    let payload = r#"{"status":"done"}"#;
+    let payload = r#"{"status":"ok"}"#;
     let digest = *blake3::hash(payload.as_bytes()).as_bytes();
     let sig = sk.sign(&digest);
     let digest_hex = data_encoding::HEXLOWER.encode(&digest);

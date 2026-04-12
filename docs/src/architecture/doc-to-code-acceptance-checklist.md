@@ -5,6 +5,8 @@ category: "architecture"
 status: "current"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Doc-to-code acceptance checklist

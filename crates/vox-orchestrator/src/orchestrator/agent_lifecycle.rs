@@ -427,6 +427,68 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 
+    /// Flag a task as "Suspect" by the user, triggering a resolution loop.
+    pub fn doubt_task(
+        &self,
+        task_id: TaskId,
+        reason: Option<String>,
+    ) -> Result<(), OrchestratorError> {
+        let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
+            .get(&task_id)
+            .copied()
+            .ok_or(OrchestratorError::TaskNotFound(task_id))?;
+
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
+            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(queue_lock);
+
+        // If in progress, take it out
+        let mut task = if let Some(t) = queue.take_in_progress_if(task_id) {
+            t
+        } else {
+            // Check if it's in the queue
+            queue
+                .take_queued(task_id)
+                .ok_or(OrchestratorError::TaskNotFound(task_id))?
+        };
+
+        task.status = TaskStatus::Doubted(reason.clone());
+
+        // Emit event for hud and ludus
+        self.event_bus
+            .emit(crate::events::AgentEventKind::TaskDoubted {
+                task_id,
+                agent_id,
+                reason: reason.clone(),
+            });
+
+        // Re-enqueue but potentially for a different agent or just marked as suspected
+        // For now, we'll keep it in the same agent's queue or mark it for resolution.
+        // The implementation plan says: "escalate to higher-tier Resolution Agent".
+        // We'll mark it Doubted and let the Scaling/ScalingPolicy decide where to route it,
+        // or we'll just enqueue it back as BlockedOnResolution?
+        // Let's stick to the Doubted status for now which Scaling can pick up.
+        queue.enqueue(task);
+
+        tracing::info!(
+            "Task {} doubted by human for agent {}: {:?}",
+            task_id,
+            agent_id,
+            reason
+        );
+        Ok(())
+    }
+
+    /// Dequeue a task in Doubted status for a specific agent.
+    pub fn dequeue_doubted(&self, agent_id: AgentId) -> Option<AgentTask> {
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents.get(&agent_id)?;
+        let mut queue = crate::sync_lock::rw_write(queue_lock);
+        queue.dequeue_doubted()
+    }
+
     /// Deterministically move a remote-held task back to the local queue after lease failure/loss.
     pub fn fallback_populi_remote_task_locally(
         &self,

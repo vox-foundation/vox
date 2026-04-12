@@ -4,6 +4,8 @@ description: "Official documentation for Vox full-stack web UI — single source
 category: "reference"
 last_updated: 2026-04-07
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox full-stack web UI — single source of truth

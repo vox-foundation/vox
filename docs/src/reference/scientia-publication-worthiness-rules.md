@@ -4,6 +4,8 @@ description: "Rules and metrics for classifying findings as publishable, evidenc
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## SCIENTIA publication worthiness rules

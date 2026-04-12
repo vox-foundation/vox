@@ -29,6 +29,9 @@ pub struct OrchestratorConfig {
     pub bulletin_capacity: usize,
     /// Whether to fall back to a single agent when routing is ambiguous (default: true).
     pub fallback_to_single_agent: bool,
+    /// Automated testing requirement rules engine.
+    #[serde(default)]
+    pub test_decision_policy: crate::planning::TestDecisionPolicy,
     /// Whether to run TOESTUB validation after each completed task (default: true).
     pub toestub_gate: bool,
     /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
@@ -51,6 +54,9 @@ pub struct OrchestratorConfig {
     /// Optional Socrates confidence thresholds merged onto [`ConfidencePolicy::workspace_default`].
     #[serde(default)]
     pub socrates_policy: Option<ConfidencePolicyOverride>,
+    /// Prefer the dedicated research synthesis lane when orchestrator wiring exposes it (Lane G).
+    #[serde(default)]
+    pub research_model_enabled: bool,
     /// Weight applied to Arca `agent_reliability` when blending into routing scores (default: 1.0).
     #[serde(default = "default_socrates_reputation_weight")]
     pub socrates_reputation_weight: f64,
@@ -105,6 +111,13 @@ pub struct OrchestratorConfig {
     pub orchestration_migration: OrchestrationMigrationFlags,
 
     // ── Phase 12: Scaling & Cost ─────────────────────────────
+    /// Baseline multiplier for safety when computing execution time budgets (default: 1.5).
+    #[serde(default = "default_execution_time_budget_multiplier")]
+    pub execution_time_budget_multiplier: f64,
+    /// Absolute capitalistic cost allowed across tasks before blocking (default: 50,000 micros).
+    #[serde(default = "default_financial_cost_budget_micros")]
+    pub financial_cost_budget_micros: i64,
+
     /// Minimum number of concurrent agents (default: 1).
     #[serde(default = "default_min_agents")]
     pub min_agents: usize,
@@ -273,6 +286,9 @@ pub struct OrchestratorConfig {
     /// Allow workflow runtime handoff path from planner.
     #[serde(default = "default_false")]
     pub planning_workflow_handoff_enabled: bool,
+    /// Use LLM to synthesize plan nodes instead of heuristics
+    #[serde(default = "default_false")]
+    pub planning_llm_synthesis_enabled: bool,
     /// Compute planning decisions but keep direct execution path.
     #[serde(default = "default_false")]
     pub planning_shadow_mode: bool,
@@ -335,6 +351,9 @@ pub struct OrchestratorConfig {
     /// EWMA alpha for trust score updates. Default: 0.1.
     #[serde(default = "default_trust_ewma_alpha")]
     pub trust_ewma_alpha: f64,
+    /// Exploration fallback epsilon for routing decisions when attention_enabled is true. Default: 0.05.
+    #[serde(default = "default_routing_exploration_epsilon")]
+    pub routing_exploration_epsilon: f64,
     /// Minimum outcomes for Untrusted → Provisional. Default: 5.
     #[serde(default = "default_trust_provisional_threshold")]
     pub trust_provisional_threshold: u32,
@@ -389,4 +408,36 @@ pub struct OrchestratorConfig {
     /// Background poll interval (milliseconds) for the Observer loop. Default: 10_000.
     #[serde(default = "default_observer_poll_interval_ms")]
     pub observer_poll_interval_ms: u64,
+
+    // ── Phase 17: Execution Time Budgeting ─────────────────────────────────────
+    /// Enable per-tool execution time budget learning. Default: true.
+    #[serde(default = "default_true")]
+    pub exec_time_budget_enabled: bool,
+    /// Safety multiplier applied to P90 to derive recommended_budget_ms. Default: 2.0.
+    #[serde(default = "default_exec_time_safety_multiplier")]
+    pub exec_time_safety_multiplier: f64,
+    /// Timeout rate threshold for ToolLatencyHigh signal. Default: 0.20.
+    #[serde(default = "default_exec_time_timeout_rate_alert")]
+    pub exec_time_timeout_rate_alert: f64,
+    /// Default budget ms when no history exists. Default: 30_000.
+    #[serde(default = "default_exec_time_default_budget_ms")]
+    pub exec_time_default_budget_ms: u64,
+    /// History window in days for agent_exec_history queries. Default: 30.
+    #[serde(default = "default_exec_time_history_window_days")]
+    pub exec_time_history_window_days: u32,
+
+    /// Daily local token threshold before enforcing local-tier inference. Default: 9.1M.
+    #[serde(default = "default_local_breakeven_tokens")]
+    pub local_breakeven_tokens: u64,
+
+    // ── Research Localization ──────────────────────────────────
+    /// Maximum retrieval hops for iterative research loops (default: 3).
+    #[serde(default = "default_research_max_hops")]
+    pub research_max_hops: u8,
+    /// Automated quality check on retrieved evidence before synthesis (default: true).
+    #[serde(default = "default_true")]
+    pub research_quality_gate_enabled: bool,
+    /// Minimum evidence quality [0, 1] to skip iterative hops (default: 0.8).
+    #[serde(default = "default_research_quality_target")]
+    pub research_quality_target: f64,
 }

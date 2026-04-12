@@ -1,4 +1,4 @@
-//! Guardrail: every `examples/golden/*.vox` file must parse and lower with no `legacy_ast_nodes`.
+//! Guardrail: every `examples/golden/**/*.vox` file must parse and lower with no `legacy_ast_nodes`.
 //!
 //! Goldens are rewritten to match the core recursive-descent grammar (see parser `parse_decl`).
 
@@ -93,7 +93,8 @@ fn assert_golden_file(path: &Path) {
                 "classic_components_deferred": lower_summary.classic_components_deferred,
                 "style_rules_lowered": lower_summary.style_rules_lowered,
                 "dom_expr_fallbacks": lower_summary.dom_expr_fallbacks,
-                "lowering_diagnostics": lower_summary.lowering_diagnostics
+                "lowering_diagnostics": lower_summary.lowering_diagnostics,
+                "scheduled_jobs_lowered": lower_summary.scheduled_jobs_lowered
             },
             "web_ir_validate_metrics": {
                 "view_roots_walked": validate_metrics.view_roots_walked,
@@ -101,7 +102,8 @@ fn assert_golden_file(path: &Path) {
                 "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
                 "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
                 "style_nodes_checked": validate_metrics.style_nodes_checked,
-                "island_mounts_checked": validate_metrics.island_mounts_checked
+                "island_mounts_checked": validate_metrics.island_mounts_checked,
+                "scheduled_jobs_checked": validate_metrics.scheduled_jobs_checked
             },
         }),
         RepresentabilityPayload {
@@ -173,21 +175,33 @@ fn assert_golden_file(path: &Path) {
         .unwrap_or_else(|e| panic!("write {} failed: {e}", out_path.display()));
 }
 
+fn collect_golden_vox_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let read = std::fs::read_dir(dir).unwrap_or_else(|e| panic!("read_dir {}: {e}", dir.display()));
+    for entry in read.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_golden_vox_files(&path, out);
+        } else if path.extension().and_then(|s| s.to_str()) == Some("vox") {
+            out.push(path);
+        }
+    }
+}
+
 #[test]
 fn all_golden_vox_examples_parse_and_lower() {
     let golden_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden");
-    let read = std::fs::read_dir(&golden_dir)
-        .unwrap_or_else(|e| panic!("read_dir {}: {e}", golden_dir.display()));
+    assert!(golden_dir.is_dir(), "missing {}", golden_dir.display());
 
-    let mut count = 0u32;
-    for entry in read {
-        let entry = entry.expect("dir entry");
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("vox") {
-            continue;
-        }
+    let mut paths = Vec::new();
+    collect_golden_vox_files(&golden_dir, &mut paths);
+    paths.sort();
+    assert!(
+        !paths.is_empty(),
+        "no .vox files under {}",
+        golden_dir.display()
+    );
+
+    for path in paths {
         assert_golden_file(&path);
-        count += 1;
     }
-    assert!(count > 0, "no .vox files under {}", golden_dir.display());
 }

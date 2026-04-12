@@ -3,6 +3,9 @@ title: "Journey: Building Resilient AI Agents"
 description: "How to use Vox's native MCP integration, vector memory, and type safety to build reliable, stateful AI agents without ductile LLM orchestration layers."
 category: "journey"
 sort_order: 1
+
+schema_type: "HowTo"
+keywords: ["build resilient AI agents", "durable agentic workflows", "LLM programming guide", "MCP agent tools"]
 ---
 
 # Journey: Building Resilient AI Agents
@@ -58,6 +61,11 @@ fn get_answer(user_question: str) -> Result[str] {
    ```
 
 3. Vox will start the development server. The endpoints become immediately queryable, and if running in MCP mode, your agent tools are automatically broadcasted for discovery.
+
+## Maturity and limitations
+
+- **Maturity:** `beta` for decorator-shaped `@mcp.tool` examples — compiler and MCP registry paths evolve; treat snippets as orientation, not a guarantee every field matches shipped schemas.
+- **Limitation ids:** [L-001](../../../contracts/journeys/limitations.v1.yaml) (docs may oversell partial `@mcp` surfaces), [L-023](../../../contracts/journeys/limitations.v1.yaml) (MCP tool registry parity is ongoing maintenance).
 
 ## Deep Dives
 

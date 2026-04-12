@@ -54,7 +54,8 @@ fn reason(code: &str, message: &str) -> GateReason {
 /// `VOX_NEWS_PUBLISH_ARMED=1` / `true` (same sentinel as orchestrator + MCP news tools).
 #[must_use]
 pub fn env_publish_armed() -> bool {
-    std::env::var("VOX_NEWS_PUBLISH_ARMED")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsPublishArmed)
+        .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }

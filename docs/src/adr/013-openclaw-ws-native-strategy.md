@@ -4,6 +4,8 @@ description: "Official documentation for ADR 013 — OpenClaw WS-first native in
 category: "reference"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 013 — OpenClaw WS-first native interop

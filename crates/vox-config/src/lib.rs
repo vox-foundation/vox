@@ -7,7 +7,10 @@ pub mod config;
 pub mod env_parse;
 pub mod inference;
 pub mod paths;
+pub mod policy;
+pub mod operator_registry;
 pub mod rollout;
+pub mod scholarly;
 pub mod routing_policy;
 
 pub use bootstrap_inference::{
@@ -28,6 +31,7 @@ pub use paths::{
     default_db_path, dot_vox_user_dir, local_user_id, mcp_sessions_dir, repo_memory_cache_dir,
     repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
+pub use policy::hitl_policy::HitlPolicy;
 pub use rollout::{
     RolloutFlagSnapshot, db_circuit_breaker_env_enabled,
     db_embedded_replica_integration_gate_armed, db_sync_remote_integration_gate_armed, env_truthy,

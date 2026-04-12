@@ -136,10 +136,13 @@ impl Parser {
                 | Token::Component
                 | Token::AtV0
                 | Token::AtForall
+                | Token::AtScheduled
                 | Token::AtRequire
                 | Token::AtEnsure
                 | Token::AtInvariant
                 | Token::AtFuzz
+                | Token::AtPure
+                | Token::AtDeprecated
                 | Token::AtLoading
                 | Token::Let
                 | Token::Agent
@@ -174,6 +177,7 @@ impl Parser {
             Token::AtMutation => self.parse_mutation_fn(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtForall => self.parse_forall(),
+            Token::AtScheduled => self.parse_scheduled(),
             Token::AtMcpTool => self.parse_mcp_tool(),
             Token::AtMcpResource => self.parse_mcp_resource(),
             Token::Let => {
@@ -206,6 +210,8 @@ impl Parser {
                     | Token::AtEnsure
                     | Token::AtInvariant
                     | Token::AtFuzz
+                    | Token::AtPure
+                    | Token::AtDeprecated
                     | Token::AtMobileNative => {
                         let mut f = self.parse_fn_decl(false)?;
                         f.is_async = true;
@@ -228,6 +234,8 @@ impl Parser {
             | Token::AtEnsure
             | Token::AtInvariant
             | Token::AtFuzz
+            | Token::AtPure
+            | Token::AtDeprecated
             | Token::AtMobileNative => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))
@@ -240,6 +248,8 @@ impl Parser {
                     | Token::AtEnsure
                     | Token::AtInvariant
                     | Token::AtFuzz
+                    | Token::AtPure
+                    | Token::AtDeprecated
                     | Token::AtMobileNative => {
                         let f = self.parse_fn_decl(true)?;
                         Ok(Decl::Function(f))

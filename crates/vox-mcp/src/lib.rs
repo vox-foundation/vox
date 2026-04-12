@@ -62,6 +62,8 @@ pub mod speech_constraints;
 pub mod sync_lock;
 /// Tool name registry, `handle_tool_call` dispatcher, and submodule implementations.
 pub mod tools;
+/// Dogfood MENS learning traces and export pipelines.
+pub mod trace;
 
 #[cfg(feature = "wasm")]
 /// Wasmtime loader for MCP servers compiled to WebAssembly (optional feature).

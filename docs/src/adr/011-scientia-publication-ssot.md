@@ -4,6 +4,8 @@ description: "Unifies Scientia, news, and scholarly submission around one public
 category: "reference"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 011: Scientia publication manifest SSOT

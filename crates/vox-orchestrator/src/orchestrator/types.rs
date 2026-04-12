@@ -62,6 +62,9 @@ pub enum OrchestratorError {
         "Populi remote delegation could not be recorded after mesh accept; remote execution may still be active"
     )]
     PopuliRemoteHoldRace,
+    /// Task was blocked due to extreme resource budget constraints.
+    #[error("Budget exceeded: {0}")]
+    BudgetExceeded(String),
 }
 
 /// One step in a task's lifecycle timeline (ingress → route → verification → outcome).
@@ -104,6 +107,8 @@ pub struct OrchestratorStatus {
     pub reserved_agents: usize,
     /// Ephemeral agents spawned for burst handling.
     pub dynamic_agents: usize,
+    /// Tasks currently in Doubted state.
+    pub total_doubted: usize,
     /// Shared context keys visible to dashboards.
     pub context_entries: std::collections::HashMap<String, crate::context::ContextEntry>,
     /// Per-agent rollups for UI tables.
@@ -119,6 +124,8 @@ pub struct AgentSummary {
     pub name: String,
     /// Tasks waiting in this agent's queue.
     pub queued: usize,
+    /// Tasks in Doubted state for this agent.
+    pub doubted_count: usize,
     /// Urgent-priority backlog depth.
     pub urgent_count: usize,
     /// Normal-priority backlog depth.

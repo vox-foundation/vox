@@ -2,9 +2,9 @@
 
 pub mod asr_backend;
 #[cfg(feature = "stt-sherpa")]
-pub mod sherpa_onnx;
-#[cfg(feature = "stt-sherpa")]
 pub mod sherpa_model_config;
+#[cfg(feature = "stt-sherpa")]
+pub mod sherpa_onnx;
 
 #[cfg(feature = "stt-candle")]
 pub mod audio_io;

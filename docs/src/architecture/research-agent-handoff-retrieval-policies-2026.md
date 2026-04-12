@@ -1,5 +1,10 @@
 ---
-title: Evidence Base for Context Retrieval Policies
+title: "Evidence Base for Context Retrieval Policies"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **4\. Evidence Base for Context Retrieval Policies**
 

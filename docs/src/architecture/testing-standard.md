@@ -4,6 +4,8 @@ description: "Official documentation for Testing Standard — SSOT for the Vox l
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Testing Standard — SSOT

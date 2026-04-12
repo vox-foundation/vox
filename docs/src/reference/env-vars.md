@@ -2,8 +2,10 @@
 title: "Environment variables (SSOT)"
 description: "Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-31
+last_updated: 2026-04-11
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Environment variables (SSOT)
@@ -20,18 +22,42 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 | `VOX_CLAVIS_HARD_CUT` | When truthy, disables `VOX_TURSO_*` / `TURSO_*` compatibility alias fallback in DB config resolution. |
 | `VOX_CLAVIS_PROFILE` | Clavis resolution strictness profile: `dev` (default), `ci`, `prod`, or `hard_cut`. Strict profiles reject deprecated aliases and source-policy violations. |
 | `VOX_CLAVIS_BACKEND` | Clavis backend selector: `auto` (default), `env_only`, `infisical`, `vault`, `vox_cloud`. |
+| `VOX_CLAVIS_AUTO_PREFER_VAULT` | When `1`/`true`/`yes`, forces `BackendMode::Auto` to select the `vox_cloud` cloudless vault backend even if explicit vault URLs/commands are absent. |
+| `VOX_CLAVIS_AUTO_VAULT` | Explicit hint to enable the `vox_cloud` vault backend in `Auto` mode; lighter than `PREFER_VAULT` (it just signals presence, doesn't force precedence over explicit backends). |
 | `VOX_CLAVIS_CUTOVER_PHASE` | Cloudless rollout choreography: `shadow` -> `canary` -> `enforce` -> `decommission`. `shadow` allows legacy sources, `canary` blocks legacy sources in strict profiles, `enforce` blocks legacy sources for all profiles, `decommission` also forces `vox_cloud` backend resolution. |
 | `VOX_CLAVIS_MIGRATION_PHASE` | Compatibility alias for `VOX_CLAVIS_CUTOVER_PHASE`; same values and semantics. |
-| `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | **Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). In Cloudless hard-cut strict profiles, these aliases are scheduled for rejection by source policy. |
-| `TURSO_URL` / `TURSO_AUTH_TOKEN` | **Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. In Cloudless hard-cut strict profiles, these legacy aliases are scheduled for rejection by source policy. |
+| `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED<br>**Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). In Cloudless hard-cut strict profiles, these aliases are scheduled for rejection by source policy. |
+| `TURSO_URL` / `TURSO_AUTH_TOKEN` | > [!WARNING] DEPRECATED<br>**Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. In Cloudless hard-cut strict profiles, these legacy aliases are scheduled for rejection by source policy. |
 | `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | Integer ≥ 1: multiplier for brute-force embedding search window (`limit * mult`, capped). See [`capabilities`](../../../crates/vox-db/src/capabilities.rs). |
 | `VOX_WORKSPACE_JOURNEY_STORE` | Repo-backed **interactive** surfaces (`vox-mcp`, `vox-orchestrator-d`): `project` (default) uses `.vox/store.db` under the discovered repo root; `canonical` uses user-global / `VOX_DB_URL` Codex. See [`workspace_journey_store`](../../../crates/vox-db/src/workspace_journey_store.rs). |
 | `VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL` | When `project` open fails, allow fallback to [`connect_canonical_optional`](../../../crates/vox-db/src/connect_policy.rs) (default **on**); set `0`/`false` to stay strictly local. Applies to MCP, `vox-orchestrator-d`, and repo-scoped CLI (`vox agent`, `vox snippet`, `vox share`, … via [`workspace_db::connect_cli_workspace_voxdb`](../../../crates/vox-cli/src/workspace_db.rs)). |
 | `vox-db` / **`replication`** feature | Cargo feature enabling Turso embedded-replica connect paths (`vox-pm` exposes `replication = ["vox-db/replication"]`). Pair with [`VoxDb::sync`](../../../crates/vox-db/src/store/open.rs) / [`ReadConsistency::ReplicaLatest`](../../../crates/vox-db/src/lib.rs) before reads that need fresher remote state. |
+| `VOX_DB_MVCC` | Codex MVCC transaction mode override for VoxDb read environments. |
 
 **Precedence (remote):** `VOX_DB_URL`+`VOX_DB_TOKEN` → `VOX_TURSO_*` → `TURSO_*`. **Project VoxDb** (operational store + snippets/share) uses [`DbConfig::resolve_project_code_store_config`](../../../crates/vox-db/src/config.rs): empty env maps to the project-relative default store path, not the user-data default.
 
 See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
+
+### Clavis cloudless vault vs Codex (two SQL surfaces)
+
+| Plane | Purpose | Canonical env |
+|-------|---------|---------------|
+| **Codex** (`vox-db`) | Product relational data: sessions, memory tables, telemetry rows, gamification, etc. | `VOX_DB_URL` + `VOX_DB_TOKEN`, or `VOX_DB_PATH`, plus workspace journey vars above. |
+| **Clavis vault** (`vox-clavis` cloudless backend) | Encrypted secret material at rest in a **separate** SQLite / libSQL database. | See vault vars below. |
+
+**Vault URL / file (precedence):** `VOX_CLAVIS_VAULT_PATH` (local path → `file:` URL) → `VOX_CLAVIS_VAULT_URL` → `VOX_CLAVIS_AUTO_VAULT` / `VOX_CLAVIS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_CLAVIS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default `file:.vox/clavis_vault.db`.
+
+**Vault remote token (precedence):** `VOX_CLAVIS_VAULT_TOKEN` → compat `VOX_TURSO_TOKEN` → `TURSO_AUTH_TOKEN` (same gating as URL aliases).
+
+| Variable | Role |
+|----------|------|
+| `VOX_CLAVIS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). |
+| `VOX_CLAVIS_VAULT_URL` | Explicit vault URL (`file:…` or `libsql://…`). |
+| `VOX_CLAVIS_VAULT_TOKEN` | Auth token when `VOX_CLAVIS_VAULT_URL` is remote. |
+| `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED for vault<br>Read only when compat aliases allowed; migrate to `VOX_CLAVIS_VAULT_*`. |
+| `TURSO_URL` / `TURSO_AUTH_TOKEN` | > [!WARNING] DEPRECATED<br>Same compatibility tier as `VOX_TURSO_*` for the vault plane. |
+
+Do not point Codex and the vault at the same file unless you have an explicit ops reason. Codex compatibility shims live in [`DbConfig`](../../../crates/vox-db/src/config.rs); vault resolution lives in [`vox_vault`](../../../crates/vox-clavis/src/backend/vox_vault.rs). Run `vox clavis doctor` to print `cloudless_vault_store` diagnostics (redacted).
 
 ## Ludus (`vox-ludus`, `vox ludus`)
 
@@ -129,7 +155,8 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_SCALING_THRESHOLD` / `VOX_ORCHESTRATOR_SCALING_ENABLED` / `VOX_ORCHESTRATOR_SCALING_LOOKBACK` / `VOX_ORCHESTRATOR_SCALING_PROFILE` / `VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS` / `VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK` / `VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD` | Scaling-control set used by adaptive fleet sizing and rebalancing. |
 | `VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS` | Idle retirement timeout for agent lifecycle contraction. |
 | `VOX_ORCHESTRATOR_COST_PREFERENCE` / `VOX_ORCHESTRATOR_RESOURCE_WEIGHT` / `VOX_ORCHESTRATOR_RESOURCE_CPU_MULT` / `VOX_ORCHESTRATOR_RESOURCE_MEM_MULT` / `VOX_ORCHESTRATOR_RESOURCE_EXPONENT` | Cost-vs-performance and resource-bias routing parameters. |
-| `VOX_ORCHESTRATOR_PLANNING_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE` / `VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT` / `VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW` / `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` | Planning-mode rollout and behavior controls; `VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW` (default on) keeps native plan adequacy as lineage/telemetry only; `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` rejects native enqueue and MCP `vox_plan` success when the plan stays thin after refinement. See [plan adequacy](../architecture/plan-adequacy.md). |
+| `VOX_ORCHESTRATOR_PLANNING_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED` / `VOX_ORCHESTRATOR_PLAN_LLM_SYNTHESIS` / `VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE` / `VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED` / `VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT` / `VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW` / `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` | Planning-mode rollout and behavior controls; `VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW` (default on) keeps native plan adequacy as lineage/telemetry only; `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE` rejects native enqueue and MCP `vox_plan` success when the plan stays thin after refinement. See [plan adequacy](../architecture/plan-adequacy.md). |
+| `VOX_ORCHESTRATOR_RESEARCH_MODEL_ENABLED` | Enables the research-model branch in orchestrator planning env merges ([`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config/impl_env.rs)). |
 | `VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW` / `VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE` | Context envelope lifecycle policy for cross-surface `ContextEnvelope` JSON ingress (MCP `vox_submit_task` / `context_envelope_json`, gamify handoff, orchestrator session attach). Defaults off. **Shadow** logs validation violations without blocking and, on successful validation, emits structured tracing `event=context.capture` (ingest: source, envelope ids, merge strategy, trace/correlation ids; target `vox_orchestrator::context_lifecycle`). Session merges log `event=context.select` with merge `outcome` when shadow is on. Collector field shapes: [`contracts/orchestration/context-lifecycle-telemetry.schema.json`](../../../contracts/orchestration/context-lifecycle-telemetry.schema.json). **Enforce** rejects invalid envelopes, expired/stale payloads, repository/session mismatches, and merge failures (for example `ManualReview` when a session envelope already exists). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
 | `VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW` / `VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE` | Completion citation grounding: `vox_complete_task` may include `evidence_citations` and/or `[[voxcite:REF]]` markers in `completion_summary`. **Shadow** logs when declared refs are missing from the session context envelope. **Enforce** requeues the task (same retry budget as the Socrates gate) until citations match envelope text. Matching declarations raise the effective Socrates `evidence_count` used by the gate. |
 | `VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED` / `VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK` | Migration controls for orchestrator V2 rollout and fallback behavior. |
@@ -141,6 +168,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `POPULI_TEMPERATURE` / `POPULI_MAX_TOKENS` | Generation configuration overrides for mens inference. |
 | `VOX_ACCOUNT_ID` | Account identifier for orchestrator multi-tenant boundaries. |
 | `VOX_CLAVIS_CLOUDLESS_DB_PATH` | Path to Cloudless DB for Clavis secrets backend. |
+| `VOX_ORCHESTRATOR_EXEC_TIME_BUDGET_ENABLED` / `VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER` / `VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT` / `VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS` / `VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS` | Execution time budgeting controls for autonomous agent tool invocation (Phase 17). |
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN` | Gain multiplier for A2A interruptions. |
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY` | Penalty offset for queue backlog in interruption math. |
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN` | Gain multiplier for plan-related interruptions. |
@@ -223,6 +251,10 @@ Calibration note: channel gain offsets / backlog penalty / trust-adjustment scal
 | `VOX_SEARCH_QDRANT_API_KEY` | Qdrant `api-key` header for secured / cloud instances. Canonical secret: [`SecretId::VoxSearchQdrantApiKey`](../../../crates/vox-clavis/src/spec.rs) via Clavis ([`clavis-ssot`](./clavis-ssot.md)). |
 | `VOX_SEARCH_TANTIVY_ROOT` | Optional directory root for on-disk Tantivy indices (subpath `docs/` holds the docs mirror index). |
 | `VOX_SEARCH_PREFER_RRF` | When truthy, runs **reciprocal rank fusion** across non-empty corpus hit lists and exposes **`rrf_fused_lines`** / **`rrf_fused_hit_count`** in MCP retrieval ([`SearchPolicy::prefer_rrf_merge`](../../../crates/vox-search/src/policy.rs)). |
+| `VOX_SEARCH_SEARXNG_URL` | Optional SearXNG base URL (Tier 2 web meta-search); when unset, SearXNG is skipped. |
+| `VOX_SEARCH_SEARXNG_MAX_RESULTS` / `VOX_SEARCH_SEARXNG_MAX_SCRAPE` | Result cap and deep-scrape cap for SearXNG / fallback web retrieval (see [`SearchPolicy`](../../../crates/vox-search/src/policy.rs)). |
+| `VOX_SEARCH_SEARXNG_ENGINES` | Optional override for the SearXNG `engines=` query parameter (comma-separated ASCII engine ids; default from [`contracts/scientia/searxng-query.defaults.v1.yaml`](../../../contracts/scientia/searxng-query.defaults.v1.yaml)). |
+| `VOX_SEARCH_SEARXNG_LANGUAGE` | Optional override for the SearXNG `language=` query parameter (short tag; default from the same contract). |
 | `VOX_OPENROUTER_HTTP_REFERER` | Optional `HTTP-Referer` header for OpenRouter-compatible calls ([`provider_auth`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
 | `VOX_OPENROUTER_APP_TITLE` | Optional `X-Title` header for OpenRouter-compatible calls ([`provider_auth`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
 | `VOX_OPENROUTER_ROUTE_HINT` | For **`openrouter/auto`**, selects OpenRouter broker routing via `X-OpenRouter-Provider-Preferences`: `price` / `economy` / `cheap`, `quality` / `performance` / `best`, or `fallback` / `resilience` ([`openrouter_route_hint_from_env`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
@@ -279,12 +311,12 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_GEMINI_ROUTE_POLICY` | Gemini routing policy: `openrouter_first` (default), `google_direct_only`, or `registry_default`. |
 | `OPENROUTER_GEMINI_MODEL` / `GEMINI_DIRECT_MODEL` | Explicit OpenRouter/GoogleDirect Gemini model pair for policy routing/fallback. |
 | `VOX_PROVIDER_DAILY_LIMIT_DEFAULT` / `VOX_PROVIDER_LIMIT_PROVIDERS` | Dynamic provider quota defaults before JSON/file overrides in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs). |
+| `VOX_PROVIDER_DAILY_LIMIT_DAILY_LIMIT_DEFAULT` | Daily limit for providers when not explicitly set. |
 | `VOX_PROVIDER_DAILY_LIMITS_FILE` | Optional JSON file of per-provider daily limits (merged after defaults in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs)). |
 | `VOX_PROVIDER_DAILY_LIMITS_JSON` | Inline JSON for the same structure as the file variant. |
+| `ANTHROPIC_DIRECT` | Optional direct Anthropic flag for provider metadata resolution. |
 
 ## Mens (`vox-populi`, orchestrator probe)
-
-Full table: [mens SSOT](populi.md). Common entries:
 
 | Variable | Role |
 |----------|------|
@@ -320,11 +352,15 @@ Full table: [mens SSOT](populi.md). Common entries:
 
 | Variable | Role |
 |----------|------|
+| `VOX_COMPILER_HIR_DUMP` | `0` | If `1`, prints HIR AST to stdout after typeck (needs `vox-compiler` built with `--features debug-dump`). |
+| `VOX_COMPILER_LOG_FILE` | (none) | Tee diagnostics to a local `.log` (compiler + `vox build/check`). |
+| `VOX_COMPILER_RECONCILE_MAX_RETRY` | `3` | Maximum reconciliation attempts during `vox fmt` re-parsing. |
 | `VOX_SECRET_GUARD_GIT_REF` | Git revision range for **`vox ci secret-env-guard`** on clean checkouts (e.g. `origin/main...HEAD` on PRs, `${{ github.event.before }}...${{ github.sha }}` on push). Avoids an empty diff scope when `git diff` would otherwise scan nothing. See [`guards.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs). |
 | `VOX_BUILD_TIMINGS_BUDGET_WARN` | Soft budget warnings for **`vox ci build-timings`**. |
-| `SKIP_CUDA_FEATURE_CHECK` | Skip optional `nvcc` gates (documented escape hatch in [runner contract](../ci/runner-contract.md)). |
+| `SKIP_CUDA_FEATURE_CHECK` | Skip optional `nvcc` gates (documented hatch in [runner contract](../ci/runner-contract.md)). |
 | `VOX_BENCHMARK_TELEMETRY` | When `1` or `true`, CLI paths may append **`benchmark_event`** rows to Codex **`research_metrics`** (`bench:<repository_id>`). See [`benchmark_telemetry.rs`](../../../crates/vox-cli/src/benchmark_telemetry.rs) and [Telemetry and research_metrics contract](telemetry-metric-contract.md). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
 | `VOX_SYNTAX_K_TELEMETRY` | When `1` or `true`, enables **`syntax_k_event`** writes; if unset, falls back to **`VOX_BENCHMARK_TELEMETRY`**. Same implementation module as above. |
+| `VOX_DOGFOOD_TRACE_PATH` | Path to the local JSONL file for dogfooding/telemetry collection during development runs. |
 
 ## Optional telemetry upload (`vox telemetry`)
 
@@ -348,13 +384,16 @@ Full table: [mens SSOT](populi.md). Common entries:
 |----------|------|
 | `VOX_WEB_TANSTACK_START` | When `1` / `true`, enables TanStack **Start** scaffold (`src/routes/*`, `routeTree.gen.ts`, `router.tsx`). Compiler output is **`routes.manifest.ts`** + components (no `VoxTanStackRouter.tsx`). Must stay aligned with **`Vox.toml`** `[web] tanstack_start` for **`vox build`**. See [`VoxConfig::merge_env_overrides`](../../../crates/vox-config/src/), [TanStack how-to](../how-to/tanstack-ssr-with-axum.md). |
 | `VOX_WEB_EMIT_SCAFFOLD` | When **`1`** / **`true`**, **`vox build`** may write one-shot user scaffold files next to the TS out dir (`app/App.tsx`, `main.tsx`, Tailwind entry, etc.) if missing. Prefer explicit **`vox build --scaffold`** when scripting. See [`codegen_ts::scaffold`](../../../crates/vox-compiler/src/codegen_ts/scaffold.rs). |
-| `VOX_ALLOW_LEGACY_COMPONENT_FN` | When **`1`** / **`true`**, the parser accepts retired classic **`@component fn`** and the legacy component lint is a **Warning** (default: **parse error** — use Path C `component Name() { ... }`). Retired forms **`context`**, **`@hook`**, **`@provider`**, **`Page`** remain typecheck **Error**. See [`web_migration_env`](../../../crates/vox-compiler/src/web_migration_env.rs), [`lint_ast_declarations`](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs), [react-interop migration charter](../architecture/react-interop-migration-charter-2026.md). |
 | `VOX_EMIT_EXPRESS_SERVER` | Opt-in: emit legacy **`server.ts`** (Express-style) from `vox-codegen-ts`; default product is **Axum** + **`api.ts`**. See [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md). |
 | `VOX_ORCHESTRATE_VITE` | If `1`, **`vox run`** spawns **`pnpm run dev:ssr-upstream`** in `dist/.../app` (Vite on **3001**). See [`OrchestratedViteGuard`](../../../crates/vox-cli/src/frontend.rs). |
 | `VOX_SSR_DEV_URL` | Origin (e.g. `http://127.0.0.1:3001`) for generated Axum to proxy non-`/api` **GET** document requests before `rust_embed`. Often injected when **`VOX_ORCHESTRATE_VITE=1`**. |
 | `VOX_WEB_VITE_SMOKE` | Opt-in: set to **`1`** when running **`cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored`** (full **`pnpm install`** + **`vite build`** on a golden `.vox` fixture). |
-| `VOX_WEB_TS_OUT` | Optional: absolute or relative directory where **`vox build`** writes generated **`*.tsx`** (same path as the build output). When set, **`vox doctor`** scans **`*.vox`** under the current tree for **`@v0`** declarations and verifies each **`{Name}.tsx`** in this directory uses a **named** export suitable for TanStack **`routes {`** (`export function Name`, etc.). See [`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs). |
-| `VOX_EXAMPLES_STRICT_PARSE` | When **`1`**, **`cargo test -p vox-parser --test parity_test`** fails if any `examples/**/*.vox` fails to parse (default CI only requires the **`MUST_PARSE`** golden set). See [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). |
+| `VOX_GUI_PLAYWRIGHT` | Opt-in: set to **`1`** for **`cargo test -p vox-integration-tests --test playwright_golden_route -- --ignored`** (Playwright screenshot + accessibility snapshot; requires **`pnpm install`** + **`pnpm exec playwright install chromium`** under `crates/vox-integration-tests`). Also gates the Playwright half of **`vox ci gui-smoke`**. |
+| `VOX_PLAYWRIGHT_APP_DIR` / `VOX_PLAYWRIGHT_OUT_DIR` | Set by the Playwright harness: absolute path to the built Vite **`app/`** dir and writable artifact dir for **`route.png`** / **`a11y.json`**. |
+| `VOX_V0_API_URL` | Optional override for the full v0 chats endpoint URL (default `https://api.v0.dev/v1/chats`); used by tests and local proxies ([`v0.rs`](../../../crates/vox-cli/src/v0.rs)). |
+| VOX_WEB_TS_OUT | Optional: absolute or relative directory where **`vox build`** writes generated **`*.tsx`** (same path as the build output). When set, **`vox doctor`** scans **`*.vox`** under the current tree for **`@v0`** declarations and verifies each **`{Name}.tsx`** in this directory uses a **named** export suitable for TanStack **`routes {`** (`export function Name`, etc.). See [`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs). |
+| `VOX_ALLOW_LEGACY_COMPONENT_FN` | When `1`/`true`, enables the escape hatch for classic **`@component fn`** React semantics (parse error by default in 2026). Use only during transitional migrations. See [react-interop-hybrid-adapter-cookbook.md](../architecture/react-interop-hybrid-adapter-cookbook.md). |
+| `VOX_EXAMPLES_STRICT_PARSE` | When **`1`**, **`cargo test -p vox-compiler --test parity_test`** fails if any `examples/**/*.vox` fails to parse (default CI only requires the **`MUST_PARSE`** golden set). See [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). |
 | `VOX_SUPPRESS_LEGACY_HOOK_LINTS` | When **`1`** / **`true`**, suppresses compiler **warnings** for direct Vox `use_*` hook calls inside classic **`@island fn …`** bodies (Path C reactive syntax is still preferred). Implemented in [`react_bridge::legacy_hook_lint_suppressed`](../../../crates/vox-compiler/src/react_bridge.rs) + [`lint_ast_declarations`](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs). |
 | `VOX_WEBIR_VALIDATE` | **Default on** (unset): **`vox_compiler::codegen_ts::generate`** runs Web IR lower + [`validate_web_ir`](../../../crates/vox-compiler/src/web_ir/validate.rs) after assembly and **fails** if validation returns diagnostics. Set to **`0`** / **`false`** / **`no`** / **`off`** to skip the gate. See [`maybe_web_ir_validate`](../../../crates/vox-compiler/src/codegen_ts/emitter.rs), [`web_migration_env`](../../../crates/vox-compiler/src/web_migration_env.rs). |
 | `VOX_WEBIR_EMIT_REACTIVE_VIEWS` | **Default on** (unset): Path C reactive **`view:`** may use Web IR preview TSX when validation is clean **and** whitespace-normalized TSX matches legacy `emit_hir_expr` (parity). Set **`0`** / **`false`** / **`no`** / **`off`** to force legacy `emit_hir_expr` for views. See [`codegen_ts::reactive`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |

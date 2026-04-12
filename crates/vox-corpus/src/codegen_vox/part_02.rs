@@ -126,20 +126,22 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "component" => {
             tags.push("expr:jsx".into());
             let jsx = format!(
-                "    ret <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n    </div>"
+                "    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n    </div>"
             );
             (
-                format!("component fn {type_name}View({params}) to Element {{\n{jsx}\n}}"),
+                format!("component {type_name}View({params}) {{\n{jsx}\n}}"),
                 format!("Create a Vox UI component called `{type_name}View`"),
             )
         }
         "reactive_component" => {
             tags.push("expr:jsx".into());
             let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
+            let mount_cleanup = format!("    on mount {{\n        // Initialize data\n    }}\n    on cleanup {{\n        // teardown\n    }}");
             (
                 format!(
-                    "component {type_name}({params}) {{\n    state {sf}: {st} = {}\n    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n        <p>{{{sf}}}</p>\n    </div>\n}}",
-                    gen_literal_for_type(rng, st)
+                    "component {type_name}({params}) {{\n    state {sf}: {st} = {}\n{}\n    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n        <p>{{{sf}}}</p>\n    </div>\n}}",
+                    gen_literal_for_type(rng, st),
+                    mount_cleanup
                 ),
                 format!("Create a modern reactive Vox component called `{type_name}`"),
             )
@@ -243,7 +245,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             (src, format!("Define a Vox union type for `{type_name}`"))
         }
         "import" => {
-            let modules = ["std.json", "network.HTTP", "react.use_state", "db.users"];
+            let modules = ["std.json", "network.HTTP", "db.users"];
             (
                 format!("import {}", modules[variant % modules.len()]),
                 "Write a Vox import statement".into(),
@@ -425,7 +427,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "island" => (
             format!(
-                "@island\nfn {type_name}Island(data: list[int]) to Element {{\n    ret <div>{{\"Interactive\"}}</div>\n}}"
+                "component {type_name}Island(data: list[int]) {{\n    view: <div>{{\"Interactive\"}}</div>\n}}"
             ),
             format!("Define a Vox island component `{type_name}Island`"),
         ),
@@ -436,7 +438,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             format!("Define Vox routes for `{type_name}`"),
         ),
         "v0_component" => (
-            format!("@v0(\"https://v0.dev/t/example\")\nfn {type_name}Widget() to Element {{\n}}"),
+            format!("component {type_name}Widget() {{\n    // @v0(\"https://v0.dev/t/example\")\n    view: <div></div>\n}}"),
             format!("Define a Vox v0.dev component `{type_name}Widget`"),
         ),
         "py_import" => {
@@ -457,6 +459,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         }
     };
 
+    // Ensure the SFT training explicitly flags older React/TS artifacts (if generation paths emit raw TSX) 
+    // Currently, everything should now be native Vox.
     Some(OrganicPair {
         prompt,
         response: source,

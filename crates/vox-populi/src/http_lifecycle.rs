@@ -33,7 +33,8 @@ pub enum PopuliHttpJoinSpawnOutcome {
 /// `VOX_MESH_HTTP_JOIN` `0` / `false` disables join and heartbeat.
 #[must_use]
 pub fn populi_http_join_disabled_from_env() -> bool {
-    std::env::var("VOX_MESH_HTTP_JOIN")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshHttpJoin)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "0" || v.eq_ignore_ascii_case("false")
@@ -44,12 +45,18 @@ pub fn populi_http_join_disabled_from_env() -> bool {
 /// First non-empty URL from **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** then **`VOX_MESH_CONTROL_ADDR`**, normalized for clients.
 #[must_use]
 pub fn populi_http_control_base_from_env() -> Option<String> {
-    for var in ["VOX_ORCHESTRATOR_MESH_CONTROL_URL", "VOX_MESH_CONTROL_ADDR"] {
-        if let Ok(v) = std::env::var(var) {
-            let t = v.trim();
-            if !t.is_empty()
-                && let Some(b) = crate::normalize_http_control_base(t)
-            {
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose() {
+        let t = v.trim();
+        if !t.is_empty() {
+            if let Some(b) = crate::normalize_http_control_base(t) {
+                return Some(b);
+            }
+        }
+    }
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshControlAddr).expose() {
+        let t = v.trim();
+        if !t.is_empty() {
+            if let Some(b) = crate::normalize_http_control_base(t) {
                 return Some(b);
             }
         }
@@ -60,8 +67,8 @@ pub fn populi_http_control_base_from_env() -> Option<String> {
 /// Request timeout for populi HTTP client (**`VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS`**, min 500, default 15000).
 #[must_use]
 pub fn populi_http_timeout_ms_from_env() -> u64 {
-    std::env::var("VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshHttpTimeoutMs)
+        .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|n| *n >= 500)
         .unwrap_or(15_000)
@@ -70,8 +77,8 @@ pub fn populi_http_timeout_ms_from_env() -> u64 {
 /// Heartbeat interval (**`VOX_MESH_HTTP_HEARTBEAT_SECS`**, default 30; `0` = join only).
 #[must_use]
 pub fn populi_heartbeat_interval_secs_from_env() -> u64 {
-    std::env::var("VOX_MESH_HTTP_HEARTBEAT_SECS")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshHttpHeartbeatSecs)
+        .expose()
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(30)
 }

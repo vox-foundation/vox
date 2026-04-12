@@ -20,6 +20,7 @@ use super::mens_scorecard;
 use super::openclaw_contract;
 use super::release_build;
 use super::scaling_audit;
+use super::scientia_heuristics_parity;
 use super::scientia_novelty_ledger_contract;
 use super::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
@@ -30,12 +31,17 @@ mod run_body_helpers;
 
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
-    run_build_timings, run_clavis_cutover_audit, run_clavis_cutover_gates, run_clavis_parity,
+    run_build_timings, run_clavis_contracts, run_clavis_cutover_audit, run_clavis_cutover_gates,
+    run_clavis_parity, run_collateral_damage_gate, run_constrained_gen_smoke,
     run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build, run_data_ssot_guards,
-    run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards,
-    run_secret_env_guard, run_sql_surface_guard, run_ssot_drift, run_toestub_scoped,
-    run_toestub_self_apply,
+    run_feature_matrix, run_grammar_drift, run_grammar_export_check, run_grpo_reward_baseline,
+    run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
+    run_query_all_guard, run_repo_guards, run_secret_env_guard, run_operator_env_guard,
+    run_sql_surface_guard, run_ssot_drift, run_toestub_scoped, run_toestub_self_apply,
+    run_turso_import_guard,
 };
+
+use super::retired_symbol_check;
 
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
@@ -59,6 +65,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             super::operations_catalog::sync(&root, target, write)
         }
         CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
+        CiCmd::ScientiaHeuristicsParity => scientia_heuristics_parity::run(&root),
         CiCmd::ScientiaNoveltyLedgerContracts => scientia_novelty_ledger_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
@@ -198,10 +205,30 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
+        CiCmd::KComplexityBudget {
+            tolerance_percent,
+            update,
+        } => run_k_complexity_budget(&root, tolerance_percent, update),
+        CiCmd::GrammarExportCheck => run_grammar_export_check(&root),
         CiCmd::CorpusDeclCoverage => run_corpus_decl_coverage(&root),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),
+        CiCmd::OperatorEnvGuard { all } => run_operator_env_guard(&root, all),
+        CiCmd::MensCorpusHealth {
+            min_pairs,
+            min_human_ratio,
+        } => run_mens_corpus_health(&root, min_pairs, min_human_ratio).await,
+        CiCmd::GrpoRewardBaseline => run_grpo_reward_baseline(&root).await,
+        CiCmd::CollateralDamageGate { max_damage_rate } => {
+            run_collateral_damage_gate(&root, max_damage_rate).await
+        }
+        CiCmd::ConstrainedGenSmoke { n_samples } => {
+            run_constrained_gen_smoke(&root, n_samples).await
+        }
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
+        CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
+        CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
+        CiCmd::ClavisContracts => run_clavis_contracts(&root),
         CiCmd::ClavisParity => run_clavis_parity(&root),
         CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),
         CiCmd::ClavisCutoverAudit { all } => run_clavis_cutover_audit(&root, all),
@@ -269,6 +296,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             println!("policy-smoke OK");
             Ok(())
         }
+        CiCmd::GuiSmoke => super::gui_smoke::run(&root),
         CiCmd::CoverageGates {
             summary_json,
             mode,
@@ -293,5 +321,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             policy,
         } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
         CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
+        CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
+        CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),
     }
 }

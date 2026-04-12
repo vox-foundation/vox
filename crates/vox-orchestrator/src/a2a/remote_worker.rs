@@ -81,8 +81,10 @@ async fn run_remote_worker_tick(
         return;
     };
 
-    let node_id =
-        std::env::var("VOX_MESH_NODE_ID").unwrap_or_else(|_| "vox-orch-worker".to_string());
+    let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+        .expose()
+        .map(str::to_string)
+        .unwrap_or_else(|| "vox-orch-worker".to_string());
     for msg in inbox.messages {
         if msg.message_type != REMOTE_TASK_ENVELOPE_TYPE {
             continue;

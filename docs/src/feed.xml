@@ -5,167 +5,232 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Mon, 06 Apr 2026 18:52:07 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 12 Apr 2026 03:35:06 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
-    <title>ADR 001 — Burn Backend Selection for vox-tensor</title>
-    <link>https://vox-lang.org/adr/001-burn-backend-selection.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/001-burn-backend-selection.html</guid>
-    <description>Official documentation for ADR 001 — Burn Backend Selection for vox-tensor for the Vox language. Detailed technical reference, architectu</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Language surface SSOT (keywords, decorators, manifests)</title>
+    <link>https://vox-lang.org/architecture/language-surface-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/language-surface-ssot.html</guid>
+    <description>Authoritative plan for unifying Vox language-surface metadata across LSP, MCP, docs, eval, and speech tooling.</description>
+    <pubDate>Sun, 12 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>ADR 003 — Native Rust Training Over Python</title>
-    <link>https://vox-lang.org/adr/003-native-training-over-python.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/003-native-training-over-python.html</guid>
-    <description>Historical move off Python/Unsloth; current Mens training is native Candle + qlora-rs QLoRA via vox mens train (see mens-training SSOT).</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Populi data pipeline (control plane vs Mens corpus)</title>
+    <link>https://vox-lang.org/architecture/populi-data-pipeline.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/populi-data-pipeline.html</guid>
+    <description>Clarifies Populi/mesh runtime data paths versus Mens training corpus sources—two different pipelines that share orchestration branding.</description>
+    <pubDate>Sun, 12 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>Action</title>
-    <link>https://vox-lang.org/api/decorators/action.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/action.html</guid>
-    <description>Vox @action decorator: marks imperative handlers and codegen entrypoints for side-effectful operations.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Vox source → compiler → Mens training (pipeline SSOT)</title>
+    <link>https://vox-lang.org/architecture/vox-source-to-mens-pipeline-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-source-to-mens-pipeline-ssot.html</guid>
+    <description>End-to-end map from .vox text through the lexer and compiler to golden examples, corpus mix, and Mens (HF) training—without conflating compile tokens with model tokens.</description>
+    <pubDate>Sun, 12 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@island</title>
-    <link>https://vox-lang.org/api/decorators/component.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/component.html</guid>
-    <description>Vox @island decorator (documented here as @island): React island components and client hydration boundaries.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Native ML Training Pipeline</title>
+    <link>https://vox-lang.org/explanation/expl-ml-pipeline.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-ml-pipeline.html</guid>
+    <description>End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy.</description>
+    <pubDate>Sun, 12 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
   </item>
 
   <item>
-    <title>@deprecated</title>
-    <link>https://vox-lang.org/api/decorators/deprecated.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/deprecated.html</guid>
-    <description>Vox @deprecated decorator: marks APIs slated for removal and surfaces compiler or doc warnings.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>AI-Augmented Testing &amp; Hourglass Architecture Research (2026)</title>
+    <link>https://vox-lang.org/architecture/ai-augmented-testing-hourglass-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ai-augmented-testing-hourglass-research-2026.html</guid>
+    <description>Synthesis of 2026 state-of-the-art AI-augmented testing, shifting from the traditional testing pyramid to an hourglass/honeycomb architecture driven by the Vox Internal Representation (HIR) and AI-to-AI integration.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@index</title>
-    <link>https://vox-lang.org/api/decorators/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/index.html</guid>
-    <description>Vox @index decorator: database index declarations emitted with @table migrations.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Compiler IR Pipeline</title>
+    <link>https://vox-lang.org/architecture/compiler-ir-pipeline.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/compiler-ir-pipeline.html</guid>
+    <description>Reference for the Vox Intermediate Representation emission, validation, and its role in machine-verifiable agent loops.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@mcp.resource</title>
-    <link>https://vox-lang.org/api/decorators/mcp_resource.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/mcp_resource.html</guid>
-    <description>Vox @mcp.resource decorator: exposes read-only MCP resources with stable URIs for agents.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>IR emission SSOT (HIR, WebIR, VoxIrModule)</title>
+    <link>https://vox-lang.org/architecture/ir-emission-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ir-emission-ssot.html</guid>
+    <description>Which CLI flags emit which JSON, and how they relate to ADR 012 WebIR.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@mcp.tool</title>
-    <link>https://vox-lang.org/api/decorators/mcp_tool.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/mcp_tool.html</guid>
-    <description>Vox @mcp.tool decorator: exposes typed functions as MCP tools with derived JSON Schema for LLM callers.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Vox Memory System</title>
+    <link>https://vox-lang.org/architecture/memory_system.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/memory_system.html</guid>
+    <description>Persistent, searchable long-term storage for agent knowledge with tiered primaries per concern.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@mutation</title>
-    <link>https://vox-lang.org/api/decorators/mutation.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/mutation.html</guid>
-    <description>Vox @mutation decorator: transactional write paths against VoxDB with compiler-checked schema use.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Multi-repo context isolation: research findings 2026</title>
+    <link>https://vox-lang.org/architecture/multi-repo-context-isolation-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/multi-repo-context-isolation-research-2026.html</guid>
+    <description>Comprehensive synthesis of 2026 best practices for managing repository context isolation across AI agents, orchestrators, IDEs, and CI/CD pipelines. Covers scope enforcement, ignore-file SSOT, agent instruction files, memory architecture, security threats, and the vox catalog layer.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@pure</title>
-    <link>https://vox-lang.org/api/decorators/pure.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/pure.html</guid>
-    <description>Vox @pure decorator: marks side-effect-free functions for optimization and tooling contracts.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>VCS for agent state and artifact snapshotting research 2026</title>
+    <link>https://vox-lang.org/architecture/vcs-agent-state-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vcs-agent-state-research-2026.html</guid>
+    <description>Research on using Jujutsu, Sapling, and other VCS strategies to automatically snapshot agent state, replace manual Git, and harden artifact history.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@query</title>
-    <link>https://vox-lang.org/api/decorators/query.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/query.html</guid>
-    <description>Vox @query decorator: read-only database queries validated against @table types at compile time.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>VoxDB connection policy (SSOT)</title>
+    <link>https://vox-lang.org/architecture/voxdb-connect-policy.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/voxdb-connect-policy.html</guid>
+    <description>Strict, degraded-optional, and legacy-schema policies for VoxDb connects; inventory of callsites by surface/crate; remediation pointer and rules for adding new connections without silent Codex drops.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@require</title>
-    <link>https://vox-lang.org/api/decorators/require.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/require.html</guid>
-    <description>Vox @require decorator: compile-time preconditions on types and records enforced on writes.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Environment variables (SSOT)</title>
+    <link>https://vox-lang.org/reference/env-vars.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/env-vars.html</guid>
+    <description>Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
   </item>
 
   <item>
-    <title>@scheduled</title>
-    <link>https://vox-lang.org/api/decorators/scheduled.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/scheduled.html</guid>
-    <description>Vox @scheduled decorator: planned periodic tasks and cron-style scheduling metadata.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Vox IR Specification</title>
+    <link>https://vox-lang.org/reference/vox-ir-specification.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/vox-ir-specification.html</guid>
+    <description>Stability-first Intermediate Representation (IR) for machine-verifiable Vox programs.</description>
+    <pubDate>Sat, 11 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
   </item>
 
   <item>
-    <title>@server</title>
-    <link>https://vox-lang.org/api/decorators/server.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/server.html</guid>
-    <description>Vox @server decorator: RPC and HTTP handler surfaces with cross-language client codegen.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>vox-constrained-gen</title>
+    <link>https://vox-lang.org/api/vox-constrained-gen.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/vox-constrained-gen.html</guid>
+    <description>API reference for vox-constrained-gen, the experimental grammar-constrained decoding crate.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
   </item>
 
   <item>
-    <title>@table</title>
-    <link>https://vox-lang.org/api/decorators/table.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/table.html</guid>
-    <description>Vox @table decorator: canonical schema DDL, Rust types, and Codex migration emission from one declaration.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>vox-dei</title>
+    <link>https://vox-lang.org/api/vox-dei.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/vox-dei.html</guid>
+    <description>API reference for the new HITL vox-dei crate (Doubt/Resolution logic).</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
   </item>
 
   <item>
-    <title>@test</title>
-    <link>https://vox-lang.org/api/decorators/test.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/test.html</guid>
-    <description>Vox @test decorator: declares unit tests executed by vox test and the doc example pipeline.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>AI CLI Generation Standard</title>
+    <link>https://vox-lang.org/architecture/ai-cli-generation-standard.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ai-cli-generation-standard.html</guid>
+    <description>Architecture and design principles for LLM-driven CLI command generation via internal AST representations.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>@v0</title>
-    <link>https://vox-lang.org/api/decorators/v0.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators/v0.html</guid>
-    <description>Imports and generates a React component directly from a Vercel v0.dev generation.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Execution Time Budgeting and Agent Learning Research 2026</title>
+    <link>https://vox-lang.org/architecture/execution-time-agent-budgeting-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/execution-time-agent-budgeting-research-2026.html</guid>
+    <description>Research and feasibility analysis for dynamic execution time budgeting, wait forecasting, and autonomous latency adaptation within Vox DEI and Arca architectures.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>Decorators</title>
-    <link>https://vox-lang.org/api/decorators.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/decorators.html</guid>
-    <description>Index of Vox decorators with links to per-decorator API reference pages under docs/src/api/decorators.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>HITL Doubt Loop (SSOT)</title>
+    <link>https://vox-lang.org/architecture/hitl-doubt-loop-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/hitl-doubt-loop-ssot.html</guid>
+    <description>Canonical authority document for the HITL doubt system and Resolution Agent.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>Known Documentation Gaps &amp; Backlog</title>
-    <link>https://vox-lang.org/api/DOC_GAPS.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/DOC_GAPS.html</guid>
-    <description>Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Legacy retirement roadmap (2026)</title>
+    <link>https://vox-lang.org/architecture/legacy-retirement-roadmap.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/legacy-retirement-roadmap.html</guid>
+    <description>Machine-readable guide identifying retired and retiring code pathways in Vox. Prevents LLMs and contributors from building on deprecated surfaces. Last research audit: 2026-04-06.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
-    <title>Example: Vox Actor Example</title>
-    <link>https://vox-lang.org/api/example_actor.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/example_actor.html</guid>
-    <description>Worked example: Vox actor with messages and state patterns for the internal API docs.</description>
-    <pubDate>Mon, 06 Apr 2026 00:00:00 GMT</pubDate>
+    <title>Vox RAG and Autonomous Research Architecture 2026</title>
+    <link>https://vox-lang.org/architecture/rag-and-research-architecture-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/rag-and-research-architecture-2026.html</guid>
+    <description>Single source of truth for the Vox retrieval-augmented generation pipeline, Socrates hallucination gate, Tavily web search integration, CRAG loop, and agent-to-agent research handoff.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Coding Agent Instructions</title>
+    <link>https://vox-lang.org/contributors/coding-agents.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/coding-agents.html</guid>
+    <description>Instructions and heuristics generated from recent codebase discoveries for coding agents operating on Vox.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox: The AI-Native Programming Language</title>
+    <link>https://vox-lang.org/index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/index.html</guid>
+    <description>Vox is an AI-native full-stack language that eliminates hallucinations via compiler-enforced reality. Compiles to Rust and TypeScript with zero-null discipline.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Human-In-The-Loop &amp; Doubt</title>
+    <link>https://vox-lang.org/reference/hitl-and-doubt.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/hitl-and-doubt.html</guid>
+    <description>User-facing reference explaining the Doubt control mechanism and human resolution flow.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Tavily Integration SSOT</title>
+    <link>https://vox-lang.org/reference/tavily-integration-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/tavily-integration-ssot.html</guid>
+    <description>Complete reference for integrating Tavily AI search API into the Vox RAG pipeline. Covers endpoints, Rust SDK, Clavis secrets, CRAG flow, safety posture, and cost model.</description>
+    <pubDate>Fri, 10 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Vox 0.4 Grand Migration Plan (Uncompressed)</title>
+    <link>https://vox-lang.org/architecture/vox-0.4-migration-plan.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-0.4-migration-plan.html</guid>
+    <description>Comprehensive research-to-practice implementation plan: 270+ atomic tasks translating 9 deep research clusters into a greenfield Vox 0.4 standard.</description>
+    <pubDate>Thu, 09 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>

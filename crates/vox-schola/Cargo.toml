@@ -19,8 +19,11 @@ cuda = ["vox-populi/mens-candle-qlora-cuda"]
 [dependencies]
 # Core ML (Mens) — Candle QLoRA + CUDA via default `cuda` feature (`mens-candle-qlora-cuda` on Populi).
 vox-populi = { workspace = true, features = ["mens", "mens-train", "mens-hf-hub"] }
+vox-constrained-gen = { workspace = true }
 vox-corpus  = { workspace = true }
 vox-db      = { workspace = true }
+vox-build-meta = { workspace = true }
+vox-clavis = { workspace = true }
 # CLI + async runtime
 clap        = { workspace = true, features = ["derive"] }
 anyhow      = { workspace = true }
@@ -38,6 +41,8 @@ axum        = { version = "0.8" }
 tokio-stream = { version = "0.1" }
 bytes       = { workspace = true }
 futures-util = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+reqwest = { workspace = true, features = ["json"] }
 
 [lints]
 workspace = true

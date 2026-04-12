@@ -4,6 +4,8 @@ description: "Operator steps and WAN boundaries for user-owned Populi clusters a
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Populi overlay personal cluster runbook

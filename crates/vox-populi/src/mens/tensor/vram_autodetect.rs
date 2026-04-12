@@ -13,7 +13,7 @@
 /// 4. `None` — caller should fall back to user preset
 pub fn get_system_vram_gb() -> Option<f32> {
     // Priority 1: env override
-    if let Ok(v) = std::env::var("VOX_VRAM_OVERRIDE_GB")
+    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxVramOverrideGb).expose()
         && let Ok(gb) = v.parse::<f32>()
         && gb > 0.0
     {
@@ -100,7 +100,7 @@ mod tests {
     fn vram_override_env_is_respected() {
         // Set a fake value and confirm it returns correctly.
         unsafe {
-            unsafe { std::env::set_var("VOX_VRAM_OVERRIDE_GB", "20.0") };
+            std::env::set_var("VOX_VRAM_OVERRIDE_GB", "20.0");
         }
         assert_eq!(get_system_vram_gb(), Some(20.0));
         unsafe {

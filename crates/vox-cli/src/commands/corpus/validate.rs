@@ -104,7 +104,8 @@ pub(super) async fn run_validate(
         anyhow::bail!("Input file not found: {}", input.display());
     }
 
-    let strict = std::env::var("VOX_MENS_TRAIN_JSONL_STRICT")
+    let strict = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensTrainJsonlStrict)
+        .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
 

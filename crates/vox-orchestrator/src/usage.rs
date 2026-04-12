@@ -464,7 +464,7 @@ impl<'a> UsageTracker<'a> {
                 "sambanova" => {
                     vox_clavis::resolve_secret(vox_clavis::SecretId::SambaNovaApiKey).is_present()
                 }
-                "custom" => vox_clavis::resolve_secret(vox_clavis::SecretId::CustomOpenAiApiKey)
+                "custom" => vox_clavis::resolve_secret(vox_clavis::SecretId::CustomOpenaiApiKey)
                     .is_present(),
                 _ => false,
             }
@@ -485,8 +485,9 @@ impl<'a> UsageTracker<'a> {
             let default_model = match best.provider.as_str() {
                 "google" => "google/auto".to_string(),
                 "openrouter" => vox_config::OPENROUTER_AUTO.to_string(),
-                "ollama" => std::env::var("POPULI_MODEL")
-                    .ok()
+                "ollama" => vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+                    .expose()
+                    .map(|s: &str| s.to_string())
                     .filter(|s| !s.trim().is_empty())
                     .unwrap_or_else(|| "default-model".to_string()),
                 _ => "provider-default".to_string(),
@@ -500,8 +501,9 @@ impl<'a> UsageTracker<'a> {
         } else if has_ollama {
             Ok(ProviderRecommendation {
                 provider: "ollama".to_string(),
-                model: std::env::var("POPULI_MODEL")
-                    .ok()
+                model: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+                    .expose()
+                    .map(|s: &str| s.to_string())
                     .filter(|s| !s.trim().is_empty())
                     .unwrap_or_else(|| "default-model".to_string()),
                 remaining: u32::MAX,

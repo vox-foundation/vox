@@ -18,19 +18,19 @@ use std::sync::OnceLock;
 use vox_db::{DbConfig, VoxDb};
 
 fn telemetry_enabled() -> bool {
-    std::env::var("VOX_BENCHMARK_TELEMETRY")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBenchmarkTelemetry).expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
 
 fn syntax_k_telemetry_enabled() -> bool {
-    std::env::var("VOX_SYNTAX_K_TELEMETRY")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSyntaxKTelemetry).expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or_else(|_| telemetry_enabled())
+        .unwrap_or_else(|| telemetry_enabled())
 }
 
 fn telemetry_discovery_start() -> std::path::PathBuf {
-    if let Ok(p) = std::env::var("VOX_REPOSITORY_ROOT") {
+    if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose() {
         let p = p.trim();
         if !p.is_empty() {
             return std::path::PathBuf::from(p);

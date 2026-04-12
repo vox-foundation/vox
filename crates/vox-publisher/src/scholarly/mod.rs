@@ -137,43 +137,42 @@ impl ScholarlyAdapter for EchoLedgerAdapter {
 
 async fn submit_for_adapter_normalized(
     manifest: &PublicationManifest,
-    kind: &str,
+    kind: vox_config::scholarly::ScholarlyAdapterKind,
 ) -> Result<ScholarlySubmissionReceipt, ScholarlyError> {
     if flags::scholarly_globally_disabled() {
         return Err(ScholarlyError::Disabled {
             reason: "VOX_SCHOLARLY_DISABLE is set".into(),
         });
     }
-    let kind = kind.trim();
-    if kind.is_empty() || kind.eq_ignore_ascii_case("local_ledger") {
-        return LocalLedgerAdapter.submit(manifest).await;
-    }
-    if kind.eq_ignore_ascii_case("echo_ledger") {
-        return EchoLedgerAdapter.submit(manifest).await;
-    }
-    if kind.eq_ignore_ascii_case("zenodo") {
-        if flags::scholarly_live_globally_disabled() {
-            return Err(ScholarlyError::Disabled {
-                reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
-            });
+    match kind {
+        vox_config::scholarly::ScholarlyAdapterKind::LocalLedger => {
+            LocalLedgerAdapter.submit(manifest).await
         }
-        let adapter = zenodo::zenodo_from_clavis()?;
-        return adapter.submit(manifest).await;
-    }
-    if kind.eq_ignore_ascii_case("openreview") {
-        if flags::scholarly_live_globally_disabled() {
-            return Err(ScholarlyError::Disabled {
-                reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
-            });
+        vox_config::scholarly::ScholarlyAdapterKind::EchoLedger => {
+            EchoLedgerAdapter.submit(manifest).await
         }
-        let adapter = openreview::openreview_adapter_from_env().await?;
-        return adapter.submit(manifest).await;
+        vox_config::scholarly::ScholarlyAdapterKind::Zenodo => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = zenodo::zenodo_from_clavis()?;
+            adapter.submit(manifest).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::OpenReview => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = openreview::openreview_adapter_from_env().await?;
+            adapter.submit(manifest).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => Err(ScholarlyError::Config {
+            message: "arxiv_assist adapter implementation pending in Wave 12".to_string(),
+        }),
     }
-    Err(ScholarlyError::Config {
-        message: format!(
-            "unsupported scholarly adapter {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview)"
-        ),
-    })
 }
 
 /// Submit using an explicit adapter name (e.g. from `external_submission_jobs.adapter`), case-insensitive.
@@ -183,8 +182,14 @@ pub async fn submit_with_adapter(
     manifest: &PublicationManifest,
     adapter: &str,
 ) -> Result<ScholarlySubmissionReceipt, ScholarlyError> {
-    let k = adapter.trim().to_ascii_lowercase();
-    submit_for_adapter_normalized(manifest, k.as_str()).await
+    let k = match adapter.trim().to_ascii_lowercase().as_str() {
+        "zenodo" => vox_config::scholarly::ScholarlyAdapterKind::Zenodo,
+        "openreview" => vox_config::scholarly::ScholarlyAdapterKind::OpenReview,
+        "echo_ledger" | "echo" => vox_config::scholarly::ScholarlyAdapterKind::EchoLedger,
+        "arxiv_assist" | "arxiv" => vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist,
+        _ => vox_config::scholarly::ScholarlyAdapterKind::LocalLedger,
+    };
+    submit_for_adapter_normalized(manifest, k).await
 }
 
 /// Resolve [`VOX_SCHOLARLY_ADAPTER`] (default `local_ledger`) and submit.
@@ -194,14 +199,8 @@ pub async fn submit_with_adapter(
 pub async fn submit_with_configured_adapter(
     manifest: &PublicationManifest,
 ) -> Result<ScholarlySubmissionReceipt, ScholarlyError> {
-    let raw = std::env::var("VOX_SCHOLARLY_ADAPTER").unwrap_or_default();
-    let k = raw.trim();
-    let k = if k.is_empty() {
-        "local_ledger".to_string()
-    } else {
-        k.to_ascii_lowercase()
-    };
-    submit_for_adapter_normalized(manifest, k.as_str()).await
+    let k = vox_config::scholarly::scholarly_adapter_from_env();
+    submit_for_adapter_normalized(manifest, k).await
 }
 
 /// Best-effort status poll for the configured adapter.
@@ -213,37 +212,38 @@ pub async fn fetch_status_with_configured_adapter(
             reason: "VOX_SCHOLARLY_DISABLE is set".into(),
         });
     }
-    let raw = std::env::var("VOX_SCHOLARLY_ADAPTER").unwrap_or_default();
-    let kind = raw.trim();
-    if kind.is_empty() || kind.eq_ignore_ascii_case("local_ledger") {
-        return LocalLedgerAdapter
-            .fetch_status(external_submission_id)
-            .await;
-    }
-    if kind.eq_ignore_ascii_case("echo_ledger") {
-        return EchoLedgerAdapter.fetch_status(external_submission_id).await;
-    }
-    if kind.eq_ignore_ascii_case("zenodo") {
-        if flags::scholarly_live_globally_disabled() {
-            return Err(ScholarlyError::Disabled {
-                reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
-            });
+    let kind = vox_config::scholarly::scholarly_adapter_from_env();
+    match kind {
+        vox_config::scholarly::ScholarlyAdapterKind::LocalLedger => {
+            LocalLedgerAdapter
+                .fetch_status(external_submission_id)
+                .await
         }
-        let adapter = zenodo::zenodo_from_clavis()?;
-        return adapter.fetch_status(external_submission_id).await;
-    }
-    if kind.eq_ignore_ascii_case("openreview") {
-        if flags::scholarly_live_globally_disabled() {
-            return Err(ScholarlyError::Disabled {
-                reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
-            });
+        vox_config::scholarly::ScholarlyAdapterKind::EchoLedger => {
+            EchoLedgerAdapter.fetch_status(external_submission_id).await
         }
-        let adapter = openreview::openreview_adapter_from_env().await?;
-        return adapter.fetch_status(external_submission_id).await;
+        vox_config::scholarly::ScholarlyAdapterKind::Zenodo => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = zenodo::zenodo_from_clavis()?;
+            adapter.fetch_status(external_submission_id).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::OpenReview => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = openreview::openreview_adapter_from_env().await?;
+            adapter.fetch_status(external_submission_id).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => Err(ScholarlyError::Config {
+            message: "arxiv_assist status polling pending".to_string(),
+        }),
     }
-    Err(ScholarlyError::Config {
-        message: format!("unsupported VOX_SCHOLARLY_ADAPTER for status: {kind:?}"),
-    })
 }
 
 /// Poll remote status for a scholarly adapter name (e.g. from `scholarly_submissions.adapter`),

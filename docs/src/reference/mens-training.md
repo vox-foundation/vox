@@ -4,6 +4,8 @@ description: "Official documentation for Mens native fine-tuning: contract-first
 category: "reference"
 last_updated: 2026-03-27
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Mens native training SSOT (Candle QLoRA–first)
 
@@ -123,6 +125,8 @@ Documentation extraction exists, but keep the current boundaries explicit:
 - That means VoxMens is still primarily a code-oriented training path today, not a general architecture-question answering system.
 - Documentation metadata and traceability are being carried forward so later opt-in docs-QA or retrieval paths can cite exact source pages and headings without changing the default production lane.
 
+**Research (corpus lab, vision, Qwen family):** [Vox corpus lab (research 2026)](../architecture/vox-corpus-lab-research-2026.md), [Mens vision and multimodal inputs (research 2026)](../architecture/mens-vision-multimodal-research-2026.md), [Mens Qwen family migration (research 2026)](../architecture/mens-qwen-family-migration-research-2026.md).
+
 ## Who / when
 
 - **Implementers**: `vox-populi` (`mens::tensor`, `mens::hub`), `vox-cli` (`commands/schola/train/*`, `commands/mens/populi/*`, `commands/mens/pipeline.rs`), `vox-schola` (`src/train.rs`), corpus preflight + mix (`vox-corpus::training`, `vox-corpus::training::mix_prepare`).
@@ -168,7 +172,7 @@ Documentation extraction exists, but keep the current boundaries explicit:
   > **Windows MSVC/NVCC constraint**: Building the CUDA `candle-kernels` completely fails if executed through a nested subshell (e.g. `cmd.exe /c "vcvars64.bat && cargo build"`). The inner `bindgen_cuda` executable natively drops nested path states, leading to an immediate `'cl.exe' is not recognized` failure. You **must** interactively open the VS Developer Command Prompt or physically run `vcvars64.bat` in your persistent PowerShell window before typing cargo commands for CUDA.
 - **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-populi` optional deps. Keep notes in `VOX_PATCH.md` synchronized with whichever qlora-rs patches are active for trainer stability.
 - **Input**: `train.jsonl` (and `mens/config/training_contract.yaml` / preflight overrides).
-- **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys. **VoxDB persistence** uses the canonical store ([`DbConfig::resolve_canonical`](../../../crates/vox-db/src/config.rs)) via `connect_default_with_training_fallback`; if `vox.db` is legacy, runs may land in `vox_training_telemetry.db` until cutover — see [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
+- **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys. **VoxDB persistence** uses [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/connect.rs) with [`DbConfig::resolve_canonical`](../../../crates/vox-db/src/config.rs); a legacy primary yields `LegacySchemaChain` until migration — see [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
 
 ## Training objective mismatch (Burn vs Candle)
 

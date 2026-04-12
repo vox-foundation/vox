@@ -4,6 +4,8 @@ description: "Official documentation for Codex legacy migration for the Vox lang
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Codex legacy migration
@@ -28,7 +30,7 @@ See [cli.md](../reference/cli.md).
 
 ## Training telemetry SQLite sidecar (not JSONL cutover)
 
-When the **canonical** `vox.db` is still on a legacy chain, [`VoxDb::connect_default_with_training_fallback`](../../../crates/vox-db/src/facade/connect.rs) may open or reset **`vox_training_telemetry.db`** next to `vox.db` so Mens training can persist runs. This is **transitional** only; after you migrate the main DB, telemetry converges on the canonical file.
+When the **canonical** `vox.db` is still on a legacy chain, [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/connect.rs) returns **`LegacySchemaChain`** until you export, re-init on baseline, and import. Mens training does not open a separate telemetry file automatically. After you migrate the main DB, all training rows use the canonical file.
 
 Operator guide: [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
 

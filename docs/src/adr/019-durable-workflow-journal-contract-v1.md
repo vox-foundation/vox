@@ -4,6 +4,8 @@ description: "Freeze the interpreted workflow durability boundary, replay source
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 019: Durable workflow journal contract v1

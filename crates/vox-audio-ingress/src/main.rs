@@ -464,7 +464,8 @@ async fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
-    let host = std::env::var("VOX_DASH_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let host = std::env::var("VOX_DASH_HOST")
+        .unwrap_or_else(|_| std::net::Ipv4Addr::LOCALHOST.to_string());
     let port: u16 = std::env::var("VOX_DASH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())

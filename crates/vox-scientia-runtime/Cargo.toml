@@ -7,3 +7,4 @@ description = "Scientia runtime orchestration helpers."
 [dependencies]
 vox-scientia-core = { path = "../vox-scientia-core" }
 vox-scientia-social = { path = "../vox-scientia-social" }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }

@@ -20,6 +20,10 @@ pub struct BuildArgs {
     /// Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag takes precedence when either is set).
     #[arg(long)]
     pub scaffold: bool,
+    /// Emit **WebIR** JSON (`web-ir.v1.json`) into the output directory (frontend IR only).
+    /// For the full **VoxIrModule** bundle (HIR + embedded WebIR), use `vox check <file>.vox --emit-ir`.
+    #[arg(long)]
+    pub emit_ir: bool,
 }
 
 /// `vox check` / `vox fabrica check`
@@ -30,6 +34,13 @@ pub struct CheckArgs {
     /// Append successful check output as a training JSONL record
     #[arg(long, value_name = "PATH")]
     pub emit_training_jsonl: Option<PathBuf>,
+    /// Set individual output format (overrides global --json)
+    #[arg(long, value_name = "FORMAT", default_value = "text")]
+    pub output_format: String,
+    /// Emit the full **VoxIrModule** JSON next to the source file as `<stem>.vox-ir.json`
+    /// (HIR module fields plus `module.web_ir` when present).
+    #[arg(long)]
+    pub emit_ir: bool,
 }
 
 /// `vox test` / `vox fabrica test`

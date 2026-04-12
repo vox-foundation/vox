@@ -126,6 +126,10 @@ const incomingSchema = z.union([
         tier: z.string(),
         reason: z.string(),
     }),
+    z.object({
+        type: z.literal('doubtTask'),
+        taskId: z.string(),
+    }),
 ]);
 
 export type WebviewToHostMessage =
@@ -182,7 +186,8 @@ export type WebviewToHostMessage =
     | { type: 'emergencyStop' }
     | { type: 'setAttentionPreference'; key: string; value: string }
     | { type: 'attentionReset'; newMaxMs?: number }
-    | { type: 'trustOverride'; agentId: number; tier: string; reason: string };
+    | { type: 'trustOverride'; agentId: number; tier: string; reason: string }
+    | { type: 'doubtTask'; taskId: string };
 
 export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
     const r = incomingSchema.safeParse(raw);
@@ -341,6 +346,8 @@ export function parseWebviewMessage(raw: unknown): WebviewToHostMessage | null {
                 return { type: 'trustOverride', agentId: o.agentId, tier: o.tier, reason: o.reason };
             }
             return null;
+        case 'doubtTask':
+            return typeof o.taskId === 'string' ? { type: 'doubtTask', taskId: o.taskId } : null;
         default:
             return null;
     }

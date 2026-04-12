@@ -521,8 +521,11 @@ pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()
         };
         total += n;
     }
+    // Also prune Tavily search documents with fixed 7-day TTL (Wave 1 operational hardening).
+    let tavily_pruned = db.retention_prune_tavily_search_documents().await.unwrap_or(0);
+
     println!(
-        "prune-apply: deleted {total} rows total (policy {}).",
+        "prune-apply: deleted {total} rows total (policy {}), plus {tavily_pruned} stale Tavily search documents.",
         path.display()
     );
     Ok(())
@@ -559,6 +562,38 @@ pub async fn pref_list(user_id: &str, prefix: Option<&str>) -> Result<()> {
     } else {
         for (k, v) in &filtered {
             println!("{k} = {v}");
+        }
+    }
+    Ok(())
+}
+
+/// Query and display execution history.
+pub async fn exec_history(
+    tool_key: Option<&str>,
+    repo: Option<&str>,
+    limit: i64,
+    json: bool,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let history = db.query_historical_exec_time(tool_key, repo, limit).await?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&history)?);
+    } else {
+        if history.is_empty() {
+            println!("No execution history found.");
+            return Ok(());
+        }
+        for item in history {
+            println!(
+                "[{}] tool='{}' repo='{}' result={} dur={}ms expected={:?}",
+                item["recorded_at"],
+                item["tool_key"].as_str().unwrap_or(""),
+                item["repository_id"].as_str().unwrap_or(""),
+                item["outcome"].as_str().unwrap_or(""),
+                item["duration_ms"],
+                item["timeout_budget_ms"],
+            );
         }
     }
     Ok(())

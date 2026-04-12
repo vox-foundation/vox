@@ -4,6 +4,8 @@ description: "Research appendix for planning-meta creation, including source cla
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Research baseline and source-of-truth map

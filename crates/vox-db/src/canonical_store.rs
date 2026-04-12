@@ -7,7 +7,7 @@
 //! | **Canonical user-global** | [`resolve_canonical_config`] / [`crate::DbConfig::resolve_canonical`] | Authoritative relational data: Codex, publication, research, mesh defaults, training telemetry when the main file is on the current baseline. |
 //! | **Workspace journey store** | [`crate::connect_workspace_journey_optional`] → default `.vox/store.db` | Repo-backed **interactive** MCP/daemon journeys use this as the primary Codex handle unless `VOX_WORKSPACE_JOURNEY_STORE=canonical`. Operator/global workflows without a single repo still use **Canonical user-global**. |
 //! | **Project-local artifacts** | [`crate::open_project_db`] / [`crate::open_project_db_at_root`] | Same `.vox/store.db` file as the workspace journey default; also used for explicit repo-scoped tooling. |
-//! | **Training telemetry fallback** | [`crate::paths::training_telemetry_db_path`] (`vox_training_telemetry.db` next to `vox.db`) | Transitional SQLite when canonical `vox.db` is still on a legacy [`crate::StoreError::LegacySchemaChain`]. Automatically reset to baseline if stale. Converge by migrating the main DB (`vox codex export-legacy` → fresh baseline → `vox codex import-legacy`). |
+//! | **Historical `vox_training_telemetry.db`** | [`crate::paths::training_telemetry_db_path`] | May remain from older releases; training telemetry uses the canonical file via [`crate::VoxDb::connect_default`]. A legacy primary still yields [`crate::StoreError::LegacySchemaChain`] until migration (`vox codex export-legacy` → fresh baseline → `vox codex import-legacy`). |
 //!
 //! # Environment
 //!

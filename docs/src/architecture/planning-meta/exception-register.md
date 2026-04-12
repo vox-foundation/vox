@@ -4,6 +4,8 @@ description: "Active and retired exceptions/deferrals for planning-meta governan
 category: "architecture"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Planning meta exception register

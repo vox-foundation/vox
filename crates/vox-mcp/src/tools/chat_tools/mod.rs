@@ -18,7 +18,7 @@ pub use chat::{chat_history, chat_message};
 pub use ghost_text::ghost_text;
 pub use inline_edit::inline_edit;
 pub use params::*;
-pub use plan::{plan_goal, plan_replan, plan_status};
+pub use plan::{plan_goal, plan_list_sessions, plan_replan, plan_resume, plan_status};
 pub use plan_gap::analyze_plan_gaps;
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -106,11 +106,19 @@ pub(crate) async fn build_system_prompt(state: &ServerState) -> String {
     let last_call = state.orchestrator.last_activity_ms() / 1000;
     let server_idle_secs = ts.saturating_sub(last_call);
 
+    let bm = state.orchestrator.budget_manager_handle();
+    let attention_budget = vox_orchestrator::sync_lock::rw_read(&*bm).attention_signal(0.7);
+
     prompt.push_str(&format!(
         "\n\n## Temporal Context\nCurrent date: {date_str}.\nUnix timestamp: {ts}s.\n\
          Server last active: {server_idle_secs}s ago.\n\
          **Enforcement**: Before triggering any compilation, re-reindexing, or full file walk, \
          check if things are fresh (< 30s since last run).\n"
+    ));
+
+    prompt.push_str(&format!(
+        "\n\n## Budget Status\nAttention Budget Signal: {:?}\nIf the budget is 'HighLoad' or 'Critical', you MUST summarize and abort your workflow immediately to defer to the operator.\n",
+        attention_budget
     ));
 
     let pol = state.orchestrator_config.effective_socrates_policy();

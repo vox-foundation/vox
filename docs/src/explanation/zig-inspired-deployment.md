@@ -4,6 +4,8 @@ description: "Official documentation for Zig-Inspired Deployment Architecture fo
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Zig-Inspired Deployment Architecture
 

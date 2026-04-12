@@ -4,6 +4,8 @@ description: "Governance, KPIs, cutover policy, and completion checkpoints for t
 category: "architecture"
 last_updated: 2026-04-08
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # React interop migration charter (2026)

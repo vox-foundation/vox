@@ -284,6 +284,7 @@ pub fn heuristic_search_plan(
         SearchCorpus::KnowledgeGraph,
         SearchCorpus::DocumentChunks,
         SearchCorpus::RepoInventory,
+        SearchCorpus::WebResearch,
     ];
     plan.preferred_backends = vec![
         SearchBackend::MemoryBm25,
@@ -292,6 +293,7 @@ pub fn heuristic_search_plan(
         SearchBackend::ChunkFts,
         SearchBackend::ChunkVector,
         SearchBackend::RepoPath,
+        SearchBackend::Web,
     ];
     plan.notes
         .push("default plan prefers hybrid retrieval across memory and Codex corpora".to_string());

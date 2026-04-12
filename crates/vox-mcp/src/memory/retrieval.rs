@@ -209,6 +209,7 @@ impl RetrievalEvidenceEnvelope {
                 factual_mode: Some(true),
                 required_citations: Some(if hit_count == 0 { 1 } else { 0 }),
             }),
+            obo_token: None,
         }
     }
 }
@@ -293,7 +294,7 @@ pub async fn run_retrieval_bundle(
     let lex = fallback.as_deref();
 
     let (execution, diagnostics, plan) =
-        run_search_with_verification(&ctx, query, map_trigger(trigger), limit, &policy, lex)
+        run_search_with_verification(&ctx, query, map_trigger(trigger), limit, &policy, lex, None)
             .await?;
 
     let mut chunk_lines = execution.chunk_lines.clone();

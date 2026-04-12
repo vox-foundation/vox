@@ -4,6 +4,8 @@ description: "Official documentation for @py.import – Python Library Integrati
 category: "how-to"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 # @py.import – Python Library Integration (`torch`, `numpy`, etc.)
 

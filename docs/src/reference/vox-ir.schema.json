@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.org/schemas/ir/vox-ir.schema.json",
+  "title": "Vox Intermediate Representation (VoxIrModule)",
+  "description": "Structural contract for JSON emitted by `vox check <file>.vox --emit-ir` (full VoxIrModule). HIR element shapes are intentionally loose; this schema enforces top-level and module field presence for CI/tooling.",
+  "type": "object",
+  "required": ["version", "metadata", "module"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["2.0.0"]
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["compiler_version", "generated_at", "source_hash"],
+      "additionalProperties": true,
+      "properties": {
+        "compiler_version": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "source_hash": { "type": "string" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "required": [
+        "imports",
+        "rust_imports",
+        "functions",
+        "types",
+        "routes",
+        "actors",
+        "workflows",
+        "activities",
+        "server_fns",
+        "query_fns",
+        "mutation_fns",
+        "tables",
+        "mcp_tools",
+        "mcp_resources",
+        "agents"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "imports": { "type": "array" },
+        "rust_imports": { "type": "array" },
+        "functions": { "type": "array" },
+        "types": { "type": "array" },
+        "routes": { "type": "array" },
+        "actors": { "type": "array" },
+        "workflows": { "type": "array" },
+        "activities": { "type": "array" },
+        "server_fns": { "type": "array" },
+        "query_fns": { "type": "array" },
+        "mutation_fns": { "type": "array" },
+        "tables": { "type": "array" },
+        "mcp_tools": { "type": "array" },
+        "mcp_resources": { "type": "array" },
+        "agents": { "type": "array" },
+        "web_ir": { "type": ["object", "null"] }
+      }
+    }
+  }
+}

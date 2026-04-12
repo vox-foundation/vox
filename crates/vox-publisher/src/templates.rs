@@ -1,4 +1,4 @@
-//! Standard news templates (placeholders `{{key}}`).
+﻿//! Standard news templates (placeholders `{{key}}`).
 
 use crate::contract::{DEFAULT_GITHUB_REPO, DEFAULT_OPENCOLLECTIVE_SLUG, DEFAULT_SITE_BASE_URL};
 

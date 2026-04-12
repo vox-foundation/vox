@@ -4,6 +4,8 @@ description: "Bounded spike: whether to adopt the async-openai crate after inter
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 014: `async-openai` selective adoption (spike)

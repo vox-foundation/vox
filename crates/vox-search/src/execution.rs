@@ -35,6 +35,8 @@ pub struct SearchExecution {
     pub qdrant_lines: Vec<String>,
     /// Cross-corpus RRF ordering when [`SearchPolicy::prefer_rrf_merge`] is set (≥2 non-empty lists).
     pub rrf_fused_lines: Vec<String>,
+    /// Optional web-retrieval hits (SearXNG, DuckDuckGo, or Tavily).
+    pub web_lines: Vec<String>,
     /// Non-fatal issues (e.g. Qdrant HTTP errors) copied into [`SearchDiagnostics::notes`].
     pub warnings: Vec<String>,
     pub used_vector: bool,
@@ -210,11 +212,17 @@ fn tantivy_supplemental_lines(
 
 #[cfg(not(feature = "tantivy-lexical"))]
 fn tantivy_supplemental_lines(
-    _ctx: &SearchRuntimeContext,
-    _policy: &SearchPolicy,
-    _query: &str,
-    _limit: usize,
+    ctx: &SearchRuntimeContext,
+    policy: &SearchPolicy,
+    query: &str,
+    limit: usize,
 ) -> Vec<String> {
+    let _ = (
+        std::hint::black_box(ctx as *const _ as usize),
+        std::hint::black_box(policy as *const _ as usize),
+        std::hint::black_box(query.len()),
+        std::hint::black_box(limit),
+    );
     Vec::new()
 }
 
@@ -474,6 +482,41 @@ pub async fn execute_search_plan(
         }
     };
 
+    let web_lines = if plan.corpora.contains(&SearchCorpus::WebResearch) {
+        match crate::web_dispatcher::WebSearchDispatcher::search(query, policy).await {
+            Ok(hits) => {
+                if !hits.is_empty() {
+                    backend_mix.push(SearchBackend::Web);
+                    if top_score.is_none() {
+                        top_score = hits.first().map(|h| h.score);
+                    }
+                }
+                hits.into_iter()
+                    .map(|h| {
+                        let engine = h
+                            .provenance
+                            .iter()
+                            .find_map(|p| p.strip_prefix("engine:"))
+                            .unwrap_or("unknown");
+                        format!(
+                            "[web:{}] {} (score {:.3}; engine: {})",
+                            h.path,
+                            h.content_snippet.replace('\n', " "),
+                            h.score,
+                            engine
+                        )
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                warnings.push(format!("web_search_failed:{}", e));
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    };
+
     let rrf_fused_lines: Vec<String> = if policy.prefer_rrf_merge {
         let lists = vec![
             memory_lines.clone(),
@@ -482,6 +525,7 @@ pub async fn execute_search_plan(
             repo_lines.clone(),
             tantivy_doc_lines.clone(),
             qdrant_lines.clone(),
+            web_lines.clone(),
         ];
         let non_empty: Vec<_> = lists.into_iter().filter(|v| !v.is_empty()).collect();
         if non_empty.len() >= 2 {
@@ -505,7 +549,8 @@ pub async fn execute_search_plan(
         + chunk_lines.len()
         + repo_lines.len()
         + tantivy_doc_lines.len()
-        + qdrant_lines.len();
+        + qdrant_lines.len()
+        + web_lines.len();
 
     let citation_coverage = if evidence_total == 0 {
         0.0
@@ -542,6 +587,7 @@ pub async fn execute_search_plan(
         tantivy_doc_lines,
         qdrant_lines,
         rrf_fused_lines,
+        web_lines,
         warnings,
         used_vector,
         used_bm25,

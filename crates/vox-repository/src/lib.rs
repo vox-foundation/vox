@@ -37,13 +37,14 @@ pub use populi_toml::{
     MeshToml, MeshTomlError, VoxMeshToml, VoxMeshTomlError, read_vox_populi_toml,
 };
 pub use repo_catalog::{
-    CrossRepoQueryTrace, QueryFileParams, QueryHistoryParams, QueryTextParams, RemoteAdapterHints,
-    RepoAccessMode, RepoCapability, RepoCatalog, RepoCatalogError, RepoCatalogRefreshResult,
-    RepoFileRead, RepoFileReadResponse, RepoHistoryEntry, RepoHistoryResponse,
-    RepoQuerySkippedRepository, RepoTextMatch, RepoTextSearchResponse, RepositoryDescriptor,
-    ResolvedRepoCatalog, ResolvedRepositoryDescriptor, load_repo_catalog_from_repo,
-    refresh_repo_catalog, repo_catalog_manifest_path, repo_query_file, repo_query_history,
-    repo_query_text, resolve_repo_catalog,
+    CrossRepoQueryTrace, QueryFileParams, QueryHistoryParams, QueryTextParams,
+    REPO_CATALOG_SCHEMA_VERSION, RemoteAdapterHints, RepoAccessMode, RepoCapability, RepoCatalog,
+    RepoCatalogError, RepoCatalogRefreshResult, RepoFileRead, RepoFileReadResponse,
+    RepoHistoryEntry, RepoHistoryResponse, RepoQuerySkippedRepository, RepoTextMatch,
+    RepoTextSearchResponse, RepositoryDescriptor, ResolvedRepoCatalog,
+    ResolvedRepositoryDescriptor, load_repo_catalog_from_repo, refresh_repo_catalog,
+    repo_catalog_manifest_path, repo_query_file, repo_query_history, repo_query_text,
+    resolve_repo_catalog,
 };
 pub use repo_query_trace::{
     repo_query_file_with_plane, repo_query_history_with_plane, repo_query_text_with_plane,

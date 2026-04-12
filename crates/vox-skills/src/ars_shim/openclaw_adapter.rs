@@ -32,13 +32,15 @@ pub struct OpenClawConnectionOverrides {
 
 impl OpenClawAdapterConfig {
     pub fn from_env_defaults() -> Self {
-        let http_gateway_url = std::env::var("VOX_OPENCLAW_URL")
-            .ok()
-            .unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
-        let ws_gateway_url = std::env::var("VOX_OPENCLAW_WS_URL")
-            .ok()
-            .unwrap_or_else(|| "ws://127.0.0.1:18789".to_string());
-        let auth_token = std::env::var("VOX_OPENCLAW_TOKEN").ok();
+        let http_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenClawUrl);
+        let http_gateway_url = http_res.expose().unwrap_or("http://127.0.0.1:3000").to_string();
+
+        let ws_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenClawWsUrl);
+        let ws_gateway_url = ws_res.expose().unwrap_or("ws://127.0.0.1:18789").to_string();
+
+        let auth_res = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken);
+        let auth_token = auth_res.expose().map(str::to_string);
+
         Self {
             http_gateway_url,
             ws_gateway_url,
@@ -89,7 +91,11 @@ pub async fn resolve_adapter_config(
             Some(trimmed)
         }
     });
-    let auth_token = explicit_token.or_else(|| std::env::var("VOX_OPENCLAW_TOKEN").ok());
+    let auth_token = explicit_token.or_else(|| {
+        vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+            .expose()
+            .map(str::to_string)
+    });
 
     Ok(OpenClawAdapterConfig {
         http_gateway_url: resolved.http_gateway_url,

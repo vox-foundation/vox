@@ -1,3 +1,13 @@
+---
+title: "Research: ASR Speech-to-Code Findings"
+description: "Synthesis of ASR model benchmarks and phonetic surface optimizations for speech-to-code pipelines."
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
+---
+
 # Vox Speech-to-Code Pipeline Research (April 2026)
 
 ## Executive Summary

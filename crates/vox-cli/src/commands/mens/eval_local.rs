@@ -506,7 +506,7 @@ fn verify_completion(
     let pass = non_empty && parse_ok && typecheck_ok;
     let placeholder_hits = placeholder_marker_hits(completion);
     let trivial_placeholder = is_trivial_placeholder_output(completion);
-    let construct_richness = vox_compiler::eval::construct_coverage_score(completion);
+    let construct_richness = vox_compiler::ast_eval(completion).coverage_score();
     let anti_stub_pass = placeholder_hits == 0
         && !trivial_placeholder
         && construct_richness >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS;

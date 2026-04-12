@@ -340,7 +340,6 @@ impl MessageBus {
                 }
             }
             if found {
-                inbox.retain(|msg| !msg.acknowledged);
                 return true;
             }
         }

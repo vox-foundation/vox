@@ -236,6 +236,7 @@ pub async fn vox_scientia_publication_prepare(
             Some("mcp://vox_scientia_publication_prepare"),
             ev_ref,
             &scientia_h,
+            None,
         );
         if !vox_publisher::scientia_discovery::intake_gate_allows(intake_gate, &rank) {
             return ToolResult::<()>::err_with_remediation(
@@ -301,6 +302,7 @@ pub async fn vox_scientia_publication_prepare(
             body_markdown: &manifest.body_markdown,
             citations_json: citations_json.as_deref(),
             metadata_json: manifest.metadata_json.as_deref(),
+            revision_history_json: None,
             content_sha3_256: &digest,
             state: "draft",
         })
@@ -579,6 +581,7 @@ pub async fn vox_scientia_publication_status(
         row.source_ref.as_deref(),
         evidence_ref,
         &scientia_h,
+        None,
     );
     let manifest_completion =
         vox_publisher::scientia_discovery::manifest_completion_report(&manifest);

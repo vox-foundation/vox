@@ -1,4 +1,5 @@
-//! Minimal JSON-line RPC client for `vox-dei-d` (planning and other DeI surfaces).
+//! Minimal JSON-line RPC client for **`vox-orchestrator-d`** (DeI `ai.*` / `config.get` surfaces).
+//! Logical docs name: `vox-dei-d`.
 //!
 //! Wire shape `{ id, method, params }` is [`vox_protocol::DispatchRequest`] (same as CLI dispatch); validates against
 //! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
@@ -9,7 +10,8 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
-const DAEMON_BINARY: &str = "vox-dei-d";
+/// Canonical name of the orchestrator daemon binary for IPC discovery.
+const DAEMON_BINARY: &str = "vox-orchestrator-d";
 const SPAWN_ERR: &str = "Failed to spawn daemon";
 
 use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};

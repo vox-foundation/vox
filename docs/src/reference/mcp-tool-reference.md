@@ -4,6 +4,8 @@ description: "Canonical MCP tool registry contract lives under docs/src/referenc
 category: "reference"
 status: "legacy"
 last_updated: 2026-03-28
+
+schema_type: "TechArticle"
 ---
 
 # MCP tool reference (legacy path)

@@ -1,9 +1,11 @@
 version: 1
 read_role_tools:
   - vox_attention_summary
+  - vox_exec_time_query
   - vox_git_diff
   - vox_git_status
   - vox_handoff_lineage
+  - vox_journey_canonical_steps
   - vox_orchestrator_persistence_outbox_lifecycle
   - vox_orchestrator_persistence_outbox_queue
   - vox_orchestrator_status
@@ -15,4 +17,5 @@ read_role_tools:
   - vox_repo_query_text
   - vox_repo_status
   - vox_task_status
+  - vox_test_decision
   - vox_workspace_modules

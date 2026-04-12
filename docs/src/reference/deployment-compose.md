@@ -4,6 +4,8 @@ description: "Official documentation for Deployment: Docker, Compose, Coolify, C
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Deployment: Docker, Compose, Coolify, CI (SSOT)

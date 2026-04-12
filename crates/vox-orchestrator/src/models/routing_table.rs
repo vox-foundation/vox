@@ -117,5 +117,8 @@ pub const ROUTING_TABLE: &[RoutingTableEntry] = &[
 /// Get the routing config for a category.
 #[must_use]
 pub fn route_for_category(cat: TaskCategory) -> &'static RoutingTableEntry {
-    ROUTING_TABLE.iter().find(|r| r.task_category == cat).unwrap_or(&ROUTING_TABLE[7]) // Default General
+    ROUTING_TABLE
+        .iter()
+        .find(|r| r.task_category == cat)
+        .unwrap_or(&ROUTING_TABLE[7]) // Default General
 }

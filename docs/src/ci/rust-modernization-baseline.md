@@ -4,6 +4,8 @@ description: "Official documentation for Rust pattern modernization — Wave 0 b
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Rust pattern modernization — Wave 0 baseline

@@ -29,7 +29,7 @@ fn swap_env(key: &str, val: Option<&str>) -> Option<String> {
     // This test holds `ZENODO_ENV_LOCK` for the whole test; restore runs on the same thread in `Drop`.
     unsafe {
         match val {
-            Some(v) => unsafe { std::env::set_var(key, v) },
+            Some(v) => std::env::set_var(key, v),
             None => std::env::remove_var(key),
         }
     }
@@ -61,7 +61,7 @@ impl Drop for EnvRestore {
         for (k, prev) in self.pairs.iter().rev() {
             unsafe {
                 match prev {
-                    Some(v) => unsafe { std::env::set_var(k, v) },
+                    Some(v) => std::env::set_var(k, v),
                     None => std::env::remove_var(k),
                 }
             }

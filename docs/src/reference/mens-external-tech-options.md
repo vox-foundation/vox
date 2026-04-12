@@ -4,6 +4,8 @@ description: "Adoption shortlist for constrained decoding, evaluation methodolog
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens external technology options
 

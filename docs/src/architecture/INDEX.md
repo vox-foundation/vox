@@ -5,6 +5,8 @@ category: "architecture"
 status: "research"
 last_updated: "2026-04-06"
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 
 # Architecture Index
@@ -35,6 +37,13 @@ The files in the `/architecture` directory serve as single sources of truth (SSO
 - [Completion Policy SSOT (Anticipatory Stopping)](completion-policy-ssot.md)
 - [Socrates Anti-Hallucination Protocol](../adr/005-socrates-anti-hallucination-ssot.md)
 - [MCP Exposure SSOT](mcp-vox-language-exposure.md)
+
+## RAG, Retrieval, and Autonomous Research
+
+- [**RAG and Research Architecture 2026 (SSOT)**](rag-and-research-architecture-2026.md) — Full pipeline SSOT: corpora, CRAG loop, Socrates gate, Tavily integration, A2A handoff, query pre-processing
+- [Research Trust & Reliability Signals](research-trust-reliability-signals-2026.md) — EWMA failure modes, Coverage Paradox, Bayesian routing recommendations
+- [A2A Evidence Sharing](research-agent-handoff-a2a-evidence-sharing-2026.md) — Inline embedding vs. durable artifact references, A2A protocol analysis
+- [Prompt Engineering & Scientia Research](prompt-engineering-document-skills-scientia-research-2026.md)
 
 ## MENS Training Research
 

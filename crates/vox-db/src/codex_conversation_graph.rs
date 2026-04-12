@@ -141,7 +141,7 @@ mod tests {
                 "closed",
                 "repo-deadbeef",
                 None,
-                Some(r#"{"done":true}"#),
+                Some(r#"{"closed":true}"#),
             )
             .await
             .expect("rs2");

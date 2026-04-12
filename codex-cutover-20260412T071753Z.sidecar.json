@@ -1,0 +1,12 @@
+{
+  "artifact_jsonl": "C:\\Users\\Owner\\vox\\codex-cutover-20260412T071753Z.jsonl",
+  "codex_reactivity_ok": true,
+  "exported_rows": 52,
+  "imported_rows": 52,
+  "kind": "vox_codex_cutover_v1",
+  "source_db_path": "C:\\Users\\Owner\\AppData\\Roaming\\vox\\vox.db",
+  "source_schema_version_max": 48,
+  "target_db_path": "vox_hardened.db",
+  "target_schema_version": 52,
+  "timestamp_utc": "20260412T071753Z"
+}

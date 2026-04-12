@@ -231,10 +231,14 @@ Do not explain your reasoning. Only output findings or CLEAN."#,
         match &self.provider {
             AiProvider::Ollama { url, .. } => Some(format!("{}/api/generate", url)),
             AiProvider::Gemini { api_key, model } => {
+                let key_owned: String;
+                let clavis_res;
                 let key = if api_key.is_empty() {
-                    std::env::var("GEMINI_API_KEY").unwrap_or_default()
+                    clavis_res = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey);
+                    clavis_res.expose().unwrap_or_default()
                 } else {
-                    api_key.clone()
+                    key_owned = api_key.clone();
+                    &key_owned
                 };
                 if key.is_empty() {
                     None

@@ -10,6 +10,8 @@ mod query;
 mod tests;
 mod types;
 
+mod voxignore;
+
 pub use catalog::{
     RepoCatalogError, load_repo_catalog_from_repo, refresh_repo_catalog,
     repo_catalog_manifest_path, resolve_repo_catalog,
@@ -22,9 +24,10 @@ pub use types::{
     RepoTextMatch, RepoTextSearchResponse, RepositoryDescriptor, ResolvedRepoCatalog,
     ResolvedRepositoryDescriptor,
 };
+pub(crate) use voxignore::VoxIgnore;
 
 pub(crate) const REPO_CATALOG_BASENAME: &str = "repositories.yaml";
-pub(crate) const REPO_CATALOG_SCHEMA_VERSION: u32 = 1;
+pub const REPO_CATALOG_SCHEMA_VERSION: u32 = 1;
 pub(crate) const MAX_FILES_PER_REPO_DEFAULT: usize = 50_000;
 pub(crate) const MAX_FILE_BYTES_DEFAULT: usize = 256 * 1024;
 pub(crate) const MAX_TEXT_MATCHES_PER_REPO_DEFAULT: usize = 50;
@@ -40,4 +43,15 @@ pub(crate) const SKIP_DIRS: &[&str] = &[
     ".venv",
     ".vox",
     ".next",
+    "vendor",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".eggs",
+    "coverage",
+    ".turbo",
+    ".vercel",
+    ".svelte-kit",
 ];

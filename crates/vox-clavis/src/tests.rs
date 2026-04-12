@@ -18,8 +18,8 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 fn canonical_env_wins_over_alias() {
     let _g = ENV_LOCK.lock().expect("env lock");
     unsafe {
-        unsafe { std::env::set_var("GEMINI_API_KEY", "canonical") };
-        unsafe { std::env::set_var("GOOGLE_AI_STUDIO_KEY", "alias") };
+        std::env::set_var("GEMINI_API_KEY", "canonical");
+        std::env::set_var("GOOGLE_AI_STUDIO_KEY", "alias");
     }
     let resolved = resolve_env_only(SecretId::GeminiApiKey);
     assert_eq!(resolved.expose(), Some("canonical"));
@@ -106,7 +106,7 @@ fn bundle_requirements_are_defined() {
 fn deprecated_alias_marks_status() {
     let _g = ENV_LOCK.lock().expect("env lock");
     unsafe {
-        unsafe { std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy") };
+        std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy");
         std::env::remove_var("GEMINI_API_KEY");
     }
     let resolved = resolve_env_only(SecretId::GeminiApiKey);
@@ -360,5 +360,69 @@ fn cutover_phase_compat_alias_is_honored() {
             Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
             None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
         }
+    }
+}
+
+#[test]
+fn all_secret_ids_have_spec_entries() {
+    for &id in &[
+        SecretId::GeminiApiKey,
+        SecretId::OpenRouterApiKey,
+        SecretId::OpenAiApiKey,
+        SecretId::AnthropicApiKey,
+        SecretId::HuggingFaceToken,
+        SecretId::ForgeToken,
+        SecretId::GroqApiKey,
+        SecretId::CerebrasApiKey,
+        SecretId::MistralApiKey,
+        SecretId::DeepSeekApiKey,
+        SecretId::SambaNovaApiKey,
+        SecretId::CustomOpenAiApiKey,
+        SecretId::V0ApiKey,
+        SecretId::OpenClawToken,
+        SecretId::TogetherApiKey,
+        SecretId::VoxRunpodApiKey,
+        SecretId::VoxVastApiKey,
+        SecretId::VoxApiKey,
+        SecretId::VoxBearerToken,
+        SecretId::VoxDbUrl,
+        SecretId::VoxDbToken,
+        SecretId::VoxMeshToken,
+        SecretId::VoxMeshWorkerToken,
+        SecretId::VoxMeshSubmitterToken,
+        SecretId::VoxMeshAdminToken,
+        SecretId::VoxMeshJwtHmacSecret,
+        SecretId::VoxMeshWorkerResultVerifyKey,
+        SecretId::VoxNewsTwitterBearer,
+        SecretId::VoxNewsOpenCollectiveToken,
+        SecretId::VoxSocialRedditClientId,
+        SecretId::VoxSocialRedditClientSecret,
+        SecretId::VoxSocialRedditRefreshToken,
+        SecretId::VoxSocialRedditUserAgent,
+        SecretId::VoxSocialYoutubeClientId,
+        SecretId::VoxSocialYoutubeClientSecret,
+        SecretId::VoxSocialYoutubeRefreshToken,
+        SecretId::VoxZenodoAccessToken,
+        SecretId::VoxOpenReviewEmail,
+        SecretId::VoxOpenReviewAccessToken,
+        SecretId::VoxOpenReviewPassword,
+        SecretId::VoxCrossrefPlusApiKey,
+        SecretId::VoxArxivAssistHandoffSecret,
+        SecretId::VoxSearchQdrantApiKey,
+        SecretId::PopuliApiKey,
+        SecretId::VoxTelemetryUploadUrl,
+        SecretId::VoxTelemetryUploadToken,
+        SecretId::WebhookIngressToken,
+        SecretId::VoxMcpHttpBearerToken,
+        SecretId::VoxMcpHttpReadBearerToken,
+        SecretId::WebhookSigningSecret,
+        SecretId::VoxOrcidClientId,
+        SecretId::VoxOrcidClientSecret,
+        SecretId::VoxDataCiteRepository,
+        SecretId::VoxDataCitePassword,
+        SecretId::TavilyApiKey,
+        SecretId::TavilyProject,
+    ] {
+        let _ = id.spec();
     }
 }

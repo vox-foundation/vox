@@ -1,4 +1,4 @@
-use crate::types::{HackerNewsConfig, UnifiedNewsItem};
+﻿use crate::types::{HackerNewsConfig, UnifiedNewsItem};
 use anyhow::Result;
 
 /// Hacker News native path is manual-assist via submitlink URL.

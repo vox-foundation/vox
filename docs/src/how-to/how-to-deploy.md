@@ -5,7 +5,10 @@ category: "how-to"
 last_updated: 2026-04-06
 status: "current"
 training_eligible: true
- ---
+ 
+schema_type: "HowTo"
+keywords: ["deploy Vox app", "Vox production deployment", "Docker Vox", "self-host Vox"]
+---
 # How-To: Deploy to Production
 
 Learn how to package and deploy your Vox application using declarative environments and the `vox deploy` command.

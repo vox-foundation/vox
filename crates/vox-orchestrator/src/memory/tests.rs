@@ -18,8 +18,6 @@ fn test_config(dir: &TempDir) -> MemoryConfig {
     MemoryConfig::for_account("test", dir.path())
 }
 
-
-
 #[test]
 fn long_term_memory_set_and_get() {
     let dir = memory_workdir();
@@ -50,13 +48,16 @@ fn long_term_memory_list_keys() {
     assert!(keys.contains(&"beta".to_string()));
 }
 
-#[test]
-fn memory_manager_persist_and_recall() {
+#[tokio::test]
+async fn memory_manager_persist_and_lookup() {
     let dir = memory_workdir();
     let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
     mgr.persist_fact(AgentId(1), "last_task", "fix parser", &[], None, None)
         .expect("persist");
-    let val = mgr.recall("last_task").expect("recall");
+    let val = mgr
+        .lookup_fact_by_key("last_task")
+        .await
+        .expect("lookup_fact_by_key");
     assert_eq!(val.as_deref(), Some("fix parser"));
 }
 
@@ -90,8 +91,8 @@ fn memory_manager_search() {
     assert!(!hits.is_empty(), "should find 'parser' in memory");
 }
 
-#[test]
-fn flush_before_compaction_persists_facts() {
+#[tokio::test]
+async fn flush_before_compaction_persists_facts() {
     use std::collections::HashMap;
     let dir = memory_workdir();
     let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
@@ -105,8 +106,18 @@ fn flush_before_compaction_persists_facts() {
         .flush_before_compaction(AgentId(1), facts)
         .expect("flush");
     assert_eq!(flushed, 2);
-    assert!(mgr.recall("lock_file").expect("recall").is_some());
-    assert!(mgr.recall("agent_state").expect("recall").is_some());
+    assert!(
+        mgr.lookup_fact_by_key("lock_file")
+            .await
+            .expect("lookup")
+            .is_some()
+    );
+    assert!(
+        mgr.lookup_fact_by_key("agent_state")
+            .await
+            .expect("lookup")
+            .is_some()
+    );
 }
 
 #[test]
@@ -151,12 +162,6 @@ fn account_registry_isolation() {
     let alice = registry.get_or_create("alice").expect("alice");
     let bob = registry.get_or_create("bob").expect("bob");
 
-    // Write a fact as alice and confirm bob cannot recall it.
-    {
-        let mut mgr = alice.as_ref().clone();
-        // We need a mutable reference — use inner ARC clone trick via unsafe is not clean.
-        // Instead, test path isolation at the config level.
-    }
     assert_ne!(alice.account_id(), bob.account_id());
     assert_eq!(alice.account_id(), "alice");
     assert_eq!(bob.account_id(), "bob");

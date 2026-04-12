@@ -382,4 +382,28 @@ pub enum DbCliPublication {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
+    /// Run one batch of Scientist RSS/Atom crawling and deduplication tick.
+    #[command(name = "ingest-tick")]
+    IngestTick {
+        /// Optional specific feed id to tick.
+        #[arg(long)]
+        feed_id: Option<String>,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
+    /// Register or update a feed source for inbound intelligence.
+    #[command(name = "feed-source-add")]
+    FeedSourceAdd {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        url: String,
+        #[arg(long, default_value = "rss")]
+        kind: String,
+        #[arg(long, default_value_t = 3600000)]
+        interval_ms: i64,
+    },
+    /// List registered feed sources.
+    #[command(name = "feed-source-list")]
+    FeedSourceList,
 }

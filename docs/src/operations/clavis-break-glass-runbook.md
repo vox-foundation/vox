@@ -4,6 +4,8 @@ description: "Emergency access workflow for Clavis Cloudless with JIT controls, 
 category: "operations"
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Clavis Break-Glass Runbook

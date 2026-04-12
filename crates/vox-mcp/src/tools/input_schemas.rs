@@ -58,11 +58,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Tasks & bulletin ─────────────────────────────────────────────────
         "vox_submit_task" => derived_tool_schema!(crate::params::SubmitTaskParams),
-        "vox_task_status" | "vox_cancel_task" => {
+        "vox_task_status" | "vox_cancel_task" | "vox_test_decision" => {
             derived_tool_schema!(crate::params::TaskStatusParams)
         }
         "vox_complete_task" => derived_tool_schema!(crate::params::CompleteTaskParams),
         "vox_fail_task" => derived_tool_schema!(crate::params::FailTaskParams),
+        "vox_doubt_task" => derived_tool_schema!(crate::params::DoubtTaskParams),
         "vox_publish_message" => derived_tool_schema!(crate::params::PublishMessageParams),
         "vox_reorder_task" => derived_tool_schema!(crate::params::ReorderTaskParams),
         "vox_drain_agent" => derived_tool_schema!(crate::params::DrainAgentParams),
@@ -95,6 +96,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_decorator_registry"
         | "vox_builtin_registry"
         | "vox_workspace_modules"
+        | "vox_export_grammar_ebnf"
         | "vox_a2a_tasks" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // Handler ignores args today; keep the schema strict so clients send `{}` only.
@@ -129,13 +131,21 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_browser_act" => derived_tool_schema!(crate::params::BrowserActParams),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
-        "vox_validate_file" | "vox_compiler::ast_inspect" => {
+        "vox_check" | "vox_validate_file" | "vox_compiler::ast_inspect" => {
             derived_tool_schema!(crate::params::ValidateFileParams)
         }
         "vox_run_tests" => derived_tool_schema!(crate::params::RunTestsParams),
         "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
             derived_tool_schema!(crate::params::OptionalCrateNameParams)
         }
+
+        // ── Execution Budget ─────────────────────────────────────────────────
+        "vox_exec_time_query" => parse_obj(
+            r#"{"type":"object","properties":{"tool_key":{"type":"string","minLength":1},"repository_id":{"type":"string"},"window_days":{"type":"integer","minimum":1}},"required":["tool_key"],"additionalProperties":false}"#,
+        ),
+        "vox_exec_time_record" => parse_obj(
+            r#"{"type":"object","properties":{"tool_key":{"type":"string","minLength":1},"repository_id":{"type":"string"},"duration_ms":{"type":"integer","minimum":0},"timeout_budget_ms":{"type":"integer","minimum":0},"outcome":{"type":"string","enum":["success","timeout","error"]}},"required":["tool_key","duration_ms"],"additionalProperties":false}"#,
+        ),
 
         // ── File affinity ────────────────────────────────────────────────────
         "vox_check_file_owner" => parse_obj(
@@ -333,6 +343,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_db_sample_data" | "vox_db_explain_query" | "vox_db_suggest_query" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
+        "vox_journey_canonical_steps" => parse_obj(
+            r#"{"type":"object","properties":{"journey_id":{"type":"string","maxLength":512,"description":"Canonical journey id; defaults to canonical_journey.v1.greenfield_vox_mens_devloop"}},"additionalProperties":false}"#,
+        ),
 
         "vox_db_research_session_upsert" => parse_obj(
             r#"{"type":"object","properties":{"session_key":{"type":"string"},"title":{"type":"string"},"status":{"type":"string"},"repository_id":{"type":"string"},"config_json":{"type":"object"},"summary_json":{"type":"object"}},"required":["session_key"],"additionalProperties":false}"#,
@@ -429,6 +442,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_plan_status" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048}},"required":["session_id"],"additionalProperties":false}"#,
         ),
+        "vox_plan_list_sessions" => {
+            derived_tool_schema!(crate::tools::chat_tools::params::PlanListSessionsParams)
+        }
+        "vox_plan_resume" => {
+            derived_tool_schema!(crate::tools::chat_tools::params::PlanResumeParams)
+        }
         "vox_attention_summary" => {
             derived_tool_schema!(crate::dei_tools::params::AttentionSummaryParams)
         }
@@ -837,5 +856,25 @@ mod tests {
             m.get("additionalProperties").and_then(|v| v.as_bool()),
             Some(false)
         );
+    }
+    #[test]
+    fn all_parse_obj_schemas_are_valid_jsonschema() {
+        // Draft-07 meta-schema
+        let meta: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../contracts/capability/json-schema-draft-07-meta.json"
+        ))
+        .expect("meta schema");
+        let compiled = jsonschema::validator_for(&meta).expect("compile meta-schema");
+        for entry in TOOL_REGISTRY {
+            // Check only parse_obj generated tools (these are the ones missing structure derivations).
+            // (Testing all tools ensures full schema validity)
+            let schema = serde_json::Value::Object(tool_input_schema(entry.name));
+            if schema.as_object().map(|m| m.is_empty()).unwrap_or(true) {
+                continue;
+            }
+            if let Err(error) = compiled.validate(&schema) {
+                panic!("Tool '{}' has invalid JSON Schema: {}", entry.name, error);
+            }
+        }
     }
 }

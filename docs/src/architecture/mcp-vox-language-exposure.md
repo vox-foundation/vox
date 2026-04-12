@@ -6,6 +6,8 @@ status: "current"
 sort_order: 45
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # MCP exposure from the Vox language (SSOT)

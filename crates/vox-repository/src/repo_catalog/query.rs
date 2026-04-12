@@ -115,10 +115,18 @@ fn skip_unresolved_repo(repo: &ResolvedRepositoryDescriptor) -> RepoQuerySkipped
 pub fn repo_query_text(
     repo_root: &Path,
     params: &QueryTextParams,
+    cached_catalog: Option<&ResolvedRepoCatalog>,
 ) -> Result<RepoTextSearchResponse, RepoCatalogError> {
     let workspace = crate::discover_repository_or_fallback(repo_root);
-    let catalog = super::resolve_repo_catalog(&workspace.root)?;
-    let selected = selected_repositories(&catalog, params.repository_ids.as_deref());
+    let catalog_owned;
+    let catalog = match cached_catalog {
+        Some(c) => c,
+        None => {
+            catalog_owned = super::resolve_repo_catalog(&workspace.root)?;
+            &catalog_owned
+        }
+    };
+    let selected = selected_repositories(catalog, params.repository_ids.as_deref());
     let target_ids = selected
         .iter()
         .filter_map(|repo| repo.repository_id.clone())
@@ -177,12 +185,17 @@ pub fn repo_query_text(
         repositories_queried += 1;
         let mut repo_hits = 0usize;
         let mut files_scanned = 0usize;
+        let voxignore = super::VoxIgnore::load(&root);
         for entry in WalkDir::new(&root)
             .follow_links(false)
             .into_iter()
             .filter_entry(|e| {
                 let name = e.file_name().to_string_lossy();
-                !SKIP_DIRS.contains(&name.as_ref())
+                if SKIP_DIRS.contains(&name.as_ref()) {
+                    return false;
+                }
+                let rel = repo_relative_path(&root, e.path());
+                !voxignore.is_ignored(&rel)
             })
             .filter_map(Result::ok)
         {
@@ -242,10 +255,18 @@ pub fn repo_query_text(
 pub fn repo_query_file(
     repo_root: &Path,
     params: &QueryFileParams,
+    cached_catalog: Option<&ResolvedRepoCatalog>,
 ) -> Result<RepoFileReadResponse, RepoCatalogError> {
     let workspace = crate::discover_repository_or_fallback(repo_root);
-    let catalog = super::resolve_repo_catalog(&workspace.root)?;
-    let selected = selected_repositories(&catalog, params.repository_ids.as_deref());
+    let catalog_owned;
+    let catalog = match cached_catalog {
+        Some(c) => c,
+        None => {
+            catalog_owned = super::resolve_repo_catalog(&workspace.root)?;
+            &catalog_owned
+        }
+    };
+    let selected = selected_repositories(catalog, params.repository_ids.as_deref());
     let target_ids = selected
         .iter()
         .filter_map(|repo| repo.repository_id.clone())
@@ -333,10 +354,18 @@ pub fn repo_query_file(
 pub fn repo_query_history(
     repo_root: &Path,
     params: &QueryHistoryParams,
+    cached_catalog: Option<&ResolvedRepoCatalog>,
 ) -> Result<RepoHistoryResponse, RepoCatalogError> {
     let workspace = crate::discover_repository_or_fallback(repo_root);
-    let catalog = super::resolve_repo_catalog(&workspace.root)?;
-    let selected = selected_repositories(&catalog, params.repository_ids.as_deref());
+    let catalog_owned;
+    let catalog = match cached_catalog {
+        Some(c) => c,
+        None => {
+            catalog_owned = super::resolve_repo_catalog(&workspace.root)?;
+            &catalog_owned
+        }
+    };
+    let selected = selected_repositories(catalog, params.repository_ids.as_deref());
     let target_ids = selected
         .iter()
         .filter_map(|repo| repo.repository_id.clone())

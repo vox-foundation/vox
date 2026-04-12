@@ -20,27 +20,21 @@ pub struct ObservationReport {
 /// Action recommended by the observer based on language invariants.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ObserverAction {
-    /// Everything looks correct, proceed.
-    None,
-    /// Minor syntax issues, continue but flag for review.
-    Warn,
-    /// Severe syntax or LSP errors, trigger immediate replan.
-    Replan,
-    /// Catastrophic failure, abort current path.
-    Abort,
+    Continue,
+    RequestMoreEvidence,
+    TriggerReplan,
+    EscalateToHuman,
+    EmitNegativeExample,
 }
 
 /// A decision made by the testing policy for a task.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TestDecision {
-    /// No testing required for this task.
-    None,
-    /// Create new tests for the modified functionality.
-    CreateTests,
-    /// Run existing tests to verify the change.
-    RunExisting,
-    /// Both create and run tests (highest risk).
-    FullTest,
+    Required,
+    Recommended,
+    Optional,
+    Deferred,
+    Skip,
 }
 
 /// The policy used to decide if and what testing is required.
@@ -49,6 +43,29 @@ pub struct TestDecisionPolicy {
     pub complexity_threshold: u8,
     pub file_count_threshold: usize,
     pub risk_multiplier: f32,
+    pub keyword_triggers: Vec<String>,
+}
+
+/// The multi-tier victory condition to evaluate against.
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VictoryCondition {
+    #[default]
+    CompilationOnly,
+    WithDocTests,
+    WithUnitTests,
+    WithCorpusValidation,
+    Full,
+}
+
+impl Default for TestDecisionPolicy {
+    fn default() -> Self {
+        Self {
+            complexity_threshold: 7,
+            file_count_threshold: 2,
+            risk_multiplier: 1.0,
+            keyword_triggers: vec!["auth".into(), "security".into(), "schema".into()],
+        }
+    }
 }
 
 /// A multi-tier victory condition verdict.

@@ -5,6 +5,7 @@
 mod gamify_activity;
 mod gamify_extended;
 mod gamify_ludus_misc;
+mod gamify_periodic_conditions;
 mod gamify_rewards_collegium;
 mod gamify_world;
 mod gamify_world_battles;

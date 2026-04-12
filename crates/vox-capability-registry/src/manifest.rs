@@ -85,7 +85,13 @@ fn merge_cli_entry(
         "implicit": curated.is_none(),
     });
     if let Some(c) = curated {
-        merge_curated(base, c)
+        let mut merged = merge_curated(base, c);
+        if let Some(params) = &c.parameters {
+            if let Some(obj) = merged.as_object_mut() {
+                obj.insert("parameters".into(), params.clone());
+            }
+        }
+        merged
     } else {
         base
     }

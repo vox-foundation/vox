@@ -27,7 +27,11 @@ impl crate::orchestrator::Orchestrator {
             )),
             budget_manager: std::sync::Arc::new(std::sync::RwLock::new({
                 let bm = crate::budget::BudgetManager::new(None);
-                bm.init_attention(config.attention_budget_ms);
+                bm.init_holistic_budgets(
+                    config.attention_budget_ms,
+                    config.financial_cost_budget_micros,
+                    config.execution_time_budget_multiplier,
+                );
                 bm
             })),
             summary_manager: std::sync::Arc::new(std::sync::RwLock::new(
@@ -81,6 +85,7 @@ impl crate::orchestrator::Orchestrator {
             db: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
+            tavily_credits_used: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             remote_populi_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
             stop_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
@@ -97,7 +102,11 @@ impl crate::orchestrator::Orchestrator {
             )),
             budget_manager: std::sync::Arc::new(std::sync::RwLock::new({
                 let bm = crate::budget::BudgetManager::new(None);
-                bm.init_attention(config.attention_budget_ms);
+                bm.init_holistic_budgets(
+                    config.attention_budget_ms,
+                    config.financial_cost_budget_micros,
+                    config.execution_time_budget_multiplier,
+                );
                 bm
             })),
             summary_manager: std::sync::Arc::new(std::sync::RwLock::new(
@@ -151,6 +160,7 @@ impl crate::orchestrator::Orchestrator {
             db: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
+            tavily_credits_used: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             remote_populi_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
             stop_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
@@ -310,11 +320,27 @@ impl crate::orchestrator::Orchestrator {
         let provider_str: String = provider.into();
         let model_str: String = model.into();
 
+        let mut breakeven_crossed = false;
+        if cost_usd == 0.0 || provider_str == "ollama" || provider_str == "mens" {
+            let budget = crate::sync_lock::rw_read(&*self.budget_manager);
+            let prev = budget.local_inference_tokens();
+            let total_tokens = (input_tokens + output_tokens) as u64;
+            budget.record_local_inference_tokens(total_tokens);
+            let current = prev + total_tokens;
+            let threshold = crate::sync_lock::rw_read(&*self.config).local_breakeven_tokens;
+            if prev <= threshold && current > threshold {
+                breakeven_crossed = true;
+            }
+        }
+
         let idle_ms = crate::types::now_unix_ms().saturating_sub(self.last_activity_ms());
-        let temporal_context = serde_json::json!({
+        let mut temporal_context = serde_json::json!({
             "idle_secs": idle_ms / 1000,
             "date": chrono::Local::now().to_rfc3339(),
         });
+        if breakeven_crossed {
+            temporal_context["local_breakeven_crossed"] = serde_json::json!(true);
+        }
 
         self.event_bus
             .emit(crate::events::AgentEventKind::CostIncurred {
@@ -390,5 +416,105 @@ impl crate::orchestrator::Orchestrator {
             output_tokens,
             cost_usd
         );
+    }
+
+    /// Record a flat telemetry event to `agent_telemetry_flat` in the database.
+    ///
+    /// This is the primary entry point for recording high-volume agent observations
+    /// into the flattened table for SQL-based evaluation.
+    pub async fn record_telemetry(
+        &self,
+        agent_id: AgentId,
+        event_kind: &str,
+        model_id: Option<&str>,
+        provider: Option<&str>,
+        input_tokens: Option<u32>,
+        output_tokens: Option<u32>,
+        cost_usd: Option<f64>,
+        payload: Option<serde_json::Value>,
+    ) {
+        let Some(db) = self.db() else { return };
+        let repo = crate::lineage::repository_id();
+        let aid = agent_id.0.to_string();
+        // TODO: Resolve session_id from task or context
+        let sid = "canonical-session"; 
+        let payload_json = payload.map(|p| p.to_string());
+
+        let res = db
+            .insert_telemetry_flat_raw(
+                &aid,
+                sid,
+                &repo,
+                event_kind,
+                None, // tool_name
+                model_id,
+                provider,
+                None, // duration_ms
+                input_tokens.map(|t| t as i64),
+                output_tokens.map(|t| t as i64),
+                cost_usd,
+                payload_json.as_deref(),
+            )
+            .await;
+
+        if let Err(e) = res {
+            tracing::warn!(error = %e, kind = event_kind, "failed to record flat telemetry; outbox enqueue pending");
+            // Hardening: Enqueue to outbox for retry if DB is busy/down
+            self.enqueue_telemetry_outbox(
+                agent_id,
+                sid,
+                event_kind,
+                model_id,
+                provider,
+                input_tokens,
+                output_tokens,
+                cost_usd,
+                payload_json.as_deref(),
+            ).await;
+        }
+    }
+
+    async fn enqueue_telemetry_outbox(
+        &self,
+        agent_id: AgentId,
+        session_id: &str,
+        event_kind: &str,
+        model_id: Option<&str>,
+        provider: Option<&str>,
+        input_tokens: Option<u32>,
+        output_tokens: Option<u32>,
+        cost_usd: Option<f64>,
+        payload_json: Option<&str>,
+    ) {
+        let store = crate::sync_lock::rw_read(&*self.context_store);
+        let key = crate::orchestrator::persistence_outbox::PERSISTENCE_OUTBOX_KEY.to_string();
+        let mut queue = store
+            .get(&key)
+            .and_then(|raw| serde_json::from_str::<Vec<serde_json::Value>>(&raw).ok())
+            .unwrap_or_default();
+
+        let entry = serde_json::json!({
+            "lane": "telemetry/flat",
+            "error": "db_unavailable",
+            "first_seen_unix_ms": crate::types::now_unix_ms(),
+            "retry_count": 0,
+            "replay": {
+                "op": "insert_telemetry_flat_raw",
+                "agent_id": agent_id.0.to_string(),
+                "session_id": session_id,
+                "event_kind": event_kind,
+                "model_id": model_id,
+                "provider": provider,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost_usd,
+                "payload_json": payload_json,
+            }
+        });
+
+        queue.push(entry);
+        if let Ok(raw) = serde_json::to_string(&queue) {
+            store.set(AgentId(0), key, raw, 0);
+        }
     }
 }

@@ -5,6 +5,9 @@ category: "explanation"
 status: "current"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "FAQPage"
+keywords: ["Vox FAQ", "Vox language questions", "AI native language runtime", "null safety programming"]
 ---
 
 # Vox Frequently Asked Questions (FAQ)

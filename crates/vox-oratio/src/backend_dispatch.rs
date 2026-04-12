@@ -14,8 +14,7 @@ use crate::backends::candle_whisper::CandleWhisperBackend;
 /// - `VOX_ORATIO_BACKEND=whisper` — always Candle Whisper
 /// - `VOX_ORATIO_BACKEND=sherpa` — always Sherpa (returns error if feature not compiled)
 pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
-    let backend_env = std::env::var("VOX_ORATIO_BACKEND")
-        .unwrap_or_else(|_| "auto".to_string());
+    let backend_env = std::env::var("VOX_ORATIO_BACKEND").unwrap_or_else(|_| "auto".to_string());
     let backend_env = backend_env.trim().to_ascii_lowercase();
 
     match backend_env.as_str() {
@@ -23,16 +22,17 @@ pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
             #[cfg(feature = "stt-sherpa")]
             {
                 return Ok(Box::new(
-                    crate::backends::sherpa_onnx::SherpaOnnxBackend::new()?
+                    crate::backends::sherpa_onnx::SherpaOnnxBackend::new()?,
                 ));
             }
-            #[cfg(feature = "stt-candle")]
-            #[allow(unreachable_code)]
+            #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
             {
                 return Ok(Box::new(CandleWhisperBackend));
             }
-            #[allow(unreachable_code)]
-            anyhow::bail!("No STT backend compiled in. Enable `stt-candle` or `stt-sherpa` feature.");
+            #[cfg(not(any(feature = "stt-candle", feature = "stt-sherpa")))]
+            anyhow::bail!(
+                "No STT backend compiled in. Enable `stt-candle` or `stt-sherpa` feature."
+            );
         }
         "whisper" | "candle" => {
             #[cfg(feature = "stt-candle")]
@@ -43,7 +43,7 @@ pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
         "sherpa" => {
             #[cfg(feature = "stt-sherpa")]
             return Ok(Box::new(
-                crate::backends::sherpa_onnx::SherpaOnnxBackend::new()?
+                crate::backends::sherpa_onnx::SherpaOnnxBackend::new()?,
             ));
             #[cfg(not(feature = "stt-sherpa"))]
             anyhow::bail!("Backend 'sherpa' selected but `stt-sherpa` feature not compiled.");

@@ -21,7 +21,7 @@ pub async fn toestub_findings_upsert(
     _state: &ServerState,
     params: ToestubFindingsParams,
 ) -> String {
-    let repo_root = if let Ok(p) = std::env::var("VOX_REPOSITORY_ROOT") {
+    let repo_root = if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose() {
         PathBuf::from(p)
     } else {
         std::env::current_dir().unwrap_or_default()

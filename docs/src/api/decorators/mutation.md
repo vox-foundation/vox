@@ -4,6 +4,8 @@ description: "Vox @mutation decorator: transactional write paths against VoxDB w
 category: "api-decorator"
 status: current
 last_updated: 2026-04-06
+
+schema_type: "TechArticle"
 ---
 
 # @mutation

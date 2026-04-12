@@ -4,6 +4,8 @@ description: "Official documentation for Direct `turso::` usage allowlist for th
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Direct `turso::` usage allowlist
@@ -25,4 +27,6 @@ Reduce new direct `turso::` surface: application features should call **`VoxDb`*
 
 ## Verification
 
-Periodically run `rg "turso::" crates/` and reconcile with this policy. CI may add a guard listing unexpected crates in the future.
+Periodically run `rg "turso::" crates/` and reconcile with this policy.
+
+**Related:** `vox ci sql-surface-guard` enforces `.connection().query|execute(` outside an allowlist. **`vox ci query-all-guard`** (and `ssot-drift`) enforce the `query_all` call-site pattern outside [`docs/agents/query-all-allowlist.txt`](../../docs/agents/query-all-allowlist.txt) plus `crates/vox-db/`. **`vox ci turso-import-guard`** enforces the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-pm` / `vox-compiler` prefixes.

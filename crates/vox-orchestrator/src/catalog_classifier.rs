@@ -22,7 +22,11 @@ struct ClassificationResponse {
 /// For now, we simulate this layer by enriching known missing data fields with heuristic health checks.
 pub async fn classify_models(models: &mut [ModelSpec]) {
     // If the user explicitly disabled the classifier, no-op.
-    if std::env::var(CLASSIFIER_ENABLED_ENV).unwrap_or_else(|_| "1".to_string()) == "0" {
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenRouterClassifierEnabled)
+        .expose()
+        .unwrap_or("1")
+        == "0"
+    {
         return;
     }
 

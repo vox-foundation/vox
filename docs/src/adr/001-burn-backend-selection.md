@@ -4,6 +4,8 @@ description: "Official documentation for ADR 001 — Burn Backend Selection for 
 category: "reference"
 last_updated: 2026-04-06
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 001 — Burn Backend Selection for vox-tensor

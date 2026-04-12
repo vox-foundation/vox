@@ -57,6 +57,12 @@ pub(super) fn default_scaling_cooldown_ms() -> u64 {
 pub(super) fn default_urgent_rebalance_threshold() -> usize {
     3
 }
+pub(super) fn default_execution_time_budget_multiplier() -> f64 {
+    1.5
+}
+pub(super) fn default_financial_cost_budget_micros() -> i64 {
+    50_000 // default $0.05
+}
 pub(super) fn default_max_toestub_debug_iterations() -> u8 {
     3
 }
@@ -134,6 +140,9 @@ pub(super) fn default_trust_task_completion_floor() -> f64 {
 pub(super) fn default_trust_task_completion_weight() -> f64 {
     1.5
 }
+pub(super) fn default_routing_exploration_epsilon() -> f64 {
+    0.05
+}
 
 /// Routing bonus for shard-role specialization.
 ///
@@ -189,4 +198,26 @@ pub(super) fn default_min_quality_score() -> f64 {
 }
 pub(super) fn default_context_compression_enabled() -> bool {
     true
+}
+
+pub(super) fn default_exec_time_safety_multiplier() -> f64 {
+    2.0
+}
+pub(super) fn default_exec_time_timeout_rate_alert() -> f64 {
+    0.20
+}
+pub(super) fn default_exec_time_default_budget_ms() -> u64 {
+    30_000
+}
+pub(super) fn default_exec_time_history_window_days() -> u32 {
+    30
+}
+pub(super) fn default_local_breakeven_tokens() -> u64 {
+    9_100_000
+}
+pub(super) fn default_research_max_hops() -> u8 {
+    3
+}
+pub(super) fn default_research_quality_target() -> f64 {
+    0.8
 }

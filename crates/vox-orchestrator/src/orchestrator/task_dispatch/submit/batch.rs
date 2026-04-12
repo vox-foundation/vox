@@ -297,6 +297,7 @@ impl Orchestrator {
                 session_id: session_id.clone(),
                 thread_id: None,
                 requires_approval: false,
+                test_decision: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -311,6 +312,7 @@ impl Orchestrator {
                 session_id: session_id.clone(),
                 thread_id: None,
                 requires_approval: false,
+                test_decision: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -325,6 +327,7 @@ impl Orchestrator {
                 session_id: session_id.clone(),
                 thread_id: None,
                 requires_approval: false,
+                test_decision: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -339,6 +342,7 @@ impl Orchestrator {
                 session_id,
                 thread_id: None,
                 requires_approval: false,
+                test_decision: None,
             },
         ];
         self.submit_batch(descriptors).await
@@ -448,6 +452,8 @@ impl Orchestrator {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let groups = crate::sync_lock::rw_read(&*self.groups);
             let config = crate::sync_lock::rw_read(&*self.config);
+            let budget = crate::sync_lock::rw_read(&*self.budget_manager);
+            let local_tokens = budget.local_inference_tokens();
 
             RoutingService::route(
                 manifest,
@@ -455,6 +461,7 @@ impl Orchestrator {
                 &groups,
                 &agents,
                 &config,
+                local_tokens,
                 reliability_map.as_ref(),
                 task_capability_requirements,
                 task_description,
@@ -518,6 +525,7 @@ fn build_repo_shard_descriptors(
             session_id: session_id.clone(),
             thread_id: None,
                 requires_approval: false,
+                test_decision: None,
         });
         gen_descriptor_index_by_shard.insert(*shard_idx, descriptor_idx);
     }
@@ -540,6 +548,7 @@ fn build_repo_shard_descriptors(
             session_id: session_id.clone(),
             thread_id: None,
                 requires_approval: false,
+                test_decision: None,
         });
         validation_temp_deps.push(descriptors.len().saturating_sub(1));
     }
@@ -558,6 +567,7 @@ fn build_repo_shard_descriptors(
         session_id,
         thread_id: None,
                 requires_approval: false,
+                test_decision: None,
     });
 
     descriptors

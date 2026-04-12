@@ -1,5 +1,10 @@
 ---
-title: Production Failure Mode Catalog with Mitigations
+title: "Production Failure Mode Catalog with Mitigations"
+category: "architecture"
+status: "research"
+training_eligible: false
+
+schema_type: "TechArticle"
 ---
 **7\. Production Failure Mode Catalog with Mitigations**
 

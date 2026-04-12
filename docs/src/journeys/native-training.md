@@ -3,6 +3,8 @@ title: "Journey: Native Rust LLM Training"
 description: "How to use Vox's native ML toolchain to fine-tune open weights directly from your application data without diving into Python environments."
 category: "journey"
 sort_order: 4
+
+schema_type: "HowTo"
 ---
 
 # Journey: Native Rust LLM Training
@@ -18,6 +20,8 @@ You have to pull the data directly from production, dump it into JSONL files, tr
 The Vox toolchain resolves this tension by providing native hardware-accelerated **QLoRA** fine-tuning via **MENS**: **`vox mens train`** dispatches **Candle + qlora-rs** in **`vox-populi`** (HF weights through **Rust `hf-hub`**). **`vox-tensor`** supplies **`VoxTokenizer`**, JSONL loading, and the **Burn** scratch path — a different lane from HF QLoRA.
 
 You can extract corpus pairs, assemble **`train.jsonl`**, and run training **without a Python training loop**. The operator surface is the **CLI** and corpus commands today; in-language orchestration remains a product direction.
+
+Authoritative pipeline map (sources → compiler → goldens → corpus → Mens): [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Dataset contract: [Mens training data contract](../reference/mens-training-data-contract.md).
 
 ## Illustrative snippet (not the shipped CLI)
 
@@ -72,6 +76,11 @@ vox mens train --device cuda --data-dir target/dogfood --output-dir mens/runs/la
 ```
 
 `--backend qlora` and `--tokenizer hf` are **defaults**: weights are fetched natively; **no PyTorch** training stack.
+
+## Maturity and limitations
+
+- **Maturity:** `stable` for the **`vox mens train`** CLI path on supported presets; GPU kernels require the documented CUDA build alias (see `AGENTS.md`).
+- **Limitation ids:** [L-005](../../../contracts/journeys/limitations.v1.yaml) (default `vox-cli` build may omit GPU train/serve features until rebuilt with the Mens CUDA feature set).
 
 ## Deep Dives
 

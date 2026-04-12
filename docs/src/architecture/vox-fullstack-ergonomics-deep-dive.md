@@ -4,6 +4,8 @@ description: "Repository-grounded full-stack boilerplate hotspots and implementa
 category: "architecture"
 last_updated: 2026-03-25
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox full-stack ergonomics deep dive

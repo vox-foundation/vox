@@ -149,9 +149,20 @@ fn xml_escape(s: &str) -> String {
 
 /// Generate `docs/src/feed.xml` from pages that have `last_updated`.
 pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
-    const MAX_ITEMS: usize = 20;
+    const MAX_ITEMS: usize = 25;
 
-    let mut dated: Vec<&Page> = pages.iter().filter(|p| p.last_updated.is_some()).collect();
+    let mut dated: Vec<&Page> = pages
+        .iter()
+        .filter(|p| {
+            p.last_updated.is_some()
+                && !matches!(p.status.as_deref(), Some("deprecated") | Some("legacy"))
+                && !p.path.contains("-ARCHIVED")
+                && !p.path.starts_with("architecture/research-")
+                && !p.path.starts_with("architecture/planning-meta/")
+                && !p.path.starts_with("ci/")
+                && !p.path.starts_with("operations/")
+        })
+        .collect();
     dated.sort_by(|a, b| {
         b.last_updated
             .as_deref()
@@ -188,12 +199,35 @@ pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
             .and_then(iso_to_rfc822)
             .unwrap_or_else(|| build_date.clone());
 
+        let feed_category =
+            if page.path.starts_with("tutorials/") || page.path.starts_with("journeys/") {
+                "Tutorial"
+            } else if page.path.starts_with("how-to/") {
+                "How-To"
+            } else if page.path.starts_with("explanation/") {
+                "Explanation"
+            } else if page.path.starts_with("reference/") || page.path.starts_with("api/") {
+                "Reference"
+            } else {
+                "Documentation"
+            };
+
         xml.push_str("  <item>\n");
         xml.push_str(&format!("    <title>{title}</title>\n"));
         xml.push_str(&format!("    <link>{url}</link>\n"));
         xml.push_str(&format!("    <guid isPermaLink=\"true\">{url}</guid>\n"));
         xml.push_str(&format!("    <description>{description}</description>\n"));
         xml.push_str(&format!("    <pubDate>{pub_date}</pubDate>\n"));
+        xml.push_str(&format!("    <category>{feed_category}</category>\n"));
+        if let Some(st) = page.schema_type.as_deref() {
+            let st = st.trim();
+            if !st.is_empty() {
+                xml.push_str(&format!(
+                    "    <category domain=\"https://schema.org\">{}</category>\n",
+                    xml_escape(st)
+                ));
+            }
+        }
         xml.push_str("  </item>\n\n");
     }
 

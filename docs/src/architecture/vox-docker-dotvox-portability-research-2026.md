@@ -4,6 +4,8 @@ description: "Research findings and architectural recommendation for Docker/OCI-
 category: "architecture"
 last_updated: 2026-03-28
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Decision context

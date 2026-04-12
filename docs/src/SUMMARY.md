@@ -5,17 +5,25 @@
 
 # Getting Started
 
+## Status: Current
+
 - [Vox: The AI-Native Programming Language](index.md)
 - [Getting Started with Vox](tutorials/tut-getting-started.md)
 
+
 # Journeys
+
+## Status: Current
 
 - [Journey: Building Resilient AI Agents](journeys/ai-agents.md)
 - [Journey: Reliable Background Workflows](journeys/durable-workflows.md)
 - [Journey: One-File Full-Stack Data](journeys/fullstack-data.md)
 - [Journey: Native Rust LLM Training](journeys/native-training.md)
 
+
 # Tutorials
+
+## Status: Current
 
 - [Tutorial: Building UI with Islands](tutorials/tut-ui-integration.md)
 - [Tutorial: Building a Collaborative Task List](tutorials/tut-first-app.md)
@@ -23,7 +31,10 @@
 - [Tutorial: Workflow Durability](tutorials/tut-workflow-durability.md)
 - [Tutorial: first .vox app (checkpoints)](tutorials/tut-first-vox-app-checkpoints.md)
 
+
 # How-To Guides
+
+## Status: Current
 
 - [@py.import – Python Library Integration (`torch`, `numpy`, etc.)](how-to/how-to-pytorch.md)
 - [Contributing — Mens native training](how-to/how-to-contribute-mens.md)
@@ -51,7 +62,10 @@
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
 
+
 # API Reference — Keywords
+
+## Status: Current
 
 - [actor](api/keywords/actor.md)
 - [await](api/keywords/await.md)
@@ -67,7 +81,10 @@
 - [type](api/keywords/type.md)
 - [while](api/keywords/while.md)
 
+
 # API Reference — Decorators
+
+## Status: Current
 
 - [@deprecated](api/decorators/deprecated.md)
 - [@index](api/decorators/index.md)
@@ -85,15 +102,11 @@
 - [@v0](api/decorators/v0.md)
 - [Action](api/decorators/action.md)
 
+
 # API Reference — Crates
 
-- [Compiler Module: vox-ast](api/vox-ast.md)
-- [Compiler Module: vox-codegen-rust](api/vox-codegen-rust.md)
-- [Compiler Module: vox-codegen-ts](api/vox-codegen-ts.md)
-- [Compiler Module: vox-hir](api/vox-hir.md)
-- [Compiler Module: vox-lexer](api/vox-lexer.md)
-- [Compiler Module: vox-parser](api/vox-parser.md)
-- [Compiler Module: vox-typeck](api/vox-typeck.md)
+## Status: Current
+
 - [Crate API: vox-cli](api/vox-cli.md)
 - [Crate API: vox-config](api/vox-config.md)
 - [Crate API: vox-db](api/vox-db.md)
@@ -101,9 +114,7 @@
 - [Crate API: vox-integration-tests](api/vox-integration-tests.md)
 - [Crate API: vox-lsp](api/vox-lsp.md)
 - [Crate API: vox-mcp](api/vox-mcp.md)
-- [Crate API: vox-orchestrator](api/vox-dei.md)
 - [Crate API: vox-pm](api/vox-pm.md)
-- [Crate API: vox-py](api/vox-py.md)
 - [Crate API: vox-runtime](api/vox-runtime.md)
 - [Crate API: vox-toestub](api/vox-toestub.md)
 - [Crate API: vox-webhook](api/vox-webhook.md)
@@ -125,19 +136,39 @@
 - [Example: greaterFool Reference Target in Vox](api/example_greaterfool_reference.md)
 - [Example: sharing.vox](api/example_sharing.md)
 - [Known Documentation Gaps & Backlog](api/DOC_GAPS.md)
-- [Redirect](api/vox-dei-sandbox.md)
-- [Redirect: vox-gamify](api/vox-gamify.md)
 - [Vox DEI (Distributed Execution Intelligence)](api/vox-orchestrator.md)
 - [Vox Skills Crate API](api/vox-skills.md)
 - [vox-bootstrap](api/vox-bootstrap.md)
+- [vox-constrained-gen](api/vox-constrained-gen.md)
+- [vox-dei](api/vox-dei.md)
 - [vox-ludus](api/vox-ludus.md)
-- [vox-wasm](api/vox-wasm.md)
+
+## Status: Deprecated
+
+- [Crate API: vox-ast](api/vox-ast-ARCHIVED.md)
+- [Crate API: vox-codegen-rust](api/vox-codegen-rust-ARCHIVED.md)
+- [Crate API: vox-codegen-ts](api/vox-codegen-ts-ARCHIVED.md)
+- [Crate API: vox-dei-sandbox](api/vox-dei-sandbox-ARCHIVED.md)
+- [Crate API: vox-gamify](api/vox-gamify-ARCHIVED.md)
+- [Crate API: vox-hir](api/vox-hir-ARCHIVED.md)
+- [Crate API: vox-lexer](api/vox-lexer-ARCHIVED.md)
+- [Crate API: vox-orchestrator](api/vox-dei-ARCHIVED.md)
+- [Crate API: vox-parser](api/vox-parser-ARCHIVED.md)
+- [Crate API: vox-py](api/vox-py.md)
+- [Crate API: vox-typeck](api/vox-typeck-ARCHIVED.md)
+- [Crate API: vox-wasm](api/vox-wasm-ARCHIVED.md)
+
 
 # Examples
 
+## Status: Current
+
 - [Golden Examples: Working Vox Code](examples/golden.md)
 
+
 # Explanations
+
+## Status: Current
 
 - [AI Agent Orchestration](explanation/expl-ai-orchestration.md)
 - [Actors & Workflows](explanation/expl-actors-workflows.md)
@@ -154,11 +185,17 @@
 - [Vox FAQ: Frequently Asked Questions](explanation/faq.md)
 - [Why Vox: Compiler-Verified AI Code](explanation/why-vox-for-ai.md)
 
+
 # Architecture Decisions (ADRs)
+
+## Status: Current
 
 - [ADR 002 — Diátaxis Three-Tier Documentation Architecture](adr/002-diataxis-doc-architecture.md)
 
+
 # Architecture SSOTs
+
+## Status: Current
 
 - [Architecture index](architecture/architecture-index.md)
 - [Compiler diagnostics and Rust codegen ergonomics](architecture/compiler-diagnostics-ergonomics.md)
@@ -166,46 +203,35 @@
 - [Language surface SSOT (keywords, decorators, manifests)](architecture/language-surface-ssot.md)
 - [OpenAPI contract SSOT (Populi, MCP, Codex)](architecture/openapi-contract-ssot.md)
 - [Outbound HTTP policy (reqwest / vox-reqwest-defaults)](architecture/outbound-http-policy.md)
-- [Research index](architecture/research-index.md)
-- [GRPO Reward Shaping for Code LLMs](architecture/research-grpo-reward-shaping-2026.md)
-- [Continual Learning Flywheel Risks](architecture/research-continual-learning-flywheel-2026.md)
-- [LLM-Native Language Design](architecture/research-llm-native-lang-design-2026.md)
-- [Vox 0.4 Grand Migration Plan](architecture/vox-0.4-migration-plan.md)
-- [Protocol convergence research 2026]
+- [Vox source → compiler → Mens training (pipeline SSOT)](architecture/vox-source-to-mens-pipeline-ssot.md)
+- [Populi data pipeline (control plane vs Mens corpus)](architecture/populi-data-pipeline.md)
+- [AI CLI Generation Standard](architecture/ai-cli-generation-standard.md)
 - [Capability registry SSOT](architecture/capability-registry-ssot.md)
-- [SCIENTIA impact, readership, and citation-adjacent signals (research seed)](architecture/scientia-impact-readership-research-2026.md)
 - [Capability visualization views](architecture/capability-visualization-views.md)
-- [Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)](architecture/prompt-engineering-document-skills-scientia-research-2026.md)
-- [SCIENTIA publication-worthiness and SSOT unification (research 2026)](architecture/scientia-publication-worthiness-ssot-unification-research-2026.md)
-- [SCIENTIA implementation wave playbook 2026](architecture/scientia-implementation-wave-playbook-2026.md)
 - [MCP exposure from the Vox language (SSOT)](architecture/mcp-vox-language-exposure.md)
-- [2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration](architecture/res_dynamic_agentic_planning_2026.md)
-- [AI IDE feature research findings 2026](architecture/ai-ide-feature-research-findings-2026.md)
 - [Additive schema plan: scholarly external jobs and snapshots](architecture/scholarly-external-schema-plan.md)
 - [Anti-foot-gun planning standard](architecture/planning-meta/05-anti-foot-gun-planning-standard.md)
-- [Automated Testing Research for the Vox Language](architecture/automated-testing-research-2026.md)
 - [CLI design rules SSOT](architecture/cli-design-rules-ssot.md)
 - [CLI reachability SSOT](architecture/cli-reachability-ssot.md)
-- [Clavis Cloudless Implementation Catalog](architecture/clavis-cloudless-implementation-catalog.md)
-- [Clavis Cloudless Threat Model V1](architecture/clavis-cloudless-threat-model-v1.md)
-- [Clavis secrets, env vars, and API key strategy research 2026](architecture/clavis-secrets-env-research-2026.md)
+- [CodeRabbit review coverage SSOT](architecture/coderabbit-review-coverage-ssot.md)
+- [Compiler IR Pipeline](architecture/compiler-ir-pipeline.md)
 - [Completion policy SSOT (LLM premature-completion)](architecture/completion-policy-ssot.md)
-- [Context management implementation blueprint](architecture/context-management-implementation-blueprint.md)
-- [Context management phase 1 backlog](architecture/context-management-phase1-backlog.md)
-- [Context management research findings 2026](architecture/context-management-research-findings-2026.md)
+- [Cross-Agent & Cross-Repo Handoff Contract (2026)](architecture/agent-handoff-contract-2026.md)
 - [Deployment Compose SSOT](architecture/deployment-compose-ssot.md)
 - [Doc-to-code acceptance checklist](architecture/doc-to-code-acceptance-checklist.md)
 - [Document boundary matrix](architecture/planning-meta/11-document-boundary-matrix.md)
 - [Document maintenance protocol](architecture/planning-meta/10-document-maintenance-protocol.md)
-- [English-Core + Latin Alias Migration Ledger](architecture/english_core_migration_ledger.md)
 - [Exception and deferral policy](architecture/planning-meta/09-exception-deferral-policy.md)
 - [Fast LLM instruction plan](architecture/planning-meta/02-fast-llm-instruction-plan.md)
 - [Feature growth boundaries](architecture/feature-growth-boundaries.md)
 - [God object defactor checklist (v3)](architecture/god-object-defactor-checklist.md)
-- [Internal Architecture Repository](architecture/INDEX.md)
+- [HITL Doubt Loop (SSOT)](architecture/hitl-doubt-loop-ssot.md)
+- [Hybrid adapter cookbook (SPA + SSR)](architecture/react-interop-hybrid-adapter-cookbook.md)
+- [IR emission SSOT (HIR, WebIR, VoxIrModule)](architecture/ir-emission-ssot.md)
 - [Internal Web IR Implementation Blueprint](architecture/internal-web-ir-implementation-blueprint.md)
 - [Internal Web IR Side-by-Side Schema](architecture/internal-web-ir-side-by-side-schema.md)
 - [Interop tier policy](architecture/interop-tier-policy.md)
+- [Legacy retirement roadmap (2026)](architecture/legacy-retirement-roadmap.md)
 - [Ludus / gamify schema inventory (SSOT pointers)](architecture/ludus-schema-inventory.md)
 - [Ludus: scope and non-goals](architecture/ludus-non-goals.md)
 - [Maintainability hotspot matrix (baseline)](architecture/maintainability-hotspot-matrix.md)
@@ -213,6 +239,8 @@
 - [Mens lane segmentation research](architecture/mens-lane-segmentation-research.md)
 - [Mens training SSOT](architecture/mens-training-ssot.md)
 - [Milestone and gate definition spec](architecture/planning-meta/08-milestone-gate-definition-spec.md)
+- [Minimal React Interop Shell Strategy](architecture/react-interop-minimal-shell-strategy.md)
+- [Mobile/Desktop Convergence & Language Extension Research 2026](architecture/mobile-desktop-convergence-research-2026.md)
 - [News syndication: incident patterns and mitigations](architecture/news_syndication_incident_patterns.md)
 - [Nomenclature migration map (SSOT)](architecture/nomenclature-migration-map.md)
 - [Operations catalog SSOT](architecture/operations-catalog-ssot.md)
@@ -223,11 +251,13 @@
 - [Planning meta exception register](architecture/planning-meta/exception-register.md)
 - [Planning meta maintenance log](architecture/planning-meta/maintenance-log.md)
 - [Planning taxonomy and glossary](architecture/planning-meta/06-planning-taxonomy-glossary.md)
-- [Populi GPU mesh implementation plan 2026](architecture/populi-gpu-mesh-implementation-plan-2026.md)
-- [Populi GPU network research 2026](architecture/populi-gpu-network-research-2026.md)
 - [Populi GPU truth probe specification (NVML Layer A)](architecture/populi-gpu-truth-probe-spec.md)
 - [Populi node lifecycle, drain, and GPU hotplug](architecture/populi-node-lifecycle-hotplug.md)
+- [Question gate standard for planning](architecture/planning-meta/12-question-gate-standard.md)
+- [Qwen 3.6 integration research (groundwork)](architecture/qwen36-integration-research.md)
 - [Qwen3.5 Multimodal Phase 2 Backlog](architecture/qwen35-multimodal-phase2-backlog.md)
+- [React interop full-repo migration charter (2026)](architecture/react-interop-migration-charter-2026.md)
+- [React interop migration backlog (2026)](architecture/react-interop-backlog-2026.md)
 - [Research baseline and source-of-truth map](architecture/planning-meta/00-research-baseline-source-map.md)
 - [Rust ecosystem support SSOT](architecture/rust-ecosystem-support-ssot.md)
 - [SCIENTIA A2A evidence-gathering tasks](architecture/scientia-a2a-evidence-tasks.md)
@@ -238,30 +268,25 @@
 - [Script surface audit and Vox migration](architecture/script-surface-audit.md)
 - [TOESTUB scaling rules (SSOT)](architecture/scaling-toestub-rules.md)
 - [Table metadata SSOT (Arca ↔ @table convergence)](architecture/table-spec-ssot.md)
+- [TanStack Start Codegen Specification](architecture/tanstack-start-codegen-spec.md)
+- [TanStack Start Implementation Backlog](architecture/tanstack-start-implementation-backlog.md)
 - [Task catalog authoring spec](architecture/planning-meta/07-task-catalog-authoring-spec.md)
 - [Telemetry client disclosure SSOT](architecture/telemetry-client-disclosure-ssot.md)
-- [Telemetry implementation backlog 2026](architecture/telemetry-implementation-backlog-2026.md)
-- [Telemetry implementation blueprint 2026](architecture/telemetry-implementation-blueprint-2026.md)
 - [Telemetry remote sink specification](architecture/telemetry-remote-sink-spec.md)
-- [Telemetry retention and sensitivity SSOT](architecture/telemetry-retention-sensitivity-ssot.md)
-- [Telemetry taxonomy and contracts SSOT](architecture/telemetry-taxonomy-contracts-ssot.md)
 - [Telemetry trust boundary and SSOT map](architecture/telemetry-trust-ssot.md)
-- [Telemetry unification research findings 2026](architecture/telemetry-unification-research-findings-2026.md)
-- [Terminal AST validation research 2026](architecture/terminal-ast-validation-research-2026.md)
-- [Terminal execution policy research findings 2026](architecture/terminal-exec-policy-research-findings-2026.md)
 - [Trust Reliability Layer (SSOT)](architecture/trust-reliability-layer.md)
 - [Unified News Syndication Security & Safety](architecture/news_syndication_security.md)
-- [Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint](architecture/vox_agentic_loop_and_mens_plan.md)
 - [Vox Architectural Organization & Governance](architecture/vox-organization.md)
-- [Vox Developer User Journeys: Intent vs. Actualization](architecture/agentic-user-journeys.md)
 - [Vox Docker-backed portability implementation plan 2026](architecture/vox-docker-dotvox-portability-implementation-plan-2026.md)
 - [Vox Docker-backed portability research 2026](architecture/vox-docker-dotvox-portability-research-2026.md)
-- [Vox Language Testing Pipeline](architecture/vox-language-testing-pipeline.md)
 - [Vox Ludus integration contract (producers)](architecture/ludus-integration-contract.md)
 - [Vox Memory System](architecture/memory_system.md)
+- [Vox RAG and Autonomous Research Architecture 2026](architecture/rag-and-research-architecture-2026.md)
+- [Vox React/v0 Interop Research Findings](architecture/react-interop-research-findings-2026.md)
+- [Vox Scientia External Discovery & Monitoring Architecture — 2026 Research Synthesis](architecture/scientia-external-discovery-research-2026.md)
 - [Vox Security Model](architecture/security_model.md)
 - [Vox Session Management](architecture/session_management.md)
-- [Vox VS Code Extension — Frontend Redesign Research (2026)](architecture/vscode-extension-redesign-research-2026.md)
+- [Vox Web: Minimal React Interop Implementation Plan](architecture/react-interop-implementation-plan-2026.md)
 - [Vox bell-curve strategy](architecture/vox-bell-curve-strategy.md)
 - [Vox boilerplate implementation status](architecture/vox-boilerplate-implementation-status.md)
 - [Vox boilerplate reduction master roadmap](architecture/vox-boilerplate-reduction-master-roadmap.md)
@@ -276,27 +301,141 @@
 - [VoxGiantia publication architecture (beginner map)](architecture/voxgiantia-publication-architecture.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
 
+## Status: Research
+
+- [Research index](architecture/research-index.md)
+- [Protocol convergence research 2026](architecture/protocol-convergence-research-2026.md)
+- [VCS for agent state and artifact snapshotting research 2026](architecture/vcs-agent-state-research-2026.md)
+- [SCIENTIA impact, readership, and citation-adjacent signals (research seed)](architecture/scientia-impact-readership-research-2026.md)
+- [Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)](architecture/prompt-engineering-document-skills-scientia-research-2026.md)
+- [SCIENTIA publication-worthiness and SSOT unification (research 2026)](architecture/scientia-publication-worthiness-ssot-unification-research-2026.md)
+- [2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration](architecture/res_dynamic_agentic_planning_2026.md)
+- [AI Agent Context and Handoff Research](architecture/research-context-handoff-continuity-2026.md)
+- [AI IDE feature research findings 2026](architecture/ai-ide-feature-research-findings-2026.md)
+- [AI-Augmented Testing & Hourglass Architecture Research (2026)](architecture/ai-augmented-testing-hourglass-research-2026.md)
+- [Agent Mesh Economics & Token Costs](architecture/research-multi-agent-mesh-economics-2026.md)
+- [Agent Trust Reliability Evaluation](architecture/research-trust-reliability-signals-2026.md)
+- [Architecture Decision Checklist for Implementing Agent Handoff Continuity](architecture/research-agent-handoff-checklist-2026.md)
+- [Architecture: ASR Speech-to-Code](architecture/asr-speech-to-code-architecture-2026.md)
+- [Automated Testing Research for the Vox Language](architecture/automated-testing-research-2026.md)
+- [Catastrophic Forgetting in QLoRA Fine-Tuning](architecture/research-cl-qlora-catastrophic-forgetting-2026.md)
+- [Clavis secrets, env vars, and API key strategy research 2026](architecture/clavis-secrets-env-research-2026.md)
+- [Cognitive Science and NLP: Constraint as Guide vs. Output Space Collapse](architecture/research-ts-hallucination-cognitive-science-2026.md)
+- [Compiler Testing Research Synthesis](architecture/research-pbt-oracles-compiled-lang-2026.md)
+- [Context management research findings 2026](architecture/context-management-research-findings-2026.md)
+- [Continual Learning Flywheel Risks](architecture/research-continual-learning-flywheel-2026.md)
+- [Cross-Agent Evidence Sharing in A2A Protocol Implementations](architecture/research-agent-handoff-a2a-evidence-sharing-2026.md)
+- [Design Pattern Recommendations for Platform Gaps](architecture/research-agent-handoff-design-patterns-2026.md)
+- [Diagnostic questioning — research synthesis 2026](architecture/research-diagnostic-questioning-2026.md)
+- [Documented Failure Modes: Context Bleed and Session Identity Confusion](architecture/research-agent-handoff-context-bleed-2026.md)
+- [Empirical Evidence for Context Compaction Strategies](architecture/research-agent-handoff-empirical-compaction-2026.md)
+- [Empirical Evidence: Strictly-Typed vs. Dynamically-Typed Languages](architecture/research-ts-hallucination-empirical-evidence-2026.md)
+- [Empirical Justification for Reward Weight Allocations in Code RL](architecture/research-grpo-reward-weights-2026.md)
+- [Evaluating AI Plan Adequacy Heuristics](architecture/research-plan-adequacy-heuristics-2026.md)
+- [Evidence Base for Context Retrieval Policies](architecture/research-agent-handoff-retrieval-policies-2026.md)
+- [Execution Time Budgeting and Agent Learning Research 2026](architecture/execution-time-agent-budgeting-research-2026.md)
+- [GRPO Reward Shaping for Code LLMs](architecture/research-grpo-reward-shaping-2026.md)
+- [GRPO and VRAM Efficiency: Architectural Comparisons and Small-Batch Dynamics](architecture/research-grpo-vram-small-batch-2026.md)
+- [Gap Analysis and Recommended Architectural Adjustments](architecture/research-grpo-gaps-and-adjustments-2026.md)
+- [Internal Architecture Repository](architecture/INDEX.md)
+- [K-Complexity and Multi-File LLM Code Generation](architecture/research-ts-hallucination-k-complexity-2026.md)
+- [LLM Grammar Constraints for Code](architecture/research-grammar-constrained-decoding-2026.md)
+- [LLM Output Mediation and Programmatic Validator Generation](architecture/research-llm-output-mediation-validation-2026.md)
+- [LLM-Native Language Design](architecture/research-llm-native-lang-design-2026.md)
+- [Language Features Empirically Linked to LLM Code Generation Success](architecture/research-ts-hallucination-zero-shot-invariants-2026.md)
+- [Minimum Viable Corpus Size for QLoRA Domain Adaptation](architecture/research-cl-qlora-minimum-corpus-2026.md)
+- [Multi-repo context isolation: research findings 2026](architecture/multi-repo-context-isolation-research-2026.md)
+- [Populi GPU network research 2026](architecture/populi-gpu-network-research-2026.md)
+- [Production Evidence: Context Truncation as a Silent Failure Mode](architecture/research-agent-handoff-truncation-failure-2026.md)
+- [Production Failure Mode Catalog with Mitigations](architecture/research-agent-handoff-failure-catalog-2026.md)
+- [Quality and Mode Collapse in Self-Play LLM Loops](architecture/research-cl-mad-mode-collapse-2026.md)
+- [Research Synthesis: Grand Strategy Seed 2026](architecture/research-synthesis-grand-strategy-seed-2026.md)
+- [Research: ASR Speech-to-Code Findings](architecture/asr-speech-to-code-findings-2026.md)
+- [Research: Claude Code Ultraplan Architecture](architecture/claude-code-ultraplan-research-2026.md)
+- [Research: Fuzzy & Partial Parsing](architecture/research-fuzzy-parsing-2026.md)
+- [Research: Phonetic Operators vs. Symbols](architecture/research-phonetic-operators-2026.md)
+- [Research: Planning Mode Capability Map](research/res-planning-mode-capability-map.md)
+- [Research: Planning Mode and Agentic Coding 2026](research/res-planning-mode-agentic-coding-2026.md)
+- [Risk Taxonomy, Monitoring Design, and Open Research Questions](architecture/research-cl-risk-taxonomy-telemetry-2026.md)
+- [State of the Art for Context-Aware Agent Handoff Protocols](architecture/research-agent-handoff-sota-protocols-2026.md)
+- [Telemetry unification research findings 2026](architecture/telemetry-unification-research-findings-2026.md)
+- [Terminal AST validation research 2026](architecture/terminal-ast-validation-research-2026.md)
+- [Terminal execution policy research findings 2026](architecture/terminal-exec-policy-research-findings-2026.md)
+- [The Compile-Pass Oracle and Semantic Degradation](architecture/research-cl-oracle-semantic-drift-2026.md)
+- [The Efficacy of Binary Parse-Rate as a Primary Reward Signal](architecture/research-grpo-binary-parse-rate-2026.md)
+- [The Frontier: Unknowns in LLM-Native Language Design](architecture/research-ts-hallucination-frontier-2026.md)
+- [The Optimization Landscape of Positive-Only Training Loops](architecture/research-grpo-positive-only-optimization-2026.md)
+- [The Risks of Agent-Generated Prose (Schola & Scientia)](architecture/research-cl-slop-typicality-bias-2026.md)
+- [Utilizing Parse Failures as Negative Examples](architecture/research-cl-nat-dpo-2026.md)
+- [Vox Developer User Journeys: Intent vs. Actualization](architecture/agentic-user-journeys.md)
+- [Vox Language Testing Pipeline](architecture/vox-language-testing-pipeline.md)
+- [Vox VS Code Extension — Frontend Redesign Research (2026)](architecture/vscode-extension-redesign-research-2026.md)
+- [Vulnerabilities in AST-Based Coverage Scoring and Reward Hacking](architecture/research-grpo-ast-reward-hacking-2026.md)
+- [Works Cited: AI Agent Context and Handoff](architecture/research-agent-handoff-works-cited-2026.md)
+- [Works Cited: Continual Learning Flywheel Risks](architecture/research-cl-works-cited-2026.md)
+- [Works Cited: GRPO Reward Shaping](architecture/research-grpo-works-cited-2026.md)
+- [Works Cited: Hallucination and Type-System Research](architecture/research-ts-hallucination-works-cited-2026.md)
+
+## Status: Roadmap
+
+- [SCIENTIA implementation wave playbook 2026](architecture/scientia-implementation-wave-playbook-2026.md)
+- [Clavis Cloudless Implementation Catalog](architecture/clavis-cloudless-implementation-catalog.md)
+- [Clavis Cloudless Threat Model V1](architecture/clavis-cloudless-threat-model-v1.md)
+- [Context management implementation blueprint](architecture/context-management-implementation-blueprint.md)
+- [Context management phase 1 backlog](architecture/context-management-phase1-backlog.md)
+- [Populi GPU mesh implementation plan 2026](architecture/populi-gpu-mesh-implementation-plan-2026.md)
+- [Telemetry implementation backlog 2026](architecture/telemetry-implementation-backlog-2026.md)
+- [Telemetry implementation blueprint 2026](architecture/telemetry-implementation-blueprint-2026.md)
+- [Telemetry retention and sensitivity SSOT](architecture/telemetry-retention-sensitivity-ssot.md)
+- [Telemetry taxonomy and contracts SSOT](architecture/telemetry-taxonomy-contracts-ssot.md)
+- [Vox 0.4 Grand Migration Plan (Uncompressed)](architecture/vox-0.4-migration-plan.md)
+- [Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint](architecture/vox_agentic_loop_and_mens_plan.md)
+
+## Status: Legacy
+
+- [English-Core + Latin Alias Migration Ledger](architecture/english_core_migration_ledger.md)
+
+## Status: Deprecated
+
+- [vox-dei HITL Redirect](architecture/vox-dei-hitl-ssot.md)
+
+
 # Contributors
+
+## Status: Current
 
 - [Contributor hub](contributors/contributor-hub.md)
 - [Documentation governance](contributors/documentation-governance.md)
 - [Agent instruction architecture](contributors/agent-instruction-architecture.md)
+- [Coding Agent Instructions](contributors/coding-agents.md)
 - [Continuation Prompt Engineering](contributors/continuation-prompt-engineering.md)
+
 
 # CI & Quality
 
+## Status: Current
+
 - [CLI baseline metrics](ci/cli-baseline-metrics.md)
-- [Command compliance SSOT](ci/command-compliance-ssot.md)
-- [Doc inventory SSOT](ci/doc-inventory-ssot.md)
 - [Documentation authority pointers](ci/documentation-pointers.md)
 
+## Status: Legacy
+
+- [Command compliance SSOT](ci/command-compliance-ssot.md)
+- [Doc inventory SSOT](ci/doc-inventory-ssot.md)
+
+
 # Operations
+
+## Status: Current
 
 - [Clavis Break-Glass Runbook](operations/clavis-break-glass-runbook.md)
 - [Clavis Cloudless Ops Runbook](operations/clavis-cloudless-ops-runbook.md)
 - [VoxDB data cutover and telemetry sidecar runbook](operations/voxdb-cutover-runbook.md)
 
+
 # Reference
+
+## Status: Current
 
 - [ADR 001 — Burn Backend Selection for vox-tensor](adr/001-burn-backend-selection.md)
 - [ADR 003 — Native Rust Training Over Python](adr/003-native-training-over-python.md)
@@ -322,6 +461,7 @@
 - [Acceptance runbook — Mens HF fine-tune convergence](architecture/mens-finetune-acceptance-runbook.md)
 - [Agent Messaging & Orchestration Roadmap (Aspirational)](architecture/agent-messaging-orchestration-roadmap.md)
 - [Architecture Decision Records (ADR)](adr/index.md)
+- [Architecture Decision Records (index)](adr/README.md)
 - [Automation primitives](architecture/vox-automation-primitives.md)
 - [Binary release artifact contract](ci/binary-release-contract.md)
 - [Boilerplate metrics and KPI framework](ci/boilerplate-metrics.md)
@@ -364,13 +504,13 @@
 - [HF fine-tuning capability matrix (code-grounded)](architecture/hf-finetune-capability-matrix.md)
 - [HIR legacy AST wrappers (inventory)](reference/hir-legacy-inventory.md)
 - [Hashing & Identity Builtins](reference/ref-builtins-hashing.md)
+- [Human-In-The-Loop & Doubt](reference/hitl-and-doubt.md)
 - [Information-theoretic questioning protocol](reference/information-theoretic-questioning.md)
 - [Installation Reference](reference/ref-installation.md)
 - [Language Syntax Reference](reference/ref-syntax.md)
 - [Language ergonomics principles](reference/language-ergonomics-principles.md)
 - [MCP HTTP gateway contract](reference/mcp-http-gateway-contract.md)
 - [MCP HTTP read-role governance contract](reference/mcp-http-read-role-governance-contract.md)
-- [MCP tool reference (legacy path)](reference/mcp-tool-reference.md)
 - [MCP tool registry contract](reference/mcp-tool-registry-contract.md)
 - [MENS curriculum — speech-to-code stages](reference/mens-speech-curriculum.md)
 - [MENS findings: Composer and Kimi (2026)](architecture/mens-composer-kimi-findings-2026.md)
@@ -382,9 +522,9 @@
 - [Mens LoRA / adapter ownership (vox-tensor vs vox-populi)](reference/mens-lora-ownership.md)
 - [Mens external technology options](reference/mens-external-tech-options.md)
 - [Mens laziness and accuracy audit](reference/mens-laziness-accuracy-audit.md)
+- [Mens local serving SSOT (Schola + orchestrator)](reference/mens-serving-ssot.md)
 - [Mens measurement gap analysis](reference/mens-measurement-gap-analysis.md)
 - [Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)](reference/mens-training.md)
-- [Mens local serving SSOT (Schola + orchestrator)](reference/mens-serving-ssot.md)
 - [Mens strategy inputs checklist](reference/mens-strategy-inputs-checklist.md)
 - [Mens train defaults (generated)](reference/mens-train-defaults.generated.md)
 - [Mens training data (JSONL) contract](reference/mens-training-data-contract.md)
@@ -409,6 +549,9 @@
 - [Reference: Type System](reference/ref-type-system.md)
 - [Repo reconstruction benchmark ladder](reference/repo-reconstruction-benchmark-ladder.md)
 - [Research Notes: Achieving Serverless-like Performance with MCP](explanation/mcp_serverless_research.md)
+- [Review Anti-Pattern Catalog Contract](reference/review-antipattern-catalog-contract.md)
+- [Review Fix Pairs Contract](reference/review-fix-pairs-contract.md)
+- [Review Regression Challenges Contract](reference/review-regression-challenges-contract.md)
 - [Rust ecosystem support contract](reference/rust-ecosystem-support-contract.md)
 - [Rust pattern modernization — Wave 0 baseline](ci/rust-modernization-baseline.md)
 - [SCIENTIA SSOT handbook (glossary, vocabulary, checklists)](reference/scientia-ssot-handbook.md)
@@ -429,6 +572,7 @@
 - [TanStack SSR with Axum (development topology)](how-to/tanstack-ssr-with-axum.md)
 - [TanStack web backlog](architecture/tanstack-web-backlog.md)
 - [TanStack web roadmap](architecture/tanstack-web-roadmap.md)
+- [Tavily Integration SSOT](reference/tavily-integration-ssot.md)
 - [Telemetry and research_metrics contract](reference/telemetry-metric-contract.md)
 - [Testing Standard — SSOT](architecture/testing-standard.md)
 - [Trim, build, and defer (feature lifecycle)](architecture/trim-build-defer-policy.md)
@@ -436,6 +580,8 @@
 - [Unified orchestration — SSOT](reference/orchestration-unified.md)
 - [VS Code extension and vox-mcp compatibility](reference/vscode-mcp-compat.md)
 - [Vox Documentation Style Guide](reference/style-guide.md)
+- [Vox Feature Builds & Capabilities](reference/feature-builds.md)
+- [Vox IR Specification](reference/vox-ir-specification.md)
 - [Vox Skill Marketplace](reference/skill_marketplace.md)
 - [Vox Web Architecture Analysis](architecture/web-architecture-analysis-2026.md)
 - [Vox Webhook Integration](reference/webhook_integration.md)
@@ -449,4 +595,9 @@
 - [Zig-Inspired Deployment Architecture](explanation/zig-inspired-deployment.md)
 - [cli](reference/cli.md)
 - [vox-cli build and feature inventory](architecture/vox-cli-build-feature-inventory.md)
+
+## Status: Legacy
+
+- [MCP tool reference (legacy path)](reference/mcp-tool-reference.md)
+
 

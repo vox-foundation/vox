@@ -8,9 +8,16 @@ use serde::{Deserialize, Serialize};
 /// JSON object key for [`ScientificPublicationMetadata`] inside `metadata_json`.
 pub const METADATA_KEY_SCIENTIFIC: &str = "scientific_publication";
 
+fn scientific_publication_schema_version_default() -> u32 {
+    1
+}
+
 /// Normalized metadata for journal/preprint/DOI readiness (Phase 0; backward-compatible).
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ScientificPublicationMetadata {
+    /// Logical schema revision for this `scientific_publication` object (migration + CI drift).
+    #[serde(default = "scientific_publication_schema_version_default")]
+    pub schema_version: u32,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub authors: Vec<ScientificAuthor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -23,6 +30,33 @@ pub struct ScientificPublicationMetadata {
     pub reproducibility: Option<ReproducibilityAttestation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ethics_and_impact: Option<EthicsAndImpactAttestation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distribution: Option<ScientificDistribution>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supersedes_publication_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub corrects_publication_id: Option<String>,
+    /// Optional logical database revision mapping (Wave-A).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub db_revision: Option<u32>,
+}
+
+impl Default for ScientificPublicationMetadata {
+    fn default() -> Self {
+        Self {
+            schema_version: scientific_publication_schema_version_default(),
+            authors: Vec::new(),
+            license_spdx: None,
+            funding_statement: None,
+            competing_interests_statement: None,
+            reproducibility: None,
+            ethics_and_impact: None,
+            distribution: None,
+            supersedes_publication_id: None,
+            corrects_publication_id: None,
+            db_revision: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -32,6 +66,24 @@ pub struct ScientificAuthor {
     pub orcid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub affiliation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ror: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ScientificDistribution {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_doi: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_repo_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub og_image_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preferred_citation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embargo_lift_utc: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distribution_policy_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -123,20 +175,26 @@ mod tests {
     #[test]
     fn build_metadata_includes_scientific_block() {
         let sci = ScientificPublicationMetadata {
+            schema_version: 1,
             authors: vec![ScientificAuthor {
                 name: "Ada Lovelace".to_string(),
                 orcid: Some("0000-0001-2345-6789".to_string()),
                 affiliation: None,
+                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             funding_statement: None,
             competing_interests_statement: None,
             reproducibility: None,
             ethics_and_impact: None,
+            distribution: None,
+            supersedes_publication_id: None,
+            corrects_publication_id: None,
         };
         let s = build_scientia_metadata_json("test", None, Some(&sci), None).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["prepared_by"], "test");
+        assert_eq!(v[METADATA_KEY_SCIENTIFIC]["schema_version"], 1);
         assert!(v[METADATA_KEY_SCIENTIFIC]["authors"][0]["name"] == "Ada Lovelace");
     }
 

@@ -4,6 +4,8 @@ description: "Defines the compatibility contract for bringing generated Rust wor
 category: "reference"
 last_updated: 2026-03-29
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 021: Generated workflow durability parity

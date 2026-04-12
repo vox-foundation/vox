@@ -37,7 +37,9 @@ pulldown-cmark = "0.13"
 vox-bounded-fs = { workspace = true }
 vox-primitives = { workspace = true }
 vox-clavis = { path = "../vox-clavis" }
+vox-config = { path = "../vox-config" }
 vox-db = { path = "../vox-db", optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

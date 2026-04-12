@@ -2,6 +2,8 @@
 title: "Trust Reliability Layer (SSOT)"
 description: "Defines unified trust observation vocabulary, trust_observations / trust_rollups persistence, EWMA rollups, producers and consumers (orchestrator, endpoints, Socrates), degradation/outbox health signals, and MCP/CLI trust surfaces."
 category: "architecture"
+
+schema_type: "TechArticle"
 ---
 
 # Trust Reliability Layer (SSOT)
@@ -90,3 +92,7 @@ Current consumers:
 - extend domain tagging and policy-profile attribution beyond primary MCP chat/plan/edit surfaces
 - automated calibration transforms (e.g. isotonic) on top of drift reports—not only windowed mean comparison
 - richer graph propagation than same-domain clique affinity (explicit trust edges, provider graphs)
+- **per-validation-failure-class dimensions** (`schema_conformance`, `semantic_policy`, `repair_exhaustion`):
+  proposed in [research-llm-output-mediation-validation-2026.md](research-llm-output-mediation-validation-2026.md)
+  §8.4 as part of the unified LLM Mediation Layer (LML) design. Currently trust signals capture per-task
+  outcomes but not per-inference-call validation failure modes.

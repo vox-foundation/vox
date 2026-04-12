@@ -1,4 +1,4 @@
-use crate::PublisherConfig;
+﻿use crate::PublisherConfig;
 use crate::contract::DEFAULT_OPENCOLLECTIVE_GRAPHQL_URL;
 use crate::types::{OpenCollectiveConfig, UnifiedNewsItem};
 use anyhow::{Result, anyhow};

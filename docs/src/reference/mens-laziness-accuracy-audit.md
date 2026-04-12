@@ -4,6 +4,8 @@ description: "Severity-ranked audit of the current VoxMens research implementati
 category: "reference"
 last_updated: 2026-03-28
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens laziness and accuracy audit
 

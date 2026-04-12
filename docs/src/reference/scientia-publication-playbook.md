@@ -4,6 +4,8 @@ description: "Deterministic remediation for common publication gate and syndicat
 category: "reference"
 last_updated: 2026-03-26
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Scientia publication failure playbook
