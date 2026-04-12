@@ -87,6 +87,7 @@ jobs:
           fi
           cargo run -p vox-cli --quiet -- ci secret-env-guard
           export VOX_CLAVIS_REQUIRE_COMPAT_SUNSET=1
+          export VOX_CLAVIS_CUTOVER_PHASE=enforce
           cargo run -p vox-cli --quiet -- ci clavis-cutover-gates
 
       - name: Contracts index + scaling policy SSOT

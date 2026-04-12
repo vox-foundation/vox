@@ -10,10 +10,11 @@ const SAMBANOVA_URL: &str = "https://api.sambanova.ai/v1/chat/completions";
 const ANTHROPIC_PROXY_URL: &str = "http://127.0.0.1:4000/v1/chat/completions";
 const ANTHROPIC_MESSAGES_URL: &str = "https://api.anthropic.com/v1/messages";
 
-fn env_or_default(key: &str, default_value: &str) -> String {
-    std::env::var(key)
-        .ok()
+fn env_or_default(id: vox_clavis::SecretId, default_value: &str) -> String {
+    vox_clavis::resolve_secret(id)
+        .expose()
         .filter(|v| !v.trim().is_empty())
+        .map(|s| s.to_string())
         .unwrap_or_else(|| default_value.to_string())
 }
 
@@ -22,23 +23,23 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         ProviderType::OpenRouter => {
             Ok(vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL.to_string())
         }
-        ProviderType::Groq => Ok(env_or_default("GROQ_CHAT_COMPLETIONS_URL", GROQ_URL)),
+        ProviderType::Groq => Ok(env_or_default(vox_clavis::SecretId::VoxGroqChatCompletionsUrl, GROQ_URL)),
         ProviderType::Cerebras => Ok(env_or_default(
-            "CEREBRAS_CHAT_COMPLETIONS_URL",
+            vox_clavis::SecretId::VoxCerebrasChatCompletionsUrl,
             CEREBRAS_URL,
         )),
-        ProviderType::Mistral => Ok(env_or_default("MISTRAL_CHAT_COMPLETIONS_URL", MISTRAL_URL)),
+        ProviderType::Mistral => Ok(env_or_default(vox_clavis::SecretId::VoxMistralChatCompletionsUrl, MISTRAL_URL)),
         ProviderType::DeepSeek => Ok(env_or_default(
-            "DEEPSEEK_CHAT_COMPLETIONS_URL",
+            vox_clavis::SecretId::VoxDeepseekChatCompletionsUrl,
             DEEPSEEK_URL,
         )),
         ProviderType::SambaNova => Ok(env_or_default(
-            "SAMBANOVA_CHAT_COMPLETIONS_URL",
+            vox_clavis::SecretId::VoxSambanovaChatCompletionsUrl,
             SAMBANOVA_URL,
         )),
         ProviderType::Anthropic => Ok(env_or_default(
-            "ANTHROPIC_CHAT_COMPLETIONS_URL",
-            if std::env::var("ANTHROPIC_DIRECT").unwrap_or_default() == "1" {
+            vox_clavis::SecretId::VoxAnthropicChatCompletionsUrl,
+            if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect).expose().unwrap_or("") == "1" {
                 ANTHROPIC_MESSAGES_URL
             } else {
                 ANTHROPIC_PROXY_URL

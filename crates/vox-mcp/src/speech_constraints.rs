@@ -93,8 +93,8 @@ impl ConstrainedDecodePolicy {
     #[must_use]
     pub fn from_env() -> Self {
         let enabled = matches!(
-            std::env::var("VOX_MCP_GRAMMAR_MASK").as_deref(),
-            Ok("1") | Ok("true")
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpGrammarMask).expose(),
+            Some("1") | Some("true")
         );
         Self { enabled }
     }

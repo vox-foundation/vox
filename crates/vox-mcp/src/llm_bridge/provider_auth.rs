@@ -38,7 +38,7 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
             required_secret(vox_clavis::SecretId::AnthropicApiKey, "Anthropic")
         }
         ProviderType::Custom(_) => {
-            required_secret(vox_clavis::SecretId::CustomOpenAiApiKey, "Custom OpenAI")
+            required_secret(vox_clavis::SecretId::CustomOpenaiApiKey, "Custom OpenAI")
         }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
             Err(HttpInferError {
@@ -60,14 +60,14 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
 pub(crate) fn extra_headers_for(model: &ModelSpec) -> HashMap<String, String> {
     let mut headers = HashMap::new();
     if matches!(model.provider_type, ProviderType::OpenRouter) {
-        if let Ok(v) = std::env::var("VOX_OPENROUTER_HTTP_REFERER") {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterHttpReferer).expose() {
             if !v.trim().is_empty() {
-                headers.insert("HTTP-Referer".to_string(), v);
+                headers.insert("HTTP-Referer".to_string(), v.to_string());
             }
         }
-        if let Ok(v) = std::env::var("VOX_OPENROUTER_APP_TITLE") {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterAppTitle).expose() {
             if !v.trim().is_empty() {
-                headers.insert("X-Title".to_string(), v);
+                headers.insert("X-Title".to_string(), v.to_string());
             }
         }
         // For the virtual auto-routing model, inject cost-preference route hint so
@@ -87,14 +87,20 @@ pub(crate) fn extra_headers_for(model: &ModelSpec) -> HashMap<String, String> {
 /// Falls back to `Fallback` (resilience-first) when unset or unknown.
 fn openrouter_route_hint_from_env() -> vox_config::OpenRouterRouteHint {
     use vox_config::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
-    let raw = std::env::var("VOX_OPENROUTER_ROUTE_HINT").unwrap_or_default();
+    let raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterRouteHint)
+        .expose()
+        .unwrap_or("")
+        .to_string();
     match raw.trim().to_ascii_lowercase().as_str() {
         "price" | "economy" | "cheap" => OpenRouterRouteHint::Price,
         "quality" | "performance" | "best" => OpenRouterRouteHint::Quality,
         "fallback" | "resilience" => OpenRouterRouteHint::Fallback,
         // Derive from orchestrator cost preference env when explicit hint absent.
         _ => {
-            let pref_raw = std::env::var("VOX_COST_PREFERENCE").unwrap_or_default();
+            let pref_raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCostPreference)
+                .expose()
+                .unwrap_or("")
+                .to_string();
             let pref = match pref_raw.trim().to_ascii_lowercase().as_str() {
                 "performance" | "quality" => RouteCostPreference::Performance,
                 _ => RouteCostPreference::Economy,

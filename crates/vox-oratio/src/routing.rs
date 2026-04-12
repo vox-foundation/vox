@@ -199,12 +199,12 @@ impl Default for RoutingSessionRecord {
 fn routing_session_cap_ttl() -> (usize, Duration) {
     const DEF_CAP: usize = 4096;
     const DEF_TTL_SECS: u64 = 86_400;
-    let cap = std::env::var("VOX_ORATIO_ROUTING_SESSION_CAP")
-        .ok()
+    let cap = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRoutingSessionCap)
+        .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEF_CAP);
-    let ttl_secs = std::env::var("VOX_ORATIO_ROUTING_SESSION_TTL_SECS")
-        .ok()
+    let ttl_secs = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRoutingSessionTtlSecs)
+        .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEF_TTL_SECS);
     (cap.max(64), Duration::from_secs(ttl_secs.max(60)))

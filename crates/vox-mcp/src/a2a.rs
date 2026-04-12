@@ -477,7 +477,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                 .to_json();
             };
             let repository_id =
-                std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "default".to_string());
+                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose().unwrap_or("default").to_string();
             match vox_orchestrator::a2a::send_to_db_with_breaker(
                 &db,
                 sender,

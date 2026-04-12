@@ -1,29 +1,12 @@
 {
-  "bluesky": {
-    "status": "disabled"
+  "rss": {
+    "status": "dry_run",
+    "external_id": null
   },
-  "crates_io": {
-    "status": "disabled"
-  },
-  "decision_reasons": {
-    "distribution_compile_channel_plans": "[{\"channel\":\"rss\",\"template_profile\":null,\"projection_profile_id\":\"fallback\",\"max_title_chars\":300,\"max_primary_chars\":2000},{\"channel\":\"twitter\",\"template_profile\":null,\"projection_profile_id\":\"fallback\",\"max_title_chars\":280,\"max_primary_chars\":280}]",
-    "distribution_derivation_digest": "48ac1a2d88a671cb2e794a0aaf4de5cd9d87c82396b3bdfd284e31d4eec15fda",
-    "social_retry_max_attempts": "3",
-    "twitter": "policy_disabled"
-  },
-  "discord": {
+  "twitter": {
     "status": "disabled"
   },
   "github": {
-    "status": "disabled"
-  },
-  "hacker_news": {
-    "status": "disabled"
-  },
-  "linkedin": {
-    "status": "disabled"
-  },
-  "mastodon": {
     "status": "disabled"
   },
   "open_collective": {
@@ -32,14 +15,19 @@
   "reddit": {
     "status": "disabled"
   },
-  "rss": {
-    "external_id": null,
-    "status": "dry_run"
-  },
-  "twitter": {
+  "hacker_news": {
     "status": "disabled"
   },
   "youtube": {
     "status": "disabled"
+  },
+  "crates_io": {
+    "status": "disabled"
+  },
+  "decision_reasons": {
+    "distribution_derivation_digest": "c476060c35f2d884ba514d26f403006fdb430c69d5c06d9bff3b30f3a3455bc3",
+    "distribution_compile_channel_plans": "[{\"channel\":\"rss\",\"template_profile\":null,\"projection_profile_id\":\"fallback\",\"max_title_chars\":300,\"max_primary_chars\":2000},{\"channel\":\"twitter\",\"template_profile\":null,\"projection_profile_id\":\"fallback\",\"max_title_chars\":280,\"max_primary_chars\":280}]",
+    "twitter": "policy_disabled",
+    "social_retry_max_attempts": "3"
   }
 }

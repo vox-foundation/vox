@@ -3,14 +3,14 @@
 
   <br><br>
 
-  <p><strong>One language. Database, backend, UI, and agent tools — designed first as a target for large language models, and for the developers who work alongside them.</strong></p>
+  <p><strong>One language. Database, backend, UI, and scientific publication — designed first as a target for large language models to orchestrate systems and autonomously hunt for discovery alongside developers.</strong></p>
   <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 
 </div>
 
 <p align="center">
   <a href="https://vox-lang.org"><img src="https://img.shields.io/badge/docs-vox--lang.org-blue?style=flat-square" alt="Documentation"/></a>
-  <a href="https://github.com/vox-foundation/vox/releases"><img src="https://img.shields.io/github/v/release/vox-foundation/vox?style=flat-square&label=latest" alt="Latest Release"/></a>
+  <a href="https://github.com/vox-foundation/vox/commits/main"><img src="https://img.shields.io/github/last-commit/vox-foundation/vox?style=flat-square&label=updated" alt="Last Updated"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License"/></a>
   <a href="https://vox-lang.org/feed.xml"><img src="https://img.shields.io/badge/RSS-updates-orange?style=flat-square" alt="RSS Feed"/></a>
 </p>
@@ -18,43 +18,90 @@
 ---
 <!-- Code examples in this file should mirror examples/golden/*.vox -->
 <!-- Run: vox check examples/golden/*.vox to verify -->
-> **v0.4 — April 2026.** Below is the current status of each major system area.
->
-> | Area | Status |
-> |------|--------|
-> | Compiler — Vox source to TypeScript + Rust output | ✅ Production |
-> | `@table` / `@server` / `@query` / `@mutation` decorators | ✅ Production |
-> | `@island` UI (React + TanStack, client-side hydration) | ✅ Available |
-> | `workflow` / `actor` / `activity` keywords | ✅ Available |
-> | `@mcp.tool` — expose Vox functions to AI agents | ✅ Production |
-> | LSP server, VS Code extension, Oratio speech-to-code | ✅ Available |
-> | `vox populi` — local GPU inference and multi-provider routing | ✅ Available |
-> | `@v0` — v0.dev component generation (requires `V0_API_KEY`) | ✅ Available |
-> | Agent orchestration with MCP control surface | ✅ Available |
-> | Agent-to-agent messaging (in-process) | ✅ Available |
-> | Agent-to-agent messaging (HTTP relay, `populi-transport`) | ✅ Available (opt-in) |
-> | `vox bundle` — single-binary production build | ✅ Available |
-> | Distributed agent mesh (cross-machine task relay) | 🔄 In progress |
-> | Fine-tuning pipeline (GRPO / MENS) | 🔄 In progress |
-> | Grammar-constrained generation | 🔄 In progress |
-> | Full server-side rendering (TanStack Start, Wave 5+) | 🔄 In progress |
-> | Actor-internal state API | 🔄 In progress (syntax stabilizing) |
 
 <br>
-<p><em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em>
-    <br>
-    — Nathaniel Hawthorne, <em>The House of the Seven Gables</em> (1851)</p>
+<div align="center">
+  <blockquote>
+    <p><em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em></p>
+    <p>— Nathaniel Hawthorne, <em>The House of the Seven Gables</em> (1851)</p>
+  </blockquote>
+</div>
+
+---
 
 ## Why Vox Exists
 
-Software systems are becoming collaborative — not just between developers, but between developers and AI agents working side by side on the same codebase. Vox is designed for that world: a single compiled language covering database schema, server logic, UI, and agent tools, where both humans and models get immediate, structural feedback from the compiler rather than discovering problems at runtime.
+The way we build software has changed forever. Today, developers direct Large Language Models to architect, write, and orchestrate logic. Yet, the foundations we rely on—Python, TypeScript, Rust—were designed decades before AI could write code. Their vast, unconstrained surfaces often cause agents to guess, hallucinate, and fail mid-execution.
 
-## Design Principles
+The core intent behind Vox is to return power to developers by providing an environment where an AI never has to guess. It is a language built from the ground up as a deterministic target for language models. 
 
-- **Compiler as error boundary.** No `null`, no `undefined`. Absence is `Option[T]`; failure is `Result[T]`. Every branch must be handled — code that skips error handling does not build.
-- **One source of truth.** `@table`, `@server`, and `@island` declared together; the compiler generates the SQL schema, HTTP endpoint, and TypeScript client from one declaration.
-- **Durability without a framework.** `workflow` and `actor` are language keywords, not libraries.
-- **AI-native by design.** `@mcp.tool` exposes any function as a callable tool for Claude, Cursor, or any MCP-compatible agent. Orchestration, agent mesh, and model routing are built into the platform.
+By constraining the boundaries of software engineering on behalf of the AI, Vox turns arbitrary text generation into a predictable, self-correcting loop. It is not merely a web framework; it is an orchestration engine designed to help humans and models jointly construct distributed systems, synthesize unstructured data, and power autonomous research pipelines.
+
+
+
+### Platform Architecture & Stability
+
+We stratify the platform's development based on a single metric: **Model Predictability**. The systems responsible for data integrity, core language syntax, and agent memory represent the unchanging foundation because they anchor an LLM's understanding of the codebase. Conversely, high-level orchestration features and rendering lifecycles remain cautiously fluid as we iterate on the most effective ways for AI to construct them. 
+
+Rather than maintaining a brittle list of micro-features, we enforce capability stability directly through our continuous integration and compiler test boundaries.
+
+* 🟢 **Tier 1 (Stable):** Production-ready. The AST syntax and runtime behavior are locked to ensure LLM code generation is completely predictable.
+* 🟡 **Tier 2 (Preview):** Functionally available, but execution lifecycles or internal AST schemas may evolve to improve model generation rates.
+* 🚧 **Tier 3 (Experimental):** Under active architectural planning or limited tightly behind CLI feature flags.
+
+| Domain & Key Capabilities | Stability | How we verify this |
+|:--------------------------|:----------|:-------------------|
+| **Compiler & Toolchain**<br>Compiling to Rust and TypeScript, auto-formatting, Language Server (LSP) | 🟢 **Stable** | Golden parsing suite, `vox fmt --check`, typed syntax validations |
+| **Data & Interfaces**<br>`@table` schema migrations, `@query`/`@server` endpoints | 🟢 **Stable** | In-memory DB roundtrips, strict HTTP payload schemas |
+| **Agent Tooling**<br>`@mcp.tool` exposure, orchestrated agents, telemetry | 🟢 **Stable** | Model Context Protocol (MCP) compliance, telemetry gates |
+| **Web UI & Routing**<br>`@island` browser wiring, V0 components, file-free `routes {}` | 🟡 **Preview** | Web Intermediate Representation (WebIR) syntax checks |
+| **Durable Execution**<br>`workflow` state persistence, `actor` message bounds | 🟡 **Preview** | State persistence audits, unfinished code (TOESTUB) rejection |
+| **Models & Local AI**<br>`vox populi` GPU inference, speech recognition, native Rust tuning | 🟡 **Preview** | Burn ML backend evaluations, local hardware probe checks |
+| **Autonomous Research**<br>`vox scientia` publication pipeline, Socrates hallucination guard | 🟡 **Preview** | Citation overlap tests, novelty discovery CLI checks |
+| **Server-Side Rendering**<br>Native integration with TanStack Start architecture | 🚧 **Experimental** | Active migration flags |
+| **Distributed Mesh**<br>Cross-machine task relaying and agent pool distribution | 🚧 **Experimental** | Under active architectural planning |
+
+> *Current footprint as of **v0.4 — April 2026**.*
+
+---
+
+## Architectural Guardrails
+
+Vox enforces its design through machine-verifiable limits. To ensure that autonomous agents and human developers can predictably navigate and build upon the codebase, the framework implements five absolute architectural boundaries that trigger CI failure if breached:
+
+**Complexity Bounds (The Sprawl Limit)**
+To ensure that logic fits securely within an AI's processing window without diluting reasoning, code sprawl—measured internally as Kolmogorov Complexity (K-Complexity)—is hard-limited. A struct or class cannot exceed 500 lines or 12 methods, and a directory cannot contain more than 20 files. Exceeding these limits forces a build failure, requiring the developer (or agent) to refactor logic cleanly into new sub-domains.
+
+**Zero-Skeleton Enforcement (TOESTUB)**
+Code cannot be built if it contains empty execution paths or temporary placeholders. The `toestub` CI pipeline automatically blocks identifiers like `stub/todo` or `stub/unimplemented` in production paths, ensuring that AI-generated logic is fully complete before the system permits evaluation.
+
+**Scientific Documentation Hygiene (Scientia)**
+An AI is only as capable as the truth it trains on. Vox treats documentation not as casual text, but as formal, machine-verified research. Under the `Scientia` doctrine, code blocks cannot be written loosely; the framework physically requires all `.vox` snippets to be compiler-verified via direct inclusion (`{{#include}}`). Language models and developers can mathematically trust that the publications they read are strictly factual.
+
+**Strict Credential Resolution (Clavis)**
+Hidden environment variables cause deployment drift and model hallucinations. Our security pipeline (`secret-env-guard`) blocks any logic that attempts to directly read generic environment variables. All credentials must route through the central Clavis registry, generating complete, auditable clarity on what capabilities an application possesses.
+
+**Context Window Isolation**
+Because the language targets large language models, maintaining context hygiene is treated as a structural mandate. A single source of truth (`.voxignore`) automatically derives all agent exclusion boundaries, shielding models from reading generated artifacts or telemetry logs and keeping their attention solely on intentional logic.
+
+---
+
+## How Vox Solves the Training Paradox
+
+It is often assumed that legacy languages hold a permanent advantage in AI generation simply because language models blindly vacuum up massive quantities of their scripts scraped from across the internet. 
+
+Vox bypasses this shotgun approach entirely. The repository includes local training primitives (`vox populi` and the MENS neural training pipeline) that allow developers to natively fine-tune *any* foundation model to master Vox's strict structural boundaries. Because the platform ships with an inference and training mesh that scales seamlessly across a variety of hardware architectures, you are never locked out of AI-assisted engineering just because a model hasn't scraped enough of your syntax. You fine-tune it natively, empowering specialized models to write flawless code tailored exactly to your orchestration needs.
+
+---
+
+## How Vox Works
+
+Code generation fails when an AI is forced to navigate fragmented files, hidden states, and chaotic lifecycles. Vox solves this by functioning as a high-level abstraction that rigorously lowers into safe, deterministic infrastructure.
+
+* **The High-Level Intermediate Representation (HIR):** When an AI writes a `.vox` file, the parser doesn't just strip it into an Abstract Syntax Tree (AST); it lowers it into a strictly unified HIR. This means database bindings, HTTP handshakes, and UI lifecycles are resolved mathematically by the compiler before any code is generated. The AI doesn't write React or SQL; it writes HIR directives, and the compiler handles the mechanical execution logic.
+* **Deterministic Rendering (WebIR):** UI is compiled directly to a Web Intermediate Representation (WebIR). Agents never have to juggle React hooks, client state waterfalls, or asynchronous DOM wiring. They emit pure data representations, and the WebIR projection handles the translation down to HTML.
+* **Semantic Error Feedback:** There are no implicit runtime exceptions. Complex operations return strict `Result[T]` constraints. Because semantic checking happens exclusively along the unified HIR path, if an agent fails to handle an error state, the compiler catches the omission immediately, providing the LLM with rigorous, syntax-level feedback to self-correct during the generation loop.
+* **Native Protocol Projection:** AI capabilities are not a bolted-on SDK. Because the language is AI-native, the AST inherently recognizes decorators like `@mcp.tool`. The compiler automatically projects these into Model Context Protocol manifests, allowing any external agent to execute your logic without you writing a single HTTP route.
 
 ---
 
@@ -136,16 +183,20 @@ The return type `Result[Task]` is where Vox earns its keep: it forces every piec
 
 ### Step 3 — Build the UI
 
-Modern web apps split into two concerns: the **server**, which renders initial HTML and handles data, and the **browser**, which handles interactivity. In Vox, both live in the same file and share the same types:
+Modern web apps split into two concerns: the **server**, which renders initial HTML and handles data, and the **browser**, which handles interactivity. The key design challenge is keeping those boundaries clean without leaking React hook syntax, JSX idioms, or CSS class names into your core application logic.
+
+Vox solves this with two distinct primitives:
 
 ```vox
-// An island is a piece of the page that's interactive in the browser
+// An island is a piece of the page that's interactive in the browser.
+// React lives inside the generated artifact — not in your .vox source.
 @island TaskList {
     tasks: list[Task]              // same Task type from Step 1 — no duplication
     on_complete: fn(str) -> Unit   // a callback the browser can call
 }
 
-// A component is server-rendered — fast initial load, no JavaScript needed
+// A component is server-rendered — fast initial load, no JavaScript needed.
+// It composes islands using the same Vox syntax, with no JSX boilerplate.
 component TaskPage() {
     view: <div className="task-list">
         <TaskList tasks=[...] on_complete={complete_task} />
@@ -155,7 +206,9 @@ component TaskPage() {
 routes { "/" to TaskPage }
 ```
 
-`@island` marks the parts of your UI that need to be interactive in the browser — the list that responds to clicks, not the static header. Everything else is `component`: rendered on the server, fast to load, and simple. The compiler generates the browser-side JavaScript for the island, the router configuration for `routes`, and the typed function that lets the island call the server's `complete_task` — you write none of that glue yourself.
+`@island` marks the boundary where the browser takes over. The compiler generates the React component, the browser lifecycle wiring, and the typed client stub — none of that appears in your `.vox` source. `component` stays on the server: rendered to HTML, fast to load, and written entirely in Vox syntax. The `routes { }` block maps URLs to pages without touching a router configuration file.
+
+The distinction isn't just organizational. It means React's mental model — hooks, lifecycle, client state — is confined to the generated layer. You write Vox; the compiler decides what runs where.
 
 > **v0.dev integration:** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the generated component into `islands/src/TaskDashboard/`. The `@v0` build hook triggers this automatically during `vox build`.
 
@@ -238,7 +291,7 @@ Full command reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md)
 
 ## The CLI
 
-Run `vox commands --recommended` for a curated first-time map of subcommands. For repository hygiene, `vox ci gui-smoke` runs deterministic WebIR lowering tests and can opt into Vite (`VOX_WEB_VITE_SMOKE=1`) or Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes documented in the same CLI reference.
+Run `vox commands --recommended` for a curated first-time map of subcommands. For repository hygiene, `vox ci gui-smoke` runs deterministic Web Intermediate Representation (WebIR) routing tests and can opt into Vite (`VOX_WEB_VITE_SMOKE=1`) or Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes documented in the same CLI reference.
 
 ---
 
@@ -301,26 +354,38 @@ vox populi serve --model mens/runs/latest/model_final.bin --port 8080
 
 ## Documentation
 
-| Intent | Start here |
-|--------|-----------|
-| **Guided walkthrough** | [Getting Started](docs/src/tutorials/tut-getting-started.md) |
-| **Language overview** | [What is Vox?](docs/src/index.md) |
-| **FAQ** | [Language, runtime, MCP](docs/src/explanation/faq.md) |
-| **CLI reference** | [Command surface](docs/src/reference/cli.md) |
-| **Type system** | [Type system reference](docs/src/reference/ref-type-system.md) |
-| **Decorators** | [Full decorator registry](docs/src/reference/ref-decorators.md) |
-| **VS Code & voice** | [LSP, MCP sidebar, Oratio speech](vox-vscode/README.md) |
-| **Contributing** | [Contributor hub](docs/src/contributors/contributor-hub.md) |
-| **ADRs** | [Architecture decisions](docs/src/adr/index.md) |
-| **Syntax guide** | [Examples & style](examples/STYLE.md) |
+Vox documentation is structured around the **Diátaxis** framework, explicitly separating tutorials, how-to guides, explanations, and pure reference material. 
+
+| Section | Description | Key Links |
+|---------|-------------|-----------|
+| **Getting Started** | High-level overviews and introductory setup. | [What is Vox?](docs/src/index.md) <br> [Getting Started](docs/src/tutorials/tut-getting-started.md) |
+| **Journeys & Tutorials** | Step-by-step guides for full-stack patterns. | [First Full-Stack App](docs/src/how-to/first-full-stack-app.md) <br> [AI Agents & MCP](docs/src/how-to/how-to-ai-agents.md) |
+| **How-To Guides** | Goal-oriented recipes for specific problems. | [Model Domain Logic](docs/src/how-to/how-to-custom-types.md) <br> [Native Training](docs/src/journeys/native-training.md) |
+| **Explanations** | Theoretical deep-dives and architectural 'Why's. | [Compiler Architecture](docs/src/explanation/expl-architecture.md) <br> [AI Orchestration](docs/src/explanation/expl-ai-orchestration.md) |
+| **Reference** | Authoritative lists, CLI maps, and type systems. | [CLI Surface](docs/src/reference/cli.md) <br> [Decorator Registry](docs/src/reference/ref-decorators.md) |
+| **Architecture** | Single-Source-of-Truth (SSOT) planning and ADRs. | [Master Arch Index](docs/src/architecture/architecture-index.md) <br> [Contributor Hub](docs/src/contributors/contributor-hub.md) |
 
 ---
 
-## Community
+## Community, Backing & License
 
-- **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelog and doc updates
-- **GitHub Discussions**: Architecture questions, language design feedback, and roadmap input
+Vox is built in the open and designed for immense commercial and academic scale.
 
-## License
+### Backing Vox (Open Collective)
+The Vox Foundation operates as a transparent, community-backed entity through **Open Collective**. We believe that foundational language development shouldn't be captured by a single corporate interest.
+- **Sponsorship & Grants:** By contributing via our Open Collective, you directly fund developer grants, heavy CI/CD hardware (crucial for our MENS neural training networks), and academic bounties.
+- **Complete Transparency:** Every dollar raised and spent is public. You can see exactly how the community's resources are allocated to further the language.
 
-Apache-2.0. Full text: [`LICENSE`](LICENSE). Source: [github.com/vox-foundation/vox](https://github.com/vox-foundation/vox).
+### The Apache 2.0 License
+Vox is licensed under the **Apache License, Version 2.0**. For software developers, this means:
+- **Commercial Use:** You can use Vox to build commercial, closed-source, or proprietary applications without being forced to open-source your own code (unlike the GPL).
+- **Patent Protection:** The license grants you explicit patent rights from contributors. If a contributor holds a patent on the code they submitted, you are legally protected to use it.
+- **Modification & Distribution:** You are free to modify the compiler, the runtime, or the standard library, as long as you include the original copyright notices.
+
+Read the full text here: [`LICENSE`](LICENSE). Source: [github.com/vox-foundation/vox](https://github.com/vox-foundation/vox).
+
+### Get Involved
+- **GitHub Discussions**: The primary hub for architecture questions, language design feedback, and roadmap input.
+- **X (Twitter)**: Follow **[@vox_foundation](https://x.com/vox_foundation)** for milestone updates, release notes, and research highlights.
+- **Discord**: Join the **[Vox Developer Discord](https://discord.gg/vox-lang)** to collaborate with engineers, share LLM fine-tunes, and get real-time compiler help.
+- **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelogs and architectural decision records.

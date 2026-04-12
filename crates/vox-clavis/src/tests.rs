@@ -214,7 +214,7 @@ fn resolved_secret_redaction_never_leaks_raw_value() {
     unsafe {
         std::env::set_var("OPENAI_API_KEY", "super-secret-value-123456");
     }
-    let resolved = resolve_env_only(SecretId::OpenAiApiKey);
+    let resolved = resolve_env_only(SecretId::OpenaiApiKey);
     let redacted = resolved.redacted();
     assert!(!redacted.contains("super-secret-value-123456"));
     assert!(redacted.contains("(redacted)") || redacted == "***");
@@ -368,7 +368,7 @@ fn all_secret_ids_have_spec_entries() {
     for &id in &[
         SecretId::GeminiApiKey,
         SecretId::OpenRouterApiKey,
-        SecretId::OpenAiApiKey,
+        SecretId::OpenaiApiKey,
         SecretId::AnthropicApiKey,
         SecretId::HuggingFaceToken,
         SecretId::ForgeToken,
@@ -377,7 +377,7 @@ fn all_secret_ids_have_spec_entries() {
         SecretId::MistralApiKey,
         SecretId::DeepSeekApiKey,
         SecretId::SambaNovaApiKey,
-        SecretId::CustomOpenAiApiKey,
+        SecretId::CustomOpenaiApiKey,
         SecretId::V0ApiKey,
         SecretId::OpenClawToken,
         SecretId::TogetherApiKey,

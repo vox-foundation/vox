@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use hf_hub::api::tokio::Api;
 
 fn normalize_hf_token_env() {
-    let token = vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken).expose();
+    let token_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken);
+    let token = token_resolved.expose();
 
     if let Some(token) = token {
         // hf-hub defaults to HF_TOKEN then HUGGING_FACE_HUB_TOKEN.

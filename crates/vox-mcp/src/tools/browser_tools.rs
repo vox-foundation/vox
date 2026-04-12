@@ -13,8 +13,7 @@ use serde::Deserialize;
 use vox_browser::global_engine;
 
 fn summary_max_chars() -> usize {
-    std::env::var("VOX_BROWSER_LLM_CONTEXT_CHARS")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBrowserLlmContextChars).expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(24_000)
 }

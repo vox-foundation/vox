@@ -136,7 +136,7 @@ struct WsMessageOut {
 
 /// Returns true when `VOX_MCP_HTTP_ENABLED` is truthy.
 pub fn http_gateway_enabled() -> bool {
-    read_bool_env("VOX_MCP_HTTP_ENABLED").unwrap_or(false)
+    read_bool_env(vox_clavis::SecretId::VoxMcpHttpEnabled).unwrap_or(false)
 }
 
 /// Start the optional HTTP+WebSocket gateway in a background task.
@@ -147,13 +147,13 @@ pub fn spawn_http_gateway_if_enabled(
         return Ok(None);
     }
 
-    let bind_host = std::env::var("VOX_MCP_HTTP_HOST")
-        .ok()
+    let bind_host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpHost)
+        .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string());
-    let bind_port = std::env::var("VOX_MCP_HTTP_PORT")
-        .ok()
+    let bind_port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpPort)
+        .expose()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
     let bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
@@ -168,18 +168,18 @@ pub fn spawn_http_gateway_if_enabled(
             .filter(|s| !s.is_empty())
             .map(str::to_string);
     let allow_unauthenticated =
-        read_bool_env("VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED").unwrap_or(false);
+        read_bool_env(vox_clavis::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
     if bearer_token.is_none() && read_bearer_token.is_none() && !allow_unauthenticated {
         anyhow::bail!(
             "VOX_MCP_HTTP_ENABLED=1 requires VOX_MCP_HTTP_BEARER_TOKEN or VOX_MCP_HTTP_READ_BEARER_TOKEN unless VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1 is explicitly set."
         );
     }
     let require_forwarded_https =
-        read_bool_env("VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS").unwrap_or(false);
-    let health_auth_required = read_bool_env("VOX_MCP_HTTP_HEALTH_AUTH").unwrap_or(false);
-    let trust_forwarded_for = read_bool_env("VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR").unwrap_or(false);
-    let calls_per_minute = std::env::var("VOX_MCP_HTTP_RATE_LIMIT_PER_MINUTE")
-        .ok()
+        read_bool_env(vox_clavis::SecretId::VoxMcpHttpRequireForwardedHttps).unwrap_or(false);
+    let health_auth_required = read_bool_env(vox_clavis::SecretId::VoxMcpHttpHealthAuth).unwrap_or(false);
+    let trust_forwarded_for = read_bool_env(vox_clavis::SecretId::VoxMcpHttpTrustXForwardedFor).unwrap_or(false);
+    let calls_per_minute = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpRateLimitPerMinute)
+        .expose()
         .and_then(|s| s.parse::<u32>().ok())
         .filter(|n| *n > 0)
         .unwrap_or(DEFAULT_RATE_LIMIT_PER_MINUTE);
@@ -295,12 +295,14 @@ async fn http_info(
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
         return resp;
     }
-    let bind_host = std::env::var("VOX_MCP_HTTP_HOST")
-        .ok()
+    let bind_host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpHost)
+        .expose()
+        .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string());
-    let bind_port = std::env::var("VOX_MCP_HTTP_PORT")
-        .ok()
+        .unwrap_or(DEFAULT_BIND_HOST)
+        .to_string();
+    let bind_port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpPort)
+        .expose()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
     let mut allowed_tools: Vec<String> = state.allowed_tools.iter().cloned().collect();
@@ -727,12 +729,12 @@ fn enforce_rate_limit(state: &GatewayState, identity: &String) -> std::result::R
 }
 
 fn parse_allowed_tools() -> Result<HashSet<String>> {
-    parse_allowed_tools_from_value(std::env::var("VOX_MCP_HTTP_ALLOWED_TOOLS").ok().as_deref())
+    parse_allowed_tools_from_value(vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpAllowedTools).expose().as_deref())
 }
 
 fn parse_read_role_allowed_tools_override() -> Result<Option<HashSet<String>>> {
-    let explicit = std::env::var("VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS")
-        .ok()
+    let explicit = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpReadRoleAllowedTools)
+        .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     if let Some(csv) = explicit {
@@ -839,8 +841,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     diff == 0
 }
 
-fn read_bool_env(name: &str) -> Option<bool> {
-    std::env::var(name).ok().map(|v| {
+fn read_bool_env(id: vox_clavis::SecretId) -> Option<bool> {
+    vox_clavis::resolve_secret(id).expose().map(|v| {
         let t = v.trim();
         t == "1"
             || t.eq_ignore_ascii_case("true")

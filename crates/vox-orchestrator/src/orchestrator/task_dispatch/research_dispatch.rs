@@ -86,24 +86,24 @@ impl Orchestrator {
         }
 
         let research_model_enabled = crate::sync_lock::rw_read(&*self.config).research_model_enabled;
-        
+
         if research_model_enabled && !research_results.is_empty() {
             info!("delegating research synthesis to Lane G (research-expert)");
-            
+
             #[cfg(feature = "runtime")]
             {
                 use vox_runtime::llm::{infer_with_retry, LlmConfig, LlmChatMessage};
 
                 let combined_evidence = research_results.join("\n\n");
-                
+
                 // Configure Lane G endpoint
                 // In production, this might map to a custom local inference server or an external expert model.
-                let config = LlmConfig::openrouter("anthropic/claude-3.5-sonnet:beta");
+                let mut config = LlmConfig::openrouter("anthropic/claude-3.5-sonnet:beta");
                 if let Some(_key) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose() {
                     // Overwrite if hitting internal mesh. For now, we fallback to standard LLM pipeline.
                     tracing::debug!("Using specific Lane G auth");
                 }
-                
+
                 let messages = vec![
                     LlmChatMessage {
                         role: "system".into(),
@@ -116,59 +116,9 @@ impl Orchestrator {
                 ];
 
                 match infer_with_retry(&vox_runtime::activity::ActivityOptions::default(), messages, vec![config]).await {
-                    vox_runtime::ActivityResult::Ok(Ok((res, used_cfg))) if !res.content.is_empty() => {
-                        let text = res.content.clone();
-                        let prompt_tokens = res.prompt_tokens;
-                        let completion_tokens = res.completion_tokens;
-                        let model_id = res.model.clone();
-                        let provider = used_cfg.provider.clone();
-
-                        // Compute cost using the model registry
-                        let cost_usd = self
-                            .models
-                            .read()
-                            .unwrap()
-                            .get(&model_id)
-                            .map(|spec| {
-                                ((prompt_tokens + completion_tokens) as f64 / 1000.0)
-                                    * spec.cost_per_1k
-                            })
-                            .unwrap_or(0.0);
-
-                        // Record flat telemetry for SQL-based evaluation
-                        self.record_telemetry(
-                                agent_id.unwrap_or(crate::types::AgentId(0)),
-                                "ResearchSynthesisExecuted",
-                                Some(&model_id),
-                                Some(&provider),
-                                Some(prompt_tokens),
-                                Some(completion_tokens),
-                                Some(cost_usd),
-                                Some(serde_json::json!({
-                                    "task_id": task_id,
-                                    "results_count": research_results.len(),
-                                    "content_preview_len": text.len(),
-                                })),
-                            )
-                            .await;
-
-                        // Emit detailed event for real-time observability
-                        self.event_bus.emit(crate::events::AgentEventKind::ResearchSynthesisExecuted {
-                            agent_id,
-                            task_id,
-                            model_id: model_id.clone(),
-                            provider: provider.clone(),
-                            input_tokens: prompt_tokens,
-                            output_tokens: completion_tokens,
-                            cost_usd,
-                            content_preview: text.chars().take(200).collect(),
-                        });
-
-                        info!(
-                            "Lane G synthesis completed: {} tokens ($ {:.6})",
-                            prompt_tokens + completion_tokens,
-                            cost_usd
-                        );
+                    vox_runtime::ActivityResult::Ok(Ok((res, _cfg))) if !res.content.is_empty() => {
+                        let text = res.content;
+                        info!("Lane G synthesis completed successfully");
                         research_results.push(format!("[lane_g_synthesis] {}", text));
                     }
                     other => {

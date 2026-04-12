@@ -70,7 +70,7 @@ enum Qwen35CutoverMode {
 fn qwen35_cutover_mode() -> Qwen35CutoverMode {
     match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQwen35NativeCutover)
         .expose()
-        .unwrap_or_else(|_| "default".to_string())
+        .unwrap_or("default")
         .to_ascii_lowercase()
         .as_str()
     {
@@ -235,9 +235,9 @@ pub fn run_candle_qlora_train(
                 "qwen2 detected while VOX_QWEN35_NATIVE_CUTOVER=shadow; allowing legacy path with warning.",
             ),
             Qwen35CutoverMode::Default => {
-                let allow_legacy = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAllowQwen2Native)
-                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                    .unwrap_or(false);
+                let allow_legacy_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAllowQwen2Native);
+                let allow_legacy = allow_legacy_resolved.expose()
+                    .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
                 if !allow_legacy {
                     anyhow::bail!(
                         "qwen2 native path is disabled by default during qwen3_5 cutover. \
@@ -290,7 +290,8 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
-    let jsonl_policy = if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensTrainJsonlStrict).unwrap_or_default() == "1" {
+    let jsonl_strict_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensTrainJsonlStrict);
+    let jsonl_policy = if jsonl_strict_resolved.expose().is_some_and(|s| s == "1") {
         vox_tensor::data::MalformedJsonlPolicy::FailFast
     } else {
         vox_tensor::data::MalformedJsonlPolicy::Skip

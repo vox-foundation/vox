@@ -73,7 +73,7 @@ pub async fn run_gate(
 ) -> anyhow::Result<()> {
     use std::io::{BufRead, Write};
 
-    let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+    let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
         .expose()
         .map(|s| s.to_string())
         .ok_or_else(|| anyhow::anyhow!("OPENAI_API_KEY missing, required for curator gate"))?;

@@ -1,4 +1,4 @@
-﻿//! Compile a [`crate::types::UnifiedNewsItem`] into a **distribution plan**: per-channel caps,
+//! Compile a [`crate::types::UnifiedNewsItem`] into a **distribution plan**: per-channel caps,
 //! resolved projection profile ids, and a **derivation digest** over canonical inputs (see plan B6).
 //!
 //! SSOT limits: [`contracts/scientia/projection-profiles.v1.yaml`](../../../contracts/scientia/projection-profiles.v1.yaml).

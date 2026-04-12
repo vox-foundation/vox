@@ -277,9 +277,11 @@ pub fn resolve_effective_profile(
     sample_count: Option<usize>,
     overrides: CliOverrides,
 ) -> TrainPresetProfile {
-    let model_hint = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBaseModel).expose().ok();
-    let env_p = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTrainProfile).expose().ok();
-    let name = normalize_preset_name(preset.or(env_p.as_deref()).unwrap_or(DEFAULT_PRESET));
+    let model_hint_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBaseModel);
+    let model_hint = model_hint_resolved.expose();
+    let env_p_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTrainProfile);
+    let env_p = env_p_resolved.expose();
+    let name = normalize_preset_name(preset.or(env_p).unwrap_or(DEFAULT_PRESET));
 
     let mut p = if name == "auto" {
         if let Some(specs) = load_gpu_specs() {

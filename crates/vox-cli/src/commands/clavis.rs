@@ -347,7 +347,7 @@ fn emit_doctor_json_v1(
     for &b in vox_clavis::SecretBundle::variants() {
         let reqs = vox_clavis::requirements_for_bundle(b);
         let b_name = b.doc_name();
-        
+
         let mut ids = std::collections::BTreeSet::new();
         for r in &reqs.blocking {
             match r {
@@ -361,7 +361,7 @@ fn emit_doctor_json_v1(
         for &id in &reqs.optional {
             ids.insert(id);
         }
-        
+
         for id in ids {
             if let Some(list) = ms.get_mut(&id) {
                 list.push(b_name);
@@ -472,7 +472,7 @@ fn emit_doctor_human(
         vox_clavis::backend::vox_vault::cloudless_vault_env_diagnostic()
     );
     println!("active_mode: {resolved_mode:?}");
-    
+
     let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID).unwrap_or_else(|_| "default-account".to_string());
     if account_id == "default-account" {
         println!("warning: VOX_ACCOUNT_ID is default-account; use a unique identifier for vault isolation");

@@ -14,9 +14,9 @@ pub(super) fn select_candle_device(
     kind: DeviceKind,
     allow_cpu_fallback: bool,
 ) -> Result<(Device, String)> {
-    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCandleDevice)
-        .map(|v| v.trim().to_lowercase() == "cpu")
-        .unwrap_or(false)
+    let device_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCandleDevice);
+    if device_resolved.expose()
+        .is_some_and(|v| v.trim().to_lowercase() == "cpu")
     {
         return Ok((Device::Cpu, "cpu(forced)".into()));
     }

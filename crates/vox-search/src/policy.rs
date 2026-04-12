@@ -74,98 +74,6 @@ pub struct SearchPolicy {
 impl Default for SearchPolicy {
     fn default() -> Self {
         let searxng_embedded = embedded_searxng_query_defaults();
-        use vox_clavis::{SecretId, resolve_secret};
-
-        let qdrant_url = resolve_secret(SecretId::VoxSearchQdrantUrl)
-            .expose()
-            .trim()
-            .to_string();
-        let qdrant_url = if qdrant_url.is_empty() {
-            None
-        } else {
-            Some(qdrant_url)
-        };
-
-        let qdrant_collection = resolve_secret(SecretId::VoxSearchQdrantCollection).expose();
-        let qdrant_collection = if qdrant_collection.is_empty() {
-            "vox_docs".to_string()
-        } else {
-            qdrant_collection
-        };
-
-        let qdrant_vector_name = resolve_secret(SecretId::VoxSearchQdrantVectorName)
-            .expose()
-            .trim()
-            .to_string();
-        let qdrant_vector_name = if qdrant_vector_name.is_empty() {
-            None
-        } else {
-            Some(qdrant_vector_name)
-        };
-
-        let tantivy_index_root = resolve_secret(SecretId::VoxSearchTantivyRoot)
-            .expose()
-            .trim()
-            .to_string();
-        let tantivy_index_root = if tantivy_index_root.is_empty() {
-            None
-        } else {
-            Some(std::path::PathBuf::from(tantivy_index_root))
-        };
-
-        let search_pref_rrf = resolve_secret(SecretId::VoxSearchPreferRrf).expose();
-        let prefer_rrf_merge = clavis_parse_bool(&search_pref_rrf, false);
-
-        let tav_en = resolve_secret(SecretId::VoxSearchTavilyEnabled).expose();
-        let tavily_enabled = clavis_parse_bool(&tav_en, false);
-
-        let tav_depth = resolve_secret(SecretId::VoxSearchTavilyDepth).expose();
-        let tavily_search_depth = if tav_depth.is_empty() {
-            "basic".to_string()
-        } else {
-            tav_depth
-        };
-
-        let tav_max = resolve_secret(SecretId::VoxSearchTavilyMaxResults).expose();
-        let tavily_max_results = tav_max.parse().unwrap_or(5);
-
-        let tav_empty = resolve_secret(SecretId::VoxSearchTavilyOnEmpty).expose();
-        let tavily_fire_on_empty = clavis_parse_bool(&tav_empty, true);
-
-        let tav_weak = resolve_secret(SecretId::VoxSearchTavilyOnWeak).expose();
-        let tavily_fire_on_weak = clavis_parse_bool(&tav_weak, false);
-
-        let tav_budget = resolve_secret(SecretId::VoxSearchTavilyBudget).expose();
-        let tavily_credit_budget_per_session = tav_budget.parse().unwrap_or(50);
-
-        let sx_url = resolve_secret(SecretId::VoxSearchSearxngUrl).expose();
-        let searxng_url = if sx_url.is_empty() {
-            None
-        } else {
-            Some(sx_url)
-        };
-
-        let sx_max = resolve_secret(SecretId::VoxSearchSearxngMaxResults).expose();
-        let searxng_max_results = sx_max.parse().unwrap_or(5);
-
-        let sx_scrape = resolve_secret(SecretId::VoxSearchSearxngMaxScrape).expose();
-        let searxng_max_urls_to_scrape = sx_scrape.parse().unwrap_or(3);
-
-        let ddg_no = resolve_secret(SecretId::VoxSearchDdgFallbackDisabled).expose();
-        let duckduckgo_fallback_enabled = !clavis_parse_bool(&ddg_no, false);
-
-        let sc_to = resolve_secret(SecretId::VoxSearchScraperTimeout).expose();
-        let scraper_timeout_ms = sc_to.parse().unwrap_or(5000);
-
-        let rob_res = resolve_secret(SecretId::VoxSearchScraperRobotsRespect).expose();
-        let scraper_robots_txt_respect = clavis_parse_bool(&rob_res, false);
-
-        let min_dens = resolve_secret(SecretId::VoxSearchScraperMinDensity).expose();
-        let scraper_min_text_density = min_dens.parse().unwrap_or(0.15);
-
-        let max_hops = resolve_secret(SecretId::VoxSearchMaxHops).expose();
-        let web_search_max_hops = max_hops.parse().unwrap_or(3);
-
         Self {
             version: SEARCH_POLICY_DEFAULT_VERSION,
             memory_vector_fusion_weight: 0.55,
@@ -182,27 +90,70 @@ impl Default for SearchPolicy {
                 "dist".to_string(),
                 "build".to_string(),
             ],
-            qdrant_url,
-            qdrant_collection,
-            qdrant_vector_name,
-            tantivy_index_root,
-            prefer_rrf_merge,
-            tavily_enabled,
-            tavily_search_depth,
-            tavily_max_results,
-            tavily_fire_on_empty,
-            tavily_fire_on_weak,
-            tavily_credit_budget_per_session,
-            searxng_url,
-            searxng_max_results,
-            searxng_max_urls_to_scrape,
+            qdrant_url: std::env::var("VOX_SEARCH_QDRANT_URL")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| s.trim().to_string()),
+            qdrant_collection: std::env::var("VOX_SEARCH_QDRANT_COLLECTION")
+                .unwrap_or_else(|_| "vox_docs".to_string()),
+            qdrant_vector_name: std::env::var("VOX_SEARCH_QDRANT_VECTOR_NAME")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+            tantivy_index_root: std::env::var("VOX_SEARCH_TANTIVY_ROOT")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .map(std::path::PathBuf::from),
+            prefer_rrf_merge: parse_truthy_env("VOX_SEARCH_PREFER_RRF"),
+            tavily_enabled: parse_truthy_env("VOX_SEARCH_TAVILY_ENABLED"),
+            tavily_search_depth: std::env::var("VOX_SEARCH_TAVILY_DEPTH")
+                .unwrap_or_else(|_| "basic".to_string()),
+            tavily_max_results: std::env::var("VOX_SEARCH_TAVILY_MAX_RESULTS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5),
+            tavily_fire_on_empty: match std::env::var("VOX_SEARCH_TAVILY_ON_EMPTY") {
+                Ok(v) => {
+                    let v = v.trim();
+                    v == "1"
+                        || v.eq_ignore_ascii_case("true")
+                        || v.eq_ignore_ascii_case("yes")
+                        || v.eq_ignore_ascii_case("on")
+                }
+                Err(_) => true,
+            },
+            tavily_fire_on_weak: parse_truthy_env("VOX_SEARCH_TAVILY_ON_WEAK"),
+            tavily_credit_budget_per_session: std::env::var("VOX_SEARCH_TAVILY_BUDGET")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(50),
+            searxng_url: std::env::var("VOX_SEARCH_SEARXNG_URL")
+                .ok()
+                .filter(|s| !s.trim().is_empty()),
+            searxng_max_results: std::env::var("VOX_SEARCH_SEARXNG_MAX_RESULTS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5),
+            searxng_max_urls_to_scrape: std::env::var("VOX_SEARCH_SEARXNG_MAX_SCRAPE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(3),
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),
-            duckduckgo_fallback_enabled,
-            scraper_timeout_ms,
-            scraper_robots_txt_respect,
-            scraper_min_text_density,
-            web_search_max_hops,
+            duckduckgo_fallback_enabled: !parse_falsy_env("VOX_SEARCH_DDG_FALLBACK_DISABLED"),
+            scraper_timeout_ms: std::env::var("VOX_SEARCH_SCRAPER_TIMEOUT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5000),
+            scraper_robots_txt_respect: parse_truthy_env("VOX_SEARCH_SCRAPER_ROBOTS_RESPECT"),
+            scraper_min_text_density: std::env::var("VOX_SEARCH_SCRAPER_MIN_DENSITY")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.15),
+            web_search_max_hops: std::env::var("VOX_SEARCH_MAX_HOPS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(3),
         }
     }
 }
@@ -212,37 +163,83 @@ impl SearchPolicy {
     #[must_use]
     pub fn from_env() -> Self {
         let mut p = Self::default();
-        use vox_clavis::{SecretId, resolve_secret};
-
-        let bm25_k1 = resolve_secret(SecretId::VoxSearchBm25K1).expose();
-        if !bm25_k1.is_empty() {
-            // Note: bm25_k1 is not in SearchPolicy struct yet, but we resolve it for completeness if needed.
+        if let Ok(v) = std::env::var("VOX_SEARCH_POLICY_VERSION")
+            && let Ok(n) = v.parse::<u32>()
+        {
+            p.version = n;
         }
-
-        let bm25_b = resolve_secret(SecretId::VoxSearchBm25B).expose();
-        if !bm25_b.is_empty() {
-            // Note: bm25_b is not in SearchPolicy struct yet.
+        if let Ok(v) = std::env::var("VOX_SEARCH_MEMORY_VECTOR_WEIGHT")
+            && let Ok(w) = v.parse::<f32>()
+        {
+            p.memory_vector_fusion_weight = w.clamp(0.0, 1.0);
         }
-
-        let rrf_k = resolve_secret(SecretId::VoxSearchRrfK).expose();
-        if !rrf_k.is_empty() {
-            // Note: rrf_k is not in SearchPolicy struct yet.
+        if let Ok(v) = std::env::var("VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD")
+            && let Ok(t) = v.parse::<f64>()
+        {
+            p.verification_weak_evidence_threshold = t.clamp(0.0, 1.0);
         }
-
-        let sx_engines = resolve_secret(SecretId::VoxSearchSearxngEngines).expose();
-        if !sx_engines.is_empty() {
-            if let Some(norm) = normalize_searxng_engines_csv(&sx_engines) {
+        if let Ok(v) = std::env::var("VOX_SEARCH_REPO_MAX_FILES")
+            && let Ok(n) = v.parse::<usize>()
+        {
+            p.repo_inventory_max_files = n.max(100);
+        }
+        if let Ok(raw) = std::env::var("VOX_SEARCH_REPO_SKIP_DIRS") {
+            let dirs: Vec<String> = raw
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if !dirs.is_empty() {
+                p.repo_inventory_skip_dirs = dirs;
+            }
+        }
+        if std::env::var("VOX_SEARCH_TAVILY_ENABLED").is_ok() {
+            p.tavily_enabled = parse_truthy_env("VOX_SEARCH_TAVILY_ENABLED");
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_TAVILY_DEPTH") {
+            p.tavily_search_depth = v;
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_TAVILY_MAX_RESULTS")
+            && let Ok(n) = v.parse::<usize>()
+        {
+            p.tavily_max_results = n;
+        }
+        if std::env::var("VOX_SEARCH_TAVILY_ON_EMPTY").is_ok() {
+            p.tavily_fire_on_empty = parse_truthy_env("VOX_SEARCH_TAVILY_ON_EMPTY");
+        }
+        if std::env::var("VOX_SEARCH_TAVILY_ON_WEAK").is_ok() {
+            p.tavily_fire_on_weak = parse_truthy_env("VOX_SEARCH_TAVILY_ON_WEAK");
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_TAVILY_BUDGET")
+            && let Ok(n) = v.parse::<usize>()
+        {
+            p.tavily_credit_budget_per_session = n;
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_MAX_HOPS")
+            && let Ok(n) = v.parse::<u8>()
+        {
+            p.web_search_max_hops = n;
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_SEARXNG_ENGINES") {
+            if let Some(norm) = normalize_searxng_engines_csv(&v) {
                 p.searxng_engines = norm;
+            } else {
+                tracing::warn!(
+                    raw = %v,
+                    "VOX_SEARCH_SEARXNG_ENGINES ignored (allowed: ASCII alnum, comma, hyphen, underscore)"
+                );
             }
         }
-
-        let sx_lang = resolve_secret(SecretId::VoxSearchSearxngLanguage).expose();
-        if !sx_lang.is_empty() {
-            if let Some(norm) = normalize_searxng_language_tag(&sx_lang) {
+        if let Ok(v) = std::env::var("VOX_SEARCH_SEARXNG_LANGUAGE") {
+            if let Some(norm) = normalize_searxng_language_tag(&v) {
                 p.searxng_language = norm;
+            } else {
+                tracing::warn!(
+                    raw = %v,
+                    "VOX_SEARCH_SEARXNG_LANGUAGE ignored (allowed: ASCII alnum and hyphen, max 16 chars)"
+                );
             }
         }
-
         p
     }
 
@@ -292,17 +289,6 @@ fn normalize_searxng_language_tag(raw: &str) -> Option<String> {
         return None;
     }
     Some(t.to_string())
-}
-
-fn clavis_parse_bool(val: &str, default_val: bool) -> bool {
-    let v = val.trim();
-    if v.is_empty() {
-        return default_val;
-    }
-    v == "1"
-        || v.eq_ignore_ascii_case("true")
-        || v.eq_ignore_ascii_case("yes")
-        || v.eq_ignore_ascii_case("on")
 }
 
 fn parse_truthy_env(key: &str) -> bool {

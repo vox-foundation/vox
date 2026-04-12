@@ -41,7 +41,7 @@ fn cache() -> &'static Mutex<Option<Session>> {
 }
 
 fn pick_device() -> Result<Device> {
-    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose().ok().as_deref() == Some("1") {
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose().as_deref() == Some("1") {
         #[cfg(feature = "cuda")]
         {
             return Device::new_cuda(0).map_err(|e| anyhow::anyhow!("CUDA: {e}"));
@@ -203,10 +203,10 @@ fn ensure_session(model_id: &str, revision: &str) -> Result<()> {
 
 /// JSON-friendly status for CLI / tools (weights path is HF cache, not printed).
 pub fn candle_backend_status_json() -> serde_json::Value {
-    let model = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel).expose().unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
-    let rev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision).expose()
-        .unwrap_or_else(|_| default_revision_for_model(&model).to_string());
-    let cuda_requested = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose().ok().as_deref() == Some("1");
+    let model = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel).expose().unwrap_or_else(|| "openai/whisper-tiny.en").to_string();
+    let rev_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision);
+    let rev = rev_secret.expose().unwrap_or_else(|| default_revision_for_model(&model));
+    let cuda_requested = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose().as_deref() == Some("1");
     let cuda_feature = cfg!(feature = "cuda");
     let inference_note = if cuda_feature && !cuda_requested {
         Some(format!(
@@ -243,7 +243,7 @@ impl LanguageEnvOverride {
     /// transcription should run per process at a time, or callers must serialize access.
     #[must_use]
     pub fn set(language: Option<&str>) -> Self {
-        let previous = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().ok();
+        let previous = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().map(|s| s.to_string());
         // SAFETY: single-threaded Whisper session lock is held for the duration of
         // `transcribe_audio_file`; no concurrent readers of `VOX_ORATIO_LANGUAGE` in that window.
         #[allow(unsafe_code)]
@@ -436,8 +436,8 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         anyhow::bail!("no audio samples decoded from {}", path.display());
     }
 
-    let language_override = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().ok();
-    let (text, _) = transcribe_pcm_internal(&pcm, language_override.as_deref())?;
+    let language_override = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage);
+    let (text, _) = transcribe_pcm_internal(&pcm, language_override.expose().as_deref())?;
     Ok(text)
 }
 
@@ -447,24 +447,21 @@ pub fn transcribe_pcm_internal(
     language_override: Option<&str>,
 ) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
     let model_id =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel).expose().unwrap_or_else(|_| "openai/whisper-tiny.en".to_string());
-    let revision = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision).expose()
-        .unwrap_or_else(|_| default_revision_for_model(&model_id).to_string());
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel).expose().unwrap_or_else(|| "openai/whisper-tiny.en").to_string();
+    let rev_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision);
+    let revision = rev_secret.expose().unwrap_or_else(|| default_revision_for_model(&model_id)).to_string();
 
     let chunk_sec_requested = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkSec)
         .expose()
         .and_then(|s: &str| s.parse::<f64>().ok())
         .filter(|&x| x > 0.0);
 
-    let overlap_sec: f64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkOverlapSec)
-        .expose()
-        .and_then(|s: &str| s.parse().ok())
+    let chunk_overlap_sec = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkOverlapSec).expose()
+            .and_then(|s| s.parse().ok())
         .filter(|&x| x >= 0.0)
         .unwrap_or(0.5);
 
-    let emit_partial = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioEmitPartialPath)
-        .expose()
-        .ok()
+    let emit_partial: Option<std::path::PathBuf> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioEmitPartialPath).expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| std::path::PathBuf::from(s.trim().to_string()));
 
@@ -481,7 +478,7 @@ pub fn transcribe_pcm_internal(
     });
     let overlap_samples = match chunk_samples {
         Some(cs) => {
-            let max_ov = (overlap_sec * SAMPLE_RATE as f64) as usize;
+            let max_ov = (chunk_overlap_sec * SAMPLE_RATE as f64) as usize;
             let cap = cs.saturating_mul(2).saturating_div(5);
             max_ov.min(cap).min(cs.saturating_sub(1))
         }
@@ -496,7 +493,10 @@ pub fn transcribe_pcm_internal(
     let multilingual = model_is_multilingual(&model_id);
     let lang = language_override
         .map(|s| s.to_string())
-        .or_else(|| vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage).expose().ok());
+        .or_else(|| {
+            let res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage);
+            res.expose().map(String::from)
+        });
 
     let lang_pcm_slice: &[f32] = if windows.len() > 1 {
         let prefix = 30usize.saturating_mul(SAMPLE_RATE);
@@ -566,9 +566,8 @@ pub fn transcribe_pcm_internal(
         }
     };
 
-    let seed: u64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSeed)
-        .expose()
-        .and_then(|s: &str| s.parse().ok())
+    let seed: u64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSeed).expose()
+            .and_then(|s| s.parse().ok())
         .unwrap_or(299_792_458);
     let verbose = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioVerbose).expose().as_deref() == Some("1");
 
@@ -584,8 +583,8 @@ pub fn transcribe_pcm_internal(
 
     let tokenizer_clone = sess.tokenizer.clone();
     let emit_tokens = matches!(
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioStreamTokens),
-        Some(v) if v == "1" || v.eq_ignore_ascii_case("true")
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioStreamTokens).expose(),
+        Some(s) if s == "1" || s.eq_ignore_ascii_case("true")
     );
 
     let mut output_segments = Vec::new();
@@ -819,8 +818,7 @@ impl AsrBackend for CandleWhisperBackend {
                 sample_rate
             );
         }
-        let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
-            .ok()
+        let budget_ms = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs).expose()
             .and_then(|s| s.parse().ok())
             .unwrap_or(25u64);
         let pcm = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(pcm, budget_ms).0;

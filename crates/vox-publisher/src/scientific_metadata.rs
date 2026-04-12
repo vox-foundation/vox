@@ -30,15 +30,6 @@ pub struct ScientificPublicationMetadata {
     pub reproducibility: Option<ReproducibilityAttestation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ethics_and_impact: Option<EthicsAndImpactAttestation>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub distribution: Option<ScientificDistribution>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub supersedes_publication_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub corrects_publication_id: Option<String>,
-    /// Optional logical database revision mapping (Wave-A).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub db_revision: Option<u32>,
 }
 
 impl Default for ScientificPublicationMetadata {
@@ -51,10 +42,6 @@ impl Default for ScientificPublicationMetadata {
             competing_interests_statement: None,
             reproducibility: None,
             ethics_and_impact: None,
-            distribution: None,
-            supersedes_publication_id: None,
-            corrects_publication_id: None,
-            db_revision: None,
         }
     }
 }
@@ -66,24 +53,6 @@ pub struct ScientificAuthor {
     pub orcid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub affiliation: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ror: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ScientificDistribution {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub primary_doi: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub canonical_repo_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub og_image_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preferred_citation: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub embargo_lift_utc: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub distribution_policy_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -180,16 +149,12 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: Some("0000-0001-2345-6789".to_string()),
                 affiliation: None,
-                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             funding_statement: None,
             competing_interests_statement: None,
             reproducibility: None,
             ethics_and_impact: None,
-            distribution: None,
-            supersedes_publication_id: None,
-            corrects_publication_id: None,
         };
         let s = build_scientia_metadata_json("test", None, Some(&sci), None).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();

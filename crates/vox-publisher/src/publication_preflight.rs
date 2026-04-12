@@ -116,18 +116,16 @@ fn collect_destination_readiness(manifest: &PublicationManifest) -> Vec<Destinat
         credential_present: Some(openreview_ready),
     });
 
-    let scholarly_adapter = vox_config::scholarly::scholarly_adapter_from_env();
-    let scholarly_ready = !matches!(
-        scholarly_adapter,
-        vox_config::scholarly::ScholarlyAdapterKind::LocalLedger
-    );
+    let scholarly_adapter_configured = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyAdapter)
+        .expose()
+        .is_some_and(|s| !s.trim().is_empty());
     out.push(DestinationReadinessEntry {
         destination: "scholarly_adapter",
-        ready: scholarly_ready,
-        remediation: if scholarly_ready {
+        ready: scholarly_adapter_configured,
+        remediation: if scholarly_adapter_configured {
             String::new()
         } else {
-            "Set `VOX_SCHOLARLY_ADAPTER` (e.g., zenodo, openreview) for non-local scholarly submission.".to_string()
+            "Set `VOX_SCHOLARLY_ADAPTER` when exercising scholarly submission adapters.".to_string()
         },
         credential_present: None,
     });
@@ -712,37 +710,12 @@ pub fn run_preflight_with_attention(
         });
     }
 
-    if profile == PreflightProfile::NewsInbound {
-        if manifest.source_ref.as_deref().unwrap_or("").trim().is_empty() {
-            findings.push(PreflightFinding {
-                code: "source_url_missing",
-                severity: PreflightSeverity::Error,
-                message: "source_ref (original URL) is required for news_inbound preflight".to_string(),
-            });
-        }
-        if manifest.title.trim().is_empty() {
-            // Already checked above, but keep for profile-specific clarity if needed
-        }
-        if manifest.abstract_text.as_deref().unwrap_or("").trim().is_empty() {
-            findings.push(PreflightFinding {
-                code: "abstract_missing",
-                severity: PreflightSeverity::Error,
-                message: "abstract_text is required for news_inbound profile".to_string(),
-            });
-        }
-        
-        let has_classification = manifest.metadata_json.as_deref()
-            .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
-            .and_then(|v| v.get("classification").cloned())
-            .is_some();
-            
-        if !has_classification {
-            findings.push(PreflightFinding {
-                code: "classification_missing",
-                severity: PreflightSeverity::Warning,
-                message: "Initial classification (metadata_json.classification) is recommended for news_inbound items".to_string(),
-            });
-        }
+    if profile == PreflightProfile::NewsInbound && manifest.source_ref.as_deref().unwrap_or("").trim().is_empty() {
+        findings.push(PreflightFinding {
+            code: "source_url_missing",
+            severity: PreflightSeverity::Error,
+            message: "source_ref (original URL) is required for news_inbound preflight".to_string(),
+        });
     }
 
     if let Some(raw) = manifest.metadata_json.as_deref()
@@ -1288,7 +1261,6 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: None,
                 affiliation: None,
-                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -1309,7 +1281,6 @@ mod tests {
                 name: "Someone Else".to_string(),
                 orcid: None,
                 affiliation: None,
-                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -1389,7 +1360,6 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: None,
                 affiliation: None,
-                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
@@ -1409,7 +1379,6 @@ mod tests {
                 name: "Ada Lovelace".to_string(),
                 orcid: None,
                 affiliation: None,
-                ror: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),
             ethics_and_impact: Some(crate::scientific_metadata::EthicsAndImpactAttestation {

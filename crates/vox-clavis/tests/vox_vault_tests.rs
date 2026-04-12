@@ -16,7 +16,7 @@ fn test_vox_vault_encryption_decryption_cycle() {
     };
 
     let spec = SecretSpec {
-        id: SecretId::CustomOpenAiApiKey,
+        id: SecretId::CustomOpenaiApiKey,
         canonical_env: "FAKE_TARGET_TEST",
         aliases: &[],
         deprecated_aliases: &[],
@@ -35,7 +35,7 @@ fn test_vox_vault_encryption_decryption_cycle() {
 
     // Test read
     let resolved = backend
-        .resolve(SecretId::CustomOpenAiApiKey, spec)
+        .resolve(SecretId::CustomOpenaiApiKey, spec)
         .expect("failed to resolve secret from vault")
         .expect("secret not found after write");
 
@@ -87,7 +87,7 @@ fn test_rewrap_rotation_across_secret_material_kinds() {
     };
     let cases = [
         (
-            SecretId::CustomOpenAiApiKey,
+            SecretId::CustomOpenaiApiKey,
             "ROTATE_API_KEY_KIND",
             "kind-api-key-value",
         ),

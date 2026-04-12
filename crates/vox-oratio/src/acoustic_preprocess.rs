@@ -30,8 +30,11 @@ fn peak_abs(samples: &[f32]) -> f32 {
 }
 
 fn effective_mode() -> &'static str {
-    match std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS") {
-        Ok(s) => {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocess)
+        .expose()
+        .map(|s| s.to_string())
+    {
+        Some(s) => {
             let t = s.trim();
             if t.is_empty() || t == "0" || t.eq_ignore_ascii_case("none") {
                 return "none";
@@ -47,7 +50,7 @@ fn effective_mode() -> &'static str {
             }
             "none"
         }
-        Err(_) => "none",
+        None => "none",
     }
 }
 
@@ -79,8 +82,8 @@ pub fn preprocess_audio_pcm_f32_reported(
     let mut rms_after = 0.0;
 
     let out: Vec<f32> = if mode == "rms_normalize" {
-        let target_rms_dbfs: f32 = std::env::var("VOX_ORATIO_RMS_TARGET_DBFS")
-            .ok()
+        let target_rms_dbfs: f32 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRmsTargetDbfs)
+            .expose()
             .and_then(|s| s.parse().ok())
             .unwrap_or(-18.0_f32);
         let target_rms_linear = 10.0_f32.powf(target_rms_dbfs / 20.0);

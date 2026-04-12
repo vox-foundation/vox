@@ -22,6 +22,24 @@ struct EnvNamesManifest {
     operator_tuning_envs: Vec<String>,
 }
 
+#[derive(serde::Serialize)]
+struct CapabilityRow {
+    id: String,
+    canonical_env: String,
+    aliases: Vec<String>,
+    class: String,
+    auth_registry: Option<String>,
+    capabilities: Vec<String>,
+    bundles: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+struct CapabilitiesManifest {
+    schema: &'static str,
+    generated_at_ms: i64,
+    secrets: Vec<CapabilityRow>,
+}
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -30,19 +48,64 @@ fn now_ms() -> i64 {
 }
 
 pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
+    let mut ms: std::collections::BTreeMap<vox_clavis::SecretId, Vec<&'static str>> =
+        std::collections::BTreeMap::new();
+    for spec in vox_clavis::all_specs() {
+        ms.insert(spec.id, Vec::new());
+    }
+
+    for &b in vox_clavis::SecretBundle::variants() {
+        let reqs = vox_clavis::requirements_for_bundle(b);
+        let b_name = b.doc_name();
+        let mut ids = std::collections::BTreeSet::new();
+        for r in &reqs.blocking {
+            match r {
+                vox_clavis::RequirementSet::AllOf(list) | vox_clavis::RequirementSet::AnyOf(list) => {
+                    for &id in *list {
+                        ids.insert(id);
+                    }
+                }
+            }
+        }
+        for &id in &reqs.optional {
+            ids.insert(id);
+        }
+        for id in ids {
+            if let Some(list) = ms.get_mut(&id) {
+                list.push(b_name);
+            }
+        }
+    }
+
     let specs: Vec<_> = vox_clavis::all_specs()
         .iter()
         .map(|s| ContractRow {
             id: format!("{:?}", s.id),
             canonical_env: s.canonical_env.to_string(),
-            aliases: s.aliases.iter().map(|s| s.to_string()).collect(),
-            deprecated_aliases: s.deprecated_aliases.iter().map(|s| s.to_string()).collect(),
+            aliases: s.aliases.iter().map(|a| a.to_string()).collect(),
+            deprecated_aliases: s.deprecated_aliases.iter().map(|a| a.to_string()).collect(),
             class: format!("{:?}", s.id.metadata().class),
             material_kind: format!("{:?}", s.id.metadata().material_kind),
             capabilities: vox_clavis::capabilities_for_secret(s.id)
                 .iter()
                 .map(|c| format!("{c:?}"))
                 .collect(),
+        })
+        .collect();
+
+    let cap_rows: Vec<_> = vox_clavis::all_specs()
+        .iter()
+        .map(|s| CapabilityRow {
+            id: format!("{:?}", s.id),
+            canonical_env: s.canonical_env.to_string(),
+            aliases: s.aliases.iter().map(|a| a.to_string()).collect(),
+            class: format!("{:?}", s.id.metadata().class),
+            auth_registry: s.auth_registry.map(|x| x.to_string()),
+            capabilities: vox_clavis::capabilities_for_secret(s.id)
+                .iter()
+                .map(|c| format!("{c:?}"))
+                .collect(),
+            bundles: ms.get(&s.id).cloned().unwrap_or_default().into_iter().map(|x| x.to_string()).collect(),
         })
         .collect();
 
@@ -57,11 +120,20 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
         operator_tuning_envs: all_operator_envs.into_iter().collect(),
     };
 
+    let cap_manifest = CapabilitiesManifest {
+        schema: "contracts/clavis/secret-capabilities.v1.json",
+        generated_at_ms: now_ms(),
+        secrets: cap_rows,
+    };
+
     let out = root.join("contracts/clavis/managed-env-names.v1.json");
     if let Some(p) = out.parent() {
         fs::create_dir_all(p)?;
     }
     fs::write(&out, serde_json::to_string_pretty(&manifest)?)?;
+
+    let cap_out = root.join("contracts/clavis/secret-capabilities.v1.json");
+    fs::write(&cap_out, serde_json::to_string_pretty(&cap_manifest)?)?;
 
     let mut md_lines = Vec::new();
     let mut names: Vec<String> = vox_clavis::managed_secret_env_names()
@@ -90,3 +162,4 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
     println!("clavis-contracts OK: {} secrets", manifest.secrets.len());
     Ok(())
 }
+

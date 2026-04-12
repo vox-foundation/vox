@@ -179,7 +179,7 @@ pub(super) fn env_unwrap_or_duplicate_findings(
                 file: file.path.clone(),
                 line: ln,
                 column: 0,
-                message: "Same `unwrap_or(\"…\")` default repeated on multiple `std::env::var` lines — centralize (const / policy / SSOT)"
+                message: "Same `unwrap_or(\"…\")` default repeated on multiple `std::env::var` / `vox_clavis::resolve_secret` lines — centralize (const / policy / SSOT)"
                     .to_string(),
                 suggestion: Some(format!("Literal default appears {}×: `{lit}`", lines.len())),
                 context: file.context_around(ln, 1),

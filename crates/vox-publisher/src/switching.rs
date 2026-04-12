@@ -197,10 +197,6 @@ fn normalize_distribution_json_value_with_warnings(
         "reddit",
         "hacker_news",
         "youtube",
-        "bluesky",
-        "mastodon",
-        "linkedin",
-        "discord",
         "crates_io",
     ] {
         if let Some(payload) = payloads.get(key) {
@@ -312,18 +308,6 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
     if !has("crates_io") {
         item.syndication.crates_io = None;
     }
-    if !has("bluesky") {
-        item.syndication.bluesky = None;
-    }
-    if !has("mastodon") {
-        item.syndication.mastodon = None;
-    }
-    if !has("linkedin") {
-        item.syndication.linkedin = None;
-    }
-    if !has("discord") {
-        item.syndication.discord = None;
-    }
 }
 
 /// Return channel ids that failed in a publication result.
@@ -343,10 +327,6 @@ pub fn failed_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
-    maybe("bluesky", &result.bluesky);
-    maybe("mastodon", &result.mastodon);
-    maybe("linkedin", &result.linkedin);
-    maybe("discord", &result.discord);
     out
 }
 
@@ -367,10 +347,6 @@ pub fn successful_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
-    maybe("bluesky", &result.bluesky);
-    maybe("mastodon", &result.mastodon);
-    maybe("linkedin", &result.linkedin);
-    maybe("discord", &result.discord);
     out
 }
 
@@ -409,10 +385,6 @@ fn outcome_for_channel<'a>(result: &'a SyndicationResult, ch: &str) -> Option<&'
         "hacker_news" => &result.hacker_news,
         "youtube" => &result.youtube,
         "crates_io" => &result.crates_io,
-        "bluesky" => &result.bluesky,
-        "mastodon" => &result.mastodon,
-        "linkedin" => &result.linkedin,
-        "discord" => &result.discord,
         _ => return None,
     })
 }

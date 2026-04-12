@@ -6,6 +6,8 @@ pub(crate) struct HttpCallMetadata {
 
 /// Base URL for Ollama (`OLLAMA_HOST` or Mens local default).
 pub(crate) fn ollama_base_url() -> String {
-    std::env::var("OLLAMA_HOST")
-        .unwrap_or_else(|_| vox_config::inference::local_ollama_populi_base_url())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOllamaHost)
+        .expose()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| vox_config::inference::local_ollama_populi_base_url())
 }

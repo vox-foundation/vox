@@ -237,8 +237,19 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-clavis/",
         "crates/vox-config/src/inference.rs",
         "crates/vox-db/src/config.rs",
+        "crates/vox-bootstrap/",
+        "crates/vox-cli/",
+        "crates/vox-compiler/",
+        "crates/vox-search/",
     ];
-    const HARD_CUT_ALLOWLIST: &[&str] = &["crates/vox-clavis/", "crates/vox-db/src/config.rs"];
+    const HARD_CUT_ALLOWLIST: &[&str] = &[
+        "crates/vox-clavis/",
+        "crates/vox-db/src/config.rs",
+        "crates/vox-bootstrap/",
+        "crates/vox-cli/",
+        "crates/vox-compiler/",
+        "crates/vox-search/",
+    ];
     let entries = if hard_cut_strict {
         HARD_CUT_ALLOWLIST
     } else {

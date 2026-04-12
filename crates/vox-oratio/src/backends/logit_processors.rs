@@ -278,13 +278,14 @@ fn try_load_lexicon_path(path: &Path) -> Option<crate::speech_lexicon::SpeechLex
 
 fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
     let mut acc = crate::speech_lexicon::SpeechLexicon::default();
-    if let Ok(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSpeechLexiconPath).expose() {
+    if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSpeechLexiconPath).expose() {
         let path = Path::new(p.trim());
         if let Some(lex) = try_load_lexicon_path(path) {
             acc.merge_from(lex);
         }
     }
-    let repo_root = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose().ok();
+    let repo_root_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot);
+    let repo_root = repo_root_resolved.expose();
     if let Some(root) = repo_root {
         let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
         if let Some(lex) = try_load_lexicon_path(&candidate) {
@@ -306,7 +307,7 @@ fn phrase_list_for_bias() -> Vec<String> {
     if let Some(lex) = load_lexicon_from_env() {
         out.extend(lex.bias_phrases_sorted(256));
     }
-    if let Ok(hot) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords).expose() {
+    if let Some(hot) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords).expose() {
         out.extend(crate::contextual_bias::parse_hotword_csv(&hot));
     }
     let mut seen = HashSet::new();
@@ -315,7 +316,7 @@ fn phrase_list_for_bias() -> Vec<String> {
 }
 
 fn trie_phrase_list() -> Vec<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioConstrainedPhrases)
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioConstrainedPhrases).expose()
         .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
         .unwrap_or_default()
 }
@@ -327,12 +328,10 @@ pub fn build_logit_processor(
 ) -> Result<Box<dyn LogitProcessor>> {
     let mut chain: Vec<Box<dyn LogitProcessor>> = Vec::new();
 
-    let bias_strength = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitBiasStrength)
-        .ok()
+    let bias_strength = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitBiasStrength).expose()
         .and_then(|s| s.parse::<f32>().ok())
         .unwrap_or_else(|| cfg.map(|c| c.bias_strength).unwrap_or(0.8));
-    let max_bias_tokens = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitBiasMaxTokens)
-        .ok()
+    let max_bias_tokens = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitBiasMaxTokens).expose()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(|| cfg.map(|c| c.bias_max_tokens).unwrap_or(256))
         .max(1);
@@ -359,8 +358,7 @@ pub fn build_logit_processor(
         }
     }
 
-    let forbidden: Vec<u32> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitForbidTokens)
-        .ok()
+    let forbidden: Vec<u32> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLogitForbidTokens).expose()
         .map(|s| {
             s.split([',', ';', ' ', '\n'])
                 .filter_map(|x| x.trim().parse::<u32>().ok())
@@ -372,12 +370,11 @@ pub fn build_logit_processor(
     }
 
     let trie_on = matches!(
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioConstrainedTrie),
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioConstrainedTrie).expose(),
         Some(v) if v == "1" || v.eq_ignore_ascii_case("true")
     ) || cfg.map(|c| c.constrained_trie).unwrap_or(false);
     if trie_on {
-        let max_stuck = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioTrieStuckSteps)
-            .ok()
+        let max_stuck = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioTrieStuckSteps).expose()
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or_else(|| cfg.map(|c| c.trie_stuck_steps).unwrap_or(2));
         let seqs: Vec<Vec<u32>> = trie_phrase_list()

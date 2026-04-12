@@ -39,7 +39,7 @@ pub struct McpInferRouting<'a> {
 
 /// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
 fn should_emit_llm_cost_events(state: &ServerState) -> bool {
-    match std::env::var("VOX_MCP_LLM_COST_EVENTS").ok() {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpLlmCostEvents).expose() {
         Some(v) => {
             let v = v.trim();
             if v == "0" || v.eq_ignore_ascii_case("false") {
