@@ -21,6 +21,17 @@ pub enum PopuliMensTail {
         policy: Option<PathBuf>,
     },
 
+    /// Check for catastrophic forgetting against a static benchmark
+    #[command(name = "eval-collateral-damage", visible_alias = "eval")]
+    EvalCollateralDamage {
+        /// Baseline score JSON path
+        #[arg(long)]
+        pre_score: PathBuf,
+        /// Adapter path to evaluate
+        #[arg(long, id = "post")]
+        post_adapter: PathBuf,
+    },
+
     /// Benchmark FIM completion server latency
     BenchCompletion {
         /// URL of the completions API Endpoint

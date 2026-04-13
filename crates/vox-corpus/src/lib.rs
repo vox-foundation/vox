@@ -13,3 +13,4 @@ pub mod synthetic_search_gen;
 pub mod tool_workflow_corpus;
 pub mod research_gen;
 pub mod training;
+pub mod ast_mutator;

@@ -138,7 +138,10 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
         let known = Arc::clone(&existing_arc);
         let handle = tokio::spawn(async move {
             match crate::pipeline::run_frontend(&path, false).await {
-                Ok(result) if !result.has_errors() => {
+                Ok(mut result) if !result.has_errors() => {
+                    // W2: Apply AST-aware mutator hook before building training record
+                    vox_corpus::ast_mutator::mutate_module(&mut result.hir);
+
                     // Build record first to check the hash
                     match crate::training::build_training_record(&path, &result) {
                         Ok(record) => {
@@ -497,5 +500,54 @@ pub(super) async fn run_prompt(output: &Path) -> Result<()> {
         prompt.lines().count()
     );
 
+    Ok(())
+}
+
+pub(super) async fn run_heal_to_dpo(input: Option<std::path::PathBuf>, output: &Path) -> Result<()> {
+    let base = std::path::PathBuf::from(".");
+    let input_path = input.unwrap_or_else(|| base.join(".vox").join("corpus").join("heal_pairs.jsonl"));
+    
+    if !input_path.exists() {
+        eprintln!("No heal_pairs.jsonl found at {}", input_path.display());
+        return Ok(());
+    }
+
+    let content = crate::commands::ci::bounded_read::read_utf8_path_capped_async(&input_path).await?;
+    let mut pairs = Vec::new();
+    
+    for line in content.lines() {
+        if line.trim().is_empty() { continue; }
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
+            let attempts = value.get("attempts").and_then(|v| v.as_u64()).unwrap_or(0);
+            if attempts == 1 {
+                let prompt = format!("{}\n\nCompiler Diagnostics:\n{}", 
+                    value.get("description").and_then(|v| v.as_str()).unwrap_or(""),
+                    value.get("diagnostics").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n")).unwrap_or_default()
+                );
+                
+                let pair = serde_json::json!({
+                    "prompt": prompt,
+                    "chosen": value.get("repaired_source"),
+                    "rejected": value.get("failed_source"),
+                    "category": "vox_heal_dpo",
+                    "attempts": attempts,
+                });
+                pairs.push(pair);
+            }
+        }
+    }
+    
+    if let Some(parent) = output.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    
+    let mut body = String::new();
+    for pair in &pairs {
+        body.push_str(&serde_json::to_string(pair)?);
+        body.push('\n');
+    }
+    tokio::fs::write(output, body).await?;
+    
+    println!("✓ Extracted {} DPO pairs from heal logs -> {}", pairs.len(), output.display());
     Ok(())
 }

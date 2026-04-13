@@ -526,6 +526,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 std::process::exit(code);
             }
 
+            super::mens_tail_subcommands::PopuliMensTail::EvalCollateralDamage { pre_score, post_adapter } => {
+                #[cfg(not(feature = "gpu"))]
+                let _ = (pre_score, post_adapter);
+                
+                #[cfg(feature = "gpu")]
+                crate::commands::mens::eval_collateral::run_collateral_damage(pre_score, post_adapter)?;
+                Ok(())
+            }
+
             super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
                 url,
                 count,

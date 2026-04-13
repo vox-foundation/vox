@@ -191,6 +191,16 @@ pub enum CorpusAction {
         )]
         output: std::path::PathBuf,
     },
+    /// Convert heal_pairs.jsonl into DPO preference pairs
+    #[command(name = "heal-to-dpo")]
+    HealToDpo {
+        /// Input JSONL file
+        #[arg(short, long)]
+        input: Option<std::path::PathBuf>,
+        /// Output JSONL file
+        #[arg(short, long, default_value = "target/dogfood/preference_pairs.jsonl")]
+        output: std::path::PathBuf,
+    },
     /// Generate synthetic research multi-hop chains
     ResearchGen {
         /// Output JSONL file
@@ -448,6 +458,9 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 output.display()
             );
             Ok(())
+        }
+        CorpusAction::HealToDpo { input, output } => {
+            generate::run_heal_to_dpo(input, &output).await
         }
         CorpusAction::ResearchGen { output, count } => {
             if let Some(p) = output.parent() {
