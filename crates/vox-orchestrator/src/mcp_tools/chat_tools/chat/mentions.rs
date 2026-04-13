@@ -1,12 +1,14 @@
 use regex::Regex;
 use std::sync::LazyLock;
+use std::sync::Arc;
+use std::collections::HashMap;
 
 use super::super::params::ChatMessageParams;
 
 static MENTION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap());
 
-pub(crate) fn chat_grounding_score(params: &ChatMessageParams, mention_count: usize) -> f64 {
+pub fn chat_grounding_score(params: &ChatMessageParams, mention_count: usize) -> f64 {
     let mut n = 0u32;
     if !params.open_files.is_empty() {
         n += 1;
@@ -55,7 +57,7 @@ fn rebuild_mention_basename_index(
     map
 }
 
-pub(crate) fn safe_truncate_for_prompt(content: &str, max_bytes: usize) -> String {
+pub fn safe_truncate_for_prompt(content: &str, max_bytes: usize) -> String {
     if content.len() <= max_bytes {
         return content.to_string();
     }
@@ -97,37 +99,25 @@ fn pick_mention_path(
 pub(super) fn resolve_mentions(
     prompt: &str,
     workspace_root: &std::path::Path,
-    cache: &std::sync::Arc<
-        std::sync::Mutex<
-            Option<(
-                std::path::PathBuf,
-                std::sync::Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>>,
-            )>,
-        >,
-    >,
+    cache: &Arc<parking_lot::Mutex<Option<(std::path::PathBuf, Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>>)>>>,
 ) -> (String, Vec<String>) {
     let mut expanded = prompt.to_string();
     let mut resolved_files = Vec::new();
 
-    let index: std::sync::Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>> = {
-        let mut guard = match cache.lock() {
-            Ok(g) => g,
-            Err(_) => {
-                return (expanded, resolved_files);
-            }
-        };
+    let index: Arc<HashMap<String, Vec<std::path::PathBuf>>> = {
+        let mut guard = cache.lock();
         let need_rebuild = guard
             .as_ref()
             .map(|(root, _)| root != workspace_root)
             .unwrap_or(true);
         if need_rebuild {
             let m = rebuild_mention_basename_index(workspace_root);
-            *guard = Some((workspace_root.to_path_buf(), std::sync::Arc::new(m)));
+            *guard = Some((workspace_root.to_path_buf(), Arc::new(m)));
         }
         guard
             .as_ref()
-            .map(|(_, m)| std::sync::Arc::clone(m))
-            .unwrap_or_else(|| std::sync::Arc::new(std::collections::HashMap::new()))
+            .map(|(_, m)| Arc::clone(m))
+            .unwrap_or_else(|| Arc::new(HashMap::new()))
     };
 
     for cap in MENTION_RE.captures_iter(prompt) {

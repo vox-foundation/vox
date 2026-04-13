@@ -55,6 +55,7 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
                 collective_slug: "slug".to_string(),
+                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: false,
@@ -121,6 +122,7 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
                 collective_slug: "slug".to_string(),
+                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: false,

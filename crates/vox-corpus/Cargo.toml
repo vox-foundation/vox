@@ -28,6 +28,7 @@ serde_yaml = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
+rayon = { workspace = true }
 xxhash-rust = { workspace = true }
 syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
 quote = "1.0"

@@ -58,9 +58,9 @@ TOESTUB rule IDs are emitted as shown below (see `crates/vox-toestub/src/detecto
 - **When adding a new scratch pattern:** prefer one **general** root-anchored rule over many exact names; cross-check `.gitignore` (e.g. root JSON error dumps use patterns like `/check_err*.json`, not a duplicate ad hoc list here).
 - **Optional cleanup:** `cargo clean` (honors `.cargo/config.toml` `CARGO_TARGET_DIR`); for Windows file locks, close processes holding the binary, then remove leftover rename trees or run **`vox ci artifact-prune --apply`** after review.
 
-## God Object Lock
+## God Object Limit (Multi-Tier)
 
-Files exceeding **500 lines** or structs with **> 12 methods** are locked for new features.
+Soft Info `300 lines`, Warning `400 lines`, Error `500 lines` or `12 methods` per class/struct. This enforces small contextual density for MENS training. Suppressions for legacy files are tracked in `contracts/toestub/suppressions.v1.json`.
 Before adding to them, refactor into traits and sub-modules first.
 
 Affected files as of March 2026:

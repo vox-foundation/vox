@@ -8,7 +8,7 @@ use crate::mcp_tools::params::{
     VoxCheckResponse,
 };
 use crate::mcp_tools::server_state::ServerState;
-use std::path::Path;
+
 
 /// Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
 pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> String {

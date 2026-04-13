@@ -7,7 +7,7 @@
 //! - `mix` — merge sources per `mens/config/mix.yaml`
 //! - `prompt` — auto-generate system prompt from construct reference
 
-mod generate;
+pub(crate) mod generate;
 mod stats;
 mod validate;
 

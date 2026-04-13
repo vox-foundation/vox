@@ -66,7 +66,7 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
 
     let question = prompt_canonical::canonicalize_simple(&params.question);
     let q_router = orch.qa_router_handle();
-    let mut q_guard = match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
+    let q_guard = match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
         Ok(g) => g,
         Err(e) => {
             return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
@@ -102,7 +102,7 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
     let answer = params.answer.clone();
     let corr_id = crate::types::CorrelationId(params.correlation_id);
     let q_router = orch.qa_router_handle();
-    let mut q_guard = match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
+    let q_guard = match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
         Ok(g) => g,
         Err(e) => {
             return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)

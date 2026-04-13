@@ -33,7 +33,9 @@ pub async fn run(
 
     let all_possible_stages = [
         PipelineStage::Generate,
+        PipelineStage::ResearchGen,
         PipelineStage::Extract,
+        PipelineStage::HealToDpo,
         PipelineStage::Replay,
         PipelineStage::ReviewIngest,
         PipelineStage::ReviewDatasetBuild,
@@ -179,6 +181,25 @@ pub async fn run(
                         min_score: 4.0, // High quality only for auto-replay
                         output: PathBuf::from("mens/data/mix_sources/autofeedback.jsonl"),
                         limit: 1000,
+                    })
+                    .await?;
+                }
+            }
+            PipelineStage::HealToDpo => {
+                if !dry_run {
+                    let input = PathBuf::from("~/.vox/corpus/heal_pairs.jsonl");
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::HealToDpo {
+                        input: Some(input),
+                        output: PathBuf::from("target/dogfood/preference_pairs.jsonl"),
+                    })
+                    .await?;
+                }
+            }
+            PipelineStage::ResearchGen => {
+                if !dry_run {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::ResearchGen {
+                        output: PathBuf::from("mens/data/research-lane-sft.jsonl"),
+                        count: 1000,
                     })
                     .await?;
                 }

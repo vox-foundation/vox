@@ -191,7 +191,7 @@ pub async fn maybe_refine_plan(
     let mut tokens_spent: u32 = 0;
     let mut prev_fingerprint: Option<u64> = None;
     let mut oscillation_strikes: u8 = 0;
-    let mut last_gap: Option<PlanRefinementReport> = Some(starting_report);
+    let mut last_gap: Option<PlanRefinementReport>;
 
     loop {
         let gap_report = plan_gap::analyze_plan_gaps(
@@ -325,7 +325,7 @@ pub async fn maybe_refine_plan(
         let system_prompt = build_system_prompt(state, None).await;
         let max_out = refine_max_output_cap(params, token_budget.saturating_sub(tokens_spent));
 
-        let mut used_total: u64 = 0;
+        let mut used_total: u64;
         let mut response_json = match mcp_infer_completion(
             state,
             model.clone(),

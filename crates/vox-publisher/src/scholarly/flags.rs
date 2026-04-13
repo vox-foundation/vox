@@ -76,7 +76,7 @@ pub fn zenodo_staging_dir() -> Option<std::path::PathBuf> {
 }
 
 /// Comma-separated relative names to upload from [`zenodo_staging_dir`] (e.g. `body.md,zenodo.json`).
-/// When empty, uploads every file that exists from the Zenodo [`crate::submission_package::staging_artifacts`] plan
+/// When empty, uploads every file that exists from the Zenodo [`crate::submission::staging_artifacts`] plan
 /// except `arxiv_bundle.tar.gz` / `arxiv_handoff.json`.
 #[must_use]
 pub fn zenodo_upload_allowlist() -> Vec<String> {

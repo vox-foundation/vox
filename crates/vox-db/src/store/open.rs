@@ -116,12 +116,12 @@ impl crate::VoxDb {
 
         // Single maintained baseline: only `BASELINE_VERSION` (or 0 pre-bootstrap) is valid.
         // `MAX(schema_version)` from ad-hoc `apply_migrations` rows also trips this guard.
-        if current_version > 0 && current_version != BASELINE_VERSION {
+        if current_version > BASELINE_VERSION {
             tracing::warn!(
                 target: "vox_db::legacy_schema",
                 schema_max = current_version,
                 baseline = BASELINE_VERSION,
-                "schema_version chain is not the current baseline; use connect_legacy_export_only / codex export-legacy, then migrate per voxdb cutover runbook"
+                "database schema is newer than this binary; upgrade vox for compatibility."
             );
             return Err(StoreError::LegacySchemaChain {
                 max_version: current_version,

@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use crate::mcp_tools::params::{RunTestsParams, ToolResult};
 use crate::mcp_tools::server_state::ServerState;
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use super::speech_constraints;
 
 const REM_CARGO_DISABLED: &str = "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
 const REM_CARGO_TEST: &str = "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
@@ -438,14 +438,14 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .get("max_retries")
         .and_then(|v| v.as_u64())
         .unwrap_or(2)
-        .min(crate::speech_constraints::SPEECH_CODE_MAX_REPAIR_ATTEMPTS as u64);
+        .min(speech_constraints::SPEECH_CODE_MAX_REPAIR_ATTEMPTS as u64);
     let output_surface_mode = match args
         .get("output_surface_mode")
         .and_then(|v| v.as_str())
         .unwrap_or("raw_code_only")
     {
-        "fenced_transport" => crate::mcp_tools::speech_constraints::OutputSurfaceMode::FencedTransport,
-        _ => crate::mcp_tools::speech_constraints::OutputSurfaceMode::RawCodeOnly,
+        "fenced_transport" => speech_constraints::OutputSurfaceMode::FencedTransport,
+        _ => speech_constraints::OutputSurfaceMode::RawCodeOnly,
     };
     let output_path_arg = args
         .get("output_path")
@@ -469,69 +469,118 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
     let started = Instant::now();
     let mut first_valid_ms: Option<u128> = None;
     let mut surface_contract_failures: u64 = 0;
-    let mut repair_stalled = false;
+    let repair_stalled = false;
     let mut routing_recorded = false;
 
     let grammar_addon =
-        crate::speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
-    let decode_policy = crate::speech_constraints::ConstrainedDecodePolicy::from_env();
-    decode_policy.note_delegation_target();
+        speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
+    let decode_policy = speech_constraints::ConstrainedDecodePolicy::from_env();
 
     loop {
-        let hint_stub = crate::speech_constraints::TypeHintStub;
-        let output_surface_instruction = match output_surface_mode {
-            crate::mcp_tools::speech_constraints::OutputSurfaceMode::RawCodeOnly => {
-                "- Return ONLY raw .vox code (no markdown fences, no prose).\n"
-            }
-            crate::mcp_tools::speech_constraints::OutputSurfaceMode::FencedTransport => {
-                "- Wrap output in a ```vox fenced code block.\n"
-            }
-        };
-        let system_prompt = format!(
-            "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
-             Rules:\n\
-             - Only output the code, no explanation.\n\
-             {}\n",
-            output_surface_instruction,
-            grammar_addon,
-            hint_stub.system_prompt_addon(),
-            crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
-        );
+        let (model, system_prompt, free_only, pref) = if decode_policy == speech_constraints::ConstrainedDecodePolicy::Rigid {
+            let hint_stub = speech_constraints::TypeHintStub;
+            let output_surface_instruction = match output_surface_mode {
+                speech_constraints::OutputSurfaceMode::RawCodeOnly => {
+                    "- Return ONLY raw .vox code (no markdown fences, no prose).\n"
+                }
+                speech_constraints::OutputSurfaceMode::FencedTransport => {
+                    "- Wrap output in a ```vox fenced code block.\n"
+                }
+            };
+            let sys = format!(
+                "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
+                 Rules:\n\
+                 - Only output the code, no explanation.\n\
+                 {}\n\
+                 {}\n\
+                 {}\n\
+                 {}\n",
+                output_surface_instruction,
+                grammar_addon,
+                hint_stub.system_prompt_addon(),
+                crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
+            );
 
-        let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
-            complexity: 2,
-            ..Default::default()
-        };
+            let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
+                complexity: 2,
+                ..Default::default()
+            };
 
-        let pref = match crate::mcp_tools::sync_poison::poison_rw_read(
-            state.mcp_chat_model_override.read(),
-            "mcp_chat_model_override",
-        ) {
-            Ok(g) => g.clone(),
-            Err(e) => {
-                return ToolResult::<String>::err_with_remediation(
-                    e.to_string(),
-                    REM_MCP_MODEL_LOCK,
-                )
-                .to_json();
-            }
-        };
-        let (model, free_only) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
-            state,
-            &current_prompt,
-            resolution_template.clone(),
-            session_id.as_deref(),
-        )
-        .await
-        {
-            Ok(pair) => pair,
-            Err(e) => {
-                return ToolResult::<String>::err_with_remediation(
-                    format!("No model: {e}"),
-                    REM_MCP_MODEL_RESOLVE,
-                )
-                .to_json();
-            }
+            let p: Option<String> = match crate::mcp_tools::sync_poison::poison_rw_read(
+                state.mcp_chat_model_override.read(),
+                "mcp_chat_model_override",
+            ) {
+                Ok(g) => (*g).clone(),
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        e.to_string(),
+                        REM_MCP_MODEL_LOCK,
+                    )
+                    .to_json();
+                }
+            };
+            let (m, f) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
+                state,
+                &current_prompt,
+                resolution_template.clone(),
+                session_id.as_deref(),
+            )
+            .await
+            {
+                Ok(pair) => pair,
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("No model: {e}"),
+                        REM_MCP_MODEL_RESOLVE,
+                    )
+                    .to_json();
+                }
+            };
+            (m, sys, f, p)
+        } else {
+            // Fallback for None/Soft policy
+            let sys = format!(
+                "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
+                 Rules:\n\
+                 - Only output the code, no explanation.\n\
+                 {}\n",
+                crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
+            );
+            let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
+                complexity: 2,
+                ..Default::default()
+            };
+            let p: Option<String> = match crate::mcp_tools::sync_poison::poison_rw_read(
+                state.mcp_chat_model_override.read(),
+                "mcp_chat_model_override",
+            ) {
+                Ok(g) => (*g).clone(),
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        e.to_string(),
+                        REM_MCP_MODEL_LOCK,
+                    )
+                    .to_json();
+                }
+            };
+            let (m, f) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
+                state,
+                &current_prompt,
+                resolution_template.clone(),
+                session_id.as_deref(),
+            )
+            .await
+            {
+                Ok(pair) => pair,
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("No model: {e}"),
+                        REM_MCP_MODEL_RESOLVE,
+                    )
+                    .to_json();
+                }
+            };
+            (m, sys, f, p)
         };
 
         if !routing_recorded {
@@ -558,7 +607,10 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         let routing = crate::mcp_tools::llm_bridge::McpInferRouting {
             user_prompt: &current_prompt,
             sticky_model_pref: pref.as_deref(),
-            resolution_template,
+            resolution_template: crate::mcp_tools::llm_bridge::McpChatModelResolution {
+                complexity: 2,
+                ..Default::default()
+            },
             free_only,
             allow_cloud_ollama_fallback: true,
             user_id: session_id.as_deref(),
@@ -589,16 +641,16 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         let normalized = vox_compiler::generated_vox::normalize_generated_vox(
             &completion,
             match output_surface_mode {
-                crate::mcp_tools::speech_constraints::OutputSurfaceMode::RawCodeOnly => {
+                speech_constraints::OutputSurfaceMode::RawCodeOnly => {
                     vox_compiler::generated_vox::OutputSurfaceMode::RawCodeOnly
                 }
-                crate::mcp_tools::speech_constraints::OutputSurfaceMode::FencedTransport => {
+                speech_constraints::OutputSurfaceMode::FencedTransport => {
                     vox_compiler::generated_vox::OutputSurfaceMode::FencedTransport
                 }
             },
         );
         completion = normalized.normalized;
-        if decode_policy.enabled {
+        if decode_policy.is_enabled() {
             if !normalized.surface_contract_ok
                 || !decode_policy.surface_contract_ok(&completion, output_surface_mode)
             {
@@ -652,15 +704,6 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 surface_contract_failures,
                 None,
             );
-            tracing::info!(
-                target: "vox_mcp_speech",
-                time_to_first_valid_ms = started.elapsed().as_millis() as u64,
-                repair_attempts = retry_count + 1,
-                repair_stalled,
-                output_tokens = completion.split_whitespace().count() as u64,
-                surface_contract_failures,
-                "vox_generate_code runtime_kpi"
-            );
             let mut meta = serde_json::json!({ "runtime_generation_kpi": kpi });
             if let Some(ref op) = output_path_arg {
                 match merge_meta_after_codegen_write(
@@ -703,15 +746,6 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 canonical.split_whitespace().count() as u64,
                 surface_contract_failures,
                 None,
-            );
-            tracing::info!(
-                target: "vox_mcp_speech",
-                time_to_first_valid_ms = first_valid_ms.unwrap_or(0) as u64,
-                repair_attempts = retry_count + 1,
-                repair_stalled,
-                output_tokens = canonical.split_whitespace().count() as u64,
-                surface_contract_failures,
-                "vox_generate_code runtime_kpi"
             );
             let mut meta = serde_json::json!({ "runtime_generation_kpi": kpi });
             if let Some(ref op) = output_path_arg {
@@ -762,7 +796,6 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         }
         let sig = hasher.finish();
         if prev_error_sig == Some(sig) {
-            repair_stalled = true;
             let kpi = runtime_generation_kpi(
                 false,
                 true,
@@ -915,7 +948,7 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
             }
         } else if extension == "rs" {
             // Shadow Apply: write, cargo check, revert
-            if let Err(_) = tokio::fs::write(&abs_path, new_text.as_bytes()).await {}
+            let _ = tokio::fs::write(&abs_path, new_text.as_bytes()).await;
             let mut cmd = tokio::process::Command::new("cargo");
             cmd.current_dir(&state.repository.root);
             cmd.arg("check").arg("--message-format=short");

@@ -1,0 +1,197 @@
+use tracing::warn;
+use crate::contract::NewsSiteConfig;
+
+#[derive(Clone)]
+pub struct PublisherConfig {
+    pub twitter_bearer_token: Option<String>,
+    pub forge_token: Option<String>,
+    pub open_collective_token: Option<String>,
+    pub dry_run: bool,
+    pub site: NewsSiteConfig,
+    pub twitter_api_base: Option<String>,
+    pub forge_rest_base: Option<String>,
+    pub forge_graphql_url: Option<String>,
+    pub opencollective_graphql_url: Option<String>,
+    pub twitter_text_chunk_max: Option<usize>,
+    pub twitter_truncation_suffix: Option<String>,
+    pub twitter_summary_margin_chars: Option<usize>,
+    pub reddit_selfpost_summary_max: Option<usize>,
+    pub reddit_client_id: Option<String>,
+    pub reddit_client_secret: Option<String>,
+    pub reddit_refresh_token: Option<String>,
+    pub reddit_user_agent: Option<String>,
+    pub youtube_client_id: Option<String>,
+    pub youtube_client_secret: Option<String>,
+    pub youtube_refresh_token: Option<String>,
+    pub youtube_repo_root: Option<std::path::PathBuf>,
+    pub hacker_news_mode: Option<String>,
+    pub youtube_default_category_id: Option<String>,
+    pub worthiness_score: Option<f64>,
+}
+
+impl Default for PublisherConfig {
+    fn default() -> Self {
+        Self {
+            twitter_bearer_token: None,
+            forge_token: None,
+            open_collective_token: None,
+            dry_run: true,
+            site: NewsSiteConfig::default(),
+            twitter_api_base: None,
+            forge_rest_base: None,
+            forge_graphql_url: None,
+            opencollective_graphql_url: None,
+            twitter_text_chunk_max: None,
+            twitter_truncation_suffix: None,
+            twitter_summary_margin_chars: None,
+            reddit_selfpost_summary_max: None,
+            reddit_client_id: None,
+            reddit_client_secret: None,
+            reddit_refresh_token: None,
+            reddit_user_agent: None,
+            youtube_client_id: None,
+            youtube_client_secret: None,
+            youtube_refresh_token: None,
+            youtube_repo_root: None,
+            hacker_news_mode: None,
+            youtube_default_category_id: None,
+            worthiness_score: None,
+        }
+    }
+}
+
+pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
+    "VOX_NEWS_SITE_BASE_URL",
+    "VOX_NEWS_RSS_FEED_PATH",
+    "VOX_NEWS_TWITTER_TOKEN",
+    "VOX_NEWS_FORGE_TOKEN",
+    "VOX_NEWS_OPENCOLLECTIVE_TOKEN",
+    "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
+    "VOX_NEWS_TWITTER_TRUNCATION_SUFFIX",
+    "VOX_SOCIAL_REDDIT_CLIENT_ID",
+    "VOX_SOCIAL_REDDIT_CLIENT_SECRET",
+    "VOX_SOCIAL_REDDIT_REFRESH_TOKEN",
+    "VOX_SOCIAL_REDDIT_USER_AGENT",
+    "VOX_SOCIAL_YOUTUBE_CLIENT_ID",
+    "VOX_SOCIAL_YOUTUBE_CLIENT_SECRET",
+    "VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN",
+    "VOX_SOCIAL_HN_MODE",
+    "VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS",
+    "VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX",
+    "VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID",
+    "VOX_SCHOLARLY_ADAPTER",
+    "VOX_SCHOLARLY_DISABLE",
+    "VOX_SCHOLARLY_DISABLE_LIVE",
+    "VOX_SCHOLARLY_DISABLE_ZENODO",
+    "VOX_SCHOLARLY_DISABLE_OPENREVIEW",
+    "VOX_OPENREVIEW_API_BASE",
+    "VOX_OPENREVIEW_INVITATION",
+    "VOX_OPENREVIEW_SIGNATURE",
+    "VOX_OPENREVIEW_ACCESS_TOKEN",
+    "OPENREVIEW_API_BASE",
+    "OPENREVIEW_INVITATION",
+    "OPENREVIEW_SIGNATURE",
+    "OPENREVIEW_ACCESS_TOKEN",
+    "OPENREVIEW_EMAIL",
+    "OPENREVIEW_PASSWORD",
+    "VOX_ZENODO_SANDBOX",
+    "VOX_ZENODO_API_BASE",
+    "VOX_ZENODO_HTTP_MAX_ATTEMPTS",
+    "VOX_ZENODO_ATTACH_MANIFEST_BODY",
+    "VOX_ZENODO_PUBLISH_DEPOSITION",
+    "VOX_ZENODO_DRAFT_ONLY",
+    "VOX_ZENODO_PUBLISH_NOW",
+    "VOX_ZENODO_STAGING_DIR",
+    "VOX_ZENODO_UPLOAD_ALLOWLIST",
+    "VOX_ZENODO_VERIFY_STAGING_CHECKSUMS",
+    "VOX_ZENODO_REQUIRE_METADATA_PARITY",
+    "VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS",
+    "VOX_SOCIAL_WORTHINESS_ENFORCE",
+    "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
+];
+
+impl PublisherConfig {
+    #[inline]
+    fn syndication_secret(id: vox_clavis::SecretId) -> Option<String> {
+        vox_clavis::resolve_secret(id)
+            .expose()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    }
+
+    pub fn clear_route_simulation_env_overrides() {
+        for &key in ROUTE_SIMULATION_ENV_KEYS {
+            unsafe {
+                std::env::remove_var(key);
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn from_operator_environment(
+        dry_run: bool,
+        youtube_repo_root: Option<std::path::PathBuf>,
+        site: NewsSiteConfig,
+    ) -> Self {
+        let env_opt = |k: vox_clavis::SecretId| {
+            vox_clavis::resolve_secret(k)
+                .expose()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+        };
+        let env_usize = |k: vox_clavis::SecretId| {
+            env_opt(k).and_then(|v| match v.parse::<usize>() {
+                Ok(n) => Some(n),
+                Err(_) => {
+                    warn!(
+                        target: "vox.publisher.config",
+                        key = ?k,
+                        value = v,
+                        "invalid usize env override; ignoring"
+                    );
+                    None
+                }
+            })
+        };
+        Self {
+            twitter_bearer_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsTwitterBearer,
+            ),
+            forge_token: Self::syndication_secret(vox_clavis::SecretId::ForgeToken),
+            open_collective_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
+            ),
+            twitter_summary_margin_chars: env_usize(vox_clavis::SecretId::VoxSocialTwitterSummaryMarginChars),
+            reddit_selfpost_summary_max: env_usize(vox_clavis::SecretId::VoxSocialRedditSelfpostSummaryMax),
+            reddit_client_id: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditClientId,
+            ),
+            reddit_client_secret: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditClientSecret,
+            ),
+            reddit_refresh_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditRefreshToken,
+            ),
+            reddit_user_agent: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditUserAgent,
+            ),
+            youtube_client_id: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeClientId,
+            ),
+            youtube_client_secret: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeClientSecret,
+            ),
+            youtube_refresh_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
+            ),
+            hacker_news_mode: env_opt(vox_clavis::SecretId::VoxSocialHnMode),
+            youtube_default_category_id: env_opt(vox_clavis::SecretId::VoxSocialYoutubeDefaultCategoryId),
+            twitter_text_chunk_max: env_usize(vox_clavis::SecretId::VoxNewsTwitterTextChunkMax),
+            twitter_truncation_suffix: env_opt(vox_clavis::SecretId::VoxNewsTwitterTruncationSuffix),
+            youtube_repo_root,
+            dry_run,
+            site,
+            ..Default::default()
+        }
+    }
+}

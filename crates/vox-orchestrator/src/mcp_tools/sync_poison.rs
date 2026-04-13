@@ -1,20 +1,50 @@
-//! RwLock poison handling for MCP tool surfaces (shared with `dei_tools::orchestrator_snapshot`).
-//!
-//! `PoisonError<RwLock*Guard<_>>` does not satisfy `anyhow::Context`’s `Send + Sync` error bounds,
-//! so we map to `anyhow::Error` with an explicit message (same spirit as `orchestrator_snapshot`).
+//! RwLock poison handling for MCP tool surfaces.
 
-use std::sync::{LockResult, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{LockResult, RwLockReadGuard as StdRead, RwLockWriteGuard as StdWrite};
 
-pub fn poison_rw_read<'a, T>(
-    res: LockResult<RwLockReadGuard<'a, T>>,
-    context: &'static str,
-) -> anyhow::Result<RwLockReadGuard<'a, T>> {
-    res.map_err(|e| anyhow::anyhow!("{context}: {e}"))
+pub trait PoisonHandler<T: ?Sized> {
+    type Guard;
+    fn handle(self, context: &'static str) -> anyhow::Result<Self::Guard>;
 }
 
-pub fn poison_rw_write<'a, T>(
-    res: LockResult<RwLockWriteGuard<'a, T>>,
+impl<'a, T: ?Sized> PoisonHandler<T> for LockResult<StdRead<'a, T>> {
+    type Guard = StdRead<'a, T>;
+    fn handle(self, context: &'static str) -> anyhow::Result<StdRead<'a, T>> {
+        self.map_err(|e| anyhow::anyhow!("{context}: {e}"))
+    }
+}
+
+impl<'a, T: ?Sized> PoisonHandler<T> for LockResult<StdWrite<'a, T>> {
+    type Guard = StdWrite<'a, T>;
+    fn handle(self, context: &'static str) -> anyhow::Result<StdWrite<'a, T>> {
+        self.map_err(|e| anyhow::anyhow!("{context}: {e}"))
+    }
+}
+
+impl<'a, T: ?Sized> PoisonHandler<T> for parking_lot::RwLockReadGuard<'a, T> {
+    type Guard = parking_lot::RwLockReadGuard<'a, T>;
+    fn handle(self, _context: &'static str) -> anyhow::Result<Self::Guard> {
+        Ok(self)
+    }
+}
+
+impl<'a, T: ?Sized> PoisonHandler<T> for parking_lot::RwLockWriteGuard<'a, T> {
+    type Guard = parking_lot::RwLockWriteGuard<'a, T>;
+    fn handle(self, _context: &'static str) -> anyhow::Result<Self::Guard> {
+        Ok(self)
+    }
+}
+
+pub fn poison_rw_read<T: ?Sized, P: PoisonHandler<T>>(
+    res: P,
     context: &'static str,
-) -> anyhow::Result<RwLockWriteGuard<'a, T>> {
-    res.map_err(|e| anyhow::anyhow!("{context}: {e}"))
+) -> anyhow::Result<P::Guard> {
+    res.handle(context)
+}
+
+pub fn poison_rw_write<T: ?Sized, P: PoisonHandler<T>>(
+    res: P,
+    context: &'static str,
+) -> anyhow::Result<P::Guard> {
+    res.handle(context)
 }

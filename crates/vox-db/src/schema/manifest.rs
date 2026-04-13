@@ -9,7 +9,7 @@ use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
 /// Latest unified schema baseline version for new and existing databases.
-pub const BASELINE_VERSION: i64 = 52;
+pub const BASELINE_VERSION: i64 = 53;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -135,6 +135,7 @@ pub fn baseline_sql() -> &'static str {
         let extra = [
             spec::POPULI_TRAINING_RUN_DDL.trim(),
             spec::CODEX_CAPABILITY_MAP_DDL.trim(),
+            spec::CORPUS_SNAPSHOTS_DDL.trim(),
         ];
         for sql in extra {
             if !sql.is_empty() {

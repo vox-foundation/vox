@@ -368,7 +368,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn retrieval_bundle_respects_verification_trigger_mode() {
-        let state = crate::ServerState::new_test().await;
+        let state = crate::mcp_tools::ServerState::new_test().await;
         let bundle = run_retrieval_bundle(
             &state,
             "verify contradictory evidence for retrieval",

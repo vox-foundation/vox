@@ -1,0 +1,58 @@
+// ---
+// title: "Control Flow: If/Else Expressions"
+// description: "if/else as expressions, nested conditionals, guard clauses in functions."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [fn, if, else, let, match]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Demonstrate Vox if/else as expressions, nested conditionals, and guard patterns.
+// ANCHOR: display
+fn classify_score(score: int) -> str {
+    if score >= 90 {
+        ret "A"
+    } else {
+        if score >= 80 {
+            ret "B"
+        } else {
+            if score >= 70 {
+                ret "C"
+            } else {
+                ret "F"
+            }
+        }
+    }
+}
+
+fn access_level(role: str, active: bool) -> str {
+    if !active {
+        ret "suspended"
+    }
+    if role == "admin" {
+        ret "full"
+    }
+    if role == "editor" {
+        ret "write"
+    }
+    ret "read"
+}
+
+fn shipping_cost(weight: int, express: bool) -> int {
+    let base = if weight > 10 { 20 } else { 5 }
+    let surcharge = if express { 15 } else { 0 }
+    ret base + surcharge
+}
+
+fn is_valid_username(name: str) -> bool {
+    if len(name) < 3 {
+        ret false
+    }
+    if len(name) > 32 {
+        ret false
+    }
+    ret true
+}
+// ANCHOR_END: display

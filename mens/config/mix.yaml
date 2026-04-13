@@ -2,23 +2,22 @@
 # Prioritizes compiler-verified golden data over massive synthetic lanes.
 
 sources:
-  - path: target/dogfood/vox_corpus_extract.jsonl
-    weight: 10                  # Primary Golden Lane: compiler-verified
-  - path: target/dogfood/preference_pairs.jsonl
-    weight: 4                   # DPO Lane: verified preference pairs
+  - path: target/dogfood/vox_corpus_extract_pkg.jsonl
+    weight: 1.0                   # Human-mined workspace code (GOLDEN / Wave 0)
     optional: true
+
+  - path: target/dogfood/vox_rust_expert_cross.jsonl
+    weight: 1.0                   # Cross-domain verified translations (MINE / Wave 2)
+    optional: true
+
   - path: target/dogfood/mutated_vox.jsonl
-    weight: 5                   # Structural Mutations
+    weight: 1.0                   # Structural AST mutations (Wave 2)
     optional: true
-  - path: target/dogfood/rust_to_vox.jsonl
-    weight: 3                   # Cross-domain verified translations
-    optional: true
-  - path: mens/data/research-lane-sft.jsonl
-    weight: 2                   # Research/Reasoning lanes
-    optional: true
+
   - path: target/dogfood/train.jsonl
-    weight: 1                   # Synthetic Monoculture: downweighted
-    sample_rate: 0.1            # DOWNSAMPLE to 10% to prevent mode collapse
+    weight: 1.0                   # Template-expanded synthetic (Wave 1)
+    sample_rate: 0.1              # Downsample to avoid monoculture
+    optional: true
   - path: mens/data/synthetic.jsonl
     weight: 1
     sample_rate: 0.2
@@ -31,6 +30,7 @@ include_lanes:
   - vox_codegen
   - vox_tooling
   - vox_docs_qa
+  - vox_rust_expert_cross
 exclude_lanes:
   - vox_speech
 

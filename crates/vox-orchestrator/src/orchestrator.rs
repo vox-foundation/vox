@@ -12,12 +12,12 @@
 //! | [`scaling`] | `rebalance`, `tick` |
 //! | [`vcs_ops`] | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
 
-mod agent_lifecycle;
+mod agent;
 mod campaigns;
-mod core;
+pub mod core;
 mod lease_watchdog;
 pub mod observer_loop;
-mod persistence_outbox;
+pub mod persistence;
 mod route_replay;
 mod scaling;
 mod vcs_ops;

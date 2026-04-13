@@ -190,7 +190,7 @@ Required evidence pair per claim:
 - **Why:** manual packaging dominates cycle time and introduces policy errors.
 - **Minimum viable fix:** add `SubmissionPackageBuilder` with profiles `jmlr`, `tmlr`, `jair`, `arxiv`; emit deterministic archive manifest.
 - **Expanded solution (how/where/when/why):**
-  - add `crates/vox-publisher/src/submission_package.rs` with profile-specific validators;
+  - add `crates/vox-publisher/src/submission/mod.rs` with profile-specific validators;
   - wire CLI/MCP commands `publication-package-build` and `publication-package-validate`;
   - persist package artifact metadata in publication tables with digest linkage;
   - run compile/format checks and include machine-readable report in manifest metadata.

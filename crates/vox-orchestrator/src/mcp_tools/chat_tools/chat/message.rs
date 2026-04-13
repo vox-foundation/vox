@@ -4,7 +4,7 @@ use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscrip
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
 use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
-use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, mcp_infer_completion};
+use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
 use crate::mcp_tools::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
@@ -14,6 +14,7 @@ use crate::mcp_tools::chat_socrates_meta::{
     socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
 };
 use crate::mcp_tools::session_identity::normalize_chat_session_id;
+use crate::mcp_tools::journey_envelope;
 use crate::session_context_envelope_key;
 use vox_runtime::prompt_canonical;
 
@@ -437,7 +438,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         Ok(history_json) => {
             let ctx_handle = state.orchestrator.context_handle();
             match crate::mcp_tools::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
-                Ok(mut ctx) => {
+                Ok(ctx) => {
                     ctx.set(crate::AgentId(0), &history_key, &history_json, 0);
                     if let Some(ev) = &retrieval_evidence {
                         let context_envelope = ev.to_context_envelope(
@@ -519,7 +520,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             )
             .await;
 
-        let journey_payload = crate::journey_envelope::build_journey_envelope_v1(
+        let journey_payload = journey_envelope::build_journey_envelope_v1(
             journey_id.as_str(),
             q_session.as_str(),
             thread_id_for_envelope.as_deref(),

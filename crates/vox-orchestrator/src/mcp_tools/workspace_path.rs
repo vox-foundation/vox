@@ -86,8 +86,6 @@ pub(crate) fn resolve_existing_path_in_repository(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp_tools::server_state::ServerState;
-    use crate::mcp_tools::compiler_tools;
     use std::fs;
     use std::sync::Arc;
     use tokio::sync::Mutex;

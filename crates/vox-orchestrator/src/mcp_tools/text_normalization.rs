@@ -25,6 +25,7 @@ pub(crate) fn strip_json_codeblock_fence(s: &str) -> String {
 
 /// Strip ```vox or plain ``` fences around generated `.vox` source.
 #[must_use]
+#[cfg(test)]
 pub(crate) fn strip_vox_codegen_fence(s: &str) -> String {
     vox_compiler::generated_vox::strip_vox_codeblock_fence(s)
 }

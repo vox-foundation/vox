@@ -128,6 +128,7 @@ async-stream       = "0.3"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
 sysinfo            = "0.38"
 walkdir            = "2"
+rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
 burn               = { version = "0.19", default-features = false, features = ["std", "ndarray"] }
 candle-core        = { version = "0.9", default-features = false }

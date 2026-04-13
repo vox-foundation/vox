@@ -105,12 +105,15 @@ pub mod populi_startup;
 pub mod speech_constraints;
 
 // Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
-use self::{input_schemas as _, tool_aliases as _};
-
 pub use vox_mcp_registry::TOOL_REGISTRY;
 
 pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
+pub mod server;
+pub mod lifecycle;
+
+pub use server::VoxMcpServer;
 pub use server_state::{ServerState, CachedCatalog};
+pub use lifecycle::{run_stdio_server_blocking, load_config, mcp_agent_fleet_env_enabled};
 pub use params::ToolResult;

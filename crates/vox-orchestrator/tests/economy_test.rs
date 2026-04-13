@@ -130,7 +130,7 @@ async fn test_model_selection_preference() {
     assert_eq!(best_perf.id, "anthropic/claude-sonnet-4.5");
 
     // Economy preference should pick budget-coder
-    let best_econ = mh
+    let _best_econ = mh
         .read()
         .unwrap()
         .best_for(
@@ -142,7 +142,7 @@ async fn test_model_selection_preference() {
     // assert_eq!(best_econ.id, "budget-coder"); // Skipped due to clavis SSOT refactoring
 
     // Dynamic Tiering: Low complexity (2) should pick budget-coder even in Performance mode
-    let best_dynamic = mh
+    let _best_dynamic = mh
         .read()
         .unwrap()
         .best_for(

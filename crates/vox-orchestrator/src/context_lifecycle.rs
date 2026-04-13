@@ -519,6 +519,7 @@ mod tests {
             },
             safety: None,
             obo_token: None,
+            operating_mode: None,
         }
     }
 

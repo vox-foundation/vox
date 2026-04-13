@@ -14,7 +14,6 @@ use crate::mcp_tools::{
     openclaw_tools, oratio_tools, persistence_tools, populi_tools, project_init_tools,
     questioning_tools, repo_catalog_tools, repo_index, scientia_tools, speech_pipeline_tools,
     task_tools, toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, clavis_tools,
-    a2a, affinity, gamify, memory, qa, models, skills, trace, dei_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.

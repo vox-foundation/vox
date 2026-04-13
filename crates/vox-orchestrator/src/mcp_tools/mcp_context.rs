@@ -1,5 +1,5 @@
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::AgentId;
 
@@ -82,7 +82,7 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
     let orch = &state.orchestrator;
     let ttl = params.ttl_seconds.unwrap_or(0);
     let ctx_handle = orch.context_handle();
-    let mut guard: std::sync::RwLockWriteGuard<crate::context::ContextStore> =
+    let guard: std::sync::RwLockWriteGuard<crate::context::ContextStore> =
         match crate::mcp_tools::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
@@ -220,7 +220,7 @@ pub async fn set_agent_budget(state: &ServerState, params: SetAgentBudgetParams)
 pub async fn handoff_context(state: &ServerState, params: HandoffContextParams) -> String {
     let orch = &state.orchestrator;
     let summary_handle = orch.summary_handle();
-    let mut sum_guard: std::sync::RwLockWriteGuard<crate::summary::SummaryManager> =
+    let sum_guard: std::sync::RwLockWriteGuard<crate::summary::SummaryManager> =
         match crate::mcp_tools::sync_poison::poison_rw_write(summary_handle.write(), "context summary") {
             Ok(g) => g,
             Err(e) => {

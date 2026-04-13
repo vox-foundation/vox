@@ -139,7 +139,7 @@ pub fn run_eval_local(
                             let seed_opt = if temperature > 0.0 { Some(seed) } else { None };
                             // InferenceEngine currently accepts `top_p` rather than seed.
                             // Keep seed in eval metadata for reproducibility bookkeeping.
-                            match eng.generate(&prompt, max_tokens, temperature as f64, None) {
+                            match eng.generate(&prompt, max_tokens, temperature as f64, None, &vox_constrained_gen::GrammarMode::None) {
                                 Ok(output) => {
                                     let verify = verify_completion(
                                         &output,

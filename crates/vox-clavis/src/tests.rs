@@ -42,6 +42,7 @@ fn backend_unavailable_status_is_explicit() {
             include_auth_json: false,
             include_populi_env: false,
             profile: ResolveProfile::DevLenient,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(
@@ -70,6 +71,7 @@ fn env_only_ignores_backend() {
             include_auth_json: false,
             include_populi_env: false,
             profile: ResolveProfile::DevLenient,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(resolved.status, ResolutionStatus::MissingRequired));
@@ -135,6 +137,7 @@ fn strict_profile_rejects_deprecated_alias() {
             include_auth_json: false,
             include_populi_env: false,
             profile: ResolveProfile::HardCutStrict,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(
@@ -161,6 +164,7 @@ fn strict_profile_rejects_transport_env_source() {
             include_auth_json: false,
             include_populi_env: false,
             profile: ResolveProfile::ProdStrict,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(
@@ -198,6 +202,7 @@ fn strict_cloudless_can_disable_env_plaintext_fallback() {
             include_auth_json: false,
             include_populi_env: false,
             profile: ResolveProfile::HardCutStrict,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(resolved.status, ResolutionStatus::MissingRequired));
@@ -259,6 +264,7 @@ fn resolver_chaos_backend_alternates_missing_and_backend_unavailable() {
                 include_auth_json: false,
                 include_populi_env: false,
                 profile: ResolveProfile::HardCutStrict,
+                caller_context: "test".to_string(),
             },
         );
         saw_missing |= matches!(resolved.status, ResolutionStatus::MissingRequired);

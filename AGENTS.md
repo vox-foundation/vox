@@ -101,7 +101,7 @@ Agents and contributors must strictly adhere to these invariants. These take pre
 
 - **TOESTUB / Skeleton Code:** Structural quality is enforced via TOESTUB. Finding IDs (`stub/todo`, `stub/unimplemented`, `empty-body`, etc.) in non-test code are CI blockers.
 - **Verification Ritual:** Before completing work, mentally (or physically) run `vox stub-check --path <changed-dirs>` to ensure no skeleton code leaked.
-- **God Object Limit:** Maximum 500 lines or 12 methods per struct/class. Refactor into domains before adding logic.
+- **God Object Limit (Multi-Tier):** Soft 300 / Warning 400 / Hard Error 500 lines or 12 methods per struct/class. Refactor into domains before adding logic. This aligns with optimal chunking constraints for MENS QLoRA pipelines (`toestub-line-limit-mens-research-2026.md`).
 - **Sprawl Limit:** Maximum 20 files per directory. Create sub-modules if you exceed this.
 - **Frozen Modules:** Do not expose new `pub` items in modules marked as FROZEN.
 - **Scripting Restraint:** Do not write new `.py` files in the `scripts/` directory; prefer Rust tooling.
@@ -114,3 +114,7 @@ Agents and contributors must strictly adhere to these invariants. These take pre
 - Workspace artifact hygiene (Cargo target sprawl, `mens/runs`, scratch): [`docs/agents/governance.md`](docs/agents/governance.md) — `vox ci artifact-audit` / `artifact-prune`, retention SSOT [`contracts/operations/workspace-artifact-retention.v1.yaml`](contracts/operations/workspace-artifact-retention.v1.yaml)
 - Continuation prompt strategy: [`docs/src/contributors/continuation-prompt-engineering.md`](docs/src/contributors/continuation-prompt-engineering.md)
 - Governance and TOESTUB policy: [`docs/agents/governance.md`](docs/agents/governance.md)
+
+## Archival Protocol (LLM Guard)
+
+Do **NOT** read, ingest, or attempt to modify files in the `archive/` or `docs/src/archive/` directories when planning new features or writing new code. These directories are tombstoned. They exist for manual human reference only. If an LLM includes an archived pattern in new code, it is considered a severe system hallucination.

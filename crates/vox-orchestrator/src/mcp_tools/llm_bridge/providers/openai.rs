@@ -4,39 +4,9 @@ use super::metadata::HttpCallMetadata;
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
 use vox_openai_wire::{
     ChatCompletionRequest as OpenAiChatRequest, ChatCompletionResponse as OpenAiChatResponse,
-    ChatCompletionUsage as OpenAiUsage, ChatMessageTurn as OpenAiMsg,
+    ChatMessageTurn as OpenAiMsg,
 };
 
-pub(crate) async fn http_openai_compatible(
-    client: &reqwest::Client,
-    url: &str,
-    bearer: &str,
-    model: &str,
-    system: &str,
-    user: &str,
-    max_tokens: u64,
-    temperature: f32,
-    json_mode: bool,
-    tools: Option<serde_json::Value>,
-    tool_choice: Option<serde_json::Value>,
-) -> Result<(String, u32, u32), HttpInferError> {
-    let (text, in_tok, out_tok, _) = http_openai_compatible_with_headers(
-        client,
-        url,
-        bearer,
-        model,
-        system,
-        user,
-        max_tokens,
-        temperature,
-        json_mode,
-        tools,
-        tool_choice,
-        &HashMap::new(),
-    )
-    .await?;
-    Ok((text, in_tok, out_tok))
-}
 
 pub(crate) async fn http_openai_compatible_with_headers(
     client: &reqwest::Client,

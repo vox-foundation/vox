@@ -100,6 +100,11 @@ pub enum AgentEventKind {
     AgentRetired {
         agent_id: AgentId,
     },
+    /// Agent heartbeat received.
+    AgentHeartbeat {
+        agent_id: AgentId,
+        activity: AgentActivity,
+    },
     /// An agent's activity changed.
     ActivityChanged {
         agent_id: AgentId,

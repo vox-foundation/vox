@@ -143,6 +143,126 @@ pub enum PopuliCli {
         #[arg(long)]
         control_url: Option<String>,
     },
+    /// Corpus management (extract, filter, stats).
+    Corpus {
+        #[command(subcommand)]
+        cmd: PopuliCorpusCmd,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PopuliCorpusCmd {
+    /// Walk examples/golden/, parse files, and populate extract.jsonl.
+    Extract {
+        /// Input directory (default: `examples/golden/`).
+        #[arg(long, default_value = "examples/golden")]
+        input: PathBuf,
+        /// Output file (default: `target/dogfood/vox_corpus_extract.jsonl`).
+        #[arg(long, default_value = "target/dogfood/vox_corpus_extract.jsonl")]
+        output: PathBuf,
+        /// Max files to process.
+        #[arg(long)]
+        limit: Option<usize>,
+    },
+    /// Generate DPO preference pairs (chosen/rejected) from an extracted corpus.
+    Dpo {
+        /// Input extracted JSONL file (default: `target/dogfood/vox_corpus_extract.jsonl`).
+        #[arg(long, default_value = "target/dogfood/vox_corpus_extract.jsonl")]
+        input: PathBuf,
+        /// Output JSONL file (default: `target/dogfood/preference_pairs.jsonl`).
+        #[arg(long, default_value = "target/dogfood/preference_pairs.jsonl")]
+        output: PathBuf,
+        /// Max pairs to generate.
+        #[arg(long)]
+        limit: Option<usize>,
+    },
+    /// Convert heal_pairs.jsonl into DPO preference pairs.
+    HealToDpo {
+        /// Input heal_pairs.jsonl (default: `~/.vox/corpus/heal_pairs.jsonl`).
+        #[arg(long)]
+        input: Option<PathBuf>,
+        /// Output JSONL file (default: `target/dogfood/preference_pairs.jsonl`).
+        #[arg(long, default_value = "target/dogfood/preference_pairs.jsonl")]
+        output: PathBuf,
+    },
+    /// Run the fictional research chain generator for the research-expert domain.
+    ResearchGen {
+        /// Number of chains to generate.
+        #[arg(long, default_value_t = 1000)]
+        count: usize,
+        /// Output file (default: `target/dogfood/research_chains.jsonl`).
+        #[arg(long, default_value = "target/dogfood/research_chains.jsonl")]
+        output: PathBuf,
+    },
+    /// Generate Rust-to-Vox translation pairs for cross-domain training.
+    RustToVox {
+        /// Number of pairs to generate.
+        #[arg(long, default_value_t = 1000)]
+        count: usize,
+        /// Output file (default: `target/dogfood/rust_to_vox.jsonl`).
+        #[arg(long, default_value = "target/dogfood/rust_to_vox.jsonl")]
+        output: PathBuf,
+    },
+    /// Produce a frozen benchmark set from the extracted corpus.
+    BenchmarkGen {
+        /// Input extracted JSONL.
+        #[arg(long, default_value = "target/dogfood/vox_corpus_extract.jsonl")]
+        input: PathBuf,
+        /// Output benchmark file.
+        #[arg(long, default_value = "mens/bench/vox-lang-bench-v1.jsonl")]
+        output: PathBuf,
+        /// Number of samples to reserve.
+        #[arg(long, default_value_t = 100)]
+        count: usize,
+    },
+    /// Evaluate the current corpus state against flywheel gates (diversity, volume).
+    FlywheelCheck {
+        /// Path to the mixed corpus.
+        #[arg(long, default_value = "mens/data/train_mixed_vox_lang.jsonl")]
+        corpus: PathBuf,
+    },
+    /// Generate transplant pairs by injecting constructs from one sample into another.
+    Transplant {
+        /// Input extracted JSONL.
+        #[arg(long, default_value = "target/dogfood/vox_corpus_extract.jsonl")]
+        input: PathBuf,
+        /// Output transplant file.
+        #[arg(long, default_value = "target/dogfood/transplant_vox.jsonl")]
+        output: PathBuf,
+        /// Number of pairs to generate.
+        #[arg(long, default_value_t = 500)]
+        count: usize,
+    },
+    /// Apply semantic mutations to an existing corpus to increase diversity.
+    Mutate {
+        /// Input JSONL.
+        #[arg(long, default_value = "target/dogfood/vox_corpus_extract.jsonl")]
+        input: PathBuf,
+        /// Output mutated JSONL.
+        #[arg(long, default_value = "target/dogfood/mutated_vox.jsonl")]
+        output: PathBuf,
+        /// Number of mutants per input record.
+        #[arg(long, default_value_t = 1)]
+        factor: usize,
+    },
+    /// Ingest training logs to extract failure patterns as negative preference pairs.
+    IngestLogs {
+        /// Path to the error log.
+        #[arg(long, default_value = "target/dogfood/train.err.log")]
+        log: PathBuf,
+        /// Output DPO file.
+        #[arg(long, default_value = "target/dogfood/negative_preference_pairs.jsonl")]
+        output: PathBuf,
+    },
+    /// Create a versioned snapshot of all current JSONL data for training reproducibility.
+    Snapshot {
+        /// Base directory for JSONL source data.
+        #[arg(long, default_value = "target/dogfood")]
+        src: PathBuf,
+        /// Snapshots base directory.
+        #[arg(long, default_value = "mens/data/snapshots")]
+        dest: PathBuf,
+    },
 }
 
 /// Mesh node management subcommands.
@@ -645,5 +765,164 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             }
             Ok(())
         }
+        PopuliCli::Corpus { cmd } => match cmd {
+            PopuliCorpusCmd::Extract {
+                input,
+                output,
+                limit,
+            } => {
+                println!("Extracting Vox corpus from {} ...", input.display());
+                let config = vox_corpus::corpus::extract_vox::ExtractVoxConfig {
+                    root: input.clone(),
+                    limit: limit.unwrap_or(0),
+                    ..Default::default()
+                };
+                let pairs = vox_corpus::corpus::extract_vox::walk_and_extract_vox(&config)?;
+                let count = vox_corpus::corpus::extract_vox::write_vox_to_jsonl(&pairs, &output)?;
+                println!("✓ Extracted {} pairs to {}", count, output.display());
+                Ok(())
+            }
+            PopuliCorpusCmd::Dpo {
+                input,
+                output,
+                limit,
+            } => {
+                println!("Generating DPO pairs from {} ...", input.display());
+                let config = vox_corpus::corpus::dpo::DpoConfig {
+                    input,
+                    output: output.clone(),
+                    limit: limit.unwrap_or(0),
+                };
+                let count = vox_corpus::corpus::dpo::generate_dpo_from_extract(&config)?;
+                println!("✓ Generated {} DPO pairs to {}", count, output.display());
+                Ok(())
+            }
+            PopuliCorpusCmd::HealToDpo { input, output } => {
+                // Delegate to existing corpus command logic (needs features: mens-base)
+                #[cfg(feature = "mens-base")]
+                {
+                    crate::commands::corpus::generate::run_heal_to_dpo(input, &output).await?;
+                    Ok(())
+                }
+                #[cfg(not(feature = "mens-base"))]
+                {
+                    anyhow::bail!("HealToDpo requires `mens-base` feature")
+                }
+            }
+            PopuliCorpusCmd::ResearchGen { count, output } => {
+                println!(
+                    "Generating {} research chains to {} ...",
+                    count,
+                    output.display()
+                );
+                if let Some(parent) = output.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut f = std::fs::File::create(&output)?;
+                let actual = vox_corpus::research_gen::generate_research_chains(&mut f, count)?;
+                println!("✓ Generated {} chains", actual);
+                Ok(())
+            }
+            PopuliCorpusCmd::RustToVox { count, output } => {
+                println!(
+                    "Generating {} Rust-to-Vox translation pairs to {} ...",
+                    count,
+                    output.display()
+                );
+                if let Some(parent) = output.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut f = std::fs::File::create(&output)?;
+                let actual = vox_corpus::rust_to_vox::generate_rust_to_vox_pairs(&mut f, count)?;
+                println!("✓ Generated {} pairs", actual);
+                Ok(())
+            }
+            PopuliCorpusCmd::BenchmarkGen { input, output, count } => {
+                println!(
+                    "Producing frozen benchmark from {} to {} ...",
+                    input.display(),
+                    output.display()
+                );
+                let actual = vox_corpus::corpus::produce_benchmark(&input, &output, count)?;
+                println!("✓ Produced {} benchmark samples", actual);
+                Ok(())
+            }
+            PopuliCorpusCmd::FlywheelCheck { corpus } => {
+                println!("Checking flywheel readiness for {} ...", corpus.display());
+                let result = vox_corpus::flywheel::evaluate_readiness(&corpus)?;
+                match result {
+                    vox_corpus::flywheel::FlywheelSignal::Ready { ast_diversity } => {
+                        println!("🚀 FLYWHEEL READY (Diversity: {:.2})", ast_diversity);
+                        
+                        #[cfg(feature = "extras-ludus")]
+                        {
+                            use crate::commands::extras::ludus::record_cli_event_fire_and_forget;
+                            record_cli_event_fire_and_forget(
+                                "mens_flywheel_triggered",
+                                true,
+                                Some("mens-corpus"),
+                                Some("populi corpus flywheel-check")
+                            );
+                        }
+                    }
+                    vox_corpus::flywheel::FlywheelSignal::Pending { new_samples } => {
+                        println!("⏳ PENDING (Samples: {})", new_samples);
+                    }
+                    vox_corpus::flywheel::FlywheelSignal::Triggered => {
+                        println!("⚡ FLYWHEEL TRIGGERED");
+                    }
+                    vox_corpus::flywheel::FlywheelSignal::Idle => {
+                        println!("⚪ IDLE");
+                    }
+                }
+                Ok(())
+            }
+            PopuliCorpusCmd::Transplant { input, output, count } => {
+                println!(
+                    "Generating {} transplant pairs from {} to {} ...",
+                    count,
+                    input.display(),
+                    output.display()
+                );
+                if let Some(parent) = output.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut f = std::fs::File::create(&output)?;
+                let actual = vox_corpus::synthetic_gen::transplant_pairs::generate_transplant_pairs(&input, &mut f, count)?;
+                println!("✓ Generated {} transplant pairs", actual);
+                Ok(())
+            }
+            PopuliCorpusCmd::Mutate { input, output, factor } => {
+                println!(
+                    "Mutating {} with factor {} to {} ...",
+                    input.display(),
+                    factor,
+                    output.display()
+                );
+                if let Some(parent) = output.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut f = std::fs::File::create(&output)?;
+                let actual = vox_corpus::ast_mutator::mutate_corpus(&input, &mut f, factor)?;
+                println!("✓ Generated {} mutated pairs", actual);
+                Ok(())
+            }
+            PopuliCorpusCmd::IngestLogs { log, output } => {
+                println!("Ingesting logs from {} to {} ...", log.display(), output.display());
+                if let Some(parent) = output.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut f = std::fs::File::create(&output)?;
+                let actual = vox_corpus::corpus::ingest_training_logs(&log, &mut f)?;
+                println!("✓ Ingested {} failure patterns", actual);
+                Ok(())
+            }
+            PopuliCorpusCmd::Snapshot { src, dest } => {
+                println!("Creating dataset snapshot from {} to {} ...", src.display(), dest.display());
+                let version = vox_corpus::dataset_snapshot::create_snapshot(&src, &dest)?;
+                println!("✓ Snapshot created: {}", version);
+                Ok(())
+            }
+        },
     }
 }

@@ -717,10 +717,15 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             .filter_map(|v| v.as_str())
             .map(str::to_string)
             .collect();
-        let live_tuning_names: BTreeSet<String> = vox_clavis::OPERATOR_TUNING_ENVS
+        let mut live_tuning_names: BTreeSet<String> = vox_clavis::OPERATOR_TUNING_ENVS
             .iter()
             .map(|&s| s.to_string())
             .collect();
+        live_tuning_names.extend(
+            vox_config::operator_registry::all_operator_env_names()
+                .into_iter()
+                .map(|s| s.to_string()),
+        );
         let missing_tuning_in_contract: Vec<_> = live_tuning_names
             .difference(&contract_tuning_names)
             .collect();

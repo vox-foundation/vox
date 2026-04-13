@@ -300,6 +300,24 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             let model = model
                 .ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
+
+            // Gate: Ensure collateral damage eval has run and passed if we're serving an adapter
+            let manifest_path = model.join("training_manifest.json");
+            let adapter_path = model.join("candle_qlora_adapter.safetensors");
+            if manifest_path.exists() || adapter_path.exists() {
+                let report_path = model.join("collateral_damage_report.json");
+                if !report_path.exists() {
+                    anyhow::bail!("eval_collateral_damage check not found! Run `vox mens eval collateral-damage --pre-score <baseline.json> --post <adapter>` before serving this adapter.");
+                }
+                
+                let report_raw = std::fs::read_to_string(&report_path)?;
+                let report_json: serde_json::Value = serde_json::from_str(&report_raw)?;
+                let status = report_json.get("status").and_then(|s| s.as_str());
+                if status != Some("pass") {
+                    anyhow::bail!("eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served.");
+                }
+            }
+
             // Serve delegates directly to the lightweight vox-schola binary inference mode
             println!("Delegating to vox-schola serve...");
 

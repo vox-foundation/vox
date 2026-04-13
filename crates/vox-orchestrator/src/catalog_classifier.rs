@@ -1,8 +1,6 @@
 use crate::models::ModelSpec;
 use serde::{Deserialize, Serialize};
 
-/// Opt-out flag to disable dynamic classification (saves API cost / latency if users prefer static).
-const CLASSIFIER_ENABLED_ENV: &str = "VOX_OPENROUTER_CLASSIFIER_ENABLED";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]

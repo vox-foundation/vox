@@ -1,7 +1,5 @@
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
-use tokio::sync::Mutex;
-use anyhow::Result;
 use vox_corpus::flywheel::{FlywheelState, FlywheelConfig, FlywheelSignal};
 use crate::Orchestrator;
 
@@ -29,10 +27,10 @@ impl FlywheelMonitor {
         let mut tick = interval(Duration::from_secs(300)); // Check every 5 minutes
         let state = self.state;
         let orch = self._orch.clone();
-        let mut training_in_progress = Arc::new(tokio::sync::Mutex::new(false));
+        let training_in_progress = Arc::new(tokio::sync::Mutex::new(false));
 
         tokio::spawn(async move {
-            let mut flywheel = state;
+            let flywheel = state;
             loop {
                 tick.tick().await;
                 
@@ -57,13 +55,18 @@ impl FlywheelMonitor {
                         
                         // 3. Trigger training if auto_train is true and not already running
                         if flywheel.config.auto_train {
-                            let mut in_progress = training_in_progress.lock().await;
+                            let training_in_progress = training_in_progress.clone();
+                            let in_progress = training_in_progress.lock().await;
                             if !*in_progress {
                                 tracing::info!("Flywheel: Auto-dispatching autonomous training wave...");
-                                *in_progress = true;
+                                drop(in_progress);
                                 
                                 let training_flag = training_in_progress.clone();
                                 tokio::spawn(async move {
+                                    {
+                                        let mut g = training_flag.lock().await;
+                                        *g = true;
+                                    }
                                     let res = trigger_autonomous_training().await;
                                     if let Err(e) = res {
                                         tracing::error!(error = %e, "Flywheel: Autonomous training wave FAILED");
@@ -93,6 +96,8 @@ impl FlywheelMonitor {
 async fn trigger_autonomous_training() -> anyhow::Result<()> {
     let status = tokio::process::Command::new("cargo")
         .arg("run")
+        .arg("--features")
+        .arg("gpu")
         .arg("--bin")
         .arg("vox")
         .arg("--")

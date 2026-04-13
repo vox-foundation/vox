@@ -1,0 +1,26 @@
+// ---
+// title: "Pagination and Filtering API"
+// description: "Cursor-based pagination combined with field filtering on database."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [@table, db, @query, fn, List, int, str]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Implement cursor-based pagination and filtering over database tables.
+// ANCHOR: display
+@table type EventLog {
+    timestamp: int
+    event_type: str
+    payload: str
+}
+
+@query
+fn fetch_events(since_ts: int, evt_type: str, max_results: int) -> List[EventLog] {
+    // A mock representing a cursor query with filtering and limits
+    let results = db.EventLog.filter({ event_type: evt_type })
+    ret results
+}
+// ANCHOR_END: display

@@ -11,14 +11,14 @@
 //! tools (Oratio), `anyOf`/discriminated union chat payloads, VCS pass-through maps, and other
 //! shapes that are awkward or misleading if derived verbatim.
 
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
 
 macro_rules! derived_tool_schema {
     ($t:ty) => {{
         let settings = schemars::generate::SchemaSettings::draft07().with(|s| {
             s.inline_subschemas = true;
         });
-        let mut schema_generator = settings.into_generator();
+        let schema_generator = settings.into_generator();
         let root = schema_generator.into_root_schema_for::<$t>();
         let serde_json::Value::Object(mut map) =
             serde_json::to_value(&root).expect(concat!("schema_for ", stringify!($t)))

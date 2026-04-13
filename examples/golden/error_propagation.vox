@@ -1,0 +1,70 @@
+// ---
+// title: "Error Propagation Patterns"
+// description: "Result chaining, early return on Error, composing fallible operations."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [Result, Error, Ok, match, fn, activity, workflow]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Show Vox error propagation: chained Result operations, early return on Error, and workflow-level error handling.
+// ANCHOR: display
+fn parse_int(s: str) -> Result[int] {
+    if len(s) == 0 {
+        ret Error("empty string")
+    }
+    ret Ok(42)
+}
+
+fn divide(a: int, b: int) -> Result[int] {
+    if b == 0 {
+        ret Error("division by zero")
+    }
+    ret Ok(a / b)
+}
+
+fn handle_numerator(raw_b: str, av: int) -> Result[int] {
+    let b = parse_int(raw_b)
+    match b {
+        Error(e) -> Error("bad denominator")
+        Ok(bv) -> divide(av, bv)
+    }
+}
+
+fn compute(raw_a: str, raw_b: str) -> Result[int] {
+    let a = parse_int(raw_a)
+    match a {
+        Error(e) -> Error("bad numerator")
+        Ok(av) -> handle_numerator(raw_b, av)
+    }
+}
+
+activity validate_email(email: str) -> Result[str] {
+    if len(email) < 5 {
+        ret Error("email too short")
+    }
+    ret Ok(email)
+}
+
+activity send_welcome(email: str) -> Result[Unit] {
+    ret Ok(Unit)
+}
+
+fn proceed_onboarding(addr: str) -> Result[str] {
+    let sent = send_welcome(addr)
+    match sent {
+        Error(e) -> Error("send failed")
+        Ok(ignore) -> Ok("onboarded")
+    }
+}
+
+workflow onboard_user(email: str) -> Result[str] {
+    let valid = validate_email(email)
+    match valid {
+        Error(e) -> Error(e)
+        Ok(addr) -> proceed_onboarding(addr)
+    }
+}
+// ANCHOR_END: display

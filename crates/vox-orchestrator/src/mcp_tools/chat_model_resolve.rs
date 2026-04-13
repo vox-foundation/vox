@@ -16,7 +16,7 @@ pub async fn resolve_chat_llm_model(
     mut resolution: McpChatModelResolution,
     user_id: Option<&str>,
 ) -> Result<(ModelSpec, bool), String> {
-    let pref = match crate::mcp_tools::sync_poison::poison_rw_read::<Option<String>>(
+    let pref = match crate::mcp_tools::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
         "mcp_chat_model_override",
     ) {

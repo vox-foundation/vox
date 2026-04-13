@@ -21,11 +21,11 @@ pub(crate) struct SocratesJsonMeta {
     pub(crate) confidence_estimate: f64,
     pub(crate) contradiction_ratio: f64,
     #[serde(default)]
-    pub(crate) citation_coverage: f64,
+    pub(crate) _fact_check: Option<Vec<String>>,
     #[serde(default)]
     pub(crate) questioning: Option<QuestioningJsonMeta>,
     #[serde(default)]
-    pub(crate) search_refinement: Option<SearchRefinementJsonMeta>,
+    pub(crate) _search_refinement: Option<SearchRefinementJsonMeta>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,13 +48,13 @@ pub(crate) struct QuestioningJsonMeta {
 #[derive(Debug, Deserialize)]
 pub(crate) struct SearchRefinementJsonMeta {
     #[serde(default)]
-    pub(crate) recommended_action: Option<String>,
+    pub(crate) _recommended_action: Option<String>,
     #[serde(default)]
-    pub(crate) reason: Option<String>,
+    pub(crate) _reason: Option<String>,
     #[serde(default)]
-    pub(crate) verification_performed: bool,
+    pub(crate) _verification_performed: bool,
     #[serde(default)]
-    pub(crate) verification_reason: Option<String>,
+    pub(crate) _verification_reason: Option<String>,
 }
 
 #[must_use]
@@ -73,6 +73,7 @@ pub(crate) fn socrates_system_rider(policy: &ConfidencePolicy) -> String {
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn spawn_socrates_telemetry(
     state: &ServerState,
     surface: &'static str,

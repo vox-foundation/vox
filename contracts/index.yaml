@@ -757,7 +757,7 @@ contracts:
     kind: json-schema
     description: JSON Schema for operator-facing arXiv assist handoff exports (`arxiv_handoff.json`).
     enforced_by:
-      - cargo test -p vox-publisher submission_package
+      - cargo test -p vox-publisher submission
       - vox ci ssot-drift
 
   - id: scientia-discovery-signal-schema

@@ -28,6 +28,7 @@ async fn test_dry_run_zero_web_leakage() {
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
                 collective_slug: "vox".to_string(),
+                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: true,

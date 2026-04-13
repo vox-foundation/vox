@@ -212,7 +212,7 @@ The rollup includes `"metrics_schema_version": <integer>` at the top level. Incr
 
 1. Export Zenodo staging: `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo`.
 2. Point **`VOX_ZENODO_STAGING_DIR`** at that directory before `publication-submit-local` / pipeline / external job (adapter `zenodo`).
-3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission_package.rs) plan that exists on disk.
+3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission/mod.rs) plan that exists on disk.
 4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) -> match bytes before each bucket `PUT`.
 5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`** { fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
 6. **`VOX_ZENODO_DRAFT_ONLY`** / **`VOX_ZENODO_PUBLISH_NOW`** compose with attach + staging per [`scholarly/flags`](../../../crates/vox-publisher/src/scholarly/flags.rs).

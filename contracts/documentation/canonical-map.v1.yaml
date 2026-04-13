@@ -53,7 +53,6 @@ domains:
       - crates/vox-clavis/src/**/*.rs
       - crates/vox-db/src/**/*.rs
       - crates/vox-orchestrator/src/**/*.rs
-      - crates/vox-mcp/src/**/*.rs
 
   - id: doc-inventory
     title: Documentation inventory
@@ -87,7 +86,7 @@ domains:
       - docs/src/ci/command-compliance-ssot.md
     owning_crate_globs:
       - crates/vox-cli/src/commands/ci/command_compliance/**/*.rs
-      - crates/vox-mcp/src/tools/**/*.rs
+      - crates/vox-orchestrator/src/mcp_tools/**/*.rs
 
   - id: telemetry-trust
     title: Telemetry trust boundary

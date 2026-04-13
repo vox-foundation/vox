@@ -7348,7 +7348,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-publisher/src/submission_package.rs",
+      "path": "crates/vox-publisher/src/submission/mod.rs",
       "kind": "rust",
       "lines_total": 849,
       "lines_triple_slash": 11,

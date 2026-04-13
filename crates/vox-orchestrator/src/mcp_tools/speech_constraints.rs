@@ -15,13 +15,16 @@
 //!    unmasked decode when the adapter is unavailable or times out.
 //! 3. **Gate:** enable constrained decode by default only after compile\@k / latency benchmarks beat
 //!    the validator-only baseline on the frozen speech benchmark manifest.
+//! 
+//! Refactored in April 2026 to separate policy logic and surface contracts.
 
 use std::path::Path;
 
 /// Suggested cap for bounded repair loops (speech-origin); MCP clamps user `max_retries` to 5.
 pub const SPEECH_CODE_MAX_REPAIR_ATTEMPTS: u32 = 5;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum OutputSurfaceMode {
     #[default]
     RawCodeOnly,
@@ -81,44 +84,74 @@ pub fn grammar_artifact_prompt_addon(repo_root: &Path) -> String {
     )
 }
 
-/// Stub for future grammar-masked decoding backends (Outlines / custom logits processor).
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ConstrainedDecodePolicy {
-    /// When true, attempt mask-backed generation once a bridge exists.
-    pub enabled: bool,
+/// Different tiers of constrained decoding enforcement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConstrainedDecodePolicy {
+    /// No extra constraints beyond basic prompt.
+    #[default]
+    None,
+    /// Soft hinting in prompt, but allows some variance.
+    Soft,
+    /// Rigid enforcement with prompt-guards and surface contract rejection.
+    Rigid,
 }
 
 impl ConstrainedDecodePolicy {
-    /// Resolve from env `VOX_MCP_GRAMMAR_MASK=1` (default off).
+    /// Resolve from env `VOX_MCP_GRAMMAR_MASK=1` or `VOX_MCP_DECODE_POLICY=rigid`.
     #[must_use]
     pub fn from_env() -> Self {
-        let enabled = matches!(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpGrammarMask).expose(),
-            Some("1") | Some("true")
-        );
-        Self { enabled }
+        let mask_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpGrammarMask);
+        let policy_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpDecodePolicy);
+        
+        let p = policy_env.expose().map(|s| s.to_ascii_lowercase());
+        match p.as_deref() {
+            Some("rigid") => Self::Rigid,
+            Some("soft") => Self::Soft,
+            Some("none") | Some("off") | Some("0") => Self::None,
+            _ => {
+                if matches!(mask_env.expose(), Some("1") | Some("true")) {
+                    Self::Soft
+                } else {
+                    Self::None
+                }
+            }
+        }
+    }
+
+    /// Whether any extra constraints (soft or rigid) are active.
+    #[must_use]
+    pub fn is_enabled(&self) -> bool {
+        !matches!(self, Self::None)
     }
 
     /// No-op placeholder (logs intent only at call sites).
     pub fn note_delegation_target(&self) {
         tracing::debug!(
             target: "vox_mcp_speech",
-            grammar_mask_enabled = self.enabled,
+            policy = ?self,
             mode = "prompt_hint_and_hir_validator",
-            "constrained decode: no token-mask backend; grammar artifact is prompt-only; HIR validator is the gate"
+            "constrained decode status reported"
         );
     }
 
     /// Practical interim guard while token-mask backend is unavailable: reject common non-code wrappers.
     #[must_use]
     pub fn surface_contract_ok(&self, candidate: &str, mode: OutputSurfaceMode) -> bool {
-        if !self.enabled {
+        if matches!(self, Self::None) {
             return true;
         }
         let lower = candidate.to_ascii_lowercase();
-        let prose_ok = !lower.contains("here is")
-            && !lower.contains("explanation")
-            && !lower.contains("i can");
+        // Rigid policy is stricter on prose-like preamble
+        let prose_ok = if matches!(self, Self::Rigid) {
+            !lower.contains("here is")
+                && !lower.contains("explanation")
+                && !lower.contains("i can")
+                && !lower.contains("of course")
+        } else {
+            true // Soft allows some preamble
+        };
+
         match mode {
             OutputSurfaceMode::RawCodeOnly => prose_ok && !candidate.contains("```"),
             OutputSurfaceMode::FencedTransport => prose_ok,

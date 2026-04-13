@@ -6,7 +6,6 @@ use walkdir::WalkDir;
 
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
-use crate::AgentId;
 
 const MAX_FILES_WALKED: usize = 50_000;
 const REM_REPO_INDEX: &str = "Confirm `VOX_REPOSITORY_ROOT` / MCP workspace binding points at a readable directory with expected permissions.";
@@ -180,7 +179,7 @@ pub async fn repo_index_status(state: &ServerState) -> String {
         state.orchestrator.context_handle().write(),
         "orchestrator context",
     ) {
-        Ok(mut ctx) => {
+        Ok(ctx) => {
             ctx.set(
                 crate::AgentId(0),
                 "workspace_index_status",

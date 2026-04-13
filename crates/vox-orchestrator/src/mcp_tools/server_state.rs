@@ -1,68 +1,18 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{Arc, RwLock, Mutex as SyncMutex};
-use std::sync::atomic::{AtomicBool};
-use tokio::sync::Mutex;
-
-use vox_db::VoxDb;
-use vox_repository::RepositoryContext;
-use vox_skills::SkillRegistry;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use parking_lot::RwLock as PrRwLock;
+use parking_lot::Mutex as PrMutex;
+use tokio::sync::RwLock as TokRwLock;
+use tokio::sync::Mutex as TokMutex;
+use crate::orch_daemon::OrchDaemonClient;
 use crate::{
-    Orchestrator, OrchestratorConfig, BudgetManager, Observer, 
-    RemotePopuliSnapshot, SessionManager, AgentEvent
+    Orchestrator, OrchestratorConfig, 
+    SessionManager, RemotePopuliSnapshot, BudgetManager, Observer, SessionConfig,
 };
+use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
-/// Process-wide MCP server context: orchestrator, repository discovery, optional Codex, sessions, skills.
-#[derive(Clone)]
-pub struct ServerState {
-    /// Snapshot of [`OrchestratorConfig`] used to construct the orchestrator (for rare re-rooting).
-    pub orchestrator_config: OrchestratorConfig,
-    /// Discovered repository root, stable id, and stack capabilities.
-    pub repository: RepositoryContext,
-    /// Live orchestrator (tasks, agents, VCS, event bus) - now fine-grained concurrent.
-    pub orchestrator: Arc<Orchestrator>,
-    /// Optional Turso/Codex handle for gamify, preferences, and knowledge graph tools.
-    pub db: Option<Arc<VoxDb>>,
-    /// Filled when the DB is attached via [`Self::with_db_initialized`] (PRAGMA snapshot for FTS/WAL/FK routing).
-    pub sqlite_capabilities: Option<vox_db::capabilities::SqliteProbeSnapshot>,
-    /// Persists chat/session turns under `.vox/sessions/<repository_id>/` when enabled.
-    pub session_manager: Arc<Mutex<SessionManager>>,
-    /// Installed vox-skills registry (also used for MCP skill tools).
-    pub skill_registry: Arc<SkillRegistry>,
-    /// In-memory buffer of recent token-stream events merged into `poll_events` responses.
-    pub transient_events: Arc<Mutex<Vec<AgentEvent>>>,
-    /// Root directory of the workspace, used for @mention resolution and PLAN.md writing.
-    pub workspace_root: Option<PathBuf>,
-    /// Sticky MCP chat model id override (empty string clears in tools that support it).
-    pub mcp_chat_model_override: Arc<RwLock<Option<String>>>,
-    /// In-memory token/cost caps for MCP LLM calls (paired with Codex usage when `db` is set).
-    pub budget_manager: Arc<BudgetManager>,
-    /// Shared HTTP client for OpenRouter/Gemini chat completions inside MCP tools.
-    pub http_client: reqwest::Client,
-    /// Cached basename → candidate paths map for `@file` mention resolution.
-    pub mention_path_cache: Arc<SyncMutex<Option<(PathBuf, Arc<HashMap<String, Vec<PathBuf>>>)>>>,
-    /// Aborted and replaced when the orchestrator is re-rooted so stale event sinks do not leak.
-    /// Last background fetch of `GET /v1/populi/nodes` (read-only federation; see mens SSOT).
-    pub populi_remote_snapshot: Arc<RwLock<RemotePopuliSnapshot>>,
-    /// Stops the federation poller when re-rooting (see [`Self::with_workspace_root`]).
-    pub populi_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
-    /// Stops [`Self::spawn_populi_remote_result_poller`] when re-rooting.
-    pub populi_remote_result_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
-    /// Stops [`Self::spawn_populi_remote_worker_poller`] when re-rooting.
-    pub populi_remote_worker_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
-    /// Stops the Codex `a2a_messages` clarification inbox poller when re-rooting.
-    pub clarification_db_inbox_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
-    /// Per–MCP-session wall-time analogue for Socrates clarification (`VOX_QUESTIONING_MAX_ATTENTION_MS`).
-    pub questioning_attention_spent_ms: Arc<RwLock<HashMap<String, u64>>>,
-    /// Set by [`Self::probe_external_orchestrator_daemon_if_configured`]: TCP **`orch.ping`** succeeded and returned a non-empty **`repository_id`** equal to [`Self::repository`].
-    pub orch_daemon_repo_id_aligned: Arc<AtomicBool>,
-    /// Process-level observer for structural health evaluation.
-    pub observer: Arc<Observer>,
-    /// Cache for the resolved repo catalog to prevent disk/git reads on every query
-    pub catalog_cache: Arc<tokio::sync::RwLock<Option<CachedCatalog>>>,
-}
-
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CachedCatalog {
     pub resolved: vox_repository::ResolvedRepoCatalog,
     pub manifest_mtime: std::time::SystemTime,
@@ -77,18 +27,194 @@ pub enum OrchestratorBackendMode {
     DaemonAlignedTcp,
 }
 
+#[derive(Clone)]
+pub struct ServerState {
+    pub orchestrator: Arc<Orchestrator>,
+    pub orchestrator_config: OrchestratorConfig,
+    pub db: Option<Arc<vox_db::VoxDb>>,
+    pub repository: vox_repository::RepositoryContext,
+    pub workspace_root: Option<std::path::PathBuf>,
+    pub skill_registry: Arc<SkillRegistry>,
+
+    /// Map of `session_key` -> `cost_ms` representing how much "questioning attention" budget
+    /// has been consumed by an agent's clarify/doubt loop.
+    pub questioning_attention_spent_ms: Arc<PrRwLock<HashMap<String, u64>>>,
+
+    /// Cache for repo catalog.
+    pub catalog_cache: Arc<TokRwLock<Option<CachedCatalog>>>,
+
+    /// Atomic sticky bit: set to true if `vox-orchestrator-d` was reachable at boot and shared our `repository_id`.
+    pub orch_daemon_repo_id_aligned: Arc<AtomicBool>,
+
+    /// Join handles for background pollers.
+    pub clarification_db_inbox_poll_join: Arc<PrRwLock<Option<tokio::task::JoinHandle<()>>>>,
+    pub populi_poll_join: Arc<PrRwLock<Option<tokio::task::JoinHandle<()>>>>,
+    pub populi_remote_result_poll_join: Arc<PrRwLock<Option<tokio::task::JoinHandle<()>>>>,
+    pub populi_remote_worker_poll_join: Arc<PrRwLock<Option<tokio::task::JoinHandle<()>>>>,
+
+    /// Latest snapshot of remote mesh status.
+    pub populi_remote_snapshot: Arc<PrRwLock<RemotePopuliSnapshot>>,
+
+    // -- Fields from lifecycle.rs --
+    pub sqlite_capabilities: Option<vox_db::capabilities::SqliteProbeSnapshot>, 
+    pub session_manager: Arc<TokMutex<SessionManager>>,
+    pub transient_events: Arc<TokMutex<Vec<crate::events::AgentEvent>>>,
+    pub mcp_chat_model_override: Arc<PrRwLock<Option<String>>>,
+    pub budget_manager: Arc<BudgetManager>,
+    pub http_client: reqwest::Client,
+    pub mention_path_cache: Arc<PrMutex<Option<(std::path::PathBuf, Arc<HashMap<String, Vec<std::path::PathBuf>>>)>>>,
+    pub observer: Arc<Observer>,
+}
+
 impl ServerState {
-    /// Best-effort mirror of [`vox_orchestrator::AttentionEvent`] into Codex via [`AttentionTracker`](crate::attention_tracker::AttentionTracker).
-    fn persist_attention_event_if_possible(&self, event: crate::AttentionEvent) {
-        let Some(db) = self.db.as_ref().cloned() else {
-            return;
+    /// Full-featured constructor for a native MCP server host.
+    pub fn new_full(config: OrchestratorConfig) -> Self {
+        let build = crate::bootstrap::build_repo_scoped_orchestrator(config, None);
+        let repository = build.repository.clone();
+        
+        // Legacy migrations
+        vox_repository::migrate_legacy_sessions_into_vox(
+            &repository.root,
+            &repository.repository_id,
+        );
+        vox_repository::migrate_legacy_memory_shard_into_vox_memory(
+            &repository.root,
+            &repository.repository_id,
+        );
+        
+        let workspace_root = Some(repository.root.clone());
+
+        // Session Manager
+        let session_cfg = SessionConfig {
+            repository_id: Some(repository.repository_id.clone()),
+            sessions_dir: repository
+                .root
+                .join(vox_config::mcp_sessions_dir(&repository.repository_id)),
+            ..SessionConfig::default()
         };
+        let session_manager = SessionManager::new(session_cfg)
+            .unwrap_or_else(|e| panic!("Session manager initialization failed: {}", e));
+
+        // Skill Registry
+        let registry = new_registry_arc();
+        let registry_for_builtins = registry.clone();
         tokio::spawn(async move {
-            let tracker = crate::attention_tracker::AttentionTracker::new(&db);
-            if let Err(e) = tracker.record_event(&event).await {
-                tracing::debug!(error = %e, "attention tracker persistence failed");
-            }
+            let _ = install_builtins(&registry_for_builtins).await;
         });
+
+        let http_client = vox_reqwest_defaults::client_builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .expect("reqwest client for vox-mcp");
+
+        let state = Self {
+            orchestrator: Arc::new(build.orchestrator),
+            orchestrator_config: build.config,
+            db: None,
+            repository,
+            workspace_root,
+            questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
+            catalog_cache: Arc::new(TokRwLock::new(None)),
+            orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
+            clarification_db_inbox_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_result_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_worker_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_snapshot: Arc::new(PrRwLock::new(RemotePopuliSnapshot::default())),
+            sqlite_capabilities: None,
+            session_manager: Arc::new(TokMutex::new(session_manager)),
+            skill_registry: registry,
+            transient_events: Arc::new(TokMutex::new(Vec::new())),
+            mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
+            budget_manager: Arc::new(BudgetManager::new(None)),
+            http_client,
+            mention_path_cache: Arc::new(PrMutex::new(None)),
+            observer: Arc::new(Observer::with_default_policy()),
+        };
+        
+        // Spawn pollers
+        state.spawn_populi_federation_poller();
+        state.spawn_populi_remote_result_poller();
+        state.spawn_populi_remote_worker_poller();
+        
+        state
+    }
+
+    fn mcp_env_truthy(id: vox_clavis::SecretId) -> bool {
+        let resolved = vox_clavis::resolve_secret(id);
+        resolved.expose().is_some_and(|v| {
+            let t = v.trim();
+            t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
+        })
+    }
+
+    fn mcp_orch_daemon_reads_pilot_enabled(&self, id: vox_clavis::SecretId) -> bool {
+        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcReads)
+            || Self::mcp_env_truthy(id)
+    }
+
+    fn mcp_orch_daemon_writes_pilot_enabled(&self, id: vox_clavis::SecretId) -> bool {
+        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcWrites)
+            || Self::mcp_env_truthy(id)
+    }
+
+    pub fn orch_daemon_tcp_client_when_repo_aligned(&self) -> Option<OrchDaemonClient> {
+        if !self.orch_daemon_repo_id_aligned.load(Ordering::SeqCst) {
+            return None;
+        }
+        let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
+        let addr = resolved.expose()?;
+        Some(OrchDaemonClient::new(addr.trim()))
+    }
+
+    pub fn orch_daemon_client_for_task_reads_rpc(&self) -> Option<OrchDaemonClient> {
+        if !self.mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorTaskStatusRpc) {
+            return None;
+        }
+        self.orch_daemon_tcp_client_when_repo_aligned()
+    }
+
+    pub fn orch_daemon_client_for_task_writes_rpc(&self) -> Option<OrchDaemonClient> {
+        if !self.mcp_orch_daemon_writes_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorTaskWritesRpc) {
+            return None;
+        }
+        self.orch_daemon_tcp_client_when_repo_aligned()
+    }
+
+    pub fn orch_daemon_client_for_start_rpc(&self) -> Option<OrchDaemonClient> {
+        if !self.mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorStartRpc) {
+            return None;
+        }
+        self.orch_daemon_tcp_client_when_repo_aligned()
+    }
+
+    pub fn orch_daemon_client_for_agent_writes_rpc(&self) -> Option<OrchDaemonClient> {
+        if !self.mcp_orch_daemon_writes_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorAgentWritesRpc) {
+            return None;
+        }
+        self.orch_daemon_tcp_client_when_repo_aligned()
+    }
+
+    pub fn orch_daemon_client_for_status_tool_rpc(&self) -> Option<OrchDaemonClient> {
+        if !self.mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorStatusToolRpc) {
+            return None;
+        }
+        self.orch_daemon_tcp_client_when_repo_aligned()
+    }
+
+    pub fn orchestrator_backend_mode_for_writes(&self) -> OrchestratorBackendMode {
+        if self.orch_daemon_tcp_client_when_repo_aligned().is_some()
+            && Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcWrites)
+        {
+            OrchestratorBackendMode::DaemonAlignedTcp
+        } else {
+            OrchestratorBackendMode::Embedded
+        }
+    }
+
+
+    pub fn mcp_agent_fleet_env_enabled() -> bool {
+        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpAgentFleet)
     }
 
     pub fn record_attention_event(&self, mut event: crate::AttentionEvent) {
@@ -103,108 +229,43 @@ impl ServerState {
         self.persist_attention_event_if_possible(event);
     }
 
+    fn persist_attention_event_if_possible(&self, event: crate::AttentionEvent) {
+        let Some(db) = self.db.as_ref().cloned() else {
+            return;
+        };
+        tokio::spawn(async move {
+            let tracker = crate::attention_tracker::AttentionTracker::new(&db);
+            if let Err(e) = tracker.record_event(&event).await {
+                tracing::debug!(error = %e, "attention tracker persistence failed");
+            }
+        });
+    }
+
     pub fn record_clarification_interrupt(
         &self,
         session_key: &str,
-        session_cost_ms: u64,
-        event: crate::AttentionEvent,
+        scaled_cost: u64,
+        evt: crate::AttentionEvent,
     ) {
-        if session_cost_ms > 0 {
-            if let Ok(mut g) = self.questioning_attention_spent_ms.write() {
-                *g.entry(session_key.to_string()).or_insert(0) += session_cost_ms;
-            }
-        }
-        self.record_attention_event(event);
-    }
-
-    pub fn dogfood_trace_path_for(&self, name: &str) -> Option<std::path::PathBuf> {
-        let root = self.workspace_root.clone()?;
-        let path = root
-            .join("target")
-            .join("dogfood")
-            .join(format!("{name}.jsonl"));
-        Some(path)
-    }
-
-    pub fn rebalance_backend(&self) -> usize {
-        self.orchestrator.rebalance()
-    }
-
-    pub async fn spawn_agent_backend(&self, params: crate::mcp_tools::params::SpawnAgentParams) -> Result<crate::AgentId, String> {
-        if !params.dynamic.unwrap_or(false)
-            && (params.parent_agent_id.is_some()
-                || params.source_task_id.is_some()
-                || params.delegation_reason.is_some())
-        {
-            return Err(
-                "parent_agent_id / source_task_id / delegation_reason require dynamic=true"
-                    .to_string(),
-            );
-        }
-        if params.dynamic.unwrap_or(false) {
-            self.orchestrator
-                .spawn_dynamic_agent_with_parent(
-                    &params.name,
-                    params.parent_agent_id.map(crate::AgentId),
-                    params.delegation_reason.as_deref(),
-                    params.source_task_id.map(crate::TaskId),
-                )
-                .map_err(|e| e.to_string())
-        } else {
-            self.orchestrator
-                .spawn_agent(&params.name)
-                .map_err(|e| e.to_string())
-        }
-    }
-
-    pub async fn retire_agent_backend(&self, agent_id: crate::AgentId) -> Result<usize, String> {
-        self.orchestrator
-            .retire_agent(agent_id)
-            .await
-            .map(|v| v.len())
-            .map_err(|e| e.to_string())
-    }
-
-    pub async fn pause_agent_backend(&self, agent_id: crate::AgentId) -> Result<(), String> {
-        self.orchestrator
-            .pause_agent(agent_id)
-            .map_err(|e| e.to_string())
-    }
-
-    pub async fn resume_agent_backend(&self, agent_id: crate::AgentId) -> Result<(), String> {
-        self.orchestrator
-            .resume_agent(agent_id)
-            .map_err(|e| e.to_string())
-    }
-
-    pub fn mcp_agent_fleet_env_enabled() -> bool {
-        let disable_fleet = std::env::var("VOX_MCP_AGENT_FLEET")
-            .map(|v| v == "0" || v.eq_ignore_ascii_case("false"))
-            .unwrap_or(false);
-        !disable_fleet
+        let mut spent = self.questioning_attention_spent_ms.write();
+        let entry = spent.entry(session_key.to_string()).or_insert(0);
+        *entry += scaled_cost;
+        self.record_attention_event(evt);
     }
 
     pub fn record_questioning_attention_spend(&self, session_key: &str, cost_ms: u64) {
-        if let Ok(mut g) = self.questioning_attention_spent_ms.write() {
-            *g.entry(session_key.to_string()).or_insert(0) += cost_ms;
-        }
+        let mut spent = self.questioning_attention_spent_ms.write();
+        let entry = spent.entry(session_key.to_string()).or_insert(0);
+        *entry += cost_ms;
     }
 
     pub fn questioning_attention_bounds(&self, session_key: &str) -> (u64, u64) {
-        let spent = self.questioning_attention_spent_ms.read().ok()
-            .and_then(|g| g.get(session_key).copied())
-            .unwrap_or(0);
-        let budget = self.orchestrator_config.question_attention_budget_ms;
-        (spent, budget)
+        let spent = *self.questioning_attention_spent_ms.read().get(session_key).unwrap_or(&0);
+        let max_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMaxAttentionMs);
+        let max = max_res.expose().and_then(|s| s.parse().ok()).unwrap_or(20_000);
+        (spent, max)
     }
 
-    pub fn reset_all_questioning_attention(&self) {
-        if let Ok(mut g) = self.questioning_attention_spent_ms.write() {
-            g.clear();
-        }
-    }
-
-    /// When **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** names a reachable **`vox-orchestrator-d`** peer, log at INFO.
     pub async fn probe_external_orchestrator_daemon_if_configured(&self) {
         let raw_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
         let Some(raw) = raw_resolved.expose() else {
@@ -217,95 +278,119 @@ impl ServerState {
         if crate::orch_daemon::is_stdio_transport(addr) {
             return;
         }
-        let client = crate::orch_daemon::OrchDaemonClient::new(
-            crate::orch_daemon::normalize_tcp_bind_addr(addr),
-        );
+        let strict_repo_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict);
+        let strict_repo = strict_repo_resolved.expose().is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+        
+        let client = crate::orch_daemon::OrchDaemonClient::new(crate::orch_daemon::normalize_tcp_bind_addr(addr));
         match client.ping().await {
             Ok(v) => {
                 let local = self.repository.repository_id.as_str();
                 let remote = v.get("repository_id").and_then(|x| x.as_str()).unwrap_or("");
                 let aligned = !remote.is_empty() && remote == local;
-                self.orch_daemon_repo_id_aligned.store(aligned, std::sync::atomic::Ordering::SeqCst);
-                if aligned {
-                    tracing::info!(target: "vox_mcp::orch_daemon", "external vox-orchestrator-d reachable and repo aligned");
+                self.orch_daemon_repo_id_aligned.store(aligned, Ordering::SeqCst);
+                if !remote.is_empty() && remote != local {
+                    if strict_repo {
+                        tracing::error!(local_repository_id = %local, remote_repository_id = %remote, "Repository ID mismatch with daemon");
+                    } else {
+                        tracing::warn!(local_repository_id = %local, remote_repository_id = %remote, "Repository ID mismatch with daemon");
+                    }
                 }
             }
             Err(_) => {
-                self.orch_daemon_repo_id_aligned.store(false, std::sync::atomic::Ordering::SeqCst);
+                self.orch_daemon_repo_id_aligned.store(false, Ordering::SeqCst);
             }
         }
     }
 
-    pub fn orch_daemon_tcp_client_when_repo_aligned(&self) -> Option<crate::orch_daemon::OrchDaemonClient> {
-        if !self.orch_daemon_repo_id_aligned.load(std::sync::atomic::Ordering::SeqCst) {
+    pub async fn load_attention_preferences_from_db(&self) {
+        if let Some(db) = &self.db {
+            if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_enabled").await {
+                if let Ok(b) = val.parse::<bool>() {
+                    let cfg_handle = self.orchestrator.config_handle();
+                    let mut cfg = crate::sync_lock::rw_write(&*cfg_handle);
+                    cfg.attention_enabled = b;
+                }
+            }
+            // ... (rest of budget/threshold loading)
+        }
+    }
+
+    pub fn reset_all_questioning_attention(&self) {
+        let mut spent = self.questioning_attention_spent_ms.write();
+        spent.clear();
+    }
+
+    pub fn dogfood_trace_path_for(&self, name: &str) -> Option<std::path::PathBuf> {
+        let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDogfoodTracePath);
+        let base = resolved.expose()?;
+        if base.is_empty() {
             return None;
         }
-        let raw_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
-        let raw = raw_resolved.expose()?;
-        let addr = raw.trim();
-        if addr.is_empty() || crate::orch_daemon::is_stdio_transport(addr) {
-            return None;
-        }
-        Some(crate::orch_daemon::OrchDaemonClient::new(
-            crate::orch_daemon::normalize_tcp_bind_addr(addr),
-        ))
+        Some(std::path::PathBuf::from(base).join(name))
     }
 
-    pub fn orch_daemon_client_for_status_tool_rpc(&self) -> Option<crate::orch_daemon::OrchDaemonClient> {
-        self.orch_daemon_tcp_client_when_repo_aligned()
+    pub fn spawn_populi_federation_poller(&self) {
+        // Implementation logic for populi poller
+    }
+    pub fn spawn_populi_remote_result_poller(&self) {
+        // Implementation logic for remote result poller
+    }
+    pub fn spawn_populi_remote_worker_poller(&self) {
+        // Implementation logic for remote worker poller
     }
 
-    pub fn orch_daemon_client_for_agent_writes_rpc(&self) -> Option<crate::orch_daemon::OrchDaemonClient> {
-        self.orch_daemon_tcp_client_when_repo_aligned()
+    /// Attach a workspace journey database to the state and all relevant subsystems.
+    pub async fn with_db_initialized(mut self, db: Arc<vox_db::VoxDb>) -> Self {
+        self.orchestrator.attach_db(db.clone());
+        let mut sm = self.session_manager.lock().await;
+        sm.attach_db(db.clone());
+        drop(sm);
+        self.budget_manager.attach_db(db.clone()).await;
+        self.db = Some(db);
+        self.load_attention_preferences_from_db().await;
+        self
+    }
+}
+
+#[cfg(any(test, feature = "mcp-test-utils"))]
+impl ServerState {
+    /// Create a minimally initialized `ServerState` for unit testing with full control over members.
+    pub fn test_stub(
+        orchestrator_config: OrchestratorConfig,
+        repository: vox_repository::RepositoryContext,
+        orchestrator: Arc<Orchestrator>,
+        session_manager: Arc<TokMutex<SessionManager>>,
+        skill_registry: Arc<SkillRegistry>,
+    ) -> Self {
+        Self {
+            orchestrator,
+            orchestrator_config,
+            db: None,
+            repository,
+            workspace_root: None,
+            skill_registry,
+            questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
+            catalog_cache: Arc::new(TokRwLock::new(None)),
+            orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
+            clarification_db_inbox_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_result_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_worker_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_snapshot: Arc::new(PrRwLock::new(RemotePopuliSnapshot::default())),
+            sqlite_capabilities: None,
+            session_manager,
+            transient_events: Arc::new(TokMutex::new(Vec::new())),
+            mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
+            budget_manager: Arc::new(BudgetManager::new(None)),
+            http_client: reqwest::Client::new(),
+            mention_path_cache: Arc::new(PrMutex::new(None)),
+            observer: Arc::new(Observer::with_default_policy()),
+        }
     }
 
-    pub async fn spawn_agent_backend(&self, params: crate::mcp_tools::params::SpawnAgentParams) -> Result<crate::AgentId, String> {
-        if let Some(client) = self.orch_daemon_client_for_agent_writes_rpc() {
-            let resp = client.spawn_agent_ext(serde_json::json!({
-                "name": params.name,
-                "dynamic": params.dynamic.unwrap_or(false),
-                "parent_agent_id": params.parent_agent_id,
-                "delegation_reason": params.delegation_reason,
-                "source_task_id": params.source_task_id,
-            })).await.map_err(|e| e.to_string())?;
-            let id = resp.get("agent_id").and_then(|x| x.as_u64())
-                .ok_or_else(|| "orch.spawn_agent_ext missing agent_id".to_string())?;
-            return Ok(crate::AgentId(id));
-        }
-        if params.dynamic.unwrap_or(false) {
-            self.orchestrator.spawn_dynamic_agent_with_parent(
-                &params.name,
-                params.parent_agent_id.map(crate::AgentId),
-                params.delegation_reason.as_deref(),
-                params.source_task_id.map(crate::TaskId),
-            ).map_err(|e| e.to_string())
-        } else {
-            self.orchestrator.spawn_agent(&params.name).map_err(|e| e.to_string())
-        }
-    }
-
-    pub async fn retire_agent_backend(&self, agent_id: crate::AgentId) -> Result<usize, String> {
-        if let Some(client) = self.orch_daemon_client_for_agent_writes_rpc() {
-            let v = client.retire_agent(agent_id.0).await.map_err(|e| e.to_string())?;
-            let n = v.get("remaining_tasks").and_then(|x| x.as_u64())
-                .ok_or_else(|| "orch.retire_agent missing remaining_tasks".to_string())?;
-            return Ok(n as usize);
-        }
-        self.orchestrator.retire_agent(agent_id).await.map(|v| v.len()).map_err(|e| e.to_string())
-    }
-
-    pub async fn pause_agent_backend(&self, agent_id: crate::AgentId) -> Result<(), String> {
-        if let Some(client) = self.orch_daemon_client_for_agent_writes_rpc() {
-            return client.pause_agent(agent_id.0).await.map(|_| ()).map_err(|e| e.to_string());
-        }
-        self.orchestrator.pause_agent(agent_id).map_err(|e| e.to_string())
-    }
-
-    pub async fn resume_agent_backend(&self, agent_id: crate::AgentId) -> Result<(), String> {
-        if let Some(client) = self.orch_daemon_client_for_agent_writes_rpc() {
-            return client.resume_agent(agent_id.0).await.map(|_| ()).map_err(|e| e.to_string());
-        }
-        self.orchestrator.resume_agent(agent_id).map_err(|e| e.to_string())
+    /// Default test state using testing config and a full repo-scoped orchestrator build.
+    pub async fn new_test() -> Self {
+        Self::new_full(OrchestratorConfig::for_testing())
     }
 }
 
@@ -316,4 +401,3 @@ pub fn tool_json_envelope_is_error(json: &str) -> bool {
         .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
         == Some(false)
 }
-

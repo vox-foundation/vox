@@ -131,7 +131,7 @@ impl crate::orchestrator::Orchestrator {
         op_id
     }
 
-    pub(crate) async fn persist_oplog_entry(
+    pub async fn persist_oplog_entry(
         &self,
         agent_id: AgentId,
         op_id: OperationId,

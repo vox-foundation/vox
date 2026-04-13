@@ -46,7 +46,9 @@ vox-reqwest-defaults.workspace = true
 globset = "0.4"
 toml = { workspace = true }
 vox-pm.workspace = true
-vox-ludus.workspace = true
+vox-ludus = { workspace = true }
+vox-skills = { workspace = true }
+parking_lot = "0.12"
 futures-util = { workspace = true }
 sysinfo = { version = "0.38.2", optional = true }
 sha3 = { workspace = true }
@@ -98,13 +100,13 @@ vox-clavis.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
-vox-skills.workspace = true
 vox-compiler.workspace = true
 glob.workspace = true
 ignore = "0.4.25"
 rmp-serde = { workspace = true }
 vox-openai-wire.workspace = true
 async-stream.workspace = true
+vox-project-scaffold.workspace = true
 
 [[bin]]
 name = "vox-orchestrator-d"

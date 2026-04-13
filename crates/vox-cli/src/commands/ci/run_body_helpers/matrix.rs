@@ -453,6 +453,9 @@ pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiM
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
     }
+    if repo.join("contracts/toestub/suppressions.v1.json").is_file() {
+        c.args(["--suppressions", "contracts/toestub/suppressions.v1.json"]);
+    }
     c.arg(root.to_string_lossy().as_ref());
     let st = c.status()?;
     if !st.success() {

@@ -131,7 +131,7 @@ labels = ["from=toml"]
 fn populi_inference_env_overrides_toml_base_url() {
     let _guard = ENV_MUTEX.lock().expect("env test lock");
     const KEY: &str = "VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL";
-    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorPopuliInferenceBaseUrl).ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorPopuliInferenceBaseUrl).expose().map(ToString::to_string);
     unsafe {
         std::env::set_var(KEY, "http://env-infer:9999");
     }
@@ -171,7 +171,7 @@ inference_base_url = "http://toml-infer:8888"
 fn populi_env_overrides_toml_control_url() {
     let _guard = ENV_MUTEX.lock().expect("env test lock");
     const KEY: &str = "VOX_ORCHESTRATOR_MESH_CONTROL_URL";
-    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose().map(ToString::to_string);
     unsafe {
         std::env::set_var(KEY, "http://env-wins:7777");
     }
@@ -215,10 +215,10 @@ fn repo_shard_env_overrides_apply_consistently() {
     const RC_P_KEY: &str = "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY";
     const RC_MS_KEY: &str = "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS";
 
-    let prev_w = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoShardSpecializationWeight).ok();
-    let prev_vf = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoShardValidationFailurePenalty).ok();
-    let prev_rc_p = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoReduceConflictCooldownPenalty).ok();
-    let prev_rc_ms = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoReduceConflictCooldownMs).ok();
+    let prev_w = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoShardSpecializationWeight).expose().map(ToString::to_string);
+    let prev_vf = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoShardValidationFailurePenalty).expose().map(ToString::to_string);
+    let prev_rc_p = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoReduceConflictCooldownPenalty).expose().map(ToString::to_string);
+    let prev_rc_ms = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorRepoReduceConflictCooldownMs).expose().map(ToString::to_string);
 
     unsafe {
         std::env::set_var(W_KEY, "1.25");
@@ -259,7 +259,7 @@ fn repo_shard_env_overrides_apply_consistently() {
 fn populi_remote_result_max_messages_env_override_applies() {
     let _guard = ENV_MUTEX.lock().expect("env test lock");
     const KEY: &str = "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL";
-    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshRemoteResultMaxMessagesPerPoll).ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshRemoteResultMaxMessagesPerPoll).expose().map(ToString::to_string);
 
     unsafe {
         std::env::set_var(KEY, "17");
@@ -281,14 +281,14 @@ fn populi_remote_result_max_messages_env_override_applies() {
 fn social_credentials_follow_clavis_lenient_vs_strict() {
     let _guard = ENV_MUTEX.lock().expect("env test lock");
     let key = "VOX_SOCIAL_REDDIT_CLIENT_ID";
-    let prev_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditClientId).ok();
-    let prev_backend = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxClavisBackend).ok();
-    let prev_profile = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxClavisProfile).ok();
+    let prev_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditClientId).expose().map(ToString::to_string);
+    let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
+    let prev_profile = std::env::var("VOX_CLAVIS_PROFILE").ok();
     // Identifier must avoid the legacy Vox+Turso URL env token as a contiguous substring (cutover audit).
     const DB_REMOTE_ALIAS_URL_ENV: &str = concat!("VOX_", "TURSO", "_URL");
     let prev_url = std::env::var(DB_REMOTE_ALIAS_URL_ENV).ok(); // This is a system alias, not a secret? Actually it's retired.
-    let prev_cloudless_path = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxClavisCloudlessDbPath).ok();
-    let prev_account_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAccountId).ok();
+    let prev_cloudless_path = std::env::var("VOX_CLAVIS_CLOUDLESS_DB_PATH").ok();
+    let prev_account_id = std::env::var("VOX_ACCOUNT_ID").ok();
 
     unsafe {
         std::env::set_var(key, "orchestrator-env-client");

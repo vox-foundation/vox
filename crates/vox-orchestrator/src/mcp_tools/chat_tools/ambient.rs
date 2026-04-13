@@ -65,7 +65,7 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
     // 2. Active conflicts → Conflict decorations
     {
         let handle = orch.conflict_manager_handle();
-        match crate::mcp_tools::sync_poison::poison_rw_read::<crate::conflicts::ConflictManager>(handle.read(), "conflict manager") {
+        match crate::mcp_tools::sync_poison::poison_rw_read(handle.read(), "conflict manager") {
             Ok(guard) => {
                 for conflict in guard.active_conflicts() {
                     let path_str = conflict.path.to_string_lossy().to_string();
@@ -100,7 +100,7 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
         let Some(queue) = orch.agent_queue(agent_id) else {
             continue;
         };
-        let guard = match crate::mcp_tools::sync_poison::poison_rw_read::<crate::queue::AgentQueue>(queue.read(), "agent queue") {
+        let guard = match crate::mcp_tools::sync_poison::poison_rw_read(queue.read(), "agent queue") {
             Ok(g) => g,
             Err(e) => {
                 tracing::warn!(error = %e, ?agent_id, "ambient_state: agent queue poisoned");

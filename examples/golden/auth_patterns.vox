@@ -1,0 +1,49 @@
+// ---
+// title: "Authentication and Authorization flows"
+// description: "Auth tokens, permission checks, route guards, and error responses."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [fn, http, Result, match, if, else, @table, db]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Implement authentication and authorization workflows, including route guards and permission assertions.
+// ANCHOR: display
+@table type Session {
+    token: str
+    user_id: str
+    admin: bool
+}
+
+fn verify_token(token: str) -> Result[Session] {
+    let sessions = db.Session.filter({ token: token })
+    ret Error("Invalid")
+}
+
+fn require_admin(sess: Session) -> Result[Unit] {
+    if !sess.admin {
+        ret Error("Forbidden: requires admin")
+    }
+    ret Ok(Unit)
+}
+
+fn handle_session(sess: Session) -> str {
+    let authz = require_admin(sess)
+    match authz {
+        Error(e) -> "403"
+        Ok(ignore) -> "System reset initiated."
+    }
+}
+
+http post "/api/admin/reset" to str {
+    // In a real framework this would securely extract the Auth header
+    let token = "mock_header_token"
+    let sess_res = verify_token(token)
+    match sess_res {
+        Error(e) -> "401"
+        Ok(sess) -> handle_session(sess)
+    }
+}
+// ANCHOR_END: display

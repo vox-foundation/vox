@@ -62,26 +62,42 @@ pub fn generate_research_chains(out: &mut impl Write, count: usize) -> anyhow::R
             let action = actions.choose(&mut rng).unwrap();
             let version = versions.choose(&mut rng).unwrap();
             
-            let fact_idx = rng.gen_range(0..10); // More variety in fact templates
+            let fact_idx = rng.gen_range(0..20); // Expanded variety in fact templates
             let fact = match fact_idx {
                 0 => format!("The {} module was {} by the {} in {}.", e1, action, e2, version),
                 1 => format!("Since {}, the {} interface {} with the {}.", version, e1, action, e2),
                 2 => format!("The {} protocol was {} in version {} to cross-support {}.", e2, action, version, e1),
-                3 => format!("If {} becomes {}, then {} initiates a fallback.", e1, action, e2),
+                3 => format!("If {} becomes {}, then {} initiates a fallback sequence.", e1, action, e2),
                 4 => format!("Despite the instability in {}, {} remained {} under the {} standard.", e1, e2, action, version),
-                5 => format!("While {} targets {}, {} was originally {}.", e1, version, e2, action),
+                5 => format!("While {} targets {}, {} was originally {} for compatibility.", e1, version, e2, action),
                 6 => format!("The {} subsystem {} its {} buffer whenever {} is active.", e2, action, version, e1),
                 7 => format!("By forcing a {} state, {} ensures {} remains backward compatible with {}.", action, e2, e1, version),
                 8 => format!("Verification of {} in {} revealed that {} had been {}.", e1, version, e2, action),
+                9 => format!("The {} cluster was {} before {} reached the {} threshold.", e1, action, e2, version),
+                10 => format!("Temporal analysis shows {} was {} exactly 5ms after {} update.", e1, action, e2),
+                11 => format!("The {} constraint prevents {} from being {} while {} is pending.", version, e1, action, e2),
+                12 => format!("Contrastingly, while {} is {}, {} remains in a dormant state.", e1, action, e2),
+                13 => format!("The {} effect causes {} to be {} in direct response to {} activity.", version, e1, action, e2),
+                14 => format!("Unless {} is {}, {} will fail to initialize in {}.", e1, action, e2, version),
+                15 => format!("The {} framework {} the {} lifecycle, indirectly affecting {}.", e1, action, version, e2),
+                16 => format!("A causal link exists: {} being {} leads to {} being {} in the next cycle.", e1, action, e2, actions.choose(&mut rng).unwrap()),
+                17 => format!("The {} version of {} was {} as a counter-measure to {} drift.", version, e1, action, e2),
+                18 => format!("Synchronous logs show {} was {} concurrently with {} deployment in {}.", e1, action, e2, version),
                 _ => format!("The transition from {} to {} was {} to maintain service parity.", e1, e2, action),
             };
             facts.push(fact.clone());
             
             let synthesis_step = match fact_idx {
                 0..=2 => format!("{} influences {} ({})", e1, e2, action),
-                3 => format!("{} triggers {} under condition ({})", e1, e2, action),
+                3 => format!("{} triggers {} conditionally ({})", e1, e2, action),
                 4..=5 => format!("{} contrasts with {} regarding ({})", e1, e2, action),
                 6..=7 => format!("{} manages {} state ({})", e1, e2, action),
+                8..=9 => format!("{} verifies or precedes {} ({})", e1, e2, action),
+                10..=11 => format!("{} has temporal resonance with {} ({})", e1, e2, action),
+                12..=13 => format!("{} has causal feedback with {} ({})", e1, e2, action),
+                14..=15 => format!("{} acts as a prerequisite for {} ({})", e1, e2, action),
+                16..=17 => format!("{} mitigates issues in {} ({})", e1, e2, action),
+                18..=19 => format!("{} occurs concurrently with {} ({})", e1, e2, action),
                 _ => format!("{} transitions or verifies {} ({})", e1, e2, action),
             };
             synthesis_steps.push(synthesis_step);

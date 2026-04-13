@@ -1,0 +1,131 @@
+# .aiexclude — DERIVED from .voxignore (SSOT)
+# Consumed by Gemini/Android Studio Code Assist
+# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.
+# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md §3
+
+#
+# .aiexclude directly. Edit this file, then run:
+#
+#
+#
+# GitHub Settings → Copilot → Content exclusion. See docs/agents/copilot-exclusions.md
+
+# === ARCHIVED SURFACES ===
+# CRITICAL LLM GUARD: The following directories contain deprecated, retired,
+# or legacy code. They are purposefully excluded from agent context to prevent
+# hallucination of old patterns. DO NOT read these files unless explicitly
+# instructed to "search the archive" by the human operator.
+archive/
+docs/src/archive/
+
+# === BUILD ARTIFACTS ===
+target/
+target_*/
+target-*/
+dist/
+build/
+node_modules/
+__pycache__/
+*.pyc
+.cache/
+.cargo-targets/
+crates/*/pkg/
+islands/
+
+# === VCS INTERNALS ===
+# .jj/ MUST be excluded: corruption causes irreversible history loss (JUNIE-597)
+.jj/
+.git/
+
+# === SECRETS AND CREDENTIALS ===
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+.aws/
+.azure/
+*.secret
+
+# === AI/ML MODEL WEIGHTS AND TRAINING DATA ===
+*.bin
+*.gguf
+*.safetensors
+*.pt
+*.pth
+models/
+populi/runs/
+mens/runs/
+*.jsonl
+populi/data/
+.vox-research-data/
+
+# === DATABASE FILES ===
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# === GENERATED / DERIVED FILES ===
+Cargo.lock
+package-lock.json
+*.lock
+*.generated.*
+*.gen.rs
+*.gen.ts
+contracts/capability/model-manifest.generated.json
+vox-agent.json
+vox-schema.json
+stub_check_results*.json
+opencode.json
+
+# === SCRATCH / EPHEMERAL / LOGS ===
+scratch/
+tmp/
+.tmp/
+*.tmp
+*.bak
+*.orig
+*.log
+*.log.*
+/artifacts/
+.opencode/
+.coderabbit/
+.mypy_cache/
+
+# === LARGE BINARY BLOBS ===
+*.wasm
+*.rlib
+
+# === IDE / EDITOR ARTIFACTS ===
+.idea/
+.cursor/plans/
+
+# === PYTHON LOCAL TOOLING ===
+scripts/.venv/
+crates/vox-py/.venv/
+
+# === ROOT-LEVEL SCRATCH (should never be committed) ===
+/*.txt
+/*.err
+/*.bat
+/*.py
+/*.jsonl
+/dump.txt
+/sql_dump.txt
+/raw_err*.json
+/check_err*.json
+/clippy_output.json
+/pm_errors.json
+/cargo-out.txt
+/test_all.txt
+/err.txt
+/error.log
+/error_cli.log
+/doc_errors*.txt
+/mcp_check_errors.txt
+/digest.txt

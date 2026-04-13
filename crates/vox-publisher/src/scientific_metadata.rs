@@ -52,6 +52,8 @@ pub struct ScientificAuthor {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orcid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ror: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub affiliation: Option<String>,
 }
 
@@ -148,6 +150,7 @@ mod tests {
             authors: vec![ScientificAuthor {
                 name: "Ada Lovelace".to_string(),
                 orcid: Some("0000-0001-2345-6789".to_string()),
+                ror: None,
                 affiliation: None,
             }],
             license_spdx: Some("Apache-2.0".to_string()),

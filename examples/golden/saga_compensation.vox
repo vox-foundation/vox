@@ -1,0 +1,48 @@
+// ---
+// title: "Saga Pattern and Compensating Actions"
+// description: "Durable saga pattern covering distributed orchestration, failures, and rollbacks."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [workflow, activity, Result, Ok, Error, match]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Show a saga pattern implementation in Vox using workflows for compensation handling on failure.
+// ANCHOR: display
+activity reserve_inventory(item_id: str) -> Result[str] {
+    ret Ok("reservation_999")
+}
+
+activity cancel_reservation(reservation_id: str) -> Result[Unit] {
+    ret Ok(Unit)
+}
+
+activity charge_payment(amount: int) -> Result[str] {
+    if amount > 5000 {
+        ret Error("Insufficient funds")
+    }
+    ret Ok("txn_abc123")
+}
+
+fn trigger_cancel(res_id: str) -> Result[str] {
+    let ignore = cancel_reservation(res_id)
+    ret Error("Payment failed.")
+}
+
+fn handle_payment(res_id: str, pay_res: Result[str]) -> Result[str] {
+    match pay_res {
+        Error(e) -> trigger_cancel(res_id)
+        Ok(txn_id) -> Ok("Order complete.")
+    }
+}
+
+workflow order_saga(item_id: str, amount: int) -> Result[str] {
+    let inv_res = reserve_inventory(item_id)
+    match inv_res {
+        Error(e) -> Error("Inventory failed")
+        Ok(res_id) -> handle_payment(res_id, charge_payment(amount))
+    }
+}
+// ANCHOR_END: display

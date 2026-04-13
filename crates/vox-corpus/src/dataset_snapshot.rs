@@ -73,3 +73,49 @@ impl DatasetSnapshotManifest {
         Ok(serde_json::to_string_pretty(self)?)
     }
 }
+
+pub fn create_snapshot(src_dir: &std::path::Path, dest_base: &std::path::Path) -> anyhow::Result<String> {
+    use std::fs;
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
+    let version = format!("v_{}", timestamp);
+    let dest_dir = dest_base.join(&version);
+    
+    fs::create_dir_all(&dest_dir)?;
+
+    let mut total_rows = 0;
+
+    for entry in fs::read_dir(src_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() && path.extension().map_or(false, |ext| ext == "jsonl") {
+            let file_name = path.file_name().unwrap();
+            let dest_path = dest_dir.join(file_name);
+            
+            // Count rows
+            let content = fs::read_to_string(&path)?;
+            total_rows += content.lines().filter(|l| !l.trim().is_empty()).count();
+            
+            fs::copy(&path, &dest_path)?;
+        }
+    }
+
+    let manifest = DatasetSnapshotManifest {
+        snapshot_id: version.clone(),
+        created_at_rfc3339: chrono::Utc::now().to_rfc3339(),
+        tokenizer_id: "vox_qwen_v1".to_string(), // Default
+        base_model_id: None,
+        sources: vec![], // In production we'd populate this per file
+        total_rows: total_rows as u64,
+        split: SplitPolicy {
+            train_fraction: 0.95,
+            eval_fraction: 0.05,
+            seed: 42,
+        },
+        notes: Some("Automatic dogfood snapshot".to_string()),
+    };
+
+    let manifest_json = manifest.to_json()?;
+    fs::write(dest_dir.join("manifest.json"), manifest_json)?;
+
+    Ok(version)
+}

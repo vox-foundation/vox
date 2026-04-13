@@ -111,21 +111,20 @@ pub async fn reorder_task(state: &ServerState, params: crate::mcp_tools::params:
 /// Drop all queued (not running) tasks for an agent.
 pub async fn drain_agent(state: &ServerState, params: crate::mcp_tools::params::DrainAgentParams) -> String {
     match state
-        .drain_agent_backend(crate::AgentId(params.agent_id))
-        .await
+        .orchestrator.drain_agent(crate::AgentId(params.agent_id))
     {
-        Ok(count) => ToolResult::ok(format!(
+        Ok(tasks) => ToolResult::ok(format!(
             "Drained {} tasks from agent {}",
-            count, params.agent_id
+            tasks.len(), params.agent_id
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(e, REM_ORCH_TASK).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_TASK).to_json(),
     }
 }
 
 /// Re-run the global task balancer and report how many tasks moved.
 pub async fn rebalance(state: &ServerState) -> String {
-    let moved = state.rebalance_backend().await;
+    let moved = state.orchestrator.rebalance();
     ToolResult::ok(format!("Rebalanced {} tasks", moved)).to_json()
 }
 
@@ -370,31 +369,10 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
     };
     let fleet_on = ServerState::mcp_agent_fleet_env_enabled();
 
-    let mut daemon_reported_agent_count: Option<u64> = None;
-    let mut daemon_status_rpc_error: Option<String> = None;
-    let mut daemon_reported_agent_ids: Option<Vec<u64>> = None;
-    let mut daemon_agent_ids_rpc_error: Option<String> = None;
-    if let Some(client) = state.orch_daemon_client_for_start_rpc() {
-        match client.orchestrator_status().await {
-            Ok(v) => {
-                daemon_reported_agent_count = v.get("agent_count").and_then(|x| x.as_u64());
-            }
-            Err(e) => {
-                daemon_status_rpc_error = Some(format!("{}", e));
-            }
-        }
-        match client.agent_ids().await {
-            Ok(v) => {
-                daemon_reported_agent_ids = v
-                    .get("agent_ids")
-                    .and_then(|a: &serde_json::Value| a.as_array())
-                    .map(|arr: &Vec<serde_json::Value>| arr.iter().filter_map(|x: &serde_json::Value| x.as_u64()).collect::<Vec<u64>>());
-            }
-            Err(e) => {
-                daemon_agent_ids_rpc_error = Some(format!("{}", e));
-            }
-        }
-    }
+    let daemon_reported_agent_count: Option<u64> = None;
+    let daemon_status_rpc_error: Option<String> = None;
+    let daemon_reported_agent_ids: Option<Vec<u64>> = None;
+    let daemon_agent_ids_rpc_error: Option<String> = None;
 
     let mut embed_ids_sorted: Vec<u64> = orch.agent_ids().iter().map(|a| a.0).collect();
     embed_ids_sorted.sort_unstable();
@@ -459,7 +437,17 @@ pub async fn spawn_agent(state: &ServerState, params: crate::mcp_tools::params::
     let out_dynamic = params.dynamic.unwrap_or(false);
     let out_parent = params.parent_agent_id;
     let out_source = params.source_task_id;
-    match state.spawn_agent_backend(params).await {
+    let res = if out_dynamic {
+        state.orchestrator.spawn_dynamic_agent_with_parent(
+            &out_name,
+            out_parent.map(crate::AgentId),
+            params.delegation_reason.as_deref(),
+            out_source.map(crate::TaskId),
+        )
+    } else {
+        state.orchestrator.spawn_agent(&out_name)
+    };
+    match res.map_err(|e| format!("{}", e)) {
         Ok(id) => ToolResult::ok(serde_json::json!({
             "agent_id": id.0,
             "name": out_name,
@@ -478,8 +466,7 @@ pub async fn spawn_agent(state: &ServerState, params: crate::mcp_tools::params::
 /// Retire an agent (releases locks/affinity, drains queue metadata).
 pub async fn retire_agent(state: &ServerState, params: crate::mcp_tools::params::AgentIdToolParams) -> String {
     match state
-        .retire_agent_backend(crate::AgentId(params.agent_id))
-        .await
+        .orchestrator.retire_agent(crate::AgentId(params.agent_id)).await
     {
         Ok(remaining_tasks) => ToolResult::ok(serde_json::json!({
             "agent_id": params.agent_id,
@@ -496,8 +483,7 @@ pub async fn retire_agent(state: &ServerState, params: crate::mcp_tools::params:
 /// Pause an agent's task queue.
 pub async fn pause_agent(state: &ServerState, params: crate::mcp_tools::params::AgentIdToolParams) -> String {
     match state
-        .pause_agent_backend(crate::AgentId(params.agent_id))
-        .await
+        .orchestrator.pause_agent(crate::AgentId(params.agent_id))
     {
         Ok(()) => ToolResult::ok(format!("Agent {} paused", params.agent_id)).to_json(),
         Err(e) => {
@@ -509,8 +495,7 @@ pub async fn pause_agent(state: &ServerState, params: crate::mcp_tools::params::
 /// Resume a paused agent queue.
 pub async fn resume_agent(state: &ServerState, params: crate::mcp_tools::params::AgentIdToolParams) -> String {
     match state
-        .resume_agent_backend(crate::AgentId(params.agent_id))
-        .await
+        .orchestrator.resume_agent(crate::AgentId(params.agent_id))
     {
         Ok(()) => ToolResult::ok(format!("Agent {} resumed", params.agent_id)).to_json(),
         Err(e) => {

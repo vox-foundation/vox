@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::Arc;
 
 use super::super::errors::SessionError;
 use super::super::state::{Session, SessionState};
@@ -75,5 +76,10 @@ impl SessionManager {
             }
         }
         Ok(count)
+    }
+
+    /// Attach a database handle late.
+    pub fn attach_db(&mut self, db: Arc<vox_db::VoxDb>) {
+        self.db = Some(db);
     }
 }

@@ -6,3 +6,4 @@ mod fail;
 mod harness;
 mod impl_support;
 mod success;
+pub mod audit_reporter;

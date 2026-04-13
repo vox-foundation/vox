@@ -2,21 +2,21 @@ use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 
 /// Detects "God Objects" — files or entities that are too large or have too many responsibilities.
 pub struct GodObjectDetector {
-    /// Soft cap on non-blank source lines in a single file before it is treated as a god object.
-    pub max_lines: usize,
-    /// Maximum `fn` / method-like declarations counted per file (language-specific heuristics in `check`).
+    /// Soft cap for method count.
     pub max_methods: usize,
+    /// Hard cap for lines.
+    pub hard_max_lines: usize,
+    pub warn_max_lines: usize,
+    pub info_max_lines: usize,
 }
 
 impl Default for GodObjectDetector {
     fn default() -> Self {
         Self {
-            // TOESTUB remediation (2025-Q1): raised from 500 — several first-party crates
-            // (integration tests, CLI publication, MCP dispatch) legitimately exceed 500 non-blank
-            // lines until phased splits land; still catches extreme single-file dumps.
-            max_lines: 1700,
-            // Raised from 12: `fn ` / `impl ` substring heuristic over-counts in macro-heavy modules.
-            max_methods: 38,
+            hard_max_lines: 500,
+            warn_max_lines: 400,
+            info_max_lines: 300,
+            max_methods: 12,
         }
     }
 }
@@ -56,22 +56,59 @@ impl DetectionRule for GodObjectDetector {
 
         let nonblank_lines = file.lines.iter().filter(|l| !l.trim().is_empty()).count();
 
-        // Check file size using non-blank lines (matches workspace god-object checklist / PowerShell Trim rule).
-        if nonblank_lines > self.max_lines {
+        // Check file size using non-blank lines with the 3-tier system.
+        if nonblank_lines > self.hard_max_lines {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
-                severity: self.severity(),
+                severity: Severity::Error,
                 file: file.path.clone(),
                 line: 1,
                 column: 0,
                 message: format!(
-                    "File is too large ({} non-blank lines). Maximum allowed is {}.",
-                    nonblank_lines, self.max_lines
+                    "File is too large ({} non-blank lines). Hard maximum allowed is {}.",
+                    nonblank_lines, self.hard_max_lines
                 ),
                 suggestion: Some(
-                    "Refactor this file into smaller sub-modules or extract logic into traits."
-                        .to_string(),
+                    "Break down the domain logic into sub-modules immediately.".to_string(),
+                ),
+                context: file.context_around(1, 2),
+                confidence: None,
+                evidence: None,
+            });
+        } else if nonblank_lines > self.warn_max_lines {
+             findings.push(Finding {
+                rule_id: self.id().to_string(),
+                rule_name: self.name().to_string(),
+                severity: Severity::Warning,
+                file: file.path.clone(),
+                line: 1,
+                column: 0,
+                message: format!(
+                    "File is too large ({} non-blank lines/Warning Threshold >{}). Flagged for low-density MENS context.",
+                    nonblank_lines, self.warn_max_lines
+                ),
+                suggestion: Some(
+                    "Consider decomposing this file before it hits the 500-line hard block.".to_string(),
+                ),
+                context: file.context_around(1, 2),
+                confidence: None,
+                evidence: None,
+            });
+        } else if nonblank_lines > self.info_max_lines {
+             findings.push(Finding {
+                rule_id: self.id().to_string(),
+                rule_name: self.name().to_string(),
+                severity: Severity::Info,
+                file: file.path.clone(),
+                line: 1,
+                column: 0,
+                message: format!(
+                    "File is growing large ({} non-blank lines / Soft Limit >{}).",
+                    nonblank_lines, self.info_max_lines
+                ),
+                suggestion: Some(
+                    "Consider trait extraction early to avoid refactoring later.".to_string(),
                 ),
                 context: file.context_around(1, 2),
                 confidence: None,
@@ -97,16 +134,16 @@ impl DetectionRule for GodObjectDetector {
             }
         }
 
-        if count > self.max_methods * 2 {
+        if count > self.max_methods {
             // Rough heuristic for density
             findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
-                severity: Severity::Warning,
+                severity: Severity::Error,
                 file: file.path.clone(),
                 line: 1,
                 column: 0,
-                message: format!("High method/entity density detected (~{} entities).", count),
+                message: format!("High method/entity density detected (~{} entities vs max {}).", count, self.max_methods),
                 suggestion: Some(
                     "Consider decomposing large structs into multiple traits.".to_string(),
                 ),

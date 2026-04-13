@@ -1,0 +1,77 @@
+use anyhow::Result;
+use tokenizers::Tokenizer;
+use vox_tensor::data::TrainingPair;
+
+use super::types::{EncodedTrainStep, TryEncodeOutcome};
+use crate::mens::tensor::training_config::LoraTrainingConfig;
+
+pub fn try_encode_training_step(
+    pair: &TrainingPair,
+    system_prompt: &str,
+    tokenizer: &Tokenizer,
+    config: &LoraTrainingConfig,
+    max_difficulty: u8,
+) -> Result<TryEncodeOutcome> {
+    if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
+        return Ok(TryEncodeOutcome::SkipCurriculum);
+    }
+    let text = if let Some(ref turns) = pair.turns {
+        crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
+    } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+        crate::mens::tensor::training_text::chatml_supervised_text(
+            system_prompt,
+            p,
+            r,
+            &config.chatml,
+        )
+    } else {
+        return Ok(TryEncodeOutcome::SkipShortSeq);
+    };
+    let prefix_text = if let Some(ref turns) = pair.turns {
+        crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(
+            turns,
+            &config.chatml,
+        )
+    } else if let Some(ref p) = pair.prompt {
+        crate::mens::tensor::training_text::chatml_prefix_open_assistant(
+            system_prompt,
+            p,
+            &config.chatml,
+        )
+    } else {
+        return Ok(TryEncodeOutcome::SkipShortSeq);
+    };
+    let prefix_len = crate::mens::tensor::ce_mask_align::aligned_prefix_token_len(
+        tokenizer,
+        prefix_text.as_str(),
+        text.as_str(),
+    )?;
+    let enc = tokenizer
+        .encode(text, true)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let mut ids = enc.get_ids().to_vec();
+    let raw_token_len = ids.len();
+    let mut trunc_offset = 0usize;
+    if ids.len() > config.seq_len {
+        trunc_offset = ids.len() - config.seq_len;
+        ids = ids[trunc_offset..].to_vec();
+    }
+    if ids.len() < 2 {
+        return Ok(TryEncodeOutcome::SkipShortSeq);
+    }
+    let (sample_weight, _) = super::logic::trajectory_weight_for_pair(pair, config);
+    Ok(TryEncodeOutcome::Encoded(EncodedTrainStep {
+        raw_token_len,
+        ids,
+        prefix_len,
+        trunc_offset,
+        sample_weight,
+    }))
+}
+
+pub fn token_ids_in_model_vocab(ids: &[u32], vocab: usize) -> bool {
+    if vocab == 0 {
+        return false;
+    }
+    ids.iter().all(|&id| (id as usize) < vocab)
+}

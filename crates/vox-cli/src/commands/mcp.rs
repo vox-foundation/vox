@@ -1,7 +1,6 @@
 //! `vox mcp` — spawns the **`vox-mcp`** executable (separate crate) with stdio inherited.
 
-use anyhow::{Context, Result};
-use std::process::Command;
+use anyhow::Result;
 
 /// Run the native in-process MCP server (stdio) if the `mcp-server` feature is enabled.
 pub fn run() -> Result<()> {
@@ -10,7 +9,7 @@ pub fn run() -> Result<()> {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
-        rt.block_on(crate::commands::mcp_server::server::run_stdio_server_blocking())?;
+        rt.block_on(crate::commands::mcp_server::run_stdio_server_blocking())?;
         Ok(())
     }
 

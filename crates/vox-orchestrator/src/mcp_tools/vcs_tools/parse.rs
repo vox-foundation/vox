@@ -1,6 +1,6 @@
 use crate::{ConflictId, OperationId, SnapshotId};
 
-pub(super) fn parse_snapshot_id_value(v: Option<&serde_json::Value>) -> Option<SnapshotId> {
+pub(super) fn _parse_snapshot_id_value(v: Option<&serde_json::Value>) -> Option<SnapshotId> {
     let v = v?;
     if let Some(n) = v.as_u64() {
         return Some(SnapshotId(n));
@@ -32,22 +32,22 @@ pub(super) fn parse_conflict_id_value(v: Option<&serde_json::Value>) -> Option<C
 
 #[cfg(test)]
 mod id_parse_tests {
-    use super::{parse_conflict_id_value, parse_operation_id_value, parse_snapshot_id_value};
+    use super::{parse_conflict_id_value, parse_operation_id_value, _parse_snapshot_id_value};
     use serde_json::json;
     use crate::{ConflictId, OperationId, SnapshotId};
 
     #[test]
     fn snapshot_id_accepts_numeric_and_s_prefix() {
         assert_eq!(
-            parse_snapshot_id_value(Some(&json!(3))),
+            _parse_snapshot_id_value(Some(&json!(3))),
             Some(SnapshotId(3))
         );
         assert_eq!(
-            parse_snapshot_id_value(Some(&json!("S-000003"))),
+            _parse_snapshot_id_value(Some(&json!("S-000003"))),
             Some(SnapshotId(3))
         );
         assert_eq!(
-            parse_snapshot_id_value(Some(&json!("3"))),
+            _parse_snapshot_id_value(Some(&json!("3"))),
             Some(SnapshotId(3))
         );
     }

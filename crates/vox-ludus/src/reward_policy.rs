@@ -179,6 +179,7 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "populi_corpus_contributed" => BaseReward::with_lumens(500, 100, 15),
         "populi_inference_run" => BaseReward::new(5, 1),
         "populi_finetune_epoch" => BaseReward::new(2000, 400),
+        "mens_flywheel_triggered" => BaseReward::with_lumens(200, 40, 10),
 
         // ── Vox language features ─────────────────────────
         "vox_example_created" => BaseReward::new(200, 40),

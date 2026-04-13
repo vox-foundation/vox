@@ -601,6 +601,21 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
         description: "Standard Windows user profile directory.",
         defaults: "C:\\Users\\Default",
     },
+    OperatorEnvSpec {
+        name: "VOX_CLAVIS_CUTOVER_PHASE",
+        description: "Clavis cutover phase controls (shadow, enforce, decommission).",
+        defaults: "shadow",
+    },
+    OperatorEnvSpec {
+        name: "VOX_CLAVIS_MIGRATION_PHASE",
+        description: "Clavis migration phase controls (legacy_pre, shadow, dual).",
+        defaults: "legacy_pre",
+    },
+    OperatorEnvSpec {
+        name: "VOX_DB_MVCC",
+        description: "Enable experimental MVCC for SQLite (1/true to enable).",
+        defaults: "false",
+    },
 ];
 
 #[must_use]

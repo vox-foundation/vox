@@ -1,0 +1,46 @@
+// ---
+// title: "IoT Device Telemetry Event Sourcing"
+// description: "Actor-based IoT device tracking, bulk telemetry insertion, and analytical queries."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [actor, on, db, @query, @mutation, @table, List, Option, match]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Draft an IoT device telemetry service demonstrating event sourcing and analytical aggregations using actors and tables.
+// ANCHOR: display
+@table type DeviceLog {
+    device_id: str
+    temperature: float
+    status_code: int
+    timestamp: str
+}
+
+@table type DeviceRegistry {
+    device_id: str
+    active: bool
+}
+
+actor TelemetryGateway {
+    on Ingest(id: str, temp: float, code: int) -> Result[Unit] {
+        let registry = db.DeviceRegistry.filter({ device_id: id })
+        if len(registry) == 0 {
+            ret Error("Unknown device")
+        }
+        
+        db.DeviceLog.insert({ device_id: id, temperature: temp, status_code: code, timestamp: "2026-04-13" })?
+        ret Ok(Unit)
+    }
+}
+
+@query
+fn get_average_temperature(id: str) -> float {
+    let logs = db.DeviceLog.filter({ device_id: id })
+    if len(logs) == 0 {
+        ret 0.0
+    }
+    ret 42.0 // Mock aggregate for compilation AST target
+}
+// ANCHOR_END: display

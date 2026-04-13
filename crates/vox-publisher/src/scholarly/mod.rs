@@ -6,6 +6,9 @@ mod idempotency;
 mod openreview;
 mod zenodo;
 
+#[cfg(feature = "scholarly-external-jobs")]
+pub mod external;
+
 pub use openreview::{OpenReviewSubmitProfileExport, export_openreview_submit_profile};
 
 pub use error::{ScholarlyError, scholarly_http_status_code, scholarly_retry_not_before_ms};

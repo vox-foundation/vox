@@ -12,6 +12,18 @@ pub struct FlywheelConfig {
     pub auto_train: bool,
 }
 
+impl FlywheelConfig {
+    pub fn load() -> Self {
+        let path = std::path::Path::new("mens/config/flywheel.yaml");
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Ok(config) = serde_yaml::from_str(&content) {
+                return config;
+            }
+        }
+        Self::default()
+    }
+}
+
 impl Default for FlywheelConfig {
     fn default() -> Self {
         Self {
@@ -60,4 +72,49 @@ impl FlywheelState {
             ast_diversity: current_diversity,
         }
     }
+}
+
+pub fn evaluate_readiness(corpus_path: &std::path::Path) -> anyhow::Result<FlywheelSignal> {
+    use std::io::BufRead;
+    use xxhash_rust::xxh3::xxh3_64;
+    
+    let file = std::fs::File::open(corpus_path)?;
+    let reader = std::io::BufReader::new(file);
+    let mut count = 0;
+    
+    // Wave 3-03: Semantic Diversity Matrix
+    // Uses AST hashes to ensure data novelty across mutations.
+    let mut signatures = std::collections::HashSet::new();
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.trim().is_empty() { continue; }
+        count += 1;
+        
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
+            if let Some(resp) = v.get("response").and_then(|r| r.as_str()) {
+                // If it's valid Vox, hash the AST structure to ignore comments/whitespace
+                let tokens = vox_compiler::lexer::lex(resp);
+                if let Ok(module) = vox_compiler::parser::parse(tokens) {
+                    if let Ok(ser) = serde_json::to_vec(&module) {
+                        signatures.insert(xxh3_64(&ser));
+                    } else {
+                        signatures.insert(xxh3_64(resp.as_bytes()));
+                    }
+                } else {
+                    // Fallback to text hash for non-Vox lanes
+                    signatures.insert(xxh3_64(resp.as_bytes()));
+                }
+            }
+        }
+    }
+
+    let diversity = if count > 0 {
+        signatures.len() as f64 / count as f64
+    } else {
+        0.0
+    };
+
+    let state = FlywheelState::new(FlywheelConfig::load());
+    Ok(state.check(count, diversity))
 }

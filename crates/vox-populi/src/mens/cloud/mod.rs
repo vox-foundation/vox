@@ -163,19 +163,20 @@ pub struct CloudProviderConfig {
 impl Default for CloudProviderConfig {
     fn default() -> Self {
         let max_budget = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxBudget)
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(10.0_f64);
+            .expose()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or(10.0);
         let cache_ttl = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudPriceTtl)
-            .ok()
-            .and_then(|s| s.parse().ok())
+            .expose()
+            .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(30_u64);
         let image = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudImage)
             .expose()
-            .unwrap_or_else(|| DEFAULT_CLOUD_IMAGE.to_string());
+            .unwrap_or(DEFAULT_CLOUD_IMAGE)
+            .to_string();
         let abs_max = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxRuntime)
-            .ok()
-            .and_then(|s| s.parse().ok())
+            .expose()
+            .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(3600_u64);
         Self {
             max_budget_usd: max_budget,

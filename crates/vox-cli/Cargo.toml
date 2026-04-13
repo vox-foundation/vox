@@ -102,7 +102,7 @@ coderabbit = [
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
 island = ["dep:comfy-table", "dep:dirs"]
 # Local populi registry + `vox populi status|serve` (`vox-populi` / optional HTTP control plane).
-populi = ["dep:vox-populi", "vox-populi/transport"]
+populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3"]
 # Interpreted `vox mens workflow run` (journal + mens activities); implies mens hooks.
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
 # Stub for non-functional inference server when refactoring or debugging.
@@ -162,6 +162,7 @@ vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
 vox-protocol = { workspace = true }
+vox-constrained-gen = { workspace = true }
 vox-oratio = { workspace = true, optional = true }
 cpal = { version = "0.15", optional = true }
 hound = { version = "3.5", optional = true }

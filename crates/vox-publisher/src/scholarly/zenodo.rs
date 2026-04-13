@@ -13,7 +13,7 @@ use super::ScholarlySubmissionReceipt;
 use super::error::{ScholarlyError, classify_scholarly_http};
 use super::flags;
 use crate::publication::PublicationManifest;
-use crate::submission_package::{self, ScholarlyVenue};
+use crate::submission::{self, ScholarlyVenue};
 use crate::zenodo_api_types::{ZenodoDeposition, ZenodoDepositionCreateBody};
 use crate::zenodo_metadata;
 
@@ -73,7 +73,7 @@ impl ZenodoHttpClient {
             base,
             token: t.to_string(),
             http: vox_reqwest_defaults::client_builder()
-                .user_agent("vox-publisher/scholarly-zenodo")
+                .user_agent("vox-publisher/submission")
                 .build()
                 .map_err(|e| ScholarlyError::Config {
                     message: format!("http client: {e}"),
@@ -357,7 +357,7 @@ fn zenodo_load_staging_sha_map(root: &Path) -> Result<HashMap<String, String>, S
 
 fn zenodo_relpaths_to_upload(root: &Path) -> Result<Vec<String>, ScholarlyError> {
     let allow = flags::zenodo_upload_allowlist();
-    let plan: Vec<String> = submission_package::staging_artifacts(ScholarlyVenue::Zenodo)
+    let plan: Vec<String> = submission::staging_artifacts(ScholarlyVenue::Zenodo)
         .into_iter()
         .map(|a| a.relative_path)
         .filter(|r| r != "arxiv_bundle.tar.gz" && r != "arxiv_handoff.json")

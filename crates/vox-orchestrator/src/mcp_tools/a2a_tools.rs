@@ -460,7 +460,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
     let mut db_message_uuid: Option<String> = None;
     let mut relay_attempted = false;
     let mut relay_ok = false;
-    let mut route_ok = false;
+    let route_ok;
     match route {
         A2ADeliveryPlane::LocalEphemeral => {
             local_message_id = Some(
@@ -499,6 +499,8 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
             }
         }
         A2ADeliveryPlane::RemoteMesh => {
+            relay_ok = false;
+            relay_attempted = false;
             if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env()
                 && !base.trim().is_empty()
             {

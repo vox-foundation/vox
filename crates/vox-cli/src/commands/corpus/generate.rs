@@ -128,8 +128,7 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
     let total = entries.len();
 
     // ── 8.1: Parallel extraction using tokio::spawn ──────────────────────
-    use std::sync::{Arc, Mutex};
-    let output_arc = Arc::new(Mutex::new(output_owned.clone()));
+    use std::sync::Arc;
     let existing_arc = Arc::new(existing_hashes);
 
     let mut handles = Vec::with_capacity(entries.len());
@@ -498,7 +497,7 @@ pub(super) async fn run_prompt(output: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn run_heal_to_dpo(
+pub async fn run_heal_to_dpo(
     input: Option<std::path::PathBuf>,
     output: &Path,
 ) -> Result<()> {
@@ -583,44 +582,55 @@ pub(super) async fn run_mutate(source_dir: &Path, count: usize, output: &Path) -
     let mut generated = 0;
     let mut out_buffer = String::new();
 
-    for path in entries {
-        if generated >= count {
-            break;
-        }
+    while generated < count {
+        let mut progress = false;
+        for path in &entries {
+            if generated >= count {
+                break;
+            }
 
-        if let Ok(result) = crate::pipeline::run_frontend(&path, false).await {
-            if !result.has_errors() {
-                let mutations =
-                    vox_corpus::ast_mutator::generate_mutations(&result.source, &result.module);
-                if mutations.is_empty() {
-                    continue;
-                }
+            if let Ok(result) = crate::pipeline::run_frontend(path, false).await {
+                if !result.has_errors() {
+                    let mutations =
+                        vox_corpus::ast_mutator::generate_mutations(&result.source, &result.module);
+                    if mutations.is_empty() {
+                        continue;
+                    }
 
-                let mutated_source =
-                    vox_corpus::ast_mutator::apply_mutations(&result.source, mutations);
+                    let mutated_source =
+                        vox_corpus::ast_mutator::apply_mutations(&result.source, mutations);
 
-                // Round-trip verification
-                let verification = tokio::task::spawn_blocking(move || {
-                    vox_compiler::pipeline::run_frontend_str(&mutated_source, "<mutated>")
-                })
-                .await??;
+                    // Round-trip verification
+                    let mutated_source_clone = mutated_source.clone();
+                    let verification_res = tokio::task::spawn_blocking(move || {
+                        vox_compiler::pipeline::run_frontend_str(&mutated_source_clone, "<mutated>")
+                    })
+                    .await?;
 
-                if !verification.has_errors() {
-                    let pair = serde_json::json!({
-                        "prompt": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```",
-                        "response": "```vox\n".to_string() + &verification.source + "\n```",
-                        "category": "ast_mutate",
-                        "schema_version": "vox_dogfood_v1",
-                        "difficulty": 0.5,
-                    });
+                    if let Ok(verification) = verification_res {
+                        if !verification.has_errors() {
+                            let pair = serde_json::json!({
+                                "prompt": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```",
+                                "response": "```vox\n".to_string() + &mutated_source + "\n```",
+                                "category": "ast_mutate",
+                                "lane": "vox_lang_tier_b",
+                                "origin": "synthetic",
+                                "schema_version": "vox_dogfood_v1",
+                                "difficulty": 0.5,
+                            });
 
-                    out_buffer.push_str(&serde_json::to_string(&pair)?);
-                    out_buffer.push('\n');
-                    generated += 1;
-                } else {
-                    // Could emit to HealPair lane here
+                            out_buffer.push_str(&serde_json::to_string(&pair)?);
+                            out_buffer.push('\n');
+                            generated += 1;
+                            progress = true;
+                        }
+                    }
                 }
             }
+        }
+        
+        if !progress {
+            break; // Avoid infinite loop if no more mutations possible
         }
     }
 
@@ -668,7 +678,9 @@ pub(super) async fn run_rust_mine(source_dir: &Path, output: &Path) -> Result<()
                         let pair = serde_json::json!({
                             "prompt": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust),
                             "response": "```vox\n".to_string() + &result.source + "\n```",
-                            "category": "rust_to_vox",
+                            "category": "rust_to_vox_translation",
+                            "lane": "vox_rust_expert_cross",
+                            "origin": "human",
                             "confidence": tr.confidence,
                         });
 

@@ -9,12 +9,11 @@
 use vox_config::inference_profile_allows_local_ollama_http;
 use crate::models::{ModelSpec, ProviderType};
 use crate::usage::UsageTracker;
-use crate::{AgentEventKind, BudgetGate, Gate, GateResult};
+use crate::{AgentEventKind, BudgetGate, GateResult};
 
 use crate::mcp_tools::server_state::ServerState;
 
 use super::MCP_GLOBAL_LLM_AGENT;
-use super::error::HttpInferError;
 use super::limits::HTTP_MAX_OUTPUT_TOKENS_CAP;
 use super::model_route_policy::{McpChatModelResolution, resolve_mcp_chat_model};
 use super::provider_adapter::{ProviderInferResult, infer_via_provider_adapter};
@@ -145,7 +144,7 @@ fn google_direct_fallback_for_gemini(
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).
 pub async fn mcp_infer_completion(
     state: &ServerState,
-    mut model: ModelSpec,
+    model: ModelSpec,
     tool: &str,
     system_prompt: &str,
     routing: &McpInferRouting<'_>,

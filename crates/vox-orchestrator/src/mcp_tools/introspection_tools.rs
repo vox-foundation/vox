@@ -219,7 +219,6 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
                 crate::types::TaskPriority::Background => "Background",
                 crate::types::TaskPriority::Normal => "Normal",
                 crate::types::TaskPriority::Urgent => "Urgent",
-                _ => "Unknown",
             };
 
             let agent_id = assignments

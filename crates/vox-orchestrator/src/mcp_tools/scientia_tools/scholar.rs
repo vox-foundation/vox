@@ -9,12 +9,16 @@ use vox_publisher::scholarly_external_jobs::{
     poll_scholarly_remote_status_batch, poll_scholarly_remote_status_persist,
     publication_scholarly_submit_with_ledger,
 };
+use vox_publisher::submission::{
+    ScholarlyVenue, StagingExportError, ValidationFinding, validate_scholarly_staging,
+    write_scholarly_staging,
+};
 
 use super::common::default_one_u32;
 use super::common::{
     REM_PUBLICATION_ID, REM_SCIENTIA_ARXIV, REM_SCIENTIA_DB, REM_SCIENTIA_EXT_SUBMIT,
     REM_SCIENTIA_METADATA, REM_SCIENTIA_OUTPUT_DIR, REM_SCIENTIA_REMOTE, REM_SCIENTIA_STAGE,
-    no_voxdb_tool_string, publication_manifest_from_row,
+    no_voxdb_tool_string,
 };
 use super::lifecycle::PreflightProfileParam;
 
@@ -81,10 +85,10 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
         .to_json();
     }
     let venue_raw = params.venue.trim();
-    let Some(venue) = vox_publisher::submission_package::ScholarlyVenue::parse(venue_raw) else {
+    let Some(venue) = ScholarlyVenue::parse(venue_raw) else {
         return ToolResult::<String>::err_with_remediation(
             format!("unknown venue {venue_raw:?}"),
-            "Use `zenodo`, `openreview`, or `arxiv-assist` (see `ScholarlyVenue::parse` in vox-publisher).",
+            "Use `zenodo`, `openreview`, or `arxiv-assist` for `venue` (see `ScholarlyVenue::parse` in vox-publisher).",
         )
         .to_json();
     };
@@ -117,13 +121,10 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let written = match vox_publisher::submission_package::write_scholarly_staging(
-        &manifest,
-        venue,
-        &output_dir,
-    ) {
+    let written = match write_scholarly_staging(&manifest, venue, &output_dir) {
         Ok(w) => w,
         Err(e) => {
+            let e: StagingExportError = e;
             return ToolResult::<String>::err_with_remediation(
                 e.to_string(),
                 REM_SCIENTIA_OUTPUT_DIR,
@@ -131,24 +132,23 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
             .to_json();
         }
     };
-    if let Err(findings) =
-        vox_publisher::submission_package::validate_scholarly_staging(&output_dir, venue, &manifest)
-    {
+    if let Err(findings) = validate_scholarly_staging(&output_dir, venue, &manifest) {
+        let findings: Vec<ValidationFinding> = findings;
         let msg: String = findings
             .iter()
-            .map(|f| format!("{}: {}", f.code, f.message))
-            .collect::<Vec<_>>()
+            .map(|f: &ValidationFinding| format!("{}: {}", f.code, f.message))
+            .collect::<Vec<String>>()
             .join("; ");
         return ToolResult::<String>::err_with_remediation(
             format!("staging validation failed: {msg}"),
-            "Inspect `written` paths under output_dir; re-run export or fix files to match the venue plan (see vox-publisher `submission_package::staging_artifacts`).",
+            "Inspect `written` paths under output_dir; re-run export or fix files to match the venue plan (see vox-publisher `submission::staging_artifacts`).",
         )
         .to_json();
     }
     ToolResult::ok(serde_json::json!({
         "publication_id": publication_id,
         "output_dir": output_dir,
-        "venue": venue.as_str(),
+        "venue": venue.as_str().to_string(),
         "written": written,
     }))
     .to_json()
@@ -360,7 +360,7 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
 
     match (venue_raw, out_dir) {
         (Some(vs), Some(od)) => {
-            let Some(venue) = vox_publisher::submission_package::ScholarlyVenue::parse(vs) else {
+            let Some(venue) = ScholarlyVenue::parse(vs) else {
                 return ToolResult::<String>::err_with_remediation(
                     format!("unknown venue {vs:?}"),
                     "Use `zenodo`, `openreview`, or `arxiv-assist` for `venue` when `staging_output_dir` is set.",
@@ -371,26 +371,22 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
                 stages.push(format!("staging_skipped_dry_run venue={vs} dir={od}"));
             } else {
                 let output_path = std::path::Path::new(od);
-                if let Err(e) = vox_publisher::submission_package::write_scholarly_staging(
-                    &manifest,
-                    venue,
-                    output_path,
-                ) {
+                if let Err(e) = write_scholarly_staging(&manifest, venue, output_path) {
+                    let e: StagingExportError = e;
                     return ToolResult::<String>::err_with_remediation(
                         e.to_string(),
                         REM_SCIENTIA_OUTPUT_DIR,
                     )
                     .to_json();
                 }
-                if let Err(findings) = vox_publisher::submission_package::validate_scholarly_staging(
-                    output_path,
-                    venue,
-                    &manifest,
-                ) {
+                if let Err(findings) =
+                    validate_scholarly_staging(output_path, venue, &manifest)
+                {
+                    let findings: Vec<ValidationFinding> = findings;
                     let msg: String = findings
                         .iter()
-                        .map(|f| format!("{}: {}", f.code, f.message))
-                        .collect::<Vec<_>>()
+                        .map(|f: &ValidationFinding| format!("{}: {}", f.code, f.message))
+                        .collect::<Vec<String>>()
                         .join("; ");
                     return ToolResult::<String>::err_with_remediation(
                         format!("staging validation failed: {msg}"),

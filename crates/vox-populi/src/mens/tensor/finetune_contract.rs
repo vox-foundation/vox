@@ -21,6 +21,7 @@ pub struct FineTuneContract {
     pub quant: QuantSpec,
     pub exec: ExecSpec,
     pub artifact: ArtifactSpec,
+    pub collateral_damage_verified: bool,
 }
 
 /// Base model + tokenizer resolution.
@@ -219,6 +220,7 @@ impl FineTuneContract {
                 deployment_target: config.deployment_target,
                 ..ArtifactSpec::default()
             },
+            collateral_damage_verified: false,
         }
     }
 }

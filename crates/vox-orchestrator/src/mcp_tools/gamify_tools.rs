@@ -9,7 +9,7 @@ use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use vox_ludus::companion::{Companion, Interaction};
+use vox_ludus::companion::Companion;
 use vox_ludus::db::{list_companions, upsert_companion};
 
 const REM_LUDUS_DB: &str = "Configure VoxDb/Turso (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for Ludus/Codex-backed tools.";
@@ -78,7 +78,7 @@ pub struct AgentStatusParams {
 pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> String {
     let id = format!("agent-{}", params.agent_id);
     let user_id = vox_ludus::db::canonical_user_id();
-    let mut companion = if let Some(db) = &state.db {
+    let companion = if let Some(db) = &state.db {
         match list_companions(db, &user_id).await {
             Ok(comps) => comps.into_iter().find(|c: &Companion| c.id == id),
             Err(_) => None,

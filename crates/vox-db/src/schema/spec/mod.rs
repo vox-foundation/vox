@@ -43,6 +43,17 @@ CREATE TABLE IF NOT EXISTS codex_capability_map (
 );
 CREATE INDEX IF NOT EXISTS idx_codex_cap_vendor_topic ON codex_capability_map (vendor, topic);";
 
+/// MENS corpus snapshot tracking (autonomously governed by the flywheel).
+pub const CORPUS_SNAPSHOTS_DDL: &str = r"
+CREATE TABLE IF NOT EXISTS corpus_snapshots (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    fingerprint          TEXT    NOT NULL UNIQUE,
+    generator_version    TEXT    NOT NULL,
+    total_pairs          INTEGER NOT NULL,
+    pair_breakdown_json  TEXT,
+    created_at           INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);";
+
 fn usage_field_docs() -> Vec<FieldInfo> {
     vec![
         FieldInfo {

@@ -64,7 +64,7 @@ pub struct SyntheticGenConfig {
     pub emit_orchestrator_rows: bool,
     /// Whether to emit skill management rows.
     pub emit_skill_rows: bool,
-    /// Whether to emit agent definition / agent usage rows.
+    /// Whether to emit agent documentation / agent usage rows.
     pub emit_agent_rows: bool,
     /// Whether to emit CLI command usage rows.
     pub emit_cli_rows: bool,
@@ -171,6 +171,7 @@ mod script_pairs;
 mod telemetry_pairs;
 mod templates;
 mod tool_pairs;
+pub mod transplant_pairs;
 mod web_pairs;
 mod workflow_pairs;
 

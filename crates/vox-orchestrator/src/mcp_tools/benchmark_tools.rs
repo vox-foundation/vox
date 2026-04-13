@@ -6,7 +6,7 @@
 
 use serde::Deserialize;
 use vox_db::research_metrics_contract::{
-    METRIC_TYPE_BENCHMARK_EVENT, METRIC_TYPE_SYNTAX_K_EVENT, TelemetryWriteOptions,
+    METRIC_TYPE_BENCHMARK_EVENT, METRIC_TYPE_SYNTAX_K_EVENT,
 };
 
 use crate::mcp_tools::params::ToolResult;

@@ -93,14 +93,14 @@ pub enum ScholarlyVenueCli {
 
 impl ScholarlyVenueCli {
     #[must_use]
-    pub fn to_venue(self) -> vox_publisher::submission_package::ScholarlyVenue {
+    pub fn to_venue(self) -> vox_publisher::submission::ScholarlyVenue {
         match self {
-            ScholarlyVenueCli::Zenodo => vox_publisher::submission_package::ScholarlyVenue::Zenodo,
+            ScholarlyVenueCli::Zenodo => vox_publisher::submission::ScholarlyVenue::Zenodo,
             ScholarlyVenueCli::OpenReview => {
-                vox_publisher::submission_package::ScholarlyVenue::OpenReview
+                vox_publisher::submission::ScholarlyVenue::OpenReview
             }
             ScholarlyVenueCli::ArxivAssist => {
-                vox_publisher::submission_package::ScholarlyVenue::ArxivAssist
+                vox_publisher::submission::ScholarlyVenue::ArxivAssist
             }
         }
     }

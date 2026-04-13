@@ -170,6 +170,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - **Implementation wave playbook (historical context):** [scientia-implementation-wave-playbook-2026.md](scientia-implementation-wave-playbook-2026.md) (232-task execution map, wave outputs, first-30 lock order, and contract inventory).
 - **Comprehensive gap analysis (historical context):** [scientia-gap-analysis-2026.md](scientia-gap-analysis-2026.md) — 45 identified problems with solutions, severity ratings, and a 7-wave execution order.
 - **Scientia Worthiness × Socrates Unification (research 2026):** [scientia-socrates-unification-research-2026.md](scientia-socrates-unification-research-2026.md) — deep structural analysis of isomorphisms between the Worthiness publication gate and the Socrates real-time confidence protocol. 38+ integration ideas organized into 8 themes (shared numeric language, inbound pipeline, A2A communication, MENS training, etc.), explicit separation-of-concerns boundaries, risk map, and wave-gated implementation roadmap.
+- **Scientia Publisher & Orchestrator Hardening Plan (roadmap 2026):** [scientia-publisher-hardening-implementation-plan-2026.md](scientia-publisher-hardening-implementation-plan-2026.md) — ordered execution plan for de-factoring God Objects across vox-publisher, vox-orchestrator, and vox-cli to adhere to the 500-line TOESTUB policy.
 
 ## Labeling rule
 

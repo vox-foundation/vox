@@ -90,7 +90,6 @@ vox-integration-tests
 vox-jsonschema-util
 vox-lsp
 vox-ludus
-vox-mcp
 vox-mcp-meta
 vox-mcp-registry
 vox-openai-sse

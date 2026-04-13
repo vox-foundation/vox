@@ -1,7 +1,6 @@
 //! Native QLoRA training: **NF4-quantized** frozen base linears + trainable LoRA via [`qlora_rs`].
 //!
-//! **Device:** maps Mens `--device` to Candle (CUDA / Metal when enabled, else CPU). Override
-//! with `VOX_CANDLE_DEVICE=cpu`. See [`ENV_CANDLE_DEVICE`].
+//! **Device:** maps Mens `--device` to Candle (CUDA / Metal when enabled, else CPU).
 //!
 //! ## Training loop properties
 //!
@@ -41,7 +40,7 @@ use super::training_config::LoraTrainingConfig;
 /// EMA alpha for ETA calculation (0.2 = stable but react within ~5 intervals).
 pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
 /// Environment variable: force Candle to CPU regardless of device flag.
-pub const ENV_CANDLE_DEVICE: &str = "VOX_CANDLE_DEVICE";
+
 
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);

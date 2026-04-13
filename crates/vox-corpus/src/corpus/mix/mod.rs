@@ -22,6 +22,10 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
+
+use rayon::prelude::*;
+use xxhash_rust::xxh3::xxh3_64;
 
 use anyhow::Context;
 use serde::Deserialize;
@@ -112,13 +116,15 @@ impl Default for MixRunOptions {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MixSourceReportRow {
     pub path: String,
     pub weight: f64,
     pub optional: bool,
     pub record_format: Option<String>,
     pub resolved_path: String,
+    /// Metadata for incremental skip: mtime and size.
+    pub source_fingerprint: String,
     pub input_lines: usize,
     pub repeats: usize,
     pub emitted_lines: usize,
@@ -126,11 +132,13 @@ pub struct MixSourceReportRow {
     pub share_of_output: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MixRunReport {
     pub config_path: String,
     pub output_path: String,
     pub strict: bool,
+    /// Hash of the MixConfigSchema fields and include/exclude lanes.
+    pub config_fingerprint: String,
     pub sources: Vec<MixSourceReportRow>,
     pub total_emitted: usize,
 }
@@ -388,6 +396,37 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Calculate a fingerprint for a source file based on path, mtime, and size.
+fn calculate_file_fingerprint(p: &Path) -> String {
+    let Ok(meta) = std::fs::metadata(p) else {
+        return "missing".into();
+    };
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let size = meta.len();
+    format!("{:x}", xxh3_64(format!("{}:{mtime}:{size}", p.display()).as_bytes()))
+}
+
+/// Calculate a composite fingerprint for the mix configuration variables.
+fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
+    let mut s = String::new();
+    s.push_str(&cfg.output);
+    for lane in &cfg.include_lanes { s.push_str(lane); }
+    for lane in &cfg.exclude_lanes { s.push_str(lane); }
+    for src in &cfg.sources {
+        s.push_str(&src.path);
+        s.push_str(&src.weight.to_string());
+        if let Some(f) = &src.record_format { s.push_str(f); }
+        if let Some(sr) = &src.sample_rate { s.push_str(&sr.to_string()); }
+        s.push_str(&src.optional.to_string());
+    }
+    format!("{:x}", xxh3_64(s.as_bytes()))
+}
+
 /// Same as [`run_mix_with_options`] with [`MixRunOptions::default`] (lenient; writes report).
 ///
 /// Resolves relative `output` / source paths in the YAML against [`std::env::current_dir`].
@@ -398,9 +437,7 @@ pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
 /// Concatenate sources in order, repeating each file's lines proportional to `weight` (rounded up to one copy minimum).
 ///
 /// Relative paths in the mix YAML are resolved against `path_base` when set (e.g. Cargo workspace root),
-/// otherwise against [`std::env::current_dir`]. This must match
-/// [`crate::training::mix_prepare::refresh_train_contract_override_from_mix`] so the written file
-/// matches the override path passed to [`crate::training::preflight::validate_train_preflight`].
+/// otherwise against [`std::env::current_dir`].
 pub fn run_mix_with_options(
     config_path: &Path,
     path_base: Option<&Path>,
@@ -412,33 +449,66 @@ pub fn run_mix_with_options(
     });
     let cwd = base_buf.as_path();
     let out_path = cwd.join(&cfg.output);
-    if let Some(parent) = out_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
+    
     let MixRunOptions {
         strict,
         write_report,
     } = options;
 
+    let config_fp = calculate_config_fingerprint(&cfg);
+    
+    // Incremental skip check
+    if write_report {
+        let report_name = out_path
+            .file_stem()
+            .map(|s| format!("{}.mix_report.json", s.to_string_lossy()))
+            .unwrap_or_else(|| "mix_report.json".into());
+        let report_path = out_path.with_file_name(report_name);
+        if report_path.is_file() && out_path.is_file() {
+            if let Ok(raw) = std::fs::read_to_string(&report_path) {
+                if let Ok(report) = serde_json::from_str::<MixRunReport>(&raw) {
+                    if report.config_fingerprint == config_fp {
+                        let mut all_match = true;
+                        for src_report in &report.sources {
+                            let p = cwd.join(&src_report.path);
+                            if calculate_file_fingerprint(&p) != src_report.source_fingerprint {
+                                all_match = false;
+                                break;
+                            }
+                        }
+                        if all_match {
+                            tracing::info!("  [mix] Incremental skip: {} is fresh", out_path.display());
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let mut total_out = 0usize;
-    let include_lanes: HashSet<String> = if cfg.include_lanes.is_empty() {
+    let include_lanes: Arc<HashSet<String>> = Arc::new(if cfg.include_lanes.is_empty() {
         HashSet::from(["vox_codegen".to_string()])
     } else {
         cfg.include_lanes.iter().cloned().collect()
-    };
-    let exclude_lanes: HashSet<String> = cfg.exclude_lanes.iter().cloned().collect();
-    let mut lane_counts: std::collections::BTreeMap<String, usize> =
-        std::collections::BTreeMap::new();
+    });
+    let exclude_lanes: Arc<HashSet<String>> = Arc::new(cfg.exclude_lanes.iter().cloned().collect());
+    let lane_counts = Arc::new(Mutex::new(std::collections::BTreeMap::<String, usize>::new()));
 
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-
-    let mut out = File::create(&out_path)
+    let out_file = File::create(&out_path)
         .with_context(|| format!("create mix output {}", out_path.display()))?;
+    let out_file = Arc::new(Mutex::new(std::io::BufWriter::new(out_file)));
+    
     let mut report_rows: Vec<MixSourceReportRow> = Vec::with_capacity(cfg.sources.len());
 
     for src in &cfg.sources {
         let p = cwd.join(&src.path);
+        let src_fp = calculate_file_fingerprint(&p);
+        
         if !p.is_file() || src.weight <= 0.0 {
             let mut row = MixSourceReportRow {
                 path: src.path.clone(),
@@ -446,6 +516,7 @@ pub fn run_mix_with_options(
                 optional: src.optional,
                 record_format: src.record_format.clone(),
                 resolved_path: p.display().to_string(),
+                source_fingerprint: src_fp,
                 input_lines: 0,
                 repeats: 0,
                 emitted_lines: 0,
@@ -473,59 +544,80 @@ pub fn run_mix_with_options(
         let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
         let sample_rate = src.sample_rate.unwrap_or(1.0).clamp(0.0, 1.0);
         
+        // Use a persistent reader for the source
+        let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
+        let reader = BufReader::new(file);
+        
         let mut emitted_this_src = 0usize;
         let mut input_lines_count = 0usize;
 
-        // Perform repeats
-        for _ in 0..repeats {
-            let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
-            let reader = BufReader::new(file);
+        // Process in chunks to balance parallelism vs memory
+        let chunk_size = 10_000;
+        let mut lines_iter = reader.lines();
+        
+        loop {
+            let mut chunk = Vec::with_capacity(chunk_size);
+            for _ in 0..chunk_size {
+                if let Some(Ok(l)) = lines_iter.next() {
+                    chunk.push(l);
+                } else {
+                    break;
+                }
+            }
+            if chunk.is_empty() { break; }
             
-            for line_result in reader.lines() {
-                let line = match line_result {
-                    Ok(l) => l,
+            input_lines_count += chunk.len();
+            
+            // Parallel normalization and filtering
+            let record_format = src.record_format.clone();
+            let include_lanes = Arc::clone(&include_lanes);
+            let exclude_lanes = Arc::clone(&exclude_lanes);
+            let lane_counts = Arc::clone(&lane_counts);
+            
+            let processed_chunk: Vec<String> = chunk.into_par_iter().filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.is_empty() { return None; }
+                
+                // Sampling logic
+                if sample_rate < 1.0 {
+                    let mut rng = rand::thread_rng();
+                    use rand::Rng;
+                    if !rng.gen_bool(sample_rate) { return None; }
+                }
+
+                let normalized = match normalize_training_jsonl_line(trimmed, record_format.as_deref()) {
+                    Ok(s) => s,
                     Err(e) => {
-                        eprintln!("  [mix] read error in {}: {e}", p.display());
-                        continue;
+                        eprintln!("  [mix] skip line error: {e}");
+                        return None;
                     }
                 };
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    continue;
-                }
-                
-                input_lines_count += 1;
-
-                // Sampling logic
-                if sample_rate < 1.0 && !rng.gen_bool(sample_rate) {
-                    continue;
-                }
-
-                let normalized =
-                    match normalize_training_jsonl_line(trimmed, src.record_format.as_deref()) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            eprintln!("  [mix] skip line in {}: {e}", p.display());
-                            continue;
-                        }
-                    };
                 let (normalized, lane) = match enrich_lane_metadata(&normalized) {
                     Ok(pair) => pair,
                     Err(e) => {
-                        eprintln!("  [mix] skip line in {}: {e}", p.display());
-                        continue;
+                        eprintln!("  [mix] skip line meta error: {e}");
+                        return None;
                     }
                 };
-                if !include_lanes.contains(&lane) {
-                    continue;
+                if !include_lanes.contains(&lane) || exclude_lanes.contains(&lane) {
+                    return None;
                 }
-                if exclude_lanes.contains(&lane) {
-                    continue;
+                
+                let mut counts = lane_counts.lock().unwrap();
+                *counts.entry(lane).or_insert(0) += 1;
+                
+                Some(normalized)
+            }).collect();
+
+            if !processed_chunk.is_empty() {
+                let mut out = out_file.lock().unwrap();
+                for _ in 0..repeats {
+                    for row in &processed_chunk {
+                        writeln!(out, "{row}")?;
+                        total_out += 1;
+                        emitted_this_src += 1;
+                    }
                 }
-                *lane_counts.entry(lane).or_insert(0) += 1;
-                writeln!(out, "{normalized}")?;
-                total_out += 1;
-                emitted_this_src += 1;
             }
         }
 
@@ -535,7 +627,8 @@ pub fn run_mix_with_options(
             optional: src.optional,
             record_format: src.record_format.clone(),
             resolved_path: p.display().to_string(),
-            input_lines: input_lines_count / repeats, // Heuristic since we repeat
+            source_fingerprint: src_fp,
+            input_lines: input_lines_count,
             repeats,
             emitted_lines: emitted_this_src,
             skipped_reason: if emitted_this_src == 0 && input_lines_count > 0 {
@@ -547,6 +640,12 @@ pub fn run_mix_with_options(
             },
             share_of_output: 0.0,
         });
+    }
+
+    // Flush the writer
+    {
+        let mut out = out_file.lock().unwrap();
+        out.flush()?;
     }
 
     if strict {
@@ -586,6 +685,7 @@ pub fn run_mix_with_options(
             config_path: config_path.display().to_string(),
             output_path: out_path.display().to_string(),
             strict,
+            config_fingerprint: config_fp,
             sources: report_rows,
             total_emitted: total_out,
         };
@@ -597,8 +697,9 @@ pub fn run_mix_with_options(
         eprintln!("  [mix] report → {}", report_path.display());
     }
 
+    let lane_counts = lane_counts.lock().unwrap();
     if !lane_counts.is_empty() {
-        eprintln!("  [mix] lane distribution: {:?}", lane_counts);
+        eprintln!("  [mix] lane distribution: {:?}", *lane_counts);
     }
     eprintln!("  [mix] wrote {} lines → {}", total_out, out_path.display());
     Ok(())

@@ -114,6 +114,10 @@ pub enum PipelineStage {
     Eval,
     /// Merging corpus sources per `mix.yaml` (`vox mens corpus mix`).
     Mix,
+    /// Converting heuristic failures into preference data (`vox mens corpus heal-to-dpo`).
+    HealToDpo,
+    /// Generating synthetic research multi-hop chains (`vox mens corpus research-gen`).
+    ResearchGen,
     /// Replaying Arca telemetry into training pairs (`vox mens corpus replay`).
     Replay,
     /// Ingesting external review findings (`vox review coderabbit ingest` / backfill).
@@ -136,6 +140,8 @@ impl PipelineStage {
             Self::Pairs => "pairs",
             Self::Eval => "eval",
             Self::Mix => "mix",
+            Self::HealToDpo => "heal_to_dpo",
+            Self::ResearchGen => "research_gen",
             Self::Replay => "replay",
             Self::ReviewIngest => "review_ingest",
             Self::ReviewDatasetBuild => "review_dataset_build",

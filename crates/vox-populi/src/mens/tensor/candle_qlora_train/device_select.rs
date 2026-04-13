@@ -8,7 +8,7 @@ use candle_core::Device;
 use crate::mens::tensor::device::{DeviceKind, probe_gpu};
 use crate::mens::tensor::train_log;
 
-use super::ENV_CANDLE_DEVICE;
+
 
 pub(super) fn select_candle_device(
     kind: DeviceKind,

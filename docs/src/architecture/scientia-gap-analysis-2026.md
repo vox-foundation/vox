@@ -339,7 +339,7 @@ CREATE TABLE IF NOT EXISTS scientia_external_intelligence (
 
 ## Dimension 4 — Outbound Publication Pipeline
 
-### Problem 22: LaTeX/journal template engine is absent from `submission_package.rs`
+### Problem 22: LaTeX/journal template engine is absent from `submission/mod.rs`
 
 **Status:** The readiness audit (§Phase 1 "Remaining") explicitly lists: "LaTeX/camera-ready package builder, figure/filename validators, template compliance against JMLR/TMLR/JAIR style packs" as still missing.
 

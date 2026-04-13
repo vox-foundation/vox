@@ -1,5 +1,5 @@
 use crate::orchestrator::Orchestrator;
-use crate::orchestrator::persistence_outbox::PERSISTENCE_OUTBOX_KEY;
+use crate::orchestrator::persistence::PERSISTENCE_OUTBOX_KEY;
 use crate::types::{AgentId, TaskId};
 
 impl Orchestrator {
@@ -184,7 +184,7 @@ impl Orchestrator {
 
     pub(crate) fn ack_persistence_lane_recovery(&self, lane: &str) {
         let store = crate::sync_lock::rw_read(&*self.context_store);
-        if crate::orchestrator::persistence_outbox::ack_persistence_outbox_lane(&store, lane) {
+        if crate::orchestrator::persistence::ack_persistence_outbox_lane(&store, lane) {
             tracing::debug!(
                 lane = lane,
                 "persistence lane recovered; acknowledged outbox item"

@@ -5,29 +5,6 @@ use super::types::{
 };
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
 
-pub(crate) async fn http_gemini(
-    client: &reqwest::Client,
-    model_id: &str,
-    api_key: &str,
-    system: &str,
-    user: &str,
-    max_tokens: u64,
-    temperature: f32,
-    json_mode: bool,
-) -> Result<(String, u32, u32), HttpInferError> {
-    let (text, in_tok, out_tok, _) = http_gemini_with_metadata(
-        client,
-        model_id,
-        api_key,
-        system,
-        user,
-        max_tokens,
-        temperature,
-        json_mode,
-    )
-    .await?;
-    Ok((text, in_tok, out_tok))
-}
 
 pub(crate) async fn http_gemini_with_metadata(
     client: &reqwest::Client,

@@ -141,6 +141,7 @@ mod tests {
             authors: vec![ScientificAuthor {
                 name: "A. Person".to_string(),
                 orcid: Some("0000-0002-1825-0097".to_string()),
+                ror: None,
                 affiliation: Some("Example Univ".to_string()),
             }],
             license_spdx: Some("Apache-2.0".to_string()),
