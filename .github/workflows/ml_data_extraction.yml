@@ -93,6 +93,17 @@ jobs:
         id: grammar_drift
         run: ./target/release/vox ci grammar-drift --emit github >> "$GITHUB_OUTPUT"
 
+      - name: Extract golden corpus (Tier A)
+        run: |
+          VOX_BIN="./target/release/vox"
+          mkdir -p target/dogfood
+
+          # W0-01: Extract AST/records from golden files
+          "$VOX_BIN" corpus extract examples/golden/ -o target/dogfood/vox_corpus_extract_raw.jsonl 2>/dev/null || true
+          
+          # W0-01: Convert raw records to ChatML instruction pairs
+          "$VOX_BIN" corpus pairs target/dogfood/vox_corpus_extract_raw.jsonl -o target/dogfood/vox_corpus_extract.jsonl
+
       - name: Extract training corpus (incremental)
         run: |
           VOX_BIN="./target/release/vox"

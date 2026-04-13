@@ -63,6 +63,8 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Negative Examples via DPO/NAT](research-cl-nat-dpo-2026.md)
 - [Risk Taxonomy and Telemetry Mitigations](research-cl-risk-taxonomy-telemetry-2026.md)
 - [Works Cited: Continual Learning Flywheel](research-cl-works-cited-2026.md)
+- **[MENS Synthetic Corpus: Limitations and Mitigation Strategies (research 2026)](mens-synthetic-corpus-limitations-research-2026.md)** — maps all active synthetic corpus strategies to their known failure modes and proposes 8 concrete mitigations (AST mutation, DPO wiring, anchor floor, curator LLM, CURLoRA, fictional knowledge graphs, automated flywheel, Rust cross-pollination).
+- **[MENS Corpus: Full Implementation Plan (2026)](mens-corpus-implementation-plan-2026.md)** — 4-wave execution plan grounded in mix-report audit (97.3% synthetic monoculture confirmed). Specifies W0 emergency corpus bootstrap, W1 DPO lane wiring and missing mix-config creation, W2 AST mutation + Rust→Vox corpus expansion, W3 semantic quality gates, W4 automated flywheel. Includes exact CLI commands, file specs, dependency graph, and volume projections.
 
 #### GRPO Reward Shaping for Code LLMs (Wave 3)
 - **[GRPO Reward Shaping for Code LLMs](research-grpo-reward-shaping-2026.md)** — cluster overview with architectural adjustments
@@ -107,6 +109,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Multi-Agent Mesh Economics](research-multi-agent-mesh-economics-2026.md)
 - [Grammar-Constrained Decoding for Code LLMs](research-grammar-constrained-decoding-2026.md)
 - [LLM Output Mediation and Programmatic Validator Generation](research-llm-output-mediation-validation-2026.md) — Proposes a unified `LlmMediator<T>` architecture connecting `vox-constrained-gen` (Tier 1), `vox-jsonschema-util` (Tier 2), Socrates confidence (Tier 3), and the trust layer into a single composable seam. Covers dynamic finite-response-set schema derivation, MCP reduction strategy, RLVR training alignment, and a four-wave implementation roadmap. Cross-references grammar-constrained decoding, trust reliability, HITL doubt loop, and capability registry.
+- **[Clavis as a one-stop secrets manager: research findings 2026](clavis-one-stop-secrets-research-2026.md)** — Comprehensive gap analysis for evolving Vox Clavis into a full-lifecycle secrets management platform. Covers: complete env-var taxonomy across 9 secret classes, user-facing feature requirements (import wizard, secret health, rotation, versioning, audit log, profile namespacing, drift detection), OWASP NHI Top 10 alignment, AI-agent credential isolation boundaries, MCP OAuth 2.1 target model, A2A credential delegation via RFC 8693 Token Exchange, runtime secret redaction pipeline, KEK/DEK envelope encryption model, competitive feature gap table vs. Doppler/Infisical/Pulumi ESC/Vault, and an 8-wave implementation roadmap. Extends [clavis-secrets-env-research-2026.md](clavis-secrets-env-research-2026.md).
 
 ### Documentation
 

@@ -3,7 +3,7 @@
 
   <br><br>
 
-  <p><strong>One language. Database, backend, UI, and scientific publication — designed first as a target for large language models to orchestrate systems and hunt for discovery alongside developers.</strong></p>
+  <p><strong>A unified language designed for human intent and machine execution—empowering developers and intelligent models to build complex systems and accelerate discovery together.</strong></p>
   <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 
 </div>
@@ -32,34 +32,48 @@
 <!-- ANCHOR: why_vox -->
 ## Why Vox Exists
 
-Today, developers direct large language models to architect and execute logic. But Python, JavaScript, and Rust were designed decades before AI could write code. Their vast, unconstrained surfaces cause agents to hallucinate and fail.
+Today, developers direct language models to construct systems, but programming languages were designed before the advent of GPT. Unconstrained API surfaces and flexible paradigms—the highly dynamic typing of JavaScript yielding silent runtime failures, the hidden state mutations of C++ pointer arithmetic, or the unverified deep configuration boilerplate prominent in Python—give AI agents too much room to hallucinate, resulting in unintended consequences and unreliable systems.
 
-Vox is built from the ground up as a deterministic target for language models. By constraining the boundaries of software engineering on behalf of the AI, it turns arbitrary text generation into a predictable, self-correcting loop. It is an orchestration engine for humans and models jointly building distributed systems, synthesizing unstructured data, and powering autonomous research pipelines.
+Furthermore, internet-native code is notoriously slow to move and fragile to change. Decades of bridging the "object-relational impedance mismatch" (Copeland & Maier, 1984)—the fundamental friction between software logic and relational databases<sup>[7](#ref7)</sup>—has buried essential architectures beneath layers of ORMs, state management, and network glue code. This bloat rapidly compounds technical debt (Cunningham, 1992)<sup>[8](#ref8)</sup>. As codebases expand to manage stateless HTTP connections and fragmented persistence layers, they become extremely difficult for developers—and now AI agents—to safely traverse and refactor.
+
+For Large Language Models, this fragmentation is catastrophic. Agents fail not simply because they hallucinate, but because their reasoning capacity is diluted by excessive contextual noise. While an LLM might technically boast a "one-million token context window," research shows models suffer from severe "context rot" (Liu et al., 2023)<sup>[9](#ref9)</sup> when trying to track complex state transitions spread across multiple REST endpoints and database files.
+
+Vox was purposefully designed to address these constraints. By collapsing the database schema, server execution, and web interactivity into a single, unified intermediate representation, Vox radically reduces the cognitive load and token count required to synthesize full-stack engineering.
+
+Vox is built as a language target for LLMs. By constraining engineering boundaries, it surfaces logical gaps and establishes a self-healing bounds loop that translates human intent into deterministic, executable code.
+
+Vox is not designed to write hardware drivers, but it is fundamentally internet-native. Distributed networks are inherently more durable and often more powerful than isolated processes.
+
+Our systems must be able to hear and be heard by the world before their internal logic can be truly useful. Vox exists to bridge the gap between legacy communication structures and the demands of probabilistic math. Instead of forcing developers and AI agents to manually wire together brittle HTTP endpoints, Vox abstracts online communication into strict, verifiable contracts. The compiler automatically translates high-level intent into stable APIs and interactive web interfaces capable of pausing and resuming execution across stateless connections. This empowers humans to jointly orchestrate distributed systems and power autonomous research with much less friction from legacy infrastructure and boilerplate translation.
+
+*(Note: Mobile support is integrated for generated browser-apps and native on-device inference, but deploying the full Vox orchestration runtime directly on mobile devices is not currently supported.)*
 <!-- ANCHOR_END: why_vox -->
 
 
 
 ### Platform Architecture & Stability
+We stratify the platform based on a single metric: **model predictability**. For an AI to reliably write code, the underlying rules must be rigid. We lock down the core capabilities first—data, logic, and memory—because they anchor the LLM's understanding. Higher-level surfaces like visual rendering remain fluid as we discover the best ways for AI to construct them.
 
-We stratify the platform based on a single metric: **Model Predictability**. Data integrity, core language syntax, and agent memory are the unchanging foundation because they anchor an LLM's understanding of the codebase. High-level orchestration and rendering lifecycles remain fluid as we find the most effective ways for AI to construct them.
+To make the system comprehensible for both human operators and AI agents, Vox divides its architecture into discrete shapes. This separation ensures that an AI generating a database schema does not accidentally modify how a button renders. Stability is enforced systemically through continuous integration and compiler test boundaries.
 
-Stability is enforced through CI and compiler test boundaries, not a maintained list of micro-features.
+#### The Stability Tiers
+* 🟢 **Tier 1 (Stable):** Production-ready. The rules are locked and mathematically verifiable, ensuring LLMs can generate predictable logic.
+* 🟡 **Tier 2 (Preview):** Functionally complete, but the underlying execution lifecycle or AI-generation pipelines are still being optimized.
+* 🚧 **Tier 3 (Experimental):** Under active architectural planning or gated behind CLI feature flags.
 
-* 🟢 **Tier 1 (Stable):** Production-ready. AST syntax and runtime behavior are locked for predictable LLM code generation.
-* 🟡 **Tier 2 (Preview):** Functionally available, but execution lifecycles or internal AST schemas may evolve.
-* 🚧 **Tier 3 (Experimental):** Under active architectural planning or behind CLI feature flags.
+#### Domain Matrix
+*The following matrix maps these stability tiers across the core functional boundaries of the Vox platform, detailing how each domain is managed and verified.*
 
-| Domain & Key Capabilities | Stability | How we verify this |
-|:--------------------------|:----------|:-------------------|
-| **Compiler & Toolchain**<br>Compiling to Rust and TypeScript, auto-formatting, Language Server (LSP) | 🟢 **Stable** | Golden parsing suite, `vox fmt --check`, typed syntax validations |
-| **Data & Interfaces**<br>`@table` schema migrations, `@query`/`@server` endpoints | 🟢 **Stable** | In-memory DB roundtrips, strict HTTP payload schemas |
-| **Agent Tooling**<br>`@mcp.tool` exposure, orchestrated agents, telemetry | 🟢 **Stable** | Model Context Protocol (MCP) compliance, telemetry gates |
-| **Web UI & Routing**<br>`@island` browser wiring, V0 components, file-free `routes {}` | 🟡 **Preview** | Web Intermediate Representation (WebIR) syntax checks |
-| **Durable Execution**<br>`workflow` state persistence, `actor` message bounds | 🟡 **Preview** | State persistence audits, unfinished code (TOESTUB) rejection |
-| **Models & Local AI**<br>`vox populi` GPU inference, speech recognition, native Rust tuning | 🟡 **Preview** | Burn ML backend evaluations, local hardware probe checks |
-| **Autonomous Research**<br>`vox scientia` publication pipeline, Socrates hallucination guard | 🟡 **Preview** | Citation overlap tests, novelty discovery CLI checks |
-| **Server-Side Rendering**<br>Native integration with TanStack Start architecture | 🚧 **Experimental** | Active migration flags |
-| **Distributed Mesh**<br>Cross-machine task relaying and agent pool distribution | 🚧 **Experimental** | Under active architectural planning |
+| Domain & Purpose | What It Manages | Tier Status & Impact | Verification Pipeline |
+|:-----------------|:----------------|:---------------------|:----------------------|
+| **Core Syntax & Engine**<br>The foundation of the language. | The AST, type safety, compiler directives, and Language Server (LSP). | 🟢 **Stable**<br>Syntax rules are locked; generation is highly predictable. | Golden parsing suite, typed AST validations. |
+| **Data & Connectivity**<br>How information is saved and shared. | `@table` auto-migrations, `@query`/`@server` endpoints, HTTP payloads. | 🟢 **Stable**<br>API contracts are  functionally complete. | In-memory DB roundtrips, strict schema testing. |
+| **Agent Tooling System**<br>Giving AI access to external actions. | Orchestration logic, `@mcp.tool` exposure, and operational telemetry. | 🟢 **Stable**<br>Complete Model Context Protocol compliance is established. | MCP protocol assertions, telemetry gate checks. |
+| **RAG & Knowledge Curation**<br>Memory retrieval for autonomous research. | `vox scientia` publication pipeline, Hallucination Guards (Socrates). If an AI can research the web, it can use metrics to verify if it is hallucinating. | 🟡 **Preview**<br>Retrieval heuristics and Socrates guard policies are actively evolving. | Citation alignment checks, novelty discovery scans. |
+| **Durable Execution Lifecycles**<br>Multi-step tasks and logical continuity. | State survival across restarts via `workflow` and `actor` models. | 🟡 **Preview**<br>State preservation lifecycles may undergo optimization. | Durability integrity sweeps, zero-placeholder enforcement. |
+| **Hardware & Tuning (MENS)**<br>Running AI and fine-tuning locally. | `vox populi` GPU mesh, local adapter training, and audio inference. | 🟡 **Preview**<br>Hardware-dependent support mappings are expanding. | Local hardware discovery tests, ML pipeline sweeps. |
+| **Web UI & Rendering**<br>What the user actually sees. | `@island` browser wiring, React generation, UI routing. | 🟡 **Preview**<br>Client-side projections and web component translation may shift. | WebIR constraints, deterministic generation audits. |
+| **Distributed Node Mesh**<br>Connecting multiple machines. | Cross-machine inference routing and agent task distribution. | 🚧 **Experimental**<br>Still under active design; not ready for deployment. | Pending standardizations. |
 
 > *Current footprint as of **v0.4 — April 2026**.*
 
@@ -67,21 +81,21 @@ Stability is enforced through CI and compiler test boundaries, not a maintained 
 
 ## How Vox Solves the Training Paradox
 
-Legacy languages appear to hold a permanent AI advantage because models absorb massive quantities of their code scraped from the internet.
+Legacy languages appear to hold a permanent AI advantage because models absorb massive quantities of their text scraped from the internet.
 
-Vox bypasses this entirely. The repository includes local training primitives (`vox populi` and the MENS neural training pipeline) that let developers natively fine-tune any foundation model to master Vox's structural boundaries. Because the platform ships with an inference and training mesh that scales across diverse hardware architectures, you aren't locked out of AI-assisted engineering because a model hasn't seen enough of your syntax. Fine-tune it natively — specialized models writing flawless code tailored exactly to your orchestration needs.
+Vox bypasses this requirement. The repository includes local training primitives (`vox populi` and the MENS neural pipeline) that let developers natively fine-tune any foundation model to master Vox's structural boundaries. Because the platform ships with an inference mesh that scales across diverse hardware architectures, you aren't locked out of AI-assisted engineering just because a model hasn't seen enough of your syntax.
 
 ---
 
 <!-- ANCHOR: how_vox -->
 ## How Vox Works
 
-Code generation fails when an AI navigates fragmented files, hidden states, and chaotic lifecycles. Vox functions as a high-level abstraction that lowers into safe, deterministic infrastructure.
+Code generation fails when an AI navigates fragmented files, hidden states, and chaotic lifecycles. Vox functions as a high-level abstraction that rigorously lowers into safe, deterministic infrastructure.
 
-* **The High-Level Intermediate Representation (HIR):** When an AI writes a `.vox` file, the parser lowers it into a strictly unified HIR. Database bindings, HTTP handshakes, and UI lifecycles are resolved by the compiler before any code is generated. The AI writes HIR directives, and the compiler handles execution logic.
-* **Deterministic Rendering (WebIR):** UI compiles directly to a Web Intermediate Representation. Agents never juggle React hooks, client state waterfalls, or asynchronous DOM wiring — they emit pure data representations, and WebIR handles the translation to HTML.
-* **Semantic Error Feedback:** There are no implicit runtime exceptions. Operations return strict `Result[T]` constraints. Semantic checking happens exclusively along the unified HIR path — if an agent fails to handle an error state, the compiler catches it immediately and feeds the LLM syntax-level feedback to self-correct.
-* **Native Protocol Projection:** AI capabilities aren't a bolted-on SDK. The AST inherently recognizes decorators like `@mcp.tool`. The compiler automatically projects these into Model Context Protocol manifests, so any external agent can execute your logic without a single hand-written HTTP route.
+* **High-Level Intermediate Representation (HIR):** When an AI writes a `.vox` file, the parser lowers it into a strictly unified HIR. Database bindings and HTTP handshakes are resolved by the compiler before generation.
+* **Deterministic Rendering (WebIR):** UI compiles directly to a Web Intermediate Representation. Agents don't juggle React hooks or state waterfalls—they emit pure data representations, and WebIR translates it to HTML.
+* **Semantic Error Feedback:** Operations return strict `Result[T]` constraints. If an agent fails to handle an error state, the compiler catches it immediately and feeds syntax-level feedback to self-correct.
+* **Native Protocol Projection:** AI capabilities aren't a bolted-on SDK. The AST inherently recognizes decorators like `@mcp.tool`. The compiler automatically projects these into Model Context Protocol manifests, meaning external agents can execute your logic without hand-written REST scaffolding.
 <!-- ANCHOR_END: how_vox -->
 
 ---
@@ -350,13 +364,13 @@ Vox applies the same philosophy to itself that it applies to user code: machine-
 
 ### No skeleton code (`vox-toestub`)
 
-`todo!()`, `unimplemented!()`, empty function bodies, and hollow arrow functions in production paths are a build blocker. The `vox-toestub` crate runs a suite of detectors — `StubDetector`, `EmptyBodyDetector`, `HollowFnDetector`, `ReachabilityDetector`, and others — as part of every CI matrix pass under `vox ci toestub`.
+`todo!()`, `unimplemented!()`, empty function bodies, and hollow arrow functions in production paths are a build blocker. The `vox-toestub` crate runs a suite of detectors — `StubDetector`, `EmptyBodyDetector`, `HollowFnDetector`, `ReachabilityDetector`, and others — as part of every CI matrix pass under `vox ci toestub-scoped`.
 
 **Why it matters for AI codebases:** AI agents produce plausible-looking scaffolding. An agent that returns a `todo!()` didn't finish the job — it silently deferred it. TOESTUB makes that deferral a build failure rather than a runtime surprise. The `VictoryClaimDetector` goes further, flagging comments like "implementation complete" adjacent to `unimplemented!()` calls.
 
 ```bash
 vox stub-check --path crates/my-crate   # run locally before pushing
-vox ci toestub                          # full workspace scan in CI
+vox ci toestub-scoped                   # full workspace scan in CI
 ```
 
 ### Complexity bounds (`GodObjectDetector`, `SprawlDetector`)
@@ -388,8 +402,26 @@ All `.vox` code blocks in `docs/src/` must either use `{{#include}}` to pull fro
 `vox-toestub` ships additional detectors that catch structural debt before it accumulates: `DryViolationDetector` flags copy-pasted logic blocks; `DeprecatedUsageDetector` blocks use of retired crate names and environment variables (see the retired-symbols table in `AGENTS.md`); `UnwiredModuleDetector` catches modules declared but never imported. These run in CI alongside the structural checks above.
 
 ```bash
-vox ci toestub --report    # full findings report with severity breakdown
+vox ci toestub-scoped --report    # full findings report with severity breakdown
 ```
+
+---
+
+## Acknowledgements & Lineage
+
+Many of the design paradigms that underpin Vox are not entirely unique to this project. Beyond specific frameworks, Vox is heavily influenced by the philosophies that constitute timeless, robust software engineering. We stand on the shoulders of giants.
+
+### Systems & Protocols
+- **Durable Execution (`workflow`)**: The concept of writing long-running, fault-tolerant code that magically survives server restarts was pioneered by systems like Azure Durable Functions, and later Cadence & Temporal (created by Maxim Fateev and Samar Abbas)<sup>[1](#ref1)</sup>.
+- **Islands Architecture (`@island`)**: The approach of sending static HTML and selectively hydrating dynamic "islands" of interactivity was coined by Katie Sylor-Miller at Etsy (2019) and popularized by Jason Miller (creator of Preact) in 2020<sup>[2](#ref2)</sup>. Modern frameworks like Astro further normalized this server-first approach.
+- **Model Context Protocol (`@mcp.tool`)**: The standard providing AI models safe, authenticated access to tools and file systems was developed by Anthropic<sup>[3](#ref3)</sup>.
+- **Unifying Distributed Logic**: The philosophy of treating a distributed system as a single cohesive program rather than disjointed microservices owes much of its modern exploration to projects like the Unison language<sup>[4](#ref4)</sup>.
+
+### Foundational Philosophies
+- **Accidental vs. Essential Complexity**: As outlined by Fred Brooks in *The Mythical Man-Month*, much of software engineering is bogged down by "accidental complexity"—the tooling, ORMs, and glue code required just to make systems talk to each other. Vox eliminates accidental complexity by natively generating the API and database boundaries, enabling humans and AI to focus squarely on the "essential complexity" of the application logic<sup>[5](#ref5)</sup>.
+- **"Constraints Liberate"**: Echoing the philosophy of Tony Hoare and the design of strongly typed languages like ML, Haskell, and Rust, Vox relies on rigid schemas and compiler assertions to reject invalid states. By forcing an AI model into a mathematically verifiable corridor, we use constraints as a self-healing bounds loop, proving that strict rules unlock, rather than hinder, generative capability.
+- **Data-Driven Architecture**: *"Show me your flowcharts and conceal your tables, and I shall continue to be mystified. Show me your tables... and they'll be obvious."* — Fred Brooks. Vox organizes its architecture explicitly around data definitions (`@table`), radiating logic out from the schema rather than trying to reconcile an ORM with an arbitrary state hierarchy.
+- **Fail-Fast & The Actor Model**: Joe Armstrong's "Let it crash" philosophy from Erlang/OTP informs Vox's durable execution and agent orchestration. Instead of attempting to anticipate and catch every possible local exception natively within an AI model, the system isolates execution into independent `activities` that can fail, report their status, and securely restart via a centralized orchestrator<sup>[6](#ref6)</sup>.
 
 ---
 
@@ -415,3 +447,17 @@ Vox Scientia is a publication pipeline for aggregating and surfacing community r
 - **[GitHub Discussions](https://github.com/vox-foundation/vox/discussions)**: Architecture questions, language design feedback, and roadmap input.
 - **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelogs and architectural decision records.
 <!-- ANCHOR_END: community_license -->
+
+---
+
+## References
+
+<a id="ref1"></a>**[1]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
+<a id="ref2"></a>**[2]** Miller, J. (2020). *Islands Architecture*. JasonFormat. <https://jasonformat.com/islands-architecture/>
+<a id="ref3"></a>**[3]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
+<a id="ref4"></a>**[4]** Unison Computing. *Unison Language: A new approach to distributed programming*. <https://unison-lang.org>
+<a id="ref5"></a>**[5]** Brooks, F. P. (1987). "No Silver Bullet—Essence and Accidents of Software Engineering." *IEEE Computer*, 20(4), 10-19. DOI: <https://doi.org/10.1109/MC.1987.1663532>
+<a id="ref6"></a>**[6]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
+<a id="ref7"></a>**[7]** Copeland, G., & Maier, D. (1984). "Making Smalltalk a Database System." *SIGMOD '84*, 316–325. DOI: <https://doi.org/10.1145/602259.602287>
+<a id="ref8"></a>**[8]** Cunningham, W. (1992). "The WyCash Portfolio Management System." *Addendum to the proceedings of OOPSLA '92*, 29-30. DOI: <https://doi.org/10.1145/157709.157715>
+<a id="ref9"></a>**[9]** Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., & Liang, P. (2023). "Lost in the Middle: How Language Models Use Long Contexts." *Transactions of the Association for Computational Linguistics*. arXiv: <https://arxiv.org/abs/2307.03172>

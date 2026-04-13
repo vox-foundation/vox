@@ -178,7 +178,7 @@ pub fn experiment_reward_multiplier() -> f64 {
             let v: f64 = t.parse().unwrap_or(1.0);
             if v.is_finite() && v > 0.0 { v } else { 1.0 }
         }
-        Err(_) => 1.0,
+        None => 1.0,
     }
 }
 

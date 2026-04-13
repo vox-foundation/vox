@@ -12,6 +12,8 @@ schema_type: "TechArticle"
 
 # Clavis secrets, env vars, and API key strategy research 2026
 
+> **See also:** [Clavis as a one-stop secrets manager: research findings 2026](clavis-one-stop-secrets-research-2026.md) — extends this document with a complete env-var taxonomy, user-facing feature requirements, AI-agent credential isolation design, A2A delegation via RFC 8693, competitive gap analysis, and an 8-wave implementation roadmap.
+
 Implementation support docs:
 
 - [Clavis Cloudless Threat Model V1](clavis-cloudless-threat-model-v1.md)
