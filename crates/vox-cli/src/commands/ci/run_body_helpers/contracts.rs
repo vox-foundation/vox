@@ -60,7 +60,8 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
         let mut ids = std::collections::BTreeSet::new();
         for r in &reqs.blocking {
             match r {
-                vox_clavis::RequirementSet::AllOf(list) | vox_clavis::RequirementSet::AnyOf(list) => {
+                vox_clavis::RequirementSet::AllOf(list)
+                | vox_clavis::RequirementSet::AnyOf(list) => {
                     for &id in *list {
                         ids.insert(id);
                     }
@@ -105,12 +106,26 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
                 .iter()
                 .map(|c| format!("{c:?}"))
                 .collect(),
-            bundles: ms.get(&s.id).cloned().unwrap_or_default().into_iter().map(|x| x.to_string()).collect(),
+            bundles: ms
+                .get(&s.id)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect(),
         })
         .collect();
 
-    let mut all_operator_envs: std::collections::BTreeSet<String> = vox_clavis::OPERATOR_TUNING_ENVS.iter().map(|s| s.to_string()).collect();
-    all_operator_envs.extend(vox_config::operator_registry::all_operator_env_names().into_iter().map(|s| s.to_string()));
+    let mut all_operator_envs: std::collections::BTreeSet<String> =
+        vox_clavis::OPERATOR_TUNING_ENVS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+    all_operator_envs.extend(
+        vox_config::operator_registry::all_operator_env_names()
+            .into_iter()
+            .map(|s| s.to_string()),
+    );
 
     let manifest = EnvNamesManifest {
         schema: "contracts/clavis/managed-env-names.v1.json",
@@ -143,9 +158,15 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
     names.sort();
     names.dedup();
     for name in names {
-        let is_deprecated = vox_clavis::all_specs().iter().any(|s| s.deprecated_aliases.contains(&name.as_str()));
+        let is_deprecated = vox_clavis::all_specs()
+            .iter()
+            .any(|s| s.deprecated_aliases.contains(&name.as_str()));
         if is_deprecated {
-            let canon = vox_clavis::all_specs().iter().find(|s| s.deprecated_aliases.contains(&name.as_str())).unwrap().canonical_env;
+            let canon = vox_clavis::all_specs()
+                .iter()
+                .find(|s| s.deprecated_aliases.contains(&name.as_str()))
+                .unwrap()
+                .canonical_env;
             md_lines.push(format!("- `{name}` *(DEPRECATED — use {canon})*"));
         } else {
             md_lines.push(format!("- `{name}`"));
@@ -162,4 +183,3 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
     println!("clavis-contracts OK: {} secrets", manifest.secrets.len());
     Ok(())
 }
-

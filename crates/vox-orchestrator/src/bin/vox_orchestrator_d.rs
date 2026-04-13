@@ -98,6 +98,10 @@ async fn main() -> anyhow::Result<()> {
         );
     }
     vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
+    
+    // Flywheel automation: Monitor diversity and trigger training
+    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
+    flywheel.spawn().await;
 
     if orch_daemon::is_stdio_transport(&bind_raw) {
         return orch_daemon::run_stdio_server(repository_id, orch).await;

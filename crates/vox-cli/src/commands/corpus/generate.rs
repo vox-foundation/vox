@@ -134,15 +134,10 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
 
     let mut handles = Vec::with_capacity(entries.len());
     for path in entries {
-        let output_path = Arc::clone(&output_arc);
         let known = Arc::clone(&existing_arc);
         let handle = tokio::spawn(async move {
             match crate::pipeline::run_frontend(&path, false).await {
-                Ok(mut result) if !result.has_errors() => {
-                    // W2: Apply AST-aware mutator hook before building training record
-                    vox_corpus::ast_mutator::mutate_module(&mut result.hir);
-
-                    // Build record first to check the hash
+                Ok(result) if !result.has_errors() => {
                     match crate::training::build_training_record(&path, &result) {
                         Ok(record) => {
                             let hash = record
@@ -150,61 +145,61 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
                                 .and_then(|h| h.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            // Skip if already in corpus
                             if !hash.is_empty() && known.contains(&hash) {
-                                return (path, true, true); // (path, ok, skipped)
+                                return (path, Some(record), true, true); 
                             }
-                            // Append to file (blocking I/O in worker thread)
-                            let out_pb = {
-                                let g = output_path.lock().unwrap();
-                                g.clone()
-                            };
-                            if let Ok(line) = serde_json::to_string(&record) {
-                                let wrote = tokio::task::spawn_blocking(move || {
-                                    use std::io::Write;
-                                    std::fs::OpenOptions::new()
-                                        .create(true)
-                                        .append(true)
-                                        .open(&out_pb)
-                                        .and_then(|mut f| writeln!(f, "{line}"))
-                                        .is_ok()
-                                })
-                                .await
-                                .unwrap_or(false);
-                                if wrote {
-                                    return (path, true, false);
-                                }
-                            }
-                            (path, false, false)
+                            (path, Some(record), true, false)
                         }
-                        Err(_) => (path, false, false),
+                        Err(_) => (path, None, false, false),
                     }
                 }
-                _ => (path, false, false),
+                _ => (path, None, false, false),
             }
         });
         handles.push(handle);
     }
 
-    let mut success = 0u32;
-    let mut failed = 0u32;
-    let mut skipped = 0u32;
+    let mut success_count = 0u32;
+    let mut failed_count = 0u32;
+    let mut skipped_count = 0u32;
+    let mut new_records = Vec::new();
+
     for handle in handles {
         match handle.await {
-            Ok((_, true, true)) => skipped += 1,
-            Ok((_, true, false)) => success += 1,
-            _ => failed += 1,
+            Ok((_, Some(_), true, true)) => skipped_count += 1,
+            Ok((_, Some(record), true, false)) => {
+                success_count += 1;
+                new_records.push(record);
+            }
+            _ => failed_count += 1,
         }
+    }
+
+    if !new_records.is_empty() {
+        let output_for_write = output.to_path_buf();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            use std::io::Write;
+            let mut f = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&output_for_write)?;
+            for record in new_records {
+                let line = serde_json::to_string(&record)?;
+                writeln!(f, "{}", line)?;
+            }
+            Ok(())
+        })
+        .await??;
     }
 
     println!(
         "{}",
         format!(
             "✓ Corpus extraction: {}/{} new ({} skipped, {} failed) → {}",
-            success,
+            success_count,
             total,
-            skipped + incremental_skipped as u32,
-            failed,
+            skipped_count + incremental_skipped as u32,
+            failed_count,
             output.display()
         )
         .green()
@@ -503,28 +498,50 @@ pub(super) async fn run_prompt(output: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn run_heal_to_dpo(input: Option<std::path::PathBuf>, output: &Path) -> Result<()> {
-    let base = std::path::PathBuf::from(".");
-    let input_path = input.unwrap_or_else(|| base.join(".vox").join("corpus").join("heal_pairs.jsonl"));
-    
+pub(super) async fn run_heal_to_dpo(
+    input: Option<std::path::PathBuf>,
+    output: &Path,
+) -> Result<()> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let input_path =
+        input.unwrap_or_else(|| home.join(".vox").join("corpus").join("heal_pairs.jsonl"));
+
     if !input_path.exists() {
         eprintln!("No heal_pairs.jsonl found at {}", input_path.display());
         return Ok(());
     }
 
-    let content = crate::commands::ci::bounded_read::read_utf8_path_capped_async(&input_path).await?;
+    let content =
+        crate::commands::ci::bounded_read::read_utf8_path_capped_async(&input_path).await?;
     let mut pairs = Vec::new();
-    
+
     for line in content.lines() {
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
         if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
             let attempts = value.get("attempts").and_then(|v| v.as_u64()).unwrap_or(0);
             if attempts == 1 {
-                let prompt = format!("{}\n\nCompiler Diagnostics:\n{}", 
-                    value.get("description").and_then(|v| v.as_str()).unwrap_or(""),
-                    value.get("diagnostics").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n")).unwrap_or_default()
+                let prompt = format!(
+                    "{}\n\nCompiler Diagnostics:\n{}",
+                    value
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(""),
+                    value
+                        .get("diagnostics")
+                        .and_then(|v| v.as_array())
+                        .map(|a| a
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join("\n"))
+                        .unwrap_or_default()
                 );
-                
+
                 let pair = serde_json::json!({
                     "prompt": prompt,
                     "chosen": value.get("repaired_source"),
@@ -536,18 +553,351 @@ pub(super) async fn run_heal_to_dpo(input: Option<std::path::PathBuf>, output: &
             }
         }
     }
-    
+
     if let Some(parent) = output.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
-    
+
     let mut body = String::new();
     for pair in &pairs {
-        body.push_str(&serde_json::to_string(pair)?);
+        body.push_str(&serde_json::to_string(&pair)?);
         body.push('\n');
     }
     tokio::fs::write(output, body).await?;
-    
-    println!("✓ Extracted {} DPO pairs from heal logs -> {}", pairs.len(), output.display());
+
+    println!(
+        "✓ Extracted {} DPO pairs from heal logs -> {}",
+        pairs.len(),
+        output.display()
+    );
     Ok(())
+}
+
+pub(super) async fn run_mutate(source_dir: &Path, count: usize, output: &Path) -> Result<()> {
+    let entries = crate::training::walk_vox_files(source_dir);
+    if entries.is_empty() {
+        eprintln!("No .vox files found in {}", source_dir.display());
+        return Ok(());
+    }
+
+    let mut generated = 0;
+    let mut out_buffer = String::new();
+
+    for path in entries {
+        if generated >= count {
+            break;
+        }
+
+        if let Ok(result) = crate::pipeline::run_frontend(&path, false).await {
+            if !result.has_errors() {
+                let mutations =
+                    vox_corpus::ast_mutator::generate_mutations(&result.source, &result.module);
+                if mutations.is_empty() {
+                    continue;
+                }
+
+                let mutated_source =
+                    vox_corpus::ast_mutator::apply_mutations(&result.source, mutations);
+
+                // Round-trip verification
+                let verification = tokio::task::spawn_blocking(move || {
+                    vox_compiler::pipeline::run_frontend_str(&mutated_source, "<mutated>")
+                })
+                .await??;
+
+                if !verification.has_errors() {
+                    let pair = serde_json::json!({
+                        "prompt": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```",
+                        "response": "```vox\n".to_string() + &verification.source + "\n```",
+                        "category": "ast_mutate",
+                        "schema_version": "vox_dogfood_v1",
+                        "difficulty": 0.5,
+                    });
+
+                    out_buffer.push_str(&serde_json::to_string(&pair)?);
+                    out_buffer.push('\n');
+                    generated += 1;
+                } else {
+                    // Could emit to HealPair lane here
+                }
+            }
+        }
+    }
+
+    if let Some(p) = output.parent() {
+        tokio::fs::create_dir_all(p).await?;
+    }
+    tokio::fs::write(output, out_buffer).await?;
+    println!(
+        "✓ Extracted {} mutated source pairs -> {}",
+        generated,
+        output.display()
+    );
+
+    Ok(())
+}
+
+pub(super) async fn run_rust_mine(source_dir: &Path, output: &Path) -> Result<()> {
+    let mut entries = Vec::new();
+    for entry in walkdir::WalkDir::new(source_dir) {
+        if let Ok(e) = entry {
+            if e.path().extension().and_then(|e| e.to_str()) == Some("rs") {
+                entries.push(e.path().to_path_buf());
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        eprintln!("No .rs files found in {}", source_dir.display());
+        return Ok(());
+    }
+
+    let mut generated = 0;
+    let mut out_buffer = String::new();
+
+    for path in entries {
+        if let Ok(source) = std::fs::read_to_string(&path) {
+            let translations = vox_corpus::rust_to_vox::extract_translations(&source);
+
+            for tr in translations {
+                // Verify the generated code with vox parser
+                if let Ok(result) =
+                    vox_compiler::pipeline::run_frontend_str(&tr.output_vox, "<synthetic>")
+                {
+                    if !result.has_errors() {
+                        let pair = serde_json::json!({
+                            "prompt": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust),
+                            "response": "```vox\n".to_string() + &result.source + "\n```",
+                            "category": "rust_to_vox",
+                            "confidence": tr.confidence,
+                        });
+
+                        out_buffer.push_str(&serde_json::to_string(&pair)?);
+                        out_buffer.push('\n');
+                        generated += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(p) = output.parent() {
+        tokio::fs::create_dir_all(p).await?;
+    }
+    tokio::fs::write(output, out_buffer).await?;
+    println!(
+        "✓ Extracted {} rust->vox translation pairs -> {}",
+        generated,
+        output.display()
+    );
+
+    Ok(())
+}
+
+pub(super) async fn run_diversity_check(input: &Path, min_diversity: f64) -> Result<()> {
+    let content = read_utf8_path_capped_async(input).await?;
+    let mut codes = Vec::new();
+
+    for line in content.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
+            // Check for common code fields: "vox_code", "output", "response"
+            if let Some(code) = value
+                .get("vox_code")
+                .or_else(|| value.get("output"))
+                .or_else(|| value.get("response"))
+                .and_then(|v| v.as_str())
+            {
+                codes.push(code.to_string());
+            }
+        }
+    }
+
+    if codes.is_empty() {
+        anyhow::bail!(
+            "No Vox code found in {}. Ensure records have 'vox_code', 'output', or 'response' fields.",
+            input.display()
+        );
+    }
+
+    let report = vox_eval::eval_semantic_entropy(&codes, min_diversity);
+
+    println!("--- Corpus Diversity Report ---");
+    println!("  Input:      {}", input.display());
+    println!("  Records:    {}", codes.len());
+    println!("  Diversity:  {:.2}%", report.ast_diversity * 100.0);
+    println!("  Variance:   {:.2}", report.construct_variance);
+
+    if report.collapse_warning {
+        eprintln!(
+            "  {} ALARM: Diversity below threshold ({:.2})!",
+            "⚠".red(),
+            min_diversity
+        );
+
+        // Record to telemetry if DB is available
+        if let Ok(db) = crate::workspace_db::connect_cli_workspace_voxdb_with_overrides(true).await {
+            let _ = db
+                .append_research_metric(
+                    "corpus_diversity_check",
+                    "ast_diversity",
+                    Some(report.ast_diversity),
+                    Some(&serde_json::to_string(&report)?),
+                )
+                .await;
+        }
+        anyhow::bail!("Corpus failed diversity check (potential mode collapse/monoculture).");
+    } else {
+        println!("  {} Diversity check PASSED.", "✓".green());
+    }
+
+    Ok(())
+}
+
+/// Curate prose-heavy lanes using a frontier LLM to filter logic hazards and structural monoculture.
+pub(super) async fn run_curate_prose(
+    input: &Path,
+    output: &Path,
+    min_score: f64,
+    quarantine: Option<&Path>,
+) -> Result<()> {
+    use tokio::fs::{File, OpenOptions};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use std::sync::Arc;
+
+    println!(
+        "{} Curating prose from {}...",
+        "◆".cyan().bold(),
+        input.display()
+    );
+
+    let input_file = File::open(input).await?;
+    let mut reader = BufReader::new(input_file);
+    let mut line = String::new();
+
+    let mut output_file = File::create(output).await?;
+    let mut quarantine_file = if let Some(q) = quarantine {
+        Some(
+            OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(q)
+                .await?,
+        )
+    } else {
+        None
+    };
+
+    let mut total = 0;
+    let mut accepted = 0;
+    let mut rejected = 0;
+
+    // Concurrency throttle: keep it at 10 to avoid rate limits
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(10));
+    let mut set = tokio::task::JoinSet::new();
+
+    while reader.read_line(&mut line).await? > 0 {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            line.clear();
+            continue;
+        }
+
+        let record: serde_json::Value = serde_json::from_str(trimmed)?;
+        let content = record.get("response").or_else(|| record.get("output")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+        
+        if content.is_empty() {
+             line.clear();
+             continue;
+        }
+
+        total += 1;
+        let sem = Arc::clone(&semaphore);
+        let record_cl = record.clone();
+
+        set.spawn(async move {
+            let _permit = sem.acquire().await.unwrap();
+            curate_record_via_ai(record_cl, content).await
+        });
+
+        line.clear();
+    }
+
+    while let Some(res) = set.join_next().await {
+        let (record, score, reason) = res??;
+        if score >= min_score {
+            let mut out_rec = record;
+            if let Some(obj) = out_rec.as_object_mut() {
+                obj.insert("curation_score".to_string(), serde_json::json!(score));
+                obj.insert("curation_reason".to_string(), serde_json::json!(reason));
+            }
+            let row = serde_json::to_string(&out_rec)? + "\n";
+            output_file.write_all(row.as_bytes()).await?;
+            accepted += 1;
+        } else {
+            if let Some(ref mut q) = quarantine_file {
+                 let mut out_rec = record;
+                 if let Some(obj) = out_rec.as_object_mut() {
+                    obj.insert("rejection_score".to_string(), serde_json::json!(score));
+                    obj.insert("rejection_reason".to_string(), serde_json::json!(reason));
+                 }
+                 let row = serde_json::to_string(&out_rec)? + "\n";
+                 q.write_all(row.as_bytes()).await?;
+            }
+            rejected += 1;
+        }
+    }
+
+    println!(
+        "{} Curation complete: {}/{} accepted ({} rejected) -> {}",
+        "✓".green().bold(),
+        accepted,
+        total,
+        rejected,
+        output.display()
+    );
+
+    Ok(())
+}
+
+async fn curate_record_via_ai(record: serde_json::Value, content: String) -> Result<(serde_json::Value, f64, String)> {
+    let prompt = format!(
+        "You are a high-fidelity data curator for an AI training pipeline.\n\
+         Assess the following research/prose record for semantic integrity, logical consistency, and structural quality.\n\n\
+         # Quality Hazards to Detect:\n\
+         1. Logical inconsistencies or factual hallucinations.\n\
+         2. Structural repetition (e.g., overuse of em-dashes, repetitive 'not just X, but Y' frames).\n\
+         3. Low-entropy or unfalsifiable claims.\n\
+         4. Hallucinated APIs or incorrect syntax relative to Vox/Rust patterns.\n\n\
+         # Content to Curate:\n\
+         {content}\n\n\
+         # Output Format:\n\
+         Return ONLY a single JSON object with 'score' (0.0 to 1.0) and 'reason' (string).\n\
+         Example: {{ \"score\": 0.85, \"reason\": \"Solid technical explanation but uses one repetitive metaphor.\" }}"
+    );
+
+    // Call the daemon to generate
+    let result = crate::dei_daemon::call(
+        crate::dei_daemon::method::AI_GENERATE,
+        serde_json::json!({ "prompt": prompt }),
+        false,
+    ).await?;
+
+    let text = result.get("text").or_else(|| result.get("output")).and_then(|v| v.as_str()).unwrap_or("");
+    
+    // Find JSON block in text (best effort)
+    let json_str = if let (Some(s), Some(e)) = (text.find('{'), text.rfind('}')) {
+        &text[s..=e]
+    } else {
+        text
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(json_str).map_err(|e| anyhow::anyhow!("AI returned invalid JSON: {}\nError: {}", text, e))?;
+    
+    let score = parsed.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let reason = parsed.get("reason").and_then(|v| v.as_str()).unwrap_or("no reason provided").to_string();
+
+    Ok((record, score, reason))
 }

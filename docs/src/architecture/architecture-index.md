@@ -42,6 +42,7 @@ Use these when you need current policy and behavior. The canonical cross-domain 
 - [Telemetry implementation blueprint 2026](telemetry-implementation-blueprint-2026.md) — phased rollout plan
 - [Telemetry implementation backlog 2026](telemetry-implementation-backlog-2026.md) — executable checklist
 - [Telemetry remote sink specification](telemetry-remote-sink-spec.md) — optional `vox telemetry upload` wire contract
+- [Cryptography Policy SSOT](cryptography-ssot-2026.md) — cryptographic algorithms and `vox-crypto` architecture
 - [Operations catalog authority](operations-catalog-ssot.md)
 - [Completion policy authority](completion-policy-ssot.md)
 - [HITL doubt loop](hitl-doubt-loop-ssot.md)

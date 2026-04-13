@@ -41,6 +41,10 @@
 pub mod dei_shim;
 pub mod sync_lock;
 
+#[cfg(feature = "mcp-native")]
+pub mod mcp_tools;
+
+
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;
 

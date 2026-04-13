@@ -94,8 +94,7 @@ pub enum PmCacheCmd {
 fn client(base: Option<&str>, token_from_env: bool) -> RegistryClient {
     let base = base.unwrap_or(DEFAULT_REGISTRY_BASE);
     let token_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRegistryToken);
-    let token = token_resolved.expose()
-        .filter(|s| !s.is_empty());
+    let token = token_resolved.expose().filter(|s| !s.is_empty());
     match (token_from_env, token) {
         (true, Some(t)) => RegistryClient::with_auth(base, &t),
         _ => RegistryClient::new(base),

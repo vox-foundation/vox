@@ -1,6 +1,7 @@
 pub mod backend;
 pub mod errors;
 pub mod policy;
+pub mod redact;
 pub mod resolver;
 pub mod sources;
 pub mod spec;
@@ -97,6 +98,7 @@ pub const OPERATOR_TUNING_ENVS: &[&str] = &[
     "VOX_GAMIFY_ENABLED",
     "VOX_GAMIFY_MODE",
     "VOX_WEB_RUN_MODE",
+    "VOX_WEB_TANSTACK_START",
     "VOX_WEB_TANSTACK_START",
     "VOX_MESH_ENABLED",
     "VOX_MESH_MODE",
@@ -200,29 +202,47 @@ fn resolve_with_backend<B: backend::SecretBackend>(
 
 #[must_use]
 pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
+    resolve_secret_with_context(id, "process")
+}
+
+#[must_use]
+pub fn resolve_secret_for_cli(id: SecretId) -> ResolvedSecret {
+    resolve_secret_with_context(id, "cli")
+}
+
+#[must_use]
+pub fn resolve_secret_with_context(id: SecretId, context: &str) -> ResolvedSecret {
+    let normalized_context = match context {
+        "cli" | "mcp" | "api" => context,
+        c if c.starts_with("agent:") && c.len() <= 134 => c,
+        _ => "process",
+    };
+
     let profile = resolve_profile_from_env();
     let phase = CutoverPhase::from_env();
     let legacy_allowed = phase.legacy_sources_allowed(profile);
-    let cloudless_options = ResolveOptions {
+    let options = ResolveOptions {
         include_env: legacy_allowed,
         include_auth_json: legacy_allowed,
         include_populi_env: legacy_allowed,
         profile,
+        caller_context: normalized_context.to_string(),
     };
-    let default_options = ResolveOptions {
-        include_env: legacy_allowed,
-        include_auth_json: legacy_allowed,
-        include_populi_env: legacy_allowed,
-        profile,
-    };
+
+    resolve_secret_internal(id, options)
+}
+
+fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSecret {
+    let phase = CutoverPhase::from_env();
     if phase.force_vox_cloud_backend() {
-        return resolve_vox_cloud(id, cloudless_options);
+        return resolve_vox_cloud(id, options);
     }
+
     match BackendMode::from_env() {
-        BackendMode::EnvOnly => resolve_with_backend(backend::NoopBackend, id, default_options),
-        BackendMode::Infisical => resolve_infisical(id, profile),
-        BackendMode::Vault => resolve_vault(id, profile),
-        BackendMode::VoxCloud => resolve_vox_cloud(id, cloudless_options),
+        BackendMode::EnvOnly => resolve_with_backend(backend::NoopBackend, id, options),
+        BackendMode::Infisical => resolve_infisical(id, options.profile, &options.caller_context),
+        BackendMode::Vault => resolve_vault(id, options.profile, &options.caller_context),
+        BackendMode::VoxCloud => resolve_vox_cloud(id, options),
         BackendMode::Auto => {
             let prefer_vault = std::env::var(crate::OPERATOR_CLAVIS_AUTO_PREFER_VAULT)
                 .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
@@ -233,34 +253,32 @@ pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
                 || std::env::var(crate::OPERATOR_CLAVIS_VAULT_URL).is_ok()
                 || std::env::var(crate::OPERATOR_CLAVIS_VAULT_PATH).is_ok()
             {
-                return resolve_vox_cloud(id, cloudless_options);
+                return resolve_vox_cloud(id, options);
             }
 
-            // Legacy compat check for Auto trigger (mirroring vox_vault's compat check).
-            // NOTE: Do NOT add VOX_DB_URL here—Codex and Vault are separate planes (env-vars.md).
-            // This fallback is deprecated and will be removed once users migrate to explicit Clavis signals.
+            let profile = options.profile;
+            let phase = CutoverPhase::from_env();
+            let legacy_allowed = phase.legacy_sources_allowed(profile);
             let legacy_turso_fallback = legacy_allowed && (std::env::var("VOX_TURSO_URL").is_ok() || std::env::var("TURSO_URL").is_ok());
+
             if legacy_turso_fallback {
-                eprintln!("warning: Clavis is falling back to vox_cloud based on legacy VOX_TURSO_URL signal. This is DEPRECATED.");
-                eprintln!("remediation: Set VOX_CLAVIS_VAULT_URL or VOX_CLAVIS_AUTO_VAULT instead.");
-                return resolve_vox_cloud(id, cloudless_options);
+                return resolve_vox_cloud(id, options);
             }
 
             if std::env::var(crate::OPERATOR_INFISICAL_TOKEN).is_ok()
                 || std::env::var(crate::OPERATOR_INFISICAL_SERVICE_TOKEN).is_ok()
             {
-                return resolve_infisical(id, profile);
+                return resolve_infisical(id, profile, &options.caller_context);
             }
             if std::env::var(crate::OPERATOR_VAULT_ADDR).is_ok() && std::env::var(crate::OPERATOR_VAULT_TOKEN).is_ok() {
-                return resolve_vault(id, profile);
+                return resolve_vault(id, profile, &options.caller_context);
             }
-            // fallback to cloud automatically if keyring has a master key with a set value
             if let Ok(entry) = keyring::Entry::new("vox-clavis-vault", "master") {
                 if entry.get_password().is_ok() {
-                    return resolve_vox_cloud(id, cloudless_options);
+                    return resolve_vox_cloud(id, options);
                 }
             }
-            resolve_with_backend(backend::NoopBackend, id, default_options)
+            resolve_with_backend(backend::NoopBackend, id, options)
         }
     }
 }
@@ -283,7 +301,7 @@ pub fn resolve_env_only(id: SecretId) -> ResolvedSecret {
     SecretResolver::new(backend::NoopBackend).resolve(id, &ResolveOptions::default())
 }
 
-fn resolve_infisical(id: SecretId, profile: ResolveProfile) -> ResolvedSecret {
+fn resolve_infisical(id: SecretId, profile: ResolveProfile, context: &str) -> ResolvedSecret {
     #[cfg(feature = "clavis-infisical")]
     {
         return resolve_with_backend(
@@ -294,6 +312,7 @@ fn resolve_infisical(id: SecretId, profile: ResolveProfile) -> ResolvedSecret {
                 include_auth_json: true,
                 include_populi_env: true,
                 profile,
+                caller_context: context.to_string(),
             },
         );
     }
@@ -309,12 +328,13 @@ fn resolve_infisical(id: SecretId, profile: ResolveProfile) -> ResolvedSecret {
                 include_auth_json: true,
                 include_populi_env: true,
                 profile,
+                caller_context: context.to_string(),
             },
         )
     }
 }
 
-fn resolve_vault(id: SecretId, profile: ResolveProfile) -> ResolvedSecret {
+fn resolve_vault(id: SecretId, profile: ResolveProfile, context: &str) -> ResolvedSecret {
     #[cfg(feature = "clavis-vault")]
     {
         return resolve_with_backend(
@@ -325,6 +345,7 @@ fn resolve_vault(id: SecretId, profile: ResolveProfile) -> ResolvedSecret {
                 include_auth_json: true,
                 include_populi_env: true,
                 profile,
+                caller_context: context.to_string(),
             },
         );
     }
@@ -340,6 +361,7 @@ fn resolve_vault(id: SecretId, profile: ResolveProfile) -> ResolvedSecret {
                 include_auth_json: true,
                 include_populi_env: true,
                 profile,
+                caller_context: context.to_string(),
             },
         )
     }

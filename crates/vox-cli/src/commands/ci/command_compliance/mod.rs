@@ -89,14 +89,14 @@ pub fn run(repo_root: &Path) -> Result<()> {
         .context("read compilerd.rs")?;
     let dei = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/dei_daemon.rs"))
         .context("read dei_daemon.rs")?;
-    let mcp_mod = read_utf8_path_capped(&repo_root.join("crates/vox-mcp/src/tools/mod.rs"))
-        .context("read vox-mcp tools/mod.rs")?;
+    let mcp_mod = read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator/src/mcp_tools/mod.rs"))
+        .context("read vox-orchestrator mcp_tools/mod.rs")?;
     let mcp_dispatch =
-        read_utf8_path_capped(&repo_root.join("crates/vox-mcp/src/tools/dispatch.rs"))
-            .context("read vox-mcp tools/dispatch.rs")?;
+        read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator/src/mcp_tools/dispatch.rs"))
+            .context("read vox-orchestrator mcp_tools/dispatch.rs")?;
     let mcp_tool_aliases =
-        read_utf8_path_capped(&repo_root.join("crates/vox-mcp/src/tools/tool_aliases.rs"))
-            .context("read vox-mcp tools/tool_aliases.rs")?;
+        read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs"))
+            .context("read vox-orchestrator mcp_tools/tool_aliases.rs")?;
     let scripts_readme = read_utf8_path_capped(&repo_root.join("scripts/README.md"))
         .context("read scripts/README.md")?;
     let root_readme =

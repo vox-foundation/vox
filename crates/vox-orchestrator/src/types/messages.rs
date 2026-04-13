@@ -68,6 +68,15 @@ pub enum AgentMessage {
         /// Failure message.
         error: String,
     },
+    /// A task was flagged as suspect by user.
+    TaskDoubted {
+        /// Suspected agent.
+        agent_id: AgentId,
+        /// Doubted task id.
+        task_id: TaskId,
+        /// Optional reason.
+        reason: Option<String>,
+    },
     /// Phase 9: A question directed from one agent to another/user.
     Question {
         /// Asking agent.

@@ -19,11 +19,11 @@
 
 /// Latency and throughput benchmarking for completions.
 pub mod bench_completion;
+#[cfg(feature = "gpu")]
+pub mod eval_collateral;
 pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
-#[cfg(feature = "gpu")]
-pub mod eval_collateral;
 mod eval_local_prompt;
 #[cfg(feature = "gpu")]
 mod merge_weights;

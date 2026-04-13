@@ -36,7 +36,7 @@ use run_body_helpers::{
     run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build, run_data_ssot_guards,
     run_feature_matrix, run_grammar_drift, run_grammar_export_check, run_grpo_reward_baseline,
     run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
-    run_query_all_guard, run_repo_guards, run_secret_env_guard, run_operator_env_guard,
+    run_operator_env_guard, run_query_all_guard, run_repo_guards, run_secret_env_guard,
     run_sql_surface_guard, run_ssot_drift, run_toestub_scoped, run_toestub_self_apply,
     run_turso_import_guard,
 };
@@ -323,5 +323,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),
+        CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
+        CiCmd::InstallHooks => super::install_hooks::run(&root),
     }
 }

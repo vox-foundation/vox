@@ -454,6 +454,22 @@ impl crate::orchestrator::Orchestrator {
                 .ok_or(OrchestratorError::TaskNotFound(task_id))?
         };
 
+        // Update context envelope to explicitly force Verification mode for the agent's prompt
+        if let Some(ref sid) = task.session_id {
+            let key = crate::socrates::session_context_envelope_key(sid);
+            let env_opt = crate::sync_lock::rw_read(&*self.context_store).get(&key);
+            if let Some(env_json) = env_opt {
+                if let Ok(mut env) = serde_json::from_str::<crate::ContextEnvelope>(&env_json) {
+                    env.operating_mode = Some(crate::context_envelope::OperatingMode::Verification { reason: reason.clone() });
+                    if let Ok(new_json) = serde_json::to_string(&env) {
+                        crate::sync_lock::rw_write(&*self.context_store).set(agent_id, key, new_json, 3600);
+                    }
+                }
+            }
+        }
+
+        // Change the role to explicitly focus on verification
+        task.execution_role = Some(crate::reconstruction::AgentExecutionRole::Verifier);
         task.status = TaskStatus::Doubted(reason.clone());
 
         // Emit event for hud and ludus
@@ -463,13 +479,15 @@ impl crate::orchestrator::Orchestrator {
                 agent_id,
                 reason: reason.clone(),
             });
+            
+        self.bulletin.publish(crate::types::AgentMessage::TaskDoubted {
+            task_id,
+            agent_id,
+            reason: reason.clone(),
+        });
 
-        // Re-enqueue but potentially for a different agent or just marked as suspected
-        // For now, we'll keep it in the same agent's queue or mark it for resolution.
-        // The implementation plan says: "escalate to higher-tier Resolution Agent".
-        // We'll mark it Doubted and let the Scaling/ScalingPolicy decide where to route it,
-        // or we'll just enqueue it back as BlockedOnResolution?
-        // Let's stick to the Doubted status for now which Scaling can pick up.
+        // The Implementation Plan requires that we re-enqueue it and let explicitly-enforced
+        // terminal checks clear the Verification mode before it can be marked complete.
         queue.enqueue(task);
 
         tracing::info!(

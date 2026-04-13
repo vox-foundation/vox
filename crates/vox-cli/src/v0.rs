@@ -485,7 +485,10 @@ mod v0_wiremock_tests {
         // SAFETY: paired with `restore_env` below; serialized by `#[serial]`.
         unsafe {
             std::env::set_var("VOX_V0_API_URL", url.as_str());
-            std::env::set_var(vox_clavis::SecretId::V0ApiKey.spec().canonical_env, "test-key");
+            std::env::set_var(
+                vox_clavis::SecretId::V0ApiKey.spec().canonical_env,
+                "test-key",
+            );
         }
 
         let got = fetch_v0_tsx("Demo", "make a card", None)
@@ -494,7 +497,10 @@ mod v0_wiremock_tests {
         assert!(got.contains("export function Demo"));
 
         restore_env("VOX_V0_API_URL", prev_url);
-        restore_env(vox_clavis::SecretId::V0ApiKey.spec().canonical_env, prev_key);
+        restore_env(
+            vox_clavis::SecretId::V0ApiKey.spec().canonical_env,
+            prev_key,
+        );
     }
 }
 

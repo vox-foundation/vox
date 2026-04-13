@@ -62,6 +62,11 @@ API key lifecycle checklist:
 3. Update `vox clavis doctor` workflow/profile expectations when requirements change.
 4. Keep docs in sync at `docs/src/reference/clavis-ssot.md`.
 
+## Cryptography Policy (SSOT)
+
+All cryptographic logic MUST use the `vox-crypto` crate. We explicitly ban AEGIS, `ring`, `zig`-chains, and any wrapper dragging in `cmake` or `nasm` for C-assembly optimization on Windows. Pure-Rust `chacha20poly1305` is standard for AEAD. See:
+- Policy: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
+
 ## Cross-Platform Shell Discipline (Stable Rules)
 
 - **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for interactive terminal work and agent-driven shell steps so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.

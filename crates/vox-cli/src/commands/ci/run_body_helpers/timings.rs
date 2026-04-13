@@ -198,7 +198,8 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 println!("    ({e})");
             }
         }
-        let skip_cuda_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+        let skip_cuda_resolved =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
         if skip_cuda_resolved.expose().unwrap_or_default() == "1" {
             println!("  (CUDA lane skipped: SKIP_CUDA_FEATURE_CHECK=1)");
         } else if !records

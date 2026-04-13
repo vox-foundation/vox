@@ -522,7 +522,10 @@ pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()
         total += n;
     }
     // Also prune Tavily search documents with fixed 7-day TTL (Wave 1 operational hardening).
-    let tavily_pruned = db.retention_prune_tavily_search_documents().await.unwrap_or(0);
+    let tavily_pruned = db
+        .retention_prune_tavily_search_documents()
+        .await
+        .unwrap_or(0);
 
     println!(
         "prune-apply: deleted {total} rows total (policy {}), plus {tavily_pruned} stale Tavily search documents.",

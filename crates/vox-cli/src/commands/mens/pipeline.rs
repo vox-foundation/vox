@@ -185,8 +185,10 @@ pub async fn run(
             }
             PipelineStage::ReviewIngest => {
                 if !dry_run {
-                    let repo_id_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxReviewRepositoryId);
-                    let repo_id = repo_id_resolved.expose()
+                    let repo_id_resolved =
+                        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxReviewRepositoryId);
+                    let repo_id = repo_id_resolved
+                        .expose()
                         .unwrap_or("vox-foundation/vox")
                         .to_string();
                     crate::commands::corpus::run(
@@ -336,35 +338,12 @@ pub async fn run(
                             Default::default(), // chatml_config
                         )
                         .await?;
-                        
-                        // W4-01: Auto-promote to flywheel automatically if curriculum mode and gate passes
+
+                        // W4-01: Flywheel signal telemetry
                         if curriculum {
-                            tracing::info!("Curriculum mode enabled, evaluating gates for flywheel promotion...");
-                            if let Ok(0) = crate::commands::mens::eval_gate::run_eval_gate(output_dir.clone(), None) {
-                                let ready_dir = PathBuf::from("target/dogfood/ready");
-                                std::fs::create_dir_all(&ready_dir)?;
-                                let target_name = output_dir.file_name().unwrap_or_else(|| std::ffi::OsStr::new("latest"));
-                                let dest = ready_dir.join(target_name);
-                                
-                                // Simple directory copy using walkdir
-                                for entry in walkdir::WalkDir::new(&output_dir) {
-                                    if let Ok(e) = entry {
-                                        let path = e.path();
-                                        if path.is_file() {
-                                            if let Ok(rel) = path.strip_prefix(&output_dir) {
-                                                let target = dest.join(rel);
-                                                if let Some(p) = target.parent() {
-                                                    let _ = std::fs::create_dir_all(p);
-                                                }
-                                                let _ = std::fs::copy(path, &target);
-                                            }
-                                        }
-                                    }
-                                }
-                                tracing::info!("Flywheel auto-promote completed to {}", dest.display());
-                            } else {
-                                tracing::warn!("Eval gate failed, skipping flywheel promotion.");
-                            }
+                            tracing::info!(
+                                "flywheel.signal: Curriculum training complete, pending human promotion gate."
+                            );
                         }
                     }
 

@@ -100,6 +100,7 @@ fn get_vox_constructs() -> &'static HashMap<&'static str, Regex> {
             "query",
             Regex::new(r"@query").expect("vox-eval static regex: query"), // OnceLock
         );
+
         m.insert(
             "mutation",
             Regex::new(r"@mutation").expect("vox-eval static regex: mutation"), // OnceLock
@@ -473,5 +474,114 @@ mod collateral_damage_tests {
         let result = eval_collateral_damage_suite(scores, &CollateralDamageConfig::default());
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 2);
+    }
+}
+
+/// Result of evaluating semantic entropy (diversity) of model samples.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SemanticEntropyReport {
+    /// Fraction of sampled outputs that are structurally distinct "pseudo-ASTs".
+    pub ast_diversity: f64,
+    /// Variance in detected language construct counts across samples.
+    pub construct_variance: f64,
+    /// Whether the entropy is below the collapse warning threshold.
+    pub collapse_warning: bool,
+}
+
+/// Sample `n` outputs from the model for the same prompt, extract code, 
+/// and measure structural diversity based on a pseudo-AST hash.
+///
+/// This avoids a circular dependency on the full vox-compiler by using
+/// a regex-based structural "shape" extraction.
+pub fn eval_semantic_entropy(
+    outputs: &[String],
+    collapse_threshold: f64,
+) -> SemanticEntropyReport {
+    if outputs.is_empty() {
+        return SemanticEntropyReport {
+            ast_diversity: 0.0,
+            construct_variance: 0.0,
+            collapse_warning: true,
+        };
+    }
+
+    let mut unique_hashes = std::collections::HashSet::new();
+    let mut construct_counts = Vec::with_capacity(outputs.len());
+
+    // Regexes for stripping content while preserving structure
+    let re_str = Regex::new(r#""(?:[^"\\]|\\.)*""#).expect("entropy regex: str");
+    let re_num = Regex::new(r"\b\d+(\.\d+)?\b").expect("entropy regex: num");
+    let re_ws = Regex::new(r"\s+").expect("entropy regex: ws");
+
+    for out in outputs {
+        // Extract code if wrapped in triple-backticks, otherwise treat as raw code
+        let code = extract_vox_code(out).unwrap_or_else(|| out.clone());
+        
+        // Pseudo-AST: strip literals and normalize whitespace to get the "shape"
+        let stripped_str = re_str.replace_all(&code, "\"\"");
+        let stripped_num = re_num.replace_all(&stripped_str, "0");
+        let pseudo_ast = re_ws.replace_all(&stripped_num, " ").to_string();
+
+        let hash = xxhash_rust::xxh3::xxh3_64(pseudo_ast.as_bytes());
+        unique_hashes.insert(hash);
+
+        // Count language constructs for variance analysis
+        let constructs = get_vox_constructs();
+        let mut count = 0;
+        for re in constructs.values() {
+            count += re.find_iter(&code).count();
+        }
+        construct_counts.push(count as f64);
+    }
+
+    let ast_diversity = unique_hashes.len() as f64 / outputs.len() as f64;
+    
+    // Variance of construct counts
+    let mean = construct_counts.iter().sum::<f64>() / construct_counts.len() as f64;
+    let variance = construct_counts.iter().map(|&c| (c - mean).powi(2)).sum::<f64>() / construct_counts.len() as f64;
+
+    SemanticEntropyReport {
+        ast_diversity,
+        construct_variance: variance,
+        collapse_warning: ast_diversity < collapse_threshold,
+    }
+}
+
+/// Heuristic code extractor for triple-backticked blocks.
+pub(crate) fn extract_vox_code(response: &str) -> Option<String> {
+    if let Some(start) = response.find("```vox") {
+        if let Some(end) = response[start + 6..].find("```") {
+            return Some(response[start + 6..start + 6 + end].trim().to_string());
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod entropy_tests {
+    use super::*;
+
+    #[test]
+    fn entropy_detects_monoculture() {
+        let samples = vec![
+            "fn hello() { ret 1 }".to_string(),
+            "fn hello() { ret 1 }".to_string(),
+            "fn hello() { ret 1 }".to_string(),
+        ];
+        let report = eval_semantic_entropy(&samples, 0.5);
+        assert!(report.ast_diversity < 0.4);
+        assert!(report.collapse_warning);
+    }
+
+    #[test]
+    fn entropy_detects_diversity() {
+        let samples = vec![
+            "fn hello() { ret 1 }".to_string(),
+            "actor World { on msg() { pass } }".to_string(),
+            "type Foo = | Bar".to_string(),
+        ];
+        let report = eval_semantic_entropy(&samples, 0.5);
+        assert!(report.ast_diversity > 0.9);
+        assert!(!report.collapse_warning);
     }
 }

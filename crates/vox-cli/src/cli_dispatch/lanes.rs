@@ -13,6 +13,7 @@ pub(super) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::R
         args.scope,
         args.json,
         args.probe,
+        args.fix_cuda_path,
     )
     .await
 }

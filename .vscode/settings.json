@@ -5,15 +5,6 @@
   },
   "terminal.integrated.envFile": "${workspaceFolder}/.env",
   "terminal.integrated.profiles.windows": {
-    "Vox Exec policy (PSReadLine)": {
-      "path": "pwsh",
-      "args": [
-        "-NoProfile",
-        "-NoExit",
-        "-File",
-        "${workspaceFolder}/.agents/workflows/vox_interceptor_profile.ps1"
-      ]
-    },
     "Vox pwsh proxy (check only)": {
       "path": "${workspaceFolder}/.vox/bin/vox-pwsh-proxy.cmd"
     }

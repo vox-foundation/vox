@@ -68,6 +68,16 @@ function Get-CargoExe {
 
 $root = Get-VoxRepoRoot
 
+if ((Test-Path -LiteralPath (Join-Path $root '.git')) -and (-not (Test-Path -LiteralPath (Join-Path $root '.git\hooks\pre-commit')))) {
+    Push-Location $root
+    try {
+        & (Get-CargoExe) run -q -p vox-cli -- ci install-hooks
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 if ($env:VOX_USE_PATH -eq '1') {
     $voxCmd = Get-Command vox -ErrorAction SilentlyContinue
     if ($null -ne $voxCmd) {

@@ -267,10 +267,11 @@ pub(crate) async fn compile(
         std::fs::write(&stamp_path, &hash).ok();
 
         // Optional GC on miss
-        let max_entries = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxEntries)
-            .expose()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(100usize);
+        let max_entries =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxEntries)
+                .expose()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(100usize);
         let max_mb = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxSizeMb)
             .expose()
             .and_then(|v| v.parse().ok())

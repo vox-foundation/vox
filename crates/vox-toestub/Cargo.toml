@@ -5,18 +5,18 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-syn = { version = "2", features = ["full", "visit", "parsing", "extra-traits"] }
-quote = "1"
-proc-macro2 = { version = "1", features = ["span-locations"] }
-walkdir = "2"
-regex = "1"
+syn = { workspace = true, features = ["full", "visit", "parsing", "extra-traits"] }
+quote = { workspace = true }
+proc-macro2 = { workspace = true, features = ["span-locations"] }
+walkdir = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 miette = { workspace = true }
 owo-colors = { workspace = true }
 thiserror = { workspace = true }
-similar = "2"
-globset = "0.4"
+similar = { workspace = true }
+globset = { workspace = true }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
 vox-reqwest-defaults = { workspace = true }
 anyhow = { workspace = true }

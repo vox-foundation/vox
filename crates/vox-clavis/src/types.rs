@@ -11,6 +11,9 @@ pub enum ResolutionStatus {
     RejectedSourcePolicy,
     RejectedClassPolicy,
     BackendUnavailable,
+    ProfileOverrideUsed,
+    StaleRotation,
+    NearingExpiry,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

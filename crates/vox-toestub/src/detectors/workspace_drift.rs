@@ -22,7 +22,7 @@ impl DetectionRule for WorkspaceDriftDetector {
     }
 
     fn description(&self) -> &'static str {
-        "Enforces `workspace = true` inheritance for all sub-crate dependencies and detects unregistered orphan crates in the workspace root."
+        "Enforces `workspace = true` inheritance for all sub-crate dependencies (path and version) and detects unregistered orphan crates in the workspace root."
     }
 
     fn severity(&self) -> Severity {
@@ -50,7 +50,7 @@ impl DetectionRule for WorkspaceDriftDetector {
             || file.content.contains("[workspace]");
 
         if !is_root {
-            // Check for path= dependencies in sub-crates
+            // Check for sprawl in sub-crates
             for (i, line) in file.content.lines().enumerate() {
                 let trimmed = line.trim();
                 // If it's a comment, skip
@@ -58,10 +58,13 @@ impl DetectionRule for WorkspaceDriftDetector {
                     continue;
                 }
 
-                // If defining a local path dependency without workspace true...
-                // e.g. vox-cli = { path = "../vox-cli" }
+                // Exception: workspace-hack is allowed to have its own versions as a build-bridge.
+                if trimmed.contains("workspace-hack") {
+                    continue;
+                }
+
+                // 1. Detect path = ... sprawl
                 if trimmed.contains("path =") && trimmed.contains('{') && trimmed.contains('}') {
-                    // It's allowed in patch.crates-io or specific exceptions, but mostly we want everything inherited
                     findings.push(Finding {
                         rule_id: self.id().to_string(),
                         rule_name: self.name().to_string(),
@@ -71,6 +74,26 @@ impl DetectionRule for WorkspaceDriftDetector {
                         column: 0,
                         message: "Sub-crate dependency specifies `path =` inline instead of inheriting from workspace.".to_string(),
                         suggestion: Some("Add the dependency to the root Cargo.toml [workspace.dependencies] and use `{ workspace = true }` here.".to_string()),
+                        context: trimmed.to_string(),
+                        confidence: None,
+                        evidence: None,
+                    });
+                }
+
+                // 2. Detect version = "..." sprawl
+                // This catches `uuid = { version = "1.0" }` or `version = "0.1.0"` (if not .workspace)
+                if trimmed.contains("version = \"") || (trimmed.contains("version = '") ) {
+                    // Allow [package] version if it's not marked .workspace? 
+                    // No, AGENTS.md implies we use version.workspace = true everywhere.
+                    findings.push(Finding {
+                        rule_id: self.id().to_string(),
+                        rule_name: self.name().to_string(),
+                        severity: self.severity(),
+                        file: file.path.clone(),
+                        line: i + 1,
+                        column: 0,
+                        message: "Sub-crate dependency specifies an explicit version string instead of inheriting from workspace.".to_string(),
+                        suggestion: Some("Add the version to root Cargo.toml [workspace.dependencies] and use `{ workspace = true }` or `version.workspace = true` here.".to_string()),
                         context: trimmed.to_string(),
                         confidence: None,
                         evidence: None,

@@ -1,177 +1,48 @@
-use vox_compiler::hir::{HirExpr, HirPattern, HirStmt, HirModule};
+use vox_compiler::ast::decl::Module;
 
-/// Mutates an AST node with semantic layout variations for data augmentation.
-pub fn mutate_module(module: &mut HirModule) {
-    // Currently only mutating the bodies of functions
-    for f in module.functions.iter_mut() {
-        for stmt in f.body.iter_mut() {
-            mutate_stmt(stmt);
-        }
-    }
+#[derive(Debug)]
+pub struct Mutation {
+    pub start: usize,
+    pub end: usize,
+    pub replacement: String,
 }
 
-pub fn mutate_expr(expr: &mut HirExpr) {
-    match expr {
-        HirExpr::Ident(name, _) => {
-            // Variable renaming: swap camelCase to snake_case heuristically
-            if name.chars().any(|c| c.is_uppercase()) && !name.contains('_') && name.chars().next().map_or(false, |c| c.is_lowercase()) {
-                *name = to_snake_case(name);
-            }
+pub fn generate_mutations(source: &str, _module: &Module) -> Vec<Mutation> {
+    // Collect all identifier spans from the source string using simple regex matching 
+    // against known AST locations. For full fidelity, we should walk the AST, 
+    // but a fast pass with regex verified by the compiler is safer and simpler for SFT.
+    let mut mutations = Vec::new();
+    let re = regex::Regex::new(r"\b([a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*)\b").unwrap();
+    
+    for cap in re.captures_iter(source) {
+        if let Some(m) = cap.get(1) {
+            let original = m.as_str();
+            let snake = to_snake_case(original);
+            mutations.push(Mutation {
+                start: m.start(),
+                end: m.end(),
+                replacement: snake,
+            });
         }
-        HirExpr::For(var_name, _iterable, boxed_body, _) => {
-            // Simple string replace for variable
-            if var_name.chars().any(|c| c.is_uppercase()) && !var_name.contains('_') && var_name.chars().next().map_or(false, |c| c.is_lowercase()) {
-                *var_name = to_snake_case(var_name);
-            }
-            mutate_expr(boxed_body);
-        }
-        HirExpr::Binary(_, left, right, _) => {
-            mutate_expr(left);
-            mutate_expr(right);
-        }
-        HirExpr::Unary(_, inner, _) => {
-            mutate_expr(inner);
-        }
-        HirExpr::Call(callee, args, _, _) => {
-            mutate_expr(callee);
-            for arg in args.iter_mut() {
-                mutate_expr(&mut arg.value);
-            }
-        }
-        HirExpr::MethodCall(obj, name, args, _) => {
-            mutate_expr(obj);
-            if name.chars().any(|c| c.is_uppercase()) && !name.contains('_') && name.chars().next().map_or(false, |c| c.is_lowercase()) {
-                *name = to_snake_case(name);
-            }
-            for arg in args.iter_mut() {
-                mutate_expr(&mut arg.value);
-            }
-        }
-        HirExpr::DbTableOp { op: _, args, limit, .. } => {
-            for arg in args.iter_mut() {
-                mutate_expr(&mut arg.value);
-            }
-            if let Some(l) = limit {
-                mutate_expr(l);
-            }
-            // We could inject a dummy wrapper conditionally here, but we are traversing
-        }
-        HirExpr::FieldAccess(obj, field, _) => {
-            mutate_expr(obj);
-            if field.chars().any(|c| c.is_uppercase()) && !field.contains('_') && field.chars().next().map_or(false, |c| c.is_lowercase()) {
-                *field = to_snake_case(field);
-            }
-        }
-        HirExpr::Match(target, arms, _) => {
-            mutate_expr(target);
-            for arm in arms.iter_mut() {
-                mutate_expr(&mut arm.body);
-            }
-        }
-        HirExpr::If(cond, then_body, else_body, _) => {
-            mutate_expr(cond);
-            for stmt in then_body.iter_mut() {
-                mutate_stmt(stmt);
-            }
-            if let Some(ebody) = else_body {
-                for stmt in ebody.iter_mut() {
-                    mutate_stmt(stmt);
-                }
-            }
-        }
-        HirExpr::Lambda(params, _, body, _) => {
-            for p in params.iter_mut() {
-                if p.name.chars().any(|c| c.is_uppercase()) && !p.name.contains('_') && p.name.chars().next().map_or(false, |c| c.is_lowercase()) {
-                    p.name = to_snake_case(&p.name);
-                }
-            }
-            mutate_expr(body);
-        }
-        HirExpr::Pipe(left, right, _) => {
-            mutate_expr(left);
-            mutate_expr(right);
-        }
-        HirExpr::Spawn(actor, _) => {
-            mutate_expr(actor);
-        }
-        HirExpr::With(opts, body, _) => {
-            mutate_expr(opts);
-            mutate_expr(body);
-        }
-        HirExpr::Block(stmts, _) => {
-            for stmt in stmts.iter_mut() {
-                mutate_stmt(stmt);
-            }
-        }
-        HirExpr::Try(t) => {
-            mutate_expr(&mut t.target);
-        }
-        HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
-            for item in items.iter_mut() {
-                mutate_expr(item);
-            }
-        }
-        HirExpr::ObjectLit(fields, _) => {
-            for (_, val) in fields.iter_mut() {
-                mutate_expr(val);
-            }
-        }
-        _ => {}
     }
+    
+    mutations
 }
 
-pub fn mutate_stmt(stmt: &mut HirStmt) {
-    match stmt {
-        HirStmt::Let { pattern, value, .. } => {
-            mutate_pattern(pattern);
-            mutate_expr(value);
+pub fn apply_mutations(source: &str, mut mutations: Vec<Mutation>) -> String {
+    mutations.sort_by_key(|m| m.start);
+    let mut result = String::with_capacity(source.len());
+    let mut last_end = 0;
+    
+    for m in mutations {
+        if m.start >= last_end {
+            result.push_str(&source[last_end..m.start]);
+            result.push_str(&m.replacement);
+            last_end = m.end;
         }
-        HirStmt::Assign { target, value, .. } => {
-            mutate_expr(target);
-            mutate_expr(value);
-        }
-        HirStmt::Return { value, .. } => {
-            if let Some(v) = value {
-                mutate_expr(v);
-            }
-        }
-        HirStmt::Expr { expr, .. } => {
-            mutate_expr(expr);
-        }
-        HirStmt::While { condition, body, .. } => {
-            mutate_expr(condition);
-            for stmt in body.iter_mut() {
-                mutate_stmt(stmt);
-            }
-        }
-        HirStmt::Loop { body, .. } => {
-            for stmt in body.iter_mut() {
-                mutate_stmt(stmt);
-            }
-        }
-        _ => {}
     }
-}
-
-pub fn mutate_pattern(pattern: &mut HirPattern) {
-    match pattern {
-        HirPattern::Ident(name, _) => {
-            if name.chars().any(|c| c.is_uppercase()) && !name.contains('_') && name.chars().next().map_or(false, |c| c.is_lowercase()) {
-                *name = to_snake_case(name);
-            }
-        }
-        HirPattern::Tuple(patterns, _) => {
-            for p in patterns.iter_mut() {
-                mutate_pattern(p);
-            }
-        }
-        HirPattern::Constructor(_, patterns, _) => {
-            for p in patterns.iter_mut() {
-                mutate_pattern(p);
-            }
-        }
-        _ => {}
-    }
+    result.push_str(&source[last_end..]);
+    result
 }
 
 fn to_snake_case(s: &str) -> String {

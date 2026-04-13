@@ -75,6 +75,7 @@ vox-config
 vox-constrained-gen
 vox-container
 vox-corpus
+vox-crypto
 vox-db
 vox-dei
 vox-orchestrator

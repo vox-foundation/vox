@@ -266,6 +266,23 @@ impl Orchestrator {
                 )
             };
             if auto_debug_requeue.is_none()
+                && let Some(mut task_clone) = queue.current_task().cloned()
+            {
+                if task_clone.execution_role == Some(crate::reconstruction::AgentExecutionRole::Verifier) {
+                    let has_checks = completion_attestation
+                        .as_ref()
+                        .map(|a| !a.checks_passed.is_empty())
+                        .unwrap_or(false);
+                    let force = completion_attestation.as_ref().is_some_and(|a| a.force_risky);
+                    if !has_checks && !force {
+                        return Err(OrchestratorError::TaskValidationFailed(
+                            "SYSTEM_INTERVENTION: You are in Reflective Interrogation Mode (Doubted). You are attempting to complete a task without running any terminal commands to verify the codebase. Refusal to run code checks is a failure mode known as the 'Checklist Ritual'. You MUST run `vox ci check` or an equivalent test command before completing.".to_string()
+                        ));
+                    }
+                }
+            }
+
+            if auto_debug_requeue.is_none()
                 && let Some(message) = behavioral_failure.take()
                 && let Some(mut task_clone) = queue.current_task().cloned()
             {

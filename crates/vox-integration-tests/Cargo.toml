@@ -10,8 +10,8 @@ tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
-tower-lsp = { workspace = true }
-tower-lsp-server = { workspace = true }
+tower-lsp = "0.20"
+tower-lsp-server = "0.23"
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
@@ -21,7 +21,6 @@ vox-bounded-fs = { workspace = true }
 vox-runtime = { workspace = true }
 vox-workflow-runtime = { workspace = true }
 vox-container = { workspace = true }
-vox-mcp = { workspace = true }
 vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }

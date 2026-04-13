@@ -63,13 +63,34 @@ pub enum CorpusAction {
         #[arg(short, long, default_value = "mens/data/mix_sources/docs.jsonl")]
         output: std::path::PathBuf,
     },
+    /// Synthesize Rust structural translation pairs
+    RustMine {
+        /// Source directory of Rust code
+        #[arg(long, default_value = ".")]
+        source_dir: std::path::PathBuf,
+        /// Output JSONL file
+        #[arg(short, long, default_value = "target/dogfood/rust_to_vox.jsonl")]
+        output: std::path::PathBuf,
+    },
+    /// Generate SFT pairs by structurally mutating a source directory
+    Mutate {
+        /// Input source directory containing .vox files
+        #[arg(long, default_value = "examples/golden")]
+        source_dir: std::path::PathBuf,
+        /// How many target pairs to aim for
+        #[arg(short, long, default_value_t = 5000)]
+        count: usize,
+        /// Output JSONL file
+        #[arg(short, long, default_value = "target/dogfood/mutated_vox.jsonl")]
+        output: std::path::PathBuf,
+    },
     /// Validate and deduplicate a corpus JSONL file
     #[command(name = "validate-batch", alias = "validate")]
     Validate {
         /// Input JSONL file
-        #[arg(required = true)]
+        #[arg(short, long)]
         input: std::path::PathBuf,
-        /// Output validated JSONL file (defaults to overwriting input)
+        /// Output JSONL file (optional, defaults to overwriting input if not specified)
         #[arg(short, long)]
         output: Option<std::path::PathBuf>,
         /// Skip re-checking code through the compiler
@@ -81,6 +102,15 @@ pub enum CorpusAction {
         /// Write JSON summary (counts, sample failures)
         #[arg(long)]
         report: Option<std::path::PathBuf>,
+    },
+    /// Audit corpus diversity by measuring AST semantic entropy
+    DiversityCheck {
+        /// Input JSONL file
+        #[arg(short, long)]
+        input: std::path::PathBuf,
+        /// Minimum allowed AST diversity (0.0-1.0, recommended 0.40)
+        #[arg(long, default_value_t = 0.40)]
+        min_diversity: f64,
     },
     /// Generate instruction→response training pairs from validated corpus
     Pairs {
@@ -210,6 +240,21 @@ pub enum CorpusAction {
         #[arg(short, long, default_value_t = 1000)]
         count: usize,
     },
+    /// Curate prose-heavy lanes using a frontier LLM to filter logic hazards.
+    CurateProse {
+        /// Input JSONL file
+        #[arg(required = true)]
+        input: std::path::PathBuf,
+        /// Output JSONL file (curated)
+        #[arg(short, long)]
+        output: std::path::PathBuf,
+        /// Minimum semantic integrity score (0.0-1.0)
+        #[arg(long, default_value_t = 0.7)]
+        min_score: f64,
+        /// Optional quarantine file for rejected records
+        #[arg(long)]
+        quarantine: Option<std::path::PathBuf>,
+    },
 }
 
 /// Execute the native training data extraction or validation logic.
@@ -250,6 +295,14 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             );
             Ok(())
         }
+        CorpusAction::RustMine { source_dir, output } => {
+            generate::run_rust_mine(&source_dir, &output).await
+        }
+        CorpusAction::Mutate {
+            source_dir,
+            count,
+            output,
+        } => generate::run_mutate(&source_dir, count, &output).await,
         CorpusAction::Validate {
             input,
             output,
@@ -267,6 +320,10 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             )
             .await
         }
+        CorpusAction::DiversityCheck {
+            input,
+            min_diversity,
+        } => generate::run_diversity_check(&input, min_diversity).await,
         CorpusAction::Pairs {
             input,
             output,
@@ -474,6 +531,14 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 output.display()
             );
             Ok(())
+        }
+        CorpusAction::CurateProse {
+            input,
+            output,
+            min_score,
+            quarantine,
+        } => {
+            generate::run_curate_prose(&input, &output, min_score, quarantine.as_deref()).await
         }
     }
 }

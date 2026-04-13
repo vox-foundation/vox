@@ -58,6 +58,10 @@ done
 
 ROOT="$(find_repo_root)"
 
+if [[ -d "$ROOT/.git" && ! -f "$ROOT/.git/hooks/pre-commit" ]]; then
+  (cd "$ROOT" && cargo run -q -p vox-cli -- ci install-hooks)
+fi
+
 if [[ "${VOX_USE_PATH:-}" == "1" ]] && command -v vox >/dev/null 2>&1; then
   (cd "$ROOT" && exec vox "$@")
 fi

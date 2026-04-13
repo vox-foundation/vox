@@ -406,8 +406,10 @@ pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
 
     // Regex to find potential env var strings in Rust files: "NAME" inside std::env::var(...)
     // or similar looking uppercase strings.
-    let re = regex::Regex::new(r#"(?:std::env::var(?:_os)?\s*\(\s*["'](?P<name>[A-Z0-9_]{3,})["']\s*\))"#)
-        .expect("env var regex");
+    let re = regex::Regex::new(
+        r#"(?:std::env::var(?:_os)?\s*\(\s*["'](?P<name>[A-Z0-9_]{3,})["']\s*\))"#,
+    )
+    .expect("env var regex");
 
     for rel in scan_targets(root, all)? {
         let path = root.join(&rel);
@@ -719,8 +721,12 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             .iter()
             .map(|&s| s.to_string())
             .collect();
-        let missing_tuning_in_contract: Vec<_> = live_tuning_names.difference(&contract_tuning_names).collect();
-        let extra_tuning_in_contract: Vec<_> = contract_tuning_names.difference(&live_tuning_names).collect();
+        let missing_tuning_in_contract: Vec<_> = live_tuning_names
+            .difference(&contract_tuning_names)
+            .collect();
+        let extra_tuning_in_contract: Vec<_> = contract_tuning_names
+            .difference(&live_tuning_names)
+            .collect();
         if !missing_tuning_in_contract.is_empty() || !extra_tuning_in_contract.is_empty() {
             return Err(anyhow!(
                 "clavis-parity: contract drift (operator tuning) — missing={:?} extra={:?} (re-run `vox ci clavis-contracts`)",
@@ -729,7 +735,9 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             ));
         }
     } else {
-        return Err(anyhow!("clavis-parity: missing contracts/clavis/managed-env-names.v1.json. Run `vox ci clavis-contracts`"));
+        return Err(anyhow!(
+            "clavis-parity: missing contracts/clavis/managed-env-names.v1.json. Run `vox ci clavis-contracts`"
+        ));
     }
 
     let docs = root
@@ -743,7 +751,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
         ));
     }
     let content = read_utf8_path_capped(&docs)?;
-    
+
     let missing_bundles: Vec<&str> = vox_clavis::all_bundle_doc_names()
         .iter()
         .copied()

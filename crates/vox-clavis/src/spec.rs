@@ -4,6 +4,74 @@ use crate::policy::SecretPolicy;
 use crate::types::SecretSource;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TaxonomyClass {
+    PlatformIdentity,
+    LlmProviderKey,
+    CloudGpuInfra,
+    ScholarlyPublication,
+    SocialSyndication,
+    MeshTransport,
+    TelemetrySearch,
+    AuxTooling,
+    OperatorTuning,
+}
+
+impl TaxonomyClass {
+    pub const fn slug(self) -> &'static str {
+        match self {
+            Self::PlatformIdentity     => "platform",
+            Self::LlmProviderKey       => "llm",
+            Self::CloudGpuInfra        => "gpu",
+            Self::ScholarlyPublication => "scholarly",
+            Self::SocialSyndication    => "social",
+            Self::MeshTransport        => "mesh",
+            Self::TelemetrySearch      => "telemetry",
+            Self::AuxTooling           => "aux",
+            Self::OperatorTuning       => "config",
+        }
+    }
+
+    pub const fn is_config_only(self) -> bool {
+        matches!(self, Self::OperatorTuning)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LifecycleMeta {
+    pub rotation_cadence_days: Option<u32>,
+    pub expiry_warning_days: Option<u32>,
+    pub track_stale_rotation: bool,
+}
+
+impl LifecycleMeta {
+    pub const MANUAL: Self = Self {
+        rotation_cadence_days: None,
+        expiry_warning_days: None,
+        track_stale_rotation: false,
+    };
+    pub const QUARTERLY: Self = Self {
+        rotation_cadence_days: Some(90),
+        expiry_warning_days: Some(14),
+        track_stale_rotation: true,
+    };
+    pub const MONTHLY: Self = Self {
+        rotation_cadence_days: Some(30),
+        expiry_warning_days: Some(7),
+        track_stale_rotation: true,
+    };
+    pub const ANNUAL_OAUTH: Self = Self {
+        rotation_cadence_days: Some(365),
+        expiry_warning_days: Some(30),
+        track_stale_rotation: true,
+    };
+    pub const CONFIG: Self = Self {
+        rotation_cadence_days: None,
+        expiry_warning_days: None,
+        track_stale_rotation: false,
+    };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SecretClass {
     Runtime,
     Account,
@@ -22,6 +90,11 @@ pub enum SecretMaterialKind {
     EndpointUrl,
     Username,
     Password,
+    OAuthClientCredential,
+    JwtHmacSecret,
+    Ed25519Key,
+    DelegationRef,
+    ConfigValue,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -40,6 +113,8 @@ pub struct SecretMetadata {
     pub allow_env_in_strict: bool,
     pub allow_compat_sources_in_strict: bool,
     pub rotation_policy: RotationPolicy,
+    pub taxonomy_class: TaxonomyClass,
+    pub lifecycle: LifecycleMeta,
 }
 
 impl SecretMetadata {
@@ -591,6 +666,7 @@ pub struct SecretSpec {
     pub auth_registry: Option<&'static str>,
     pub policy: SecretPolicy,
     pub remediation: &'static str,
+    pub scope_description: &'static str,
 }
 
 impl std::str::FromStr for SecretId {
@@ -651,6 +727,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set GROQ_CHAT_COMPLETIONS_URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCerebrasChatCompletionsUrl,
@@ -661,6 +738,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set CEREBRAS_CHAT_COMPLETIONS_URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMistralChatCompletionsUrl,
@@ -671,6 +749,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set MISTRAL_CHAT_COMPLETIONS_URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxDeepseekChatCompletionsUrl,
@@ -681,6 +760,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set DEEPSEEK_CHAT_COMPLETIONS_URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSambanovaChatCompletionsUrl,
@@ -691,6 +771,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set SAMBANOVA_CHAT_COMPLETIONS_URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxAnthropicChatCompletionsUrl,
@@ -701,6 +782,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set ANTHROPIC_CHAT_COMPLETIONS_URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusExperiment,
@@ -711,6 +793,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_LUDUS_EXPERIMENT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpLlmCostEvents,
@@ -721,6 +804,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MCP_LLM_COST_EVENTS.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxAnthropicDirect,
@@ -731,6 +815,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set ANTHROPIC_DIRECT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenrouterHttpReferer,
@@ -741,6 +826,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_OPENROUTER_HTTP_REFERER.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenrouterAppTitle,
@@ -751,6 +837,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_OPENROUTER_APP_TITLE.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenrouterRouteHint,
@@ -761,6 +848,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_OPENROUTER_ROUTE_HINT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCostPreference,
@@ -771,6 +859,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_COST_PREFERENCE.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxDogfoodTracePath,
@@ -781,6 +870,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_DOGFOOD_TRACE_PATH.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpGrammarMask,
@@ -791,6 +881,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MCP_GRAMMAR_MASK.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOllamaHost,
@@ -801,6 +892,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set OLLAMA_HOST.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::GeminiApiKey,
@@ -811,6 +903,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: Some("google"),
         policy: SecretPolicy::optional_skip(),
         remediation: "Run `vox clavis set google <token>` or set GEMINI_API_KEY. Required if VOX_GEMINI_ROUTE_POLICY=google_direct_only.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OpenRouterApiKey,
@@ -821,6 +914,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: Some("openrouter"),
         policy: SecretPolicy::required_fail(),
         remediation: "Run `vox clavis set openrouter <token>` or set OPENROUTER_API_KEY.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OpenRouterModel,
@@ -831,6 +925,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "OpenRouter model identifier (e.g. anthropic/claude-3.5-sonnet).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OpenaiModel,
@@ -841,6 +936,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "OpenAI model identifier (e.g. gpt-4o).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OpenaiBaseUrl,
@@ -851,6 +947,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "OpenAI API base URL (defaults to api.openai.com/v1).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::GeminiModel,
@@ -861,6 +958,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Gemini model identifier (e.g. gemini-2.0-flash).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OllamaUrl,
@@ -871,6 +969,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Ollama instance root URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OllamaModel,
@@ -881,6 +980,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Ollama model tag (e.g. codellama).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OpenaiApiKey,
@@ -891,6 +991,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set OPENAI_API_KEY when OpenAI routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::AnthropicApiKey,
@@ -901,6 +1002,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set ANTHROPIC_API_KEY when Anthropic routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::HuggingFaceToken,
@@ -911,6 +1013,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set HF_TOKEN if Hugging Face routes are needed.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::ForgeToken,
@@ -921,6 +1024,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set FORGE_TOKEN (or GITHUB_TOKEN/GITLAB_TOKEN, matched in that order) for forge API flows.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::GroqApiKey,
@@ -931,6 +1035,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set GROQ_API_KEY when Groq routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::CerebrasApiKey,
@@ -941,6 +1046,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set CEREBRAS_API_KEY when Cerebras routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::MistralApiKey,
@@ -951,6 +1057,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set MISTRAL_API_KEY when Mistral routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::DeepSeekApiKey,
@@ -961,6 +1068,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set DEEPSEEK_API_KEY when DeepSeek routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::SambaNovaApiKey,
@@ -971,6 +1079,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set SAMBANOVA_API_KEY when SambaNova routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::CustomOpenaiApiKey,
@@ -981,6 +1090,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set CUSTOM_OPENAI_API_KEY when custom OpenAI-compatible routes are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::V0ApiKey,
@@ -991,6 +1101,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set V0_API_KEY for island generation against v0.dev.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::OpenClawToken,
@@ -1001,6 +1112,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_OPENCLAW_TOKEN for protected OpenClaw gateway operations.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenClawUrl,
@@ -1011,6 +1123,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "HTTP gateway URL for the OpenClaw skill registry.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenClawWsUrl,
@@ -1021,6 +1134,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "WebSocket gateway URL for OpenClaw control plane.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::TogetherApiKey,
@@ -1031,6 +1145,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set TOGETHER_API_KEY for Together training flows.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxRunpodApiKey,
@@ -1041,6 +1156,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_RUNPOD_API_KEY for RunPod cloud training/serve jobs.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxVastApiKey,
@@ -1051,6 +1167,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_VAST_API_KEY for Vast.ai cloud training/serve jobs.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxApiKey,
@@ -1061,6 +1178,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_API_KEY to require API key auth on runtime servers.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxBearerToken,
@@ -1071,6 +1189,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_BEARER_TOKEN to require bearer auth on runtime servers.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxDbUrl,
@@ -1081,6 +1200,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_DB_URL for remote DB use.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxDbToken,
@@ -1091,6 +1211,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_DB_TOKEN for remote DB use.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchQdrantApiKey,
@@ -1101,6 +1222,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SEARCH_QDRANT_API_KEY (or resolve via Clavis) for Qdrant Cloud / authenticated clusters.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshToken,
@@ -1111,6 +1233,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Run `vox populi up` or set VOX_MESH_TOKEN for mesh auth.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshWorkerToken,
@@ -1121,6 +1244,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MESH_WORKER_TOKEN for populi worker-scoped control-plane auth.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshSubmitterToken,
@@ -1131,6 +1255,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MESH_SUBMITTER_TOKEN for populi job-submitter auth (A2A deliver).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshAdminToken,
@@ -1141,6 +1266,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MESH_ADMIN_TOKEN for populi admin-only control-plane operations.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshJwtHmacSecret,
@@ -1151,6 +1277,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::required_fail(),
         remediation: "Required API secret for JWT mesh bearer tokens (set on server + issuer).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshWorkerResultVerifyKey,
@@ -1161,6 +1288,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::required_fail(),
         remediation: "Required Ed25519 public key to verify signed `job_result` / `job_fail` deliveries to prevent spoofing.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsTwitterBearer,
@@ -1171,6 +1299,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_NEWS_TWITTER_TOKEN (or Clavis env/backend resolution) for Twitter syndication.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialBlueskyHandle,
@@ -1181,6 +1310,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_BLUESKY_HANDLE for Bluesky syndication.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialBlueskyPassword,
@@ -1191,6 +1321,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_BLUESKY_PASSWORD (app password) for Bluesky syndication.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialMastodonToken,
@@ -1201,6 +1332,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Mastodon personal access token (deposits / posts).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialMastodonDomain,
@@ -1211,6 +1343,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Mastodon instance domain (e.g. mastodon.social).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialLinkedinAccessToken,
@@ -1221,6 +1354,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "LinkedIn OAuth2 access token for organizational posts.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialDiscordWebhook,
@@ -1231,6 +1365,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Discord webhook URL for news announcements.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsOpenCollectiveToken,
@@ -1241,6 +1376,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_NEWS_OPENCOLLECTIVE_TOKEN for Open Collective updates.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialRedditClientId,
@@ -1251,6 +1387,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_REDDIT_CLIENT_ID when Reddit syndication is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialRedditClientSecret,
@@ -1261,6 +1398,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_REDDIT_CLIENT_SECRET when Reddit syndication is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialRedditRefreshToken,
@@ -1271,6 +1409,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_REDDIT_REFRESH_TOKEN when Reddit syndication is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialRedditUserAgent,
@@ -1281,6 +1420,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_REDDIT_USER_AGENT when Reddit syndication is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialYoutubeClientId,
@@ -1291,6 +1431,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_YOUTUBE_CLIENT_ID when YouTube upload is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialYoutubeClientSecret,
@@ -1301,6 +1442,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_YOUTUBE_CLIENT_SECRET when YouTube upload is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialYoutubeRefreshToken,
@@ -1311,6 +1453,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN when YouTube upload is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoAccessToken,
@@ -1321,6 +1464,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set ZENODO_ACCESS_TOKEN when Zenodo deposition submission is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewEmail,
@@ -1331,6 +1475,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set OPENREVIEW_EMAIL when OpenReview submission flows are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewAccessToken,
@@ -1341,6 +1486,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set OPENREVIEW_ACCESS_TOKEN when OpenReview token-based flows are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewPassword,
@@ -1351,6 +1497,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set OPENREVIEW_PASSWORD when OpenReview submission flows are enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::PopuliApiKey,
@@ -1361,6 +1508,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set POPULI_API_KEY if needed by remote mens endpoint.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxTelemetryUploadUrl,
@@ -1371,6 +1519,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_TELEMETRY_UPLOAD_URL only when intentionally using `vox telemetry upload` (see ADR 023).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxTelemetryUploadToken,
@@ -1381,6 +1530,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_TELEMETRY_UPLOAD_TOKEN when your telemetry ingest requires bearer auth.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCrossrefPlusApiKey,
@@ -1391,6 +1541,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set CROSSREF_PLUS_API_KEY when Crossref metadata deposit is enabled.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxArxivAssistHandoffSecret,
@@ -1401,6 +1552,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_ARXIV_ASSIST_HANDOFF_SECRET to gate operator arXiv handoff acks.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::WebhookIngressToken,
@@ -1411,6 +1563,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_WEBHOOK_INGRESS_TOKEN to require bearer auth on the webhook ingress server.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::WebhookSigningSecret,
@@ -1421,6 +1574,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_WEBHOOK_SIGNING_SECRET to enable HMAC verification for generic inbound webhook sources.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpBearerToken,
@@ -1431,6 +1585,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MCP_HTTP_BEARER_TOKEN for MCP HTTP gateway write-role auth.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpReadBearerToken,
@@ -1441,6 +1596,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_MCP_HTTP_READ_BEARER_TOKEN for MCP HTTP gateway read-role auth.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrcidClientId,
@@ -1451,6 +1607,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set ORCID_CLIENT_ID for automated ORCID attribution flows.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrcidClientSecret,
@@ -1461,6 +1618,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set ORCID_CLIENT_SECRET for automated ORCID attribution flows.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxDataCiteRepository,
@@ -1471,6 +1629,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set DATACITE_REPOSITORY (symbol) for direct DOI registration.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxDataCitePassword,
@@ -1481,6 +1640,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set DATACITE_PASSWORD for direct DOI registration via MDS API.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::TavilyApiKey,
@@ -1491,6 +1651,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Tavily web search API key (https://tavily.com)",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::TavilyProject,
@@ -1501,6 +1662,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Optional Tavily project ID for usage tracking (X-Project-ID header)",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScholarlyAdapter,
@@ -1511,6 +1673,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Select scholarly submission adapter (e.g. `mock`, `live`, `zenodo`).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScholarlyDisable,
@@ -1521,6 +1684,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Disable all scholarly submission logic.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScholarlyDisableLive,
@@ -1531,6 +1695,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Disable live scholarly submission (force dry-run/mock).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScholarlyDisableZenodo,
@@ -1541,6 +1706,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Disable Zenodo deposition adapter.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScholarlyDisableOpenReview,
@@ -1551,6 +1717,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Disable OpenReview submission adapter.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewApiBase,
@@ -1561,6 +1728,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Base URL for OpenReview API (e.g. https://api2.openreview.net).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewInvitation,
@@ -1571,6 +1739,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Invitation ID for OpenReview submission.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewSignature,
@@ -1581,6 +1750,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Signature for OpenReview submission (e.g. ~User_Name1).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoSandbox,
@@ -1591,6 +1761,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable Zenodo Sandbox mode (uses sandbox.zenodo.org).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoApiBase,
@@ -1601,6 +1772,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Override base URL for Zenodo API.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsTwitterTextChunkMax,
@@ -1611,6 +1783,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum character count for Twitter post chunks.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsTwitterTruncationSuffix,
@@ -1621,6 +1794,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Suffix added when truncating Twitter posts.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialTwitterSummaryMarginChars,
@@ -1631,6 +1805,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Margin chars reserved for Twitter summaries.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialRedditSelfpostSummaryMax,
@@ -1641,6 +1816,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum character count for Reddit selfposts.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialHnMode,
@@ -1651,6 +1827,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Hacker News submission mode (e.g. `auto`, `manual_assist`).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialYoutubeDefaultCategoryId,
@@ -1661,6 +1838,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default category ID for YouTube uploads (e.g. 27 for Education).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSyndicationTemplateProfileEnabled,
@@ -1671,6 +1849,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable use of template_profile keys in syndication metadata.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::TavilyProject,
@@ -1681,6 +1860,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set TAVILY_PROJECT_ID for usage tracking.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsSiteBaseUrl,
@@ -1691,6 +1871,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set custom base URL for news site (e.g. `https://my-vox.org`).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsRssFeedPath,
@@ -1701,6 +1882,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set path to RSS feed (e.g. `docs/feed.xml`).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsPublishArmed,
@@ -1711,6 +1893,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable actually-live publication (armed mode).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoAttachManifestBody,
@@ -1721,6 +1904,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Attach manifest body markdown as body.md to Zenodo deposition.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoPublishDeposition,
@@ -1731,6 +1915,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Automatically publish Zenodo deposition after upload.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoDraftOnly,
@@ -1741,6 +1926,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Force Zenodo depositions to stay in draft mode.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoPublishNow,
@@ -1751,6 +1937,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable publish-now profile for Zenodo depositions.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoStagingDir,
@@ -1761,6 +1948,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Directory containing files for Zenodo staging.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoUploadAllowlist,
@@ -1771,6 +1959,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Comma-separated list of files to upload to Zenodo.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoVerifyStagingChecksums,
@@ -1781,6 +1970,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable checksum verification for Zenodo staging uploads.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoRequireMetadataParity,
@@ -1791,6 +1981,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Require title parity between manifest and Zenodo metadata.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpAgentFleet,
@@ -1801,6 +1992,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable background agent fleet for MCP (default: true).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxZenodoHttpMaxAttempts,
@@ -1811,6 +2003,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set max retry attempts for Zenodo HTTP calls (default: 3, max: 10).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenReviewHttpMaxAttempts,
@@ -1821,6 +2014,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set max retry attempts for OpenReview HTTP calls (default: 3, max: 10).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScholarlyJobLockOwner,
@@ -1831,6 +2025,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Explicit lock owner string for scholarly background jobs (default: vox:<pid>).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScientiaCrossrefMailto,
@@ -1841,6 +2036,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Email address for Crossref polite API pool (Scientia prior art).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshBootstrapToken,
@@ -1851,6 +2047,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "One-time bootstrap token for joining the mesh.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshBootstrapExpiresUnixMs,
@@ -1861,6 +2058,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Expiration timestamp for the bootstrap token (Unix ms).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshEnabled,
@@ -1871,6 +2069,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable mesh infrastructure.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshMode,
@@ -1881,6 +2080,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Mesh connectivity mode (lan, wan, overlay).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshNodeId,
@@ -1891,6 +2091,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Stable node identifier for mesh participant.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshLabels,
@@ -1901,6 +2102,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Comma-separated labels for node capabilities.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshControlAddr,
@@ -1911,6 +2113,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "HTTP address for mesh control plane.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshRegistryPath,
@@ -1921,6 +2124,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Override path for mesh local node registry.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshAdvertiseGpu,
@@ -1931,6 +2135,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Publicly advertise GPU capabilities to mesh.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshScopeId,
@@ -1941,6 +2146,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Project-wide scope identifier for node grouping.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshServerStalePruneMs,
@@ -1951,6 +2157,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Millisecond window before a silent node is pruned from registry.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshA2aMaxMessages,
@@ -1961,6 +2168,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum in-memory queue depth for A2A messages.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshA2aLeaseMs,
@@ -1971,6 +2179,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Duration of an agent inbox lease before requeue (ms).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshHttpRateLimit,
@@ -1981,6 +2190,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable mesh HTTP rate limiting.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorEnabled,
@@ -1991,6 +2201,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable background orchestration in the current process (default: true).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMaxAgents,
@@ -2001,6 +2212,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum concurrent agents per process.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorLockTimeoutMs,
@@ -2011,6 +2223,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Agent worker heartbeat check interval.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorToestubGate,
@@ -2021,6 +2234,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce TOESTUB structural quality checks in orchestration (default: true).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMaxDebugIterations,
@@ -2031,6 +2245,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Self-debug loop cap (prevents recursion runaway).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorLogLevel,
@@ -2041,6 +2256,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Internal tracing log level (info|debug|trace).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorFallbackSingle,
@@ -2051,6 +2267,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Allow falling back to single-agent mode (no Socrates/Visualizer).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMinAgents,
@@ -2061,6 +2278,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum agent count for scaling profile.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorScalingEnabled,
@@ -2071,6 +2289,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Dynamic agent lifecycle management (default: true).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateShadow,
@@ -2081,6 +2300,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Run Socrates hallucination detection in 'Silent' mode.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateEnforce,
@@ -2091,6 +2311,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Reject task completions failing Socrates validation.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshControlUrl,
@@ -2101,6 +2322,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Base URL for the federated Populi control plane.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningEnabled,
@@ -2111,6 +2333,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable evidence-grounded V2 planning mode (default: true).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorAttentionEnabled,
@@ -2121,6 +2344,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable cognitive load and TLX budget tracking (default: true).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorChatmlStrict,
@@ -2131,6 +2355,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce strict ChatML formatting.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningRouterEnabled,
@@ -2141,6 +2366,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable planning-based routing.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningReplanEnabled,
@@ -2151,6 +2377,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable dynamic replanning.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningWorkflowHandoffEnabled,
@@ -2161,6 +2388,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable workflow handoffs in planning.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningShadowMode,
@@ -2171,6 +2399,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable shadow mode for planning (log but don't block).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorResearchModelEnabled,
@@ -2181,6 +2410,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable research-specific model routing.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningAutoModeEnabled,
@@ -2191,6 +2421,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable auto-mode for planning tasks.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningRolloutPercent,
@@ -2201,6 +2432,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Rollout percentage for planning features.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanAdequacyShadow,
@@ -2211,6 +2443,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable shadow adequacy checks for plans.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanAdequacyEnforce,
@@ -2221,6 +2454,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce adequacy checks for plans.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorContextLifecycleShadow,
@@ -2231,6 +2465,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable shadow context lifecycle management.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorContextLifecycleEnforce,
@@ -2241,6 +2476,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce context lifecycle management rules.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateAutoMode,
@@ -2251,6 +2487,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable auto-mode for Socrates gating.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateThreshold,
@@ -2261,6 +2498,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Confidence threshold for Socrates gating.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningLlmSynthesisModel,
@@ -2271,6 +2509,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Optional model override for plan synthesis.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
@@ -2281,6 +2520,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable LLM-based plan synthesis for complex workflows.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxGenericApiKey,
@@ -2291,6 +2531,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Generic legacy API_KEY credential.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshHttpRateLimit,
@@ -2301,6 +2542,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable mesh HTTP rate limiting.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteExecuteExperimental,
@@ -2311,6 +2553,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable experimental remote execution in mesh.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteExecuteReceiverAgent,
@@ -2321,6 +2564,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default receiver agent for remote execution.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteExecuteSenderAgent,
@@ -2331,6 +2575,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default sender agent for remote execution.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteResultPollIntervalSecs,
@@ -2341,6 +2586,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Poll interval for remote execution results.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteResultMaxMessagesPerPoll,
@@ -2351,6 +2597,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max messages per remote result poll.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteWorkerPollIntervalSecs,
@@ -2361,6 +2608,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Poll interval for remote workers.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteLeaseGatingEnabled,
@@ -2371,6 +2619,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable lease gating for remote execution.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshRemoteLeaseGatedRoles,
@@ -2381,6 +2630,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Comma-separated roles subject to lease gating.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorAttentionBudgetMs,
@@ -2391,6 +2641,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Attention budget in milliseconds.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorAttentionAlertThreshold,
@@ -2401,6 +2652,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Threshold for attention budget alerts.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorAttentionInterruptCostMs,
@@ -2411,6 +2663,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Estimated cost of a task interruption in ms.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTrustEwmaAlpha,
@@ -2421,6 +2674,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Alpha parameter for trust score EWMA.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTrustProvisionalThreshold,
@@ -2431,6 +2685,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Threshold for provisional trust tier.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTrustTrustedThreshold,
@@ -2441,6 +2696,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Threshold for trusted tier.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTrustAutoApproveMin,
@@ -2451,6 +2707,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum trust score for auto-approval.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTlxMental,
@@ -2461,6 +2718,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "NASA-TLX mental demand weight.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTlxTemporal,
@@ -2471,6 +2729,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "NASA-TLX temporal demand weight.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTlxFrustration,
@@ -2481,6 +2740,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "NASA-TLX frustration level weight.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTlxTrustDiscount,
@@ -2491,6 +2751,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Discount factor for trust in TLX calc.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTierGateEntropyThreshold,
@@ -2501,6 +2762,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Entropy threshold for tier gating auto-approval.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorTierGateMinObservations,
@@ -2511,6 +2773,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Min observations before tier gating takes effect.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorInterruptionCalPlanGain,
@@ -2521,6 +2784,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Gain offset for plan-review interruptions.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorInterruptionCalA2AGain,
@@ -2531,6 +2795,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Gain offset for A2A escalation interruptions.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorInterruptionCalBacklogPenalty,
@@ -2541,6 +2806,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Penalty per item in the task backlog.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorAttentionTrustRoutingWeight,
@@ -2551,6 +2817,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Weight of trust in attention-based routing.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorRepoShardSpecializationWeight,
@@ -2561,6 +2828,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Weight of repo shard specialization in routing.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorRepoShardValidationFailurePenalty,
@@ -2571,6 +2839,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Penalty for repo shard validation failures.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorRepoReduceConflictCooldownPenalty,
@@ -2581,6 +2850,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Penalty for conflicts during cooldown.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorRepoReduceConflictCooldownMs,
@@ -2591,6 +2861,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Cooldown period for conflict reduction (ms).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxNewsScanRecursive,
@@ -2601,6 +2872,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable recursive scanning for news items.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialHnMode,
@@ -2611,6 +2883,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Hacker News submission mode.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialWorthinessEnforce,
@@ -2621,6 +2894,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce worthiness score floors for social channels.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialWorthinessScoreMin,
@@ -2631,6 +2905,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum worthiness score for social syndication.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialChannelWorthinessFloors,
@@ -2641,6 +2916,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Comma-separated per-channel worthiness floors (e.g. twitter=0.9).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorExecTimeBudgetEnabled,
@@ -2651,6 +2927,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable agent execution time budgets.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorExecTimeSafetyMultiplier,
@@ -2661,6 +2938,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Safety multiplier for predicted execution time.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorExecTimeTimeoutRateAlert,
@@ -2671,6 +2949,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Threshold for alert on high timeout rates.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorExecTimeDefaultBudgetMs,
@@ -2681,6 +2960,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default execution time budget in ms.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningAutoModeEnabled,
@@ -2691,6 +2971,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable heuristic auto-mode for V2 planner.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningRolloutPercent,
@@ -2701,6 +2982,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Rollout percentage [0,100] for new planning features.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
@@ -2711,6 +2993,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable LLM-based plan synthesis for complex tasks.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanningLlmSynthesisModel,
@@ -2721,6 +3004,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Specific model for plan synthesis.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanAdequacyShadow,
@@ -2731,6 +3015,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Shadow mode for plan adequacy verification.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorPlanAdequacyEnforce,
@@ -2741,6 +3026,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce plan adequacy verification.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateShadow,
@@ -2751,6 +3037,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Shadow mode for Socrates hallucination detection.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateEnforce,
@@ -2761,6 +3048,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce Socrates hallucination gating.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateAutoMode,
@@ -2771,6 +3059,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable auto-mode for Socrates gating.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorSocratesGateThreshold,
@@ -2781,6 +3070,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Confidence threshold for Socrates gating.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorContextLifecycleShadow,
@@ -2791,6 +3081,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Shadow mode for context window lifecycle management.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorContextLifecycleEnforce,
@@ -2801,6 +3092,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce context window lifecycle management.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorCampaignId,
@@ -2811,6 +3103,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Unique campaign identifier for orchestration lineage.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxProviderDailyLimitDefault,
@@ -2821,6 +3114,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default daily USD limit for all providers.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxProviderLimitProviders,
@@ -2831,6 +3125,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Comma-separated list of providers subject to hard limits.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxProviderDailyLimitsFile,
@@ -2841,6 +3136,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Path to a JSON file containing per-provider daily limits.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxProviderDailyLimitsJson,
@@ -2851,6 +3147,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Inline JSON string containing per-provider daily limits.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::PopuliModel,
@@ -2861,6 +3158,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default model tag for remote populi/mens inference.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenRouterCatalogMinRefreshIntervalSecs,
@@ -2871,6 +3169,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum seconds between OpenRouter catalog refreshes.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenRouterCatalogRefreshJitterMs,
@@ -2881,6 +3180,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max jitter in ms for catalog refresh interval.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorHarnessCompletionGuard,
@@ -2891,6 +3191,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Guard string for test harness completion signaling.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshExecLeaseReconcile,
@@ -2901,6 +3202,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable reconciliation of mesh execution leases.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorMeshExecLeaseAutoRevoke,
@@ -2911,6 +3213,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable auto-revocation of stale mesh execution leases.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshCodexTelemetry,
@@ -2921,6 +3224,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable detailed codex telemetry on the mesh.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxWorkspaceRoot,
@@ -2931,6 +3235,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Path to the vox workspace root (ADR-001).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorDaemonSocket,
@@ -2941,6 +3246,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Unix socket or named pipe path for the orchestrator daemon.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshHttpJoin,
@@ -2951,6 +3257,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "HTTPS endpoint to join a populi mesh cluster.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenRouterClassifierEnabled,
@@ -2961,6 +3268,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable model classification for OpenRouter catalog refreshes.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshHttpHeartbeatSecs,
@@ -2971,6 +3279,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Interval in seconds to send heartbeat to the mesh control plane.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshExecPolicy,
@@ -2981,6 +3290,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Mesh execution policy (permissive|strict).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshA2aStorePath,
@@ -2991,6 +3301,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Local path for persisting A2A message store.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshExecLeaseStorePath,
@@ -3001,6 +3312,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Local path for persisting execution lease store.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshDispatchStorePath,
@@ -3011,6 +3323,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Local path for persisting task dispatch store.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshHttpMaxBodyBytes,
@@ -3021,6 +3334,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum allowed HTTP body size for mesh messages.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshReplayPersist,
@@ -3031,6 +3345,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable persistence of mesh replay events.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshReplayStatePath,
@@ -3041,6 +3356,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Local path for persisting mesh replay state.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMensExperimentalOptimizer,
@@ -3051,6 +3367,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable experimental optimizer features in MENS.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCloudMaxBudget,
@@ -3061,6 +3378,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum USD budget allowed for cloud-based training/inference.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCloudPriceTtl,
@@ -3071,6 +3389,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Time-to-live for cached cloud provider price data.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCloudImage,
@@ -3081,6 +3400,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Default container image for cloud-based jobs.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCloudMaxRuntime,
@@ -3091,6 +3411,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum runtime for cloud-based jobs.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxGpuModel,
@@ -3101,6 +3422,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Target GPU model for capacity selection.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxGpuVramMb,
@@ -3111,6 +3433,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Target GPU VRAM in megabytes.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshTrain,
@@ -3121,6 +3444,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable distributed mesh training mode.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshRank,
@@ -3131,6 +3455,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Distributed training rank (0..N).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxBaseModel,
@@ -3141,6 +3466,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Canonical model name to use as base for training.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxTrainProfile,
@@ -3151,6 +3477,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Training profile (e.g. low-vram, performance).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxQwen35NativeCutover,
@@ -3161,6 +3488,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable native cutover for Qwen 3.5 models.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxAllowQwen2Native,
@@ -3171,6 +3499,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Allow native execution for Qwen 2 models.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMensTrainJsonlStrict,
@@ -3181,6 +3510,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Require strict JSONL validation for training data.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxVramOverrideGb,
@@ -3191,6 +3521,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Manual override for GPU VRAM availability in gigabytes.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCandleDevice,
@@ -3201,6 +3532,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Force training backend device (candle_qlora: cpu, cuda, metal).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxQuestioningMirrorGlobalAttention,
@@ -3211,6 +3543,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Mirror clarification attention debits to the global orchestrator budget.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict,
@@ -3221,6 +3554,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Fail MCP startup if daemon repository_id does not align.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorRpcReads,
@@ -3231,6 +3565,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Umbrella to enable all repo-aligned daemon read RPC pilots.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorRpcWrites,
@@ -3241,6 +3576,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Umbrella to enable all repo-aligned daemon write RPC pilots.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorTaskStatusRpc,
@@ -3251,6 +3587,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Pilot: route task status reads to the daemon via RPC.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorStartRpc,
@@ -3261,6 +3598,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Pilot: route orchestrator start telemetry to the daemon.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorStatusToolRpc,
@@ -3271,6 +3609,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Pilot: route status tool queries to the daemon.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorTaskWritesRpc,
@@ -3281,6 +3620,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Pilot: route task lifecycle writes to the daemon.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorAgentWritesRpc,
@@ -3291,6 +3631,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Pilot: route agent lifecycle writes to the daemon.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxQuestioningMaxAttentionMs,
@@ -3301,6 +3642,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum wall-time budget for Socrates clarification per session.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioLogitBiasStrength,
@@ -3311,6 +3653,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Additive score applied to bias tokens in Oratio STT (default 0.8).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioLogitBiasMaxTokens,
@@ -3321,6 +3664,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Cap total biased token ids per decode (default 256).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioLogitForbidTokens,
@@ -3331,6 +3675,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Comma-separated token ids to hard-mask with -inf.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioConstrainedTrie,
@@ -3341,6 +3686,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable constrained token-trie filtering in Oratio STT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioConstrainedPhrases,
@@ -3351,6 +3697,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Semicolon/comma/newline separated phrases to seed trie constraints.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioTrieStuckSteps,
@@ -3361,6 +3708,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Reset trie if no legal next token appears for N steps (default 2).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioSpeechLexiconPath,
@@ -3371,6 +3719,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Path to a JSON speech lexicon for contextual bias.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxRepositoryRoot,
@@ -3381,6 +3730,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Root directory of the active Vox repository.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioSessionHotwords,
@@ -3391,6 +3741,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "CSV of hotwords to bias in the current session.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioMaxBiasPhrases,
@@ -3401,6 +3752,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Cap total contextual bias phrases (default 256).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioContextualBias,
@@ -3411,6 +3763,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable/disable contextual bias in Oratio STT (default 1).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioAcousticPreprocessBudgetMs,
@@ -3421,6 +3774,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum wall-time budget for acoustic preprocessing (VAD/denoise).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioModel,
@@ -3431,6 +3785,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Hugging Face model id for Oratio STT (default openai/whisper-tiny.en).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioRevision,
@@ -3441,6 +3796,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Hugging Face model revision/branch for Oratio STT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioCuda,
@@ -3451,6 +3807,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set to 1 to use CUDA device 0 for Oratio STT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioLanguage,
@@ -3461,6 +3818,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Force ISO language code for Oratio STT (e.g. en, fr, de).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioChunkSec,
@@ -3471,6 +3829,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Seconds per STT window for long audio (default 20-28).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioChunkOverlapSec,
@@ -3481,6 +3840,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Overlap in seconds between adjacent windows in chunked STT.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioEmitPartialPath,
@@ -3491,6 +3851,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Path to a JSONL file to emit partial transcripts during decode.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioStreamTokens,
@@ -3501,6 +3862,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable per-token event emission from Oratio decoder.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioSeed,
@@ -3511,6 +3873,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Random seed for Oratio sampling/stochasticity.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioVerbose,
@@ -3521,6 +3884,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable verbose logging for Oratio inference.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioTask,
@@ -3531,6 +3895,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "STT task: transcribe or translate.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOratioNoSpeechThreshold,
@@ -3541,6 +3906,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Probability threshold to skip non-speech segments.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxPopuliModel,
@@ -3551,6 +3917,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Model identifier for Mens LLM (e.g. mens-v1, codellama:7b).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxPopuliTemperature,
@@ -3561,6 +3928,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Temperature for Mens LLM generation (0.0–2.0).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxPopuliMaxTokens,
@@ -3571,6 +3939,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max tokens for Mens LLM generation.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchBm25K1,
@@ -3581,6 +3950,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "BM25 ranking saturation parameter k1.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchBm25B,
@@ -3591,6 +3961,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "BM25 ranking document length normalization parameter b.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchRrfK,
@@ -3601,6 +3972,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Reciprocal Rank Fusion constant k.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchQdrantUrl,
@@ -3611,6 +3983,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Qdrant API base URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchQdrantCollection,
@@ -3621,6 +3994,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Qdrant collection name.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchQdrantVectorName,
@@ -3631,6 +4005,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Named vector in Qdrant collection.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTantivyRoot,
@@ -3641,6 +4016,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Root path for Tantivy indices.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchPreferRrf,
@@ -3651,6 +4027,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Prefer RRF for search fusion.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTavilyEnabled,
@@ -3661,6 +4038,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Master switch for Tavily web search.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTavilyDepth,
@@ -3671,6 +4049,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Tavily search depth (basic/advanced).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTavilyMaxResults,
@@ -3681,6 +4060,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max results per Tavily search.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTavilyOnEmpty,
@@ -3691,6 +4071,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Auto-fire Tavily when local search is empty.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTavilyOnWeak,
@@ -3701,6 +4082,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Auto-fire Tavily when local evidence is weak.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchTavilyBudget,
@@ -3711,6 +4093,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Safety budget for Tavily credits per session.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchSearxngUrl,
@@ -3721,6 +4104,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "SearXNG instance URL.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchSearxngMaxResults,
@@ -3731,6 +4115,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max results from SearXNG.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchSearxngMaxScrape,
@@ -3741,6 +4126,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max URLs to deep-scrape from SearXNG results.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchSearxngEngines,
@@ -3751,6 +4137,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Engines for SearXNG query.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchSearxngLanguage,
@@ -3761,6 +4148,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Language for SearXNG query.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchDdgFallbackDisabled,
@@ -3771,6 +4159,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Disable DuckDuckGo fallback when SearXNG fails.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchScraperTimeout,
@@ -3781,6 +4170,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Timeout for web scraper in ms.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchScraperRobotsRespect,
@@ -3791,6 +4181,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Respect robots.txt in scraper.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchScraperMinDensity,
@@ -3801,6 +4192,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Min text density for scraped content.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchPolicyVersion,
@@ -3811,6 +4203,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SEARCH_POLICY_VERSION for versioned search policy overrides.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchMemoryVectorWeight,
@@ -3821,6 +4214,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SEARCH_MEMORY_VECTOR_WEIGHT to tune hybrid search fusion.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchVerificationQualityThreshold,
@@ -3831,6 +4225,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD for CRAG verification triggers.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchRepoMaxFiles,
@@ -3841,6 +4236,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SEARCH_REPO_MAX_FILES to limit repository inventory scans.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchRepoSkipDirs,
@@ -3851,6 +4247,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SEARCH_REPO_SKIP_DIRS (comma-separated) for repository inventory scans.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSearchMaxHops,
@@ -3861,6 +4258,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max iterative search hops.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialWorthinessEnforce,
@@ -3871,6 +4269,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enforce worthiness scores for social syndication.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSocialWorthinessScoreMin,
@@ -3881,6 +4280,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum worthiness score for publication.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxReviewRepositoryId,
@@ -3891,6 +4291,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Repository ID for review grounding.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxRegistryToken,
@@ -3901,6 +4302,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Bearer token for private registry access.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxPmAllowGitUnverified,
@@ -3911,6 +4313,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Allow unverified git modules in PM.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCoderabbitGithubPerPage,
@@ -3921,6 +4324,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Items per page for CodeRabbit GitHub API.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScriptCacheMaxEntries,
@@ -3931,6 +4335,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max entries in runtime script cache.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScriptCacheMaxSizeMb,
@@ -3941,6 +4346,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max size of runtime script cache in MB.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxEvalMinParseRate,
@@ -3951,6 +4357,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum successful parse rate for evaluation.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxEvalMinCoverage,
@@ -3961,6 +4368,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Minimum code coverage for evaluation gates.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxEvalStrict,
@@ -3971,6 +4379,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable strict evaluation gate enforcement.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxBenchmarkTelemetry,
@@ -3981,6 +4390,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable benchmark event recording (1/true to enable).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSyntaxKTelemetry,
@@ -3991,6 +4401,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable syntax-k benchmark recording (1/true to enable).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenclawSidecarDisable,
@@ -4001,6 +4412,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Disable OpenClaw sidecar installation.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshCodexTelemetry,
@@ -4011,6 +4423,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable mesh telemetry recording to Codex (1/true to enable).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMeshMaxStaleMs,
@@ -4021,6 +4434,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum staleness for mesh nodes in monitoring.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSubmitTaskBypassQuestioningGate,
@@ -4031,6 +4445,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Bypass questioning gate on manual MCP submit-task.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxWebTanstackStart,
@@ -4041,6 +4456,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable TanStack Start integration in local web server.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSyndicationTemplateProfile,
@@ -4051,6 +4467,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable syndication template profile (1/true to enable).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpHost,
@@ -4061,6 +4478,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set MCP HTTP Host",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpPort,
@@ -4071,6 +4489,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set MCP HTTP Port",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpRateLimitPerMinute,
@@ -4081,6 +4500,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set checked MCP HTTP rate limit",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpAllowedTools,
@@ -4091,6 +4511,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set allowed MCP HTTP tools",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpReadRoleAllowedTools,
@@ -4101,6 +4522,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Set allowed MCP HTTP read role tools",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpEnabled,
@@ -4111,6 +4533,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable MCP HTTP module",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpAllowUnauthenticated,
@@ -4121,6 +4544,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Allow unauthenticated HTTP requests",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpRequireForwardedHttps,
@@ -4131,6 +4555,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Require forwarded HTTPS",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpHealthAuth,
@@ -4141,6 +4566,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Require authentication for health checks",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMcpHttpTrustXForwardedFor,
@@ -4151,6 +4577,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Trust X-Forwarded-For header in HTTP gateway",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxGithubSha,
@@ -4161,6 +4588,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Standard GitHub SHA environment variable.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxEmitExpressServer,
@@ -4171,6 +4599,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable optional Express server emission in TypeScript codegen.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOrchestratorEventLog,
@@ -4181,6 +4610,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Path to write internal orchestrator event logs.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxJsonOutput,
@@ -4191,6 +4621,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Force CLI to emit JSON instead of human-readable text.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxBenchmarkDir,
@@ -4201,6 +4632,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Directory for benchmark results.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxWebViteSmoke,
@@ -4211,6 +4643,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable Vite smoke tests during CI.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxGuiPlaywright,
@@ -4221,6 +4654,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable Playwright GUI tests during CI.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLineEndingsHead,
@@ -4231,6 +4665,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Git ref for line ending check (head).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLineEndingsBase,
@@ -4241,6 +4676,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Git ref for line ending check (base).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxMensScorecardMaxTokens,
@@ -4251,6 +4687,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Max tokens for scorecard evaluation.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxOpenclawSidecarExpectVersion,
@@ -4261,6 +4698,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Expected version of OpenClaw sidecar.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCliGlobalJson,
@@ -4271,6 +4709,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable global JSON output for CLI commands.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxToestubMaxRustParseFailures,
@@ -4281,6 +4720,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Maximum allowed Rust parse failures in TOESTUB.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxBuildTimingsBudgetWarn,
@@ -4291,6 +4731,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable budget warnings for build timings.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxBuildTimingsBudgetFail,
@@ -4301,6 +4742,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Enable budget failures for build timings.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxScriptRelease,
@@ -4311,6 +4753,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Compile scripts in release mode.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxCargoBin,
@@ -4321,6 +4764,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Path to cargo binary for script compilation.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::SkipCudaFeatureCheck,
@@ -4331,6 +4775,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Bypass CUDA feature availability check.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusChannel,
@@ -4341,6 +4786,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Override the Ludus UX channel (e.g., serious, balanced, digest).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusMcpToolArgs,
@@ -4351,6 +4797,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Privacy setting for MCP tool arguments storage (full, hash, omit).",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusEmergencyOff,
@@ -4361,6 +4808,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Emergency kill-switch for all Ludus gamification logic.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusSessionEnabled,
@@ -4371,6 +4819,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Session-only toggle for Ludus gamification.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusSessionMode,
@@ -4381,6 +4830,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Session-only mode override for Ludus gamification.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxLudusExperimentRewardMult,
@@ -4391,6 +4841,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "A/B experiment multiplier for policy rewards.",
+        scope_description: "",
     },
     SecretSpec {
         id: SecretId::VoxSecretGuardGitRef,
@@ -4401,6 +4852,7 @@ const SPECS: &[SecretSpec] = &[
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
         remediation: "Git ref for CI secret-env-guard to check against.",
+        scope_description: "",
     },
 ];
 
@@ -4450,7 +4902,9 @@ impl SecretId {
                 allow_env_in_strict: true,
                 allow_compat_sources_in_strict: true,
                 rotation_policy: RotationPolicy::Periodic,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::ForgeToken
             | SecretId::VoxNewsTwitterBearer
             | SecretId::VoxNewsOpenCollectiveToken
@@ -4470,7 +4924,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::PerIncident,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxMcpHttpBearerToken | SecretId::VoxMcpHttpReadBearerToken => {
                 SecretMetadata {
                     class: SecretClass::Transport,
@@ -4480,7 +4936,9 @@ impl SecretId {
                     allow_env_in_strict: false,
                     allow_compat_sources_in_strict: false,
                     rotation_policy: RotationPolicy::PerIncident,
-                }
+                    taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+}
             }
             SecretId::VoxMeshJwtHmacSecret | SecretId::WebhookSigningSecret => SecretMetadata {
                 class: SecretClass::Transport,
@@ -4490,7 +4948,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::PerIncident,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxMeshWorkerResultVerifyKey => SecretMetadata {
                 class: SecretClass::Transport,
                 material_kind: SecretMaterialKind::ApiKey,
@@ -4499,7 +4959,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::PerIncident,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxDbUrl => SecretMetadata {
                 class: SecretClass::Account,
                 material_kind: SecretMaterialKind::EndpointUrl,
@@ -4508,7 +4970,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Manual,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxDbToken => SecretMetadata {
                 class: SecretClass::Account,
                 material_kind: SecretMaterialKind::BearerToken,
@@ -4517,7 +4981,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Periodic,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxTelemetryUploadUrl => SecretMetadata {
                 class: SecretClass::Operator,
                 material_kind: SecretMaterialKind::EndpointUrl,
@@ -4526,7 +4992,9 @@ impl SecretId {
                 allow_env_in_strict: true,
                 allow_compat_sources_in_strict: true,
                 rotation_policy: RotationPolicy::Manual,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxSocialBlueskyHandle
             | SecretId::VoxSocialMastodonToken
             | SecretId::VoxSocialMastodonDomain
@@ -4540,7 +5008,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Manual,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxOpenReviewAccessToken => SecretMetadata {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::BearerToken,
@@ -4549,7 +5019,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Periodic,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxSocialBlueskyPassword | SecretId::VoxOpenReviewPassword => SecretMetadata {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::Password,
@@ -4558,7 +5030,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Periodic,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxSocialRedditClientId
             | SecretId::VoxSocialRedditClientSecret
             | SecretId::VoxSocialRedditRefreshToken
@@ -4575,7 +5049,9 @@ impl SecretId {
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Periodic,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
             SecretId::VoxScholarlyAdapter
             | SecretId::VoxScholarlyDisable
             | SecretId::VoxScholarlyDisableLive
@@ -4624,7 +5100,9 @@ impl SecretId {
                 allow_env_in_strict: true,
                 allow_compat_sources_in_strict: true,
                 rotation_policy: RotationPolicy::Manual,
-            },
+                taxonomy_class: TaxonomyClass::AuxTooling,
+    lifecycle: LifecycleMeta::MANUAL,
+},
         }
     }
 }

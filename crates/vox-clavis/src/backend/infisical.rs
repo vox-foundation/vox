@@ -11,6 +11,8 @@ impl SecretBackend for InfisicalBackend {
         &self,
         _id: SecretId,
         spec: SecretSpec,
+        _profile: Option<&str>,
+        _caller_context: &str,
     ) -> Result<Option<SecretString>, SecretError> {
         if std::env::var("INFISICAL_TOKEN").is_err()
             && std::env::var("INFISICAL_SERVICE_TOKEN").is_err()
@@ -49,5 +51,17 @@ impl SecretBackend for InfisicalBackend {
             return Ok(None);
         }
         Ok(Some(SecretString::new(value.into_boxed_str())))
+    }
+
+    fn write_audit_log(
+        &self,
+        _secret_id: &str,
+        _status: &str,
+        _source: Option<&str>,
+        _profile: &str,
+        _caller_context: &str,
+        _detail: Option<&str>,
+    ) -> Result<(), SecretError> {
+        Ok(())
     }
 }

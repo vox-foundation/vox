@@ -14,6 +14,8 @@ mod contracts_index;
 mod eval_matrix;
 mod exec_policy_contract;
 mod gui_smoke;
+mod install_hooks;
+mod kill_stuck_tests;
 mod line_endings;
 mod mens_scorecard;
 pub(crate) mod nomenclature_guard;

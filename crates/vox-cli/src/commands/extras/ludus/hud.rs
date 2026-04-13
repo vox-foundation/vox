@@ -60,6 +60,15 @@ pub async fn run() -> Result<()> {
                             );
                         }
                     }
+                    AgentMessage::TaskDoubted { agent_id, .. } => {
+                        if let Some(c) = companions.get_mut(&agent_id.0) {
+                            c.interact(Interaction::TaskDoubted);
+                            tracing::debug!(
+                                agent_id = agent_id.0,
+                                "ludus hud: task doubted (companion mood updated)"
+                            );
+                        }
+                    }
                     AgentMessage::LockAcquired { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::LockAcquired);

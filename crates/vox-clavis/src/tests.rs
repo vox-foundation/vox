@@ -426,3 +426,46 @@ fn all_secret_ids_have_spec_entries() {
         let _ = id.spec();
     }
 }
+
+#[test]
+fn test_contains_secret_material() {
+    let text = "this is a test with a super-secret-value inside";
+    assert!(crate::redact::contains_secret_material(text, &["super-secret-value", "another-secret"]));
+    assert!(!crate::redact::contains_secret_material(text, &["not-in-text", "also-not"]));
+    
+    // Short patterns are ignored
+    assert!(!crate::redact::contains_secret_material("short", &["short"]));
+}
+
+#[test]
+fn test_redact_secrets_from_value() {
+    use serde_json::json;
+    let val = json!({
+        "data": "my super-secret-value here",
+        "nested": ["other-secret-123456", "safe-value"]
+    });
+    let patterns = vec!["super-secret-value", "other-secret-123456"];
+    let scrubbed = crate::redact::redact_secrets_from_value(&val, &patterns);
+    
+    let expected = json!({
+        "data": "my [REDACTED] here",
+        "nested": ["[REDACTED]", "safe-value"]
+    });
+    assert_eq!(scrubbed, expected);
+}
+
+#[test]
+fn test_redact_empty_patterns() {
+    use serde_json::json;
+    let val = json!({"data": "safe"});
+    let scrubbed = crate::redact::redact_secrets_from_value(&val, &[]);
+    assert_eq!(scrubbed, val);
+}
+
+#[test]
+fn test_redact_skips_short_patterns() {
+    use serde_json::json;
+    let val = json!({"data": "short text"});
+    let scrubbed = crate::redact::redact_secrets_from_value(&val, &["short"]);
+    assert_eq!(scrubbed, val);
+}

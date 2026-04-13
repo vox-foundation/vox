@@ -12,8 +12,7 @@ fn registry_client_for_sync(registry_url: Option<&str>) -> RegistryClient {
     let base = registry_url.unwrap_or(DEFAULT_REGISTRY_BASE);
     // Optional bearer token for private registries (same env many flows use).
     let token_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRegistryToken);
-    let token = token_resolved.expose()
-        .filter(|s| !s.is_empty());
+    let token = token_resolved.expose().filter(|s| !s.is_empty());
     if let Some(t) = token {
         RegistryClient::with_auth(base, &t)
     } else {
@@ -94,7 +93,8 @@ pub async fn run(registry_url: Option<&str>, frozen: bool) -> Result<()> {
                 }
             }
             PackageSource::Git { .. } => {
-                let allow_unverified_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPmAllowGitUnverified);
+                let allow_unverified_resolved =
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPmAllowGitUnverified);
                 if allow_unverified_resolved.expose().is_some() {
                     eprintln!(
                         "  ⚠ {name}: skipping git dependency fetch (VOX_PM_ALLOW_GIT_UNVERIFIED=1)"

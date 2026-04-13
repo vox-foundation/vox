@@ -1,5 +1,4 @@
 # Default terminal exec policy (SSOT). Validated by contracts/index + `vox ci exec-policy-contract`.
-# PowerShell AST extraction: contracts/terminal/pwsh_extract_command_asts.ps1
 version: 1
 allowed_cmdlets:
   - Get-ChildItem

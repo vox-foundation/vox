@@ -10,12 +10,12 @@ description = "Training data contracts, preflight, corpus SSOT, and Mens dataset
 database = ["dep:vox-db", "dep:turso"]
 parser-verify = ["ast-extract"]
 # Walk parsed `Module` declarations for Mens `.vox` pair extraction (avoids lexer drift vs heuristics).
-ast-extract = ["dep:vox-compiler"]
+ast-extract = []
 
 [dependencies]
 vox-db = { path = "../vox-db", optional = true }
 turso = { workspace = true, optional = true }
-vox-compiler = { workspace = true, optional = true }
+vox-compiler = { path = "../vox-compiler", version = "0.1.0" }
 anyhow = { workspace = true }
 vox-repository = { path = "../vox-repository" }
 vox-bounded-fs = { workspace = true }
@@ -29,7 +29,8 @@ regex = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
 xxhash-rust = { workspace = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
+quote = "1.0"
 
 [build-dependencies]
 syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }

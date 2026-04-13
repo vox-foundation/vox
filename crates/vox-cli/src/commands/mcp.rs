@@ -3,24 +3,19 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 
-/// Run `vox-mcp` from `PATH` until the child process exits.
+/// Run the native in-process MCP server (stdio) if the `mcp-server` feature is enabled.
 pub fn run() -> Result<()> {
-    // Start the vox-mcp binary, connecting its stdio (JSON-RPC) to the CLI's stdio.
-    // The MCP client (e.g. VS Code extension) will communicate with vox-mcp through this process.
-
-    let mcp_path = crate::process_supervision::resolve_managed_binary_path("vox-mcp");
-    let mut child = Command::new(&mcp_path)
-        .stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .spawn()
-        .with_context(|| format!("Failed to spawn vox-mcp binary at '{}'", mcp_path.display()))?;
-
-    let status = child.wait()?;
-
-    if !status.success() {
-        anyhow::bail!("vox-mcp exited with status: {}", status);
+    #[cfg(feature = "mcp-server")]
+    {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?;
+        rt.block_on(crate::commands::mcp_server::server::run_stdio_server_blocking())?;
+        Ok(())
     }
 
-    Ok(())
+    #[cfg(not(feature = "mcp-server"))]
+    {
+        anyhow::bail!("Vox MCP server is not enabled in this build. Recompile with --features mcp-server.")
+    }
 }

@@ -14,17 +14,19 @@ clavis-infisical = []
 clavis-vault = []
 
 [dependencies]
-secrecy = "0.10"
+secrecy = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 keyring = { workspace = true }
 vox-bounded-fs = { workspace = true }
 turso = { workspace = true }
-blake3 = { workspace = true }
-aes-gcm = "0.10"
+aho-corasick = { workspace = true }
+vox-crypto = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
+blake3 = { workspace = true }
+aes-gcm = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [lints]

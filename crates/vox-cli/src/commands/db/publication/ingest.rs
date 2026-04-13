@@ -1,11 +1,11 @@
 //! Inbound intelligence ingestion logic for `vox scientia ingest-*` and `vox scientia feed-source-*`.
 
 use anyhow::Result;
+use std::sync::Arc;
 use vox_db::VoxDb;
 use vox_runtime::llm::LlmConfig;
-use vox_search::embeddings::EmbeddingService;
 use vox_scientia_ingest::{FeedCrawler, IngestDeduplicator};
-use std::sync::Arc;
+use vox_search::embeddings::EmbeddingService;
 
 /// Run one batch of Scientist RSS/Atom crawling and deduplication tick.
 pub async fn ingest_tick(feed_id: Option<&str>, limit: usize) -> Result<()> {
@@ -26,7 +26,7 @@ pub async fn ingest_tick(feed_id: Option<&str>, limit: usize) -> Result<()> {
     // Use a default embedding model for deduplication
     let embedding_config = LlmConfig::openai("text-embedding-3-small");
     let embedder = EmbeddingService::new(db_arc.clone(), embedding_config);
-    
+
     let deduplicator = IngestDeduplicator::new(&db_arc, Some(&embedder));
     let crawler = FeedCrawler::new()?;
 
@@ -40,12 +40,14 @@ pub async fn ingest_tick(feed_id: Option<&str>, limit: usize) -> Result<()> {
                         continue;
                     }
 
-                    db_arc.upsert_external_intelligence_pending(
-                        &item.source_url,
-                        &item.source_kind,
-                        &item.title,
-                        item.abstract_text.as_deref(),
-                    ).await?;
+                    db_arc
+                        .upsert_external_intelligence_pending(
+                            &item.source_url,
+                            &item.source_kind,
+                            &item.title,
+                            item.abstract_text.as_deref(),
+                        )
+                        .await?;
                     count += 1;
                 }
                 println!("  -> Ingested {} new items from '{}'.", count, src.id);
@@ -76,7 +78,10 @@ pub async fn feed_source_list() -> Result<()> {
     } else {
         println!("{:<20} {:<10} {:<10} {}", "ID", "KIND", "INTERVAL", "URL");
         for s in sources {
-            println!("{:<20} {:<10} {:<10} {}", s.id, s.source_kind, s.crawl_interval_ms, s.url);
+            println!(
+                "{:<20} {:<10} {:<10} {}",
+                s.id, s.source_kind, s.crawl_interval_ms, s.url
+            );
         }
     }
     Ok(())

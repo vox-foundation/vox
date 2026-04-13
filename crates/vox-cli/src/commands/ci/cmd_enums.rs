@@ -405,6 +405,16 @@ pub enum CiCmd {
         #[arg(long)]
         verify: bool,
     },
+    /// Stop cargo-driven unit test runs that are still attached to this workspace.
+    #[command(name = "kill-stuck-tests")]
+    KillStuckTests {
+        /// List matching PIDs without stopping them.
+        #[arg(long)]
+        what_if: bool,
+    },
+    /// Install the local Git pre-commit hook to automate line-ending enforcement.
+    #[command(name = "install-hooks")]
+    InstallHooks,
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].

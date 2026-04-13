@@ -105,6 +105,11 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         activity: AgentActivity,
     },
+    /// An agent's operating mode changed (Strategic, Execution, Verification).
+    OperatingModeChanged {
+        agent_id: AgentId,
+        mode: crate::context_envelope::OperatingMode,
+    },
 
     /// A task was submitted to the queue.
     TaskSubmitted {

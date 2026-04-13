@@ -4,7 +4,7 @@ description: "Guide to the research, findings, and roadmap-heavy documentation i
 category: "architecture"
 status: "research"
 sort_order: 5
-last_updated: 2026-04-12
+last_updated: 2026-04-13
 training_eligible: true
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -65,6 +65,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Works Cited: Continual Learning Flywheel](research-cl-works-cited-2026.md)
 - **[MENS Synthetic Corpus: Limitations and Mitigation Strategies (research 2026)](mens-synthetic-corpus-limitations-research-2026.md)** — maps all active synthetic corpus strategies to their known failure modes and proposes 8 concrete mitigations (AST mutation, DPO wiring, anchor floor, curator LLM, CURLoRA, fictional knowledge graphs, automated flywheel, Rust cross-pollination).
 - **[MENS Corpus: Full Implementation Plan (2026)](mens-corpus-implementation-plan-2026.md)** — 4-wave execution plan grounded in mix-report audit (97.3% synthetic monoculture confirmed). Specifies W0 emergency corpus bootstrap, W1 DPO lane wiring and missing mix-config creation, W2 AST mutation + Rust→Vox corpus expansion, W3 semantic quality gates, W4 automated flywheel. Includes exact CLI commands, file specs, dependency graph, and volume projections.
+- **[TOESTUB Line Limit & MENS Corpus Size Research (2026)](toestub-line-limit-mens-research-2026.md)** — Investigation into Vox's actual TOESTUB God Object limits (1700 lines) vs documentation (500 lines) and an analysis on optimal LLM chunking/file sizes for SFT pipelines using modern models like Qwen3-4B.
 
 #### GRPO Reward Shaping for Code LLMs (Wave 3)
 - **[GRPO Reward Shaping for Code LLMs](research-grpo-reward-shaping-2026.md)** — cluster overview with architectural adjustments
@@ -111,6 +112,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [LLM Output Mediation and Programmatic Validator Generation](research-llm-output-mediation-validation-2026.md) — Proposes a unified `LlmMediator<T>` architecture connecting `vox-constrained-gen` (Tier 1), `vox-jsonschema-util` (Tier 2), Socrates confidence (Tier 3), and the trust layer into a single composable seam. Covers dynamic finite-response-set schema derivation, MCP reduction strategy, RLVR training alignment, and a four-wave implementation roadmap. Cross-references grammar-constrained decoding, trust reliability, HITL doubt loop, and capability registry.
 - **[Clavis as a one-stop secrets manager: research findings 2026](clavis-one-stop-secrets-research-2026.md)** — Comprehensive gap analysis for evolving Vox Clavis into a full-lifecycle secrets management platform. Covers: complete env-var taxonomy across 9 secret classes, user-facing feature requirements, OWASP NHI Top 10 alignment, AI-agent credential isolation boundaries, MCP OAuth 2.1 target model, A2A credential delegation via RFC 8693 Token Exchange, runtime secret redaction pipeline, KEK/DEK envelope encryption model, competitive feature gap table vs. Doppler/Infisical/Pulumi ESC/Vault. Extends [clavis-secrets-env-research-2026.md](clavis-secrets-env-research-2026.md).
 - **[Clavis V2: Full Implementation Plan (2026)](clavis-implementation-plan-2026.md)** — Codebase-verified, code-grounded implementation plan for the full Clavis V2 platform. Anchored in the live codebase (spec.rs, vox_vault.rs, resolver.rs, clavis.rs CLI). Defines: single canonical data structure for all ~580 secrets (TaxonomyClass + LifecycleMeta + scope_description on SecretSpec, 3 new ResolutionStatus variants, 4 new SecretMaterialKind variants); 4 new VoxDB tables (version history, audit log, profile overrides, A2A delegations); updated write path with atomic multi-table transactions; 12 new/updated CLI subcommands (set-secret, rotate, rollback, history, list, diff, run, audit-log, delegate, revoke-delegation); runtime secret scrubber (redact.rs + aho-corasick); consumer wiring for all 8 platform crates; 8-wave execution plan with verification steps per wave; 5 new security invariants extending the V1 threat model.
+- **[Cryptography Research Findings 2026](cryptography-research-findings-2026.md)** — ZIG/AEGIS eradication and AES performance evaluation.
 
 
 ### Documentation
@@ -142,10 +144,15 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Feature growth boundaries](feature-growth-boundaries.md)
 - [Interop tier policy](interop-tier-policy.md)
 
+### Hygiene and maintenance
+
+- **[Dependency Sprawl Audit and Resolution (2026)](dependency-sprawl-research-2026.md)** — Records the workspace-wide audit of sprawling Cargo dependencies, centralization into the root `[workspace.dependencies]`, and implementation of TOESTUB CI-CD enforcement rules.
+
 ### Agentic planning and orchestration
 
 - [Research Synthesis: Symphony Conduction vs. Agent Orchestration 2026](orchestrator-symphony-research-2026.md) — Extensive structural mapping of real-world conduction (Ictus, DAGs, HITL) to `vox-dei`
 - [Claude Code Ultraplan research 2026](claude-code-ultraplan-research-2026.md) — architecture deep-dive, cost model, failure modes, and actionable Vox recommendations
+- **[Unified Agentic Control Surface Research 2026](agentic-control-surface-research-2026.md)** — Tri-state pilot console, "Second Pass" validation, and Doubt metaphor unification.
 - [Dynamic agentic planning 2026](res_dynamic_agentic_planning_2026.md) — earlier research seed for planning-mode architecture
 - [Orchestrator multi-agent groundwork 2026](orchestrator-multi-agent-groundwork-2026.md)
 - [Context management research findings 2026](context-management-research-findings-2026.md)

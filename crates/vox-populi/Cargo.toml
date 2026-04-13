@@ -78,12 +78,12 @@ vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 
 # Populi transport
-axum = { version = "0.8", optional = true }
+axum = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
 vox-reqwest-defaults = { workspace = true, optional = true }
-tower-http = { version = "0.6.2", optional = true, features = ["trace", "request-id"] }
-subtle = { version = "2.6", optional = true }
+tower-http = { workspace = true, optional = true, features = ["trace", "request-id"] }
+subtle = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 ed25519-dalek = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
@@ -94,7 +94,7 @@ dashmap = { workspace = true, optional = true }
 # Mens (optional)
 anyhow = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
-ctrlc = { version = "3.4", features = ["termination"], optional = true }
+ctrlc = { workspace = true, features = ["termination"], optional = true }
 chrono = { workspace = true, optional = true }
 dirs = { workspace = true, optional = true }
 sysinfo = { workspace = true, optional = true }
@@ -111,8 +111,8 @@ safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
-async-trait = { version = "0.1", optional = true }
-futures = { version = "0.3", optional = true }
+async-trait = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
 vox-eval = { workspace = true, optional = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

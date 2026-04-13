@@ -38,6 +38,7 @@ vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-forge                 = { path = "crates/vox-forge" }
+vox-crypto                = { path = "crates/vox-crypto" }
 
 vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
 vox-bootstrap             = { path = "crates/vox-bootstrap" }
@@ -62,7 +63,7 @@ vox-grammar-export        = { path = "crates/vox-grammar-export" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
 vox-populi                  = { path = "crates/vox-populi" }
-vox-mcp                   = { path = "crates/vox-mcp" }
+
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
@@ -94,6 +95,7 @@ serde_json         = "1"
 serde_yaml         = "0.9"
 toml               = "0.8"
 miette             = { version = "7.6", features = ["fancy"] }
+aho-corasick       = "1"
 tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread"] }
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"
@@ -113,8 +115,8 @@ comfy-table        = "7"
 tempfile           = "3"
 turso              = { version = "0.4", default-features = false, features = ["sync"] }
 blake3             = "1"
-jsonwebtoken       = "9"
-ed25519-dalek      = "2"
+jsonwebtoken       = { version = "9", default-features = false }
+ed25519-dalek      = { version = "2", default-features = false }
 insta              = { version = "1", features = ["json"] }
 async-trait        = "0.1"
 futures-util       = "0.3"
@@ -123,8 +125,6 @@ hound              = "3.5.1"
 dirs               = "6"
 uuid               = { version = "1", features = ["v4", "serde"] }
 async-stream       = "0.3"
-tower-lsp          = "0.20"
-tower-lsp-server   = "0.23"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
 sysinfo            = "0.38"
 walkdir            = "2"
@@ -153,16 +153,55 @@ html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
 nvml-wrapper       = { version = "0.11", default-features = false }
 # Wave 5: Async mesh results
-dashmap            = "6"
-rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"] }
+dashmap            = { version = "6", default-features = false }
+rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"], default-features = false }
+aes-gcm            = "0.10"
 
-# Turso / libsql pulls `aegis`; patch uses **pure-rust** defaults so MSVC builds skip the C backend (no clang-cl).
+# [VOX AUDIT 2026-04-13] Centralized sprawling versions found in sub-crates
+axum               = { version = "0.8", default-features = false }
+axum-extra         = "0.12.5"
+tower-http         = "0.6.2"
+subtle             = "2.6"
+ctrlc              = "3.4"
+futures            = "0.3"
+chacha20poly1305   = "0.10"
+aead               = { version = "0.5", features = ["std"] }
+gix                = { version = "0.70", default-features = false }
+jj-lib             = { version = "=0.27.0", default-features = false }
+wasmtime           = "42.0.1"
+wasmtime-wasi      = "42.0.1"
+zip                = "8.4.0"
+self_update        = "0.43.1"
+landlock           = "0.4.4"
+win32job           = "2"
+windows-sys        = "0.59"
+tavily             = "2.1.0"
+quick-xml          = "0.31"
+flate2             = "1"
+tokio-tungstenite  = { version = "0.24", default-features = false }
+rubato             = "0.15.0"
+symphonia          = "0.5.4"
+sherpa-rs          = "0.6"
+syn                = "2"
+proc-macro2        = "1"
+semver             = "1"
+secrecy            = "0.10"
+rmcp               = "0.16"
+rmp-serde          = "1"
+lru                = "0.13"
+futures-core       = "0.3"
+quote              = "1"
+similar            = "2"
+globset            = "0.4"
+
+
 [patch.crates-io]
-aegis = { path = "patches/aegis-0.9.8" }
 # Vox: stabilize deep o_proj proxy stacks + correct grad-accum scaling in `training_step_lm`.
 qlora-rs = { path = "patches/qlora-rs-1.0.5" }
 # Vox: pass -ccbin MSVC cl path via cc::Build to avoid missing cl.exe when running cargo build without developer prompt.
 candle-kernels = { path = "patches/candle-kernels-0.9.2" }
+# Vox: enable pure-rust crypto on all targets so MSVC builds do not require clang-cl (aegis C backend).
+aegis = { path = "patches/aegis-0.9.8" }
 
 [profile.release]
 lto = "thin"

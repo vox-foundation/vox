@@ -78,6 +78,8 @@ pub mod logout;
 pub mod lsp;
 /// Start the Vox MCP server wrapper (`vox mcp`).
 pub mod mcp;
+#[cfg(feature = "mcp-server")]
+pub mod mcp_server;
 /// React interop / web stack migrations (`vox migrate web`, …).
 pub mod migrate;
 /// `vox openclaw` tools for orchestrator testing.

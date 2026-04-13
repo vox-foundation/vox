@@ -3030,10 +3030,7 @@ script_duals:
   canonical_cli: vox ci mesh-gate --profile m1m4
 - script_glob: scripts/populi/release_training_gate.*
   canonical_cli: vox ci mesh-gate --profile training
-- script_glob: scripts/populi/release_ci_full_gate.ps1
-  canonical_cli: vox ci mesh-gate --profile ci_full
-- script_glob: scripts/populi/mens_gate_safe.ps1
-  canonical_cli: vox ci mesh-gate --profile <training|ci_full|m1m4>
+
 env_var_ssot_index:
 - VOX_WEB_TANSTACK_START
 - VOX_WEB_EMIT_SCAFFOLD

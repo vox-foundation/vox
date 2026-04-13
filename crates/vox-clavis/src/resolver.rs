@@ -19,14 +19,25 @@ impl ResolveProfile {
             ResolveProfile::CiStrict | ResolveProfile::ProdStrict | ResolveProfile::HardCutStrict
         )
     }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            ResolveProfile::DevLenient => "dev",
+            ResolveProfile::CiStrict => "ci",
+            ResolveProfile::ProdStrict => "prod",
+            ResolveProfile::HardCutStrict => "hardcut",
+        }
+    }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ResolveOptions {
     pub include_env: bool,
     pub include_auth_json: bool,
     pub include_populi_env: bool,
     pub profile: ResolveProfile,
+    pub caller_context: String,
 }
 
 impl Default for ResolveOptions {
@@ -36,6 +47,7 @@ impl Default for ResolveOptions {
             include_auth_json: true,
             include_populi_env: true,
             profile: ResolveProfile::DevLenient,
+            caller_context: "process".to_string(),
         }
     }
 }
@@ -53,7 +65,40 @@ impl<B: SecretBackend> SecretResolver<B> {
     #[must_use]
     pub fn resolve(&self, id: SecretId, opts: &ResolveOptions) -> ResolvedSecret {
         let spec = id.spec();
-        self.resolve_spec(spec, opts)
+        let resolved = self.resolve_spec(spec, opts);
+        self.maybe_audit(&resolved, opts);
+        resolved
+    }
+
+    fn maybe_audit(&self, resolved: &ResolvedSecret, opts: &ResolveOptions) {
+        let profile = opts.profile;
+        let audit_enabled = match profile {
+            ResolveProfile::ProdStrict | ResolveProfile::HardCutStrict => true,
+            _ => std::env::var("VOX_CLAVIS_AUDIT_LOG")
+                .ok()
+                .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+                .unwrap_or(false),
+        };
+
+        if audit_enabled {
+            let spec = resolved.id.spec();
+            let _ = self.backend.write_audit_log(
+                spec.canonical_env,
+                &format!("{:?}", resolved.status),
+                resolved.source.map(|s| match s {
+                    SecretSource::EnvCanonical => "EnvCanonical",
+                    SecretSource::EnvAlias => "EnvAlias",
+                    SecretSource::SecureStore => "SecureStore",
+                    SecretSource::AuthJson => "AuthJson",
+                    SecretSource::LegacyAuthToken => "LegacyAuthToken",
+                    SecretSource::PopuliEnv => "PopuliEnv",
+                    SecretSource::ExternalBackend => "ExternalBackend",
+                }),
+                &format!("{:?}", profile),
+                &opts.caller_context,
+                resolved.detail.as_deref(),
+            );
+        }
     }
 
     fn resolve_spec(&self, spec: SecretSpec, opts: &ResolveOptions) -> ResolvedSecret {
@@ -105,7 +150,7 @@ impl<B: SecretBackend> SecretResolver<B> {
             }
         }
 
-        match self.backend.resolve(spec.id, spec) {
+        match self.backend.resolve(spec.id, spec, Some(opts.profile.as_str()), &opts.caller_context) {
             Ok(Some(v)) => {
                 if !metadata.allows_source(SecretSource::ExternalBackend, strict_profile) {
                     return ResolvedSecret {

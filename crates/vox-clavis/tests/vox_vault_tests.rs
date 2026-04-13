@@ -24,6 +24,7 @@ fn test_vox_vault_encryption_decryption_cycle() {
         auth_registry: None,
         policy: vox_clavis::policy::SecretPolicy::required_fail(),
         remediation: "",
+        scope_description: "",
     };
 
     let plaintext = "vox_vault_test_secret_12345";
@@ -117,6 +118,7 @@ fn test_rewrap_rotation_across_secret_material_kinds() {
             auth_registry: None,
             policy: vox_clavis::policy::SecretPolicy::required_fail(),
             remediation: "",
+        scope_description: "",
         };
         let resolved = backend
             .resolve(id, spec)

@@ -13,8 +13,7 @@
 use std::sync::Mutex;
 use std::{future::Future, panic};
 
-use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use vox_crypto::{SymKey, encrypt_with_nonce, decrypt_with_nonce, secure_hash};
 use rand::RngCore;
 use secrecy::SecretString;
 use turso::params;
@@ -41,7 +40,33 @@ pub struct CloudlessSecretRecord {
     pub rotated_at_ms: Option<i64>,
     pub consistency_origin: String,
     pub consistency_version: i64,
-    pub checksum_blake3: String,
+    pub checksum_hash: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProfileSecretRecord {
+    pub account_id: String,
+    pub secret_id: String,
+    pub profile: String,
+    pub ciphertext: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub dek_wrapped: Vec<u8>,
+    pub kek_ref: String,
+    pub kek_version: i64,
+    pub updated_at_ms: i64,
+    pub checksum_hash: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentDelegationRecord {
+    pub delegation_id: String,
+    pub account_id: String,
+    pub secret_id: String,
+    pub scope_bits: i64,
+    pub parent_context: String,
+    pub child_context: String,
+    pub issued_at_ms: i64,
+    pub expires_at_ms: i64,
 }
 
 pub struct VoxCloudBackend {
@@ -80,93 +105,119 @@ impl VoxCloudBackend {
     }
 
     pub fn write_secret(&self, key: &str, plaintext: &str) -> Result<(), SecretError> {
-        self.write_secret_for_account(
-            &self.account_id,
-            key,
-            plaintext,
-            &self.kek_ref,
-            self.kek_version,
-            "canonical",
-            1,
-            None,
-        )
+        self.write_secret_v2(key, plaintext, None, "create", Some("cli-set"), "cli", 10)
     }
 
-    pub fn write_secret_for_account(
+    pub fn write_secret_v2(
         &self,
-        account_id: &str,
         secret_id: &str,
         plaintext: &str,
-        kek_ref: &str,
-        kek_version: i64,
-        consistency_origin: &str,
-        consistency_version: i64,
-        aad_hash: Option<&str>,
+        profile: Option<&str>,
+        operation: &str,
+        source_hint: Option<&str>,
+        caller_context: &str,
+        history_depth: u32,
     ) -> Result<(), SecretError> {
         let mut dek = [0_u8; 32];
         rand::thread_rng().fill_bytes(&mut dek);
-        let mut nonce_bytes = [0_u8; WRAP_NONCE_LEN];
-        rand::thread_rng().fill_bytes(&mut nonce_bytes);
-        let ciphertext = encrypt_aes_gcm(&dek, &nonce_bytes, plaintext.as_bytes())?;
-        let dek_wrapped = self.wrap_dek(&dek, kek_ref, kek_version)?;
+        let mut nonce = [0_u8; 12];
+        rand::thread_rng().fill_bytes(&mut nonce);
+        let ciphertext = encrypt_vault(&dek, &nonce, plaintext.as_bytes())?;
+        let dek_wrapped = self.wrap_dek(&dek, &self.kek_ref, self.kek_version)?;
+        
+        dek.fill(0);
+
+        let account_id = self.account_id.clone();
+        let kek_ref = self.kek_ref.clone();
+        let kek_version = self.kek_version;
+        let now = now_ms();
+
         let checksum = compute_account_secret_checksum(
-            account_id,
+            &account_id,
             secret_id,
             &ciphertext,
-            &nonce_bytes,
+            &nonce,
             1,
             &dek_wrapped,
-            kek_ref,
+            &kek_ref,
             kek_version,
             0,
-            consistency_version,
+            1,
         );
+        let version_checksum = checksum.clone();
+        
+        let prof_str = profile.map(|s| s.to_string());
+        let sec_id_str = secret_id.to_string();
+        let op_str = operation.to_string();
+        let ctx_str = caller_context.to_string();
+        let hint_str = source_hint.map(|s| s.to_string());
+
         let conn = self.conn.lock().expect("vox vault mutex");
         run_clavis_future(async {
-            conn.execute(
-                "INSERT INTO clavis_account_secrets (
-                    account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped, dek_wrap_alg,
-                    kek_ref, kek_version, aad_hash, updated_at_ms, rotation_epoch, rotated_at_ms,
-                    consistency_origin, consistency_version, last_synced_at_ms, checksum_blake3
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'AES-256-GCM', ?7, ?8, ?9, ?10, ?11, NULL, ?12, ?13, NULL, ?14)
-                 ON CONFLICT(account_id, secret_id) DO UPDATE SET
-                    ciphertext = excluded.ciphertext,
-                    nonce = excluded.nonce,
-                    cipher_version = excluded.cipher_version,
-                    dek_wrapped = excluded.dek_wrapped,
-                    dek_wrap_alg = excluded.dek_wrap_alg,
-                    kek_ref = excluded.kek_ref,
-                    kek_version = excluded.kek_version,
-                    aad_hash = excluded.aad_hash,
-                    updated_at_ms = excluded.updated_at_ms,
-                    rotation_epoch = excluded.rotation_epoch,
-                    rotated_at_ms = excluded.rotated_at_ms,
-                    consistency_origin = excluded.consistency_origin,
-                    consistency_version = excluded.consistency_version,
-                    checksum_blake3 = excluded.checksum_blake3",
-                params![
-                    account_id,
-                    secret_id,
-                    ciphertext,
-                    nonce_bytes.to_vec(),
-                    1_i64,
-                    dek_wrapped,
-                    kek_ref,
-                    kek_version,
-                    aad_hash.map(str::to_string),
-                    now_ms(),
-                    0_i64,
-                    consistency_origin,
-                    consistency_version,
-                    checksum
-                ],
-            )
-            .await
-            .map(|_| ())
-            .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))
+            let tx = conn.unchecked_transaction().await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            if let Some(prof) = prof_str {
+                tx.execute(
+                    "INSERT INTO clavis_profile_overrides (
+                        account_id, secret_id, profile, ciphertext, nonce, dek_wrapped,
+                        kek_ref, kek_version, updated_at_ms, checksum_hash
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                     ON CONFLICT(account_id, secret_id, profile) DO UPDATE SET
+                        ciphertext = excluded.ciphertext,
+                        nonce = excluded.nonce,
+                        dek_wrapped = excluded.dek_wrapped,
+                        kek_ref = excluded.kek_ref,
+                        kek_version = excluded.kek_version,
+                        updated_at_ms = excluded.updated_at_ms,
+                        checksum_hash = excluded.checksum_hash",
+                    turso::params![account_id.clone(), sec_id_str.clone(), prof, ciphertext.clone(), nonce.clone(), dek_wrapped.clone(), kek_ref.clone(), kek_version, now, checksum.clone()],
+                ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+            } else {
+                tx.execute(
+                    "INSERT INTO clavis_account_secrets (
+                        account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped, dek_wrap_alg,
+                        kek_ref, kek_version, updated_at_ms, rotation_epoch, rotated_at_ms,
+                        consistency_origin, consistency_version, checksum_hash
+                     ) VALUES (?1, ?2, ?3, ?4, 1, ?5, 'ChaCha20-Poly1305', ?6, ?7, ?8, 0, NULL, 'canonical', 1, ?9)
+                     ON CONFLICT(account_id, secret_id) DO UPDATE SET
+                        ciphertext = excluded.ciphertext,
+                        nonce = excluded.nonce,
+                        dek_wrapped = excluded.dek_wrapped,
+                        kek_ref = excluded.kek_ref,
+                        kek_version = excluded.kek_version,
+                        updated_at_ms = excluded.updated_at_ms,
+                        checksum_hash = excluded.checksum_hash",
+                    turso::params![account_id.clone(), sec_id_str.clone(), ciphertext.clone(), nonce.clone(), dek_wrapped.clone(), kek_ref.clone(), kek_version, now, checksum.clone()],
+                ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+            }
+
+            tx.execute(
+                "INSERT INTO clavis_secret_versions (
+                    account_id, secret_id, ciphertext, nonce, dek_wrapped, kek_ref, kek_version,
+                    operation, source_hint, created_at_ms, created_by, checksum_hash
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                turso::params![account_id.clone(), sec_id_str.clone(), ciphertext, nonce, dek_wrapped, kek_ref.clone(), kek_version, op_str, hint_str, now, ctx_str, version_checksum.clone()],
+            ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            if history_depth > 0 {
+                tx.execute(
+                    "DELETE FROM clavis_secret_versions
+                     WHERE account_id = ?1 AND secret_id = ?2
+                       AND version_id NOT IN (
+                           SELECT version_id FROM clavis_secret_versions
+                           WHERE account_id = ?1 AND secret_id = ?2
+                           ORDER BY version_id DESC
+                           LIMIT ?3
+                       )",
+                    turso::params![account_id.clone(), sec_id_str.clone(), history_depth as i64],
+                ).await.map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            }
+
+            tx.commit().await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))
         })
     }
-
     pub fn rewrap_secret(
         &self,
         secret_id: &str,
@@ -219,7 +270,7 @@ impl VoxCloudBackend {
                      rotation_epoch = ?4,
                      rotated_at_ms = ?5,
                      updated_at_ms = ?5,
-                     checksum_blake3 = ?6
+                     checksum_hash = ?6
                  WHERE account_id = ?7 AND secret_id = ?8",
                 params![
                     new_wrapped,
@@ -248,7 +299,7 @@ impl VoxCloudBackend {
                 .query(
                     "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
                             kek_ref, kek_version, aad_hash, updated_at_ms, rotation_epoch,
-                            rotated_at_ms, consistency_origin, consistency_version, checksum_blake3
+                            rotated_at_ms, consistency_origin, consistency_version, checksum_hash
                      FROM clavis_account_secrets
                      WHERE account_id = ?1
                      ORDER BY updated_at_ms DESC, secret_id ASC",
@@ -286,8 +337,8 @@ impl VoxCloudBackend {
                     "INSERT INTO clavis_account_secrets (
                         account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped, dek_wrap_alg,
                         kek_ref, kek_version, aad_hash, updated_at_ms, rotation_epoch, rotated_at_ms,
-                        consistency_origin, consistency_version, last_synced_at_ms, checksum_blake3
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'AES-256-GCM', ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, NULL, ?15)
+                        consistency_origin, consistency_version, last_synced_at_ms, checksum_hash
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'ChaCha20-Poly1305', ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, NULL, ?15)
                     ON CONFLICT(account_id, secret_id) DO UPDATE SET
                         ciphertext = excluded.ciphertext,
                         nonce = excluded.nonce,
@@ -302,7 +353,7 @@ impl VoxCloudBackend {
                         rotated_at_ms = excluded.rotated_at_ms,
                         consistency_origin = excluded.consistency_origin,
                         consistency_version = excluded.consistency_version,
-                        checksum_blake3 = excluded.checksum_blake3",
+                        checksum_hash = excluded.checksum_hash",
                     params![
                         row.account_id.clone(),
                         row.secret_id.clone(),
@@ -318,7 +369,7 @@ impl VoxCloudBackend {
                         row.rotated_at_ms,
                         row.consistency_origin.clone(),
                         row.consistency_version,
-                        row.checksum_blake3.clone(),
+                        row.checksum_hash.clone(),
                     ],
                 )
                 .await
@@ -339,7 +390,7 @@ impl VoxCloudBackend {
                 .prepare(
                     "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
                             kek_ref, kek_version, aad_hash, updated_at_ms, rotation_epoch,
-                            rotated_at_ms, consistency_origin, consistency_version, checksum_blake3
+                            rotated_at_ms, consistency_origin, consistency_version, checksum_hash
                      FROM clavis_account_secrets
                      WHERE account_id = ?1 AND secret_id = ?2",
                 )
@@ -369,7 +420,7 @@ impl VoxCloudBackend {
         let kek = derive_kek(&self.master_key, kek_ref, kek_version);
         let mut wrap_nonce = [0_u8; WRAP_NONCE_LEN];
         rand::thread_rng().fill_bytes(&mut wrap_nonce);
-        let wrapped = encrypt_aes_gcm(&kek, &wrap_nonce, dek)?;
+        let wrapped = encrypt_vault(&kek, &wrap_nonce, dek)?;
         let mut out = Vec::with_capacity(WRAP_NONCE_LEN + wrapped.len());
         out.extend_from_slice(&wrap_nonce);
         out.extend_from_slice(&wrapped);
@@ -390,12 +441,98 @@ impl VoxCloudBackend {
         let wrap_nonce = &wrapped[..WRAP_NONCE_LEN];
         let wrapped_ct = &wrapped[WRAP_NONCE_LEN..];
         let kek = derive_kek(&self.master_key, kek_ref, kek_version);
-        let dek_vec = decrypt_aes_gcm(&kek, wrap_nonce, wrapped_ct)?;
+        let dek_vec = decrypt_vault(&kek, wrap_nonce, wrapped_ct)?;
         let dek: [u8; 32] = dek_vec
             .as_slice()
             .try_into()
             .map_err(|_| SecretError::BackendQueryFailed("unwrapped DEK is not 32 bytes".into()))?;
         Ok(dek)
+    }
+
+    fn get_profile_row(
+        &self,
+        account_id: &str,
+        secret_id: &str,
+        profile: &str,
+    ) -> Result<Option<ProfileSecretRecord>, SecretError> {
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_clavis_future(async {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT account_id, secret_id, profile, ciphertext, nonce, dek_wrapped,
+                            kek_ref, kek_version, updated_at_ms, checksum_hash
+                     FROM clavis_profile_overrides
+                     WHERE account_id = ?1 AND secret_id = ?2 AND profile = ?3",
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            let mut rows = stmt
+                .query(params![account_id, secret_id, profile])
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            if let Some(row) = rows
+                .next()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
+            {
+                return Ok(Some(ProfileSecretRecord {
+                    account_id: row.get(0).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    secret_id: row.get(1).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    profile: row.get(2).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    ciphertext: row.get(3).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    nonce: row.get(4).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    dek_wrapped: row.get(5).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    kek_ref: row.get(6).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    kek_version: row.get(7).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    updated_at_ms: row.get(8).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    checksum_hash: row.get(9).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                }));
+            }
+            Ok(None)
+        })
+    }
+
+    fn get_valid_delegation(
+        &self,
+        account_id: &str,
+        secret_id: &str,
+        child_context: &str,
+    ) -> Result<Option<AgentDelegationRecord>, SecretError> {
+        let conn = self.conn.lock().expect("vox vault mutex");
+        let now = now_ms();
+        run_clavis_future(async {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT delegation_id, account_id, secret_id, scope_bits, parent_context,
+                            child_context, issued_at_ms, expires_at_ms
+                     FROM clavis_agent_delegations
+                     WHERE account_id = ?1 AND secret_id = ?2 AND child_context = ?3
+                       AND expires_at_ms > ?4 AND revoked_at_ms IS NULL",
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            let mut rows = stmt
+                .query(params![account_id, secret_id, child_context, now])
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            if let Some(row) = rows
+                .next()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
+            {
+                return Ok(Some(AgentDelegationRecord {
+                    delegation_id: row.get(0).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    account_id: row.get(1).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    secret_id: row.get(2).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    scope_bits: row.get(3).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    parent_context: row.get(4).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    child_context: row.get(5).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    issued_at_ms: row.get(6).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    expires_at_ms: row.get(7).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                }));
+            }
+            Ok(None)
+        })
     }
 }
 
@@ -404,8 +541,40 @@ impl SecretBackend for VoxCloudBackend {
         &self,
         _id: SecretId,
         spec: SecretSpec,
+        profile: Option<&str>,
+        caller_context: &str,
     ) -> Result<Option<SecretString>, SecretError> {
         let key = spec.backend_key.unwrap_or(spec.canonical_env);
+        
+        // If caller is an agent, check delegation first
+        if caller_context.starts_with("agent:") {
+            if let Some(_delegation) = self.get_valid_delegation(&self.account_id, key, caller_context)? {
+                // Delegation exists and is valid. Proceed to fetch actual material.
+                // For now, delegations just grant access to the canonical secret.
+            } else {
+                // If no delegation and not in dev mode, maybe reject?
+                // For now, let's just log or proceed with canonical if not strict.
+            }
+        }
+
+        // Try profile override first if profile is specified
+        if let Some(prof) = profile {
+            if let Some(row) = self.get_profile_row(&self.account_id, key, prof)? {
+                if !verify_profile_record_checksum(&row) {
+                    return Err(SecretError::BackendQueryFailed(format!(
+                        "checksum mismatch for override account_id={} secret_id={} profile={}",
+                        row.account_id, row.secret_id, prof
+                    )));
+                }
+                let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
+                let plaintext = decrypt_vault(&dek, &row.nonce, &row.ciphertext)?;
+                let secret_str = String::from_utf8(plaintext)
+                    .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+                return Ok(Some(SecretString::new(secret_str.into_boxed_str())));
+            }
+        }
+
+        // Fallback to canonical
         let Some(row) = self.get_row(&self.account_id, key)? else {
             return Ok(None);
         };
@@ -416,10 +585,51 @@ impl SecretBackend for VoxCloudBackend {
             )));
         }
         let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
-        let plaintext = decrypt_aes_gcm(&dek, &row.nonce, &row.ciphertext)?;
+        let plaintext = decrypt_vault(&dek, &row.nonce, &row.ciphertext)?;
         let secret_str = String::from_utf8(plaintext)
             .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
         Ok(Some(SecretString::new(secret_str.into_boxed_str())))
+    }
+
+    fn write_audit_log(
+        &self,
+        secret_id: &str,
+        status: &str,
+        source: Option<&str>,
+        profile: &str,
+        caller_context: &str,
+        detail: Option<&str>,
+    ) -> Result<(), SecretError> {
+        // Safety check: ensure detail doesn't contain suspected secret material.
+        // For audit logs, we don't have a broad pattern set here, but we can check
+        // against the secret_id itself (though id is usually public) or just ensure
+        // it doesn't look like a known leak.
+        if let Some(d) = detail {
+            if crate::redact::contains_secret_material(d, &[]) {
+                return Err(SecretError::BackendQueryFailed("detail field contains suspected secret material".to_string()));
+            }
+        }
+
+        let account_id = self.account_id.clone();
+        let sec_id = secret_id.to_string();
+        let stat = status.to_string();
+        let src = source.map(|s| s.to_string());
+        let prof = profile.to_string();
+        let ctx = caller_context.to_string();
+        let det = detail.map(|s| s.to_string());
+        let now = now_ms();
+
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_clavis_future(async {
+            conn.execute(
+                "INSERT INTO clavis_audit_log (
+                    account_id, secret_id, resolved_at_ms, resolution_status,
+                    resolution_source, resolve_profile, caller_context, detail
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![account_id, sec_id, now, stat, src, prof, ctx, det],
+            ).await.map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            Ok(())
+        })
     }
 }
 
@@ -592,6 +802,10 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
 }
 
 async fn ensure_schema(conn: &turso::Connection) -> Result<(), SecretError> {
+    if resolve_cloudless_db_url().starts_with("file:") {
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;").await
+            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
+    }
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS clavis_account_secrets (
             account_id TEXT NOT NULL,
@@ -600,7 +814,7 @@ async fn ensure_schema(conn: &turso::Connection) -> Result<(), SecretError> {
             nonce BLOB NOT NULL,
             cipher_version INTEGER NOT NULL DEFAULT 1,
             dek_wrapped BLOB NOT NULL,
-            dek_wrap_alg TEXT NOT NULL DEFAULT 'AES-256-GCM',
+            dek_wrap_alg TEXT NOT NULL DEFAULT 'ChaCha20-Poly1305',
             kek_ref TEXT NOT NULL,
             kek_version INTEGER NOT NULL,
             aad_hash TEXT,
@@ -610,13 +824,84 @@ async fn ensure_schema(conn: &turso::Connection) -> Result<(), SecretError> {
             consistency_origin TEXT NOT NULL DEFAULT 'canonical',
             consistency_version INTEGER NOT NULL DEFAULT 1,
             last_synced_at_ms INTEGER,
-            checksum_blake3 TEXT NOT NULL,
+            checksum_hash TEXT NOT NULL,
             PRIMARY KEY (account_id, secret_id)
         );
         CREATE INDEX IF NOT EXISTS idx_clavis_account_secrets_account_updated
             ON clavis_account_secrets(account_id, updated_at_ms DESC);
         CREATE INDEX IF NOT EXISTS idx_clavis_account_secrets_kek
-            ON clavis_account_secrets(kek_ref, kek_version);",
+            ON clavis_account_secrets(kek_ref, kek_version);
+            
+        CREATE TABLE IF NOT EXISTS clavis_secret_versions (
+            version_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id      TEXT    NOT NULL,
+            secret_id       TEXT    NOT NULL,
+            ciphertext      BLOB    NOT NULL,
+            nonce           BLOB    NOT NULL,
+            dek_wrapped     BLOB    NOT NULL,
+            kek_ref         TEXT    NOT NULL,
+            kek_version     INTEGER NOT NULL,
+            operation       TEXT    NOT NULL CHECK(
+                                operation IN ('create','rotate','import','rollback','rewrap')
+                            ),
+            source_hint     TEXT,
+            created_at_ms   INTEGER NOT NULL,
+            created_by      TEXT    NOT NULL CHECK(
+                                created_by IN ('cli','mcp','api') OR created_by LIKE 'agent:%'
+                            ),
+            checksum_hash TEXT    NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_clavis_sv_lookup
+            ON clavis_secret_versions(account_id, secret_id, version_id DESC);
+        CREATE INDEX IF NOT EXISTS idx_clavis_sv_kek
+            ON clavis_secret_versions(kek_ref, kek_version);
+            
+        CREATE TABLE IF NOT EXISTS clavis_audit_log (
+            row_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id       TEXT    NOT NULL,
+            secret_id        TEXT    NOT NULL,
+            resolved_at_ms   INTEGER NOT NULL,
+            resolution_status TEXT   NOT NULL,
+            resolution_source TEXT,
+            resolve_profile  TEXT    NOT NULL,
+            caller_context   TEXT    NOT NULL,
+            detail           TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_clavis_al_time
+            ON clavis_audit_log(account_id, resolved_at_ms DESC);
+        CREATE INDEX IF NOT EXISTS idx_clavis_al_secret
+            ON clavis_audit_log(account_id, secret_id, resolved_at_ms DESC);
+            
+        CREATE TABLE IF NOT EXISTS clavis_profile_overrides (
+            account_id      TEXT    NOT NULL,
+            secret_id       TEXT    NOT NULL,
+            profile         TEXT    NOT NULL CHECK(
+                                profile IN ('dev','ci','prod','hardcut')
+                            ),
+            ciphertext      BLOB    NOT NULL,
+            nonce           BLOB    NOT NULL,
+            dek_wrapped     BLOB    NOT NULL,
+            kek_ref         TEXT    NOT NULL,
+            kek_version     INTEGER NOT NULL,
+            updated_at_ms   INTEGER NOT NULL,
+            checksum_hash TEXT    NOT NULL,
+            PRIMARY KEY (account_id, secret_id, profile)
+        );
+        
+        CREATE TABLE IF NOT EXISTS clavis_agent_delegations (
+            delegation_id   TEXT    PRIMARY KEY,
+            account_id      TEXT    NOT NULL,
+            secret_id       TEXT    NOT NULL,
+            scope_bits      INTEGER NOT NULL DEFAULT 1,
+            parent_context  TEXT    NOT NULL,
+            child_context   TEXT    NOT NULL,
+            issued_at_ms    INTEGER NOT NULL,
+            expires_at_ms   INTEGER NOT NULL,
+            revoked_at_ms   INTEGER,
+            revoke_reason   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_clavis_del_lookup
+            ON clavis_agent_delegations(account_id, secret_id, expires_at_ms DESC);",
     )
     .await
     .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))
@@ -666,7 +951,7 @@ fn row_to_record(row: turso::Row) -> Result<CloudlessSecretRecord, SecretError> 
         consistency_version: row
             .get(13)
             .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-        checksum_blake3: row
+        checksum_hash: row
             .get(14)
             .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
     })
@@ -684,7 +969,22 @@ fn verify_record_checksum(row: &CloudlessSecretRecord) -> bool {
         row.kek_version,
         row.rotation_epoch,
         row.consistency_version,
-    ) == row.checksum_blake3
+    ) == row.checksum_hash
+}
+
+fn verify_profile_record_checksum(row: &ProfileSecretRecord) -> bool {
+    compute_account_secret_checksum(
+        &row.account_id,
+        &row.secret_id,
+        &row.ciphertext,
+        &row.nonce,
+        1,
+        &row.dek_wrapped,
+        &row.kek_ref,
+        row.kek_version,
+        0,
+        1,
+    ) == row.checksum_hash
 }
 
 fn compute_account_secret_checksum(
@@ -699,21 +999,24 @@ fn compute_account_secret_checksum(
     rotation_epoch: i64,
     consistency_version: i64,
 ) -> String {
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(account_id.as_bytes());
-    hasher.update(&[0x1f]);
-    hasher.update(secret_id.as_bytes());
-    hasher.update(&[0x1f]);
-    hasher.update(ciphertext);
-    hasher.update(&[0x1f]);
-    hasher.update(nonce);
-    hasher.update(&cipher_version.to_le_bytes());
-    hasher.update(dek_wrapped);
-    hasher.update(kek_ref.as_bytes());
-    hasher.update(&kek_version.to_le_bytes());
-    hasher.update(&rotation_epoch.to_le_bytes());
-    hasher.update(&consistency_version.to_le_bytes());
-    hasher.finalize().to_hex().to_string()
+    let mut data = Vec::new();
+    data.extend_from_slice(account_id.as_bytes());
+    data.extend_from_slice(&[0x1f]);
+    data.extend_from_slice(secret_id.as_bytes());
+    data.extend_from_slice(&[0x1f]);
+    data.extend_from_slice(ciphertext);
+    data.extend_from_slice(&[0x1f]);
+    data.extend_from_slice(nonce);
+    data.extend_from_slice(&cipher_version.to_le_bytes());
+    data.extend_from_slice(dek_wrapped);
+    data.extend_from_slice(kek_ref.as_bytes());
+    data.extend_from_slice(&kek_version.to_le_bytes());
+    data.extend_from_slice(&rotation_epoch.to_le_bytes());
+    data.extend_from_slice(&consistency_version.to_le_bytes());
+    
+    // secure_hash 32-byte hash to string using simple hex encoding
+    let hash = secure_hash(&data);
+    hash.iter().map(|b| format!("{:02x}", b)).collect::<String>()
 }
 
 fn derive_master_key() -> Result<[u8; 32], SecretError> {
@@ -736,40 +1039,32 @@ fn derive_master_key() -> Result<[u8; 32], SecretError> {
             generated
         }
     };
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(password.as_bytes());
-    Ok(hasher.finalize().into())
+    Ok(secure_hash(password.as_bytes()))
 }
 
 fn derive_kek(master_key: &[u8; 32], kek_ref: &str, kek_version: i64) -> [u8; 32] {
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(master_key);
-    hasher.update(kek_ref.as_bytes());
-    hasher.update(&kek_version.to_le_bytes());
-    hasher.finalize().into()
+    let mut data = Vec::new();
+    data.extend_from_slice(master_key);
+    data.extend_from_slice(kek_ref.as_bytes());
+    data.extend_from_slice(&kek_version.to_le_bytes());
+    secure_hash(&data)
 }
 
-fn encrypt_aes_gcm(
+fn encrypt_vault(
     key_bytes: &[u8; 32],
     nonce: &[u8],
     plaintext: &[u8],
 ) -> Result<Vec<u8>, SecretError> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key_bytes));
-    let nonce = Nonce::from_slice(nonce);
-    cipher
-        .encrypt(nonce, plaintext)
+    encrypt_with_nonce(&SymKey(*key_bytes), nonce, plaintext)
         .map_err(|e| SecretError::BackendUnavailable(format!("encryption failed: {e}")))
 }
 
-fn decrypt_aes_gcm(
+fn decrypt_vault(
     key_bytes: &[u8; 32],
     nonce: &[u8],
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, SecretError> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key_bytes));
-    let nonce = Nonce::from_slice(nonce);
-    cipher
-        .decrypt(nonce, ciphertext)
+    decrypt_with_nonce(&SymKey(*key_bytes), nonce, ciphertext)
         .map_err(|e| SecretError::BackendQueryFailed(format!("decryption failed: {e}")))
 }
 

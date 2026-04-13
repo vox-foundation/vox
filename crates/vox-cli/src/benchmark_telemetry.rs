@@ -18,13 +18,15 @@ use std::sync::OnceLock;
 use vox_db::{DbConfig, VoxDb};
 
 fn telemetry_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBenchmarkTelemetry).expose()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBenchmarkTelemetry)
+        .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
 
 fn syntax_k_telemetry_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSyntaxKTelemetry).expose()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSyntaxKTelemetry)
+        .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or_else(|| telemetry_enabled())
 }

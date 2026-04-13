@@ -49,9 +49,9 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | `scripts/toestub_self_apply.ps1` | Quality helper |
 | `scripts/toestub_self_apply.sh` | Quality helper |
 | `scripts/verify_workspace_manifest.sh` | CI guard wrapper |
-| `scripts/windows/ensure_cuda_path.ps1` | **Essential** (OS env repair) |
+| `scripts/windows/ensure_cuda_path.ps1` | **Removed** (Lifted to `vox doctor --fix-cuda-path`) |
 | `scripts/windows/run_4080_experiment_cycles.ps1` | Operator batch recipe |
-| `scripts/windows/stop_stuck_cargo_tests.ps1` | **Essential** (Windows dev unblock) |
+| `scripts/windows/stop_stuck_cargo_tests.ps1` | **Removed** (Lifted to `vox ci kill-stuck-tests`) |
 | `tools/jj-checkpoint.ps1` | VCS helper (Jujutsu) |
 
 ## Essentiality and justification
@@ -61,8 +61,6 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 | Script | Role |
 |--------|------|
 | [`scripts/install.sh`](../../../scripts/install.sh) / [`install.ps1`](../../../scripts/install.ps1) | Chicken-and-egg bootstrap: download/verify `vox-bootstrap`, no `vox` on PATH yet. |
-| [`scripts/windows/ensure_cuda_path.ps1`](../../../scripts/windows/ensure_cuda_path.ps1) | Persists User `PATH` / `CUDA_PATH`; invasive OS mutation — belongs outside normal `vox` runs. |
-| [`scripts/windows/stop_stuck_cargo_tests.ps1`](../../../scripts/windows/stop_stuck_cargo_tests.ps1) | Win32 process cleanup (LNK1104 / hung tests). |
 | [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1) | Until lifted into Rust: isolated `CARGO_TARGET_DIR`, temp `vox.exe`, `-Detach`, log tee — **Windows file-lock / agent timeouts**. |
 | [`infra/containers/entrypoints/vox-entrypoint.sh`](../../../infra/containers/entrypoints/vox-entrypoint.sh) | PID1 sidecar: background `populi serve` + `exec` main (container semantics). |
 | [`infra/containers/entrypoints/populi-entrypoint.sh`](../../../infra/containers/entrypoints/populi-entrypoint.sh) | Cloud train/serve/agent dispatch: `curl`, HF CLI, traps — **runtime boundary** (see gaps below). |
@@ -110,9 +108,8 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 
 ### Not a Vox-language duplicate (keep at boundary)
 
-- Bootstrap HTTP + checksums + archive extract (`install.*`).
-- OS env mutation (`ensure_cuda_path.ps1`).
-- Process kill (`stop_stuck_cargo_tests.ps1`).
+- OS env mutation (`vox doctor --fix-cuda-path`).
+- Process kill (`vox ci kill-stuck-tests`).
 - JJ workflow (`tools/jj-checkpoint.ps1`).
 - Vendor crypto vector gen (`patch gen.py`).
 
@@ -123,6 +120,11 @@ Policy for thin CI wrappers: [`scripts/README.md`](../../../scripts/README.md), 
 3. ~~**TOESTUB self-apply**~~ — shipped: `vox ci toestub-self-apply`.
 4. **Docker entrypoint** — train + serve paths updated in `docker/populi-entrypoint.sh` + `Dockerfile.populi` (`vox-schola` CPU build in slim builder). **Agent** still unsupported in-container (cloud dispatch).
 5. **Bootstrap remains `vox-bootstrap`** — do not grow compiler “standard library” for HTTPS install.
+
+## Administrative OS mutations
+Administrative OS tasks are implemented as native `vox` CLI primitives rather than shell scripts or language built-ins, preserving boundary security and eliminating "blue code" (PowerShell dependency).
+- `vox doctor --fix-cuda-path`
+- `vox ci kill-stuck-tests`
 
 ## Phase 1 cleanups (done)
 

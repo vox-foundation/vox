@@ -163,6 +163,9 @@ pub struct DoctorArgs {
     /// OCI / automation: run default doctor checks and exit with non-zero status if any fail (no banner; stable for HEALTHCHECK).
     #[arg(long, default_value_t = false)]
     pub probe: bool,
+    /// Prepend NVIDIA CUDA toolkit bin dirs to the User PATH and set User CUDA_PATH.
+    #[arg(long, default_value_t = false)]
+    pub fix_cuda_path: bool,
 }
 
 /// `vox train` (legacy; canonical: `vox mens train`)

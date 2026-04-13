@@ -16,6 +16,49 @@ pub enum ContextEnvelopeType {
     ExecutionContext,
 }
 
+/// Operating mode dictating prompt boundaries and context rot mitigations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OperatingMode {
+    /// State 1: Strategic Thrust (Launch & Steer)
+    Generation,
+    /// State 2: Plan Execution (High risk of context rot)
+    PlanExecution { execution_depth: usize },
+    /// State 3: Reflective Interrogation (Rigorous Hallecination checks)
+    Verification { reason: Option<String> },
+}
+
+impl OperatingMode {
+    /// Generates the prompt add-on injected into the agent system prompt
+    #[must_use]
+    pub fn system_rider(&self) -> String {
+        match self {
+            Self::Generation => String::new(),
+            Self::PlanExecution { execution_depth } => {
+                format!(
+                    "\n\n## Plan Execution Mode (Depth: {})\n\
+                     You are deeply engaged in executing a multi-step plan. To prevent context rot:\n\
+                     - Keep your context small and discard stale steps.\n\
+                     - Always write your progress and updated plans to a durable scratch pad file before requesting new tools or answering.\n\
+                     - If you exceed 10 tool calls without resolving the step, dump your summary to a scratch file and exit the loop so the system can refresh your bounds.\n",
+                    execution_depth
+                )
+            }
+            Self::Verification { reason } => {
+                let r = reason.as_deref().unwrap_or("User initiated doubt.");
+                format!(
+                    "\n\n## Verification Mode (Reflective Interrogation)\n\
+                     System Warning: The user is suspicious and flagged this task for verification. Reason: {}\n\
+                     - YOU MUST ACT NOW: run `vox ci check` or an equivalent test framework via the terminal before declaring completion.\n\
+                     - Do NOT summarize visually. Do NOT skip tests.\n\
+                     - Refusal to run terminal verification tools will result in task failure (Checklist Ritual detection is active).\n",
+                    r
+                )
+            }
+        }
+    }
+}
+
 /// Context source plane.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -314,6 +357,8 @@ pub struct ContextEnvelope {
     pub safety: Option<ContextSafety>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub obo_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operating_mode: Option<OperatingMode>,
 }
 
 impl ContextEnvelope {
@@ -475,12 +520,13 @@ impl ContextEnvelope {
                 retrieval_cost_class: Some(ContextRetrievalCostClass::Moderate),
                 must_refresh_before_use: Some(false),
             },
-            safety: Some(ContextSafety {
+             safety: Some(ContextSafety {
                 risk_budget: Some("normal".to_string()),
                 factual_mode: Some(true),
                 required_citations: Some(if hit_count == 0 { 1 } else { 0 }),
             }),
             obo_token: None,
+            operating_mode: None,
         }
     }
 
@@ -582,6 +628,7 @@ impl ContextEnvelope {
                 required_citations: Some(ctx.required_citations as u32),
             }),
             obo_token: None,
+            operating_mode: None,
         }
     }
 }

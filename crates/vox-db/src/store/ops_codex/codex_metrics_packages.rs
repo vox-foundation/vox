@@ -633,6 +633,25 @@ impl crate::VoxDb {
         Ok(rows.next().await?.is_some())
     }
 
+    /// Fetch the newest `corpus_snapshots` row. Returns `(fingerprint, total_pairs, pair_breakdown_json)`.
+    pub async fn get_latest_corpus_snapshot(
+        &self,
+    ) -> Result<Option<(String, i64, Option<String>)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT fingerprint, total_pairs, pair_breakdown_json FROM corpus_snapshots ORDER BY id DESC LIMIT 1",
+                params![],
+            )
+            .await?;
+        if let Some(row) = rows.next().await? {
+            crate::row_cols!(row; 0 => fp: String, 1 => tp: i64, 2 => pb: Option<String>);
+            Ok(Some((fp, tp, pb)))
+        } else {
+            Ok(None)
+        }
+    }
+
     // ── Packages (packages) ───────────────────────────────────────────────────
 
     /// Full-text search of the `packages` table.

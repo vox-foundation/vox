@@ -54,6 +54,9 @@ pub struct MixSource {
     /// When `true`, silently skip this source if the file does not exist (no warning printed).
     #[serde(default)]
     pub optional: bool,
+    /// Probability (0.0 to 1.0) of including a row in the output.
+    #[serde(default)]
+    pub sample_rate: Option<f64>,
 }
 
 fn default_weight() -> f64 {
@@ -412,107 +415,11 @@ pub fn run_mix_with_options(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-
     let MixRunOptions {
         strict,
         write_report,
     } = options;
 
-    let mut report_rows: Vec<MixSourceReportRow> = Vec::with_capacity(cfg.sources.len());
-
-    for src in &cfg.sources {
-        let p = cwd.join(&src.path);
-        if !p.is_file() {
-            if src.optional {
-                tracing::trace!("[mix] skip optional missing source {}", p.display());
-                report_rows.push(MixSourceReportRow {
-                    path: src.path.clone(),
-                    weight: src.weight,
-                    optional: true,
-                    record_format: src.record_format.clone(),
-                    resolved_path: p.display().to_string(),
-                    input_lines: 0,
-                    repeats: 0,
-                    emitted_lines: 0,
-                    skipped_reason: Some("missing_file".into()),
-                    share_of_output: 0.0,
-                });
-            } else if strict {
-                anyhow::bail!("[mix] strict: required source missing: {}", p.display());
-            } else {
-                eprintln!(
-                    "  [mix] ⚠ Missing required source: {}. Run 'vox mens corpus generate' first, or add 'optional: true' to mix.yaml.",
-                    p.display()
-                );
-                report_rows.push(MixSourceReportRow {
-                    path: src.path.clone(),
-                    weight: src.weight,
-                    optional: false,
-                    record_format: src.record_format.clone(),
-                    resolved_path: p.display().to_string(),
-                    input_lines: 0,
-                    repeats: 0,
-                    emitted_lines: 0,
-                    skipped_reason: Some("missing_file".into()),
-                    share_of_output: 0.0,
-                });
-            }
-            continue;
-        }
-        if src.weight <= 0.0 {
-            eprintln!(
-                "  [mix] source '{}' has weight 0.0 — it will be ignored",
-                p.display()
-            );
-            report_rows.push(MixSourceReportRow {
-                path: src.path.clone(),
-                weight: src.weight,
-                optional: src.optional,
-                record_format: src.record_format.clone(),
-                resolved_path: p.display().to_string(),
-                input_lines: 0,
-                repeats: 0,
-                emitted_lines: 0,
-                skipped_reason: Some("weight_zero".into()),
-                share_of_output: 0.0,
-            });
-            continue;
-        }
-        let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
-        let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
-        let lines: Vec<String> = BufReader::new(file)
-            .lines()
-            .map_while(Result::ok)
-            .filter(|l| !l.trim().is_empty())
-            .collect();
-
-        if lines.is_empty() && !src.optional && strict {
-            anyhow::bail!(
-                "[mix] strict: required source has no non-empty lines: {}",
-                p.display()
-            );
-        }
-
-        report_rows.push(MixSourceReportRow {
-            path: src.path.clone(),
-            weight: src.weight,
-            optional: src.optional,
-            record_format: src.record_format.clone(),
-            resolved_path: p.display().to_string(),
-            input_lines: lines.len(),
-            repeats,
-            emitted_lines: 0,
-            skipped_reason: if lines.is_empty() {
-                Some("empty_file".into())
-            } else {
-                None
-            },
-            share_of_output: 0.0,
-        });
-    }
-
-    let mut out = File::create(&out_path)
-        .with_context(|| format!("create mix output {}", out_path.display()))?;
     let mut total_out = 0usize;
     let include_lanes: HashSet<String> = if cfg.include_lanes.is_empty() {
         HashSet::from(["vox_codegen".to_string()])
@@ -523,29 +430,79 @@ pub fn run_mix_with_options(
     let mut lane_counts: std::collections::BTreeMap<String, usize> =
         std::collections::BTreeMap::new();
 
-    for (row_idx, src) in cfg.sources.iter().enumerate() {
-        let p = cwd.join(&src.path);
-        let row = report_rows
-            .get_mut(row_idx)
-            .expect("mix report row count matches sources");
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
 
+    let mut out = File::create(&out_path)
+        .with_context(|| format!("create mix output {}", out_path.display()))?;
+    let mut report_rows: Vec<MixSourceReportRow> = Vec::with_capacity(cfg.sources.len());
+
+    for src in &cfg.sources {
+        let p = cwd.join(&src.path);
         if !p.is_file() || src.weight <= 0.0 {
+            let mut row = MixSourceReportRow {
+                path: src.path.clone(),
+                weight: src.weight,
+                optional: src.optional,
+                record_format: src.record_format.clone(),
+                resolved_path: p.display().to_string(),
+                input_lines: 0,
+                repeats: 0,
+                emitted_lines: 0,
+                skipped_reason: None,
+                share_of_output: 0.0,
+            };
+            if !p.is_file() {
+                if src.optional {
+                    row.skipped_reason = Some("missing_file_optional".into());
+                } else {
+                    row.skipped_reason = Some("missing_file".into());
+                    if !strict {
+                        eprintln!("  [mix] ⚠ Missing required source: {}", p.display());
+                    } else {
+                        anyhow::bail!("[mix] strict: required source missing: {}", p.display());
+                    }
+                }
+            } else {
+                row.skipped_reason = Some("weight_zero".into());
+            }
+            report_rows.push(row);
             continue;
         }
 
         let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
-        let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
-        let lines: Vec<String> = BufReader::new(file)
-            .lines()
-            .map_while(Result::ok)
-            .filter(|l| !l.trim().is_empty())
-            .collect();
-
+        let sample_rate = src.sample_rate.unwrap_or(1.0).clamp(0.0, 1.0);
+        
         let mut emitted_this_src = 0usize;
+        let mut input_lines_count = 0usize;
+
+        // Perform repeats
         for _ in 0..repeats {
-            for line in &lines {
+            let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
+            let reader = BufReader::new(file);
+            
+            for line_result in reader.lines() {
+                let line = match line_result {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("  [mix] read error in {}: {e}", p.display());
+                        continue;
+                    }
+                };
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                
+                input_lines_count += 1;
+
+                // Sampling logic
+                if sample_rate < 1.0 && !rng.gen_bool(sample_rate) {
+                    continue;
+                }
+
                 let normalized =
-                    match normalize_training_jsonl_line(line, src.record_format.as_deref()) {
+                    match normalize_training_jsonl_line(trimmed, src.record_format.as_deref()) {
                         Ok(s) => s,
                         Err(e) => {
                             eprintln!("  [mix] skip line in {}: {e}", p.display());
@@ -559,7 +516,7 @@ pub fn run_mix_with_options(
                         continue;
                     }
                 };
-                if !include_lanes.is_empty() && !include_lanes.contains(&lane) {
+                if !include_lanes.contains(&lane) {
                     continue;
                 }
                 if exclude_lanes.contains(&lane) {
@@ -571,12 +528,25 @@ pub fn run_mix_with_options(
                 emitted_this_src += 1;
             }
         }
-        row.emitted_lines = emitted_this_src;
-        if emitted_this_src == 0 && !lines.is_empty() {
-            row.skipped_reason = Some("all_lines_failed_normalization".into());
-        } else if emitted_this_src > 0 {
-            row.skipped_reason = None;
-        }
+
+        report_rows.push(MixSourceReportRow {
+            path: src.path.clone(),
+            weight: src.weight,
+            optional: src.optional,
+            record_format: src.record_format.clone(),
+            resolved_path: p.display().to_string(),
+            input_lines: input_lines_count / repeats, // Heuristic since we repeat
+            repeats,
+            emitted_lines: emitted_this_src,
+            skipped_reason: if emitted_this_src == 0 && input_lines_count > 0 {
+                Some("no_lines_passed_filters".into())
+            } else if input_lines_count == 0 {
+                Some("empty_file".into())
+            } else {
+                None
+            },
+            share_of_output: 0.0,
+        });
     }
 
     if strict {
@@ -584,7 +554,7 @@ pub fn run_mix_with_options(
             anyhow::bail!("[mix] strict: mixed output would be empty (check sources and weights)");
         }
         for row in &report_rows {
-            if row.optional || row.skipped_reason.as_deref() == Some("weight_zero") {
+            if row.optional || row.skipped_reason.as_deref() == Some("weight_zero") || row.skipped_reason.as_deref() == Some("missing_file_optional") {
                 continue;
             }
             if row.emitted_lines == 0 {

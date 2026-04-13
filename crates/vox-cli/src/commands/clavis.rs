@@ -216,15 +216,20 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
                 return Err(anyhow::anyhow!("File not found: {}", path.display()));
             }
             if dry_run {
-                println!("(dry-run) Scanning {} for managed secrets...", path.display());
+                println!(
+                    "(dry-run) Scanning {} for managed secrets...",
+                    path.display()
+                );
             }
             let content = std::fs::read_to_string(&path)?;
             let mut count = 0;
             let backend = if dry_run {
                 None
             } else {
-                Some(vox_clavis::backend::vox_vault::VoxCloudBackend::new()
-                    .map_err(|e| anyhow::anyhow!("{:?}", e))?)
+                Some(
+                    vox_clavis::backend::vox_vault::VoxCloudBackend::new()
+                        .map_err(|e| anyhow::anyhow!("{:?}", e))?,
+                )
             };
 
             for line in content.lines() {
@@ -247,16 +252,29 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
                                 .map_err(|e| anyhow::anyhow!("{:?}", e))?;
                             println!("Imported {} -> {}", key, spec.canonical_env);
                         } else {
-                            println!("(dry-run) Found {} -> {} (val: {})", key, spec.canonical_env, redact_value(val));
+                            println!(
+                                "(dry-run) Found {} -> {} (val: {})",
+                                key,
+                                spec.canonical_env,
+                                redact_value(val)
+                            );
                         }
                         count += 1;
                     }
                 }
             }
             if dry_run {
-                println!("Dry-run complete: {} managed secrets identified in {}", count, path.display());
+                println!(
+                    "Dry-run complete: {} managed secrets identified in {}",
+                    count,
+                    path.display()
+                );
             } else {
-                println!("Import complete: {} managed secrets injected into vault from {}", count, path.display());
+                println!(
+                    "Import complete: {} managed secrets injected into vault from {}",
+                    count,
+                    path.display()
+                );
             }
             Ok(())
         }
@@ -351,7 +369,8 @@ fn emit_doctor_json_v1(
         let mut ids = std::collections::BTreeSet::new();
         for r in &reqs.blocking {
             match r {
-                vox_clavis::RequirementSet::AllOf(list) | vox_clavis::RequirementSet::AnyOf(list) => {
+                vox_clavis::RequirementSet::AllOf(list)
+                | vox_clavis::RequirementSet::AnyOf(list) => {
                     for &id in *list {
                         ids.insert(id);
                     }
@@ -372,7 +391,10 @@ fn emit_doctor_json_v1(
     for spec in vox_clavis::all_specs() {
         let resolved = vox_clavis::resolve_secret(spec.id);
 
-        let memberships = ms.get(&spec.id).cloned().unwrap_or_default()
+        let memberships = ms
+            .get(&spec.id)
+            .cloned()
+            .unwrap_or_default()
             .into_iter()
             .map(|s| s.to_string())
             .collect();
@@ -424,13 +446,21 @@ fn emit_doctor_json_v1(
     if let Ok(content) = std::fs::read_to_string(".env") {
         for line in content.lines() {
             let line = line.trim();
-            if line.is_empty() || line.starts_with('#') { continue; }
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
             if let Some((key, _)) = line.split_once('=') {
                 let key = key.trim();
-                if let Some(spec) = vox_clavis::all_specs().iter().find(|s| s.canonical_env == key || s.aliases.contains(&key)) {
+                if let Some(spec) = vox_clavis::all_specs()
+                    .iter()
+                    .find(|s| s.canonical_env == key || s.aliases.contains(&key))
+                {
                     let res = vox_clavis::resolve_secret(spec.id);
                     if !matches!(res.source, Some(vox_clavis::SecretSource::SecureStore)) {
-                        suggested_migrations.push(format!("migrate `{}` from .env to secure vault via `vox clavis import-env`", key));
+                        suggested_migrations.push(format!(
+                            "migrate `{}` from .env to secure vault via `vox clavis import-env`",
+                            key
+                        ));
                     }
                 }
             }
@@ -473,19 +503,27 @@ fn emit_doctor_human(
     );
     println!("active_mode: {resolved_mode:?}");
 
-    let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID).unwrap_or_else(|_| "default-account".to_string());
+    let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID)
+        .unwrap_or_else(|_| "default-account".to_string());
     if account_id == "default-account" {
-        println!("warning: VOX_ACCOUNT_ID is default-account; use a unique identifier for vault isolation");
+        println!(
+            "warning: VOX_ACCOUNT_ID is default-account; use a unique identifier for vault isolation"
+        );
     }
 
     if let Ok(content) = std::fs::read_to_string(".env") {
         let mut count = 0;
         for line in content.lines() {
             let line = line.trim();
-            if line.is_empty() || line.starts_with('#') { continue; }
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
             if let Some((key, _)) = line.split_once('=') {
                 let key = key.trim();
-                if let Some(spec) = vox_clavis::all_specs().iter().find(|s| s.canonical_env == key || s.aliases.contains(&key)) {
+                if let Some(spec) = vox_clavis::all_specs()
+                    .iter()
+                    .find(|s| s.canonical_env == key || s.aliases.contains(&key))
+                {
                     let res = vox_clavis::resolve_secret(spec.id);
                     if !matches!(res.source, Some(vox_clavis::SecretSource::SecureStore)) {
                         if count == 0 {

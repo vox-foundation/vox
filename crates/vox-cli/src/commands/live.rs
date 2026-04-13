@@ -269,7 +269,8 @@ async fn run_event_log_tail(path: PathBuf) -> Result<()> {
 }
 
 pub async fn run() -> Result<()> {
-    let event_log_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorEventLog);
+    let event_log_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorEventLog);
     if let Some(raw) = event_log_resolved.expose() {
         let path = PathBuf::from(raw.trim());
         validate_event_log_path(&path)?;
