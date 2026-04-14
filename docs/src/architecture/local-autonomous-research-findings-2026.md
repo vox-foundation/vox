@@ -1,8 +1,9 @@
 ---
 title: "Local Autonomous Research Findings 2026"
 description: "Analysis of SearXNG, native Rust scraping, and local alternatives to commercial search APIs."
-category: "research"
-status: "findings"
+category: "architecture"
+status: "research"
+
 last_updated: "2026-04-12"
 ---
 

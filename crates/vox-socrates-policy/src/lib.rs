@@ -13,7 +13,7 @@ pub use complexity::SocratesComplexityJudge;
 pub use confidence_override::ConfidencePolicyOverride;
 pub use entropy::{expected_information_gain_bits, shannon_entropy_bits};
 pub use policy_types::{
-    ClarificationStopReason, ConfidencePolicy, QuestionCandidate, QuestionKind, QuestioningPolicy,
+    ClarificationStopReason, ComplexityBand, ConfidencePolicy, QuestionCandidate, QuestionKind, QuestioningPolicy,
     QuestionSelection, RiskBand, RiskDecision, SocratesResearchDecision,
     CLARIFICATION_INTERRUPT_COST_MS,
 };

@@ -559,14 +559,14 @@ Tasks:
 
 **Done (verify / maintain):**
 - [`tanstack-web-backlog.md`](./tanstack-web-backlog.md) Phase 7 **wave verdicts** + Phase 5 Query note (**`useVoxServerQuery`** emitted; optional component auto-wrap).
-- [`vox-web-stack.md`](../reference/vox-web-stack.md) — SPA vs Start, GET `@query`, links to [`vox-codegen-ts.md`](../api/vox-codegen-ts.md) + [`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md).
+- [`vox-web-stack.md`](../reference/vox-web-stack.md) — SPA vs Start, GET `@query`, links to [`vox-codegen-ts.md`](../reference/cli.md) + [`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md).
 - [`ref-web-model.md`](../reference/ref-web-model.md) — route / loader / `not_found` / `error` (nested paths; **no** `as layout` / redirect / wildcard until implemented).
 - [`tanstack-ssr-with-axum.md`](../how-to/tanstack-ssr-with-axum.md) — Start as user adapter; Axum proxy env.
-- **API docs:** [`query.md`](../api/decorators/query.md), [`mutation.md`](../api/decorators/mutation.md), [`server.md`](../api/decorators/server.md), [`v0.md`](../api/decorators/v0.md), [`component.md`](../api/decorators/component.md), [`deprecated.md`](../api/decorators/deprecated.md). Route-level `loading` / `not_found` / `error` / nested `routes` syntax: [`ref-web-model.md`](../reference/ref-web-model.md) (per-decorator `loading.md` / `layout.md` files are **optional** future splits).
+- **API docs:** [`query.md`](../reference/ref-decorators.md), [`mutation.md`](../reference/ref-decorators.md), [`server.md`](../reference/ref-decorators.md), [`v0.md`](../reference/ref-decorators.md), [`component.md`](../reference/ref-decorators.md), [`deprecated.md`](../reference/ref-decorators.md). Route-level `loading` / `not_found` / `error` / nested `routes` syntax: [`ref-web-model.md`](../reference/ref-web-model.md) (per-decorator `loading.md` / `layout.md` files are **optional** future splits).
 - [`architecture-index.md`](./architecture-index.md) links to interop research when touching navigation.
 
 **Deferred / optional:**
-- Dedicated **`v0-shadcn-vox.md`** cookbook (covered today by [`v0.md`](../api/decorators/v0.md), doctor, scaffold `components.json`; add how-to when we want one narrative page).
+- Dedicated **`v0-shadcn-vox.md`** cookbook (covered today by [`v0.md`](../reference/ref-decorators.md), doctor, scaffold `components.json`; add how-to when we want one narrative page).
 - [`tanstack-web-roadmap.md`](./tanstack-web-roadmap.md) Phase 8 archive line — editorial when roadmap is next revised.
 
 **Ongoing:** `mdbook build` in CI / local when editing `docs/src/`.
@@ -674,6 +674,6 @@ export function App() {
 | Forbidden strings | `web_ir_lower_emit` / pipeline | No `VoxTanStackRouter`, `createServerFn` in generated TS (see compiler tests) |
 | Optional E2E | `vox build` + `pnpm install && vite dev` on a scaffolded app | Manual / smoke job (`VOX_WEB_VITE_SMOKE`); not blocking on `blog_fullstack.vox` until golden exists |
 | shadcn CLI | `npx shadcn@latest add …` | Validates `components.json` when authors run it; doctor warns on `rsc` |
-| v0 drop-in | Islands + named exports | [`v0` decorator doc](../api/decorators/v0.md), `v0_tsx_normalize` tests |
+| v0 drop-in | Islands + named exports | [`v0` decorator doc](../reference/ref-decorators.md), `v0_tsx_normalize` tests |
 
 **Optional goldens:** `blog_fullstack.vox`, `v0_shadcn_island.vox` — tutorial narrative; **`web_routing_fullstack.vox`** already covers nested routes + loader + pending + `not_found` / `error`.

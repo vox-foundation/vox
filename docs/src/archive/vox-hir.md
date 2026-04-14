@@ -2,7 +2,7 @@
 title: "Crate API: vox-hir"
 description: "Rust crate vox-hir"
 category: "api-crate"
-status: archived
+status: deprecated
 archived_date: 2026-04-13
 training_eligible: false
 schema_type: "TechArticle"

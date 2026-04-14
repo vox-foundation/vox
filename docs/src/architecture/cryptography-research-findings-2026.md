@@ -1,3 +1,9 @@
+---
+title: "cryptography research findings 2026"
+description: "Automatically added frontmatter for cryptography research findings 2026"
+category: "architecture"
+status: "research"
+---
 # Cryptography Research Findings 2026
 
 ## Overview

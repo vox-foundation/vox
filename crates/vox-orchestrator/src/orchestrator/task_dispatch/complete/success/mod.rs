@@ -289,6 +289,15 @@ impl Orchestrator {
 
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
         self.record_task_loop_metric(task_id, &phase_label, "completed", debug_iterations);
+
+        if let Some(steps) = crate::sync_lock::rw_write(&*self.task_traces).get_mut(&task_id) {
+            steps.push(crate::orchestrator::TaskTraceStep {
+                timestamp_ms: crate::types::now_unix_ms(),
+                stage: "outcome".to_string(),
+                detail: Some("completed".to_string()),
+            });
+        }
+
         Ok(())
     }
 }

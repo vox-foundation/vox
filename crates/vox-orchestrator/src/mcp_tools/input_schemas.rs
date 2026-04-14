@@ -1,4 +1,4 @@
-﻿//! JSON Schema fragments for MCP tool `input_schema` (draft-07 subset).
+//! JSON Schema fragments for MCP tool `input_schema` (draft-07 subset).
 //!
 //! Keep shapes aligned with [`crate::mcp_tools::params`], [`crate::mcp_tools::memory`], [`crate::mcp_tools::affinity`],
 //! and [`super::chat_tools`] `Deserialize` structs. Unknown tools fall back to an empty map
@@ -98,6 +98,14 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_workspace_modules"
         | "vox_export_grammar_ebnf"
         | "vox_a2a_tasks" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_clavis_doctor" => parse_obj(r#"{
+            "type": "object",
+            "properties": {
+                "workflow": { "type": "string", "enum": ["Chat", "Mcp", "Publish", "Review", "DbRemote", "MensMesh"] },
+                "profile": { "type": "string", "enum": ["Dev", "Ci", "Prod", "Mobile"] }
+            },
+            "additionalProperties": false
+        }"#),
 
         // Handler ignores args today; keep the schema strict so clients send `{}` only.
         "vox_orchestrator_start" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),

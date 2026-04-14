@@ -6,7 +6,9 @@ status: "research"
 sort_order: 18
 last_updated: 2026-04-12
 training_eligible: true
+training_rationale: "Documents God Object limits and chunking strategy directly applicable to MENS QLoRA training corpus curation."
 schema_type: "TechArticle"
+
 ---
 
 # TOESTUB line limit and MENS corpus size research (2026)

@@ -2,13 +2,13 @@
 
 use serde_json::json;
 use tempfile::TempDir;
-use vox_mcp::ServerState;
-use vox_mcp::tools;
+use vox_orchestrator::mcp_tools::ServerState;
+use vox_orchestrator::mcp_tools::handle_tool_call as tools;
 
 #[tokio::test]
 async fn mcp_vox_repo_status_returns_repository_id() {
-    let state = ServerState::new_test().await;
-    let raw = tools::handle_tool_call(&state, "vox_repo_status", json!({}))
+    let state = ServerState::new_full(vox_orchestrator::OrchestratorConfig::default());
+    let raw = tools(&state, "vox_repo_status", json!({}))
         .await
         .expect("tool returns");
     let v: serde_json::Value = serde_json::from_str(&raw).expect("json");

@@ -29,6 +29,7 @@
 
 ---
 
+<!-- ANCHOR: how_vox -->
 <!-- ANCHOR: why_vox -->
 ## The Architecture: Designed for AI and Humans
 
@@ -208,6 +209,7 @@ Legacy languages saturate the internet's training data. To catch up, `vox populi
 ---
 
 More: [`examples/golden/`](examples/golden/) · [Rosetta comparison (C++, Rust, Python)](docs/src/explanation/expl-rosetta-inventory.md)
+<!-- ANCHOR_END: how_vox -->
 
 ---
 

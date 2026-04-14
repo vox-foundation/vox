@@ -900,6 +900,24 @@ mod orch_smoke {
             st.total_queued
         );
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn complexity_based_routing_test() {
+        let _ = tracing_subscriber::fmt::try_init();
+        
+        let orch = Orchestrator::new(OrchestratorConfig {
+            planning_enabled: false,
+            ..OrchestratorConfig::for_testing()
+        });
+        
+        // This description should trigger SocratesComplexityJudge::estimate_complexity -> MultiHop
+        // because it contains 'synthesize' and 'across'.
+        let goal = "Synthesize all data across the repository";
+        
+        let ctx = orch.generate_goal_search_context(goal, &[]).await;
+        
+        assert!(ctx.factual_mode);
+    }
 }
 
 #[cfg(test)]

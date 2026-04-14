@@ -96,7 +96,13 @@ pub struct PlanRefinementReport {
 
 /// Replaced word-count proxy. Now relies exclusively on explicit router or Socrates complexity sizing.
 pub fn effective_goal_complexity(goal: &str, router_hint: Option<u8>) -> u8 {
-    vox_socrates_policy::SocratesComplexityJudge::estimate_complexity(goal, router_hint)
+    let band = vox_socrates_policy::SocratesComplexityJudge::estimate_complexity(goal, router_hint);
+    match band {
+        vox_socrates_policy::ComplexityBand::Simple => 2,
+        vox_socrates_policy::ComplexityBand::Moderate => 4,
+        vox_socrates_policy::ComplexityBand::Complex => 6,
+        vox_socrates_policy::ComplexityBand::MultiHop => 8,
+    }
 }
 
 /// Structural text checks for orchestrator [`super::quality_gate`].
@@ -306,8 +312,8 @@ fn detail_target_min_tasks(complexity: u8, depth_bonus: i8) -> usize {
     let mut t = match complexity {
         0..=3 => 1,
         4 | 5 => 2,
-        6 | 7 => 4,
-        8 => 6,
+        6..=8 => 4,
+        9 => 6,
         _ => 8,
     };
     let b = depth_bonus.clamp(-2, 4);

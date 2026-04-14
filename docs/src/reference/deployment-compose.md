@@ -80,6 +80,6 @@ When teams need phone-based project management:
 - For strict proxy signaling, pair `VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS=1` with a proxy-set `X-Forwarded-Proto: https`; only trust forwarded client IPs when ingress is fully controlled.
 - Keep repository/toolchain state on the host; mobile clients should not be expected to run Cargo/git/`vox` locally.
 
-See [MCP HTTP gateway contract](mcp-http-gateway-contract.md), [Crate API: vox-mcp](../api/vox-mcp.md), and [env vars SSOT](env-vars.md) for the complete control-plane policy surface.
+See [MCP HTTP gateway contract](mcp-http-gateway-contract.md), [Crate API: vox-mcp](../reference/cli.md), and [env vars SSOT](env-vars.md) for the complete control-plane policy surface.
 
 This deployment SSOT remains about server/container runtime surfaces; it does not redefine phones as first-class OCI runtime hosts.

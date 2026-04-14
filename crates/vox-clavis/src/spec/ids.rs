@@ -506,7 +506,11 @@ impl SecretId {
             SecretId::WebhookSigningSecret
             | SecretId::VoxOpenReviewAccessToken
             | SecretId::VoxOpenReviewPassword
-            | SecretId::VoxOpenReviewEmail => SecretMetadata {
+            | SecretId::VoxOpenReviewEmail
+            | SecretId::VoxSocialRedditClientId
+            | SecretId::VoxSocialRedditClientSecret
+            | SecretId::VoxSocialRedditRefreshToken
+            | SecretId::VoxSocialRedditUserAgent => SecretMetadata {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::ApiKey,
                 persistable_account_secret: true,

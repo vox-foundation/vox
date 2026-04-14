@@ -12102,6 +12102,7 @@ dependencies = [
  "tower-lsp",
  "tower-lsp-server",
  "vox-bounded-fs",
+ "vox-clavis",
  "vox-cli",
  "vox-compiler",
  "vox-config",

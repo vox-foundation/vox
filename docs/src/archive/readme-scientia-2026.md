@@ -1,8 +1,8 @@
 ---
 title: "README: Vox Platform (Scientia Draft, April 2026)"
 description: "Full-length README preserved for Vox Scientia publication. Contains extended rationale, academic citations, and pedagogical prose removed during the April 2026 brevity rewrite."
-category: "readme-archive"
-status: archived
+category: "explanation"
+status: deprecated
 archived_date: 2026-04-13
 training_eligible: false
 schema_type: "TechArticle"
@@ -120,6 +120,7 @@ Code generation fails when an AI navigates fragmented files, hidden states, and 
 Here's a complete Vox program — a task tracker with a database table, a server endpoint, and a page:
 
 ```vox
+// vox:skip
 @table type Task {      // defines database schema
     title: str
     done:  bool
@@ -148,6 +149,7 @@ One file. The compiler generates the SQL schema, the server endpoint, and the br
 In most projects, a data type lives in three places at once: a database schema, a server model, and a client type. They drift apart silently. Vox collapses all three into one declaration:
 
 ```vox
+// vox:skip
 @require(len(self.title) > 0)    // the compiler rejects empty titles on insert
 @table type Task {
     title:    str
@@ -164,6 +166,7 @@ In most projects, a data type lives in three places at once: a database schema, 
 ### Step 2 — Write server functions
 
 ```vox
+// vox:skip
 @query
 fn recent_tasks() to list[Task] {
     // read-only; becomes a GET /api/query/recent_tasks endpoint automatically
@@ -192,6 +195,7 @@ fn add_task(title: str, owner: str) to Id[Task] {
 Modern web apps split into two concerns: the **server**, which renders initial HTML and handles data, and the **browser**, which handles interactivity. Vox solves this with two distinct primitives:
 
 ```vox
+// vox:skip
 // An island is a piece of the page that's interactive in the browser.
 // React lives inside the generated artifact — not in your .vox source.
 @island TaskList {
@@ -209,13 +213,14 @@ component TaskPage() {
 routes { "/" to TaskPage }
 ```
 
-`@island` marks the boundary where the browser takes over. The compiler generates the React component, the browser lifecycle wiring, and the typed client stub — none of that appears in your `.vox` source. `component` stays on the server: rendered to HTML, fast to load, written entirely in Vox syntax. React's mental model — hooks, lifecycle, client state — is confined to the generated layer.
+`@island` marks the boundary where the browser takes over. The compiler generates the React component, the browser lifecycle wiring, and the typed client stub — none of that appears in your `.vox) source. `component` stays on the server: rendered to HTML, fast to load, written entirely in Vox syntax. React's mental model — hooks, lifecycle, client state — is confined to the generated layer.
 
 > **v0.dev integration:** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the generated component into `islands/src/TaskDashboard/`. The `@v0` build hook triggers this automatically during `vox build`.
 
 ### Step 4 — Durable logic and AI tools
 
 ```vox
+// vox:skip
 // An activity is a step that can be retried independently if it fails
 activity charge_card(amount: int) to Result[str] {
     if amount > 1000 { ret Error("Amount too large") }
@@ -402,7 +407,10 @@ Direct `std::env::var` calls for secrets are a CI failure. All credentials are d
 
 ### Documentation is compiler-verified (`vox-doc-pipeline`, `SchemaComplianceDetector`)
 
+```vox
+// vox:skip
 All `.vox` code blocks in `docs/src/` must either use `{{#include}}` to pull from a verified file in `examples/golden/`, or be marked `// vox:skip`. Loose code snippets that can't be compiled are a CI failure via `SchemaComplianceDetector`.
+```
 
 **Why it matters:** Documentation that silently diverges from working code is worse than no documentation — it actively misleads both human readers and AI agents that use docs as retrieval context. The golden file pipeline (`examples/golden/`) means every snippet in this README and the docs site has been compiled against the current compiler before it shipped.
 

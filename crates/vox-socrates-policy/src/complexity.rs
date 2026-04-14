@@ -1,5 +1,6 @@
 //! Complexity tracking for Socrates
 
+use crate::policy_types::ComplexityBand;
 use serde::{Deserialize, Serialize};
 
 /// Socrates-driven complexity evaluation.
@@ -7,11 +8,20 @@ use serde::{Deserialize, Serialize};
 pub struct SocratesComplexityJudge;
 
 impl SocratesComplexityJudge {
-    /// Provide a bounded estimate of the final structural complexity.
-    /// Returns a value tightly clamped to [1, 10].
-    pub fn estimate_complexity(_goal: &str, router_hint: Option<u8>) -> u8 {
-        // Fallback or override logic if router_hint is missing.
-        // Unifies all remaining logic.
-        router_hint.unwrap_or(5).clamp(1, 10)
+    /// Classify the query into a discrete routing band.
+    pub fn estimate_complexity(goal: &str, router_hint: Option<u8>) -> ComplexityBand {
+        let score = router_hint.unwrap_or(5).clamp(1, 10);
+        
+        let is_multi_hop = goal.contains("compare") || goal.contains("synthesize") || goal.contains("across");
+        
+        if score >= 8 || is_multi_hop {
+            ComplexityBand::MultiHop
+        } else if score >= 6 {
+            ComplexityBand::Complex
+        } else if score >= 4 {
+            ComplexityBand::Moderate
+        } else {
+            ComplexityBand::Simple
+        }
     }
 }

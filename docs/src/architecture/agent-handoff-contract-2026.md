@@ -1,3 +1,9 @@
+---
+title: "agent handoff contract 2026"
+description: "Automatically added frontmatter for agent handoff contract 2026"
+category: "architecture"
+status: "research"
+---
 # Cross-Agent & Cross-Repo Handoff Contract (2026)
 
 This document defines the canonical Single Source of Truth (SSOT) schema for cross-agent and cross-repository handoffs within the Vox orchestrator architecture.

@@ -38,13 +38,13 @@ These are the canonical plane names used when comparing transports across the re
 
 | Family | Primary contract | Primary doc | Canonical decision |
 | --- | --- | --- | --- |
-| MCP stdio | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | [`docs/src/api/vox-orchestrator.md`](../api/vox-mcp.md) | Keep as the default host/editor control surface |
+| MCP stdio | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | [`docs/src/reference/cli.md) | Keep as the default host/editor control surface |
 | MCP HTTP gateway | [`contracts/mcp/http-gateway.openapi.yaml`](../../../contracts/mcp/http-gateway.openapi.yaml) | [`mcp-http-gateway-contract.md`](mcp-http-gateway-contract.md) | Keep bounded and opt-in for remote/mobile control |
 | Populi HTTP control plane | [`contracts/populi/control-plane.openapi.yaml`](../../../contracts/populi/control-plane.openapi.yaml) | [`populi.md`](populi.md) | Keep HTTP-first per ADR 008 |
 | Populi A2A relay | [`contracts/populi/control-plane.openapi.yaml`](../../../contracts/populi/control-plane.openapi.yaml) | [`populi.md`](populi.md) | Evaluate overlap only against DB inbox after telemetry-backed review |
 | Orchestrator local A2A | in-code types only | [`orchestration-unified.md`](orchestration-unified.md) | Keep as the low-latency same-process lane |
 | Orchestrator DB inbox / outbox | [`contracts/communication/orchestrator-persistence-outbox.schema.json`](../../../contracts/communication/orchestrator-persistence-outbox.schema.json) (outbox lifecycle/queue) + in-code DB inbox types | [`orchestration-unified.md`](orchestration-unified.md) | Keep durable semantics separate from ephemeral/local bus semantics |
-| Runtime SSE | in-code types only | [`docs/src/api/vox-runtime.md`](../api/vox-runtime.md) | Keep SSE as the default app streaming transport |
+| Runtime SSE | in-code types only | [`docs/src/reference/cli.md) | Keep SSE as the default app streaming transport |
 | DeI JSON-line RPC | [`contracts/dei/rpc-methods.schema.json`](../../../contracts/dei/rpc-methods.schema.json) | [`orchestration-unified.md`](orchestration-unified.md) | Evaluate convergence only where envelopes already align |
 | Orchestrator JSON-line RPC | [`contracts/orchestration/orch-daemon-rpc-methods.schema.json`](../../../contracts/orchestration/orch-daemon-rpc-methods.schema.json) | [`orchestration-unified.md`](orchestration-unified.md) | Keep separate from DeI while `vox-orchestrator-d` `orch.*` parity evolves |
 | LSP JSON-RPC | external protocol | this page | Keep independent; ecosystem protocol |

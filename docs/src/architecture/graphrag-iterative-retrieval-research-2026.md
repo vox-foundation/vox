@@ -1,8 +1,9 @@
 ---
 title: "GraphRAG Iterative Retrieval Research 2026"
 description: "Deep dive into multi-hop retrieval loops, C2RAG sufficiency checks, and HippoRAG-style knowledge expansion."
-category: "research"
-status: "findings"
+category: "architecture"
+status: "research"
+
 last_updated: "2026-04-12"
 ---
 

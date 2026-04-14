@@ -22,6 +22,15 @@ pub trait LexicalMemoryFallback: Send + Sync {
     fn substring_search_lines(&self, query: &str) -> Result<Vec<String>, String>;
 }
 
+/// A securely persisted retrieval artifact replacing inline context.
+#[derive(Debug, Clone)]
+pub struct DurableArtifact {
+    pub uri: String,
+    pub token: Option<String>,
+    pub expires_at_unix_ms: Option<u64>,
+    pub chunk_count: usize,
+}
+
 /// One retrieval pass output before MCP/orchestrator envelope wrapping.
 #[derive(Debug, Clone)]
 pub struct SearchExecution {
@@ -37,6 +46,8 @@ pub struct SearchExecution {
     pub rrf_fused_lines: Vec<String>,
     /// Optional web-retrieval hits (SearXNG, DuckDuckGo, or Tavily).
     pub web_lines: Vec<String>,
+    /// Secure references to large evidence bodies, replacing inline text for high-volume results.
+    pub durable_artifacts: Vec<DurableArtifact>,
     /// Non-fatal issues (e.g. Qdrant HTTP errors) copied into [`SearchDiagnostics::notes`].
     pub warnings: Vec<String>,
     pub used_vector: bool,
@@ -588,6 +599,7 @@ pub async fn execute_search_plan(
         qdrant_lines,
         rrf_fused_lines,
         web_lines,
+        durable_artifacts: Vec::new(),
         warnings,
         used_vector,
         used_bm25,

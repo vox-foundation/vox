@@ -123,7 +123,7 @@ See [mens SSOT](populi.md) for the full `VOX_MESH_*` table.
 - [Deployment compose SSOT](deployment-compose.md) — server/container Compose vs mobile (inference profiles, no phone OCI).
 - [Orchestration unified SSOT](orchestration-unified.md) — capability merge rules.
 - [Environment variables (SSOT)](env-vars.md).
-- [vox-mcp API](../api/vox-mcp.md) — Ollama fallback is **desktop-oriented**.
+- [vox-mcp API](../reference/cli.md) — Ollama fallback is **desktop-oriented**.
 
 ## Direct on-device `.vox` runtime (experimental boundary)
 

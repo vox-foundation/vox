@@ -1,3 +1,9 @@
+---
+title: "scientia pipeline ssot 2026"
+description: "Automatically added frontmatter for scientia pipeline ssot 2026"
+category: "architecture"
+status: "research"
+---
 # Scientia Pipeline SSOT — Unified Inbound/Outbound Gap Remediation (2026)
 
 > **This is the authoritative implementation specification for the Vox Scientia research pipeline.**
@@ -357,7 +363,8 @@ audited.
 
 SOLUTION:  
 In the appropriate `.vox` schema file, add:
-```vox
+`ox
+`ox
 table scientia_feed_sources {
   id            TEXT        PRIMARY KEY,  // uuid4
   feed_type     TEXT        NOT NULL,     // 'rss_atom' | 'twitter_user' | 'reddit_sub' | 'arxiv_query' | 'manual'
@@ -415,7 +422,8 @@ The Socrates triage and the worthiness scorer cannot distinguish them.
 
 SOLUTION:  
 Add a dedicated staging table for inbound candidates, separate from `knowledge_nodes`:
-```vox
+`ox
+`ox
 table scientia_inbound_signals {
   id                TEXT PRIMARY KEY,        // uuid4
   feed_source_id    TEXT,                    // FK → scientia_feed_sources.id (nullable for manual)
@@ -1574,3 +1582,6 @@ Before marking any task complete, run in order:
 4. `vox ci scientia-heuristics-parity` (after any G6 work) — must exit 0.
 5. `vox ci scientia-novelty-ledger-contracts` — must exit 0.
 6. For DB schema changes: `vox db auto-migrate --dry-run` — must report only `CREATE TABLE` or `ADD COLUMN` actions (no DROP).
+
+
+

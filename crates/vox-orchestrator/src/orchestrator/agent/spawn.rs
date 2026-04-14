@@ -31,9 +31,11 @@ impl crate::orchestrator::Orchestrator {
         );
 
         let bm = crate::sync_lock::rw_read(&*self.budget_manager).clone();
-        tokio::spawn(async move {
-            bm.load_user_configured_budget(agent_id).await;
-        });
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                bm.load_user_configured_budget(agent_id).await;
+            });
+        }
 
         tracing::info!("Spawned agent {} (name: {})", agent_id, name);
         Ok(agent_id)

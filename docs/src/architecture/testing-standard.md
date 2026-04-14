@@ -107,6 +107,6 @@ cargo test -p vox-test-harness
 
 ## 8. References
 
-- [vox-integration-tests API](../api/vox-integration-tests.md)
+- [vox-integration-tests API](../reference/cli.md)
 - [documentation-rubric](../../agents/documentation-rubric.md)
 - [CI runner contract](../ci/runner-contract.md)

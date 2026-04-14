@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
-use vox_mcp::{ServerState, tools};
+use vox_orchestrator::mcp_tools::{ServerState, handle_tool_call as tools};
 use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]
 async fn test_a2a_mcp_roundtrip() {
     let config = OrchestratorConfig::for_testing();
-    let state = ServerState::new(config);
+    let state = ServerState::new_full(config);
     let sender = state
         .orchestrator
         .spawn_agent("a2a-mcp-snd")
@@ -23,7 +23,7 @@ async fn test_a2a_mcp_roundtrip() {
         "payload": "I need help with parser."
     });
 
-    let send_resp: String = tools::handle_tool_call(&state, "vox_a2a_send", send_req)
+    let send_resp: String = tools(&state, "vox_a2a_send", send_req)
         .await
         .unwrap();
     assert!(
@@ -37,7 +37,7 @@ async fn test_a2a_mcp_roundtrip() {
         "source": "local"
     });
 
-    let inbox_resp: String = tools::handle_tool_call(&state, "vox_a2a_inbox", inbox_req)
+    let inbox_resp: String = tools(&state, "vox_a2a_inbox", inbox_req)
         .await
         .unwrap();
     assert!(inbox_resp.contains("\"success\": true") || inbox_resp.contains("\"success\":true"));
@@ -55,7 +55,7 @@ async fn test_a2a_mcp_roundtrip() {
         "message_id": msg_id
     });
 
-    let ack_resp: String = tools::handle_tool_call(&state, "vox_a2a_ack", ack_req)
+    let ack_resp: String = tools(&state, "vox_a2a_ack", ack_req)
         .await
         .unwrap();
     assert!(ack_resp.contains("\"success\": true") || ack_resp.contains("\"success\":true"));
@@ -64,7 +64,7 @@ async fn test_a2a_mcp_roundtrip() {
         "agent_id": receiver.0,
         "source": "local"
     });
-    let inbox_resp2: String = tools::handle_tool_call(&state, "vox_a2a_inbox", inbox_req2)
+    let inbox_resp2: String = tools(&state, "vox_a2a_inbox", inbox_req2)
         .await
         .unwrap();
     let inbox2: serde_json::Value = serde_json::from_str(&inbox_resp2).expect("inbox2 json");
@@ -79,7 +79,7 @@ async fn test_a2a_mcp_roundtrip() {
         "limit": 10
     });
 
-    let history_resp: String = tools::handle_tool_call(&state, "vox_a2a_history", history_req)
+    let history_resp: String = tools(&state, "vox_a2a_history", history_req)
         .await
         .unwrap();
     assert!(

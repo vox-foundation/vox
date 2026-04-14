@@ -15,7 +15,7 @@ This document is the **authoritative contract** for **release binaries** (names,
 - **`crates/vox-install-policy`** (Rust SSOT for supported triples, default GitHub org/repo, and `cargo install --locked --path …` argv shared by bootstrap / `vox upgrade` / compliance guards),
 - [`vox ci release-build`](../reference/cli.md) (packaging in CI / locally),
 - [`.github/workflows/release-binaries.yml`](../../../.github/workflows/release-binaries.yml) (tag-triggered publish),
-- [`vox-bootstrap`](../api/vox-bootstrap.md) (binary-first install),
+- [`vox-bootstrap`](../reference/cli.md) (binary-first install),
 - **`vox upgrade --source release`** (operator self-update; same manifest verification).
 
 The **`vox upgrade --source repo`** lane rebuilds from a local checkout and does **not** consume this checksum manifest (trust model = your git ref + Cargo lock in-tree).

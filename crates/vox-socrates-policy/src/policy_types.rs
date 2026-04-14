@@ -25,6 +25,21 @@ pub enum RiskDecision {
     Abstain,
 }
 
+/// Discrete complexity band for routing and Adaptive RAG.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ComplexityBand {
+    /// Factual, single-source lookup.
+    #[default]
+    Simple,
+    /// Requires synthesis across 2-3 sources.
+    Moderate,
+    /// Deep domain analysis.
+    Complex,
+    /// Requires A2A parallel agent dispatch.
+    MultiHop,
+}
+
 /// Preferred shape for a clarification prompt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

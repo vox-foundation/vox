@@ -97,7 +97,7 @@ Values come from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/
 
 | Item | Status |
 |------|--------|
-| **`crates/vox-py`** | **Excluded** from the root workspace (`Cargo.toml` `[workspace.exclude]`); `docs/src/api/vox-py.md` is a bindings guide for when the tree is enabled. |
+| **`crates/vox-py`** | **Excluded** from the root workspace (`Cargo.toml` `[workspace.exclude]`); `docs/src/reference/cli.md` is a bindings guide for when the tree is enabled. |
 
 ## See also
 

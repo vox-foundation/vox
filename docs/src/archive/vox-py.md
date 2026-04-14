@@ -2,7 +2,7 @@
 title: "Crate API: vox-py"
 description: "Rust crate vox-py: Python interop and @py.import codegen boundaries."
 category: "api-crate"
-status: archived
+status: deprecated
 archived_date: 2026-04-13
 training_eligible: false
 schema_type: "TechArticle"

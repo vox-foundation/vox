@@ -31,7 +31,7 @@ Click the **Search** icon at the top of the sidebar (or press `S` on your keyboa
 
 We maintain comprehensive indexes of available keywords and decorators:
 
-- [Decorators Reference](../api/decorators.md) — All available `@` decorators, their behavior, and codegen output.
+- [Decorators Reference](../reference/ref-decorators.md) — All available `@` decorators, their behavior, and codegen output.
 - *Keywords Reference* (Coming Soon) — Core language reserved words and built-in control flow constructs.
 
 ## External Search (Website Integration)

@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "vox-integration-tests"
 version.workspace = true
 edition.workspace = true
@@ -24,6 +24,8 @@ vox-container = { workspace = true }
 vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
+vox-clavis = { workspace = true }
+
 
 [lints]
 workspace = true

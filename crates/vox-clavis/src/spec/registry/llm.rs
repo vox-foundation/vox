@@ -226,7 +226,7 @@ pub const SPECS_LLM: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::VoxOpenrouterHttpReferer,
         canonical_env: "OPENROUTER_HTTP_REFERER",
-        aliases: &[],
+        aliases: &["VOX_OPENROUTER_HTTP_REFERER"],
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,
@@ -237,7 +237,7 @@ pub const SPECS_LLM: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::VoxOpenrouterAppTitle,
         canonical_env: "OPENROUTER_APP_TITLE",
-        aliases: &[],
+        aliases: &["VOX_OPENROUTER_APP_TITLE"],
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,

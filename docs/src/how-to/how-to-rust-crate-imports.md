@@ -163,7 +163,7 @@ Those belong behind explicit **feature gates** and product milestones, not on th
 
 ## Related docs
 
-- [Keyword: `import` syntax](../api/keywords/import.md)
+- [Keyword: `import` syntax](../reference/ref-syntax.md)
 - [CLI reference: PM vs generated `Cargo.lock`](../reference/cli.md)
 - [Diagnostic taxonomy](../reference/diagnostic-taxonomy.md)
 - [Vox packaging blueprint](../architecture/vox-packaging-implementation-blueprint.md) (extension boundaries)

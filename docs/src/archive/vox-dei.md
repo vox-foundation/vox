@@ -2,7 +2,7 @@
 title: "Crate API: vox-orchestrator"
 description: "Rust crate vox-dei (orchestrator-facing): distributed execution intelligence and embedding notes."
 category: "api-crate"
-status: archived
+status: deprecated
 archived_date: 2026-04-13
 training_eligible: false
 schema_type: "TechArticle"

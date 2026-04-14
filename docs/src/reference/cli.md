@@ -569,7 +569,7 @@ For full-repo waves (`--full-repo`), the semantic manifest persists coverage cou
 
 ## Related docs
 
-- **Rustdoc / layout**: [`docs/src/api/vox-cli.md`](#)
+- **Rustdoc / layout**: [`docs/src/reference/cli.md`](#)
 - **Ecosystem narrative** (may include commands beyond this binary): [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md)
 - **Compiler pipeline** (HIR path): [`reference/compiler-internals.md`](#)
 

@@ -1,3 +1,9 @@
+---
+title: "scientia external discovery research 2026"
+description: "Automatically added frontmatter for scientia external discovery research 2026"
+category: "architecture"
+status: "research"
+---
 # Vox Scientia External Discovery & Monitoring Architecture — 2026 Research Synthesis
 
 > **Status:** Architecture Research Findings | Created: 2026-04-10

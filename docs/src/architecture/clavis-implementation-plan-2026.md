@@ -5,7 +5,8 @@ description: >
   secrets manager. Covers all data structures, SQL schema (verified against the turso@0.4 API),
   CLI surface, VoxDB integration, hard-problem analysis, and a safety-first wave ordering.
 category: "architecture"
-status: "implementation-plan"
+status: "experimental"
+
 last_updated: 2026-04-12
 ---
 

@@ -44,5 +44,5 @@ All documentation must fall into one of these four categories:
 
 ## 4. AI & Agent Friendliness
 - **Clear Metadata**: Use frontmatter or clear H1 tags to help AI agents index the page.
-- **Descriptive Links**: Use [Technical Reference](../api/vox-ast.md) instead of [here](../api/vox-ast.md).
+- **Descriptive Links**: Use [Technical Reference](../reference/cli.md) instead of [here](../reference/cli.md).
 - **Structured Data**: Use tables for configuration flags or API parameters.

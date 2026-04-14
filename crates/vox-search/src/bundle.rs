@@ -176,7 +176,7 @@ pub async fn run_search_with_verification(
                                 }
                             }
                             let mut t_lines = Vec::new();
-                            for h in hits {
+                            for h in &hits {
                                 t_lines.push(format!(
                                     "[crag_tavily:{}] {} (score: {:.3})",
                                     h.url,
@@ -206,6 +206,20 @@ pub async fn run_search_with_verification(
                             diagnostics
                                 .notes
                                 .push(format!("tavily_results_count={}", t_lines.len()));
+                            
+                            for h in &hits {
+                                let mut hasher = blake3::Hasher::new();
+                                hasher.update(b"a2a-search-token");
+                                hasher.update(h.url.as_bytes());
+                                let token = format!("a2a_{}", hasher.finalize().to_hex());
+                                execution.durable_artifacts.push(crate::execution::DurableArtifact {
+                                    uri: format!("tavily:{}", h.url),
+                                    token: Some(token),
+                                    expires_at_unix_ms: None,
+                                    chunk_count: 1,
+                                });
+                            }
+                            
                             execution.web_lines.extend(t_lines.iter().cloned());
                             if policy.prefer_rrf_merge {
                                 execution.rrf_fused_lines.extend(t_lines);

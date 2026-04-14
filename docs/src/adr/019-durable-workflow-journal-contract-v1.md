@@ -53,5 +53,5 @@ That made two failure modes too easy:
 ## Related
 
 - [Explanation: Durable Execution](../explanation/expl-durable-execution.md)
-- [Crate: vox-workflow-runtime](../api/vox-runtime.md)
+- [Crate: vox-workflow-runtime](../reference/cli.md)
 - [ADR 004: Codex over Arca over Turso](004-codex-arca-turso-ssot.md)

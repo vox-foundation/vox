@@ -20,7 +20,7 @@ This page is the **contributor SSOT** for what “put `@mcp.tool` on Vox code an
 | --- | --- | --- |
 | `@mcp.tool` on `.vox` source causes the compiler to emit an MCP-capable **stdio JSON-RPC** server for **that generated crate** | **Yes** | See [Generated app path](#generated-app-path-vox--compiler). |
 | The same decorator **automatically** registers tools into the shipped **`vox-mcp`** binary every editor uses | **No** | `vox-mcp` uses a **separate** YAML registry and hand-wired Rust; see [First-party vox-mcp path](#first-party-vox-mcp-path). |
-| `@mcp.resource` is implemented in the core lexer/parser/codegen | **Yes** | [`@mcp.resource`](../api/decorators/mcp_resource.md): nullary fn, exact URI match; `resources/list` + `resources/read` in generated `mcp_server.rs`. |
+| `@mcp.resource` is implemented in the core lexer/parser/codegen | **Yes** | [`@mcp.resource`](../reference/ref-decorators.md): nullary fn, exact URI match; `resources/list` + `resources/read` in generated `mcp_server.rs`. |
 
 If marketing or tutorials imply a single global “drop a decorator and Cursor sees it,” that is **not** accurate until the [Roadmap: delivering the zero-wiring promise](#roadmap-delivering-the-zero-wiring-promise) items land.
 
@@ -44,7 +44,7 @@ If marketing or tutorials imply a single global “drop a decorator and Cursor s
 
 **Flow:** Unified operation rows in [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) project to MCP registry output [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) via `vox ci operations-sync --target mcp --write`; Rust then consumes this through [`vox-mcp-registry`](../../../crates/vox-mcp-registry) → `TOOL_REGISTRY`. The same catalog projects transport-independent **capability ids** / planner metadata to [`contracts/capability/capability-registry.yaml`](../../../contracts/capability/capability-registry.yaml) via `--target capability --write` (see [Capability registry SSOT](capability-registry-ssot.md)); agents can call MCP tool **`vox_capability_model_manifest`** for the merged JSON view. Per-tool behavior lives in [`crates/vox-orchestrator/src/mcp_tools/tools/dispatch.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/dispatch.rs), JSON Schema in [`input_schemas.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/input_schemas.rs), params in [`params.rs`](../../../crates/vox-orchestrator/src/mcp_tools/params.rs).
 
-**Wire:** **RMCP** stdio server; optional **HTTP + WebSocket** gateway ([`docs/src/api/vox-orchestrator.md`](../api/vox-mcp.md)).
+**Wire:** **RMCP** stdio server; optional **HTTP + WebSocket** gateway ([`docs/src/reference/cli.md)).
 
 **Scaling:** First-party **registry identity** is one catalog row per operation (MCP + CLI + capability YAML are generated); implementation cost is still **dispatch + schema + handler code** per tool in Rust.
 
@@ -79,7 +79,7 @@ Use the right **framing** for the **latency and session model**:
 ## Agent-to-agent (A2A) and orchestration
 
 - **Mesh/DB/local bus** carry A2A payloads; they are **not** MCP-framed on the wire.
-- **MCP** exposes **operator/LLM** controls such as `a2a_send` / `a2a_inbox` ([`crates/vox-orchestrator/src/mcp_tools/a2a.rs`](../../../crates/vox-orchestrator/src/mcp_tools/a2a.rs)); see [`docs/src/api/vox-orchestrator.md` § Module `a2a`](../api/vox-mcp.md).
+- **MCP** exposes **operator/LLM** controls such as `a2a_send` / `a2a_inbox` ([`crates/vox-orchestrator/src/mcp_tools/a2a.rs`](../../../crates/vox-orchestrator/src/mcp_tools/a2a.rs)); see [`docs/src/reference/cli.md).
 - **Creative:** For selected `A2AMessageType`s, define **JSON sub-schemas** shared with MCP tool `inputSchema` so the same **validation** runs at message ingress and at tool boundaries—**SSOT = schema**, transport stays native.
 
 ## When **not** to use MCP (even if it is trendy)
@@ -101,8 +101,8 @@ These are **design options**, not all committed work. Pick based on product boun
 
 ## Related docs and contracts
 
-- [Crate API: vox-mcp](../api/vox-mcp.md) — operational SSOT for the first-party server.
-- [@mcp.tool decorator](../api/decorators/mcp_tool.md) — syntax entry (link here for architecture depth).
+- [Crate API: vox-mcp](../reference/cli.md) — operational SSOT for the first-party server.
+- [@mcp.tool decorator](../reference/ref-decorators.md) — syntax entry (link here for architecture depth).
 - [Communication protocols taxonomy](../reference/communication-protocols.md) — MCP vs WS vs SSE.
 - [MCP tool registry contract](../reference/mcp-tool-registry-contract.md) — YAML SSOT pointer.
 - [VoxDB connection policy (SSOT)](voxdb-connect-policy.md) — where DB belongs in the stack.

@@ -1,3 +1,9 @@
+---
+title: "scientia socrates unification research 2026"
+description: "Automatically added frontmatter for scientia socrates unification research 2026"
+category: "architecture"
+status: "research"
+---
 # Scientia Worthiness × Socrates Protocol: Unification Analysis
 
 **Status:** Research / Design Proposal  

@@ -1,3 +1,9 @@
+---
+title: "cryptography ssot 2026"
+description: "Automatically added frontmatter for cryptography ssot 2026"
+category: "architecture"
+status: "research"
+---
 # Cryptography SSoT (2026)
 
 This document defines the structural rules for cryptography across the Vox project.

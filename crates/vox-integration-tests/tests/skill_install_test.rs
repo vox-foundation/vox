@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
-use vox_mcp::{ServerState, tools};
+use vox_orchestrator::mcp_tools::{ServerState, handle_tool_call as tools};
 use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]
 async fn test_skill_install_tool_availability() {
     let config = OrchestratorConfig::default();
-    let state = ServerState::new(config);
+    let state = ServerState::new_full(config);
 
     // 1. Install a test skill via vox_skill_install
     let test_skill = r#"---
@@ -31,7 +31,7 @@ Instructions inside.
         "bundle_json": bundle_json
     });
 
-    let resp: String = tools::handle_tool_call(&state, "vox_skill_install", install_req)
+    let resp: String = tools(&state, "vox_skill_install", install_req)
         .await
         .unwrap();
     assert!(
@@ -42,7 +42,7 @@ Instructions inside.
 
     // 2. Verify it appears in vox_skill_list
     let list_req = serde_json::json!({});
-    let list_resp: String = tools::handle_tool_call(&state, "vox_skill_list", list_req)
+    let list_resp: String = tools(&state, "vox_skill_list", list_req)
         .await
         .unwrap();
     assert!(list_resp.contains("test.macro"));

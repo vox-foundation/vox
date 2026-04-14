@@ -16,6 +16,16 @@ pub struct A2ARetrievalRequest {
     pub session_id: Option<String>,
     pub policy_version: u32,
 }
+/// Reference to a securely persisted retrieval artifact, replacing inline prompt injection risks.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2ADurableArtifact {
+    pub uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at_unix_ms: Option<u64>,
+    pub chunk_count: usize,
+}
 
 /// Evidence package returned to the requester.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +39,9 @@ pub struct A2ARetrievalResponse {
     /// Cross-corpus RRF ordering when enabled in policy (else empty).
     #[serde(default)]
     pub rrf_fused_excerpts: Vec<String>,
+    /// Secure references to large evidence bodies, replacing inline text for high-volume results.
+    #[serde(default)]
+    pub durable_artifacts: Vec<A2ADurableArtifact>,
     pub diagnostics: SearchDiagnostics,
     pub from_node_id: Option<String>,
 }
@@ -52,6 +65,12 @@ impl A2ARetrievalResponse {
             chunk_excerpts,
             repo_paths: execution.repo_lines.clone(),
             rrf_fused_excerpts: execution.rrf_fused_lines.clone(),
+            durable_artifacts: execution.durable_artifacts.iter().map(|da| A2ADurableArtifact {
+                uri: da.uri.clone(),
+                token: da.token.clone(),
+                expires_at_unix_ms: da.expires_at_unix_ms,
+                chunk_count: da.chunk_count,
+            }).collect(),
             diagnostics,
             from_node_id: from_node_id.map(|s| s.into()),
         }
@@ -83,6 +102,7 @@ mod tests {
             qdrant_lines: vec!["[qdrant:9] z".into()],
             rrf_fused_lines: vec!["fused".into()],
             web_lines: vec![],
+            durable_artifacts: vec![],
             warnings: Vec::new(),
             used_vector: false,
             used_bm25: true,

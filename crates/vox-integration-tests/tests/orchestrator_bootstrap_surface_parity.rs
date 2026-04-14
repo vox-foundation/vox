@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serial_test::serial;
-use vox_mcp::ServerState;
+use vox_orchestrator::mcp_tools::ServerState;
 use vox_orchestrator::{OrchestratorConfig, build_repo_scoped_orchestrator};
 
 struct RestoreCwd(PathBuf);
@@ -33,7 +33,7 @@ async fn mcp_server_state_matches_shared_bootstrap() {
 
     let config = OrchestratorConfig::default();
     let build = build_repo_scoped_orchestrator(config.clone(), None);
-    let state = ServerState::new(config);
+    let state = ServerState::new_full(config);
 
     assert_eq!(
         build.repository.repository_id,

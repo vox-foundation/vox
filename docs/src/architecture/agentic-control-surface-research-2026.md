@@ -6,7 +6,9 @@ status: "research"
 sort_order: 5
 last_updated: 2026-04-12
 training_eligible: true
+training_rationale: "Survey of HITL steering and control surface patterns valuable for agent decision-making training examples."
 schema_type: "TechArticle"
+
 ---
 
 # Unified Agentic Control Surface Research (April 2026)

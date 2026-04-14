@@ -1,9 +1,7 @@
 ---
-title: Dependency Sprawl Audit and Resolution
-date: 2026-04-13
-author: Antigravity
-status: Standardized
-tags: [architecture, dependencies, cargo, hygiene, ci-cd]
+title: "Dependency Sprawl Audit and Resolution (2026)"
+category: "architecture"
+status: "current"
 ---
 
 # Dependency Sprawl Audit and Resolution (2026)

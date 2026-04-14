@@ -32,7 +32,7 @@ This surface is emitted by `vox-mcp` only when `VOX_MCP_HTTP_ENABLED=1` and is i
 
 ## Related
 
-- [Crate API: vox-mcp](../api/vox-mcp.md)
+- [Crate API: vox-mcp](../reference/cli.md)
 - [MCP tool registry (contract SSOT)](mcp-tool-registry-contract.md)
 - [MCP HTTP read-role governance contract](mcp-http-read-role-governance-contract.md)
 - [Environment variables (SSOT)](env-vars.md)

@@ -345,4 +345,4 @@ flowchart LR
 - [Compiler Architecture](../explanation/expl-architecture.md)
 - [Compiler Lowering Phases](../explanation/expl-compiler-lowering.md)
 - [Vox web stack SSOT](../reference/vox-web-stack.md)
-- [vox-codegen-ts API](../api/vox-codegen-ts.md)
+- [vox-codegen-ts API](../reference/cli.md)

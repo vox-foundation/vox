@@ -107,12 +107,12 @@ These tasks extend the parser/AST data model. Complete all before touching HIR o
 
 ### A12 — Parser: hard error on `@hook fn`
 - [ ] **File:** `crates/vox-compiler/src/parser/descent/decl/head.rs` — find where `Token::AtHook` or `@hook` is dispatched
-- [ ] Emit `ParseError` with message: `"@hook fn is retired. Hooks belong in @island TypeScript files (islands/src/<Name>/<Name>.tsx). See docs/src/api/decorators/hook.md"`
+- [ ] Emit `ParseError` with message: `"@hook fn is retired. Hooks belong in @island TypeScript files (islands/src/<Name>/<Name>.tsx). See docs/src/reference/ref-decorators.md"`
 - [ ] Return Err(()) — do not produce an AST node
 
 ### A13 — Parser: hard error on `@provider fn`
 - [ ] **File:** same as A12
-- [ ] Emit: `"@provider fn is retired. Wrap app-level providers in __root.tsx (generated scaffold). See docs/src/api/decorators/provider.md"`
+- [ ] Emit: `"@provider fn is retired. Wrap app-level providers in __root.tsx (generated scaffold). See docs/src/reference/ref-decorators.md"`
 
 ### A14 — Parser: hard error on `page: "path" { }`
 - [ ] **File:** wherever `Decl::Page` is parsed
@@ -475,34 +475,34 @@ Fix the broken `serverFns.ts` emission.
 - [ ] Section: loading: — Clarify this maps to TanStack `pendingComponent`
 - [ ] Section: layout: — Clarify this maps to TanStack pathless layout route
 
-### G4 — Create or update `docs/src/api/decorators/loading.md`
+### G4 — Create or update `docs/src/reference/ref-decorators.md`
 - [ ] Document: `loading: fn Name() { view: ... }`
 - [ ] TanStack mapping: `pendingComponent` on routes
 - [ ] Show full example with routes block binding
 
-### G5 — Create or update `docs/src/api/decorators/layout.md`
+### G5 — Create or update `docs/src/reference/ref-decorators.md`
 - [ ] Document: `layout: fn Name() { view: <div>...<Outlet/>...</div> }`
 - [ ] TanStack mapping: pathless layout route file
 - [ ] Show `under LayoutName` in routes block
 
-### G6 — Update `docs/src/api/decorators/not_found.md`
+### G6 — Update `docs/src/reference/ref-decorators.md`
 - [ ] Document: `not_found: ComponentName` inside `routes { }` block
 - [ ] TanStack mapping: `notFoundComponent` on `createRootRoute`
 
-### G7 — Create `docs/src/api/decorators/error_boundary.md`
+### G7 — Create `docs/src/reference/ref-decorators.md`
 - [ ] Document: `error_boundary: ComponentName` inside `routes { }` block (or standalone)
 - [ ] TanStack mapping: `errorComponent` on `createRootRoute`
 
-### G8 — Update `docs/src/api/decorators/context.md` — RETIRED
+### G8 — Update `docs/src/reference/ref-decorators.md` — RETIRED
 - [ ] Mark as retired
 - [ ] Add migration guide: "Use `router.context` from `createRouter({ context: {...} })` or `@island` TypeScript for local state"
 - [ ] Remove code examples that use `context:` syntax
 
-### G9 — Update `docs/src/api/decorators/hook.md` — RETIRED
+### G9 — Update `docs/src/reference/ref-decorators.md` — RETIRED
 - [ ] Mark as retired
 - [ ] Migration guide: "React hooks belong in `@island` TypeScript files: `islands/src/<Name>/<Name>.tsx`"
 
-### G10 — Update `docs/src/api/decorators/provider.md` — RETIRED
+### G10 — Update `docs/src/reference/ref-decorators.md` — RETIRED
 - [ ] Mark as retired
 - [ ] Migration guide: "Add providers to `app/client.tsx` or `__root.tsx` wrapping `<Outlet />`"
 

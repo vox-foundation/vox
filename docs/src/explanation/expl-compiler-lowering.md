@@ -69,4 +69,4 @@ By having multiple intermediate representations, Vox can perform complex archite
 
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
-- [API Reference: vox-hir (Archived)](../api/vox-hir-ARCHIVED.md) — Details on the HIR data structures.
+- [API Reference: vox-hir (Archived)](../reference/cli.md) — Details on the HIR data structures.

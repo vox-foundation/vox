@@ -4,7 +4,7 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tempfile::TempDir;
-use vox_mcp::tools;
+use vox_orchestrator::mcp_tools::handle_tool_call as tools;
 
 static PROJECT_INIT_CWD_LOCK: Mutex<()> = Mutex::new(());
 
@@ -26,8 +26,8 @@ async fn vox_project_init_writes_nested_application() {
     let t = TempDir::new().expect("temp workspace");
     std::env::set_current_dir(t.path()).expect("chdir temp");
 
-    let state = vox_mcp::ServerState::new_test().await;
-    let raw = tools::handle_tool_call(
+    let state = vox_orchestrator::mcp_tools::ServerState::new_full(vox_orchestrator::OrchestratorConfig::default());
+    let raw = tools(
         &state,
         "vox_project_init",
         json!({

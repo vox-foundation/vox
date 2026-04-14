@@ -58,7 +58,7 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 ## Phase 6 — v0
 
 - [x] **`vox build`** validates each present `{Name}.tsx` for `@v0` against the **named export** contract; **`cargo test -p vox-cli v0_tsx_normalize`** covers matchers; optional **`vox doctor`** check when **`VOX_WEB_TS_OUT`** points at the TS output dir
-- [x] Docs: [@v0](../api/decorators/v0.md) links **v0.dev**, **named exports**, **islands** / `vox island`, and **doctor** env
+- [x] Docs: [@v0](../reference/ref-decorators.md) links **v0.dev**, **named exports**, **islands** / `vox island`, and **doctor** env
 
 ## Phase 7 — Virtual File Routes + Complete TanStack Start
 

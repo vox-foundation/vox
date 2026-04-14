@@ -682,10 +682,10 @@ When `--scaffold` is passed (or when `app/router.tsx` does not exist), emit scaf
 - `docs/src/architecture/tanstack-web-roadmap.md` — Update Phase 4 status, link this spec
 - `docs/src/architecture/tanstack-web-backlog.md` — Add Phase 7 tasks from this spec
 - `docs/src/reference/ref-web-model.md` — Update route syntax examples with `with (loader:)`, `under:`, `not_found:`, `error:`
-- `docs/src/api/decorators/` — Update `loading.md`, `layout.md`, `not_found.md`, `error_boundary.md` to describe TanStack mapping
-- `docs/src/api/decorators/context.md` — Mark retired with migration guide to TanStack router context
-- `docs/src/api/decorators/hook.md` — Mark retired with migration guide to islands
-- `docs/src/api/decorators/provider.md` — Mark retired with migration guide to `__root.tsx`
+- `docs/src/reference/ref-decorators.md` to describe TanStack mapping
+- `docs/src/reference/ref-decorators.md` — Mark retired with migration guide to TanStack router context
+- `docs/src/reference/ref-decorators.md` — Mark retired with migration guide to islands
+- `docs/src/reference/ref-decorators.md` — Mark retired with migration guide to `__root.tsx`
 - `examples/golden/blog.vox` — Full-stack golden example using all new syntax
 
 ---

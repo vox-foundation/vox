@@ -197,5 +197,5 @@ that the compiler inlines into generated code.
 ## Related
 
 - [Security Model](../explanation/expl-security.md) — how Vox handles secrets and threat modeling
-- [vox-runtime API](../api/vox-runtime.md) — full runtime module reference
-- [FTT Pipeline](../api/example_greaterfool_reference.md) — live usage of `hash_secure` and `uuid` in production
+- [vox-runtime API](../reference/cli.md) — full runtime module reference
+- [FTT Pipeline](../how-to/examples.md) — live usage of `hash_secure` and `uuid` in production

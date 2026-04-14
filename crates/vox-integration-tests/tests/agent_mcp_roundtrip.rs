@@ -1,19 +1,19 @@
 #![allow(missing_docs)]
 
-use vox_mcp::{ServerState, tools};
+use vox_orchestrator::mcp_tools::{ServerState, handle_tool_call as tools};
 use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]
 async fn test_agent_mcp_roundtrip() {
     let config = OrchestratorConfig::default();
-    let state = ServerState::new(config);
+    let state = ServerState::new_full(config);
 
     // 1. Submit a task
     let submit_req = serde_json::json!({
         "description": "Test task",
         "files": []
     });
-    let resp: String = tools::handle_tool_call(&state, "vox_submit_task", submit_req)
+    let resp: String = tools(&state, "vox_submit_task", submit_req)
         .await
         .unwrap();
     assert!(
@@ -30,7 +30,7 @@ async fn test_agent_mcp_roundtrip() {
         "task_id": task_id
     });
     let status_resp: String =
-        tools::handle_tool_call(&state, "vox_task_status", status_req.clone())
+        tools(&state, "vox_task_status", status_req.clone())
             .await
             .unwrap();
     assert!(status_resp.contains("\"success\": true"));
@@ -41,7 +41,7 @@ async fn test_agent_mcp_roundtrip() {
         "files_modified": [],
         "agent_name": "Agent_1"
     });
-    let complete_resp: String = tools::handle_tool_call(&state, "vox_complete_task", complete_req)
+    let complete_resp: String = tools(&state, "vox_complete_task", complete_req)
         .await
         .unwrap();
     assert!(

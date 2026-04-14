@@ -38,7 +38,7 @@ Use this as the **single execution checklist** for telemetry unification. Check 
 ### 0.C Core reference docs
 
 - [x] `docs/src/reference/telemetry-metric-contract.md` — add “Related SSOT” block: trust-ssot, taxonomy, retention-sensitivity, client-disclosure.
-- [x] `docs/src/api/vox-orchestrator.md` — add pointer to telemetry-trust-ssot next to cost-event and mesh telemetry sections.
+- [x] `docs/src/reference/cli.md` — add pointer to telemetry-trust-ssot next to cost-event and mesh telemetry sections.
 - [x] `docs/src/architecture/completion-policy-ssot.md` — add pointer to telemetry-retention-sensitivity-ssot for `ci_completion_*` classification.
 - [x] `docs/src/architecture/voxdb-connect-policy.md` — note optional DB and impact on telemetry availability (no writes when DB absent).
 

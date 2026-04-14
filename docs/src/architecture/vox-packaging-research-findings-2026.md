@@ -216,7 +216,7 @@ These modes must be consistently enforced in local workflows, CI lanes, and Dock
 ### Toolchain upgrade distribution (packaging wave closure)
 
 - **Namespace / safety:** `vox upgrade` is **toolchain-only** and must not touch `Vox.toml` / `vox.lock` (enforced in CI). The command currently emits **operator guidance** (channel placeholder, rebuild / PATH hints).
-- **Binary SSOT for replacing `vox`:** documented artifact layout and triples live in [`binary release contract`](../ci/binary-release-contract.md); first-party install path is [`vox-bootstrap`](../api/vox-bootstrap.md) (falls back to `cargo install --locked --path crates/vox-cli` when no asset matches).
+- **Binary SSOT for replacing `vox`:** documented artifact layout and triples live in [`binary release contract`](../ci/binary-release-contract.md); first-party install path is [`vox-bootstrap`](../reference/cli.md) (falls back to `cargo install --locked --path crates/vox-cli` when no asset matches).
 - **Toolchain self-update (shipped):** `vox upgrade` is **check-only** by default; **`--apply`** uses **`self_update`** + **`checksums.txt`** (same contract as bootstrap) into **`CARGO_HOME/bin`**, with **`--provider github|gitlab|http`**, semver gates, and **`--allow-breaking` / `--allow-prerelease`**. Further hardening (e.g. TUF) remains optional.
 
 ## Research-backed acceptance criteria

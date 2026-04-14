@@ -27,5 +27,5 @@ Codex tables and some MCP tool names still use the `gamify_*` prefix. That is **
 
 ## Related
 
-- Crate overview: [`vox-ludus`](../api/vox-ludus.md)
+- Crate overview: [`vox-ludus`](../reference/cli.md)
 - Integration contract: [`ludus-integration-contract.md`](ludus-integration-contract.md)

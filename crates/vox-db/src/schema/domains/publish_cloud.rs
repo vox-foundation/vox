@@ -301,7 +301,9 @@ CREATE TABLE IF NOT EXISTS scientia_feed_sources (
     source_kind TEXT NOT NULL,
     crawl_interval_ms INTEGER NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
-    last_crawled_at_ms INTEGER NOT NULL DEFAULT 0,
+    last_crawled_at_ms INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS syndication_events (
     id               TEXT    PRIMARY KEY,
     publication_id   TEXT    NOT NULL,

@@ -1,3 +1,9 @@
+---
+title: "orchestrator symphony research 2026"
+description: "Automatically added frontmatter for orchestrator symphony research 2026"
+category: "architecture"
+status: "research"
+---
 # Research Synthesis: Symphony Orchestra Conduction vs. Multi-Agent AI Orchestration (2026)
 
 **Date**: April 2026

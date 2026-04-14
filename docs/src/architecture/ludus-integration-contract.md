@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 ## Canonical event pipeline
 
-1. Build a JSON object with a **snake_case** `type` field matching [`vox_ludus::reward_policy::base_reward`](../api/vox-ludus.md) keys (aligned with `serde` `AgentEventKind` in the orchestrator).
+1. Build a JSON object with a **snake_case** `type` field matching [`vox_ludus::reward_policy::base_reward`](../reference/cli.md) keys (aligned with `serde` `AgentEventKind` in the orchestrator).
 2. Call **`vox_ludus::event_router::route_event`** (or **`route_event_auto_user`**) on [`vox_db::Codex`]. Do **not** call `process_event_rewards` directly from MCP/orchestrator sinks — the router owns daily counters, companion sync, Phoenix/shield rules, combos, and teaching hooks.
 3. For MCP / long-running orchestrator sinks, inject **`ludus_dedupe_id`** (numeric) into the payload so `gamify_processed_events` can suppress replays.
 

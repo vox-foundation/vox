@@ -828,7 +828,7 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S064 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S063 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | serializability gate. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S065 | update | C3 | 1.4 | 1.2 | 420 | OP-S064 | `docs/src/explanation/expl-architecture.md` | operation catalog cross-link notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S066 | update | C3 | 1.4 | 1.2 | 420 | OP-S065 | `docs/src/explanation/expl-compiler-lowering.md` | operation catalog cross-link notes | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S067 | update | C3 | 1.4 | 1.2 | 420 | OP-S066 | `docs/src/api/vox-codegen-ts.md` | operation catalog cross-link notes | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S067 | update | C3 | 1.4 | 1.2 | 420 | OP-S066 | `docs/src/reference/cli.md` | operation catalog cross-link notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S068 | gate-test | C2 | 1.2 | 1.2 | 230 | OP-S067 | `docs/src/reference/vox-web-stack.md` | docs cross-link gate. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S069 | update | C4 | 1.6 | 1.3 | 680 | OP-S068 | `crates/vox-cli/src/templates/islands.rs` | compatibility telemetry comments | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S070 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S069 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | telemetry fixture | Done: batch close OP-S049-S220 (see supplemental map).
@@ -893,7 +893,7 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S129 | update | C3 | 1.4 | 1.2 | 420 | OP-S128 | `docs/src/reference/vox-web-stack.md` | roadmap link pass A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S130 | update | C3 | 1.4 | 1.2 | 420 | OP-S129 | `docs/src/explanation/expl-architecture.md` | roadmap link pass A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S131 | update | C3 | 1.4 | 1.2 | 420 | OP-S130 | `docs/src/explanation/expl-compiler-lowering.md` | roadmap link pass A | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S132 | gate-test | C2 | 1.2 | 1.2 | 230 | OP-S131 | `docs/src/api/vox-codegen-ts.md` | roadmap link gate A. | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S132 | gate-test | C2 | 1.2 | 1.2 | 230 | OP-S131 | `docs/src/reference/cli.md` | roadmap link gate A. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S133 | update | C5 | 1.7 | 1.3 | 760 | OP-S132 | `crates/vox-compiler/src/web_ir/lower.rs` | interop hatches notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S134 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S133 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | interop hatches fixture A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S135 | update | C5 | 1.7 | 1.3 | 760 | OP-S134 | `crates/vox-compiler/src/web_ir/validate.rs` | interop policy checks A | Done: batch close OP-S049-S220 (see supplemental map).
@@ -973,7 +973,7 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S209 | update | C3 | 1.4 | 1.2 | 420 | OP-S208 | `docs/src/reference/vox-web-stack.md` | final cross-link pass | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S210 | update | C3 | 1.4 | 1.2 | 420 | OP-S209 | `docs/src/explanation/expl-architecture.md` | final cross-link pass | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S211 | update | C3 | 1.4 | 1.2 | 420 | OP-S210 | `docs/src/explanation/expl-compiler-lowering.md` | final cross-link pass | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S212 | gate-test | C2 | 1.2 | 1.2 | 230 | OP-S211 | `docs/src/api/vox-codegen-ts.md` | final docs gate. | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S212 | gate-test | C2 | 1.2 | 1.2 | 230 | OP-S211 | `docs/src/reference/cli.md` | final docs gate. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S213 | update | C3 | 1.4 | 1.2 | 420 | OP-S212 | `docs/src/adr/012-internal-web-ir-strategy.md` | final scorecard link pass | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S214 | update | C2 | 1.1 | 1.1 | 210 | OP-S213 | `docs/src/adr/README.md` | final ADR index pass | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S215 | add-test | C3 | 1.4 | 1.4 | 520 | OP-S214 | `crates/vox-integration-tests/tests/pipeline.rs` | final gate matrix fixture | Done: batch close OP-S049-S220 (see supplemental map).
