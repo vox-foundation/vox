@@ -47,6 +47,7 @@ pub(super) async fn run_gpu_training(
     seed: u64,
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
+    mix_config: Option<PathBuf>,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -58,8 +59,8 @@ pub(super) async fn run_gpu_training(
             "⏭".cyan()
         );
     }
-    let mix_path =
-        vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref());
+    let mix_path = mix_config
+        .unwrap_or_else(|| vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref()));
     if !skip_mix && mix_path.is_file() {
         eprintln!(
             "  {} Running corpus mix to refresh training data...",
@@ -72,7 +73,7 @@ pub(super) async fn run_gpu_training(
             &data_dir,
             skip_mix,
             true,
-            None,
+            Some(&mix_path),
         )?;
 
     let resolved = vox_corpus::training::preflight::validate_train_preflight(

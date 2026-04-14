@@ -353,7 +353,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         }
         "context" => (
             format!(
-                "context {type_name}Context {{\n    value: str\n    update: fn(str) -> Unit\n}}"
+                "context {type_name}Context {{\n    value: str\n    update: fn(str) to Unit\n}}"
             ),
             format!("Define a Vox context `{type_name}Context`"),
         ),
@@ -433,7 +433,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "routes" => (
             format!(
-                "routes {{\n    \"/\" -> {type_name}Page\n    \"/{noun}\" -> {type_name}View\n    \"/{noun}/:id\" -> {type_name}Detail\n}}"
+                "routes {{\n    \"/\" to {type_name}Page\n    \"/{noun}\" to {type_name}View\n    \"/{noun}/:id\" to {type_name}Detail\n}}"
             ),
             format!("Define Vox routes for `{type_name}`"),
         ),

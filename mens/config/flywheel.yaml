@@ -16,3 +16,12 @@ auto_train: false
 
 # Retention policy for dataset snapshots (number of snapshots to keep).
 snapshot_retention: 10
+
+# Domain-specific overrides (Dynamic Flywheel Orchestration)
+domains:
+  rust-expert:
+    sample_floor: 1000
+    min_ast_diversity: 0.35
+  agents:
+    sample_floor: 300
+    min_ast_diversity: 0.50

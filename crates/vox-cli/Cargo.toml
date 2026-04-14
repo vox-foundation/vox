@@ -42,15 +42,16 @@ gpu = [
     "vox-populi/mens-hf-hub",
     "dep:vox-tensor",
     "vox-tensor/train",
+    "vox-build-meta/gpu",
 ]
 # Back-compat alias: `gpu` already enables Candle QLoRA (native `--backend qlora`).
 mens-qlora = ["gpu"]
 # Candle qlora on NVIDIA CUDA (requires CUDA toolkit when compiling `candle-core`).
-mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
+mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda", "vox-build-meta/mens-candle-cuda"]
 # Candle qlora on Apple Metal (macOS only).
 
 # Cloud GPU training/serving dispatch (Vast.ai, RunPod).
-cloud = ["gpu", "vox-populi/mens-cloud"]
+cloud = ["gpu", "vox-populi/mens-cloud", "vox-build-meta/cloud"]
 # Populi join/heartbeat: fill `NodeRecord` GPU inventory from NVML when the driver is present.
 mesh-nvml-probe = ["dep:vox-populi", "vox-populi/nvml-gpu-probe"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
@@ -61,14 +62,16 @@ script-execution = [
     "dep:wasmtime-wasi",
     "dep:landlock",
     "dep:win32job",
+    "vox-build-meta/script-execution",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "gpu", "dep:axum", "dep:tokio-stream"]
+execution-api = ["script-execution", "gpu", "dep:axum", "dep:tokio-stream", "vox-build-meta/execution-api"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
     "dep:dirs",
     "dep:vox-ludus",
+    "vox-build-meta/stub-check",
 ]
 # Merge `vox-toestub` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
 completion-toestub = ["dep:vox-toestub"]

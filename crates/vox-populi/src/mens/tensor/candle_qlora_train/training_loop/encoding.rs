@@ -41,7 +41,7 @@ pub fn try_encode_training_step(
     } else {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     };
-    let prefix_len = crate::mens::tensor::ce_mask_align::aligned_prefix_token_len(
+    let prefix_len = crate::mens::tensor::candle_qlora_train::ce_mask_align::aligned_prefix_token_len(
         tokenizer,
         prefix_text.as_str(),
         text.as_str(),

@@ -167,22 +167,21 @@ The `@mcp.tool` decorator projects these hardened native functions directly to A
 
 <table width="100%">
 <tr>
-<td width="55%" align="center" valign="middle">
+<td width="66%" align="center" valign="middle">
   <img src="docs/src/assets/durable_essentialist_loop.webp" width="100%">
 </td>
-<td width="45%" valign="top">
+<td width="33%" valign="top">
 
 ```rust
 // [ activity: Compute Node Execution ]
-// Flaky steps that execute on transient workers (Node A/B).
+// Flaky steps on transient workers (Node A/B).
 activity charge_card(req: int) to Result[str] {
-    // If a node dies (DEAD OOM EVENT), Vox retries automatically
+    // Retries automatically on node death or OOM
     ret Ok("tx_123")
 }
 
 // [ workflow: Durable Orchestration ]
-// Commits state to the Arca Vault (SQLite). If Node A crashes,
-// the workflow rehydrates and safely resumes on Node B.
+// Commits to Arca Vault; survives node crashes.
 workflow checkout(req: int) to str {
     let result = charge_card(req)
     match result {
@@ -192,7 +191,7 @@ workflow checkout(req: int) to str {
 }
 
 // [ @mcp.tool: MCP Interface ]
-// Expose the durable workflow to Anthropic's protocol boundary.
+// Expose the workflow to Anthropic's MCP boundary.
 @mcp.tool "Process durable checkout"
 fn complete_purchase(req: int) to str {
     checkout(req)

@@ -295,9 +295,11 @@ pub fn run_candle_qlora_train(
     } else {
         vox_tensor::data::MalformedJsonlPolicy::Skip
     };
+    train_log::info(&format!("Loading training data from {} (min_rating={})...", train_path.display(), config.min_rating));
     let mut pairs =
         vox_tensor::data::load_all_with_policy(&train_path, config.min_rating, jsonl_policy)
             .with_context(|| format!("load training data from {}", train_path.display()))?;
+    train_log::info(&format!("Loaded {} pairs.", pairs.len()));
     if let Some(filter) = config.context_filter.as_ref() {
         let before = pairs.len();
         pairs.retain(|p| {
@@ -398,10 +400,13 @@ pub fn run_candle_qlora_train(
     let kv_dim = n_kv_heads * head_dim;
 
     // ── mmap base weights ─────────────────────────────────────────────────────
+    train_log::info(&format!("Mmapping base weights from {} files...", bundle.weight_paths.len()));
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
+    train_log::info(&format!("Loading embeddings ('{}') to device...", bundle.embed_key));
     let wte = vb_mmap.get((bundle.vocab, bundle.d_model), &bundle.embed_key)?;
+    train_log::info("Embeddings loaded.");
 
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
@@ -450,6 +455,9 @@ pub fn run_candle_qlora_train(
         ));
 
         for i in 0..bundle.layout.num_hidden_layers {
+            if i % 8 == 0 {
+                train_log::info(&format!("  [graph] building layer {i}/{}...", bundle.layout.num_hidden_layers));
+            }
             let layer_prefix = format!("{}.{}", bundle.layout.namespace_prefix, i);
             let layer_type = bundle
                 .layout

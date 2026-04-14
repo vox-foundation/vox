@@ -215,11 +215,13 @@ pub enum PopuliCorpusCmd {
         #[arg(long, default_value_t = 100)]
         count: usize,
     },
-    /// Evaluate the current corpus state against flywheel gates (diversity, volume).
     FlywheelCheck {
-        /// Path to the mixed corpus.
-        #[arg(long, default_value = "mens/data/train_mixed_vox_lang.jsonl")]
-        corpus: PathBuf,
+        /// Optional domain name (resolves corpus path automatically).
+        #[arg(long)]
+        domain: Option<String>,
+        /// Path to the mixed corpus (defaults to vox-lang if domain omitted).
+        #[arg(long)]
+        corpus: Option<PathBuf>,
     },
     /// Generate transplant pairs by injecting constructs from one sample into another.
     Transplant {
@@ -847,9 +849,21 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 println!("✓ Produced {} benchmark samples", actual);
                 Ok(())
             }
-            PopuliCorpusCmd::FlywheelCheck { corpus } => {
-                println!("Checking flywheel readiness for {} ...", corpus.display());
-                let result = vox_corpus::flywheel::evaluate_readiness(&corpus)?;
+            PopuliCorpusCmd::FlywheelCheck { domain, corpus } => {
+                let resolved_corpus = if let Some(c) = corpus {
+                    c
+                } else if let Some(d) = &domain {
+                    PathBuf::from(format!("mens/data/train_mixed_{}.jsonl", d.replace("-", "_")))
+                } else {
+                    PathBuf::from("mens/data/train_mixed_vox_lang.jsonl")
+                };
+
+                println!(
+                    "Checking flywheel readiness for {} (Domain: {}) ...",
+                    resolved_corpus.display(),
+                    domain.as_deref().unwrap_or("vox-lang")
+                );
+                let result = vox_corpus::flywheel::evaluate_readiness(&resolved_corpus, domain.as_deref())?;
                 match result {
                     vox_corpus::flywheel::FlywheelSignal::Ready { ast_diversity } => {
                         println!("🚀 FLYWHEEL READY (Diversity: {:.2})", ast_diversity);
@@ -861,7 +875,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                                 "mens_flywheel_triggered",
                                 true,
                                 Some("mens-corpus"),
-                                Some("populi corpus flywheel-check")
+                                Some(&format!("populi corpus flywheel-check --domain {}", domain.as_deref().unwrap_or("vox-lang")))
                             );
                         }
                     }

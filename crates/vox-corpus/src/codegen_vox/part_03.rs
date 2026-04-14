@@ -20,7 +20,7 @@ fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
         ),
         // Template 2: UI app
         format!(
-            "type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    ret <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" -> {tn}View\n}}"
+            "type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    ret <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" to {tn}View\n}}"
         ),
     ];
 

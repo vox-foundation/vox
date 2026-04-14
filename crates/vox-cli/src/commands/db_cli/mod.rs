@@ -161,6 +161,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 limit,
                 json,
             } => db::exec_history(tool_key.as_deref(), repo.as_deref(), limit, json).await,
+            DbCliCore::MensRuns { limit } => db::mens_runs(limit).await,
+            DbCliCore::MensMetrics { domain, limit } => {
+                db::mens_metrics(domain.as_deref(), limit).await
+            }
         },
         DbCli::Publication(cmd) => match cmd {
             DbCliPublication::PublicationPrepare {

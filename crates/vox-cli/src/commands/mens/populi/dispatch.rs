@@ -128,6 +128,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 1.05,               // trajectory_quality_boost
                 None,               // curriculum_schedule
                 Default::default(), // chatml_config
+                None,               // mix_config
             )
             .await?;
             Ok(())

@@ -6,6 +6,17 @@ license.workspace = true
 repository.workspace = true
 description = "Build-time metadata generator for feature capability manifest."
 
+[features]
+gpu = []
+oratio = []
+oratio-mic = []
+script-execution = []
+mens-candle-cuda = []
+cloud = []
+execution-api = []
+stub-check = []
+populi = []
+
 [dependencies]
 serde_json = { workspace = true }
 thiserror = { workspace = true }

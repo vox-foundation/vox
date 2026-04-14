@@ -174,6 +174,7 @@ pub async fn run_train(
     let mut effective_adapter_tag = adapter_tag.clone();
     let mut effective_curriculum_schedule = None;
     let mut effective_chatml = vox_populi::mens::tensor::training_config::ChatmlConfig::default();
+    let mut effective_mix_config = None;
 
     if let Some(domain_name) = &domain {
         match vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(
@@ -213,6 +214,7 @@ pub async fn run_train(
                 effective_chatml = profile.chatml.clone();
 
                 if let Some(ref mix_path) = profile.mix_config {
+                    effective_mix_config = Some(mix_path.clone());
                     // Update env var to point mix to this one if `vox mens corpus mix` called?
                     // Actually simply inform.
                     eprintln!("    Mix config: {}", mix_path.display());
@@ -304,6 +306,7 @@ pub async fn run_train(
         trajectory_quality_boost,
         effective_curriculum_schedule,
         effective_chatml,
+        effective_mix_config,
     )
     .await;
 

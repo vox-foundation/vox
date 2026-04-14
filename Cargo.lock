@@ -12363,6 +12363,7 @@ dependencies = [
  "hf-hub",
  "jsonschema",
  "jsonwebtoken",
+ "memmap2",
  "openapiv3",
  "owo-colors",
  "peft-rs",

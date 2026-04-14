@@ -570,7 +570,7 @@ pub async fn pref_list(user_id: &str, prefix: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// Query and display execution history.
+/// Query historical execution time for tools.
 pub async fn exec_history(
     tool_key: Option<&str>,
     repo: Option<&str>,
@@ -599,5 +599,85 @@ pub async fn exec_history(
             );
         }
     }
+    Ok(())
+}
+
+/// List historical MENS training runs from `populi_training_run` table.
+pub async fn mens_runs(limit: u32) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let runs = db.list_training_runs(limit).await?;
+    if runs.is_empty() {
+        println!("No training runs found in populi_training_run.");
+        return Ok(());
+    }
+    println!("{:<24} {:<12} {:<10} {:<8} {:<8} {:<16}", "Run ID", "Status", "Step", "Loss", "Epoch", "Updated");
+    println!("{}", "-".repeat(84));
+    for run in runs {
+        let loss = run.last_loss.map(|f| format!("{:.4}", f)).unwrap_or_else(|| "N/A".to_string());
+        let updated = chrono::DateTime::from_timestamp(run.updated_at, 0)
+            .map(|t| t.format("%m-%d %H:%M").to_string())
+            .unwrap_or_else(|| "N/A".to_string());
+            
+        println!("{:<24} {:<12} {:<10} {:<8} {:<8} {}", 
+            run.run_id, 
+            run.status, 
+            run.global_step, 
+            loss, 
+            run.epoch, 
+            updated
+        );
+    }
+    Ok(())
+}
+
+/// List MENS-specific telemetry (entropy, diversity, sample counts) from `research_metrics` table.
+pub async fn mens_metrics(domain: Option<&str>, limit: u32) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let session_prefix = if let Some(d) = domain {
+        format!("mens:{}", d)
+    } else {
+        "mens:".to_string()
+    };
+    
+    let conn = db.connection();
+    // Wave 4-02: Direct MENS telemetry query
+    let mut rows = conn.query(
+        "SELECT session_id, metric_type, numeric_value, metadata_json, created_at_ms 
+         FROM research_metrics 
+         WHERE session_id LIKE ?1 || '%' 
+         ORDER BY id DESC LIMIT ?2",
+        turso::params![session_prefix.clone(), limit as i64],
+    ).await?;
+
+    println!("{:<28} {:<24} {:<10} {:<20}", "Session", "Metric", "Value", "Time / Metadata");
+    println!("{}", "-".repeat(95));
+    
+    let mut count = 0;
+    while let Some(row) = rows.next().await? {
+        count += 1;
+        let session: String = row.get(0)?;
+        let mtype: String = row.get(1)?;
+        let val: Option<f64> = row.get(2)?;
+        let meta: Option<String> = row.get(3)?;
+        let ms: i64 = row.get(4)?;
+        
+        let val_str = val.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "-".to_string());
+        let time = chrono::DateTime::from_timestamp(ms / 1000, 0)
+            .map(|t| t.format("%H:%M:%S").to_string())
+            .unwrap_or_else(|| "??:??:??".to_string());
+            
+        println!("{:<28} {:<24} {:<10} [{}] {}", 
+            session, 
+            mtype, 
+            val_str, 
+            time,
+            meta.as_deref().unwrap_or("")
+        );
+    }
+    
+    if count == 0 {
+        println!("(No MENS metrics found matching prefix '{}')", session_prefix);
+    }
+    
     Ok(())
 }

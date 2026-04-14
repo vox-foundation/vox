@@ -10,6 +10,17 @@ pub struct FlywheelConfig {
     pub max_interval_hours: u64,
     /// Enable automatic training trigger (vs. emit signal only).
     pub auto_train: bool,
+    /// Snapshot retention policy (Wave 4 operational detail).
+    pub snapshot_retention: usize,
+    /// Domain-specific overrides.
+    #[serde(default)]
+    pub domains: std::collections::HashMap<String, FlywheelDomainConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlywheelDomainConfig {
+    pub sample_floor: Option<usize>,
+    pub min_ast_diversity: Option<f64>,
 }
 
 impl FlywheelConfig {
@@ -22,6 +33,22 @@ impl FlywheelConfig {
         }
         Self::default()
     }
+
+    /// Resolve effective config for a specific domain.
+    pub fn for_domain(&self, domain: Option<&str>) -> Self {
+        let mut effective = self.clone();
+        if let Some(d) = domain {
+            if let Some(ovr) = self.domains.get(d) {
+                if let Some(f) = ovr.sample_floor {
+                    effective.sample_floor = f;
+                }
+                if let Some(div) = ovr.min_ast_diversity {
+                    effective.min_ast_diversity = div;
+                }
+            }
+        }
+        effective
+    }
 }
 
 impl Default for FlywheelConfig {
@@ -31,6 +58,8 @@ impl Default for FlywheelConfig {
             min_ast_diversity: 0.40,
             max_interval_hours: 168,
             auto_train: false,
+            snapshot_retention: 10,
+            domains: std::collections::HashMap::new(),
         }
     }
 }
@@ -74,7 +103,10 @@ impl FlywheelState {
     }
 }
 
-pub fn evaluate_readiness(corpus_path: &std::path::Path) -> anyhow::Result<FlywheelSignal> {
+pub fn evaluate_readiness(
+    corpus_path: &std::path::Path,
+    domain: Option<&str>,
+) -> anyhow::Result<FlywheelSignal> {
     use std::io::BufRead;
     use xxhash_rust::xxh3::xxh3_64;
     
@@ -115,6 +147,7 @@ pub fn evaluate_readiness(corpus_path: &std::path::Path) -> anyhow::Result<Flywh
         0.0
     };
 
-    let state = FlywheelState::new(FlywheelConfig::load());
+    let config = FlywheelConfig::load().for_domain(domain);
+    let state = FlywheelState::new(config);
     Ok(state.check(count, diversity))
 }

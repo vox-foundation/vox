@@ -56,6 +56,7 @@ pub async fn run_train(
     trajectory_quality_boost: f32,
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
+    mix_config: Option<PathBuf>,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -351,6 +352,7 @@ pub async fn run_train(
             seed,
             curriculum_schedule,
             chatml,
+            mix_config,
         )
         .await;
     }

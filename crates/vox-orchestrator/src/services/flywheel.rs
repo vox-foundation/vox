@@ -1,91 +1,128 @@
 use std::sync::Arc;
+use std::collections::HashMap;
 use tokio::time::{interval, Duration};
 use vox_corpus::flywheel::{FlywheelState, FlywheelConfig, FlywheelSignal};
+use serde::Deserialize;
 use crate::Orchestrator;
+
+#[derive(Debug, Deserialize)]
+struct DomainProfilesConfig {
+    profiles: HashMap<String, DomainProfile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DomainProfile {
+    #[serde(default)]
+    mix_config: Option<String>,
+}
 
 /// Background service that monitors corpus diversity and triggers training.
 pub struct FlywheelMonitor {
-    _orch: Arc<Orchestrator>,
-    state: FlywheelState,
+    orch: Arc<Orchestrator>,
+    states: HashMap<String, FlywheelState>,
 }
 
 impl FlywheelMonitor {
     pub fn new(orch: Arc<Orchestrator>) -> Self {
-        let config = FlywheelConfig {
-            sample_floor: 1000,
+        let mut states = HashMap::new();
+        
+        // Load default config
+        let base_config = FlywheelConfig {
+            sample_floor: 500, // Reduced from 1000 to match flywheel.yaml defaults
             min_ast_diversity: 0.40,
             auto_train: true,
             ..Default::default()
         };
+
+        // Initialize tracked domains
+        // Ideally we'd load this from domain-profiles.yaml, but for now we'll 
+        // hardcode the three core domains requested.
+        let domains = vec!["vox-lang", "rust-expert", "agents"];
+        for domain in domains {
+            states.insert(domain.to_string(), FlywheelState::new(base_config.clone()));
+        }
+
         Self {
-            _orch: orch,
-            state: FlywheelState::new(config),
+            orch,
+            states,
         }
     }
 
     pub async fn spawn(self) {
         let mut tick = interval(Duration::from_secs(300)); // Check every 5 minutes
-        let state = self.state;
-        let orch = self._orch.clone();
+        let orch = self.orch.clone();
         let training_in_progress = Arc::new(tokio::sync::Mutex::new(false));
+        let mut states = self.states;
 
         tokio::spawn(async move {
-            let flywheel = state;
             loop {
                 tick.tick().await;
                 
-                // 1. Gather current metrics from Codex
-                let (current_samples, current_diversity) = {
-                    if let Some(db) = orch.db() {
-                        let snapshot = db.get_latest_corpus_snapshot().await.ok().flatten();
-                        let metrics = db.list_research_metrics_by_type("ast_diversity", "corpus_diversity_check", 1).await.ok();
-                        
-                        let count = snapshot.map(|(_, tp, _)| tp).unwrap_or(0);
-                        let diversity = metrics.and_then(|m| m.first().and_then(|(_, val, _)| *val)).unwrap_or(0.0);
-                        (count as usize, diversity)
-                    } else {
-                        (0, 0.0)
-                    }
-                };
+                let domains: Vec<String> = states.keys().cloned().collect();
                 
-                // 2. Evaluate
-                match flywheel.check(current_samples, current_diversity) {
-                    FlywheelSignal::Ready { ast_diversity } => {
-                        tracing::info!(current_samples, ast_diversity, "Flywheel: Training gate PASSED. Ready for wave.");
-                        
-                        // 3. Trigger training if auto_train is true and not already running
-                        if flywheel.config.auto_train {
-                            let training_in_progress = training_in_progress.clone();
-                            let in_progress = training_in_progress.lock().await;
-                            if !*in_progress {
-                                tracing::info!("Flywheel: Auto-dispatching autonomous training wave...");
-                                drop(in_progress);
-                                
-                                let training_flag = training_in_progress.clone();
-                                tokio::spawn(async move {
-                                    {
+                for domain in domains {
+                    // 1. Gather current metrics from Codex for this specific domain
+                    let (current_samples, current_diversity) = {
+                        if let Some(db) = orch.db() {
+                            let session_id = format!("corpus_diversity_check:{}", domain);
+                            
+                            // Query diversity
+                            let diversity_metrics = db.list_research_metrics_by_type("ast_diversity", &session_id, 1).await.ok();
+                            let diversity = diversity_metrics.and_then(|m| m.first().and_then(|(_, val, _)| *val)).unwrap_or(0.0);
+                            
+                            // Query sample count (recorded by our updated diversity-check)
+                            let count_metrics = db.list_research_metrics_by_type("corpus_sample_count", &session_id, 1).await.ok();
+                            let count = count_metrics.and_then(|m| m.first().and_then(|(_, val, _)| *val)).unwrap_or(0.0) as usize;
+                            
+                            (count, diversity)
+                        } else {
+                            (0, 0.0)
+                        }
+                    };
+                    
+                    let flywheel = states.get_mut(&domain).unwrap();
+                    
+                    // 2. Evaluate
+                    match flywheel.check(current_samples, current_diversity) {
+                        FlywheelSignal::Ready { ast_diversity } => {
+                            tracing::info!(domain = %domain, current_samples, ast_diversity, "Flywheel: Training gate PASSED. Ready for wave.");
+                            
+                            // 3. Trigger training if auto_train is true and not already running
+                            if flywheel.config.auto_train {
+                                let training_in_progress = training_in_progress.clone();
+                                let in_progress = training_in_progress.lock().await;
+                                if !*in_progress {
+                                    tracing::info!(domain = %domain, "Flywheel: Auto-dispatching autonomous training wave...");
+                                    drop(in_progress);
+                                    
+                                    let training_flag = training_in_progress.clone();
+                                    let domain_to_train = domain.clone();
+                                    
+                                    tokio::spawn(async move {
+                                        {
+                                            let mut g = training_flag.lock().await;
+                                            *g = true;
+                                        }
+                                        let res = trigger_autonomous_training(&domain_to_train).await;
+                                        if let Err(e) = res {
+                                            tracing::error!(domain = %domain_to_train, error = %e, "Flywheel: Autonomous training wave FAILED");
+                                        } else {
+                                            tracing::info!(domain = %domain_to_train, "Flywheel: Autonomous training wave COMPLETED successfully");
+                                        }
                                         let mut g = training_flag.lock().await;
-                                        *g = true;
-                                    }
-                                    let res = trigger_autonomous_training().await;
-                                    if let Err(e) = res {
-                                        tracing::error!(error = %e, "Flywheel: Autonomous training wave FAILED");
-                                    } else {
-                                        tracing::info!("Flywheel: Autonomous training wave COMPLETED successfully");
-                                    }
-                                    let mut g = training_flag.lock().await;
-                                    *g = false;
-                                });
-                            } else {
-                                tracing::debug!("Flywheel: Training already in progress, skipping trigger.");
+                                        *g = false;
+                                    });
+                                } else {
+                                    tracing::debug!(domain = %domain, "Flywheel: Training already in progress, skipping trigger.");
+                                }
                             }
                         }
-                    }
-                    FlywheelSignal::Pending { new_samples } => {
-                        tracing::debug!(new_samples, "Flywheel: Accumulating samples...");
-                    }
-                    _ => {
-                        tracing::debug!("Flywheel: Idle (waiting for diversity signal/samples)");
+                        FlywheelSignal::Pending { new_samples } => {
+                            tracing::debug!(domain = %domain, new_samples, "Flywheel: Accumulating samples...");
+                        }
+                        _ => {
+                            tracing::debug!(domain = %domain, "Flywheel: Idle (waiting for diversity signal/samples)");
+                        }
                     }
                 }
             }
@@ -93,27 +130,21 @@ impl FlywheelMonitor {
     }
 }
 
-async fn trigger_autonomous_training() -> anyhow::Result<()> {
-    let status = tokio::process::Command::new("cargo")
-        .arg("run")
-        .arg("--features")
-        .arg("gpu")
-        .arg("--bin")
-        .arg("vox")
-        .arg("--")
-        .arg("mens")
-        .arg("train")
-        .arg("--config")
-        .arg("mens/config/mix.yaml")
-        .arg("--backend")
-        .arg("qlora")
-        .arg("--tokenizer")
-        .arg("hf")
+async fn trigger_autonomous_training(domain: &str) -> anyhow::Result<()> {
+    tracing::info!(domain = %domain, "Starting autonomous training subprocess...");
+    
+    let status = tokio::process::Command::new("pwsh")
+        .arg("-NonInteractive")
+        .arg("-NoProfile")
+        .arg("-File")
+        .arg("scripts/mens-full-pipeline.ps1")
+        .arg("-Domain")
+        .arg(domain)
         .status()
         .await?;
 
     if !status.success() {
-        anyhow::bail!("Autonomous training subprocess exited with code {:?}", status.code());
+        anyhow::bail!("Autonomous training subprocess for domain '{}' exited with code {:?}", domain, status.code());
     }
     Ok(())
 }

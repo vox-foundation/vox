@@ -10,6 +10,7 @@ use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
 use qlora_rs::training::QLoraTrainer;
+use rand::SeedableRng;
 
 use super::{
     PAUSE_FLAG, QLORA_ETA_EMA_ALPHA, TrainingDbEvent, TrainingLoopStats, compute_cosine_lr,
@@ -25,9 +26,12 @@ pub mod curriculum;
 pub mod encoding;
 pub mod forward;
 pub mod logic;
-pub mod telemetry as telemetry_helpers;
+pub mod telem_helpers;
 pub mod types;
 pub mod validation;
+
+pub use self::checkpoint::apply_checkpoint_resume;
+pub use self::validation::preflight_masked_ce_finite;
 
 use self::types::*;
 
@@ -369,20 +373,35 @@ pub fn run_training_loop(
                 } else {
                     0.0
                 };
-                let eta_s = ema_steps_per_sec.map(|s| {
-                    if s > 0.0 {
-                        (total_optimizer_steps_planned.saturating_sub(optimizer_step_count) as f64 / s) as u64
-                    } else {
-                        0
-                    }
-                });
-                let eta_str = eta_s.map_or("eta ?".into(), |s| {
-                    if s >= 3600 {
-                        format!("eta ~{}h {:02}m {:02}s", s / 3600, (s % 3600) / 60, s % 60)
-                    } else {
-                        format!("eta ~{:02}m {:02}s", s / 60, s % 60)
-                    }
-                });
+                // Require at least 8 optimizer steps before trusting the ETA — prevents
+                // misleading "eta ~00m 00s" during NF4 weight-loading warm-up.
+                const ETA_CALIBRATION_MIN_STEPS: u32 = 8;
+                let eta_s_telem: Option<u64> = if optimizer_step_count >= ETA_CALIBRATION_MIN_STEPS {
+                    ema_steps_per_sec.and_then(|s| {
+                        if s > 1e-6 {
+                            Some(
+                                (total_optimizer_steps_planned
+                                    .saturating_sub(optimizer_step_count) as f64
+                                    / s) as u64,
+                            )
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                };
+                let eta_str = if optimizer_step_count < ETA_CALIBRATION_MIN_STEPS {
+                    "calibrating...".to_string()
+                } else {
+                    eta_s_telem.map_or("eta ?".into(), |s| {
+                        if s >= 3600 {
+                            format!("eta ~{}h {:02}m {:02}s", s / 3600, (s % 3600) / 60, s % 60)
+                        } else {
+                            format!("eta ~{:02}m {:02}s", s / 60, s % 60)
+                        }
+                    })
+                };
                 let eff_batch = config.batch_size.max(1) * config.grad_accum.max(1);
                 let ema_str = ema_loss_val.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
@@ -391,8 +410,8 @@ pub fn run_training_loop(
                     skip_no_supervised_positions, skip_short_seq, skip_curriculum, skip_token_id_oob,
                     trajectory_weighted_pairs, trajectory_clamped_pairs
                 ));
-                let step_payload = telemetry_helpers::build_train_step_payload(
-                    epoch, global_step, optimizer_step_count, loss_val, lr_applied_this_step, eta_s,
+                let step_payload = telem_helpers::build_train_step_payload(
+                    epoch, global_step, optimizer_step_count, loss_val, lr_applied_this_step, eta_s_telem,
                     total_optimizer_steps_planned, skip_no_supervised_positions, skip_short_seq,
                     skip_curriculum, skip_token_id_oob, trajectory_weighted_pairs, trajectory_clamped_pairs,
                     ema_steps_per_sec, total_valid_tokens, total_theoretical_tokens,

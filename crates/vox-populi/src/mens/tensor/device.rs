@@ -110,7 +110,11 @@ pub fn probe_gpu() -> GpuInfo {
 
     #[cfg(target_os = "windows")]
     {
-        if let Some((name, mb)) = probe_gpu_wmic() {
+        // Try nvidia-smi first on Windows for accurate VRAM (wmic caps at 4GB).
+        if let Some(g) = probe_gpu_nvidia_smi_win_fallback() {
+            return g;
+        }
+        if let Some((name, mb)) = probe_gpu_wmic() && mb > 0 {
             let vendor = vendor_from_model(&name);
             return GpuInfo {
                 model_name: name,
@@ -223,19 +227,58 @@ fn probe_gpu_wmic() -> Option<(String, u64)> {
         if parts.len() < 3 {
             continue;
         }
-        let name = parts[1].to_string();
+        let ram_raw = parts[1].to_string();
+        let ram = ram_raw.parse::<u64>().unwrap_or(0);
+        let name = parts[2].to_string();
         if name.is_empty() {
             continue;
         }
-        let ram = parts[2].parse::<u64>().unwrap_or(0);
         let mb = if ram > 0 { ram / (1024 * 1024) } else { 0 };
         best = Some(match best {
             None => (name, mb),
-            Some((ref n0, m0)) if mb > m0 => (name, mb),
+            Some((ref _n0, m0)) if mb > m0 => (name, mb),
             Some(b) => b,
         });
     }
     best
+}
+
+#[cfg(target_os = "windows")]
+fn probe_gpu_nvidia_smi_win_fallback() -> Option<GpuInfo> {
+    use std::process::Command;
+    let out = Command::new("nvidia-smi")
+        .args([
+            "--query-gpu=name,memory.total",
+            "--format=csv,noheader,nounits",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let binding = String::from_utf8_lossy(&out.stdout);
+    let line = binding.lines().next()?.trim();
+    if line.is_empty() {
+        return None;
+    }
+    let mut parts = line.split(',').map(|s| s.trim());
+    let name = parts.next()?.to_string();
+    let mb_part = parts.next().unwrap_or("0");
+    let vram_mb: u64 = mb_part
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    // If nvidia-smi failed to give us a real number too, skip
+    if vram_mb == 0 {
+        return None;
+    }
+    let vendor = vendor_from_model(&name);
+    Some(GpuInfo {
+        model_name: name,
+        vram_mb,
+        vendor,
+    })
 }
 
 /// Very rough **megabyte** estimate for transformer-style training (activations + weights, FP32-ish).

@@ -27,12 +27,12 @@ profiles:
     description: "Vox language code generation — syntax, constructs, idioms"
     # Filter by these category substrings (OR logic)
     context_filter:
-      categories: [vox_gen, workflow, actor, organic_vox, cli, golden, architectural_qa]
+      categories: [vox_gen, workflow, actor, organic_vox, cli, golden, architectural_qa, function, type, import, island, reactive_component, mutation]
       difficulty_max: 8
     mix_config: mens/config/mix-vox-lang.yaml
     # system_prompt intentionally omitted — resolved from scripts/vox_system_prompt.txt
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
     curriculum_schedule:
       epoch_1_max_difficulty: 3  # start easier for syntax learning
       epoch_2_max_difficulty: 6

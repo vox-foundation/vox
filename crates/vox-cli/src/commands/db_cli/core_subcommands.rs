@@ -328,4 +328,21 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
+    /// List historical MENS training runs from `populi_training_run` (Row limit defaults to 20).
+    #[command(name = "mens-runs")]
+    MensRuns {
+        /// Row limit for listing.
+        #[arg(long, default_value_t = 20)]
+        limit: u32,
+    },
+    /// List MENS-specific telemetry (entropy, diversity, sample counts) from `research_metrics` (limit 50).
+    #[command(name = "mens-metrics")]
+    MensMetrics {
+        /// Optional domain filter (vox-lang, rust-expert, agents).
+        #[arg(long)]
+        domain: Option<String>,
+        /// Row limit for listing.
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+    },
 }

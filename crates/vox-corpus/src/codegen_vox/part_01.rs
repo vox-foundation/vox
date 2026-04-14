@@ -18,7 +18,7 @@ fn gen_type(rng: &mut Rng, depth: u8) -> String {
         _ => {
             let p1 = gen_type(rng, depth - 1);
             let ret = gen_prim_type(rng);
-            format!("fn({p1}) -> {ret}")
+            format!("fn({p1}) to {ret}")
         }
     }
 }
@@ -270,23 +270,23 @@ fn gen_match(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
     // Rotate through all Pattern variants based on RNG
     let arms = match rng.usize(5) {
         // Ident pattern
-        0 => format!("match {subject} {{ {subject} -> {arm1_body}, _ -> {arm2_body} }}"),
+        0 => format!("match {subject} {{ {subject} to {arm1_body}, _ to {arm2_body} }}"),
         // Literal pattern
-        1 => format!("match {subject} {{ 0 -> {arm1_body}, 1 -> {arm2_body}, _ -> {arm3_body} }}"),
+        1 => format!("match {subject} {{ 0 to {arm1_body}, 1 to {arm2_body}, _ to {arm3_body} }}"),
         // Constructor pattern (ADT)
         2 => {
             tags.push("pattern:constructor".into());
-            format!("match {subject} {{ Ok(value) -> {arm1_body}, Error(msg) -> {arm2_body} }}")
+            format!("match {subject} {{ Ok(value) to {arm1_body}, Error(msg) to {arm2_body} }}")
         }
         // Tuple destructuring pattern
         3 => {
             tags.push("pattern:tuple".into());
             let (f1, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
             let (f2, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-            format!("match {subject} {{ ({f1}, {f2}) -> {arm1_body}, _ -> {arm2_body} }}")
+            format!("match {subject} {{ ({f1}, {f2}) to {arm1_body}, _ to {arm2_body} }}")
         }
         // Wildcard + guard
-        _ => format!("match {subject} {{ x if x > 0 -> {arm1_body}, _ -> {arm2_body} }}"),
+        _ => format!("match {subject} {{ x if x > 0 to {arm1_body}, _ to {arm2_body} }}"),
     };
     tags.push("expr:match".into());
     arms

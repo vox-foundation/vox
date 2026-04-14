@@ -358,6 +358,7 @@ pub async fn run(
                             1.05,               // trajectory_quality_boost
                             None,               // curriculum_schedule
                             Default::default(), // chatml_config
+                            None,               // mix_config
                         )
                         .await?;
 

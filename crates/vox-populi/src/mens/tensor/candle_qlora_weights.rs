@@ -89,10 +89,9 @@ pub fn middle_projection_coverage(
 pub fn tensor_keys_union(weight_paths: &[std::path::PathBuf]) -> anyhow::Result<HashSet<String>> {
     let mut keys = HashSet::new();
     for wp in weight_paths {
-        let bytes =
-            std::fs::read(wp).with_context(|| format!("read weight shard {}", wp.display()))?;
-        let st =
-            SafeTensors::deserialize(&bytes).with_context(|| format!("parse {}", wp.display()))?;
+        let file = std::fs::File::open(wp).with_context(|| format!("open output shard {}", wp.display()))?;
+        let mmap = unsafe { memmap2::Mmap::map(&file).with_context(|| format!("mmap {}", wp.display()))? };
+        let st = SafeTensors::deserialize(&mmap).with_context(|| format!("parse handle {}", wp.display()))?;
         for (k, _) in st.tensors() {
             keys.insert(k.clone());
         }
