@@ -311,7 +311,7 @@ The checklist below is the implementation-ready task list keyed to the current p
 
 - **`p2-federation-hints`**  
   - Extend federation hint mapping to carry lifecycle/health truth used by routing.  
-  - Target files: `crates/vox-orchestrator/src/populi_federation.rs`, `crates/vox-mcp/src/server/lifecycle.rs`, `crates/vox-orchestrator/src/services/routing.rs`.  
+  - Target files: `crates/vox-orchestrator/src/populi_federation.rs`, `crates/vox-orchestrator/src/mcp_tools/server/lifecycle.rs`, `crates/vox-orchestrator/src/services/routing.rs`.  
   - Acceptance: unsuitable nodes are no longer treated as healthy candidates in hint-driven routing.
 
 ### Phase 3 task checklist
@@ -347,7 +347,7 @@ The checklist below is the implementation-ready task list keyed to the current p
 
 - **`p4-core-result-handling`**  
   - Ensure remote result handling is not tied to a single embedder lifecycle path.  
-  - Target files: `crates/vox-orchestrator/src/a2a/dispatch.rs`, `crates/vox-mcp/src/server/lifecycle.rs`, orchestrator runtime integration points.  
+  - Target files: `crates/vox-orchestrator/src/a2a/dispatch.rs`, `crates/vox-orchestrator/src/mcp_tools/server/lifecycle.rs`, orchestrator runtime integration points.  
   - Acceptance: authoritative remote result processing works for all supported embedders, not MCP-only startup loops.
 
 - **`p4-single-owner-tests`**  

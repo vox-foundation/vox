@@ -28,7 +28,7 @@ Prefer source pointers over copied struct snapshots, since fields evolve frequen
 - `crates/vox-config/src/rollout.rs`: rollout/kill-switch env helpers.
 - `crates/vox-config/src/paths.rs`: canonical data/config path resolution.
 - `crates/vox-db/src/config.rs`: DB connection config/precedence (separate domain owner; not a `VoxConfig` field mirror).
-- `crates/vox-clavis/src/spec.rs`: secret canonical names/aliases (separate from non-secret tuning config).
+- `crates/vox-clavis/src/lib.rs`: secret canonical names/aliases (separate from non-secret tuning config).
 
 `VoxConfig::load()` remains the entrypoint for workspace/user config resolution; secrets and DB wire config are intentionally owned by Clavis / `vox-db`.
 

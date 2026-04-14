@@ -8,7 +8,7 @@ schema_type: "TechArticle"
 
 # Scholarly publication: digest-bound approval invariants
 
-These rules apply to **CLI** (`vox db publication-submit-local`, `publication-external-jobs-tick`), **MCP** (`vox_scientia_publication_submit_local`, `vox_scientia_publication_external_jobs_tick`), and the shared worker in [`vox_publisher::scholarly_external_jobs`](../../../crates/vox-publisher/src/scholarly_external_jobs.rs).
+These rules apply to **CLI** (`vox db publication-submit-local`, `publication-external-jobs-tick`), **MCP** (`vox_scientia_publication_submit_local`, `vox_scientia_publication_external_jobs_tick`), and the shared worker in [`vox_publisher::scholarly_external_jobs`](../../../crates/vox-publisher/src/scholarly/external_jobs.rs).
 
 ## Dual approval
 

@@ -73,11 +73,11 @@ No directory may contain more than **20 files**. When exceeded, sub-slice into
 feature modules. Example:
 ```
 # From:
-crates/vox-mcp/src/tool_a.rs
-crates/vox-mcp/src/tool_b.rs  (20+ files)
+crates/vox-orchestrator/src/mcp_tools/tool_a.rs
+crates/vox-orchestrator/src/mcp_tools/tool_b.rs  (20+ files)
 
 # To:
-crates/vox-mcp/src/tools/
+crates/vox-orchestrator/src/mcp_tools/tools/
   tool_a.rs
   tool_b.rs
   mod.rs

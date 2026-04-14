@@ -8,7 +8,7 @@ VS Code, `vox` CLI helpers, and CI attach to **`vox-mcp`** over MCP; tests and o
 
 **Construction:** Use **`vox_orchestrator::build_repo_scoped_orchestrator`** (or **`build_repo_scoped_orchestrator_for_repository`**) from `bootstrap.rs` so MCP, **`vox dei`**, `vox live`, and other entrypoints agree on `repository_id`, affinity groups, and memory shard paths. With **`VOX_MESH_ENABLED`**, durable coordination still lives in Turso while each process keeps its own in-memory `Orchestrator`; see [Mens coordination](../src/reference/populi-coordination.md) and [Unified orchestration](../src/reference/orchestration-unified.md).
 
-**Authoritative MCP tool names + descriptions:** `crates/vox-mcp/src/tools/mod.rs` → `TOOL_REGISTRY`. The grouped lists below are for humans and may lag that array when new tools land.
+**Authoritative MCP tool names + descriptions:** `crates/vox-orchestrator/src/mcp_tools/tools/mod.rs` → `TOOL_REGISTRY`. The grouped lists below are for humans and may lag that array when new tools land.
 
 ## Sole Responsibilities
 
@@ -48,7 +48,7 @@ See `docs/src/architecture/socrates-protocol-ssot.md` and ADR 005.
 
 ## Does NOT Own
 
-- Compilation, formatting, type-checking → surfaced via MCP compiler/git helpers and CLI integration (see `TOOL_REGISTRY` and `crates/vox-mcp/src/tools/compiler_tools.rs`).
+- Compilation, formatting, type-checking → surfaced via MCP compiler/git helpers and CLI integration (see `TOOL_REGISTRY` and `crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs`).
 - TOESTUB analysis → `bash scripts/quality/toestub_scoped.sh` or `cargo run -p vox-toestub --bin toestub -- <PATH>`; optional `vox stub-check` when built with **`--features stub-check`** (see `docs/src/reference/cli.md`).
 - Mens **native LoRA** training → **`vox mens train`** (`vox-populi` / **`vox-mens`** shim); not orchestrator core.
 - Inference / codegen → `vox generate` and related CLI surfaces where enabled.

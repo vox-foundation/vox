@@ -524,7 +524,7 @@ Reading the gaps through the lens of planning-system value:
 docs/src/reference/information-theoretic-questioning.md  ← Operational SSOT (policy + config)
 docs/src/reference/socrates-protocol.md                  ← Hallucination/confidence gate
 docs/src/architecture/plan-adequacy.md                   ← Plan thin → expand policy
-docs/src/architecture/cognitive_architecture_budget_switching.md  (KI)  ← Budget/FocusDepth design
+docs/src/architecture/agent-event-kind-ludus-matrix.md  (KI)  ← Budget/FocusDepth design
 docs/src/architecture/res_dynamic_agentic_planning_2026.md  ← Planning SOTA synthesis (thin)
 docs/src/architecture/research-diagnostic-questioning-2026.md  ← THIS DOCUMENT
 ```

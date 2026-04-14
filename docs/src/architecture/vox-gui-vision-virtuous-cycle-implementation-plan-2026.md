@@ -88,11 +88,11 @@ flowchart TB
 | Vite build smoke (**Shipped**, opt-in) | `crates/vox-integration-tests/tests/web_vite_smoke.rs` (`VOX_WEB_VITE_SMOKE=1`) — `pnpm install` + `vite build` only |
 | Playwright golden (**Partial**, opt-in) | `crates/vox-integration-tests/playwright/`, `tests/playwright_golden_route.rs` (`VOX_GUI_PLAYWRIGHT=1`) — screenshot + `accessibility.snapshot()` JSON |
 | CI bundle | `vox ci gui-smoke` — always runs `web_ir_lower_emit`; enables Vite / Playwright lanes when the respective env vars are set |
-| Browser tools | `crates/vox-mcp/src/tools/browser_tools.rs` — `vox_browser_screenshot` |
+| Browser tools | `crates/vox-orchestrator/src/mcp_tools/tools/browser_tools.rs` — `vox_browser_screenshot` |
 | Vision routing | `crates/vox-orchestrator/src/dei_shim/selection/resolve.rs`, `task_routing.rs` — heuristics today; see RFC below for explicit attachments |
 | Mens defaults | `crates/vox-populi/src/mens/mod.rs` — `DEFAULT_MODEL_ID`, Candle `candle_inference_serve.rs` (text-only today) |
 | Training rows | `crates/vox-tensor/src/data.rs` — `TrainingPair` (text-only; vision lane = research) |
-| Secrets | `crates/vox-clavis/src/spec.rs` — `V0_API_KEY` remediation for v0 API |
+| Secrets | `crates/vox-clavis/src/lib.rs` — `V0_API_KEY` remediation for v0 API |
 
 ## 3. Where vision helps most (ranked)
 
@@ -183,7 +183,7 @@ Section tags mirror the legend (**Shipped** / **Partial** / **RFC**). “Vision?
 
 ### I. Security and privacy
 
-46. **RFC — Redact screenshots in CI artifacts** — workflows — Crop to viewport; strip EXIF; short TTL. — Yes sensitive. — Align with [`contracts/operations/workspace-artifact-retention.v1.yaml`](../../../contracts/operations/workspace-artifact-retention.v1.yaml), [telemetry-trust-ssot.md](telemetry-trust-ssot.md), and **no raw secrets** in rubric prompts ([`crates/vox-clavis/src/spec.rs`](../../../crates/vox-clavis/src/spec.rs)).
+46. **RFC — Redact screenshots in CI artifacts** — workflows — Crop to viewport; strip EXIF; short TTL. — Yes sensitive. — Align with [`contracts/operations/workspace-artifact-retention.v1.yaml`](../../../contracts/operations/workspace-artifact-retention.v1.yaml), [telemetry-trust-ssot.md](telemetry-trust-ssot.md), and **no raw secrets** in rubric prompts ([`crates/vox-clavis/src/lib.rs`](../../../crates/vox-clavis/src/lib.rs)).
 47. **RFC — Clavis for any new VL API key** — `spec.rs` — Mirror `V0_API_KEY` pattern. — Yes. — No raw env reads in tools.
 
 ### J. Performance and cost

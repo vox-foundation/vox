@@ -36,7 +36,7 @@ Primary code paths to change:
 - [`crates/vox-db/src/schema/domains/publish_cloud.rs`](crates/vox-db/src/schema/domains/publish_cloud.rs)
 - [`crates/vox-db/src/store/ops_publication/manifest.rs`](crates/vox-db/src/store/ops_publication/manifest.rs)
 - [`crates/vox-cli/src/commands/db_cli/publication_subcommands.rs`](crates/vox-cli/src/commands/db_cli/publication_subcommands.rs)
-- [`crates/vox-mcp/src/tools/scientia_tools/lifecycle.rs`](crates/vox-mcp/src/tools/scientia_tools/lifecycle.rs)
+- [`crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools/lifecycle.rs`](crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools/lifecycle.rs)
 
 Primary contract/doc anchors to update:
 

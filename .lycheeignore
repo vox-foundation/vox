@@ -1,23 +1,2 @@
-# Ignore local file links to crates that have been refactored
-file://.*
-
-# External links that are unresolvable or return 404
-https://modelcontextprotocol.io/specification/2025-11-05/.*
-https://proceedings.iclr.cc/paper.*
-https://ascentcore.com/2026/03/09/the-ai-efficiency-trap/.*
-.*crates/vox-clavis/src/spec\.rs.*
-.*crates/vox-mcp/src/.*
-.*crates/vox-publisher/src/scholarly_external_jobs\.rs.*
-.*crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop\.rs.*
-.*crates/vox-orchestrator/src/orchestrator_event_log\.rs.*
-.*crates/vox-orchestrator/src/budget\.rs.*
-.*docs/src/architecture/cognitive_architecture_budget_switching\.md.*
-.*docs/src/api/vox-mcp\.md.*
-.*github\.com/vox-foundation/vox/discussions.*
-.*letsdatascience\.com.*
-.*storage\.googleapis\.com/deepmind-media.*
-.*github\.com/Rel1cx/eslint-react.*
-.*modelcontextprotocol\.io/docs/concepts/authorization.*
-.*docs\.doppler\.com.*
-.*learn\.microsoft\.com/en-us/security/ai.*
+# Ignored dynamically for rate limit / anti-bot
 .*linkedin\.com.*

@@ -330,7 +330,7 @@ This section expands each epic into concrete operations. These are intentionally
 
 Entry points:
 
-- `crates/vox-mcp/src/memory/retrieval.rs`
+- `crates/vox-orchestrator/src/mcp_tools/memory/retrieval.rs`
 - `crates/vox-orchestrator/src/socrates.rs`
 - `crates/vox-orchestrator/src/handoff.rs`
 - `crates/vox-orchestrator/src/a2a/envelope.rs`
@@ -350,8 +350,8 @@ Entry points:
 
 Entry points:
 
-- `crates/vox-mcp/src/tools/chat_tools/chat/message.rs`
-- `crates/vox-mcp/src/tools/task_tools.rs`
+- `crates/vox-orchestrator/src/mcp_tools/tools/chat_tools/chat/message.rs`
+- `crates/vox-orchestrator/src/mcp_tools/tools/task_tools.rs`
 - `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs`
 - `crates/vox-orchestrator/src/handoff.rs`
 - `crates/vox-orchestrator/src/orchestrator/agent_lifecycle.rs`

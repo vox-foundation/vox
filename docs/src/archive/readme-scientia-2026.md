@@ -298,7 +298,7 @@ Run `vox commands --recommended` for a curated first-time map of subcommands. Fo
 
 The **orchestrator** (`vox-orchestrator`) assigns tasks to agents by file affinity and role. **`vox-dei`** handles human-in-the-loop review — pausing, reassigning, or confirming work before it proceeds. The control surface is available as MCP tools, usable from the VS Code sidebar or any MCP-compatible agent:
 
-<!-- tool names sourced from crates/vox-mcp/src/tools/dispatch.rs -->
+<!-- tool names sourced from crates/vox-orchestrator/src/mcp_tools/tools/dispatch.rs -->
 ```text
 vox_pause_agent      Suspend a running agent and queue its tasks
 vox_resume_agent     Resume a paused agent
@@ -396,7 +396,7 @@ No struct or impl block may exceed 500 lines or 12 methods. No directory may con
 
 ### All credentials routed through Clavis (`secret-env-guard`, `operator-env-guard`)
 
-Direct `std::env::var` calls for secrets are a CI failure. All credentials are declared as `SecretId` variants in `crates/vox-clavis/src/spec.rs` and resolved via `vox_clavis::resolve_secret(...)`. The `vox ci secret-env-guard` command scans changed files for raw environment reads and fails the build if any are found outside a strict allowlist.
+Direct `std::env::var` calls for secrets are a CI failure. All credentials are declared as `SecretId` variants in `crates/vox-clavis/src/lib.rs` and resolved via `vox_clavis::resolve_secret(...)`. The `vox ci secret-env-guard` command scans changed files for raw environment reads and fails the build if any are found outside a strict allowlist.
 
 **Why it matters:** Hidden environment variables cause deployment drift and make it impossible to audit what capabilities an application possesses. When an agent introduces a new API key, it must go through Clavis — which means it appears in `vox clavis doctor`, gets picked up by `vox ci clavis-parity`, and is visible to every operator. There's no path for a credential to sneak in through a casual `env::var("SOME_API_KEY")`. The `SecretDetector` in `vox-toestub` catches hardcoded credentials as a separate failure class.
 
@@ -459,7 +459,7 @@ Vox is licensed under **Apache 2.0**. You can use it to build commercial or clos
 
 Vox Scientia is a publication pipeline for aggregating and surfacing community research — pulling from wherever developers are talking, not constraining where they talk. Roadmap decisions and architectural questions are tracked in GitHub Discussions because that's the format our tooling can index, parse, and feed back into the system. Come wherever you are.
 
-- **[GitHub Discussions](https://github.com/vox-foundation/vox/discussions)**: Architecture questions, language design feedback, and roadmap input.
+- **[GitHub Discussions](https://github.com/vox-foundation/vox/issues)**: Architecture questions, language design feedback, and roadmap input.
 - **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelogs and architectural decision records.
 <!-- ANCHOR_END: community_license -->
 

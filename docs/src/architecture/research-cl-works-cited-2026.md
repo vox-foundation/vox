@@ -41,7 +41,7 @@ schema_type: "TechArticle"
 26. Why 2026 is the Year Synthetic Data Becomes Non-Negotiable — Towards AI, accessed April 8, 2026, <https://pub.towardsai.net/why-2026-is-the-year-synthetic-data-becomes-non-negotiable-b5a2a84d1b1b>
 27. We Are Not Doomed to AI Slop — inmydata, accessed April 8, 2026, <https://inmydata.ai/blog/we-are-not-doomed-to-ai-slop/>
 28. Google DeepMind Introduces AlphaCode 2 — MarkTechPost, accessed April 8, 2026, <https://www.marktechpost.com/2023/12/10/google-deepmind-introduces-alphacode-2-an-artificial-intelligence-ai-system-that-uses-the-power-of-the-gemini-model-for-a-remarkable-advance-in-competitive-programming-excellence/>
-29. AlphaCode 2 Technical Report — Googleapis.com, accessed April 8, 2026, <https://storage.googleapis.com/deepmind-media/AlphaCode2/AlphaCode2_Tech_Report.pdf>
+29. AlphaCode 2 Technical Report — Googleapis.com, accessed April 8, 2026, <https://storage.googleapis.com/deepmind-media/AlphaCode2/AlphaCode_2_Tech_Report.pdf_Tech_Report.pdf>
 30. Brief Review — AlphaCode 2 Technical Report — Medium, accessed April 8, 2026, <https://sh-tsang.medium.com/brief-review-alphacode-2-technical-report-b460dcbca202>
 31. Phi-2 — Prompt Engineering Guide, accessed April 8, 2026, <https://www.promptingguide.ai/models/phi-2>
 32. Phi-2: The surprising power of small language models — ResearchGate, accessed April 8, 2026, <https://www.researchgate.net/publication/385654002_Phi-2_The_surprising_power_of_small_language_models>

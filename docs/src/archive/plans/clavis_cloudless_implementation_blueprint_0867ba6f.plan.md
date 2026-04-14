@@ -22,9 +22,9 @@ This blueprint is optimized for execution by a weaker model: every phase has exp
 
 - Resolver precedence is currently env-first in [`c:/Users/Owner/vox/crates/vox-clavis/src/resolver.rs`](c:/Users/Owner/vox/crates/vox-clavis/src/resolver.rs).
 - Backend auto mode is env-signaled in [`c:/Users/Owner/vox/crates/vox-clavis/src/lib.rs`](c:/Users/Owner/vox/crates/vox-clavis/src/lib.rs).
-- Secret schema and policy inventory is centralized in [`c:/Users/Owner/vox/crates/vox-clavis/src/spec.rs`](c:/Users/Owner/vox/crates/vox-clavis/src/spec.rs).
+- Secret schema and policy inventory is centralized in [`c:/Users/Owner/vox/crates/vox-clavis/src/lib.rs`](c:/Users/Owner/vox/crates/vox-clavis/src/lib.rs).
 - DB credential resolution still contains compatibility aliases in [`c:/Users/Owner/vox/crates/vox-db/src/config.rs`](c:/Users/Owner/vox/crates/vox-db/src/config.rs).
-- MCP gateway bearer tokens are direct env reads in [`c:/Users/Owner/vox/crates/vox-mcp/src/http_gateway.rs`](c:/Users/Owner/vox/crates/vox-mcp/src/http_gateway.rs).
+- MCP gateway bearer tokens are direct env reads in [`c:/Users/Owner/vox/crates/vox-orchestrator/src/mcp_tools/http_gateway.rs`](c:/Users/Owner/vox/crates/vox-orchestrator/src/mcp_tools/http_gateway.rs).
 - Runtime model registry supports arbitrary `api_key_env` direct reads in [`c:/Users/Owner/vox/crates/vox-runtime/src/llm/types.rs`](c:/Users/Owner/vox/crates/vox-runtime/src/llm/types.rs).
 - Publisher OpenReview readiness mixes env token and Clavis email/password in [`c:/Users/Owner/vox/crates/vox-publisher/src/publication_preflight.rs`](c:/Users/Owner/vox/crates/vox-publisher/src/publication_preflight.rs).
 - Orchestrator social credentials are direct env reads in [`c:/Users/Owner/vox/crates/vox-orchestrator/src/config/impl_env.rs`](c:/Users/Owner/vox/crates/vox-orchestrator/src/config/impl_env.rs).
@@ -67,7 +67,7 @@ Acceptance:
 
 ## WS1 - Secret schema normalization (Clavis SSOT expansion)
 
-5. Audit all `SecretId` entries in [`c:/Users/Owner/vox/crates/vox-clavis/src/spec.rs`](c:/Users/Owner/vox/crates/vox-clavis/src/spec.rs) into classes: `runtime`, `operator`, `account`, `integration`, `transport`.
+5. Audit all `SecretId` entries in [`c:/Users/Owner/vox/crates/vox-clavis/src/lib.rs`](c:/Users/Owner/vox/crates/vox-clavis/src/lib.rs) into classes: `runtime`, `operator`, `account`, `integration`, `transport`.
 6. Add classification metadata field(s) to `SecretSpec` (for example `class`, `scope`, `rotation_class`) with strict enum typing.
 7. Add explicit `secret_material_kind` (api_key, oauth_refresh, bearer, hmac_secret, endpoint_url, username, password).
 8. Mark secrets eligible for account-level persistence (`persistable_account_secret: bool`).
@@ -119,7 +119,7 @@ Acceptance:
 
 ## WS4 - Consumer migration (eliminate direct secret env reads)
 
-33. Migrate MCP HTTP bearer/read bearer token loading from direct env in [`c:/Users/Owner/vox/crates/vox-mcp/src/http_gateway.rs`](c:/Users/Owner/vox/crates/vox-mcp/src/http_gateway.rs) to Clavis IDs.
+33. Migrate MCP HTTP bearer/read bearer token loading from direct env in [`c:/Users/Owner/vox/crates/vox-orchestrator/src/mcp_tools/http_gateway.rs`](c:/Users/Owner/vox/crates/vox-orchestrator/src/mcp_tools/http_gateway.rs) to Clavis IDs.
 34. Add new `SecretId` entries for MCP gateway tokens if absent, with canonical env names and policy.
 35. Migrate runtime `api_key_env` behavior in [`c:/Users/Owner/vox/crates/vox-runtime/src/llm/types.rs`](c:/Users/Owner/vox/crates/vox-runtime/src/llm/types.rs) to Clavis-first registry resolution (retain non-secret endpoint config envs).
 36. Migrate publisher OpenReview access-token env path in [`c:/Users/Owner/vox/crates/vox-publisher/src/publication_preflight.rs`](c:/Users/Owner/vox/crates/vox-publisher/src/publication_preflight.rs) to Clavis `SecretId`.

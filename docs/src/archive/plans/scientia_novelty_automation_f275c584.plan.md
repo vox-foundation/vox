@@ -118,8 +118,8 @@ calibrator --> decisionEngine
   - `[contracts/scientia/publication-worthiness.schema.json](contracts/scientia/publication-worthiness.schema.json)`
 - CLI/MCP surfaces:
   - `[crates/vox-cli/src/commands/scientia.rs](crates/vox-cli/src/commands/scientia.rs)`
-  - `[crates/vox-mcp/src/tools/scientia_tools/discovery.rs](crates/vox-mcp/src/tools/scientia_tools/discovery.rs)`
-  - `[crates/vox-mcp/src/tools/scientia_tools/preflight.rs](crates/vox-mcp/src/tools/scientia_tools/preflight.rs)`
+  - `[crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools/discovery.rs](crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools/discovery.rs)`
+  - `[crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools/preflight.rs](crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools/preflight.rs)`
   - `[contracts/mcp/tool-registry.canonical.yaml](contracts/mcp/tool-registry.canonical.yaml)`
 - Registry/CI/policy enforcement:
   - `[contracts/operations/catalog.v1.yaml](contracts/operations/catalog.v1.yaml)`

@@ -17,7 +17,7 @@ title: "Archived Plan: clavis_implementation_plan_seed_2026-04-06.plan"
 - Research dossier: `docs/src/architecture/clavis-secrets-env-research-2026.md`
 - Current SSOT: `docs/src/reference/clavis-ssot.md`
 - Resolver/code anchors:
-  - `crates/vox-clavis/src/spec.rs`
+  - `crates/vox-clavis/src/lib.rs`
   - `crates/vox-clavis/src/resolver.rs`
   - `crates/vox-clavis/src/lib.rs`
   - `crates/vox-clavis/src/backend/vox_vault.rs`

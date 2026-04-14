@@ -1052,7 +1052,7 @@ SEVERITY: HIGH
 EFFORT: 8 hours  
 OWNER CRATE: vox-publisher, vox-db  
 VERIFIED: `crates/vox-publisher/src/scholarly/zenodo.rs` — `fetch_status()` method exists and
-correctly calls `GET /deposit/depositions/{id}`. `crates/vox-publisher/src/scholarly_external_jobs.rs`
+correctly calls `GET /deposit/depositions/{id}`. `crates/vox-publisher/src/scholarly/external_jobs.rs`
 — no scheduled status sync loop exists. Submitted jobs stay in `submitted` state forever in `publish_cloud`.
 
 PROBLEM: A paper accepted on Zenodo remains `status = 'submitted'` in `publish_cloud` unless
@@ -1097,7 +1097,7 @@ it must confirm via `fetch_status()`.
 ACCEPTANCE:
 - Test: mock Zenodo returns `state = "published"` → `publish_cloud.status` is updated to `"published"`.
 - Test: `reflect_published_finding_to_rag()` is called after the status update.
-- `vox stub-check --path crates/vox-publisher/src/scholarly_external_jobs.rs` passes.
+- `vox stub-check --path crates/vox-publisher/src/scholarly/external_jobs.rs` passes.
 
 ---
 

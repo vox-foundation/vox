@@ -31,7 +31,7 @@ Stricter policy described in governance docs is **not** yet fully mirrored here 
 
 Priority set from the master plan (error handling / async / tracing / process):
 
-- `crates/vox-mcp/src/tools/codex_tools.rs`
+- `crates/vox-orchestrator/src/mcp_tools/tools/codex_tools.rs`
 - `crates/vox-cli/src/dispatch_protocol.rs`
 - `crates/vox-runtime/src/llm_result.rs`
 - `crates/vox-orchestrator/src/models.rs`

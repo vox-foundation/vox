@@ -139,7 +139,7 @@ let key = resolve_secret(SecretId::TavilyApiKey)
 
 ## Clavis Secret Lifecycle
 
-### Required Entries in `crates/vox-clavis/src/spec.rs`
+### Required Entries in `crates/vox-clavis/src/lib.rs`
 
 ```rust
 SecretId::TavilyApiKey => SecretSpec {

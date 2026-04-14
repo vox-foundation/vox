@@ -52,11 +52,11 @@ The recommendation of this research pass is to introduce a canonical `ContextEnv
 
 | Surface | Current implementation | Scope model | Persistence | Main strength | Main gap |
 | -------- | ------------------------- | ------------- | ------------- | --------------- | ---------- |
-| MCP chat session history | `crates/vox-mcp/src/tools/chat_tools/chat/message.rs` | `session_id`, default `"default"` | Context store + DB transcripts | Good multi-session isolation when client supplies IDs | Default session fallback can still bleed if clients omit IDs |
+| MCP chat session history | `crates/vox-orchestrator/src/mcp_tools/tools/chat_tools/chat/message.rs` | `session_id`, default `"default"` | Context store + DB transcripts | Good multi-session isolation when client supplies IDs | Default session fallback can still bleed if clients omit IDs |
 | Session retrieval bridge | `crates/vox-orchestrator/src/socrates.rs` and `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs` | `retrieval_envelope:{session_id}` | Context store TTL-based | Clean bridge from chat retrieval to task gating | Envelope shape is narrow and session-coupled |
 | Native task retrieval | `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs` | task-local | derived at submit time | Shared `vox-search` path already available | No single policy plane for when to rely on this path |
 | Search execution | `crates/vox-search/src/execution.rs` and `crates/vox-search/src/bundle.rs` | query + corpus plan | on-demand | Shared hybrid retrieval stack | Trigger budgets and search-vs-memory policy differ by surface |
-| MCP explicit retrieval | `crates/vox-mcp/src/memory/retrieval.rs` | tool turn or auto preamble | ephemeral + envelope | Rich diagnostics and telemetry shape | Not yet the canonical contract across all surfaces |
+| MCP explicit retrieval | `crates/vox-orchestrator/src/mcp_tools/memory/retrieval.rs` | tool turn or auto preamble | ephemeral + envelope | Rich diagnostics and telemetry shape | Not yet the canonical contract across all surfaces |
 | Orchestrator A2A local bus | `crates/vox-orchestrator/src/types/messages.rs` and local bus modules | local agent/thread/task | ephemeral or DB-backed | Richer in-process semantics | Not mirrored in Populi transport contract |
 | Populi A2A transport | `crates/vox-populi/src/transport/mod.rs` | sender/receiver/message_type | durable relay rows | Strong remote delivery and lease semantics | Conversation/session/thread fields are opaque payload conventions, not first-class contract |
 | Remote task handoff | `crates/vox-orchestrator/src/a2a/envelope.rs` | task/campaign/lease | durable mesh | Good remote execution base | Context payload is still too thin and artifact refs are underused |
@@ -90,9 +90,9 @@ The first version of this program was directionally correct, but several assumpt
 
 1. **Remote relay ordering hazard:** in `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`, remote lease/relay flow is constructed before `attach_session_retrieval_envelope_if_present(...)` or `attach_goal_search_context_with_retrieval(...)` runs. That means remote workers cannot currently rely on retrieval context being present merely because the local task later acquires it.
 2. **Handoff continuity gap:** `crates/vox-orchestrator/src/handoff.rs` and `crates/vox-orchestrator/src/orchestrator/agent_lifecycle.rs` do not model `session_id`, `thread_id`, or retrieval-envelope references as first-class handoff invariants.
-3. **Policy duplication gap:** `crates/vox-search/src/bundle.rs`, `crates/vox-mcp/src/memory/retrieval.rs`, and orchestrator submit paths share concepts but still keep parallel trigger and envelope mapping logic.
+3. **Policy duplication gap:** `crates/vox-search/src/bundle.rs`, `crates/vox-orchestrator/src/mcp_tools/memory/retrieval.rs`, and orchestrator submit paths share concepts but still keep parallel trigger and envelope mapping logic.
 4. **Compaction surface ambiguity:** the repo has memory and transcript systems, but no single clear runtime owner for long-horizon conversation compaction and reinjection.
-5. **Explicit retrieval asymmetry:** `crates/vox-mcp/src/tools/task_tools.rs` only attaches explicit retrieval after submit when the caller provided it, so the local MCP submission path is less unified than the first blueprint implied.
+5. **Explicit retrieval asymmetry:** `crates/vox-orchestrator/src/mcp_tools/tools/task_tools.rs` only attaches explicit retrieval after submit when the caller provided it, so the local MCP submission path is less unified than the first blueprint implied.
 
 ### Corrections to the program shape
 

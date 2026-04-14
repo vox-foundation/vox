@@ -45,7 +45,7 @@ This catalog converts the hardened execution plan into mechanical implementation
 
 Target files:
 
-- `crates/vox-clavis/src/spec.rs`
+- `crates/vox-clavis/src/lib.rs`
 - `crates/vox-clavis/src/types.rs` (if new enums/status carriers are needed)
 
 Required additions:
@@ -61,7 +61,7 @@ Required additions:
 
 Target files:
 
-- `crates/vox-clavis/src/spec.rs`
+- `crates/vox-clavis/src/lib.rs`
 - `crates/vox-clavis/src/tests.rs` or new tests file
 
 Required checks:
@@ -181,8 +181,8 @@ Required:
 
 Target files:
 
-- `crates/vox-mcp/src/http_gateway.rs`
-- `crates/vox-clavis/src/spec.rs`
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway.rs`
+- `crates/vox-clavis/src/lib.rs`
 
 Required:
 

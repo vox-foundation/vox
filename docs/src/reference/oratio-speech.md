@@ -38,7 +38,7 @@ schema_type: "TechArticle"
 
 - `crates/vox-oratio/` — STT + `eval`, `traits`, `refine`, `backends/*`
 - `crates/vox-cli/src/commands/oratio_cmd.rs`
-- `crates/vox-mcp/src/tools/oratio_tools.rs`, `mod.rs` (registry + schemas)
+- `crates/vox-orchestrator/src/mcp_tools/tools/oratio_tools.rs`, `mod.rs` (registry + schemas)
 - `vox-vscode/src/speech/registerOratioSpeechCommands.ts`, `src/core/VoxMcpClient.ts` (Oratio MCP wrappers)
 - `crates/vox-capability-registry/`, `crates/vox-tools/` (`mens_chat` + `DirectToolExecutor`; Mens chat ∩ executor)
 - `crates/vox-db/src/` — Codex store + readiness helpers consumed by HTTP surfaces.

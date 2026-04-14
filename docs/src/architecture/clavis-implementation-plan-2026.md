@@ -120,7 +120,7 @@ retyped. All ~580 `SPECS` entries gain new fields with explicit defaults.
 ### 1.1 `TaxonomyClass` — the nine-class env-var taxonomy
 
 ```rust
-// crates/vox-clavis/src/spec.rs
+// crates/vox-clavis/src/lib.rs
 
 /// Nine-class taxonomy for every managed env var.
 /// Used for `vox clavis list --class`, doctor grouping, and CI filtering.
@@ -933,7 +933,7 @@ Wave 10 ─ CI parity, SSOT completion, migration to resolve_secret_with_context
 `ResolutionStatus` variants, add `SecretMaterialKind` variants. Annotate ALL ~580 SPECS entries.
 
 **Files changed:**
-- `crates/vox-clavis/src/spec.rs` — new types + full SPECS annotation
+- `crates/vox-clavis/src/lib.rs` — new types + full SPECS annotation
 
 **Safety:** Zero behaviour change. No DB writes. No resolution path change.
 
@@ -1140,7 +1140,7 @@ output. Accepts `--class <slug>` filter. Never decrypts.
 - `crates/vox-clavis/src/lib.rs` — `resolve_secret_with_context`, `append_audit_row`
 - `crates/vox-clavis/src/backend/vox_vault.rs` — `append_audit_row` on backend
 - `crates/vox-cli/src/commands/clavis.rs` — `audit-log` subcommand
-- `crates/vox-mcp/src/...` — `resolve_secret_with_context(id, "mcp")` at call sites
+- `crates/vox-orchestrator/src/mcp_tools/...` — `resolve_secret_with_context(id, "mcp")` at call sites
 
 **Context attribution spec:**
 ```
@@ -1291,7 +1291,7 @@ returns `Err(SecretError::BackendUnavailable("delegation expired"))`.
 **Files changed:**
 - `docs/src/reference/clavis-ssot.md` — taxonomy columns, new table sections
 - `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs` — `clavis-parity` validates taxonomy
-- `crates/vox-mcp/src/...` — context migration
+- `crates/vox-orchestrator/src/mcp_tools/...` — context migration
 - `crates/vox-clavis/src/tests.rs` — tests for `ConfigValue`/`OperatorTuning` exclusion from list
 
 **New CI check: `vox ci clavis-audit-schema`**

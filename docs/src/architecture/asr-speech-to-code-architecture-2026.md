@@ -387,7 +387,7 @@ Three viable architectures, ordered by investment:
 | `crates/vox-populi/src/domains/` | Add `asr_voice` domain with QLoRA recipe |
 | `crates/vox-voice/` | **New crate** — owns VAD, ASR backends, post-processor |
 | `crates/vox-cli/src/commands/` | Add `vox voice start` / `vox voice calibrate` / `vox voice status` |
-| `crates/vox-clavis/src/spec.rs` | No new secrets if fully local; add `VOX_DEEPGRAM_API_KEY` only for optional cloud fallback |
+| `crates/vox-clavis/src/lib.rs` | No new secrets if fully local; add `VOX_DEEPGRAM_API_KEY` only for optional cloud fallback |
 | `contracts/operations/` | Add `voice-retention.v1.yaml` for audio session retention policy |
 | `docs/src/reference/cli.md` | Document `vox voice` subsystem |
 | `crates/vox-db/` | Schema addition: `voice_sessions` table (audio hash, WER estimate, correction log) |

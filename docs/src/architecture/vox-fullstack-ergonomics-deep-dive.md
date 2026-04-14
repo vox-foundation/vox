@@ -28,9 +28,9 @@ schema_type: "TechArticle"
 
 ### MCP tooling
 - Canonical tool registry: `contracts/mcp/tool-registry.canonical.yaml`
-- Tool dispatch: `crates/vox-mcp/src/tools/dispatch.rs`
-- Input schema definitions: `crates/vox-mcp/src/tools/input_schemas.rs`
-- Alias surface: `crates/vox-mcp/src/tools/tool_aliases.rs`
+- Tool dispatch: `crates/vox-orchestrator/src/mcp_tools/tools/dispatch.rs`
+- Input schema definitions: `crates/vox-orchestrator/src/mcp_tools/tools/input_schemas.rs`
+- Alias surface: `crates/vox-orchestrator/src/mcp_tools/tools/tool_aliases.rs`
 - Metadata subsets: `crates/vox-mcp-meta/src/lib.rs`
 
 ### API/data surfaces

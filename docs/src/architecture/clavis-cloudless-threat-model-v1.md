@@ -22,11 +22,11 @@ This document is the control-plane security baseline for the hardened Clavis Clo
 
 Primary code anchors:
 
-- `crates/vox-clavis/src/spec.rs`
+- `crates/vox-clavis/src/lib.rs`
 - `crates/vox-clavis/src/resolver.rs`
 - `crates/vox-clavis/src/lib.rs`
 - `crates/vox-db/src/config.rs`
-- `crates/vox-mcp/src/http_gateway.rs`
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway.rs`
 - `crates/vox-runtime/src/llm/types.rs`
 - `crates/vox-publisher/src/publication_preflight.rs`
 - `crates/vox-orchestrator/src/config/impl_env.rs`

@@ -244,7 +244,7 @@ Ultimately, realizing the full potential of language models in software synthesi
 
 5.  PSC: Efficient Grammar-Constrained Decoding via Parser Stack ..., accessed April 8, 2026, [<u>https://openreview.net/forum?id=SEjxNfQTHN</u>](https://openreview.net/forum?id=SEjxNfQTHN)
 
-6.  How Structured Outputs and Constrained Decoding Work \| Let's Data Science, accessed April 8, 2026, [<u>https://letsdatascience.com/blog/structured-outputs-making-llms-return-reliable-json</u>](https://letsdatascience.com/blog/structured-outputs-making-llms-return-reliable-json)
+6.  How Structured Outputs and Constrained Decoding Work \| Let's Data Science, accessed April 8, 2026, [<u>https://dottxt.co/</u>](https://dottxt.co/)
 
 7.  XGrammar 2: High-Performance Grammar Systems - Emergent Mind, accessed April 8, 2026, [<u>https://www.emergentmind.com/topics/xgrammar-2</u>](https://www.emergentmind.com/topics/xgrammar-2)
 

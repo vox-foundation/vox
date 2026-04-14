@@ -50,7 +50,7 @@ It is intentionally research-only. It does not define migrations, schema diffs, 
 
 Vox already has a healthy Clavis foundation:
 
-- Canonical metadata in `crates/vox-clavis/src/spec.rs`.
+- Canonical metadata in `crates/vox-clavis/src/lib.rs`.
 - Clear resolution precedence and compatibility tiers.
 - CI enforcement (`secret-env-guard`, `clavis-parity`) for drift prevention.
 
@@ -72,7 +72,7 @@ The recommended direction is a layered model:
 
 These files form the current architecture baseline:
 
-- `crates/vox-clavis/src/spec.rs` defines `SecretId`/`SecretSpec`, canonical env names, aliases, deprecation, and requirement bundles.
+- `crates/vox-clavis/src/lib.rs` defines `SecretId`/`SecretSpec`, canonical env names, aliases, deprecation, and requirement bundles.
 - `crates/vox-clavis/src/resolver.rs` implements precedence (`env -> backend -> secure/compat stores`) and status reporting.
 - `crates/vox-clavis/src/lib.rs` controls backend mode selection (`Auto`, `EnvOnly`, `Infisical`, `Vault`, `VoxCloud`).
 - `crates/vox-clavis/src/backend/vox_vault.rs` provides encrypted vault behavior backed by local file or Turso remote connection.
@@ -298,7 +298,7 @@ If compatibility aliases and parallel env paths are not preserved, current users
 2. **DB credential path remains parallel**
    - `crates/vox-db/src/config.rs` reads `VOX_DB_*` and compatibility aliases (`VOX_TURSO_*`, `TURSO_*`) directly.
 3. **MCP HTTP gateway tokens are env-only today**
-   - `crates/vox-mcp/src/http_gateway.rs` reads `VOX_MCP_HTTP_BEARER_TOKEN` and `VOX_MCP_HTTP_READ_BEARER_TOKEN`.
+   - `crates/vox-orchestrator/src/mcp_tools/http_gateway.rs` reads `VOX_MCP_HTTP_BEARER_TOKEN` and `VOX_MCP_HTTP_READ_BEARER_TOKEN`.
 4. **Runtime model registry can read arbitrary api_key env names**
    - `crates/vox-runtime/src/llm/types.rs` checks `api_key_env` via `std::env::var` before provider-specific Clavis fallback.
 5. **Publisher OpenReview path is mixed**

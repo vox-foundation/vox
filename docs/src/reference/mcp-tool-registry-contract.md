@@ -18,7 +18,7 @@ Rust code consumes this file via **`crates/vox-mcp-registry`** (`build.rs` emits
 `vox-mcp`, `vox-corpus`, and `vox-mcp-meta` re-export that table — do not hand-edit duplicate lists in Rust.
 **Do not hand-edit** `tool-registry.canonical.yaml`; it is generated from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) via `vox ci operations-sync --target mcp [--write]` (or `--target all`). `vox ci operations-verify` enforces strict parity (including dispatch + input schema arms + read-role governance vs catalog) before `command-compliance` reruns the same projections.
 
-List tools returned to MCP clients include **`_meta.vox_product_lane`** and **`_meta.vox_http_read_role_eligible`** on each RMCP `Tool` descriptor (see `crates/vox-mcp/src/tools/registry.rs`).
+List tools returned to MCP clients include **`_meta.vox_product_lane`** and **`_meta.vox_http_read_role_eligible`** on each RMCP `Tool` descriptor (see `crates/vox-orchestrator/src/mcp_tools/tools/registry.rs`).
 
 **`vox_repo_status`** — same discovery JSON as **`vox repo status`**; schema [`contracts/repository/repo-workspace-status.schema.json`](../../../contracts/repository/repo-workspace-status.schema.json).
 

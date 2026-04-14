@@ -54,7 +54,7 @@ This plan tracks the decomposition of monolithic "God Objects" across the Vox wo
 - `handoff.rs`: Handoff acceptance and validation.
 
 ### Wave 6: Budget & Usage Tracking
-**Target:** `crates/vox-orchestrator/src/budget.rs` (856 lines)
+**Target:** `crates/vox-orchestrator/src/orchestrator/core/budget.rs` (856 lines)
 **De-factoring Strategy:**
 - `mod.rs`: `BudgetManager` core.
 - `session.rs`: Session-level attribution.

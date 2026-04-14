@@ -566,7 +566,7 @@ These extend the invariants in [Clavis Cloudless Threat Model V1](clavis-cloudle
 - [RFC 8707: Resource Indicators for OAuth 2.0](https://rfc-editor.org/rfc/rfc8707)
 - [RFC 7591: OAuth 2.0 Dynamic Client Registration](https://rfc-editor.org/rfc/rfc7591)
 - [MCP Specification (2025/2026)](https://modelcontextprotocol.io/specification/latest/basic)
-- [MCP Authorization Documentation](https://modelcontextprotocol.io/docs/concepts/authorization)
+- [MCP Authorization Documentation](https://modelcontextprotocol.io/docs/concepts/authentication)
 - [NIST SP 800-57 Part 1 Rev. 6 — Key Management Recommendation](https://csrc.nist.gov/pubs/sp/800/57/pt1/r6/ipd)
 
 ### Industry research and statistics
@@ -580,14 +580,14 @@ These extend the invariants in [Clavis Cloudless Threat Model V1](clavis-cloudle
 
 ### Competitive platform documentation
 - [Infisical: Self-hosted deployment and open-source comparison](https://infisical.com/docs/self-hosting/overview)
-- [Doppler: Automatic rotation docs](https://docs.doppler.com/docs/secret-rotation)
+- [Doppler: Automatic rotation docs](https://docs.doppler.com/docs/rotations)
 - [1Password: Secrets Automation](https://developer.1password.com/docs/secrets-automation)
 - [HashiCorp Vault: Dynamic credentials](https://developer.hashicorp.com/vault/tutorials/db-credentials/database-secrets)
 - [OpenBao: Vault-compatible open-source fork](https://openbao.org/)
 - [SOPS + age](https://github.com/getsops/sops)
 
 ### AI agent security
-- [Microsoft: Defense-in-depth for prompt injection](https://learn.microsoft.com/en-us/security/ai/)
+- [Microsoft: Defense-in-depth for prompt injection](https://learn.microsoft.com/en-us/security/ai-infrastructure/)
 - [Red Hat: Zero trust for AI agents (2025)](https://www.redhat.com)
 - [paloaltonetworks.com: MCP security analysis](https://www.paloaltonetworks.com)
 - [Datadog: MCP attack surface](https://www.datadoghq.com)

@@ -263,4 +263,4 @@ For abstract or ambiguous queries:
 | Embedding service | `crates/vox-search/src/embeddings.rs` |
 | Qdrant sidecar | `crates/vox-search/src/vector_qdrant.rs` |
 | Tantivy lexical | `crates/vox-search/src/lexical_tantivy.rs` |
-| Clavis secrets | `crates/vox-clavis/src/spec.rs` |
+| Clavis secrets | `crates/vox-clavis/src/lib.rs` |

@@ -296,12 +296,12 @@ The GraphQL token requires `discussions:write` permission — this must be docum
 
 ### PROBLEM-11: No Clavis secret entries verified for publisher social channels
 
-**File:** [`crates/vox-clavis/src/spec.rs`](../../../crates/vox-clavis/src/spec.rs)
+**File:** [`crates/vox-clavis/src/lib.rs`](../../../crates/vox-clavis/src/lib.rs)
 
 **Problem:** A grep of `spec.rs` for `Reddit`, `Discord`, `Twitter`, `Github`, and `LinkedIn` returns zero results. The first draft proposed four secrets as if they didn't exist, but never verified. Either the secrets genuinely don't exist (they need to be added with full `SecretSpec` entries), or they exist under different names (e.g. `VoxGitHubToken` vs `VoxGitHubApiToken`).
 
 **Action required (do not implement until verified):**
-1. Run: `rg -n "Reddit|Discord|LinkedIn|Mastodon|Bluesky" crates/vox-clavis/src/spec.rs`
+1. Run: `rg -n "Reddit|Discord|LinkedIn|Mastodon|Bluesky" crates/vox-clavis/src/lib.rs`
 2. Add any missing entries following the established `SecretId` / `SecretSpec` pattern
 3. Run `vox ci clavis-parity` and `vox ci secret-env-guard --all` after any additions
 
@@ -562,7 +562,7 @@ Use this as a task checklist. Items are grouped by dependency — complete each 
 
 ### Wave 0 — Audit & Foundation (no code changes — verify first)
 - [ ] Read `crates/vox-forge/src/github.rs` — verify `create_discussion_or_issue` creates Discussions not Issues (PROBLEM-10)
-- [ ] Read `crates/vox-clavis/src/spec.rs` — enumerate all existing social secret IDs (PROBLEM-11)
+- [ ] Read `crates/vox-clavis/src/lib.rs` — enumerate all existing social secret IDs (PROBLEM-11)
 - [ ] Read `crates/vox-publisher/src/contract.rs` — verify `DEFAULT_SITE_BASE_URL = "https://vox-lang.org"` (PROBLEM-13)
 - [ ] Read `crates/vox-publisher/src/distribution_compile.rs` or `switching.rs` — map all 12 adapter dispatch paths (PROBLEM-14)
 - [ ] Read `crates/vox-publisher/src/adapters/hacker_news.rs` — verify what ManualAssist output looks like now (PROBLEM-20)

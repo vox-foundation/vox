@@ -64,9 +64,9 @@ Job-layer preflight uses `last_error_class = "preflight"`. Adapter errors use `S
 |-------|----------------|
 | Schema | `crates/vox-db/src/schema/domains/publish_cloud.rs` |
 | Store ops | `crates/vox-db/src/store/ops_publication.rs` |
-| Worker / adapters | `crates/vox-publisher/src/scholarly_external_jobs.rs`, `crates/vox-publisher/src/scholarly/` |
+| Worker / adapters | `crates/vox-publisher/src/scholarly/external_jobs.rs`, `crates/vox-publisher/src/scholarly/` |
 | CLI implementation | `crates/vox-cli/src/commands/db.rs` (handlers), `db_cli/subcommands.rs` (Clap), `scientia.rs` (facade); publication helpers in `commands/db/publication.rs` (`publication-preflight` / `publication-status` include gate-aware `manual_required` plus ordered `next_actions`) |
-| MCP | `crates/vox-mcp/src/tools/scientia_tools.rs`, `dispatch.rs`, `input_schemas.rs` |
+| MCP | `crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools.rs`, `dispatch.rs`, `input_schemas.rs` |
 | CLI contract | `contracts/cli/command-registry.yaml` |
 | MCP contract | `contracts/mcp/tool-registry.canonical.yaml` |
 | Human reference | `docs/src/reference/cli.md`, this handbook |

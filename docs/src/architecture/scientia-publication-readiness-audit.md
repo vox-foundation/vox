@@ -40,7 +40,7 @@ It also defines the implementation gap between where the codebase is now and wha
   - `crates/vox-db/src/schema/domains/publish_cloud.rs`
   - `crates/vox-db/src/store/ops_publication.rs`
 - MCP parity tooling:
-  - `crates/vox-mcp/src/tools/scientia_tools.rs`
+  - `crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools.rs`
   - `contracts/mcp/tool-registry.canonical.yaml`
 - Existing docs and decision record:
   - `docs/src/adr/011-scientia-publication-ssot.md`
@@ -216,7 +216,7 @@ codexLedger --> readinessReports[ReadinessAndOpsReports]
   - `crates/vox-cli/src/commands/db.rs`
   - `crates/vox-cli/src/commands/scientia.rs`
 - MCP:
-  - `crates/vox-mcp/src/tools/scientia_tools.rs`
+  - `crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools.rs`
   - `contracts/mcp/tool-registry.canonical.yaml`
 
 ## Recommended KPIs

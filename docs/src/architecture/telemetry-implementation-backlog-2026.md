@@ -38,7 +38,7 @@ Use this as the **single execution checklist** for telemetry unification. Check 
 ### 0.C Core reference docs
 
 - [x] `docs/src/reference/telemetry-metric-contract.md` — add “Related SSOT” block: trust-ssot, taxonomy, retention-sensitivity, client-disclosure.
-- [x] `docs/src/api/vox-mcp.md` — add pointer to telemetry-trust-ssot next to cost-event and mesh telemetry sections.
+- [x] `docs/src/api/vox-orchestrator.md` — add pointer to telemetry-trust-ssot next to cost-event and mesh telemetry sections.
 - [x] `docs/src/architecture/completion-policy-ssot.md` — add pointer to telemetry-retention-sensitivity-ssot for `ci_completion_*` classification.
 - [x] `docs/src/architecture/voxdb-connect-policy.md` — note optional DB and impact on telemetry availability (no writes when DB absent).
 
@@ -128,16 +128,16 @@ Use this as the **single execution checklist** for telemetry unification. Check 
 
 ## Phase 3 — Producer audit (`vox-mcp`)
 
-- [x] `crates/vox-mcp/src/llm_bridge/infer.rs` — document `VOX_MCP_LLM_COST_EVENTS` defaulting when DB absent.
-- [x] `crates/vox-mcp/src/server/lifecycle.rs` — classify `record_attention_event` persistence path (not usage telemetry unless explicitly scoped).
-- [x] `crates/vox-mcp/src/tools/task_tools.rs` — context lifecycle policy side effects documented.
-- [x] `crates/vox-mcp/src/tools/benchmark_tools.rs` — tool descriptions reference trust-ssot.
-- [x] `crates/vox-mcp/src/tools/chat_socrates_meta.rs` — `record_socrates_surface_event` classification.
-- [x] `crates/vox-mcp/src/tools/repo_catalog_tools.rs` — benchmark record path gated and documented.
-- [x] `crates/vox-mcp/src/dei_tools/orchestrator_snapshot.rs` — mesh snapshot telemetry classification.
-- [x] `crates/vox-mcp/src/tools/questioning_tools.rs` — attention events vs questioning DB tables.
-- [x] `crates/vox-mcp/src/a2a.rs` — attention debit events documented.
-- [x] `crates/vox-mcp/src/tools/dispatch.rs` — ensure `prepare_mcp_tool_args_for_storage` applied on all persistence paths.
+- [x] `crates/vox-orchestrator/src/mcp_tools/llm_bridge/infer.rs` — document `VOX_MCP_LLM_COST_EVENTS` defaulting when DB absent.
+- [x] `crates/vox-orchestrator/src/mcp_tools/server/lifecycle.rs` — classify `record_attention_event` persistence path (not usage telemetry unless explicitly scoped).
+- [x] `crates/vox-orchestrator/src/mcp_tools/tools/task_tools.rs` — context lifecycle policy side effects documented.
+- [x] `crates/vox-orchestrator/src/mcp_tools/tools/benchmark_tools.rs` — tool descriptions reference trust-ssot.
+- [x] `crates/vox-orchestrator/src/mcp_tools/tools/chat_socrates_meta.rs` — `record_socrates_surface_event` classification.
+- [x] `crates/vox-orchestrator/src/mcp_tools/tools/repo_catalog_tools.rs` — benchmark record path gated and documented.
+- [x] `crates/vox-orchestrator/src/mcp_tools/dei_tools/orchestrator_snapshot.rs` — mesh snapshot telemetry classification.
+- [x] `crates/vox-orchestrator/src/mcp_tools/tools/questioning_tools.rs` — attention events vs questioning DB tables.
+- [x] `crates/vox-orchestrator/src/mcp_tools/a2a.rs` — attention debit events documented.
+- [x] `crates/vox-orchestrator/src/mcp_tools/tools/dispatch.rs` — ensure `prepare_mcp_tool_args_for_storage` applied on all persistence paths.
 - [x] `crates/vox-mcp/tests/tool_dispatch_tests.rs` — add cases for any new redaction rules.
 
 ---
@@ -215,7 +215,7 @@ Use this as the **single execution checklist** for telemetry unification. Check 
 ## Phase 7 — Optional central sink (future)
 
 - [x] ADR: remote telemetry upload, data residency, opt-in UX — [ADR 023](../adr/023-optional-telemetry-remote-upload.md).
-- [x] `crates/vox-clavis/src/spec.rs` — `SecretId` for upload URL + bearer token (`VoxTelemetryUploadUrl`, `VoxTelemetryUploadToken`); CLI uses `resolve_secret` only.
+- [x] `crates/vox-clavis/src/lib.rs` — `SecretId` for upload URL + bearer token (`VoxTelemetryUploadUrl`, `VoxTelemetryUploadToken`); CLI uses `resolve_secret` only.
 - [x] Queue module: `crates/vox-cli/src/telemetry_spool.rs` — local spool, export, enqueue, delete-after-ack on HTTP 2xx.
 - [x] Rate limit and payload signer specification in SSOT — [telemetry-remote-sink-spec](telemetry-remote-sink-spec.md).
 - [x] CLI: `vox telemetry status|export|enqueue|upload` (catalog + generated registries).

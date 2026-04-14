@@ -255,7 +255,7 @@ Full command reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md)
 
 `vox-orchestrator` assigns tasks by file affinity and role. `vox-dei` handles human-in-the-loop review — pausing, reassigning, or confirming work before it proceeds. The control surface is exposed as MCP tools, available from the VS Code sidebar or any MCP-compatible agent:
 
-<!-- tool names sourced from crates/vox-mcp/src/tools/dispatch.rs -->
+<!-- tool names sourced from crates/vox-orchestrator/src/mcp_tools/tools/dispatch.rs -->
 ```text
 vox_pause_agent      Suspend a running agent and queue its tasks
 vox_resume_agent     Resume a paused agent
@@ -350,7 +350,7 @@ No struct or impl block may exceed 500 lines or 12 methods. No directory may con
 
 ### All credentials routed through Clavis (`secret-env-guard`, `operator-env-guard`)
 
-Direct `std::env::var` calls for secrets are a CI failure. All credentials are declared as `SecretId` variants in `crates/vox-clavis/src/spec.rs` and resolved via `vox_clavis::resolve_secret(...)`. `vox ci secret-env-guard` scans changed files for raw environment reads and fails the build on any found outside a strict allowlist.
+Direct `std::env::var` calls for secrets are a CI failure. All credentials are declared as `SecretId` variants in `crates/vox-clavis/src/lib.rs` and resolved via `vox_clavis::resolve_secret(...)`. `vox ci secret-env-guard` scans changed files for raw environment reads and fails the build on any found outside a strict allowlist.
 
 **Why it matters:** Raw environment variable reads make it impossible to audit what an application is capable of. Every credential that goes through Clavis appears in `vox clavis doctor`, is picked up by `vox ci clavis-parity`, and is visible to every operator. There is no path for an API key to enter the system through a casual `env::var("SOME_KEY")`. The `SecretDetector` in `vox-toestub` catches hardcoded values as a separate failure class.
 
@@ -397,7 +397,7 @@ Community-backed via **Open Collective** — every dollar raised and spent is pu
 
 Vox Scientia aggregates community research wherever developers are talking. Roadmap decisions and architectural questions are tracked in GitHub Discussions — the format our tooling can index, parse, and feed back into the system.
 
-- **[GitHub Discussions](https://github.com/vox-foundation/vox/discussions)**: Architecture questions, language design feedback, and roadmap input.
+- **[GitHub Discussions](https://github.com/vox-foundation/vox/issues)**: Architecture questions, language design feedback, and roadmap input.
 - **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelogs and architectural decision records.
 <!-- ANCHOR_END: community_license -->
 

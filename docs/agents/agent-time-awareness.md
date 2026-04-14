@@ -72,7 +72,7 @@ Making agents time-aware unlocks advanced behaviors beyond timestamp injection:
 | `crates/vox-orchestrator/src/queue.rs` | `AgentQueue::dequeue()` calls `task.start()` at transition to `InProgress`. |
 | `crates/vox-orchestrator/src/a2a.rs` | `MessageBus::inbox()` filters messages where `elapsed_ms() > 300_000` (5 min). |
 | `crates/vox-orchestrator/src/memory.rs` | `MemoryManager::bootstrap_context()` prepends `"Current date: YYYY-MM-DD.\nCurrent timestamp: Ns.\n\n"`. |
-| `crates/vox-mcp/src/tools/repo_index.rs` | `repo_index_status` / `repo_index_refresh` now `async`; check `ContextStore::is_fresh("workspace_index_*", 30)` before walking. |
+| `crates/vox-orchestrator/src/mcp_tools/tools/repo_index.rs` | `repo_index_status` / `repo_index_refresh` now `async`; check `ContextStore::is_fresh("workspace_index_*", 30)` before walking. |
 
 ## 5. Prompt Contract
 

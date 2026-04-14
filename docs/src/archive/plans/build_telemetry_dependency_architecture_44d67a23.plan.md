@@ -85,7 +85,7 @@ Primary files:
 Primary files:
 - [`crates/vox-db/src/store/ops_build.rs`](crates/vox-db/src/store/ops_build.rs)
 - [`crates/vox-db/src/schema/domains/toestub_build.rs`](crates/vox-db/src/schema/domains/toestub_build.rs)
-- [`crates/vox-mcp/src/tools/benchmark_tools.rs`](crates/vox-mcp/src/tools/benchmark_tools.rs)
+- [`crates/vox-orchestrator/src/mcp_tools/tools/benchmark_tools.rs`](crates/vox-orchestrator/src/mcp_tools/tools/benchmark_tools.rs)
 - [`docs/src/reference/telemetry-metric-contract.md`](docs/src/reference/telemetry-metric-contract.md)
 
 ### Wave 3 - Dependency-Shape Metrics (Bounded Scope)

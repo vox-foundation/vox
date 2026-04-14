@@ -238,7 +238,7 @@ permissions:
 ---
 ```
 
-This frontmatter is consumed by the `ScopeGuard` layer (`crates/vox-mcp/src/tools/scope_guard.rs`) for hard enforcement, independent of the LLM reading the prose below.
+This frontmatter is consumed by the `ScopeGuard` layer (`crates/vox-orchestrator/src/mcp_tools/tools/scope_guard.rs`) for hard enforcement, independent of the LLM reading the prose below.
 
 ### 4.4 Anti-patterns
 
@@ -537,8 +537,8 @@ The trust layer already recognizes `repository` as an entity type. Cross-repo qu
 - [OWASP Top 10 for LLM Applications 2025](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
 - [Anthropic: Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
 - [Claude Code: Permission architecture](https://docs.anthropic.com/claude/docs/computer-use)
-- [Model Context Protocol: Roots specification](https://modelcontextprotocol.io/specification/2025-11-05/client/roots)
-- [MCP OAuth 2.1 authorization](https://modelcontextprotocol.io/specification/2025-11-05/basic/authorization)
+- [Model Context Protocol: Roots specification](https://modelcontextprotocol.io/docs/concepts/authentication)
+- [MCP OAuth 2.1 authorization](https://modelcontextprotocol.io/docs/concepts/authentication)
 - [Nx: Module boundary enforcement](https://nx.dev/features/enforce-module-boundaries)
 - [Git worktrees](https://git-scm.com/docs/git-worktree)
 - [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)

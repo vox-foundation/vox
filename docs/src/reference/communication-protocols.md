@@ -38,7 +38,7 @@ These are the canonical plane names used when comparing transports across the re
 
 | Family | Primary contract | Primary doc | Canonical decision |
 | --- | --- | --- | --- |
-| MCP stdio | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | [`docs/src/api/vox-mcp.md`](../api/vox-mcp.md) | Keep as the default host/editor control surface |
+| MCP stdio | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | [`docs/src/api/vox-orchestrator.md`](../api/vox-mcp.md) | Keep as the default host/editor control surface |
 | MCP HTTP gateway | [`contracts/mcp/http-gateway.openapi.yaml`](../../../contracts/mcp/http-gateway.openapi.yaml) | [`mcp-http-gateway-contract.md`](mcp-http-gateway-contract.md) | Keep bounded and opt-in for remote/mobile control |
 | Populi HTTP control plane | [`contracts/populi/control-plane.openapi.yaml`](../../../contracts/populi/control-plane.openapi.yaml) | [`populi.md`](populi.md) | Keep HTTP-first per ADR 008 |
 | Populi A2A relay | [`contracts/populi/control-plane.openapi.yaml`](../../../contracts/populi/control-plane.openapi.yaml) | [`populi.md`](populi.md) | Evaluate overlap only against DB inbox after telemetry-backed review |
