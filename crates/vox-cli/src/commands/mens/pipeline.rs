@@ -168,6 +168,7 @@ pub async fn run(
                                 no_recheck: true,
                                 quarantine: None,
                                 report: None,
+                                reward_hook: None,
                             },
                         )
                         .await?;

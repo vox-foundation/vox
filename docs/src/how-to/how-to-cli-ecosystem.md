@@ -223,7 +223,7 @@ cargo clippy --workspace      # Lint check
 
 ## Next Steps
 
-- [Language Guide](../reference/ref-language.md) — Full syntax and feature reference
+- [Language Guide](../reference/ref-syntax.md) — Full syntax and feature reference
 - [Compiler Architecture](../explanation/expl-architecture.md) — Pipeline internals
 - [Actors & Workflows](../explanation/expl-actors-workflows.md) — Concurrency and durable execution
 - [Examples](examples-corpus.md) — Annotated example programs

@@ -706,7 +706,11 @@ pub(super) async fn run_rust_mine(source_dir: &Path, output: &Path) -> Result<()
     Ok(())
 }
 
-pub(super) async fn run_diversity_check(input: &Path, min_diversity: f64) -> Result<()> {
+pub(super) async fn run_diversity_check(
+    input: &Path,
+    min_diversity: f64,
+    domain: Option<&str>,
+) -> Result<()> {
     let content = read_utf8_path_capped_async(input).await?;
     let mut codes = Vec::new();
 
@@ -728,6 +732,17 @@ pub(super) async fn run_diversity_check(input: &Path, min_diversity: f64) -> Res
     }
 
     if codes.is_empty() {
+        // Fallback: try looking for 'code' field often used in intermediate steps
+        for line in content.lines() {
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Some(code) = value.get("code").and_then(|v| v.as_str()) {
+                    codes.push(code.to_string());
+                }
+            }
+        }
+    }
+
+    if codes.is_empty() {
         anyhow::bail!(
             "No Vox code found in {}. Ensure records have 'vox_code', 'output', or 'response' fields.",
             input.display()
@@ -738,9 +753,35 @@ pub(super) async fn run_diversity_check(input: &Path, min_diversity: f64) -> Res
 
     println!("--- Corpus Diversity Report ---");
     println!("  Input:      {}", input.display());
+    println!("  Domain:     {}", domain.unwrap_or("(default)"));
     println!("  Records:    {}", codes.len());
     println!("  Diversity:  {:.2}%", report.ast_diversity * 100.0);
     println!("  Variance:   {:.2}", report.construct_variance);
+
+    // Record to telemetry if DB is available (ALWAYS record for Flywheel tracking)
+    if let Ok(db) = crate::workspace_db::connect_cli_workspace_voxdb_with_overrides(true).await {
+        let session_id = if let Some(d) = domain {
+            format!("corpus_diversity_check:{}", d)
+        } else {
+            "corpus_diversity_check".to_string()
+        };
+        let _ = db
+            .append_research_metric(
+                &session_id,
+                "ast_diversity",
+                Some(report.ast_diversity),
+                Some(&serde_json::to_string(&report)?),
+            )
+            .await;
+        let _ = db
+            .append_research_metric(
+                &session_id,
+                "corpus_sample_count",
+                Some(codes.len() as f64),
+                None,
+            )
+            .await;
+    }
 
     if report.collapse_warning {
         eprintln!(
@@ -748,18 +789,6 @@ pub(super) async fn run_diversity_check(input: &Path, min_diversity: f64) -> Res
             "⚠".red(),
             min_diversity
         );
-
-        // Record to telemetry if DB is available
-        if let Ok(db) = crate::workspace_db::connect_cli_workspace_voxdb_with_overrides(true).await {
-            let _ = db
-                .append_research_metric(
-                    "corpus_diversity_check",
-                    "ast_diversity",
-                    Some(report.ast_diversity),
-                    Some(&serde_json::to_string(&report)?),
-                )
-                .await;
-        }
         anyhow::bail!("Corpus failed diversity check (potential mode collapse/monoculture).");
     } else {
         println!("  {} Diversity check PASSED.", "✓".green());

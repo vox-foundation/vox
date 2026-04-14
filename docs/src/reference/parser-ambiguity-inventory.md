@@ -36,5 +36,5 @@ Automated **no-panic** corpus { [`crates/vox-compiler/tests/parser_corpus_no_pan
 
 ## Related
 
-- [Lexer / tokens — lexicon](ref-language.md)
+- [Lexer / tokens — Vox Language Reference](../reference/ref-syntax.md)
 - [STYLE / examples](../../../examples/STYLE.md)

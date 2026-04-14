@@ -25,5 +25,5 @@ CLI JSON diagnostics (`vox check --json`, shared `pipeline`) include a `category
 
 ## Related
 
-- [Language reference](ref-language.md)
+- [Language reference](ref-syntax.md)
 - [Architecture — compiler pipeline](../explanation/expl-architecture.md)

@@ -99,6 +99,7 @@ pub(super) async fn run_validate(
     recheck: bool,
     quarantine: Option<&Path>,
     report: Option<&Path>,
+    reward_hook: Option<&str>,
 ) -> Result<()> {
     if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
@@ -115,6 +116,7 @@ pub(super) async fn run_validate(
     let mut valid: Vec<serde_json::Value> = Vec::new();
     let mut rejected_malformed = 0u32;
     let mut rejected_compiler = 0u32;
+    let mut rejected_reward = 0u32;
     let mut construct_counts: HashMap<String, u32> = HashMap::new();
     let mut quarantine_rows: Vec<serde_json::Value> = Vec::new();
     let mut failure_samples: Vec<serde_json::Value> = Vec::new();
@@ -189,6 +191,32 @@ pub(super) async fn run_validate(
                         rejected_compiler += 1;
                         continue;
                     }
+                }
+            }
+        }
+
+        // Exact reward filtering: check against specified hook if any
+        if let Some(hook) = reward_hook {
+            if let Some(src) = vox_source_for_compiler_recheck(&record).or_else(|| {
+                // fallback to extract raw code if not standard vox format
+                record.get("code").and_then(|v| v.as_str()).map(|s| s.to_string())
+            }) {
+                let reward = match hook {
+                    "cargo_build" => vox_eval::cargo_build_reward(&src),
+                    "cargo_test" => vox_eval::cargo_test_reward(&src),
+                    _ => 1.0, // unknown hook
+                };
+                
+                if reward <= 0.0 {
+                    rejected_reward += 1;
+                    if quarantine.is_some() {
+                        quarantine_rows.push(serde_json::json!({
+                            "reason": "reward_hook_failed",
+                            "hook": hook,
+                            "record": record,
+                        }));
+                    }
+                    continue; // Skip appending this to valid list
                 }
             }
         }
@@ -281,7 +309,8 @@ pub(super) async fn run_validate(
         "accepted_after_dedup": deduped.len(),
         "rejected_malformed_json": rejected_malformed,
         "rejected_compiler": rejected_compiler,
-        "rejected_total": rejected_total,
+        "rejected_reward": rejected_reward,
+        "rejected_total": rejected_total + rejected_reward,
         "failure_samples": failure_samples,
     });
 
@@ -357,6 +386,7 @@ pub(super) async fn run_validate(
     println!("║  After dedup:       {:<28}║", deduped.len());
     println!("║  Rejected (json):   {:<28}║", rejected_malformed);
     println!("║  Rejected (compiler):{:<26}║", rejected_compiler);
+    println!("║  Rejected (reward): {:<28}║", rejected_reward);
     let cov_text = format!(
         "{:.1}% ({}/{})",
         coverage_pct,
@@ -381,12 +411,13 @@ pub(super) async fn run_validate(
     }
     println!("╚══════════════════════════════════════════════════╝");
 
-    if strict && rejected_total > 0 {
+    if strict && (rejected_total + rejected_reward) > 0 {
         anyhow::bail!(
-            "VOX_MENS_TRAIN_JSONL_STRICT: rejected {} rows (malformed {} compiler {}). See --quarantine / --report.",
-            rejected_total,
+            "VOX_MENS_TRAIN_JSONL_STRICT: rejected {} rows (malformed {} compiler {} reward {}). See --quarantine / --report.",
+            rejected_total + rejected_reward,
             rejected_malformed,
-            rejected_compiler
+            rejected_compiler,
+            rejected_reward
         );
     }
 

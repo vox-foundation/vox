@@ -102,6 +102,9 @@ pub enum CorpusAction {
         /// Write JSON summary (counts, sample failures)
         #[arg(long)]
         report: Option<std::path::PathBuf>,
+        /// Apply reward-based filter (e.g., cargo_build, cargo_test) to reject low-performing rows
+        #[arg(long)]
+        reward_hook: Option<String>,
     },
     /// Audit corpus diversity by measuring AST semantic entropy
     DiversityCheck {
@@ -111,6 +114,9 @@ pub enum CorpusAction {
         /// Minimum allowed AST diversity (0.0-1.0, recommended 0.40)
         #[arg(long, default_value_t = 0.40)]
         min_diversity: f64,
+        /// Optional training domain for segmented telemetry (vox-lang, rust-expert, agents)
+        #[arg(short, long)]
+        domain: Option<String>,
     },
     /// Generate instruction→response training pairs from validated corpus
     Pairs {
@@ -309,6 +315,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             no_recheck,
             quarantine,
             report,
+            reward_hook,
         } => {
             let out = output.as_deref().unwrap_or(&input);
             validate::run_validate(
@@ -317,13 +324,15 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 !no_recheck,
                 quarantine.as_deref(),
                 report.as_deref(),
+                reward_hook.as_deref(),
             )
             .await
         }
         CorpusAction::DiversityCheck {
             input,
             min_diversity,
-        } => generate::run_diversity_check(&input, min_diversity).await,
+            domain,
+        } => generate::run_diversity_check(&input, min_diversity, domain.as_deref()).await,
         CorpusAction::Pairs {
             input,
             output,
