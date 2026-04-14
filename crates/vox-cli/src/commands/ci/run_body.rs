@@ -164,7 +164,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
-        CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
+        CiCmd::LineEndings { all, base, autofix } => line_endings::run(&root, all, base, autofix),
         CiCmd::MeshGate {
             profile,
             isolated_runner,

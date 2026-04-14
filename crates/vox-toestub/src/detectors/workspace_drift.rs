@@ -99,6 +99,23 @@ impl DetectionRule for WorkspaceDriftDetector {
                         evidence: None,
                     });
                 }
+                
+                // 3. Detect edition drift: enforce Rust 2024
+                if trimmed.starts_with("edition =") {
+                    findings.push(Finding {
+                        rule_id: self.id().to_string(),
+                        rule_name: self.name().to_string(),
+                        severity: self.severity(),
+                        file: file.path.clone(),
+                        line: i + 1,
+                        column: 0,
+                        message: "Sub-crate specifies an explicit edition instead of inheriting from workspace.".to_string(),
+                        suggestion: Some("Use `edition.workspace = true` and define `edition = \"2024\"` in the root Cargo.toml.".to_string()),
+                        context: trimmed.to_string(),
+                        confidence: None,
+                        evidence: None,
+                    });
+                }
             }
         } else {
             // It's the root Cargo.toml. Check for orphan crates in the `crates/` directory.
@@ -137,6 +154,23 @@ impl DetectionRule for WorkspaceDriftDetector {
                         }
                     }
                 }
+            }
+            
+            // Enforce Rust 2024 in the root workspace
+            if file.content.contains("edition = \"2021\"") || file.content.contains("edition = '2021'") || !file.content.contains("edition = \"2024\"") {
+                findings.push(Finding {
+                    rule_id: self.id().to_string(),
+                    rule_name: self.name().to_string(),
+                    severity: self.severity(),
+                    file: file.path.clone(),
+                    line: 1,
+                    column: 0,
+                    message: "Root Cargo.toml must specify `edition = \"2024\"`.".to_string(),
+                    suggestion: Some("Change edition to \"2024\" in the `[workspace.package]` section.".to_string()),
+                    context: String::new(),
+                    confidence: None,
+                    evidence: None,
+                });
             }
         }
 

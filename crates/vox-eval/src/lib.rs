@@ -352,7 +352,7 @@ pub fn cargo_build_reward(snippet: &str) -> f64 {
 [package]
 name = "vox_eval_tmp"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 "#;
@@ -394,7 +394,7 @@ pub fn cargo_test_reward(snippet: &str) -> f64 {
 [package]
 name = "vox_eval_tmp"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 "#;

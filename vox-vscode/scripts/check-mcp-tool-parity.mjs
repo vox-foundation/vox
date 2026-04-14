@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const extRoot = path.join(repoRoot, 'vox-vscode');
 const yamlPath = path.join(repoRoot, 'contracts', 'mcp', 'tool-registry.canonical.yaml');
-const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-mcp', 'src', 'tools', 'tool_aliases.rs');
+const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-orchestrator', 'src', 'mcp_tools', 'tool_aliases.rs');
 
 function loadAliasesFromRust() {
     const text = fs.readFileSync(rustAliasesPath, 'utf8');

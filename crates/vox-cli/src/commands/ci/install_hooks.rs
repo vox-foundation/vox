@@ -9,7 +9,7 @@ const PRE_COMMIT_HOOK: &str = r#"#!/usr/bin/env bash
 echo "🦶 Running VoxCI line-endings check..."
 
 # Run the strict line-ending validator, scoping to changed files (--all is not needed here)
-cargo run -q -p vox-cli -- ci line-endings
+cargo run -q -p vox-cli -- ci line-endings --autofix
 
 if [ $? -ne 0 ]; then
     echo "❌ Commit aborted: CRLF line-endings detected. Run the formatter or fix them in your IDE, then git add again."

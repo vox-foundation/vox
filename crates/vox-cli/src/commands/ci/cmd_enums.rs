@@ -102,6 +102,9 @@ pub enum CiCmd {
         /// Git ref for diff base (overrides `VOX_LINE_ENDINGS_BASE`; head defaults to `HEAD`).
         #[arg(long)]
         base: Option<String>,
+        /// Automatically convert CRLF -> LF in violating files and stage them via `git add`.
+        #[arg(long)]
+        autofix: bool,
     },
     /// Run mesh / Populi CI gate steps from `scripts/populi/gates.yaml` (with legacy fallback).
     #[command(name = "mesh-gate", visible_alias = "mens-gate")]

@@ -13,7 +13,7 @@ const EXT_LF: &[&str] = &[
 ];
 
 /// Run the line-ending check. Forward-only: only files changed since merge-base unless `all` is set.
-pub fn run(repo_root: &Path, all: bool, base_override: Option<String>) -> Result<()> {
+pub fn run(repo_root: &Path, all: bool, base_override: Option<String>, autofix: bool) -> Result<()> {
     let rel_paths = if all {
         list_all_tracked_policy_paths(repo_root)?
     } else {
@@ -48,8 +48,22 @@ pub fn run(repo_root: &Path, all: bool, base_override: Option<String>) -> Result
         }
         checked += 1;
         if violates_lf_only(&bytes) {
+            if autofix {
+                let lf_only: Vec<u8> = bytes.iter().copied().filter(|&b| b != b'\r').collect();
+                std::fs::write(&full, lf_only).with_context(|| format!("autofix {}", full.display()))?;
+            }
             violations.push(rel.display().to_string());
         }
+    }
+
+    if autofix && !violations.is_empty() {
+        let mut add_args = vec!["add"];
+        for v in &violations {
+            add_args.push(v.as_str());
+        }
+        git_output(repo_root, &add_args).context("git add after autofix")?;
+        println!("line-endings: auto-fixed and staged {} file(s)", violations.len());
+        violations.clear();
     }
 
     if violations.is_empty() {

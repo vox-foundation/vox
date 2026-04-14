@@ -25,3 +25,12 @@ platforms = [
 
 # Write out exact versions rather than a semver range. (Defaults to false.)
 # exact-versions = true
+
+[final-excludes]
+third-party = [
+    { name = "candle-core" },
+    { name = "candle-nn" },
+    { name = "candle-transformers" },
+    { name = "float8" },
+    { name = "cudarc" }
+]

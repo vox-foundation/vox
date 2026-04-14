@@ -101,7 +101,7 @@ mod tests {
         use crate::rules::SourceFile;
         use std::path::PathBuf;
         let detector = god_object::GodObjectDetector::default();
-        let content = "fn main() {}\n".repeat(detector.max_lines + 1);
+        let content = "fn main() {}\n".repeat(detector.hard_max_lines + 1);
         let file = SourceFile::new(PathBuf::from("large.rs"), content);
         let findings = detector.detect(&file, None);
         assert!(!findings.is_empty());

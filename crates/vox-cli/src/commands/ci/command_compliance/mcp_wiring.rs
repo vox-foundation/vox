@@ -129,5 +129,19 @@ pub(crate) fn check_mcp_tool_wiring(
             ));
         }
     }
+
+    let vscode_dir = repo_root.join("vox-vscode");
+    if vscode_dir.is_dir() {
+        let status = std::process::Command::new("node")
+            .arg("scripts/check-mcp-tool-parity.mjs")
+            .current_dir(&vscode_dir)
+            .status();
+        if let Ok(st) = status {
+            if !st.success() {
+                return Err(anyhow!("vox-vscode parity check failed. See output above."));
+            }
+        }
+    }
+
     Ok(())
 }
