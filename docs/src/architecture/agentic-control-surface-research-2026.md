@@ -17,7 +17,7 @@ schema_type: "TechArticle"
 
 This research document synthesizes industry standards for Human-in-the-Loop (HITL) steering, the "Reflection Pattern" (Self-Reflection and Verification), and how these concepts map to and unify Vox's existing ecosystem constraints. The goal is to provide a single, unified mental model for the "Pilot Console"—the primary interface through which a human orchestrates the AI system.
 
-This document builds upon previous research, specifically the [L.A. Noire Doubt Metaphor](hitl_research_doubt_metaphor.md) and [Continuation Prompt Engineering](../contributors/continuation-prompt-engineering.md).
+This document builds upon previous research, specifically the [L.A. Noire Doubt Metaphor](hitl-doubt-loop-ssot.md) and [Continuation Prompt Engineering](../contributors/continuation-prompt-engineering.md).
 
 ## Core Concepts & Industry Alignment
 
@@ -50,7 +50,7 @@ This is the system's forward momentum. The human defines *what* to do and *keeps
 
 ### State 2: Reflective Interrogation (Doubt & Audit)
 
-This state resolves the conflict between the [L.A. Noire "Doubt" metaphor](hitl_research_doubt_metaphor.md) and the "Second Pass Verification." **They are the same action.**
+This state resolves the conflict between the [L.A. Noire "Doubt" metaphor](hitl-doubt-loop-ssot.md) and the "Second Pass Verification." **They are the same action.**
 *   **Concepts Unified:** L.A. Noire "Suspicious" / "Doubt", Second Pass Validator, Socrates Output-Evaluation.
 *   **Behavior:** When the operator presses "Doubt" (or the system self-triggers doubt due to low Socrates scores), the orchestrator *pivots* rather than halting. It shifts from generation to **Reflective Validation**.
 *   **The Action:** The agent explicitly queries the codebase to verify its own recent diffs, runs tests, and applies hallucination checks. 
@@ -77,6 +77,5 @@ By unifying these, we minimize the UI options for the controller while maximizin
 2.  **Expose Confidence (Socrates):** To guide the manual "Doubt" action, the UI should surface the latent Socrates heuristic score so the operator knows *when* to be suspicious before bugs compound.
 
 ## References
-*   [L.A. Noire Doubt Metaphor](hitl_research_doubt_metaphor.md)
+*   [L.A. Noire Doubt Metaphor](hitl-doubt-loop-ssot.md)
 *   [Continuation Prompt Engineering SSOT](../contributors/continuation-prompt-engineering.md)
-*   [Codebase Integrity Audit](../../../../.gemini/antigravity/knowledge/codebase_integrity_audit/artifacts/overview.md)

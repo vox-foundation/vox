@@ -23,7 +23,7 @@ Read order: after `01-master-planning-index.md`, before `02-fast-llm-instruction
 - Questioning protocol: [`docs/src/reference/information-theoretic-questioning.md`](../../reference/information-theoretic-questioning.md)
 - Research grounding: [`docs/src/architecture/research-diagnostic-questioning-2026.md`](../research-diagnostic-questioning-2026.md)
 - Plan adequacy / auto-expand: [`docs/src/architecture/plan-adequacy.md`](../plan-adequacy.md)
-- Attention budget design: [`docs/src/architecture/agent-event-kind-ludus-matrix.md`](../cognitive_architecture_budget_switching.md) (KI)
+- Attention budget design: [`docs/src/architecture/agent-event-kind-ludus-matrix.md`](../agent-event-kind-ludus-matrix.md) (KI)
 
 ---
 
