@@ -110,4 +110,4 @@ This keeps Vox from accidentally using one word for several different guarantees
 
 - [Workflow Tutorial](../tutorials/tut-workflow-durability.md) — Build your first durable process.
 - [Actors & Workflows](expl-actors-workflows.md) — Current implementation boundary and supported workflow semantics.
-- [Language Reference](../reference/ref-language.md) — Syntax for workflows and activities.
+- [Vox Language Reference](../reference/ref-syntax.md) — Syntax for workflows and activities.

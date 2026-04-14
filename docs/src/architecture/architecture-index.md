@@ -63,7 +63,6 @@ Use these when you need current policy and behavior. The canonical cross-domain 
 ## MENS System
 
 For MENS architecture and training details, refer to:
-- [Populi training orchestration](populi-training-orchestration.md)
 - [Populi data pipeline](populi-data-pipeline.md)
 - [GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)](vox-gui-vision-virtuous-cycle-implementation-plan-2026.md) — GUI verification loop, vision rubrics, fine-tuned Qwen3.5 vs optional VL lane
 
