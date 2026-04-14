@@ -42,7 +42,6 @@ jobs:
         run: |
           cargo install mdbook-metadata --locked
           cargo install mdbook-sitemap-generator --version 0.2.0 --locked
-          cargo install mdbook-linkcheck2 --locked
 
       - uses: pnpm/action-setup@v4
         with:

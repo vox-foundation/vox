@@ -35,14 +35,3 @@ boost-paragraph = 1
 expand = true
 heading-split-level = 3
 
-[output.linkcheck2]
-optional = true
-warning-policy = "warn"
-follow-web-links = false
-traverse-parent-modules = false
-exclude = [
-  "github\\.com/.*",
-  "developer\\.mozilla\\.org/.*",
-  "localhost:.*"
-]
-copy-js = true
