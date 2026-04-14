@@ -341,6 +341,13 @@ pub enum ScientiaCmd {
     /// List registered feed sources.
     #[command(name = "feed-source-list")]
     FeedSourceList,
+    /// Diagnose syndication adapter health and heartbeat status.
+    #[command(name = "diagnose")]
+    Diagnose {
+        /// Force live heartbeat probes (requires feature "live-api-canary").
+        #[arg(long, default_value_t = false)]
+        live: bool,
+    },
 }
 
 /// Dispatch `vox scientia` to the shared `vox db` handlers.
@@ -631,8 +638,48 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     interval_ms,
                 }),
                 ScientiaCmd::FeedSourceList => DbCli::Publication(DbCliPublication::FeedSourceList),
+                ScientiaCmd::Diagnose { live } => {
+                    return diagnose_adapters(live).await;
+                }
             };
             db_cli::run(db_cmd).await
         }
     }
+}
+
+async fn diagnose_adapters(live: bool) -> anyhow::Result<()> {
+    use vox_publisher::PublisherConfig;
+    use vox_publisher::adapter_health::report_health;
+    
+    let site = vox_publisher::contract::NewsSiteConfig {
+        base_url: "https://vox.foundation".to_string(), 
+        rss_feed_path: std::path::PathBuf::from("feed.xml"),
+    };
+    
+    let cfg = PublisherConfig::from_operator_environment(false, None, site);
+    let report = report_health(&cfg, live).await?;
+    
+    println!("Vox Scientia Publication Pipeline Health Report");
+    println!("===============================================");
+    println!();
+    
+    // Simple table-like output without requiring comfy-table if not present
+    println!("{:<20} {:<10} {:<15} {}", "Channel", "Feature", "Credentials", "Heartbeat");
+    println!("{:-<20} {:-<10} {:-<15} {:-<15}", "", "", "", "");
+    
+    for adapter in report.adapters {
+        let feature = if adapter.feature_enabled { "ENABLED" } else { "DISABLED" };
+        let creds = if adapter.credentials_present { "PRESENT" } else { "MISSING" };
+        let heartbeat = match adapter.heartbeat_status {
+            Some(s) => format!("{:?}", s),
+            None => "N/A".to_string(),
+        };
+        
+        println!("{:<20} {:<10} {:<15} {}", adapter.name, feature, creds, heartbeat);
+        if let Some(msg) = adapter.diagnostic_message {
+            println!("  ! {}", msg);
+        }
+    }
+    
+    Ok(())
 }

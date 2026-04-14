@@ -65,7 +65,7 @@ impl<B: SecretBackend> SecretResolver<B> {
     #[must_use]
     pub fn resolve(&self, id: SecretId, opts: &ResolveOptions) -> ResolvedSecret {
         let spec = id.spec();
-        let resolved = self.resolve_spec(spec, opts);
+        let resolved = self.resolve_spec(*spec, opts);
         self.maybe_audit(&resolved, opts);
         resolved
     }

@@ -1,4 +1,4 @@
-use serde_json::Value;
+﻿use serde_json::Value;
 
 use super::params::AmbientStateParams;
 use crate::mcp_tools::params::ToolResult;

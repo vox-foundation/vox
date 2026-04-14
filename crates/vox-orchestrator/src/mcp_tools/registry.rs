@@ -1,4 +1,4 @@
-//! RMCP tool descriptors built from the static MCP registry.
+﻿//! RMCP tool descriptors built from the static MCP registry.
 
 use super::TOOL_REGISTRY;
 use super::input_schemas;

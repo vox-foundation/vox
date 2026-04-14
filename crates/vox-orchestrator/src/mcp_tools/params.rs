@@ -1,4 +1,4 @@
-//! RPC parameter and response types for all Vox MCP tools.
+﻿//! RPC parameter and response types for all Vox MCP tools.
 //!
 //! All `#[derive(Deserialize)]` structs accepted by tool handlers live here.
 //! All `#[derive(Serialize)]` response types live here.

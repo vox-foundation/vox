@@ -1,4 +1,4 @@
-use crate::mcp_tools::server_state::ServerState;
+﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
 
 const REM_BUDGET_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";

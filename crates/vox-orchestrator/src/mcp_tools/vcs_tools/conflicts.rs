@@ -1,4 +1,4 @@
-use crate::{AgentId, ConflictId, ConflictResolution, SnapshotId};
+﻿use crate::{AgentId, ConflictId, ConflictResolution, SnapshotId};
 
 use super::parse::parse_conflict_id_value;
 use crate::mcp_tools::params::ToolResult;

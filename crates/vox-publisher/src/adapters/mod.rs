@@ -15,3 +15,9 @@ pub mod linkedin;
 pub mod discord;
 #[cfg(feature = "scientia-youtube")]
 pub mod youtube;
+
+#[cfg(test)]
+mod tests;
+
+pub mod researchgate;
+pub mod canary;

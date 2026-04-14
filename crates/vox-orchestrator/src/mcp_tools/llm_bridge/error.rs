@@ -1,4 +1,4 @@
-//! HTTP inference errors for LLM providers.
+﻿//! HTTP inference errors for LLM providers.
 
 /// Non-success or transport error from an LLM HTTP call.
 #[derive(Debug)]

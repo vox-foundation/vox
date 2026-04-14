@@ -1,4 +1,4 @@
-//! Git integration tool handlers for the Vox MCP server.
+﻿//! Git integration tool handlers for the Vox MCP server.
 //!
 //! Covers: log, diff, status, blame.
 //!

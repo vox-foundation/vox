@@ -1,4 +1,4 @@
-//! MCP tools: submit Mens / training-style work through the orchestrator (compatibility shim).
+﻿//! MCP tools: submit Mens / training-style work through the orchestrator (compatibility shim).
 
 use serde::Deserialize;
 use serde_json::json;

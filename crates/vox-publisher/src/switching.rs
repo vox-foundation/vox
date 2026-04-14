@@ -198,6 +198,10 @@ fn normalize_distribution_json_value_with_warnings(
         "hacker_news",
         "youtube",
         "crates_io",
+        "bluesky",
+        "mastodon",
+        "linkedin",
+        "discord",
     ] {
         if let Some(payload) = payloads.get(key) {
             out.insert(key.to_string(), payload.clone());
@@ -232,7 +236,7 @@ fn normalize_distribution_json_value_with_warnings(
 }
 
 fn channel_allows_empty_payload(key: &str) -> bool {
-    matches!(key, "twitter" | "hacker_news")
+    matches!(key, "twitter" | "hacker_news" | "bluesky" | "mastodon" | "linkedin" | "discord")
 }
 
 fn deep_merge_json(base: Value, overlay: Value) -> Value {
@@ -308,6 +312,18 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
     if !has("crates_io") {
         item.syndication.crates_io = None;
     }
+    if !has("bluesky") {
+        item.syndication.bluesky = None;
+    }
+    if !has("mastodon") {
+        item.syndication.mastodon = None;
+    }
+    if !has("linkedin") {
+        item.syndication.linkedin = None;
+    }
+    if !has("discord") {
+        item.syndication.discord = None;
+    }
 }
 
 /// Return channel ids that failed in a publication result.
@@ -327,6 +343,10 @@ pub fn failed_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
+    maybe("bluesky", &result.bluesky);
+    maybe("mastodon", &result.mastodon);
+    maybe("linkedin", &result.linkedin);
+    maybe("discord", &result.discord);
     out
 }
 
@@ -347,6 +367,10 @@ pub fn successful_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
+    maybe("bluesky", &result.bluesky);
+    maybe("mastodon", &result.mastodon);
+    maybe("linkedin", &result.linkedin);
+    maybe("discord", &result.discord);
     out
 }
 
@@ -385,6 +409,10 @@ fn outcome_for_channel<'a>(result: &'a SyndicationResult, ch: &str) -> Option<&'
         "hacker_news" => &result.hacker_news,
         "youtube" => &result.youtube,
         "crates_io" => &result.crates_io,
+        "bluesky" => &result.bluesky,
+        "mastodon" => &result.mastodon,
+        "linkedin" => &result.linkedin,
+        "discord" => &result.discord,
         _ => return None,
     })
 }
@@ -628,6 +656,7 @@ mod tests {
             code: "x".into(),
             message: "m".into(),
             retryable: true,
+            failure_class: None,
         };
         let json = serde_json::to_string(&r).expect("json");
         let attempts = [AttemptOutcome {
@@ -656,6 +685,7 @@ mod tests {
             code: "x".into(),
             message: "m".into(),
             retryable: true,
+            failure_class: None,
         };
         let json = serde_json::to_string(&r).expect("json");
         let attempts = [AttemptOutcome {

@@ -1,4 +1,4 @@
-//! Model registry resolution and telemetry labels.
+﻿//! Model registry resolution and telemetry labels.
 
 use crate::Orchestrator;
 use crate::models::{ModelSpec, ProviderType};

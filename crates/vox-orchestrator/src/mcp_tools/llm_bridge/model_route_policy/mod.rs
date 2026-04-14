@@ -1,4 +1,4 @@
-//! Pure model resolution for MCP chat: registry lookup, free-tier enforcement, context signals.
+﻿//! Pure model resolution for MCP chat: registry lookup, free-tier enforcement, context signals.
 
 mod policy;
 mod resolve;

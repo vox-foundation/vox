@@ -36,7 +36,7 @@ fn test_vox_vault_encryption_decryption_cycle() {
 
     // Test read
     let resolved = backend
-        .resolve(SecretId::CustomOpenaiApiKey, spec)
+        .resolve(SecretId::CustomOpenaiApiKey, spec, None, "test")
         .expect("failed to resolve secret from vault")
         .expect("secret not found after write");
 
@@ -121,7 +121,7 @@ fn test_rewrap_rotation_across_secret_material_kinds() {
         scope_description: "",
         };
         let resolved = backend
-            .resolve(id, spec)
+            .resolve(id, spec, None, "test")
             .expect("resolve after rewrap")
             .expect("secret exists");
         assert_eq!(resolved.expose_secret(), value);

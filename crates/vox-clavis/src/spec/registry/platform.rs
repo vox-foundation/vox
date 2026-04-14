@@ -142,7 +142,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
+        policy: SecretPolicy::required_fail(),
         remediation: "Set VOX_WEBHOOK_SIGNING_SECRET to enable HMAC verification for generic inbound webhook sources.",
         scope_description: "",
     },

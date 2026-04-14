@@ -1,4 +1,4 @@
-//! JJ-inspired VCS tool handlers for the Vox MCP server.
+﻿//! JJ-inspired VCS tool handlers for the Vox MCP server.
 //!
 //! Covers: snapshots, operation log (oplog), conflicts, workspaces, and change tracking.
 

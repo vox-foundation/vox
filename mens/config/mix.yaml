@@ -31,6 +31,7 @@ include_lanes:
   - vox_tooling
   - vox_docs_qa
   - vox_rust_expert_cross
+  - vox_lang_tier_b
 exclude_lanes:
   - vox_speech
 

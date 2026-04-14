@@ -1,4 +1,4 @@
-use crate::types::TaskCategory;
+﻿use crate::types::TaskCategory;
 
 /// Heuristics for MCP chat model resolution from the orchestrator registry.
 #[derive(Debug, Clone)]

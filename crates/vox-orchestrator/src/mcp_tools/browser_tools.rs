@@ -1,4 +1,4 @@
-//! Chromium-backed browser MCP tools (`vox_browser_*`).
+﻿//! Chromium-backed browser MCP tools (`vox_browser_*`).
 //!
 //! Uses [`vox_browser`] (CDP / `chromiumoxide`). Playwright is not required.
 

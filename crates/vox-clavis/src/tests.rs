@@ -237,6 +237,8 @@ impl crate::backend::SecretBackend for ChaosBackend {
         &self,
         _id: SecretId,
         _spec: crate::spec::SecretSpec,
+        _profile: Option<&str>,
+        _caller: &str,
     ) -> Result<Option<secrecy::SecretString>, crate::errors::SecretError> {
         let n = self.counter.fetch_add(1, Ordering::Relaxed);
         if n.is_multiple_of(2) {
@@ -246,6 +248,18 @@ impl crate::backend::SecretBackend for ChaosBackend {
                 "chaos backend injected outage".to_string(),
             ))
         }
+    }
+    
+    fn write_audit_log(
+        &self,
+        _secret_id: &str,
+        _status: &str,
+        _resolved_source: Option<&str>,
+        _profile: &str,
+        _caller_context: &str,
+        _detail: Option<&str>,
+    ) -> Result<(), crate::errors::SecretError> {
+        Ok(())
     }
 }
 
@@ -429,6 +443,7 @@ fn all_secret_ids_have_spec_entries() {
         SecretId::TavilyApiKey,
         SecretId::TavilyProject,
     ] {
+        println!("Checking {:?}", id);
         let _ = id.spec();
     }
 }

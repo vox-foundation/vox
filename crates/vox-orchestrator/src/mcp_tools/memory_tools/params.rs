@@ -1,4 +1,4 @@
-use schemars::JsonSchema;
+﻿use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// MCP arguments: persist a fact into MEMORY.md / optional Codex graph.

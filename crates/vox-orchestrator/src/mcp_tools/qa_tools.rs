@@ -1,4 +1,4 @@
-//! Agent Q&A and bulletin-board MCP tools built on the orchestrator QA router.
+﻿//! Agent Q&A and bulletin-board MCP tools built on the orchestrator QA router.
 //!
 //! Questions carry correlation ids; answers and broadcasts are published for other agents to observe.
 

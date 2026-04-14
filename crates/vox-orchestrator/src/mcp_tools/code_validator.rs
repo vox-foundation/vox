@@ -1,4 +1,4 @@
-//! .vox Source code validation and machine-parsable diagnostics (repair loop support).
+﻿//! .vox Source code validation and machine-parsable diagnostics (repair loop support).
 //!
 //! Provides CLI parity with `vox check --output-format json` and LSP-style
 //! diagnostics for tool-driven self-repair.

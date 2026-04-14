@@ -302,6 +302,40 @@ CREATE TABLE IF NOT EXISTS scientia_feed_sources (
     crawl_interval_ms INTEGER NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
     last_crawled_at_ms INTEGER NOT NULL DEFAULT 0,
-    last_error TEXT
+CREATE TABLE IF NOT EXISTS syndication_events (
+    id               TEXT    PRIMARY KEY,
+    publication_id   TEXT    NOT NULL,
+    channel          TEXT    NOT NULL,
+    outcome          TEXT    NOT NULL,
+    external_id      TEXT,
+    attempt_number   INTEGER NOT NULL DEFAULT 1,
+    retryable        INTEGER NOT NULL DEFAULT 0,
+    attempted_at     TEXT    NOT NULL,
+    created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+CREATE INDEX IF NOT EXISTS idx_syndication_events_pub
+    ON syndication_events (publication_id);
+CREATE INDEX IF NOT EXISTS idx_syndication_events_channel
+    ON syndication_events (channel, attempted_at DESC);
+
+CREATE TABLE IF NOT EXISTS scholarly_publication_records (
+    id                    TEXT PRIMARY KEY,
+    publication_id        TEXT NOT NULL UNIQUE,
+    doi                   TEXT,
+    zenodo_deposit_id     TEXT,
+    zenodo_doi            TEXT,
+    orcid_put_code        INTEGER,        -- returned integer from ORCID POST
+    figshare_article_id   TEXT,
+    arxiv_submission_id   TEXT,
+    openreview_forum_id   TEXT,
+    crossref_deposit_id   TEXT,
+    researchgate_confirmed INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'draft',
+    -- status: 'draft' | 'deposited' | 'published' | 'retracted'
+    published_at          TEXT,
+    created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_scholarly_pub_doi
+    ON scholarly_publication_records (doi) WHERE doi IS NOT NULL;
 "#;

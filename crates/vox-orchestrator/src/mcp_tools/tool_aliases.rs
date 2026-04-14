@@ -1,4 +1,4 @@
-//! Wire-level MCP tool name aliases (same JSON args as canonical tools).
+﻿//! Wire-level MCP tool name aliases (same JSON args as canonical tools).
 
 /// `(alias, canonical)` pairs accepted by [`super::handle_tool_call`] and [`super::input_schemas::tool_input_schema`].
 pub const TOOL_WIRE_ALIASES: &[(&str, &str)] = &[

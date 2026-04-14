@@ -1,4 +1,4 @@
-//! Shared helpers for normalizing LLM tool outputs (markdown fences, token preservation checks).
+﻿//! Shared helpers for normalizing LLM tool outputs (markdown fences, token preservation checks).
 
 use std::path::Path;
 

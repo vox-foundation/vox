@@ -1,4 +1,4 @@
-use super::metadata::{HttpCallMetadata, ollama_base_url};
+﻿use super::metadata::{HttpCallMetadata, ollama_base_url};
 use super::types::{
     OllamaChatMsg, OllamaChatRequest, OllamaChatResponse, OllamaMsg, OllamaOptions,
 };

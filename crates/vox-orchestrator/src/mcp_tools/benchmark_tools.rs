@@ -1,4 +1,4 @@
-//! MCP tools: query recent unified benchmark telemetry (`research_metrics` via [`vox_db`]).
+﻿//! MCP tools: query recent unified benchmark telemetry (`research_metrics` via [`vox_db`]).
 //!
 //! Writers use [`vox_db::benchmark_telemetry`] from CLI / tests when Codex is available.
 //! Sensitivity / trust taxonomy for stored rows: `docs/src/architecture/telemetry-trust-ssot.md` (tool descriptions in

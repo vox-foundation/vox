@@ -111,7 +111,7 @@ impl Publisher {
             "reddit",
             self.config
                 .reddit_selfpost_summary_max
-                .unwrap_or(crate::contract::REDDIT_SELFPOST_SUMMARY_MAX),
+                .unwrap_or(crate::adapters::reddit::SELFPOST_SUMMARY_MAX),
             &mut result.decision_reasons,
         );
         #[cfg(feature = "scientia-reddit")]
@@ -128,7 +128,7 @@ impl Publisher {
                 {
                     cfg.title_override = Some(crate::contract::clamp_text(
                         item.title.as_str(),
-                        crate::contract::REDDIT_TITLE_MAX,
+                        crate::adapters::reddit::TITLE_MAX,
                     ));
                 }
                 if matches!(cfg.kind, RedditPostKind::SelfPost)
@@ -155,7 +155,7 @@ impl Publisher {
                 {
                     cfg.title_override = Some(crate::contract::clamp_text(
                         format!("{} (video)", item.title).as_str(),
-                        crate::contract::HACKER_NEWS_TITLE_MAX,
+                        crate::adapters::hacker_news::TITLE_MAX,
                     ));
                 }
                 if let Some(mode) = self.config.hacker_news_mode.as_deref()
@@ -178,7 +178,7 @@ impl Publisher {
                     let yt_cap = social_text_cap_with_template_profile(
                         item,
                         "youtube",
-                        crate::contract::YOUTUBE_DESCRIPTION_MAX,
+                        crate::adapters::youtube::DESCRIPTION_MAX,
                         &mut result.decision_reasons,
                     );
                     cfg.description_override =
@@ -193,7 +193,7 @@ impl Publisher {
                 {
                     cfg.title_override = Some(crate::contract::clamp_text(
                         item.title.as_str(),
-                        crate::contract::YOUTUBE_TITLE_MAX,
+                        crate::adapters::youtube::TITLE_MAX,
                     ));
                 }
                 if cfg
@@ -236,6 +236,7 @@ impl Publisher {
                             code: "rss_update_failed".to_string(),
                             message: e.to_string(),
                             retryable: true,
+                            failure_class: None,
                         };
                     }
                 }
@@ -255,7 +256,7 @@ impl Publisher {
                 };
             } else if let Some(token) = &self.config.twitter_bearer_token {
                 match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::twitter::post(&self.config, token.as_str(), item, twitter)
+                    adapters::twitter::post(&self.config, token.as_str(), item, twitter, is_dry_run)
                 })
                 .await
                 {
@@ -270,6 +271,7 @@ impl Publisher {
                             code: "twitter_post_failed".to_string(),
                             message: e.to_string(),
                             retryable: true,
+                            failure_class: None,
                         };
                     }
                 }
@@ -279,6 +281,7 @@ impl Publisher {
                     code: "missing_twitter_token".to_string(),
                     message: "Twitter config present but no API token.".to_string(),
                     retryable: false,
+                    failure_class: None,
                 };
             }
         }
@@ -312,6 +315,7 @@ impl Publisher {
                             code: "github_post_failed".to_string(),
                             message: e.to_string(),
                             retryable: true,
+                            failure_class: None,
                         };
                     }
                 }
@@ -321,6 +325,7 @@ impl Publisher {
                     code: "missing_github_token".to_string(),
                     message: "GitHub config present but no API token.".to_string(),
                     retryable: false,
+                    failure_class: None,
                 };
             }
         }
@@ -341,7 +346,7 @@ impl Publisher {
                 };
             } else if let Some(token) = &self.config.open_collective_token {
                 match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::opencollective::post(&self.config, token, item, oc)
+                    adapters::opencollective::post(&self.config, token, item, oc, is_dry_run)
                 })
                 .await
                 {
@@ -356,6 +361,7 @@ impl Publisher {
                             code: "opencollective_post_failed".to_string(),
                             message: e.to_string(),
                             retryable: true,
+                            failure_class: None,
                         };
                     }
                 }
@@ -365,6 +371,7 @@ impl Publisher {
                     code: "missing_opencollective_token".to_string(),
                     message: "Open Collective config present but no API token.".to_string(),
                     retryable: false,
+                    failure_class: None,
                 };
             }
         }
@@ -399,6 +406,7 @@ impl Publisher {
                     client_secret,
                     refresh_token,
                     user_agent,
+                    api_base: self.config.reddit_api_base.as_deref(),
                 };
                 match social_retry::run_with_retries(social_retry_budget, || {
                     adapters::reddit::submit(&auth, item, reddit, canonical_link.as_str())
@@ -416,6 +424,7 @@ impl Publisher {
                             code: "reddit_post_failed".to_string(),
                             message: e.to_string(),
                             retryable: true,
+                            failure_class: None,
                         };
                     }
                 }
@@ -425,6 +434,7 @@ impl Publisher {
                     message: "Reddit config present but OAuth credentials are incomplete."
                         .to_string(),
                     retryable: false,
+                    failure_class: None,
                 };
             }
         }
@@ -466,6 +476,7 @@ impl Publisher {
                             code: "hacker_news_prepare_failed".to_string(),
                             message: e.to_string(),
                             retryable: false,
+                            failure_class: None,
                         };
                     }
                 }
@@ -517,6 +528,7 @@ impl Publisher {
                         code: "youtube_precheck_failed".to_string(),
                         message: e.to_string(),
                         retryable: false,
+                        failure_class: None,
                     };
                     youtube_precheck_failed = true;
                 }
@@ -554,6 +566,7 @@ impl Publisher {
                                 code: "youtube_upload_failed".to_string(),
                                 message: e.to_string(),
                                 retryable: true,
+                                failure_class: None,
                             };
                         }
                     }
@@ -563,6 +576,7 @@ impl Publisher {
                         message: "YouTube config present but OAuth credentials are incomplete."
                             .to_string(),
                         retryable: false,
+                        failure_class: None,
                     };
                 }
             }
@@ -595,7 +609,156 @@ impl Publisher {
                         "crates_io publishing is modeled in policy but adapter implementation is not wired yet."
                             .to_string(),
                     retryable: false,
+                    failure_class: None,
                 };
+            }
+        }
+
+        if let Some(bluesky) = &item.syndication.bluesky {
+            if let Some(reason) = policy_block_reason(item, "bluesky", &self.config) {
+                result.bluesky = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("bluesky".to_string(), reason);
+            } else if is_dry_run {
+                info!("[DRY RUN] Would post to Bluesky");
+                result.bluesky = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-bluesky-{}", item.id)),
+                };
+            } else if let (Some(handle), Some(password)) = (&self.config.bluesky_handle, &self.config.bluesky_password) {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::bluesky::post(&self.config, handle, password, &bluesky.pds_url, item, bluesky, is_dry_run)
+                }).await {
+                    Ok(id) => {
+                        result.bluesky = ChannelOutcome::Success { external_id: Some(id) };
+                        info!("Posted to Bluesky.");
+                    }
+                    Err(e) => {
+                        result.bluesky = ChannelOutcome::Failed {
+                            code: "bluesky_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                            failure_class: None,
+                        };
+                    }
+                }
+            } else {
+                warn!("Bluesky config present but missing credentials.");
+                result.bluesky = ChannelOutcome::Failed {
+                    code: "missing_bluesky_credentials".to_string(),
+                    message: "Bluesky config present but missing credentials.".to_string(),
+                    retryable: false,
+                    failure_class: None,
+                };
+            }
+        }
+
+        if let Some(mastodon) = &item.syndication.mastodon {
+            if let Some(reason) = policy_block_reason(item, "mastodon", &self.config) {
+                result.mastodon = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("mastodon".to_string(), reason);
+            } else if is_dry_run {
+                info!("[DRY RUN] Would post to Mastodon");
+                result.mastodon = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-mastodon-{}", item.id)),
+                };
+            } else {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::mastodon::post(&self.config, item, mastodon, is_dry_run)
+                }).await {
+                    Ok(id) => {
+                        result.mastodon = ChannelOutcome::Success { external_id: Some(id) };
+                        info!("Posted to Mastodon.");
+                    }
+                    Err(e) => {
+                        result.mastodon = ChannelOutcome::Failed {
+                            code: "mastodon_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                            failure_class: None,
+                        };
+                    }
+                }
+            }
+        }
+
+        if let Some(linkedin) = &item.syndication.linkedin {
+            if let Some(reason) = policy_block_reason(item, "linkedin", &self.config) {
+                result.linkedin = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("linkedin".to_string(), reason);
+            } else if is_dry_run {
+                info!("[DRY RUN] Would post to LinkedIn");
+                result.linkedin = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-linkedin-{}", item.id)),
+                };
+            } else {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::linkedin::post(&self.config, item, linkedin, is_dry_run)
+                }).await {
+                    Ok(id) => {
+                        result.linkedin = ChannelOutcome::Success { external_id: Some(id) };
+                        info!("Posted to LinkedIn.");
+                    }
+                    Err(e) => {
+                        result.linkedin = ChannelOutcome::Failed {
+                            code: "linkedin_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                            failure_class: None,
+                        };
+                    }
+                }
+            }
+        }
+
+        if let Some(discord) = &item.syndication.discord {
+            if let Some(reason) = policy_block_reason(item, "discord", &self.config) {
+                result.discord = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("discord".to_string(), reason);
+            } else if is_dry_run {
+                info!("[DRY RUN] Would post to Discord");
+                result.discord = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-discord-{}", item.id)),
+                };
+            } else {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::discord::post(&self.config, item, discord, is_dry_run)
+                }).await {
+                    Ok(id) => {
+                        result.discord = ChannelOutcome::Success { external_id: Some(id) };
+                        info!("Posted to Discord.");
+                    }
+                    Err(e) => {
+                        result.discord = ChannelOutcome::Failed {
+                            code: "discord_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                            failure_class: None,
+                        };
+                    }
+                }
+            }
+        }
+
+        if let Some(rg) = &item.syndication.researchgate {
+            if let Some(reason) = policy_block_reason(item, "researchgate", &self.config) {
+                result.researchgate = ChannelOutcome::Disabled;
+                result.decision_reasons.insert("researchgate".to_string(), reason);
+            } else {
+                match adapters::researchgate::post(item, rg, is_dry_run).await {
+                    Ok(outcome) => {
+                        result.researchgate = outcome;
+                        if matches!(result.researchgate, ChannelOutcome::Failed { failure_class: Some(crate::syndication_outcome::FailureClass::ManualActionRequired), .. }) {
+                            info!("ResearchGate post requires manual action (no public API).");
+                        }
+                    }
+                    Err(e) => {
+                        result.researchgate = ChannelOutcome::Failed {
+                            code: "researchgate_adapter_error".to_string(),
+                            message: e.to_string(),
+                            retryable: false,
+                            failure_class: None,
+                        };
+                    }
+                }
             }
         }
 

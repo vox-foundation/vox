@@ -42,5 +42,11 @@ async fn route_simulation_matches_golden_snapshot() {
         serde_json::from_str(include_str!("fixtures/route_simulation_golden.json"))
             .expect("route_simulation_golden.json");
     let actual = serde_json::to_value(&out).expect("serialize result");
-    assert_eq!(actual, expected);
+    if std::env::var("UPDATE_GOLDEN").as_deref() == Ok("1") {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/route_simulation_golden.json");
+        std::fs::write(path, serde_json::to_string(&actual).unwrap()).unwrap();
+    } else {
+        assert_eq!(actual, expected);
+    }
 }

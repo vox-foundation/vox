@@ -106,6 +106,17 @@ populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3"]
 # Interpreted `vox mens workflow run` (journal + mens activities); implies mens hooks.
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
 # Stub for non-functional inference server when refactoring or debugging.
+# Enables all social platform adapters for publication and diagnostics.
+scientia-social = [
+    "vox-publisher/scientia-reddit",
+    "vox-publisher/scientia-twitter",
+    "vox-publisher/scientia-linkedin",
+    "vox-publisher/scientia-mastodon",
+    "vox-publisher/scientia-bluesky",
+    "vox-publisher/scientia-discord",
+    "vox-publisher/scientia-opencollective",
+    "vox-publisher/live-api-canary"
+]
 broken_inference_stub = []
 
 [dependencies]

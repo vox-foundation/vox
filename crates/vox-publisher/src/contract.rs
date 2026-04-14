@@ -27,35 +27,11 @@ pub const DEFAULT_GITHUB_REPO: &str = "vox-foundation/vox";
 /// Default Open Collective slug.
 pub const DEFAULT_OPENCOLLECTIVE_SLUG: &str = "vox-foundation";
 
-/// Production Twitter API v2 base URL.
-pub const DEFAULT_TWITTER_API_BASE: &str = "https://api.twitter.com";
-
 /// Production GitHub REST API base.
 pub const DEFAULT_GITHUB_REST_BASE: &str = "https://api.github.com";
 
-/// Production Open Collective GraphQL endpoint.
-pub const DEFAULT_OPENCOLLECTIVE_GRAPHQL_URL: &str = "https://api.opencollective.com/graphql/v2";
-
 /// Production GitHub GraphQL endpoint.
 pub const DEFAULT_GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
-
-/// Max tweet body length used for conservative chunking (legacy limit; adjust when tier supports longer).
-pub const TWITTER_TEXT_CHUNK_MAX: usize = 280;
-/// Reserve tail room for links/hashtags when deriving short social summaries.
-pub const TWITTER_SUMMARY_MARGIN_CHARS: usize = 20;
-/// Conservative Reddit title cap.
-pub const REDDIT_TITLE_MAX: usize = 300;
-/// Default max size for derived Reddit self-post summaries.
-pub const REDDIT_SELFPOST_SUMMARY_MAX: usize = 700;
-/// HN title cap.
-pub const HACKER_NEWS_TITLE_MAX: usize = 80;
-/// YouTube title cap.
-pub const YOUTUBE_TITLE_MAX: usize = 100;
-/// YouTube description cap.
-pub const YOUTUBE_DESCRIPTION_MAX: usize = 5000;
-/// Default YouTube category id used when no explicit category is set.
-pub const YOUTUBE_DEFAULT_CATEGORY_ID: &str = "28";
-
 /// Site configuration for RSS links and feed file location.
 #[derive(Debug, Clone)]
 pub struct NewsSiteConfig {

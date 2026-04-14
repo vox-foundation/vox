@@ -1,5 +1,6 @@
-﻿use crate::PublisherConfig;
-use crate::contract::DEFAULT_OPENCOLLECTIVE_GRAPHQL_URL;
+use crate::PublisherConfig;
+pub const GRAPHQL_URL: &str = "https://api.opencollective.com/graphql/v2";
+pub const AUTH_HEADER: &str = "Personal-Token";
 use crate::types::{OpenCollectiveConfig, UnifiedNewsItem};
 use anyhow::{Result, anyhow};
 use pulldown_cmark::{Options, Parser, html};
@@ -11,12 +12,17 @@ pub async fn post(
     token: &str,
     item: &UnifiedNewsItem,
     config: &OpenCollectiveConfig,
+    dry_run: bool,
 ) -> Result<String> {
+    if dry_run {
+        return Ok(format!("dry-run-opencollective-{}", item.id));
+    }
+
     let client = Client::new();
     let endpoint = publisher_cfg
         .opencollective_graphql_url
         .as_deref()
-        .unwrap_or(DEFAULT_OPENCOLLECTIVE_GRAPHQL_URL)
+        .unwrap_or(GRAPHQL_URL)
         .to_string();
 
     let mutation = r#"
@@ -34,7 +40,7 @@ pub async fn post(
             "title": &item.title,
             "html": markdown_to_html(&item.content_markdown),
             "isPrivate": config.is_private,
-            "makePublicOn": null,
+            "makePublicOn": config.scheduled_publish_at.map(|dt| dt.to_rfc3339()),
             "account": {
                 "slug": &config.collective_slug
             }
@@ -43,7 +49,7 @@ pub async fn post(
 
     let res = client
         .post(&endpoint)
-        .header("Api-Key", token)
+        .header("Personal-Token", token)
         .header("Content-Type", "application/json")
         .json(&json!({
             "query": mutation,

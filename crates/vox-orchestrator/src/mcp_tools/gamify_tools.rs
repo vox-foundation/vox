@@ -1,4 +1,4 @@
-//! Gamify companion MCP tools: mood, status markdown, continuation tick, assessment, handoff payload.
+﻿//! Gamify companion MCP tools: mood, status markdown, continuation tick, assessment, handoff payload.
 //!
 //! When [`ServerState::db`] is present, companion rows are read/written via Codex; otherwise
 //! in-memory companions are synthesized per agent id.

@@ -1,4 +1,4 @@
-//! Minimal JSON-line RPC client for **`vox-orchestrator-d`** (DeI `ai.*` / `config.get` surfaces).
+﻿//! Minimal JSON-line RPC client for **`vox-orchestrator-d`** (DeI `ai.*` / `config.get` surfaces).
 //! Logical docs name: `vox-dei-d`.
 //!
 //! Wire shape `{ id, method, params }` is [`vox_protocol::DispatchRequest`] (same as CLI dispatch); validates against

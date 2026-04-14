@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "vox-lsp"
 publish = false
 version.workspace = true

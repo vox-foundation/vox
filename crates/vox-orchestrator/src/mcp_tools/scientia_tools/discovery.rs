@@ -1,4 +1,4 @@
-//! MCP tools: deterministic SCIENTIA discovery scan / explain (parity with `vox db`).
+﻿//! MCP tools: deterministic SCIENTIA discovery scan / explain (parity with `vox db`).
 
 use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;

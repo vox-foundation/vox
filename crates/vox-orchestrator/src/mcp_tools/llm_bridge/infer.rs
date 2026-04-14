@@ -1,4 +1,4 @@
-//! HTTP inference loop: budget gate, provider dispatch, Ollama fallback, usage recording.
+﻿//! HTTP inference loop: budget gate, provider dispatch, Ollama fallback, usage recording.
 //!
 //! ## LLM cost bus events (`VOX_MCP_LLM_COST_EVENTS`)
 //! After a successful completion, [`should_emit_llm_cost_events`] gates [`crate::AgentEventKind::CostIncurred`] on the

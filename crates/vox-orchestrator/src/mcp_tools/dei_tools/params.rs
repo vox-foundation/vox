@@ -1,4 +1,4 @@
-//! JSON argument shapes for DEI MCP tools.
+﻿//! JSON argument shapes for DEI MCP tools.
 
 use schemars::JsonSchema;
 use serde::Deserialize;

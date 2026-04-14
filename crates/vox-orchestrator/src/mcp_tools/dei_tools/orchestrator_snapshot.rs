@@ -1,4 +1,4 @@
-//! Orchestrator status JSON for `vox_orchestrator_status`, including optional mesh snapshot persistence.
+﻿//! Orchestrator status JSON for `vox_orchestrator_status`, including optional mesh snapshot persistence.
 //!
 //! ## Mesh snapshot → Codex
 //! [`persist_mesh_snapshot_codex_opt`] records a **`populi_control`-class** row only when **`VOX_MESH_CODEX_TELEMETRY=1`** and

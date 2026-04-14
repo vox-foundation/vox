@@ -1,4 +1,4 @@
-//! Local mens registry introspection (`vox_populi_local_status`).
+﻿//! Local mens registry introspection (`vox_populi_local_status`).
 
 use serde_json::{Value, json};
 

@@ -1,4 +1,4 @@
-//! MCP tools for Vox Oratio (Candle Whisper STT).
+﻿//! MCP tools for Vox Oratio (Candle Whisper STT).
 
 use std::io::Write;
 use std::path::PathBuf;

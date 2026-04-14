@@ -1,4 +1,4 @@
-//! Cloudless Clavis vault (encrypted secret rows in SQLite / libSQL).
+﻿//! Cloudless Clavis vault (encrypted secret rows in SQLite / libSQL).
 //!
 //! **Connection env (precedence):**
 //! 1. `VOX_CLAVIS_VAULT_PATH` — local store path; opened as a `file:` URL.

@@ -1,4 +1,4 @@
-//! MCP `vox_project_init` — parity with `vox init` via `vox_project_scaffold`.
+﻿//! MCP `vox_project_init` — parity with `vox init` via `vox_project_scaffold`.
 
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;

@@ -10,9 +10,16 @@ description = "Unified news syndication and publishing for vox"
 [features]
 default = []
 scientia-reddit = []
+scientia-twitter = []
+scientia-linkedin = []
+scientia-mastodon = []
+scientia-bluesky = []
+scientia-discord = []
+scientia-opencollective = []
 scientia-youtube = []
 # Shared scholarly `external_submission_jobs` orchestration (CLI + MCP).
 scholarly-external-jobs = ["dep:vox-db"]
+live-api-canary = []
 
 [dependencies]
 async-trait = { workspace = true }
@@ -46,3 +53,4 @@ tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query"] }
 jsonschema = { workspace = true, default-features = false }
+wiremock = { workspace = true }

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Architecture index"
 description: "Guide to the current architecture, SSOT, research, and roadmap documentation under docs/src/architecture."
 category: "architecture"

@@ -1,4 +1,4 @@
-//! Chat, inline edit, planning, ghost text, and ambient editor tools for the Vox MCP server.
+﻿//! Chat, inline edit, planning, ghost text, and ambient editor tools for the Vox MCP server.
 //!
 //! These back the VS Code extension thin-client layer. All context gathering,
 //! @mention resolution, LLM routing, and history persistence happen here in Rust.

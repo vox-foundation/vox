@@ -1,4 +1,4 @@
-use crate::{ConflictId, OperationId, SnapshotId};
+﻿use crate::{ConflictId, OperationId, SnapshotId};
 
 pub(super) fn _parse_snapshot_id_value(v: Option<&serde_json::Value>) -> Option<SnapshotId> {
     let v = v?;

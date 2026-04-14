@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use crate::contract::validate_github_repo;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UnifiedNewsItem {
     pub id: String,
     pub title: String,
@@ -34,6 +34,7 @@ pub struct SyndicationConfig {
     pub linkedin: Option<LinkedInConfig>,
     pub discord: Option<DiscordConfig>,
     pub crates_io: Option<CratesIoConfig>,
+    pub researchgate: Option<ResearchGateConfig>,
     #[serde(default)]
     pub distribution_policy: DistributionPolicyConfig,
     #[serde(default = "default_rss")]
@@ -75,6 +76,9 @@ pub struct ChannelPolicyConfig {
     /// Optional template profile key consumed by template derivation.
     #[serde(default)]
     pub template_profile: Option<String>,
+    /// Optional override for the auto-derived text for this specific platform.
+    #[serde(default)]
+    pub text_override: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -95,36 +99,54 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TwitterConfig {
     pub short_text: Option<String>,
     #[serde(default)]
     pub thread: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BlueskyConfig {
     pub text: Option<String>,
     #[serde(default)]
     pub link_facet: bool,
+    /// PDS base URL. Default: "https://bsky.social".
+    /// Third-party PDS users must set this to their PDS URL.
+    #[serde(default = "bluesky_default_pds_url")]
+    pub pds_url: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+fn bluesky_default_pds_url() -> String {
+    crate::adapters::bluesky::DEFAULT_PDS.to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MastodonConfig {
     pub status: Option<String>,
-    #[serde(default)]
-    pub visibility: Option<String>, // public, unlisted, private, direct
+    /// Post visibility: "public" | "unlisted" | "private" | "direct".
+    /// Default: "public".
+    #[serde(default = "mastodon_default_visibility")]
+    pub visibility: String,
     #[serde(default)]
     pub sensitive: bool,
     #[serde(default)]
     pub spoiler_text: Option<String>,
+    /// ISO 639-1 language code e.g. "en". Improves discoverability.
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+fn mastodon_default_visibility() -> String { crate::adapters::mastodon::DEFAULT_VISIBILITY.to_string() }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LinkedInConfig {
     pub text: Option<String>,
     #[serde(default)]
     pub visibility: Option<String>, // "PUBLIC" or "CONNECTIONS"
+    /// LinkedIn author URN. "urn:li:person:{id}" or "urn:li:organization:{id}".
+    /// REQUIRED. Find person ID via GET https://api.linkedin.com/rest/me
+    pub author_urn: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -140,18 +162,17 @@ pub struct DiscordConfig {
     pub embed_description: Option<String>,
     #[serde(default)]
     pub embed_color: Option<u32>,
-    #[serde(default)]
-    pub webhook_url_override: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "PascalCase")]
 pub enum ForgePostType {
+    #[default]
     Release,
     Discussion,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ForgeConfig {
     pub repo: String,
     pub post_type: ForgePostType,
@@ -163,7 +184,7 @@ pub struct ForgeConfig {
     pub discussion_category: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpenCollectiveConfig {
     #[serde(default)]
     pub is_private: bool,
@@ -172,14 +193,15 @@ pub struct OpenCollectiveConfig {
     pub scheduled_publish_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum RedditPostKind {
+    #[default]
     Link,
     SelfPost,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RedditConfig {
     pub subreddit: String,
     #[serde(default = "default_reddit_kind")]
@@ -202,13 +224,14 @@ fn default_reddit_kind() -> RedditPostKind {
     RedditPostKind::Link
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum HackerNewsMode {
+    #[default]
     ManualAssist,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HackerNewsConfig {
     #[serde(default = "default_hn_mode")]
     pub mode: HackerNewsMode,
@@ -216,21 +239,25 @@ pub struct HackerNewsConfig {
     pub title_override: Option<String>,
     #[serde(default)]
     pub url_override: Option<String>,
+    /// First-comment text to display in the manual-assist output.
+    #[serde(default)]
+    pub comment_draft: Option<String>,
 }
 
 fn default_hn_mode() -> HackerNewsMode {
     HackerNewsMode::ManualAssist
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum YouTubePrivacyStatus {
+    #[default]
     Private,
     Unlisted,
     Public,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YouTubeConfig {
     /// Repo-relative or absolute path to a local video payload for upload.
     pub video_asset_ref: String,
@@ -252,9 +279,18 @@ fn default_youtube_privacy() -> YouTubePrivacyStatus {
     YouTubePrivacyStatus::Private
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CratesIoConfig {
     pub crates_to_update: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResearchGateConfig {
+    /// Optional DOI of the publication to signal matching.
+    pub doi: Option<String>,
+    /// Whether user confirmed manual matching at researchgate.net.
+    #[serde(default)]
+    pub manual_confirmation: bool,
 }
 
 fn normalize_channel_key(raw: &str) -> String {

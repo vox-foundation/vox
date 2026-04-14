@@ -1,4 +1,4 @@
-//! MCP tools for the vox-skills marketplace.
+﻿//! MCP tools for the vox-skills marketplace.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

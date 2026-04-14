@@ -1,4 +1,4 @@
-use std::sync::{Mutex, OnceLock};
+﻿use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use super::metadata::ollama_base_url;

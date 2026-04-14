@@ -1,4 +1,4 @@
-//! `handle_tool_call` routing for all static MCP tools.
+﻿//! `handle_tool_call` routing for all static MCP tools.
 //!
 //! ## Persisted tool args (Ludus / raw `tool_call` rows)
 //! After each dispatch, when Codex is attached, stored payloads use

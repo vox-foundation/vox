@@ -1,4 +1,4 @@
-//! Shared MCP chat model resolution (registry + token-budget hint).
+﻿//! Shared MCP chat model resolution (registry + token-budget hint).
 //!
 //! Callers pass a [`McpChatModelResolution`](crate::mcp_tools::llm_bridge::McpChatModelResolution); when
 //! `context_fill_ratio` is unset, it is filled from the global MCP LLM budget agent (`AgentId(0)`).

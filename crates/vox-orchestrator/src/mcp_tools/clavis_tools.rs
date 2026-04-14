@@ -1,4 +1,4 @@
-use crate::mcp_tools::params::ToolResult;
+﻿use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
 
 pub async fn clavis_doctor(_state: &ServerState, args: serde_json::Value) -> String {

@@ -1,4 +1,4 @@
-//! Repository-relative path resolution for MCP tools (deterministic workspace root joining).
+﻿//! Repository-relative path resolution for MCP tools (deterministic workspace root joining).
 
 use std::path::{Path, PathBuf};
 

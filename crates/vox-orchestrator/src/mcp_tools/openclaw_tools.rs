@@ -1,4 +1,4 @@
-//! OpenClaw MCP tools backed by the native OpenClaw runtime adapter.
+﻿//! OpenClaw MCP tools backed by the native OpenClaw runtime adapter.
 
 use crate::mcp_tools::params::{
     OpenClawDomainParams, OpenClawGatewayCallParams, OpenClawImportParams, OpenClawNotifyParams,

@@ -253,6 +253,36 @@ pub fn run_preflight_with_attention(
         }
     }
 
+    if profile == PreflightProfile::ArxivAssist {
+        if let Some(abs) = manifest.abstract_text.as_deref() {
+            if abs.chars().count() > 1920 {
+                findings.push(PreflightFinding {
+                    code: "arxiv_abstract_too_long",
+                    severity: PreflightSeverity::Error,
+                    message: format!("arXiv abstract exceeds 1,920 chars ({} chars). ArXiv moderation boundary.", abs.chars().count()),
+                });
+            }
+        }
+        let tc = manifest.title.chars().count();
+        if tc > 100 {
+            findings.push(PreflightFinding {
+                code: "arxiv_title_long",
+                severity: PreflightSeverity::Warning,
+                message: format!("arXiv title is unusually long ({tc} chars > 100 soft cap)"),
+            });
+        }
+        findings.push(PreflightFinding {
+            code: "arxiv_endorsement_required",
+            severity: PreflightSeverity::Warning,
+            message: "New arXiv categories require endorsement (institutional email is no longer sufficient passing Jan 2026). Ensure submitting author is endorsed.".to_string(),
+        });
+        findings.push(PreflightFinding {
+            code: "arxiv_ai_disclosure",
+            severity: PreflightSeverity::Warning,
+            message: "arXiv Feb 2026 policy requires explicit formulation disclosure if AI was used for substantive text generation or structuring.".to_string(),
+        });
+    }
+
     if profile == PreflightProfile::DoubleBlind {
         let body = &manifest.body_markdown;
         if email_pattern().is_match(body) {

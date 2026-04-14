@@ -1,4 +1,4 @@
-use super::metadata::HttpCallMetadata;
+﻿use super::metadata::HttpCallMetadata;
 use super::types::{
     GeminiCandidate, GeminiContent, GeminiGenCfg, GeminiGenerateBody, GeminiPart, GeminiPartOut,
     GeminiResponse, GeminiSys, GeminiTurn,

@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Default)]
+﻿#[derive(Debug, Clone, Default)]
 pub(crate) struct HttpCallMetadata {
     pub provider_request_id: Option<String>,
     pub provider_reported_cost_usd: Option<f64>,

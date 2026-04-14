@@ -1,0 +1,24 @@
+graph TD
+    classDef legacy fill:#3a1f1f,stroke:#ff4d4d,stroke-width:2px;
+    classDef vox fill:#143040,stroke:#00e5ff,stroke-width:2px;
+    classDef core fill:#2b0d3d,stroke:#a64dff,stroke-width:3px;
+
+    subgraph Legacy [Legacy Fragmentation]
+        direction TB
+        TS[TypeScript Client]:::legacy --> API[REST / GraphQL]:::legacy
+        API --> Controllers[Server Controllers]:::legacy
+        Controllers --> ORM[ORM / Data Access]:::legacy
+        ORM --> DB[(Postgres Database)]:::legacy
+    end
+
+    subgraph Unified [Vox Unification]
+        direction TB
+        SRC[.vox Source File]:::vox --> COMPILER((VOX COMPILER)):::core
+        
+        COMPILER --> |Frontend Projection| WEBIR(WebIR):::vox
+        COMPILER --> |Backend Lowering| HIR(HIR):::vox
+        
+        WEBIR --> TSX[React Islands & TSX]:::vox
+        HIR --> ROUTE[Route Contracts]:::vox
+        HIR --> SQL[(SQLite Schema)]:::vox
+    end

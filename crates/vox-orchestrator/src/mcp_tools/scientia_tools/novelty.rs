@@ -1,4 +1,4 @@
-//! MCP: prior-art fetch + decision explain (parity with `vox db publication-novelty-*`).
+﻿//! MCP: prior-art fetch + decision explain (parity with `vox db publication-novelty-*`).
 
 use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;

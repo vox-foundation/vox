@@ -1,4 +1,4 @@
-//! Socrates grounding snippets and telemetry for chat / inline / ghost tools.
+﻿//! Socrates grounding snippets and telemetry for chat / inline / ghost tools.
 //!
 //! Rows written via [`spawn_socrates_telemetry_with_meta`] → [`vox_db::VoxDb::record_socrates_surface_event`] are **operator /
 //! research diagnostics** (aggregated risk/confidence/contradiction — see `vox_db::socrates_telemetry` rustdoc), not end-user

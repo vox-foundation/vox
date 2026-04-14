@@ -1,4 +1,4 @@
-//! End-to-end speech-to-code orchestration: transcribe (optional) then `vox_generate_code` with shared session/correlation metadata.
+﻿//! End-to-end speech-to-code orchestration: transcribe (optional) then `vox_generate_code` with shared session/correlation metadata.
 
 use std::io::Write;
 use std::path::PathBuf;

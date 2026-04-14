@@ -1,4 +1,4 @@
-//! A2A (Agent-to-Agent) MCP tools — send, inbox, ack, broadcast, history.
+﻿//! A2A (Agent-to-Agent) MCP tools — send, inbox, ack, broadcast, history.
 //!
 //! When attention gating is enabled and a message may surface to the pilot, `a2a_send` evaluates interruption policy and may
 //! call [`ServerState::record_attention_event`](crate::mcp_tools::server_state::ServerState::record_attention_event) for defer / proceed decisions

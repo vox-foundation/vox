@@ -1,5 +1,9 @@
-﻿use crate::PublisherConfig;
-use crate::contract::{DEFAULT_TWITTER_API_BASE, TWITTER_TEXT_CHUNK_MAX};
+use crate::PublisherConfig;
+pub const API_BASE: &str = "https://api.twitter.com";
+pub const POST_PATH: &str = "/2/tweets";
+pub const TWEET_MAX_CHARS: usize = 280;
+pub const SUMMARY_MARGIN: usize = 20;
+pub const CANARY_PATH: &str = "/2/users/me";
 use crate::types::{TwitterConfig, UnifiedNewsItem};
 use anyhow::{Result, anyhow};
 use reqwest::Client;
@@ -10,17 +14,22 @@ pub async fn post(
     token: &str,
     item: &UnifiedNewsItem,
     config: &TwitterConfig,
+    dry_run: bool,
 ) -> Result<String> {
+    if dry_run {
+        return Ok(format!("dry-run-twitter-{}", item.id));
+    }
+
     let client = Client::new();
     let root = publisher_cfg
         .twitter_api_base
         .clone()
-        .unwrap_or_else(|| DEFAULT_TWITTER_API_BASE.to_string());
+        .unwrap_or_else(|| API_BASE.to_string());
     let root = root.trim_end_matches('/').to_string();
     let url = format!("{}/2/tweets", root);
     let chunk_max = publisher_cfg
         .twitter_text_chunk_max
-        .unwrap_or(TWITTER_TEXT_CHUNK_MAX)
+        .unwrap_or(TWEET_MAX_CHARS)
         .max(1);
     let truncation_suffix = publisher_cfg
         .twitter_truncation_suffix

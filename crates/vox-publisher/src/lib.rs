@@ -36,6 +36,7 @@ pub mod zenodo_metadata;
 
 mod social_retry;
 mod syndication_outcome;
+pub mod adapter_health;
 
 pub use syndication_outcome::{ChannelOutcome, SyndicationResult};
 pub use topic_packs::{apply_topic_pack_from_metadata_json, hydrate_syndication_from_pack_id};

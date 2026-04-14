@@ -12131,6 +12131,7 @@ dependencies = [
  "vox-forge",
  "vox-primitives",
  "vox-reqwest-defaults",
+ "wiremock",
  "workspace-hack",
 ]
 

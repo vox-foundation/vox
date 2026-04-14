@@ -1,9 +1,15 @@
-use tracing::warn;
 use crate::contract::NewsSiteConfig;
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct PublisherConfig {
     pub twitter_bearer_token: Option<String>,
+    pub mastodon_domain: Option<String>,
+    pub mastodon_access_token: Option<String>,
+    pub bluesky_handle: Option<String>,
+    pub bluesky_password: Option<String>,
+    pub linkedin_access_token: Option<String>,
+    pub discord_webhook_url: Option<String>,
     pub forge_token: Option<String>,
     pub open_collective_token: Option<String>,
     pub dry_run: bool,
@@ -27,12 +33,20 @@ pub struct PublisherConfig {
     pub hacker_news_mode: Option<String>,
     pub youtube_default_category_id: Option<String>,
     pub worthiness_score: Option<f64>,
+    pub linkedin_api_base: Option<String>,
+    pub reddit_api_base: Option<String>,
 }
 
 impl Default for PublisherConfig {
     fn default() -> Self {
         Self {
             twitter_bearer_token: None,
+            mastodon_domain: None,
+            mastodon_access_token: None,
+            bluesky_handle: None,
+            bluesky_password: None,
+            linkedin_access_token: None,
+            discord_webhook_url: None,
             forge_token: None,
             open_collective_token: None,
             dry_run: true,
@@ -56,6 +70,8 @@ impl Default for PublisherConfig {
             hacker_news_mode: None,
             youtube_default_category_id: None,
             worthiness_score: None,
+            linkedin_api_base: None,
+            reddit_api_base: None,
         }
     }
 }
@@ -76,12 +92,20 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_SOCIAL_YOUTUBE_CLIENT_SECRET",
     "VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN",
     "VOX_SOCIAL_HN_MODE",
+    "VOX_SOCIAL_MASTODON_DOMAIN",
+    "VOX_SOCIAL_MASTODON_ACCESS_TOKEN",
+    "VOX_SOCIAL_BLUESKY_HANDLE",
+    "VOX_SOCIAL_BLUESKY_PASSWORD",
+    "VOX_SOCIAL_LINKEDIN_ACCESS_TOKEN",
+    "VOX_SOCIAL_DISCORD_WEBHOOK",
     "VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS",
     "VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX",
     "VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID",
     "VOX_SCHOLARLY_ADAPTER",
     "VOX_SCHOLARLY_DISABLE",
     "VOX_SCHOLARLY_DISABLE_LIVE",
+    "VOX_SOCIAL_LINKEDIN_API_BASE",
+    "VOX_SOCIAL_REDDIT_API_BASE",
     "VOX_SCHOLARLY_DISABLE_ZENODO",
     "VOX_SCHOLARLY_DISABLE_OPENREVIEW",
     "VOX_OPENREVIEW_API_BASE",
@@ -108,6 +132,9 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS",
     "VOX_SOCIAL_WORTHINESS_ENFORCE",
     "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
+    "VOX_SOCIAL_LINKEDIN_API_BASE",
+    "VOX_SOCIAL_REDDIT_API_BASE",
+    "VOX_SOCIAL_TWITTER_API_BASE",
 ];
 
 impl PublisherConfig {
@@ -157,12 +184,29 @@ impl PublisherConfig {
             twitter_bearer_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsTwitterBearer,
             ),
+            mastodon_domain: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialMastodonDomain,
+            ),
+            mastodon_access_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialMastodonToken,
+            ),
+            bluesky_handle: Self::syndication_secret(vox_clavis::SecretId::VoxSocialBlueskyHandle),
+            bluesky_password: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialBlueskyPassword,
+            ),
+            linkedin_access_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialLinkedinAccessToken,
+            ),
             forge_token: Self::syndication_secret(vox_clavis::SecretId::ForgeToken),
             open_collective_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
             ),
-            twitter_summary_margin_chars: env_usize(vox_clavis::SecretId::VoxSocialTwitterSummaryMarginChars),
-            reddit_selfpost_summary_max: env_usize(vox_clavis::SecretId::VoxSocialRedditSelfpostSummaryMax),
+            twitter_summary_margin_chars: env_usize(
+                vox_clavis::SecretId::VoxSocialTwitterSummaryMarginChars,
+            ),
+            reddit_selfpost_summary_max: env_usize(
+                vox_clavis::SecretId::VoxSocialRedditSelfpostSummaryMax,
+            ),
             reddit_client_id: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialRedditClientId,
             ),
@@ -185,9 +229,17 @@ impl PublisherConfig {
                 vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
             ),
             hacker_news_mode: env_opt(vox_clavis::SecretId::VoxSocialHnMode),
-            youtube_default_category_id: env_opt(vox_clavis::SecretId::VoxSocialYoutubeDefaultCategoryId),
+            youtube_default_category_id: env_opt(
+                vox_clavis::SecretId::VoxSocialYoutubeDefaultCategoryId,
+            ),
             twitter_text_chunk_max: env_usize(vox_clavis::SecretId::VoxNewsTwitterTextChunkMax),
-            twitter_truncation_suffix: env_opt(vox_clavis::SecretId::VoxNewsTwitterTruncationSuffix),
+            twitter_truncation_suffix: env_opt(
+                vox_clavis::SecretId::VoxNewsTwitterTruncationSuffix,
+            ),
+            twitter_api_base: env_opt(vox_clavis::SecretId::VoxSocialTwitterApiBase),
+            linkedin_api_base: env_opt(vox_clavis::SecretId::VoxSocialLinkedinApiBase),
+            reddit_api_base: env_opt(vox_clavis::SecretId::VoxSocialRedditApiBase),
+            discord_webhook_url: env_opt(vox_clavis::SecretId::VoxSocialDiscordWebhook),
             youtube_repo_root,
             dry_run,
             site,

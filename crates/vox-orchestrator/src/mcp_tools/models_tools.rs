@@ -1,4 +1,4 @@
-use schemars::JsonSchema;
+﻿use schemars::JsonSchema;
 use serde::Deserialize;
 use crate::types::TaskCategory;
 

@@ -2,19 +2,27 @@ use crate::types::{DiscordConfig, UnifiedNewsItem};
 use crate::PublisherConfig;
 use anyhow::{Result, anyhow};
 
+pub const CONTENT_MAX: usize = 2000;
+
 pub async fn post(
-    _publisher_cfg: &PublisherConfig,
+    publisher_cfg: &PublisherConfig,
     item: &UnifiedNewsItem,
     cfg: &DiscordConfig,
     dry_run: bool,
 ) -> Result<String> {
-    let webhook_url = cfg.webhook_url_override.clone().or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialDiscordWebhook)
-            .expose()
-            .map(|s| s.to_string())
-    }).ok_or_else(|| anyhow!("Missing Discord webhook URL"))?;
+    let webhook_url = publisher_cfg
+        .discord_webhook_url
+        .clone()
+        .ok_or_else(|| anyhow!("Missing Discord webhook URL"))?;
 
     let message_content = cfg.message.clone().unwrap_or_else(|| item.title.clone());
+
+    if message_content.chars().count() > CONTENT_MAX {
+        return Err(anyhow!(
+            "Discord content ({} chars) exceeds {CONTENT_MAX} char limit",
+            message_content.chars().count()
+        ));
+    }
 
     let mut payload = serde_json::json!({
         "content": message_content,

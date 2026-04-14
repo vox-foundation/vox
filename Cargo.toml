@@ -1,4 +1,4 @@
-[workspace]
+﻿[workspace]
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
 default-members = ["crates/vox-cli"]

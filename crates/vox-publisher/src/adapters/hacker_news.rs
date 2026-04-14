@@ -1,5 +1,7 @@
-﻿use crate::types::{HackerNewsConfig, UnifiedNewsItem};
+use crate::types::{HackerNewsConfig, UnifiedNewsItem};
 use anyhow::Result;
+
+pub const TITLE_MAX: usize = 80;
 
 /// Hacker News native path is manual-assist via submitlink URL.
 pub async fn post_manual_assist(

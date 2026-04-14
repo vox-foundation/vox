@@ -1,4 +1,4 @@
-//! Unified tool registry and dispatcher for the Vox MCP server.
+﻿//! Unified tool registry and dispatcher for the Vox MCP server.
 
 pub mod params;
 pub mod server_state;

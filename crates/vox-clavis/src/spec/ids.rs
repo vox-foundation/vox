@@ -52,6 +52,9 @@ pub enum SecretId {
     VoxSocialMastodonDomain,
     VoxSocialLinkedinAccessToken,
     VoxSocialDiscordWebhook,
+    VoxSocialTwitterApiBase,
+    VoxSocialLinkedinApiBase,
+    VoxSocialRedditApiBase,
     VoxZenodoAccessToken,
     VoxOpenReviewEmail,
     VoxOpenReviewAccessToken,
@@ -497,6 +500,20 @@ impl SecretId {
                 taxonomy_class: TaxonomyClass::AuxTooling,
                 lifecycle: LifecycleMeta::MANUAL,
             },
+            SecretId::WebhookSigningSecret
+            | SecretId::VoxOpenReviewAccessToken
+            | SecretId::VoxOpenReviewPassword
+            | SecretId::VoxOpenReviewEmail => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::ApiKey,
+                persistable_account_secret: true,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::Periodic,
+                taxonomy_class: TaxonomyClass::AuxTooling,
+                lifecycle: LifecycleMeta::MANUAL,
+            },
             _ => SecretMetadata {
                 class: SecretClass::Operator,
                 material_kind: SecretMaterialKind::ApiKey,
@@ -512,14 +529,14 @@ impl SecretId {
     }
 
     #[must_use]
-    pub const fn spec(self) -> SecretSpec {
+    pub const fn spec(self) -> &'static SecretSpec {
         let mut i = 0;
         while i < super::ALL_REGISTRIES.len() {
             let reg = super::ALL_REGISTRIES[i];
             let mut j = 0;
             while j < reg.len() {
                 if reg[j].id as u32 == self as u32 {
-                    return reg[j];
+                    return &reg[j];
                 }
                 j += 1;
             }

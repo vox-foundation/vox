@@ -1,4 +1,4 @@
-//! MCP tools for file affinity: resolve owners, claim paths, transfer ownership, list files.
+﻿//! MCP tools for file affinity: resolve owners, claim paths, transfer ownership, list files.
 //!
 //! All handlers return JSON via [`crate::ToolResult`]. Mutating calls update the in-memory
 //! orchestrator affinity map (not the filesystem).

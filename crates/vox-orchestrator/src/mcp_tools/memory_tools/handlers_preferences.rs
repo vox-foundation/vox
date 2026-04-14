@@ -1,4 +1,4 @@
-use crate::mcp_tools::server_state::ServerState;
+﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
 
 const REM_PREF_VOXDB: &str = "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for preference and learner tools.";

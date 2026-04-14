@@ -5,7 +5,6 @@ use flate2::read::GzDecoder;
 use tar::Archive;
 use crate::publication::PublicationManifest;
 use super::{ScholarlyVenue, MAX_STAGING_FILE_BYTES};
-use super::arxiv::arxiv_operator_handoff_value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationFinding {

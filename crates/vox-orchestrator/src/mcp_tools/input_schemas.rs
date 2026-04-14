@@ -1,4 +1,4 @@
-//! JSON Schema fragments for MCP tool `input_schema` (draft-07 subset).
+﻿//! JSON Schema fragments for MCP tool `input_schema` (draft-07 subset).
 //!
 //! Keep shapes aligned with [`crate::mcp_tools::params`], [`crate::mcp_tools::memory`], [`crate::mcp_tools::affinity`],
 //! and [`super::chat_tools`] `Deserialize` structs. Unknown tools fall back to an empty map

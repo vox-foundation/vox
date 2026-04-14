@@ -1,4 +1,4 @@
-//! Bounded iterative refinement for `vox_plan` (draft → gap/adequacy → expansion-first LLM refine).
+﻿//! Bounded iterative refinement for `vox_plan` (draft → gap/adequacy → expansion-first LLM refine).
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

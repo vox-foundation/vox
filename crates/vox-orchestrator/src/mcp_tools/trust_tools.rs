@@ -1,4 +1,4 @@
-//! Trust rollup inspection tools over connected [`VoxDb`].
+﻿//! Trust rollup inspection tools over connected [`VoxDb`].
 
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;

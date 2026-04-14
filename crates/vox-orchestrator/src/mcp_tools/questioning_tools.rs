@@ -1,4 +1,4 @@
-//! Record user answers to pending Socrates clarification rows in `question_events` / related questioning tables.
+﻿//! Record user answers to pending Socrates clarification rows in `question_events` / related questioning tables.
 //!
 //! After a successful answer, this module also posts an [`AttentionEvent`](crate::AttentionEvent) via
 //! [`ServerState::record_attention_event`](crate::mcp_tools::server_state::ServerState::record_attention_event) so **pilot attention budgeting**

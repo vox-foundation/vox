@@ -90,7 +90,7 @@ pub(crate) fn operator_credential_presence() -> OperatorCredentialPresence {
     let cfg = crate::PublisherConfig::from_operator_environment(
         true,
         None,
-        crate::NewsSiteConfig::from_default_with_operator_env(),
+        crate::NewsSiteConfig::default(),
     );
     OperatorCredentialPresence {
         twitter: cfg.twitter_bearer_token.is_some(),
