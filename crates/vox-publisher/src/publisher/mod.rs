@@ -363,7 +363,7 @@ impl Publisher {
             } else if is_dry_run {
                 info!(
                     "[DRY RUN] Would post to Reddit subreddit {}",
-                    reddit.subreddit
+                    reddit.subreddit.as_deref().unwrap_or("unknown")
                 );
                 result.reddit = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-reddit-{}", item.id)),

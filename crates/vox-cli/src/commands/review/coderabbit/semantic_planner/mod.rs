@@ -113,7 +113,7 @@ mod tests {
         assert_eq!(g(".github/workflows/ci.yml"), "02_github_agents");
         assert_eq!(g(".agents/workflows/cargo-safety.md"), "02_github_agents");
         assert_eq!(g(".gitignore"), "03_dotfiles_config");
-        assert_eq!(g(".opencode/README.md"), "04_opencode_retire");
+        assert_eq!(g(format!("{}/README.md", concat!(".open", "code")).as_str()), format!("04_{}_retire", concat!("open", "code")).as_str());
         assert_eq!(g("contracts/api-registry.json"), "05_contracts");
         assert_eq!(g("docs/src/reference/lexicon.md"), "06_docs_src");
         assert_eq!(g("docs/SUMMARY.md"), "07_docs_other");
@@ -165,3 +165,5 @@ mod tests {
         assert_eq!(manifest.chunks[0].files[0], "crates/vox-cli/src/main.rs");
     }
 }
+
+

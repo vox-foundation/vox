@@ -15,7 +15,7 @@ mod tests {
     use super::publication::publication_item_from_manifest;
     use super::query_plans::{QueryPlanExplainRow, collect_query_fn_plans};
     use chrono::Utc;
-    use vox_publisher::types::{SyndicationConfig, TwitterConfig, UnifiedNewsItem};
+    use vox_publisher::types::{SyndicationConfig, UnifiedNewsItem};
 
     fn sample_item() -> UnifiedNewsItem {
         UnifiedNewsItem {
@@ -26,9 +26,9 @@ mod tests {
             tags: vec![],
             content_markdown: "body".to_string(),
             syndication: SyndicationConfig {
-                twitter: Some(TwitterConfig {
-                    short_text: Some("s".to_string()),
-                    thread: false,
+                twitter: serde_json::json!({
+                    "short_text": "s",
+                    "thread": false,
                 }),
                 rss: true,
                 ..Default::default()
@@ -59,7 +59,7 @@ mod tests {
         let mut out = item;
         vox_publisher::switching::apply_channel_allowlist(&mut out, allowed.as_slice());
         assert!(!out.syndication.rss);
-        assert!(out.syndication.twitter.is_some());
+        assert!(out.syndication.is_active(vox_publisher::types::SocialChannel::Twitter));
     }
 
     #[test]
@@ -90,7 +90,7 @@ mod tests {
         };
         let item = publication_item_from_manifest(&row).expect("item");
         assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
-        assert!(item.syndication.twitter.is_none());
+        assert!(!item.syndication.is_active(vox_publisher::types::SocialChannel::Twitter));
     }
 
     #[test]

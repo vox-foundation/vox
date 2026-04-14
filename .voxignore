@@ -94,6 +94,7 @@ tmp/
 *.orig
 *.log
 *.log.*
+scratch*.txt
 /artifacts/
 .opencode/
 .coderabbit/

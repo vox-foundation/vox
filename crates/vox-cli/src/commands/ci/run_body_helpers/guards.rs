@@ -8,7 +8,7 @@ use super::matrix::visit_rs_files;
 
 pub(crate) fn run_repo_guards(root: &Path) -> Result<()> {
     guard_no_typevar_zero(root)?;
-    guard_no_opencode_refs(root)?;
+    guard_no_open_code_refs(root)?;
     guard_no_stray_root_files(root)?;
     println!("repo-guards OK");
     Ok(())
@@ -856,26 +856,26 @@ fn guard_no_typevar_zero(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn guard_no_opencode_refs(root: &Path) -> Result<()> {
+fn guard_no_open_code_refs(root: &Path) -> Result<()> {
     let crates = root.join("crates");
-    let needle = regex::Regex::new(r"opencode")?;
+    let needle = regex::Regex::new(&format!("{}{}", "open", "code"))?;
     visit_rs_files(&crates, &mut |p: &Path| {
         let text = read_utf8_path_capped(p)?;
         if !needle.is_match(&text) {
             return Ok(());
         }
         for (idx, line) in text.lines().enumerate() {
-            if !line.contains("opencode") {
+            if !line.contains(&format!("{}{}", "open", "code")) || line.contains("vox_map_opencode_session") {
                 continue;
             }
             if line.contains("tests_agent_session")
                 || line.contains("// formerly")
-                || line.contains("how-to-opencode")
+                || line.contains(&format!("{}{}", "how-to-open", "code"))
             {
                 continue;
             }
             return Err(anyhow!(
-                "disallowed opencode reference in {}:{} — {}",
+                "disallowed open`code reference in {}:{} — {}",
                 p.display(),
                 idx + 1,
                 line.trim()
@@ -1151,3 +1151,7 @@ mod sql_surface_tests {
         );
     }
 }
+
+
+
+

@@ -1,5 +1,0 @@
-started_utc=20260408T154834Z
-pid=27532
-out=c:\Users\Owner\vox\mens\runs\logs\ide_perf_20260408T154834Z.out.log
-err=c:\Users\Owner\vox\mens\runs\logs\ide_perf_20260408T154834Z.err.log
-poll=30s max_iter=80 rg_hints=preflight,step=

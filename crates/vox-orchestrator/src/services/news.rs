@@ -56,6 +56,7 @@ impl NewsService {
             hacker_news_mode: config.news.hacker_news_mode.clone(),
             youtube_default_category_id: None,
             worthiness_score: None,
+            ..Default::default()
         };
 
         let paths = collect_news_markdown_paths(news_dir, config.news.scan_recursive);

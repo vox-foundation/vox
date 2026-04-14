@@ -200,7 +200,7 @@ pub enum CiCmd {
     /// Histogram of AST decl kinds across `examples/golden` (requires `vox-corpus/ast-extract`).
     #[command(name = "corpus-decl-coverage", visible_alias = "corpus-coverage")]
     CorpusDeclCoverage,
-    /// Repository hygiene guards (`TypeVar(0)` in codegen crates only, filtered `opencode` refs, stray root files) — GitLab parity.
+    /// Repository hygiene guards (`TypeVar(0)` in codegen crates only, filtered `open-code` refs, stray root files) — GitLab parity.
     #[command(name = "repo-guards")]
     RepoGuards,
     /// Fail when changed files add direct secret env reads outside Clavis-owned modules.
@@ -563,3 +563,4 @@ pub enum MensScorecardCmd {
         summary: PathBuf,
     },
 }
+

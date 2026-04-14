@@ -99,7 +99,7 @@ pub async fn submit(
         .unwrap_or(item.title.as_str());
     let mut form: HashMap<&str, String> = HashMap::new();
     form.insert("api_type", "json".to_string());
-    form.insert("sr", cfg.subreddit.trim().to_string());
+    form.insert("sr", cfg.subreddit.as_deref().map(str::trim).unwrap_or("").to_string());
     form.insert("title", title.to_string());
     form.insert("nsfw", cfg.nsfw.to_string());
     form.insert("spoiler", cfg.spoiler.to_string());
