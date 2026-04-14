@@ -1,0 +1,7 @@
+# Ignore local file links to crates that have been refactored
+file://.*
+
+# External links that are unresolvable or return 404
+https://modelcontextprotocol.io/specification/2025-11-05/.*
+https://proceedings.iclr.cc/paper.*
+https://ascentcore.com/2026/03/09/the-ai-efficiency-trap/.*
