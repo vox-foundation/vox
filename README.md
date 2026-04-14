@@ -172,29 +172,29 @@ The `@mcp.tool` decorator projects these hardened native functions directly to A
 <td width="45%" valign="top">
 
 ```rust
-// [ activity ]
-// A system step that can be retried independently if it fails.
-activity charge_card(amount: int) to Result[str] {
-    if amount > 1000 { ret Error("Amount too large") }
+// [ activity: Compute Node Execution ]
+// Flaky steps that execute on transient workers (Node A/B).
+activity charge_card(req: int) to Result[str] {
+    // If a node dies (DEAD OOM EVENT), Vox retries automatically
     ret Ok("tx_123")
 }
 
-// [ workflow ]
-// Orchestrates activities and guarantees durable state survival.
-// Crash-safe: a server restart mid-checkout correctly resumes.
-workflow checkout(amount: int) to str {
-    let result = charge_card(amount)
+// [ workflow: Durable Orchestration ]
+// Commits state to the Arca Vault (SQLite). If Node A crashes,
+// the workflow rehydrates and safely resumes on Node B.
+workflow checkout(req: int) to str {
+    let result = charge_card(req)
     match result {
-        Ok(tx)     -> "Success: " + tx
-        Error(msg) -> "Failed: " + msg
+        Ok(tx)   -> "Result: Ok(" + tx + ")"
+        Error(e) -> "Fault: " + e
     }
 }
 
-// [ @mcp.tool ]
-// Expose any function to an MCP agent in one decorator.
-@mcp.tool "Search the knowledge base"
-fn search_knowledge(query: str) to str {
-    "Result for: " + query
+// [ @mcp.tool: MCP Interface ]
+// Expose the durable workflow to Anthropic's protocol boundary.
+@mcp.tool "Process durable checkout"
+fn complete_purchase(req: int) to str {
+    checkout(req)
 }
 ```
 

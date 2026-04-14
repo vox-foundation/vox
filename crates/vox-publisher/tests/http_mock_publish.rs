@@ -7,7 +7,7 @@ use chrono::Utc;
 use serde_json::json;
 use tokio::net::TcpListener;
 use vox_publisher::types::{
-    OpenCollectiveConfig, SyndicationConfig, TwitterConfig, UnifiedNewsItem,
+    OpenCollectiveConfig, SyndicationConfig, UnifiedNewsItem,
 };
 use vox_publisher::{Publisher, PublisherConfig};
 
@@ -47,15 +47,11 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
         tags: vec![],
         content_markdown: "body".to_string(),
         syndication: SyndicationConfig {
-            twitter: Some(TwitterConfig {
-                short_text: Some("hello mock".to_string()),
-                thread: false,
-            }),
+            social: vec![vox_publisher::types::SocialChannel::Twitter],
             forge: None,
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                collective_slug: "slug".to_string(),
-                scheduled_publish_at: None,
+                                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: false,
@@ -114,15 +110,11 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
         tags: vec![],
         content_markdown: "body".to_string(),
         syndication: SyndicationConfig {
-            twitter: Some(TwitterConfig {
-                short_text: Some("hello mock".to_string()),
-                thread: false,
-            }),
+            social: vec![vox_publisher::types::SocialChannel::Twitter],
             forge: None,
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                collective_slug: "slug".to_string(),
-                scheduled_publish_at: None,
+                                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: false,

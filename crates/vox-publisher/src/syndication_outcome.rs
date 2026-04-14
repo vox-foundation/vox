@@ -136,18 +136,18 @@ impl SyndicationResult {
         }
 
         let rss_ok = !item.syndication.rss || ok(&self.rss);
-        let twitter_ok = item.syndication.twitter.is_none() || ok(&self.twitter);
+        let twitter_ok = !item.syndication.social.contains(&crate::types::SocialChannel::Twitter) || ok(&self.twitter);
         let github_ok = item.syndication.forge.is_none() || ok(&self.github);
         let oc_ok = item.syndication.open_collective.is_none() || ok(&self.open_collective);
         let reddit_ok = item.syndication.reddit.is_none() || ok(&self.reddit);
-        let hn_ok = item.syndication.hacker_news.is_none() || ok(&self.hacker_news);
+        let hn_ok = !item.syndication.hacker_news || ok(&self.hacker_news);
         let yt_ok = item.syndication.youtube.is_none() || ok(&self.youtube);
         let crates_ok = item.syndication.crates_io.is_none() || ok(&self.crates_io);
-        let bsky_ok = item.syndication.bluesky.is_none() || ok(&self.bluesky);
-        let masto_ok = item.syndication.mastodon.is_none() || ok(&self.mastodon);
-        let linkedin_ok = item.syndication.linkedin.is_none() || ok(&self.linkedin);
-        let discord_ok = item.syndication.discord.is_none() || ok(&self.discord);
-        let rg_ok = item.syndication.researchgate.is_none() || ok(&self.researchgate);
+        let bsky_ok = !item.syndication.social.contains(&crate::types::SocialChannel::Bluesky) || ok(&self.bluesky);
+        let masto_ok = !item.syndication.social.contains(&crate::types::SocialChannel::Mastodon) || ok(&self.mastodon);
+        let linkedin_ok = !item.syndication.linkedin || ok(&self.linkedin);
+        let discord_ok = !item.syndication.social.contains(&crate::types::SocialChannel::Discord) || ok(&self.discord);
+        let rg_ok = !item.syndication.researchgate || ok(&self.researchgate);
         rss_ok
             && twitter_ok
             && github_ok

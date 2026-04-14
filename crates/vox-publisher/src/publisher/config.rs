@@ -8,8 +8,11 @@ pub struct PublisherConfig {
     pub mastodon_access_token: Option<String>,
     pub bluesky_handle: Option<String>,
     pub bluesky_password: Option<String>,
+    pub bluesky_pds_url: Option<String>,
     pub linkedin_access_token: Option<String>,
     pub discord_webhook_url: Option<String>,
+    pub open_collective_slug: Option<String>,
+    pub linkedin_author_urn: Option<String>,
     pub forge_token: Option<String>,
     pub open_collective_token: Option<String>,
     pub dry_run: bool,
@@ -45,8 +48,11 @@ impl Default for PublisherConfig {
             mastodon_access_token: None,
             bluesky_handle: None,
             bluesky_password: None,
+            bluesky_pds_url: None,
             linkedin_access_token: None,
             discord_webhook_url: None,
+            linkedin_author_urn: None,
+            open_collective_slug: None,
             forge_token: None,
             open_collective_token: None,
             dry_run: true,
@@ -135,6 +141,9 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_SOCIAL_LINKEDIN_API_BASE",
     "VOX_SOCIAL_REDDIT_API_BASE",
     "VOX_SOCIAL_TWITTER_API_BASE",
+    "VOX_SOCIAL_LINKEDIN_AUTHOR_URN",
+    "VOX_SOCIAL_BLUESKY_PDS_URL",
+    "VOX_NEWS_OPENCOLLECTIVE_SLUG",
 ];
 
 impl PublisherConfig {
@@ -240,6 +249,15 @@ impl PublisherConfig {
             linkedin_api_base: env_opt(vox_clavis::SecretId::VoxSocialLinkedinApiBase),
             reddit_api_base: env_opt(vox_clavis::SecretId::VoxSocialRedditApiBase),
             discord_webhook_url: env_opt(vox_clavis::SecretId::VoxSocialDiscordWebhook),
+            linkedin_author_urn: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialLinkedinAuthorUrn,
+            ),
+            bluesky_pds_url: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialBlueskyPdsUrl,
+            ),
+            open_collective_slug: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsOpenCollectiveSlug,
+            ),
             youtube_repo_root,
             dry_run,
             site,

@@ -11,9 +11,11 @@
             --cyan: #00f0ff;
             --err: #ff4444;
             --grid: rgba(255,255,255,0.06);
+            --dim: rgba(255,255,255,0.08);
         }
 
         body {
+            /* Force the recording viewport to have zero wasted space */
             margin: 0; padding: 0;
             width: 100vw; height: 100vh;
             background: #050508;
@@ -23,252 +25,186 @@
         }
 
         #composite-stage {
-            width: 90vw; max-width: 160vh;
-            aspect-ratio: 16 / 9;
+            /* When recorded at 960x960 window size, this fills the entire frame edge-to-edge natively */
+            width: 100vw; height: 100vh;
             position: relative;
-            background: radial-gradient(circle at 60% 50%, rgba(20,20,30,0.8), rgba(0,0,0,1));
-            border-radius: 1vmin; border: 1px solid rgba(255,255,255,0.1);
+            background: radial-gradient(circle at 50% 50%, rgba(20,20,30,0.8), rgba(0,0,0,1));
             background-image: 
                 linear-gradient(var(--grid) 1px, transparent 1px),
                 linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-            background-size: 3% 5.33%;
+            background-size: 4% 4%;
             overflow: hidden;
         }
 
-        .node {
-            position: absolute;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 25%; height: 26%;
-            z-index: 10;
-            transform: translate(-50%, -50%);
-        }
-        
-        .node .asset {
-            max-width: 100%; max-height: 70%;
-            object-fit: contain;
-            filter: brightness(1.5) contrast(1.2) drop-shadow(0 1% 2% rgba(0,0,0,0.8));
-            transition: filter 0.2s ease;
-        }
-        
-        /* Aligning the MCP Portal Staff perfectly */
-        #img-portal { transform: translateX(4%) translateY(8%); }
+        .node { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; transform: translate(-50%, -50%); }
+        .node .asset { max-width: 100%; max-height: 70%; object-fit: contain; filter: brightness(1) contrast(1.2) drop-shadow(0 1% 2% rgba(0,0,0,0.8)); transition: filter 0.2s ease; }
+        .node .label { margin-top: -2%; background: rgba(5,5,10,0.95); border: 0.3vh solid #666; padding: 2vh 4.5vh; border-radius: 0.8rem; font-size: 2.4vh; font-weight: bold; box-shadow: 0 1vh 2vh rgba(0,0,0,0.9); backdrop-filter: blur(5px); text-align: center; }
 
-        #node-vault .asset { animation: arca-flare 20s infinite; }
-        @keyframes arca-flare {
-            0%, 46% { filter: brightness(1.5) contrast(1.2); }
-            48%, 55% { filter: brightness(2) contrast(1.5) drop-shadow(0 0 4% var(--cyan)); }
-            58%, 100% { filter: brightness(1.5) contrast(1.2); }
+        #node-portal { left: 30%; top: 15%; width: 35%; height: 26%; }
+        #node-workflow { left: 30%; top: 50%; width: 35%; height: 26%; }
+        #node-vault { left: 30%; top: 85%; width: 38%; height: 26%; }
+        #node-worker1 { left: 75%; top: 30%; width: 30%; height: 26%; }
+        #node-worker2 { left: 75%; top: 70%; width: 30%; height: 26%; }
+
+        #img-portal { transform: translateX(2%) translateY(12%); }
+
+        /* NODE ANIMATIONS (SYNCED STRICTLY TO TIMELINE) */
+
+        #node-workflow .asset { animation: nx-wf 20s infinite; }
+        @keyframes nx-wf {
+            0%, 9%, 18%, 38%, 48%, 68%, 88%, 100% { filter: brightness(1); }
+            10%, 15%, 40%, 45%, 60%, 65%, 90%, 95% { filter: brightness(2) drop-shadow(0 0 2vh var(--violet)); }
         }
 
-        .node .label {
-            margin-top: -2%;
-            background: rgba(10,10,15,0.9);
-            border: 0.2cqw solid #444;
-            padding: 2% 4%;
-            border-radius: 0.5rem;
-            font-size: 1.5cqw; font-weight: bold;
-            box-shadow: 0 1% 2% rgba(0,0,0,0.9);
-            backdrop-filter: blur(5px);
-            text-align: center;
+        #node-vault .asset { animation: nx-va 20s infinite; }
+        @keyframes nx-va {
+            0%, 7%, 38%, 48%, 100% { filter: brightness(1); }
+            8%, 12% { filter: brightness(2) drop-shadow(0 0 2vh var(--cyan)); } 
+            40%, 45% { filter: brightness(3) drop-shadow(0 0 5vh var(--cyan)); }
         }
 
-        #node-portal { left: 35%; top: 15%; }
-        #node-workflow { left: 35%; top: 50%; }
-        #node-vault { left: 35%; top: 85%; }
-        #node-worker1 { left: 75%; top: 30%; }
-        #node-worker2 { left: 75%; top: 70%; }
+        #node-worker1 .asset { animation: nx-w1 20s infinite; }
+        @keyframes nx-w1 {
+            0%, 18% { filter: brightness(1); }
+            19%, 20% { filter: brightness(2) drop-shadow(0 0 2vh var(--amber)); }
+            21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3vh var(--err)); }
+            24%, 100% { filter: brightness(0.1) grayscale(1); }
+        }
+        #node-worker1 .label { animation: nx-w1l 20s infinite; }
+        @keyframes nx-w1l {
+            0%, 18% { border-color: #444; color: white; content: "COMPUTE NODE A"; }
+            19%, 23% { border-color: var(--amber); color: var(--amber); content: "EXEC: charge_card"; }
+            24%, 100% { border-color: var(--err); color: var(--err); text-decoration: line-through; content: "CONNECTION LOST"; }
+        }
 
-        #node-portal .label { border-left-color: white; color: white; }
-        #node-workflow .label { border-left-color: var(--violet); color: var(--violet); }
-        #node-vault .label { border-left-color: var(--cyan); color: var(--cyan); }
-        
+        #node-worker2 .asset { animation: nx-w2 20s infinite; filter: brightness(0.1) grayscale(1); }
+        @keyframes nx-w2 {
+            0%, 68% { filter: brightness(0.1) grayscale(1); }
+            69%, 78% { filter: brightness(2) drop-shadow(0 0 2vh var(--emerald)); }
+            79%, 100% { filter: brightness(0.5); }
+        }
+        #node-worker2 .label { animation: nx-w2l 20s infinite; }
+        @keyframes nx-w2l {
+            0%, 68% { border-color: #444; color: #555; content: "COMPUTE NODE B"; }
+            69%, 78% { border-color: var(--emerald); color: var(--emerald); content: "EXEC: charge_card"; }
+            79%, 100% { border-color: #444; color: white; content: "COMPUTE NODE B"; }
+        }
+
+        #node-portal .asset { animation: nx-po 20s infinite; }
+        @keyframes nx-po {
+            0%, 97% { filter: brightness(1); }
+            98%, 100% { filter: brightness(4) drop-shadow(0 0 5vh white); }
+        }
+
+        /* SVG TRACKS */
+        svg.routing { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; }
+        .base-line { fill: none; stroke: var(--dim); stroke-width: 0.5vh; stroke-linecap: round; }
+
+        .trk-spine { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-sp 20s infinite; }
+        @keyframes tk-sp {
+            0%, 100% { stroke: var(--dim); }
+            0%, 9% { stroke: var(--violet); }
+            10%, 29% { stroke: var(--dim); }
+            30%, 39% { stroke: var(--amber); }
+            40%, 49% { stroke: var(--cyan); stroke-width: 0.8vh; }
+            50%, 100% { stroke: var(--dim); }
+        }
+
+        .trk-w1 { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-w1 20s infinite; }
+        @keyframes tk-w1 {
+            0%, 9% { stroke: var(--dim); stroke-dasharray: none; }
+            10%, 19% { stroke: var(--amber); stroke-dasharray: none; }
+            20%, 23% { stroke: var(--err); stroke-width: 0.8vh; }
+            24%, 100% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2vh 10vh; }
+        }
+
+        .trk-w2 { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-w2 20s infinite; }
+        @keyframes tk-w2 {
+            0%, 49% { stroke: transparent; }
+            50%, 59% { stroke: white; stroke-dasharray: 5vh 15vh; stroke-dashoffset: 100vh; }
+            60%, 69% { stroke: var(--dim); stroke-dasharray: none; }
+            70%, 79% { stroke: var(--amber); stroke-dasharray: none; }
+            80%, 89% { stroke: var(--emerald); stroke-dasharray: none; }
+            90%, 100% { stroke: var(--dim); }
+        }
+
+        .trk-po { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-po 20s infinite; }
+        @keyframes tk-po {
+            0%, 89% { stroke: var(--dim); }
+            90%, 99% { stroke: white; }
+            100% { stroke: var(--dim); }
+        }
+
         /* DATA PACKETS */
         .packet {
-            position: absolute;
-            background: white; color: black;
-            font-weight: bold; font-size: 1.3cqw;
-            padding: 0.6% 1.5%; border-radius: 20px;
-            z-index: 20; transform: translate(-50%, -50%);
-            opacity: 0; white-space: nowrap; pointer-events: none;
+            position: absolute; padding: 1.8vh 3vh; border-radius: 4vh;
+            z-index: 20; transform: translate(-50%, -50%); opacity: 0;
+            font-weight: bold; font-size: 2.6vh; pointer-events: none;
+            display: flex; align-items: center; gap: 1.2vh;
+            white-space: nowrap;
         }
 
-        /* SVG TRACKS & CABLES */
-        svg.routing { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; }
-        
-        /* Stopped the spine at 25 instead of 15 so it connects cleanly into the staff of the projector, not behind it entirely */
-        .track-base { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 0.5%; stroke-linecap: round; }
-        
-        .track-w1 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: w1-track-die 20s infinite; }
-        @keyframes w1-track-die {
-            0%, 25% { stroke: rgba(255,255,255,0.08); stroke-dasharray: none; }
-            26%, 28% { stroke: var(--err); stroke-width: 0.8%; }
-            29%, 100% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2 10; }
-        }
+        #pkt-commit { animation: p-cmt 20s infinite linear; background: #0c0818; color: var(--violet); border: 2px solid var(--violet); box-shadow: 0 0 2vh var(--violet); }
+        @keyframes p-cmt { 0%, 1% { left: 30%; top: 50%; opacity: 0; } 2%, 8% { opacity: 1; } 9%, 100% { left: 30%; top: 85%; opacity: 0; } }
 
-        .track-w2 { fill: none; stroke-width: 0.5%; stroke-linecap: round; stroke: rgba(255,255,255,0.08); animation: w2-track-born 20s infinite; }
-        @keyframes w2-track-born {
-            0%, 55% { opacity: 0; }
-            56%, 60% { opacity: 1; stroke: white; }
-            61%, 100% { opacity: 1; stroke: rgba(255,255,255,0.08); }
-        }
+        #pkt-exec1 { animation: p-ex1 20s infinite linear; background: #1a1100; color: var(--amber); border: 2px solid var(--amber); box-shadow: 0 0 2vh var(--amber); }
+        @keyframes p-ex1 { 0%, 11% { left: 30%; top: 50%; opacity: 0; } 12%, 18% { opacity: 1; } 19%, 100% { left: 75%; top: 30%; opacity: 0; } }
 
-        /* SCENE ANIMATION SEQUENCES (Expanded to 20s to significantly slow reading velocity) */
-
-        /* 1) 0-2s: Workflow Commits to Vault */
-        #pkt-commit { animation: p-cmt 20s infinite ease-in-out; background: var(--violet); color: white; box-shadow: 0 0 2% var(--violet); }
-        @keyframes p-cmt {
-            0%, 2% { left: 35%; top: 50%; opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
-            4% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-            12% { left: 35%; top: 85%; opacity: 1; transform: translate(-50%,-50%) scale(1); }
-            13%, 100% { left: 35%; top: 85%; opacity: 0; }
-        }
-
-        /* 2) 2-4s: Workflow dispatches to Worker 1 */
-        #pkt-exec1 { animation: p-ex1 20s infinite ease-in-out; background: var(--amber); box-shadow: 0 0 2% var(--amber); }
-        @keyframes p-ex1 {
-            0%, 14% { left: 35%; top: 50%; opacity: 0; }
-            15% { opacity: 1; }
-            24% { left: 75%; top: 30%; opacity: 1; }
-            25%, 100% { left: 75%; top: 30%; opacity: 0; }
-        }
-
-        /* 3) 4-6.5s: FAULT - Slower Splintering Read */
-        #pkt-err { animation: p-err 20s infinite cubic-bezier(0.2, 1, 0.3, 1); background: var(--err); color: white; box-shadow: 0 0 4% var(--err); }
+        #pkt-err { animation: p-err 20s infinite ease-out; background: var(--err); color: white; border: 0.3vh solid white; box-shadow: 0 0 4vh var(--err); }
         @keyframes p-err {
-            0%, 25% { left: 75%; top: 30%; opacity: 0; }
-            26% { opacity: 1; transform: translate(-50%,-50%); }
-            33% { left: 65%; top: 45%; opacity: 1; transform: translate(-50%,-50%) rotate(-10deg); } /* Floats readably */
-            36% { left: 55%; top: 60%; opacity: 0; transform: translate(-50%,-50%) rotate(-20deg); } /* Then falls */
-            37%, 100% { opacity: 0; }
-        }
-        
-        #node-worker1 .asset { animation: w1-crash 20s infinite; }
-        @keyframes w1-crash {
-            0%, 25% { filter: brightness(1.5) contrast(1.2); }
-            26%, 28% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 4% var(--err)); }
-            29%, 100% { filter: brightness(0.1) grayscale(1); }
-        }
-        #node-worker1 .label::after { animation: w1-label 20s infinite; content: "Worker: RACK_A"; color: #555; }
-        @keyframes w1-label {
-            0%, 25% { content: "Worker: RACK_A"; color: #555; }
-            26%, 28% { content: "EXEC: charge_card()"; color: white; border-color: var(--amber); }
-            29%, 100% { content: "CONNECTION LOST"; color: var(--err); border-color: var(--err); text-decoration: line-through; }
+            0%, 21% { left: 75%; top: 30%; opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
+            22% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); }
+            26% { left: 60%; top: 40%; transform: translate(-50%,-50%) rotate(-10deg); opacity: 1; }
+            30% { left: 55%; top: 70%; transform: translate(-50%,-50%) rotate(-25deg); opacity: 0; }
+            31%, 100% { opacity: 0; }
         }
 
-        /* 4) 5.5s-6.5s: Fetch from Vault */
-        #pkt-fetch { animation: p-fch 20s infinite ease-in-out; background: var(--amber); color: black; box-shadow: 0 0 1% var(--amber); }
-        @keyframes p-fch {
-            0%, 35% { left: 35%; top: 50%; opacity: 0; }
-            37% { opacity: 1; }
-            45% { left: 35%; top: 85%; opacity: 1; }
-            46%, 100% { left: 35%; top: 85%; opacity: 0; }
-        }
+        #pkt-fetch { animation: p-fch 20s infinite linear; background: #1a1100; color: var(--amber); border: 2px solid #886600; box-shadow: 0 0 1vh var(--amber); }
+        @keyframes p-fch { 0%, 31% { left: 30%; top: 50%; opacity: 0; } 32%, 38% { opacity: 1; } 39%, 100% { left: 30%; top: 85%; opacity: 0; } }
 
-        /* 5) 6.5s-8.5s: DATA MASSING */
-        #pkt-rehyd { animation: p-reh 20s infinite ease-out; background: transparent; color: var(--cyan); border: 0.3cqw solid var(--cyan); box-shadow: 0 0 5% var(--cyan) inset, 0 0 5% var(--cyan); font-size: 2cqw; border-radius: 0; }
+        #pkt-rehyd { animation: p-reh 20s infinite ease-out; background: #001a1f; color: var(--cyan); border: 0.4vh solid var(--cyan); box-shadow: 0 0 3vh var(--cyan) inset, 0 0 5vh var(--cyan); font-size: 3vh; border-radius: 1vh; padding: 2.2vh 3.5vh; }
         @keyframes p-reh {
-            0%, 46% { left: 35%; top: 85%; opacity: 0; }
-            48% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
-            58% { left: 35%; top: 50%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            60%, 100% { left: 35%; top: 50%; opacity: 0; }
+            0%, 41% { left: 30%; top: 85%; opacity: 0; }
+            42% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }
+            48% { left: 30%; top: 50%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            49%, 100% { left: 30%; top: 50%; opacity: 0; }
         }
 
-        /* 6) 8.5s-10.5s: NEW LANE DISPATCH */
-        #pkt-exec2 { animation: p-ex2 20s infinite ease-in-out; background: var(--amber); box-shadow: 0 0 2% var(--amber); }
-        @keyframes p-ex2 {
-            0%, 61% { left: 35%; top: 50%; opacity: 0; }
-            63% { opacity: 1; }
-            72% { left: 75%; top: 70%; opacity: 1; }
-            74%, 100% { left: 75%; top: 70%; opacity: 0; }
-        }
+        #pkt-exec2 { animation: p-ex2 20s infinite linear; background: #1a1100; color: var(--amber); border: 2px solid var(--amber); box-shadow: 0 0 2vh var(--amber); }
+        @keyframes p-ex2 { 0%, 61% { left: 30%; top: 50%; opacity: 0; } 62%, 68% { opacity: 1; } 69%, 100% { left: 75%; top: 70%; opacity: 0; } }
 
-        /* 7) 10.5s-12.5s: Success */
-        #node-worker2 .asset { animation: w2-alive 20s infinite; filter: brightness(0.2) grayscale(1); }
-        @keyframes w2-alive {
-            0%, 65% { filter: brightness(0.2) grayscale(1); }
-            68%, 85% { filter: brightness(1.5) contrast(1.2) drop-shadow(0 0 2% var(--emerald)); }
-            88%, 100% { filter: brightness(0.2) grayscale(1); }
-        }
-        #node-worker2 .label::after { animation: w2-label 20s infinite; content: "Worker: RACK_B"; color: #555; }
-        @keyframes w2-label {
-            0%, 65% { content: "Worker: RACK_B"; color: #555; }
-            66%, 80% { content: "EXEC: charge_card()"; color: white; border-color: var(--emerald); }
-            81%, 100% { content: "Worker: RACK_B"; color: #555; }
-        }
+        #pkt-res { animation: p-res 20s infinite linear; background: #001a0d; color: var(--emerald); border: 2px solid var(--emerald); box-shadow: 0 0 2vh var(--emerald); }
+        @keyframes p-res { 0%, 81% { left: 75%; top: 70%; opacity: 0; } 82%, 88% { opacity: 1; } 89%, 100% { left: 30%; top: 50%; opacity: 0; } }
 
-        #pkt-res { animation: p-res 20s infinite ease-in-out; background: var(--emerald); color: black; box-shadow: 0 0 2% var(--emerald); }
-        @keyframes p-res {
-            0%, 78% { left: 75%; top: 70%; opacity: 0; }
-            80% { opacity: 1; }
-            88% { left: 35%; top: 50%; opacity: 1; }
-            90%, 100% { left: 35%; top: 50%; opacity: 0; }
-        }
+        /* Sold black background to block white line beneath */
+        #pkt-out { animation: p-out 20s infinite linear; background: #000; color: white; border: 0.4vh solid white; box-shadow: 0 0 4vh white; }
+        @keyframes p-out { 0%, 91% { left: 30%; top: 50%; opacity: 0; } 92%, 98% { opacity: 1; } 99%, 100% { left: 30%; top: 25%; opacity: 0; } }
 
-        /* 8) 12.5s-14.5s: Portal Broadcast */
-        #pkt-out { animation: p-out 20s infinite ease-in-out; background: white; color: black; box-shadow: 0 0 3% white; }
-        /* Stops at 25% height perfectly tracking the dish instead of tearing entirely out of bound */
-        @keyframes p-out {
-            0%, 88% { left: 35%; top: 50%; opacity: 0; }
-            90% { opacity: 1; }
-            96% { left: 35%; top: 25%; opacity: 1; }
-            98%, 100% { left: 35%; top: 25%; opacity: 0; }
-        }
-        
-        #node-portal .asset { animation: pl-flare 20s infinite; }
-        @keyframes pl-flare {
-            0%, 91% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
-            94%, 97% { filter: brightness(2.5) drop-shadow(0 0 4% white); }
-            100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
-        }
     </style>
 </head>
 <body>
     <div id="composite-stage">
-        
         <svg class="routing" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <!-- Adjusted SVG line to stop exactly at 25% Y instead of 15% Y so it doesn't overshoot the MCP base staff physically -->
-            <path class="track-base" d="M 35 25 L 35 85" />
-            <path class="track-w1" d="M 35 50 L 75 30" />
-            <path class="track-w2" d="M 35 50 L 75 70" />
+            <path class="trk-po base-line" d="M 30 50 L 30 25" />
+            <path class="trk-spine base-line" d="M 30 50 L 30 85" />
+            <path class="trk-w1 base-line" d="M 30 50 L 75 30" />
+            <path class="trk-w2 base-line" d="M 30 50 L 75 70" />
         </svg>
 
-        <div class="node" id="node-portal">
-            <img id="img-portal" class="asset" />
-            <div class="label">@mcp.tool</div>
-        </div>
-        
-        <div class="node" id="node-workflow">
-            <img id="img-workflow" class="asset" />
-            <div class="label">workflow checkout()</div>
-        </div>
-        
-        <div class="node" id="node-vault">
-            <img id="img-vault" class="asset" />
-            <div class="label">SQLite [ APPEND ONLY ]</div>
-        </div>
+        <div class="node" id="node-portal"><img id="img-portal" class="asset" /><div class="label">MCP INTERFACE</div></div>
+        <div class="node" id="node-workflow"><img id="img-workflow" class="asset" /><div class="label">DURABLE WORKFLOW</div></div>
+        <div class="node" id="node-vault"><img id="img-vault" class="asset" /><div class="label">ARCA STATE VAULT</div></div>
+        <div class="node" id="node-worker1"><img id="img-worker1" class="asset" /><div class="label">COMPUTE NODE A</div></div>
+        <div class="node" id="node-worker2"><img id="img-worker2" class="asset" /><div class="label">COMPUTE NODE B</div></div>
 
-        <div class="node" id="node-worker1">
-            <img id="img-worker1" class="asset" />
-            <div class="label"></div>
-        </div>
-
-        <div class="node" id="node-worker2">
-            <img id="img-worker2" class="asset" />
-            <div class="label"></div>
-        </div>
-
-        <!-- PACKETS -->
-        <div id="pkt-commit" class="packet">log_state(04A)</div>
-        <div id="pkt-exec1" class="packet">charge_card(req)</div>
-        <div id="pkt-err" class="packet">[ DEAD OOM EVENT ]</div>
-        <div id="pkt-fetch" class="packet">query(ID:04A)</div>
-        <div id="pkt-rehyd" class="packet">>> REHYDRATED_STATE_BLOB <<</div>
-        <div id="pkt-exec2" class="packet">charge_card(req)</div>
-        <div id="pkt-res" class="packet">Result: Ok(tx_123)</div>
-        <div id="pkt-out" class="packet">Exposing MCP State</div>
+        <div id="pkt-commit" class="packet"><span>📝</span> commit_log(A1)</div>
+        <div id="pkt-exec1" class="packet"><span>⚡</span> EXEC: charge_card</div>
+        <div id="pkt-err" class="packet"><span>❌</span> DEAD OOM EVENT</div>
+        <div id="pkt-fetch" class="packet"><span>🔍</span> query(ID:A1)</div>
+        <div id="pkt-rehyd" class="packet"><span>💾</span> REHYDRATED_STATE_BLOB</div>
+        <div id="pkt-exec2" class="packet"><span>⚡</span> EXEC: charge_card</div>
+        <div id="pkt-res" class="packet"><span>✅</span> Result: Ok(tx_123)</div>
+        <div id="pkt-out" class="packet"><span>🌐</span> Return to MCP >></div>
     </div>
 
 <script>

@@ -195,6 +195,9 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::VoxSocialMastodonToken
         | SecretId::VoxSocialMastodonDomain
         | SecretId::VoxSocialLinkedinAccessToken
+        | SecretId::VoxSocialLinkedinAuthorUrn
+        | SecretId::VoxSocialBlueskyPdsUrl
+        | SecretId::VoxNewsOpenCollectiveSlug
         | SecretId::VoxSocialDiscordWebhook
         | SecretId::VoxOpenRouterClassifierEnabled => &[Capability::ScientiaSyndication, Capability::AutonomousResearch],
         SecretId::VoxZenodoAccessToken

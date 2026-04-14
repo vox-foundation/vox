@@ -2,7 +2,7 @@ use chrono::Utc;
 use std::collections::BTreeMap;
 use vox_publisher::types::{
     ChannelPolicyConfig, DistributionPolicyConfig, SyndicationConfig, TopicFiltersConfig,
-    TwitterConfig, UnifiedNewsItem,
+    UnifiedNewsItem,
 };
 use vox_publisher::{ChannelOutcome, Publisher, PublisherConfig};
 
@@ -15,10 +15,7 @@ fn base_item() -> UnifiedNewsItem {
         tags: vec!["benchmark".to_string(), "release".to_string()],
         content_markdown: "A benchmark release with practical impact.".to_string(),
         syndication: SyndicationConfig {
-            twitter: Some(TwitterConfig {
-                short_text: None,
-                thread: true,
-            }),
+            social: vec![vox_publisher::types::SocialChannel::Twitter],
             rss: true,
             dry_run: true,
             ..Default::default()

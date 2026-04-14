@@ -1,10 +1,9 @@
-use crate::types::{ResearchGateConfig, UnifiedNewsItem};
+use crate::types::UnifiedNewsItem;
 use crate::syndication_outcome::ChannelOutcome;
 use anyhow::Result;
 
 pub async fn post(
     _item: &UnifiedNewsItem,
-    _config: &ResearchGateConfig,
     dry_run: bool,
 ) -> Result<ChannelOutcome> {
     if dry_run {

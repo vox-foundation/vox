@@ -42,7 +42,7 @@ pub async fn post(
             "isPrivate": config.is_private,
             "makePublicOn": config.scheduled_publish_at.map(|dt| dt.to_rfc3339()),
             "account": {
-                "slug": &config.collective_slug
+                "slug": publisher_cfg.open_collective_slug.as_deref().unwrap_or("vox-foundation")
             }
         }
     });

@@ -1,6 +1,6 @@
 use chrono::Utc;
 use vox_publisher::types::{
-    ForgeConfig, ForgePostType, OpenCollectiveConfig, TwitterConfig, UnifiedNewsItem,
+    ForgeConfig, ForgePostType, OpenCollectiveConfig, UnifiedNewsItem,
 };
 use vox_publisher::{Publisher, PublisherConfig};
 
@@ -14,10 +14,7 @@ async fn test_dry_run_zero_web_leakage() {
         tags: vec![],
         content_markdown: "Offline content".to_string(),
         syndication: vox_publisher::types::SyndicationConfig {
-            twitter: Some(TwitterConfig {
-                short_text: Some("Test tweet".to_string()),
-                thread: false,
-            }),
+            social: vec![vox_publisher::types::SocialChannel::Twitter],
             forge: Some(ForgeConfig {
                 repo: "vox/fake".to_string(),
                 post_type: ForgePostType::Release,
@@ -27,7 +24,7 @@ async fn test_dry_run_zero_web_leakage() {
             }),
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                collective_slug: "vox".to_string(),
+                
                 scheduled_publish_at: None,
             }),
             crates_io: None,

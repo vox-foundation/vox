@@ -105,7 +105,7 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.twitter.is_some() {
+    if item.syndication.is_active(crate::types::SocialChannel::Twitter) {
         push_channel(
             "twitter",
             &item.syndication,
@@ -141,7 +141,7 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.hacker_news.is_some() {
+    if item.syndication.hacker_news {
         push_channel(
             "hacker_news",
             &item.syndication,
@@ -168,7 +168,7 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.discord.is_some() {
+    if item.syndication.is_active(crate::types::SocialChannel::Discord) {
         push_channel(
             "discord",
             &item.syndication,
@@ -177,7 +177,7 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.mastodon.is_some() {
+    if item.syndication.is_active(crate::types::SocialChannel::Mastodon) {
         push_channel(
             "mastodon",
             &item.syndication,
@@ -186,7 +186,7 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.linkedin.is_some() {
+    if item.syndication.linkedin {
         push_channel(
             "linkedin",
             &item.syndication,
@@ -195,7 +195,7 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.bluesky.is_some() {
+    if item.syndication.is_active(crate::types::SocialChannel::Bluesky) {
         push_channel(
             "bluesky",
             &item.syndication,
@@ -346,7 +346,7 @@ pub fn validate_topic_pack_projection_profiles() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChannelPolicyConfig, SyndicationConfig, TwitterConfig, UnifiedNewsItem};
+    use crate::types::{ChannelPolicyConfig, SyndicationConfig, UnifiedNewsItem};
     use chrono::Utc;
 
     #[test]
@@ -367,10 +367,7 @@ mod tests {
     #[test]
     fn compile_emits_digest_and_twitter_plan() {
         let mut syn = SyndicationConfig::default();
-        syn.twitter = Some(TwitterConfig {
-            short_text: None,
-            thread: false,
-        });
+        syn.social.push(crate::types::SocialChannel::Twitter);
         syn.distribution_policy.channel_policy.insert(
             "twitter".to_string(),
             ChannelPolicyConfig {

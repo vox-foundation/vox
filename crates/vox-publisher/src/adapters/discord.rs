@@ -1,4 +1,4 @@
-use crate::types::{DiscordConfig, UnifiedNewsItem};
+use crate::types::{DiscordOverride, UnifiedNewsItem};
 use crate::PublisherConfig;
 use anyhow::{Result, anyhow};
 
@@ -7,7 +7,7 @@ pub const CONTENT_MAX: usize = 2000;
 pub async fn post(
     publisher_cfg: &PublisherConfig,
     item: &UnifiedNewsItem,
-    cfg: &DiscordConfig,
+    cfg: Option<&DiscordOverride>,
     dry_run: bool,
 ) -> Result<String> {
     let webhook_url = publisher_cfg
@@ -15,29 +15,21 @@ pub async fn post(
         .clone()
         .ok_or_else(|| anyhow!("Missing Discord webhook URL"))?;
 
-    let message_content = cfg.message.clone().unwrap_or_else(|| item.title.clone());
-
-    if message_content.chars().count() > CONTENT_MAX {
-        return Err(anyhow!(
-            "Discord content ({} chars) exceeds {CONTENT_MAX} char limit",
-            message_content.chars().count()
-        ));
-    }
-
-    let mut payload = serde_json::json!({
-        "content": message_content,
-        "tts": cfg.tts,
+    let message_content = cfg.and_then(|c| c.message.clone()).unwrap_or_else(|| {
+        let mut msg = format!("**{}**\n\n", item.title);
+        msg.push_str(&item.content_markdown);
+        msg
     });
 
-    if cfg.embed_title.is_some() || cfg.embed_description.is_some() || cfg.embed_url.is_some() {
-        let mut embed = serde_json::json!({});
-        if let Some(t) = &cfg.embed_title { embed["title"] = serde_json::json!(t); }
-        if let Some(d) = &cfg.embed_description { embed["description"] = serde_json::json!(d); }
-        if let Some(u) = &cfg.embed_url { embed["url"] = serde_json::json!(u); }
-        if let Some(c) = cfg.embed_color { embed["color"] = serde_json::json!(c); }
-        
-        payload["embeds"] = serde_json::json!([embed]);
-    }
+    use unicode_segmentation::UnicodeSegmentation;
+    let auto_truncate = message_content
+        .graphemes(true)
+        .take(CONTENT_MAX)
+        .collect::<String>();
+
+    let payload = serde_json::json!({
+        "content": auto_truncate,
+    });
 
     if dry_run {
         return Ok(format!("dry-run-discord-{}", item.id));

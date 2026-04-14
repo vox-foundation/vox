@@ -210,6 +210,7 @@ mod tests {
             x.metadata_json = Some(
                 r#"{
                     "syndication": {
+                        "scholarly": ["zenodo"],
                         "channels": ["twitter"],
                         "channel_payloads": {
                             "twitter": {

@@ -1,6 +1,5 @@
 use serde::Serialize;
 use crate::PublisherConfig;
-use crate::adapters::canary;
 
 #[derive(Debug, Serialize)]
 pub struct AdapterHealthReport {

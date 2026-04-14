@@ -1,4 +1,4 @@
-use crate::types::{LinkedInConfig, UnifiedNewsItem};
+use crate::types::UnifiedNewsItem;
 use crate::PublisherConfig;
 use anyhow::{Result, anyhow};
 
@@ -10,7 +10,7 @@ pub const CANARY_PATH: &str = "/v2/userinfo";
 pub async fn post(
     publisher_cfg: &PublisherConfig,
     item: &UnifiedNewsItem,
-    cfg: &LinkedInConfig,
+    
     dry_run: bool,
 ) -> Result<String> {
     if dry_run {
@@ -22,12 +22,21 @@ pub async fn post(
         .as_deref()
         .ok_or_else(|| anyhow!("LinkedIn config present but missing access token"))?;
 
-    let text = cfg.text.clone().unwrap_or_else(|| item.content_markdown.clone());
+    let author_urn = publisher_cfg
+        .linkedin_author_urn
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| anyhow!(
+            "LinkedIn author_urn is required. Set VOX_SOCIAL_LINKEDIN_AUTHOR_URN to your \
+             urn:li:person:... or urn:li:organization:... value."
+        ))?;
 
-    let visibility = cfg.visibility.clone().unwrap_or_else(|| "PUBLIC".to_string());
+    let text = item.content_markdown.clone();
+
+    let visibility = "PUBLIC".to_string();
     
     let payload = serde_json::json!({
-        "author": cfg.author_urn,
+        "author": author_urn,
         "commentary": text,
         "visibility": visibility,
         "distribution": {
@@ -50,6 +59,7 @@ pub async fn post(
         .post(&url)
         .bearer_auth(token)
         .header("Linkedin-Version", API_VERSION)
+        .header("X-RestLi-Protocol-Version", "2.0.0")
         .json(&payload)
         .send()
         .await?;

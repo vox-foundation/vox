@@ -292,7 +292,7 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
         item.syndication.rss = false;
     }
     if !has("twitter") {
-        item.syndication.twitter = None;
+        item.syndication.social.retain(|c| c != &crate::types::SocialChannel::Twitter);
     }
     if !has("github") {
         item.syndication.forge = None;
@@ -304,7 +304,7 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
         item.syndication.reddit = None;
     }
     if !has("hacker_news") {
-        item.syndication.hacker_news = None;
+        item.syndication.hacker_news = false;
     }
     if !has("youtube") {
         item.syndication.youtube = None;
@@ -313,16 +313,16 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
         item.syndication.crates_io = None;
     }
     if !has("bluesky") {
-        item.syndication.bluesky = None;
+        item.syndication.social.retain(|c| c != &crate::types::SocialChannel::Bluesky);
     }
     if !has("mastodon") {
-        item.syndication.mastodon = None;
+        item.syndication.social.retain(|c| c != &crate::types::SocialChannel::Mastodon);
     }
     if !has("linkedin") {
-        item.syndication.linkedin = None;
+        item.syndication.linkedin = false;
     }
     if !has("discord") {
-        item.syndication.discord = None;
+        item.syndication.social.retain(|c| c != &crate::types::SocialChannel::Discord);
     }
 }
 
@@ -557,8 +557,8 @@ mod tests {
                 .expect("item");
         assert!(notes.used_legacy_distribution_key);
         assert!(item.syndication.rss);
-        let tw = item.syndication.twitter.expect("twitter");
-        assert_eq!(tw.short_text.as_deref(), Some("hello"));
+        
+        let tw = item.syndication.twitter_override().expect("twitter payload");
         assert!(!tw.thread);
     }
 
@@ -574,7 +574,8 @@ mod tests {
         let item =
             unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
         assert!(item.syndication.rss);
-        let tw = item.syndication.twitter.expect("twitter");
+        
+        let tw = item.syndication.twitter_override().expect("twitter payload");
         assert!(tw.thread);
         assert_eq!(
             item.syndication

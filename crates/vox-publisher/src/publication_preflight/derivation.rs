@@ -118,7 +118,7 @@ pub(super) fn collect_manual_required(
         manifest.body_markdown.as_str(),
         manifest.metadata_json.as_deref(),
     ) {
-        if item.syndication.hacker_news.is_some() {
+        if item.syndication.hacker_news {
             out.push(ManualRequiredEntry {
                 code: "hacker_news_manual_assist",
                 reason: "Hacker News syndication uses manual-assist handoff (no posting API)."
@@ -158,7 +158,7 @@ pub(super) fn collect_manual_required(
             });
         }
         let cred = operator_credential_presence();
-        if item.syndication.twitter.is_some() && !cred.twitter {
+        if item.syndication.social.contains(&crate::types::SocialChannel::Twitter) && !cred.twitter {
             out.push(ManualRequiredEntry {
                 code: "credential_twitter",
                 reason: "Twitter is enabled in syndication but no operator bearer token resolved."
@@ -353,11 +353,14 @@ pub(super) fn derive_next_actions(
         manifest.body_markdown.as_str(),
         manifest.metadata_json.as_deref(),
     ) {
-        let has_non_rss_social_targets = item.syndication.twitter.is_some()
+        let has_non_rss_social_targets = item.syndication.is_active(crate::types::SocialChannel::Twitter)
+            || item.syndication.is_active(crate::types::SocialChannel::Bluesky)
+            || item.syndication.is_active(crate::types::SocialChannel::Mastodon)
+            || item.syndication.is_active(crate::types::SocialChannel::Discord)
             || item.syndication.forge.is_some()
             || item.syndication.open_collective.is_some()
             || item.syndication.reddit.is_some()
-            || item.syndication.hacker_news.is_some()
+            || item.syndication.hacker_news
             || item.syndication.youtube.is_some()
             || item.syndication.crates_io.is_some();
         if manifest_has_explicit_distribution_intent(manifest) || has_non_rss_social_targets {

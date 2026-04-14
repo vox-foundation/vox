@@ -1,7 +1,3 @@
-use crate::PublisherConfig;
-use crate::adapter_health::HeartbeatStatus;
-use reqwest::Client;
-use std::time::Instant;
 
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_mastodon(cfg: &PublisherConfig) -> HeartbeatStatus {
