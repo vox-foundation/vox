@@ -66,6 +66,9 @@ jobs:
         if: steps.deploy_docs_pipeline.outcome == 'failure'
         run: echo "::warning title=Docs pipeline failed::Proceeding with Pages build using repository docs state."
 
+      - name: Install libxml2-utils
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
       - name: Validate feed.xml (well-formed XML)
         id: validate_feed
         run: xmllint --noout docs/src/feed.xml
@@ -136,3 +139,4 @@ jobs:
           curl --fail --silent --show-error
           "https://www.bing.com/ping?sitemap=https%3A%2F%2Fvox-lang.org%2Fsitemap.xml"
           || echo "Bing ping failed (non-blocking)"
+
