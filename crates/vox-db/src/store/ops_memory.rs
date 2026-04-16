@@ -131,6 +131,31 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    pub async fn get_memory_status_counts(&self) -> Result<(usize, usize), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT
+                            SUM(CASE WHEN status IN ('pending','queued','in_progress') THEN 1 ELSE 0 END) AS active,
+                            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+                        FROM memories",
+                        (),
+                    )
+                    .await?;
+                let mut active = 0_usize;
+                let mut completed = 0_usize;
+                if let Some(row) = rows.next().await? {
+                    active = row.get::<i64>(0).unwrap_or(0) as usize;
+                    completed = row.get::<i64>(1).unwrap_or(0) as usize;
+                }
+                Ok::<_, StoreError>((active, completed))
+            })
+            .await
+    }
+
     // ── Knowledge Nodes (knowledge_nodes) ────────────────────────────────────
 
     /// Upsert a knowledge node manually

@@ -20,7 +20,7 @@ populi = []
 [dependencies]
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }

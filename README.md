@@ -3,7 +3,9 @@
 
   <br><br>
 
-  <p><strong>A programming language for human intent and machine execution. One <code>.vox</code> file compiles to a database schema, a type-safe server, and live browser code.</strong></p>
+  <p><strong>A programming language for human intent and machine execution. </strong>Vox is a unified compiler that turns a single <code>.vox</code> file into a combined database schema, type-safe server, and live browser application. Initiated by Bertrand Reyna-Brainerd.</p>
+
+
   <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 
 </div>
@@ -33,9 +35,11 @@
 <!-- ANCHOR: why_vox -->
 ## The Architecture: Designed for AI and Humans
 
-Programming languages predate LLMs by decades. JavaScript's dynamic typing fails silently at runtime, C++'s pointer mutation hides state, and Python's configuration layers run deep. While human developers manage these trade-offs, for an AI agent navigating them simultaneously, they compound into hallucination.
+Traditional programming languages predate LLMs by decades, assuming local, CPU-bound execution. Their dynamic typing, pointer mutation, and configuration layers compound into hallucination<sup>[1](#ref1)</sup>. While human developers manage undeclared state and hidden exceptions, LLMs struggle due to their statistical nature<sup>[2](#ref2)</sup>.
 
-A million-token context window sounds generous until the signal is buried in boilerplate<sup>[1](#ref1)</sup>. Decades of patching the object-relational impedance mismatch<sup>[2](#ref2)</sup> have ballooned the accidental complexity<sup>[3](#ref3)</sup> and technical debt of modern systems<sup>[4](#ref4)</sup>, leaving codebases too brittle for agents to safely refactor.
+Furthermore, AI depends profoundly on cloud infrastructure and distributed GPU meshes. Yet, contemporary ecosystems treat networking and agent-to-agent orchestration as separated, external frameworks<sup>[3](#ref3)</sup>. A million-token context window sounds generous until the signal is buried in integration boilerplate<sup>[4](#ref4)</sup>, exacerbating the technical debt of the object-relational impedance mismatch<sup>[5](#ref5), [6](#ref6), [7](#ref7)</sup>.
+
+Vox resolves these structural bottlenecks by natively outfitting developers with built-in supplemental models, integrated databasing, and distributed agent tooling out of the box. Unifying the entire stack under one architecturally complete syntax provides the determinism machines require and the expressiveness humans expect.
 <!-- ANCHOR_END: why_vox -->
 
 ### Platform Architecture & Stability
@@ -73,7 +77,7 @@ Stability is stratified by **model predictability**. Core surfaces (data, logic,
 ### Pillar 1: The Single Source of Truth
 Agents require a single source of truth. A core concept like a `Task` no longer needs to be defined three times across SQL, the backend API, and the client. The `@table` primitive collapses schema and interface into one AST node.
 
-```rust
+```vox
 // [ @table ]
 // Auto-generates SQL and gracefully handles schema migrations.
 @table type Task {
@@ -91,7 +95,7 @@ Agents require a single source of truth. A core concept like a `Task` no longer 
 ### Pillar 2: Compile-Time Determinism
 Agents ignore edge cases. By eliminating hidden exceptions in favor of a strict `Result[T]` type, Vox makes unhandled errors a compile-time failure, granting immediate syntax-level feedback before broken code executes.
 
-```rust
+```vox
 // [ @query ]
 // Read-only endpoint; Vox strictly enforces that it never mutates data.
 // Becomes a GET /api/query/recent_tasks endpoint automatically.
@@ -128,9 +132,9 @@ fn add_task(title: str, owner: str) to Id[Task] {
 ```
 
 ### Pillar 3: Strict Network Boundaries (Web UI)
-WebIR restricts interactive state to explicit boundaries (`@island`), protecting the agent's context window. The compiler natively implements the "Islands Architecture"<sup>[6](#ref6)</sup> without exposing React hooks or lifecycle waterfalls inside the `.vox` source file.
+WebIR restricts interactive state to explicit boundaries (`@island`), protecting the agent's context window. The compiler natively implements the "Islands Architecture"<sup>[9](#ref9)</sup> without exposing React hooks or lifecycle waterfalls inside the `.vox` source file.
 
-```rust
+```vox
 // [ @island ]
 // Marks the browser boundary. The compiler generates the React component,
 // lifecycle wiring, and typed client stub. None of it appears in the .vox source.
@@ -161,9 +165,9 @@ routes { "/" to TaskPage }
 > **v0.dev integration:** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the generated component into `islands/src/TaskDashboard/`. The `@v0` build hook triggers this automatically during `vox build`.
 
 ### Pillar 4: Durable State & Agent Interoperability
-Multi-agent pipelines crash, and external tools fail. By integrating durable execution<sup>[7](#ref7)</sup> and the "let it crash" actor model<sup>[8](#ref8)</sup>, a `workflow` guarantees state survival automatically.
+Multi-agent pipelines crash, and external tools fail. By integrating durable execution<sup>[10](#ref10)</sup> and the "let it crash" actor model<sup>[11](#ref11)</sup>, a `workflow` guarantees state survival automatically.
 
-The `@mcp.tool` decorator projects these hardened native functions directly to Anthropic's Model Context Protocol (MCP)<sup>[5](#ref5)</sup> for external tool use.<sup>[9](#ref9)</sup>
+The `@mcp.tool` decorator projects these hardened native functions directly to Anthropic's Model Context Protocol (MCP)<sup>[8](#ref8)</sup> for external tool use.<sup>[12](#ref12)</sup>
 
 <table width="100%">
 <tr>
@@ -172,7 +176,7 @@ The `@mcp.tool` decorator projects these hardened native functions directly to A
 </td>
 <td width="33%" valign="top">
 
-```rust
+```vox
 // [ activity: Compute Node Execution ]
 // Flaky steps on transient workers (Node A/B).
 activity charge_card(req: int) to Result[str] {
@@ -406,20 +410,26 @@ Vox Scientia aggregates community research wherever developers are talking. Road
 
 ## References
 
-<a id="ref1"></a>**[1]** Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., & Liang, P. (2023). "Lost in the Middle: How Language Models Use Long Contexts." *Transactions of the Association for Computational Linguistics*. arXiv: <https://arxiv.org/abs/2307.03172>
+<a id="ref1"></a>**[1]** Jiang, X., et al. (2025). "Towards Understanding the Characteristics of Code Generation Errors Made by Large Language Models." *47th IEEE/ACM International Conference on Software Engineering (ICSE)*.
 
-<a id="ref2"></a>**[2]** Copeland, G., & Maier, D. (1984). "Making Smalltalk a Database System." *SIGMOD '84*, 316–325. DOI: <https://doi.org/10.1145/602259.602287>
+<a id="ref2"></a>**[2]** Li, et al. (2026). "Don't believe everything you read: Understanding and Measuring MCP Behavior under Misleading Tool Descriptions." *arXiv preprint*.
 
-<a id="ref3"></a>**[3]** Brooks, F. P. (1987). "No Silver Bullet—Essence and Accidents of Software Engineering." *IEEE Computer*, 20(4), 10-19. DOI: <https://doi.org/10.1109/MC.1987.1663532>
+<a id="ref3"></a>**[3]** Wu, Q., Bansal, G., Zhang, J., Wu, Y., Zhang, S., Zhu, E., ... & Wang, C. (2023). "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework." *arXiv preprint*. arXiv: <https://arxiv.org/abs/2308.08155>
 
-<a id="ref4"></a>**[4]** Cunningham, W. (1992). "The WyCash Portfolio Management System." *Addendum to the proceedings of OOPSLA '92*, 29-30. DOI: <https://doi.org/10.1145/157709.157715>
+<a id="ref4"></a>**[4]** Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., & Liang, P. (2023). "Lost in the Middle: How Language Models Use Long Contexts." *Transactions of the Association for Computational Linguistics*. arXiv: <https://arxiv.org/abs/2307.03172>
 
-<a id="ref5"></a>**[5]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
+<a id="ref5"></a>**[5]** Copeland, G., & Maier, D. (1984). "Making Smalltalk a Database System." *SIGMOD '84*, 316–325. DOI: <https://doi.org/10.1145/602259.602287>
 
-<a id="ref6"></a>**[6]** Miller, J. (2020). *Islands Architecture*. JasonFormat. <https://jasonformat.com/islands-architecture/>
+<a id="ref6"></a>**[6]** Brooks, F. P. (1987). "No Silver Bullet—Essence and Accidents of Software Engineering." *IEEE Computer*, 20(4), 10-19. DOI: <https://doi.org/10.1109/MC.1987.1663532>
 
-<a id="ref7"></a>**[7]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
+<a id="ref7"></a>**[7]** Cunningham, W. (1992). "The WyCash Portfolio Management System." *Addendum to the proceedings of OOPSLA '92*, 29-30. DOI: <https://doi.org/10.1145/157709.157715>
 
-<a id="ref8"></a>**[8]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
+<a id="ref8"></a>**[8]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
 
-<a id="ref9"></a>**[9]** Unison Computing. *Unison Language: A new approach to distributed programming*. <https://unison-lang.org>
+<a id="ref9"></a>**[9]** Miller, J. (2020). *Islands Architecture*. JasonFormat. <https://jasonformat.com/islands-architecture/>
+
+<a id="ref10"></a>**[10]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
+
+<a id="ref11"></a>**[11]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
+
+<a id="ref12"></a>**[12]** Unison Computing. *Unison Language: A new approach to distributed programming*. <https://unison-lang.org>

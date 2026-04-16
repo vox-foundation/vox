@@ -2,7 +2,7 @@
   "name": "vox-lang",
   "displayName": "Vox Language",
   "description": "Vox language support: LSP, MCP workspace (chat, Oratio speech, snapshots), web artifact import hints (routes.manifest / vox-client), and AI-assisted editing.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "vox-lang",
   "license": "Apache-2.0",
   "keywords": [
@@ -56,6 +56,16 @@
         "language": "vox",
         "scopeName": "source.vox",
         "path": "./syntaxes/vox.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.vox.codeblock",
+        "path": "./syntaxes/markdown-injection.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.vox": "vox"
+        }
       }
     ],
     "configuration": {

@@ -6,6 +6,7 @@ status: "current"
 sort_order: 0
 last_updated: 2026-04-12
 training_eligible: true
+machine_readable_companion: "../../agents/ai-ide-feature-matrix-2026.json"
 
 schema_type: "TechArticle"
 ---
@@ -13,6 +14,13 @@ schema_type: "TechArticle"
 # Architecture index
 
 The `docs/src/architecture/` section contains several different kinds of documents. This page is the map.
+
+## Documentation
+
+- [Documentation governance](../contributors/documentation-governance.md)
+- [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
+- [Orphan surface inventory](orphan-surface-inventory.md)
+- [Documentation hygiene and AI-agent guidelines 2026](doc-hygiene-agent-guidelines-2026.md)
 
 ## Current architecture and authority docs
 
@@ -59,12 +67,18 @@ Use these when you need current policy and behavior. The canonical cross-domain 
 - [Vox source → Mens pipeline SSOT](vox-source-to-mens-pipeline-ssot.md) — lexer/compiler → goldens → corpus → HF tokenizer
 - [Populi data pipeline](populi-data-pipeline.md) — mesh control plane vs Mens training sources
 - [RAG and research architecture 2026](rag-and-research-architecture-2026.md)
+- [Agentic Planning and MENS Multimodal Boundaries (SSOT)](agent-planning-multimodal-ssot.md)
+- [Vox Library Mode — Framework-Agnostic Codegen SSOT](vox-library-mode-ssot.md)
 
 ## MENS System
 
 For MENS architecture and training details, refer to:
 - [Populi data pipeline](populi-data-pipeline.md)
 - [GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)](vox-gui-vision-virtuous-cycle-implementation-plan-2026.md) — GUI verification loop, vision rubrics, fine-tuned Qwen3.5 vs optional VL lane
+- [Mens native training SSOT](../reference/mens-training.md)
+- [Mens training data contract](../reference/mens-training-data-contract.md)
+- [Mens architecture 2026 synthesis](mens-architecture-2026-synthesis.md)
+- [Mens lane segmentation research](mens-lane-segmentation-research.md)
 
 ## Research and synthesis
 
@@ -78,6 +92,7 @@ Use these when the question is exploratory, comparative, or evidence-gathering:
 - [Protocol convergence research 2026](protocol-convergence-research-2026.md)
 - [ASR speech-to-code scouting 2026](asr-speech-to-code-findings-2026.md) — model WER comparison, Canary/Qwen/Whisper/Moonshine/Parakeet overview
 - [ASR speech-to-code full architecture 2026](asr-speech-to-code-architecture-2026.md) — preprocessing stack, Rust crate design, WER estimates by adaptation tier, MENS integration, training pathway
+- [Vox syntax highlighting SSOT 2026](vox-syntax-highlighting-ssot-2026.md) — universal coloring strategy across VS Code/Cursor, Neovim/Helix/Zed, GitHub, and mdBook using `tree-sitter-vox` injection queries + TextMate grammar
 - `*-research-2026.md`
 - `*-findings-2026.md`
 - synthesis pages that are explicitly labeled as research

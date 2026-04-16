@@ -1,4 +1,4 @@
-﻿//! Orchestrator status JSON for `vox_orchestrator_status`, including optional mesh snapshot persistence.
+//! Orchestrator status JSON for `vox_orchestrator_status`, including optional mesh snapshot persistence.
 //!
 //! ## Mesh snapshot → Codex
 //! [`persist_mesh_snapshot_codex_opt`] records a **`populi_control`-class** row only when **`VOX_MESH_CODEX_TELEMETRY=1`** and
@@ -150,6 +150,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
             queued: a.queued,
             completed: a.completed,
             paused: a.paused,
+            max_handoff_count: a.max_handoff_count,
         })
         .collect();
 
@@ -177,12 +178,20 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         ),
         _ => String::new(),
     };
+    
+    let bounce_line = if status.max_handoff_count > 0 {
+        format!("**Peak Bounce Depth:** `{}`\n\n", status.max_handoff_count)
+    } else {
+        String::new()
+    };
+
     let mut markdown = format!(
-        "### 🤖 Vox DEI Status\n\n**Agents Active:** {}\n**Tasks In Progress:** {}\n**Tasks Completed:** {}\n\n{}",
+        "### 🤖 Vox DEI Status\n\n**Agents Active:** {}\n**Tasks In Progress:** {}\n**Tasks Completed:** {}\n\n{}{}",
         status.agents.len(),
         status.total_in_progress,
         status.total_completed,
-        scaling_line
+        scaling_line,
+        bounce_line
     );
 
     if let Some(ref c) = companion {
@@ -200,20 +209,9 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     let planning = if let Some(db) = &state.db {
         let mut active_tasks = 0_usize;
         let mut completed_tasks = 0_usize;
-        if let Ok(rows) = db
-            .query_all(
-                "SELECT
-                    SUM(CASE WHEN status IN ('pending','queued','in_progress') THEN 1 ELSE 0 END) AS active,
-                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
-                FROM memories",
-                (),
-            )
-            .await
-        {
-            if let Some(row) = rows.first() {
-                active_tasks = row.get::<i64>(0).unwrap_or(0) as usize;
-                completed_tasks = row.get::<i64>(1).unwrap_or(0) as usize;
-            }
+        if let Ok((active, completed)) = db.get_memory_status_counts().await {
+            active_tasks = active;
+            completed_tasks = completed;
         }
         Some(serde_json::json!({
             "active_sessions": active_tasks,
@@ -232,9 +230,14 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         } else {
             "💤"
         };
+        let bounce_suffix = if a.max_handoff_count > 0 {
+            format!(" [Bounce: {}]", a.max_handoff_count)
+        } else {
+            String::new()
+        };
         markdown.push_str(&format!(
-            "- {} **{}** (Queued: {}, Done: {})\n",
-            status_icon, a.name, a.queued, a.completed
+            "- {} **{}** (Queued: {}, Done: {}){}\n",
+            status_icon, a.name, a.queued, a.completed, bounce_suffix
         ));
     }
 
@@ -260,6 +263,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         in_progress: status.total_in_progress,
         completed: status.total_completed,
         agents,
+        max_handoff_count: status.max_handoff_count,
         scaling_profile,
         effective_scale_up_threshold,
         companion,
