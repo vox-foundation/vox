@@ -227,6 +227,13 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         eprintln!("  [synthetic] telemetry_trace: {n} pairs");
     }
 
+    // KCH Anti-conflation negative DPO pairs (Wave 4)
+    if cfg.emit_kch_anticonflation {
+        let n = kch_anticonflation::generate_kch_anticonflation_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] kch_anticonflation: {n} pairs");
+    }
+
     file.flush()?;
     eprintln!(
         "  [synthetic] total: {total} pairs → {}",

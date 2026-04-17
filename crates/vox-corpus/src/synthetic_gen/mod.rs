@@ -85,6 +85,8 @@ pub struct SyntheticGenConfig {
     pub emit_multi_agent_convos: bool,
     /// Whether to emit telemetry interpretation pairs (Gap 10).
     pub emit_telemetry_pairs: bool,
+    /// Whether to emit KCH Anti-conflation negative DPO pairs (Wave 4).
+    pub emit_kch_anticonflation: bool,
 }
 
 impl Default for SyntheticGenConfig {
@@ -108,6 +110,7 @@ impl Default for SyntheticGenConfig {
             emit_error_recovery: true,
             emit_multi_agent_convos: true,
             emit_telemetry_pairs: true,
+            emit_kch_anticonflation: true,
         }
     }
 }
@@ -179,6 +182,7 @@ mod tool_pairs;
 pub mod transplant_pairs;
 mod web_pairs;
 mod workflow_pairs;
+pub mod kch_anticonflation;
 
 pub use agent_pairs::generate_agent_lifecycle_pairs;
 pub use error_recovery_pairs::generate_error_recovery_pairs;

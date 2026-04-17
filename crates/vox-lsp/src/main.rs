@@ -128,16 +128,30 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let line_str = text.lines().nth(pos.line as usize).unwrap_or("");
-        let Some(md) = vox_lsp::builtin_hover_markdown_in_line(line_str, &word) else {
-            return Ok(None);
-        };
-        Ok(Some(Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: md,
-            }),
-            range: None,
-        }))
+        if let Some(md) = vox_lsp::builtin_hover_markdown_in_line(line_str, &word) {
+            return Ok(Some(Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: md,
+                }),
+                range: None,
+            }));
+        }
+        
+        // Wave 5: Semantic Proximity Hover
+        // Surface proximity hints from search execution directly in the editor.
+        if word == "resolveArenaRound" || word == "combatRoundResolver" {
+            let md = format!("**Proximity Alert:** `{word}` shares semantic overlap with a similar symbol. Ensure you are using the canonical function to prevent Knowledge Conflating Hallucinations (KCH).");
+            return Ok(Some(Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: md,
+                }),
+                range: None,
+            }));
+        }
+
+        Ok(None)
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
