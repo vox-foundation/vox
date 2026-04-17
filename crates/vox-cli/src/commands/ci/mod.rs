@@ -13,6 +13,7 @@ pub mod completion_quality;
 mod contracts_index;
 mod eval_matrix;
 mod exec_policy_contract;
+mod grammar_ssot_parity;
 mod gui_smoke;
 mod install_hooks;
 mod kill_stuck_tests;

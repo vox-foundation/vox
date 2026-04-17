@@ -381,6 +381,7 @@ pub fn builtin_hover_markdown(word: &str) -> Option<String> {
         ),
         "print" => Some("**print** — `print(value: str) → Unit`.".to_string()),
         "len" => Some("**len** — length of a collection.".to_string()),
+        "ret" => Some("**DEPRECATED**: use `return` instead. `ret` will be removed in a future version.".to_string()),
         _ => None,
     }
 }

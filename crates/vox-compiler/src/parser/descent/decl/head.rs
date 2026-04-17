@@ -588,6 +588,8 @@ impl Parser {
         let mut is_mobile_native = false;
         let mut is_pure = false;
         let mut is_deprecated = false;
+        let mut is_llm = false;
+        let mut llm_model = None;
 
         loop {
             self.skip_newlines();
@@ -618,9 +620,26 @@ impl Parser {
                     self.advance();
                     is_deprecated = true;
                 }
-                Token::AtFuzz | Token::AtMobileNative => {
+                Token::AtFuzz | Token::AtNative => {
                     self.advance();
                     is_mobile_native = true;
+                }
+                Token::AtAi => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        if let Token::Ident(key) = self.peek().clone() {
+                            if key == "model" {
+                                self.advance();
+                                self.expect(&Token::Eq)?;
+                                if let Token::StringLit(m) = self.peek().clone() {
+                                    self.advance();
+                                    llm_model = Some(m);
+                                }
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
                 }
                 _ => break,
             }
@@ -646,13 +665,17 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
+        let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
             None
         };
-        self.expect(&Token::LBrace)?;
-        let body = self.parse_block()?;
+        let body = if is_llm && !matches!(self.peek(), Token::LBrace) {
+            vec![]
+        } else {
+            self.expect(&Token::LBrace)?;
+            self.parse_block()?
+        };
         Ok(FnDecl {
             name,
             generics,
@@ -662,6 +685,8 @@ impl Parser {
             is_async: false,
             is_deprecated,
             is_pure,
+            is_llm,
+            llm_model,
             is_traced: false,
             is_pub,
             auth_provider: None,

@@ -464,6 +464,13 @@ pub enum AgentEventKind {
         /// The new source after healing
         new_source: String,
     },
+    /// A fix was suggested automatically for a diagnostic error.
+    AutoHealSuggested {
+        agent_id: AgentId,
+        path: PathBuf,
+        diagnostic: String,
+        fix_suggestion: String,
+    },
 
     /// Attention budget threshold alert
     AttentionBudgetAlert {

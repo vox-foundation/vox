@@ -3,7 +3,7 @@ actor Counter {
     on increment(current: int) -> int {
         let count = current + 1
         print("Count is " + count)
-        ret count
+        return count
     }
 }
 // ANCHOR_END: basic_actor

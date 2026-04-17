@@ -13,15 +13,15 @@
 // ANCHOR: display
 fn classify_score(score: int) -> str {
     if score >= 90 {
-        ret "A"
+        return "A"
     } else {
         if score >= 80 {
-            ret "B"
+            return "B"
         } else {
             if score >= 70 {
-                ret "C"
+                return "C"
             } else {
-                ret "F"
+                return "F"
             }
         }
     }
@@ -29,30 +29,30 @@ fn classify_score(score: int) -> str {
 
 fn access_level(role: str, active: bool) -> str {
     if !active {
-        ret "suspended"
+        return "suspended"
     }
     if role == "admin" {
-        ret "full"
+        return "full"
     }
     if role == "editor" {
-        ret "write"
+        return "write"
     }
-    ret "read"
+    return "read"
 }
 
 fn shipping_cost(weight: int, express: bool) -> int {
     let base = if weight > 10 { 20 } else { 5 }
     let surcharge = if express { 15 } else { 0 }
-    ret base + surcharge
+    return base + surcharge
 }
 
 fn is_valid_username(name: str) -> bool {
     if len(name) < 3 {
-        ret false
+        return false
     }
     if len(name) > 32 {
-        ret false
+        return false
     }
-    ret true
+    return true
 }
 // ANCHOR_END: display

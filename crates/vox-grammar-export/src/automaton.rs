@@ -1,39 +1,25 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FsmState {
-    Start,
-    InsideObject,
-    Key,
-    Colon,
-    StringValue,
-    NumberValue,
-    Comma,
-    End,
-    Invalid,
-}
 
-/// A rudimentary deterministic state machine for JSON generation.
+/// A simple brace-depth tracker for JSON generation.
+///
+/// This is used to track the depth of nested objects and arrays to ensure
+/// that the generated JSON is structurally balanced.
 #[derive(Debug, Clone)]
-pub struct JsonGrammarAutomaton {
-    #[allow(dead_code)]
-    state: FsmState,
+pub struct JsonBraceDepthTracker {
     in_string: bool,
     brace_depth: usize,
 }
 
-impl JsonGrammarAutomaton {
+impl JsonBraceDepthTracker {
     pub fn new() -> Self {
         Self {
-            state: FsmState::Start,
             in_string: false,
             brace_depth: 0,
         }
     }
 
-    /// Feeds a new chunk of string (e.g. decoded from the latest token) into the automaton.
-    /// Returns true if the string can transition to a valid state, false if it causes a syntax error.
-    /// This is a simplified fallback that mimics a basic JSON parser's state transitions.
+    /// Feeds a new chunk of string into the tracker.
+    /// Returns true if the string is structurally valid (so far), false if it causes a brace imbalance.
     pub fn is_valid_transition(&self, chunk: &str) -> bool {
-        // If empty chunk (sometimes tokenizers emit empty strings), it's harmless
         if chunk.is_empty() {
             return true;
         }
@@ -61,16 +47,12 @@ impl JsonGrammarAutomaton {
             return true;
         }
 
-        if c.is_whitespace() {
-            return true;
-        }
-
         match c {
-            '{' => {
+            '{' | '[' => {
                 self.brace_depth += 1;
                 true
             }
-            '}' => {
+            '}' | ']' => {
                 if self.brace_depth == 0 {
                     return false;
                 }
@@ -81,11 +63,7 @@ impl JsonGrammarAutomaton {
                 self.in_string = true;
                 true
             }
-            '[' | ']' => true,                                           // arrays
-            ':' | ',' => true,                                           // separators
-            '0'..='9' | '-' | '.' | 'e' | 'E' | '+' => true,             // numbers
-            't' | 'r' | 'u' | 'f' | 'a' | 'l' | 's' | 'n' | 'o' => true, // literals
-            _ => false, // invalid character outside string
+            _ => true, // ignore other characters outside strings for brace tracking
         }
     }
 }

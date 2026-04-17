@@ -19,14 +19,14 @@
 
 fn verify_token(token: str) -> Result[Session] {
     let sessions = db.Session.filter({ token: token })
-    ret Error("Invalid")
+    return Error("Invalid")
 }
 
 fn require_admin(sess: Session) -> Result[Unit] {
     if !sess.admin {
-        ret Error("Forbidden: requires admin")
+        return Error("Forbidden: requires admin")
     }
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 
 fn handle_session(sess: Session) -> str {

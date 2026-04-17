@@ -79,7 +79,7 @@ pub(crate) fn run_grammar_export_check(_root: &Path) -> Result<()> {
             format: format.clone(),
             ..GrammarExportConfig::default()
         };
-        let result = export(&config);
+        let result = export(&config)?;
         if result.grammar_text.is_empty() {
             failures.push(format!(
                 "Format '{}': grammar_text is empty",

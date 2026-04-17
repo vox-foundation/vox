@@ -27,23 +27,43 @@ This page provides the canonical structural layout for Vox v0.3 features. All co
 Variable assignments are immutable by default in Vox. Prefix with `mut` for mutability.
 
 ```vox
-{{#include ../../../examples/golden/ref_syntax.vox:variables}}
+// ANCHOR: variables
+fn demo_vars() {
+    let x = 10
+    let mut y = 20
+    y = 30
+}
+// ANCHOR_END: variables
 ```
 
 Functions mapping natively to networking, storage, or internal agentic constraints.
 
 ```vox
-{{#include ../../../examples/golden/ref_syntax.vox:functions}}
+// ANCHOR: functions
+fn add(a: int, b: int) -> int {
+    return a + b;
+}
+
+component Button(label: str) {
+    view: <button>{label}</button>
+}
+// ANCHOR_END: functions
 ```
 
 ```vox
-{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+// From examples/golden/ref_orchestrator.vox
+@mcp.tool "search: Search the knowledge base"
+fn search(query: str) -> List[str] {
+    return ["result 1", "result 2"]
+}
 ```
 
 Lexical constraints and properties can be modeled strictly using Abstract Data Types (ADTs) and Table definitions.
 
 ```vox
-{{#include ../../../examples/golden/ref_types.vox:adt}}
+type Shape =
+    | Circle(radius: float)
+    | Rect(w: float, h: float)
 ```
 
 ```vox
@@ -57,12 +77,23 @@ Lexical constraints and properties can be modeled strictly using Abstract Data T
 
 ### Branching
 ```vox
-{{#include ../../../examples/golden/ref_syntax.vox:control_flow}}
+fn check(n: int) -> str {
+    if n > 0 {
+        return "positive"
+    } else {
+        return "other"
+    }
+}
 ```
 
 ### Pattern Matching (`match`)
 ```vox
-{{#include ../../../examples/golden/ref_types.vox:matching}}
+fn area(s: Shape) -> float {
+    match s {
+        Circle(r) -> 3.14 * r * r
+        Rect(w, h) -> w * h
+    }
+}
 ```
 
 ### Pipe Operator (`|>`)
@@ -104,11 +135,21 @@ fn build_report() -> Result[str] {
 Actors operate isolated asynchronous loops responding to discrete event handler payloads via `on`. 
 
 ```vox
-{{#include ../../../examples/golden/ref_actors.vox:basic_actor}}
+actor Counter {
+    count: int = 0
+    on increment(n: int) {
+        count += n
+    }
+    on get() -> int {
+        return count
+    }
+}
 ```
 
 ```vox
-{{#include ../../../examples/golden/ref_actors.vox:spawn_and_send}}
+let c = spawn Counter()
+c ! increment(5)
+let val = c.get()
 ```
 
 ## Agents
@@ -116,13 +157,25 @@ Actors operate isolated asynchronous loops responding to discrete event handler 
 Agents define LLM-backed roles with systematic instructions and toolsets.
 
 ```vox
-{{#include ../../../examples/golden/ref_agents.vox:basic_agent}}
+```vox
+@llm(model="claude-3-opus")
+fn summarize(text: str) -> str
+```
 ```
 
 Use `workflow` to group state machine processes that survive process restarts. Use `activity` to dictate atomic, retry-able execution sequences.
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:logic}}
+```vox
+@query fn get_notes() -> List[Note] {
+    return db.Note.all()
+}
+
+@mutation fn create_note(title: str, content: str) -> Result[Id[Note]] {
+    let id = db.Note.insert({ title: title, content: content })?
+    return Ok(id)
+}
+```
 ```
 
 ## Island and UI Syntax
@@ -140,12 +193,15 @@ routes {
 }
 ```
 
-### Return Keyword aliasing
-`ret` is a short-form alias for `return`; both are valid and produce identical behavior. Use `ret` for one-liners and `return` for complex logic.
+### Return Keyword
+`return` is the canonical way to return a value from a function.
+
+> [!WARNING]
+> The `ret` alias is **deprecated** and will be removed in a future version. Use `return` for all new code.
 
 ```vox
 // vox:skip
-fn double(x: int) -> int { ret x * 2 }
+fn double(x: int) -> int { return x * 2 }
 fn square(x: int) -> int { return x * x }
 ```
 

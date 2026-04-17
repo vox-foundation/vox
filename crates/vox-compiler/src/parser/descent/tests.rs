@@ -20,7 +20,7 @@ fn assert_parse_fails(source: &str) {
 
 #[test]
 fn test_parse_simple_fn() {
-    let m = parse_str("fn add(a, b) to int { ret a + b }");
+    let m = parse_str("fn add(a, b) to int { return a + b }");
     assert_eq!(m.declarations.len(), 1);
     assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "add"));
 }
@@ -68,7 +68,7 @@ fn test_parse_rust_import_with_alias_and_meta() {
 
 #[test]
 fn test_parse_let() {
-    let m = parse_str("fn main() { let x = 42\n ret x }");
+    let m = parse_str("fn main() { let x = 42\n return x }");
     if let Decl::Function(f) = &m.declarations[0] {
         assert_eq!(f.body.len(), 2);
         assert!(matches!(&f.body[0], Stmt::Let { .. }));
@@ -79,12 +79,12 @@ fn test_parse_let() {
 
 #[test]
 fn classic_component_fn_is_parse_error() {
-    assert_parse_fails("@component fn Chat() to Element { ret 0 }");
+    assert_parse_fails("@component fn Chat() to Element { return 0 }");
 }
 
 #[test]
 fn test_parse_loading_decl() {
-    let m = parse_str("@loading fn RouteSpinner() to Element { ret <div/> }");
+    let m = parse_str("@loading fn RouteSpinner() to Element { return <div/> }");
     assert!(matches!(
         &m.declarations[0],
         Decl::Loading(l) if l.func.name == "RouteSpinner"
@@ -107,7 +107,7 @@ fn test_parse_at_component_reactive_path_c() {
 
 #[test]
 fn test_parse_http_route() {
-    let m = parse_str("http post \"/api/chat\" to Result { ret 0 }");
+    let m = parse_str("http post \"/api/chat\" to Result { return 0 }");
     assert!(matches!(&m.declarations[0], Decl::HttpRoute(r) if r.path == "/api/chat"));
 }
 
@@ -140,7 +140,7 @@ fn test_parse_type_def() {
 
 #[test]
 fn test_parse_operator_precedence() {
-    let m = parse_str("fn f() { ret 1 + 2 * 3 }");
+    let m = parse_str("fn f() { return 1 + 2 * 3 }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value:
@@ -164,13 +164,13 @@ fn test_parse_operator_precedence() {
 
 #[test]
 fn test_parse_pipe() {
-    let m = parse_str("fn f() { ret x |> transform |> render }");
+    let m = parse_str("fn f() { return x |> transform |> render }");
     assert!(matches!(&m.declarations[0], Decl::Function(_)));
 }
 
 #[test]
 fn test_parse_actor() {
-    let m = parse_str("actor Worker { on receive(msg) to str { ret msg } }");
+    let m = parse_str("actor Worker { on receive(msg) to str { return msg } }");
     if let Decl::Actor(a) = &m.declarations[0] {
         assert_eq!(a.name, "Worker");
         assert_eq!(a.handlers.len(), 1);
@@ -182,7 +182,7 @@ fn test_parse_actor() {
 
 #[test]
 fn test_parse_workflow() {
-    let m = parse_str("workflow process(file: str) to str { ret file }");
+    let m = parse_str("workflow process(file: str) to str { return file }");
     if let Decl::Workflow(w) = &m.declarations[0] {
         assert_eq!(w.name, "process");
         assert_eq!(w.params.len(), 1);
@@ -193,7 +193,7 @@ fn test_parse_workflow() {
 
 #[test]
 fn test_parse_lambda() {
-    let m = parse_str("fn f() { let add = fn(a, b) a + b\n ret add(1, 2) }");
+    let m = parse_str("fn f() { let add = fn(a, b) a + b\n return add(1, 2) }");
     if let Decl::Function(f) = &m.declarations[0] {
         assert_eq!(f.body.len(), 2);
         if let Stmt::Let {
@@ -212,7 +212,7 @@ fn test_parse_lambda() {
 
 #[test]
 fn test_parse_if_else() {
-    let m = parse_str("fn f(x) { if x { ret 1\n} else { ret 0\n} }");
+    let m = parse_str("fn f(x) { if x { return 1\n} else { return 0\n} }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Expr {
             expr:
@@ -234,7 +234,7 @@ fn test_parse_if_else() {
 
 #[test]
 fn test_parse_mutable_let() {
-    let m = parse_str("fn f() { let mut x = 0\n x = 1\n ret x }");
+    let m = parse_str("fn f() { let mut x = 0\n x = 1\n return x }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Let { mutable, .. } = &f.body[0] {
             assert!(mutable, "Should be mutable");
@@ -246,7 +246,7 @@ fn test_parse_mutable_let() {
 
 #[test]
 fn test_parse_method_chain() {
-    let m = parse_str("fn f() { ret list.map(fn(x) x).filter(fn(x) x) }");
+    let m = parse_str("fn f() { return list.map(fn(x) x).filter(fn(x) x) }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value: Some(Expr::MethodCall { method, .. }),
@@ -290,7 +290,7 @@ fn test_parse_jsx_with_children() {
 
 #[test]
 fn test_parse_spawn() {
-    let m = parse_str("fn f() { ret spawn(Worker) }");
+    let m = parse_str("fn f() { return spawn(Worker) }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value: Some(Expr::Spawn { .. }),
@@ -322,7 +322,7 @@ fn test_parse_for_loop() {
 
 #[test]
 fn test_parse_pub_fn() {
-    let m = parse_str("pub fn helper() to int { ret 42 }");
+    let m = parse_str("pub fn helper() to int { return 42 }");
     if let Decl::Function(f) = &m.declarations[0] {
         assert!(f.is_pub);
         assert_eq!(f.name, "helper");
@@ -333,14 +333,14 @@ fn test_parse_pub_fn() {
 
 #[test]
 fn test_parse_multiple_decls() {
-    let src = "import std\n\nfn a() { ret 1 }\n\nfn b() { ret 2 }";
+    let src = "import std\n\nfn a() { return 1 }\n\nfn b() { return 2 }";
     let m = parse_str(src);
     assert_eq!(m.declarations.len(), 3, "import + 2 functions");
 }
 
 #[test]
 fn test_parse_activity() {
-    let m = parse_str("activity send_email(recipient: str) to str { ret recipient }");
+    let m = parse_str("activity send_email(recipient: str) to str { return recipient }");
     if let Decl::Activity(a) = &m.declarations[0] {
         assert_eq!(a.name, "send_email");
         assert_eq!(a.params.len(), 1);
@@ -353,7 +353,7 @@ fn test_parse_activity() {
 
 #[test]
 fn test_parse_with_expression() {
-    let m = parse_str("fn f() { ret call() with { timeout: 5 } }");
+    let m = parse_str("fn f() { return call() with { timeout: 5 } }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value: Some(Expr::With {
@@ -440,7 +440,7 @@ fn test_parse_island_optional_prop() {
 
 #[test]
 fn test_parse_server_fn_brace_shape() {
-    let m = parse_str("@server fn echo(x: str) to str {\n    ret x\n}");
+    let m = parse_str("@server fn echo(x: str) to str {\n    return x\n}");
     if let Decl::ServerFn(s) = &m.declarations[0] {
         assert_eq!(s.func.name, "echo");
         assert_eq!(s.func.params.len(), 1);

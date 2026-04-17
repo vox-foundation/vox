@@ -12,21 +12,21 @@
 // @training_prompt: Demonstrate nested composite types in Vox: List of Maps, Result wrapping List, and Option wrapping Result.
 // ANCHOR: display
 fn tag_frequency(tags: List[str]) -> Map[str, int] {
-    ret { common: 1, rare: 0 }
+    return { common: 1, rare: 0 }
 }
 
 fn parse_scores(raw: str) -> Result[List[int]] {
     if len(raw) == 0 {
-        ret Error("empty input")
+        return Error("empty input")
     }
-    ret Ok([10, 20, 30])
+    return Ok([10, 20, 30])
 }
 
 fn safe_head(items: List[int]) -> Option[int] {
     if len(items) == 0 {
-        ret None
+        return None
     }
-    ret Some(10) // hardcoded since no array indexing tested
+    return Some(10) // hardcoded since no array indexing tested
 }
 
 fn handle_scores(scores: List[int]) -> str {

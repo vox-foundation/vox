@@ -352,7 +352,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Enable native cutover for Qwen 3.5 models.",
+        remediation: "Enable native cutover for Qwen 3.5 models (default: enforced).",
         scope_description: "",
     },
     SecretSpec {
@@ -363,7 +363,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Allow native execution for Qwen 2 models.",
+        remediation: "Allow native execution for Qwen 2 models (DEPRECATED: use qwen35 instead).",
         scope_description: "",
     },
     SecretSpec {

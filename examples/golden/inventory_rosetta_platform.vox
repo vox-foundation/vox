@@ -18,9 +18,9 @@ actor InventoryActor {
     on MergeRequest(current: int, incoming: int, max_stack: int) -> int {
         let total = current + incoming
         if total > max_stack {
-            ret max_stack
+            return max_stack
         }
-        ret total
+        return total
     }
 }
 // ANCHOR_END: actor_layer
@@ -33,9 +33,9 @@ actor InventoryActor {
 // ANCHOR_END: workflow_durability_note
 activity reserve_slots(amount: int) -> Result[str] {
     if amount <= 0 {
-        ret Error("invalid amount")
+        return Error("invalid amount")
     }
-    ret Ok("reserve_ok")
+    return Ok("reserve_ok")
 }
 
 workflow settle_trade(amount: int) -> str {
@@ -52,9 +52,9 @@ workflow settle_trade(amount: int) -> str {
 fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) -> str {
     let total = current + incoming
     if total <= max_stack {
-        ret kind + ":" + str(total) + "+0"
+        return kind + ":" + str(total) + "+0"
     }
-    ret kind + ":" + str(max_stack) + "+" + str(total - max_stack)
+    return kind + ":" + str(max_stack) + "+" + str(total - max_stack)
 }
 // ANCHOR_END: mcp_layer
 
@@ -80,8 +80,8 @@ routes {
 // See docs/src/architecture/capability-grants-ssot.md for the runtime model.
 fn import_loot_csv(import_cap: cap, path: str) -> Result[str] {
     if !has_capability(import_cap) {
-        ret Error("missing capability token")
+        return Error("missing capability token")
     }
-    ret Ok("imported:" + path)
+    return Ok("imported:" + path)
 }
 // ANCHOR_END: capability_layer

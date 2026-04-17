@@ -38,7 +38,8 @@ pub fn emit_compact_llm_prompt() -> String {
     p.push_str("while cond { ... }\n");
     p.push_str("loop { break; continue }\n");
     p.push_str("for x in iterable { ... }\n");
-    p.push_str("ret expr   or   return expr\n\n");
+    p.push_str("return expr             // canonical\n");
+    p.push_str("ret expr                // deprecated\n\n");
 
     // ── Pattern Matching ────────────────────────────────────────────────
     p.push_str("== Match ==\n");
@@ -91,7 +92,7 @@ pub fn emit_compact_llm_prompt() -> String {
     p.push_str("  effect { ... }   mount { ... }   cleanup { ... }\n");
     p.push_str("  view: <jsx />\n");
     p.push_str("}\n");
-    p.push_str("@component fn Name(props) to Element { ... }  // legacy\n");
+    p.push_str("@component fn Name()    // RETIRED — produces hard error\n");
     p.push_str("@island Name { prop?: Type, ... }\n");
     p.push_str("@v0 \"prompt\" fn Name() to Element\n\n");
 

@@ -13,9 +13,9 @@
 // ANCHOR: display
 activity charge_card(amount: int) -> Result[str] {
     if amount > 1000 {
-        ret Error("Amount too large")
+        return Error("Amount too large")
     }
-    ret Ok("tx_123")
+    return Ok("tx_123")
 }
 
 workflow checkout(amount: int) -> str {

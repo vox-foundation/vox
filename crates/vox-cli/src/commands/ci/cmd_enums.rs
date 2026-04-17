@@ -197,6 +197,9 @@ pub enum CiCmd {
     /// Validate grammar export crate: emit all formats, verify rule counts are non-zero, assert semver alignment.
     #[command(name = "grammar-export-check")]
     GrammarExportCheck,
+    /// Validate GRAMMAR_SSOT.md against LEXER_KEYWORDS and LEXER_DECORATORS.
+    #[command(name = "grammar-ssot-parity")]
+    GrammarSsotParity,
     /// Histogram of AST decl kinds across `examples/golden` (requires `vox-corpus/ast-extract`).
     #[command(name = "corpus-decl-coverage", visible_alias = "corpus-coverage")]
     CorpusDeclCoverage,

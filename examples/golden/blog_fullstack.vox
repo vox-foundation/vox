@@ -16,12 +16,12 @@
 }
 
 @query fn list_posts() -> List[Post] {
-    ret db.Post.all()
+    return db.Post.all()
 }
 
 @mutation fn publish_post(title: str) -> Result[Id[Post]] {
     let id = db.Post.insert({ title: title })?
-    ret Ok(id)
+    return Ok(id)
 }
 
 component BlogHome() {

@@ -10,7 +10,7 @@ use crate::ast::decl::*;
 use crate::ast::span::Span;
 use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
-use crate::parser::error::{ParseError, ParseErrorClass};
+use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 
 /// Strict parse: returns [`Module`] or **all** accumulated [`ParseError`] values.
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
@@ -94,6 +94,21 @@ impl Parser {
         }
     }
 
+    pub(crate) fn eat_return_arrow(&mut self) -> bool {
+        if self.eat(&Token::Arrow) {
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "The '->' syntax is deprecated for return types. Use 'to'.",
+                vec![],
+                None,
+                ParseErrorClass::Expression,
+            ));
+            true
+        } else {
+            self.eat(&Token::To)
+        }
+    }
+
     pub(crate) fn parse_module(&mut self) -> Result<Module, Vec<ParseError>> {
         let start = self.span();
         let mut decls = Vec::new();
@@ -107,13 +122,13 @@ impl Parser {
             }
             self.skip_newlines();
         }
-        if self.errors.is_empty() {
+        if self.errors.iter().any(|e| e.severity == ParseSeverity::Error) {
+            Err(self.errors.clone())
+        } else {
             Ok(Module {
                 declarations: decls,
                 span: start.merge(self.span()),
             })
-        } else {
-            Err(self.errors.clone())
         }
     }
 
@@ -151,7 +166,6 @@ impl Parser {
                 | Token::AtQuery
                 | Token::AtMutation
                 | Token::Component
-                | Token::AtV0
                 | Token::AtForall
                 | Token::AtScheduled
                 | Token::AtRequire
@@ -159,11 +173,12 @@ impl Parser {
                 | Token::AtInvariant
                 | Token::AtFuzz
                 | Token::AtPure
+                | Token::AtAi
                 | Token::AtDeprecated
                 | Token::AtLoading
                 | Token::Let
                 | Token::Agent
-                | Token::Environment
+                | Token::Env
                 | Token::Async if brace_depth == 0 => break,
                 _ => {
                     self.advance();
@@ -184,11 +199,10 @@ impl Parser {
             Token::AtServer => self.parse_server_fn(),
             Token::AtQuery => self.parse_query_fn(),
             Token::AtMutation => self.parse_mutation_fn(),
-            Token::AtV0 => self.parse_v0_component(),
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
-            Token::AtMcpTool => self.parse_mcp_tool(),
-            Token::AtMcpResource => self.parse_mcp_resource(),
+            Token::AtTool => self.parse_mcp_tool(),
+            Token::AtResource => self.parse_mcp_resource(),
             Token::Let => {
                 let start = self.span();
                 self.advance(); // eat 'let'
@@ -220,8 +234,9 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtAi
                     | Token::AtDeprecated
-                    | Token::AtMobileNative => {
+                    | Token::AtNative => {
                         let mut f = self.parse_fn_decl(false)?;
                         f.is_async = true;
                         Ok(Decl::Function(f))
@@ -244,8 +259,9 @@ impl Parser {
             | Token::AtInvariant
             | Token::AtFuzz
             | Token::AtPure
+            | Token::AtAi
             | Token::AtDeprecated
-            | Token::AtMobileNative => {
+            | Token::AtNative => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))
             }
@@ -258,8 +274,9 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtAi
                     | Token::AtDeprecated
-                    | Token::AtMobileNative => {
+                    | Token::AtNative => {
                         let f = self.parse_fn_decl(true)?;
                         Ok(Decl::Function(f))
                     }
@@ -279,7 +296,7 @@ impl Parser {
             Token::TypeKw => self.parse_typedef(false),
             Token::Actor => self.parse_actor(),
             Token::Agent => self.parse_agent(),
-            Token::Environment => self.parse_environment(),
+            Token::Env => self.parse_environment(),
             Token::Workflow => self.parse_workflow(),
             Token::Activity => self.parse_activity(),
             Token::Http => self.parse_http_route(),

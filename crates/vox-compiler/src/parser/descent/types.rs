@@ -57,7 +57,7 @@ impl Parser {
                 }
             }
             self.expect(&Token::RParen)?;
-            let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
+            let return_type = if self.eat_return_arrow() {
                 self.parse_type_expr()?
             } else {
                 TypeExpr::Unit { span: self.span() }

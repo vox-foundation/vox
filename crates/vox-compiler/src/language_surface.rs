@@ -14,7 +14,7 @@ pub const LSP_KEYWORD_SNIPPETS: &[(&str, &str)] = &[
     ("if", "if $1 { \n\t$0 \n}"),
     ("else", "else { \n\t$0 \n}"),
     ("for", "for $1 in $2 { \n\t$0 \n}"),
-    ("match", "match $1 { \n\t$2 -> $0 \n}"),
+    ("match", "match $1 { \n\t$2 => $0 \n}"),
     ("return", "return $0"),
     ("while", "while $1 { \n\t$0 \n}"),
     ("loop", "loop { \n\t$0 \n}"),
@@ -30,6 +30,7 @@ pub const LSP_KEYWORD_SNIPPETS: &[(&str, &str)] = &[
     ("pub", "pub $0"),
     ("with", "with $1 { \n\t$0 \n}"),
     ("on", "on $1($2) { \n\t$0 \n}"),
+    // ── Parser-only identifiers (lexed as Ident) ──
     ("struct", "struct $1 { \n\t$0 \n}"),
     ("enum", "enum $1 { \n\t$0 \n}"),
     ("trait", "trait $1 { \n\t$0 \n}"),
@@ -61,13 +62,13 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
     ("@index", "Declares a database index."),
     ("@query", "Declares a database query function."),
     ("@mutation", "Declares a database mutation function."),
-    ("@mcp.tool", "Exposes a function as an MCP tool."),
+    ("@tool", "Exposes a function as an MCP tool."),
     (
-        "@mcp.resource",
+        "@resource",
         "Read-only MCP resource (URI + description; nullary fn body).",
     ),
     ("@test", "Marks a function as a test case."),
-    ("@v0", "Placeholder for v0.dev-generated UI hook."),
+    ("@placeholder", "Placeholder for generated UI hook."),
     (
         "@require",
         "Adds a runtime validation guard (precondition).",
@@ -94,6 +95,37 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
         "@deprecated",
         "Marks a declaration as deprecated for diagnostics and documentation.",
     ),
+    (
+        "@ai",
+        "Marks a function as being implemented by an LLM (agentic body).",
+    ),
+];
+
+/// LSP decorator snippets: `(label, snippet)`.
+pub const LSP_DECORATOR_SNIPPETS: &[(&str, &str)] = &[
+    ("@island", "@island"),
+    ("@loading", "@loading"),
+    ("@server", "@server"),
+    ("@table", "@table"),
+    ("@index", "@index"),
+    ("@query", "@query"),
+    ("@mutation", "@mutation"),
+    ("@tool", "@tool(\"${1:tool_name}\")"),
+    ("@resource", "@resource(\"${1:uri}\")"),
+    ("@test", "@test"),
+    ("@placeholder", "@placeholder(\"${1:component_id}\")"),
+    ("@require", "@require(${1:condition})"),
+    ("@ensure", "@ensure(${1:condition})"),
+    ("@invariant", "@invariant(${1:condition})"),
+    ("@forall", "@forall"),
+    ("@fuzz", "@fuzz"),
+    ("@pure", "@pure"),
+    ("@scheduled", "@scheduled(\"${1:cron}\")"),
+    ("@deprecated", "@deprecated(\"${1:reason}\")"),
+    (
+        "@ai",
+        "@ai(model=\"${1:gpt-4o}\") fn $2($3) to $4 {\n\t$0\n}",
+    ),
 ];
 
 /// Keywords that have dedicated single-word lexer tokens (speech / strict introspection).
@@ -107,7 +139,6 @@ pub const LEXER_KEYWORDS: &[&str] = &[
     "for",
     "in",
     "to",
-    "ret",
     "return",
     "while",
     "loop",
@@ -130,11 +161,15 @@ pub const LEXER_KEYWORDS: &[&str] = &[
     "cleanup",
     "view",
     "component",
+    "agent",
+    "async",
+    "migrate",
+    "env",
+    "dec",
     "and",
     "or",
     "not",
     "is",
-    "isnt",
     "true",
     "false",
     "get",
@@ -145,10 +180,9 @@ pub const LEXER_KEYWORDS: &[&str] = &[
 
 /// `@decorator` spellings from the lexer (stable order).
 pub const LEXER_DECORATORS: &[&str] = &[
-    "@component",
     "@deprecated",
-    "@mcp.tool",
-    "@mcp.resource",
+    "@tool",
+    "@resource",
     "@pure",
     "@require",
     "@scheduled",
@@ -162,15 +196,24 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@mutation",
     "@table",
     "@index",
-    "@v0",
-    "@mobile.native",
+    "@placeholder",
+    "@native",
     "@island",
     "@loading",
+    "@ai",
 ];
+
+/// Keywords that are deprecated and will be removed in a future version.
+/// LSP and introspection tools should avoid suggesting these.
+pub const LEXER_DEPRECATED_KEYWORDS: &[&str] = &["ret", "isnt", "environment"];
+
+/// Decorators that are retired and produce hard compiler errors.
+/// LSP and introspection tools should avoid suggesting these.
+pub const LEXER_DEPRECATED_DECORATORS: &[&str] = &["@component", "@mcp.tool", "@mcp.resource", "@mobile.native", "@v0", "@llm"];
 
 /// Builtin names for LSP / MCP “surface” introspection (aligned with common runtime helpers).
 pub const SURFACE_BUILTIN_NAMES: &[&str] = &[
-    "print", "len", "push", "pop", "now", "sleep", "hash", "uuid", "random",
+    "print", "len", "push", "pop", "now", "sleep", "hash", "uuid", "random", "assert",
 ];
 
 /// LSP builtin snippets: `(name, insertText)`.
@@ -184,6 +227,7 @@ pub const LSP_BUILTIN_SNIPPETS: &[(&str, &str)] = &[
     ("hash", "hash($0)"),
     ("uuid", "uuid()"),
     ("random", "random()"),
+    ("assert", "assert($0)"),
 ];
 
 /// Surface type names shown in completions / introspection.

@@ -180,17 +180,17 @@ type MergeOutcome =
 
 fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int) -> MergeOutcome {
     if max_stack <= 0 {
-        ret Rejected(InvalidCap(max_stack))
+        return Rejected(InvalidCap(max_stack))
     }
     if kind_a != kind_b {
-        ret Rejected(WrongKind(kind_a, kind_b))
+        return Rejected(WrongKind(kind_a, kind_b))
     }
 
     let total = qty_a + qty_b
     if total <= max_stack {
-        ret Applied(total, 0)
+        return Applied(total, 0)
     }
-    ret Applied(max_stack, total - max_stack)
+    return Applied(max_stack, total - max_stack)
 }
 ```
 
@@ -235,19 +235,19 @@ In Vox, the struct *is* the schema.
 
 @query
 fn stack_count(kind: str) -> int {
-    ret len(db.InventoryStack.filter({ kind: kind }))
+    return len(db.InventoryStack.filter({ kind: kind }))
 }
 
 @mutation
 fn seed_stack(kind: str, qty: int, max_stack: int) -> Result[str] {
     if qty < 0 {
-        ret Error("invalid stack shape")
+        return Error("invalid stack shape")
     }
     if max_stack <= 0 {
-        ret Error("invalid stack shape")
+        return Error("invalid stack shape")
     }
     db.InventoryStack.insert({ kind: kind, qty: qty, max_stack: max_stack })
-    ret Ok("seeded")
+    return Ok("seeded")
 }
 ```
 
@@ -264,9 +264,9 @@ actor InventoryActor {
     on MergeRequest(current: int, incoming: int, max_stack: int) -> int {
         let total = current + incoming
         if total > max_stack {
-            ret max_stack
+            return max_stack
         }
-        ret total
+        return total
     }
 }
 ```
@@ -283,9 +283,9 @@ Vox embeds execution durability into the language itself via the `workflow` and 
 // (implemented in the interpreted runtime via ADR-019).
 activity reserve_slots(amount: int) -> Result[str] {
     if amount <= 0 {
-        ret Error("invalid amount")
+        return Error("invalid amount")
     }
-    ret Ok("reserve_ok")
+    return Ok("reserve_ok")
 }
 
 workflow settle_trade(amount: int) -> str {
@@ -308,9 +308,9 @@ In Vox, the compiler parses the function's strict type signature and generates t
 fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) -> str {
     let total = current + incoming
     if total <= max_stack {
-        ret kind + ":" + str(total) + "+0"
+        return kind + ":" + str(total) + "+0"
     }
-    ret kind + ":" + str(max_stack) + "+" + str(total - max_stack)
+    return kind + ":" + str(max_stack) + "+" + str(total - max_stack)
 }
 ```
 
@@ -345,11 +345,28 @@ Finally, attempting to bulk-import loot requires reading the host file system. I
 // See docs/src/architecture/capability-grants-ssot.md for the runtime model.
 fn import_loot_csv(import_cap: cap, path: str) -> Result[str] {
     if !has_capability(import_cap) {
-        ret Error("missing capability token")
+        return Error("missing capability token")
     }
-    ret Ok("imported:" + path)
+    return Ok("imported:" + path)
 }
 ```
+
+### IV.8: Agentic Implementation
+
+Finally, some logic is too complex or fuzzy to write by hand. Vox allows you to delegate function bodies to an LLM while maintaining strict type contracts and telemetry.
+
+```vox
+@llm(model = "claude-3-opus")
+fn generate_loot_flavor_text(kind: str, qty: int) -> str
+
+@test
+fn test_flavor() {
+    let text = generate_loot_flavor_text("Potion", 6)
+    assert(len(text) > 0)
+}
+```
+
+The compiler enforces the return type `str`, and the runtime handles the prompt construction and model invocation.
 
 ## Concept Mapping Table
 
@@ -360,13 +377,14 @@ To ease the transition across language patterns, here is how the core engineerin
 | Error handling | exceptions / error codes | `Result<T, E>` | exceptions | `Result[T]` + exhaustive `match` |
 | Null safety | `nullptr` (unchecked) | `Option<T>` | `None` (unchecked) | `Option[T]` (no null) |
 | Sum types / ADTs | `std::variant` | `enum` | `Union[A, B]` (type hints) | `type Foo = \| A \| B` |
-| Concurrency | threads + mutexes | `Arc<Mutex<T>>` | `threading` / `asyncio` | `actor` (mailbox) |
+| Concurrency | threads + mutexes | `Arc<Mutex<T>>` | `threading` / `asyncio` | `actor` + `workflow` |
 | Persistence | ORM / raw SQL | Diesel, SQLx | SQLAlchemy / Django ORM | `@table` |
 | Durable execution | manual retry logic | `tokio-retry` + custom | `celery` / `prefect` | `workflow` + `activity` |
+| Secret management | env vars / vaults | `dotenv` / custom | `os.environ` / `boto3` | `Clavis` (SSOT) |
 | AI agent surface | custom HTTP + JSON Schema | custom HTTP + JSON Schema | FastAPI + Pydantic | `@mcp.tool` |
 | Test syntax | `gtest`, `catch2` | `#[test]` | `pytest` | `@test` |
 | Type-checked schema | manual | Serde+derive | Pydantic | compiler-integrated |
-| LLM hallucination guard | none | partial (compile-time types) | none | full (compiler rejects invalid field access) |
+| LLM hallucination guard | none | partial (compile-time types) | none | full (compiler-integrated) |
 
 Your constraints are real, but they are defined by your model of the world. Vox's unified model makes entire classifications of problems disappear natively.
 

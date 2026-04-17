@@ -1,0 +1,57 @@
+// vox:caps fs subprocess env
+// Native replacement for mens_gate_safe.sh.
+// Logic: Runs 'vox ci mens-gate --isolated-runner' with profile and log file.
+
+fn main() {
+    let mut profile = "training"
+    let mut log_file = ""
+    
+    // Simple arg parsing (since std.args is not fully typed in interpretation yet, 
+    // we use env as a workaround or just take defaults).
+    // Actually, full-pipeline.vox uses env.get.
+    
+    let profile_env = env.get("VOX_GATE_PROFILE")
+    if profile_env isnt null {
+        profile = profile_env.unwrap()
+    }
+    
+    let log_file_env = env.get("VOX_GATE_LOG_FILE")
+    if log_file_env isnt null {
+        log_file = log_file_env.unwrap()
+    }
+
+    print("--- Vox Gate Safe ---")
+    print("Profile: " + profile)
+    
+    let mut args = ["ci", "mens-gate", "--profile", profile, "--isolated-runner"]
+    if log_file != "" {
+        print("Log File: " + log_file)
+        args.push("--gate-log-file")
+        args.push(log_file)
+    }
+
+    // Try 'vox' first, fallback to 'cargo run'
+    print("Executing gate...")
+    let mut proc = process.run("vox", args)
+    if proc is null {
+        print("  'vox' not found on PATH, falling back to 'cargo run'...")
+        let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+        for a in args {
+            cargo_args.push(a)
+        }
+        proc = process.run("cargo", cargo_args)
+    }
+
+    match proc {
+        Some(res) -> {
+            if res.code == 0 {
+                print("✓ Gate complete.")
+            } else {
+                print("✗ Gate failed with code: " + str(res.code))
+            }
+        }
+        None -> {
+            print("✗ Failed to execute process.")
+        }
+    }
+}

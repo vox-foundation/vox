@@ -21,9 +21,10 @@ pub fn handle(params: GrammarParams) {
         "gbnf" => GrammarFormat::Gbnf,
         "lark" => GrammarFormat::Lark,
         "json-schema" | "json_schema" | "jsonschema" => GrammarFormat::JsonSchema,
+        "ssot-markdown" | "ssot" => GrammarFormat::SsotMarkdown,
         other => {
             eprintln!(
-                "Unknown grammar format: '{other}'. Valid formats: ebnf, gbnf, lark, json-schema."
+                "Unknown grammar format: '{other}'. Valid formats: ebnf, gbnf, lark, json-schema, ssot-markdown."
             );
             std::process::exit(1);
         }
@@ -34,7 +35,13 @@ pub fn handle(params: GrammarParams) {
         ..GrammarExportConfig::default()
     };
 
-    let result = vox_grammar_export::export(&config);
+    let result = match vox_grammar_export::export(&config) {
+        Ok(res) => res,
+        Err(e) => {
+            eprintln!("Error exporting grammar: {e}");
+            std::process::exit(1);
+        }
+    };
 
     match params.output {
         None => println!("{}", result.grammar_text),

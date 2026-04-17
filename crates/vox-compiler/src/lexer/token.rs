@@ -38,8 +38,6 @@ pub enum Token {
     In,
     #[token("to")]
     To,
-    #[token("ret")]
-    Ret,
     #[token("return")]
     Return,
     #[token("type")]
@@ -82,8 +80,8 @@ pub enum Token {
     Agent,
     #[token("migrate")]
     Migrate,
-    #[token("environment")]
-    Environment,
+    #[token("env")]
+    Env,
 
     // ── Phonetic Operators ────────────────────────────────────
     #[token("and")]
@@ -94,8 +92,6 @@ pub enum Token {
     Not,
     #[token("is")]
     Is,
-    #[token("isnt")]
-    Isnt,
     #[token("true")]
     True,
     #[token("false")]
@@ -104,10 +100,10 @@ pub enum Token {
     // ── Decorators ────────────────────────────────────────────
     #[token("@component")]
     AtComponent,
-    #[token("@mcp.tool")]
-    AtMcpTool,
-    #[token("@mcp.resource")]
-    AtMcpResource,
+    #[token("@tool")]
+    AtTool,
+    #[token("@resource")]
+    AtResource,
     #[token("@test")]
     AtTest,
     #[token("@server")]
@@ -120,10 +116,8 @@ pub enum Token {
     AtTable,
     #[token("@index")]
     AtIndex,
-    #[token("@v0")]
-    AtV0,
-    #[token("@mobile.native")]
-    AtMobileNative,
+    #[token("@native")]
+    AtNative,
     #[token("@island")]
     AtIsland,
     #[token("@loading")]
@@ -144,6 +138,8 @@ pub enum Token {
     AtScheduled,
     #[token("@deprecated")]
     AtDeprecated,
+    #[token("@ai")]
+    AtAi,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -170,10 +166,6 @@ pub enum Token {
     Dot,
     #[token("=")]
     Eq,
-    #[token("==")]
-    EqEq,
-    #[token("!=")]
-    NotEq,
     #[token("+=")]
     PlusEq,
     #[token("-=")]
@@ -287,6 +279,8 @@ pub enum Token {
         }
         Some(out)
     })]
+    SingleStringLit(String),
+
     // ── Identifiers ───────────────────────────────────────────
     /// Lower-case identifiers (variables, functions).
     #[regex(r"[a-z_][a-zA-Z0-9_]*", priority = 1, callback = |lex| lex.slice().to_string())]
@@ -325,7 +319,6 @@ impl std::fmt::Display for Token {
             Token::For => write!(f, "for"),
             Token::In => write!(f, "in"),
             Token::To => write!(f, "to"),
-            Token::Ret => write!(f, "ret"),
             Token::Return => write!(f, "return"),
             Token::TypeKw => write!(f, "type"),
             Token::Dec => write!(f, "dec"),
@@ -347,25 +340,23 @@ impl std::fmt::Display for Token {
             Token::Component => write!(f, "component"),
             Token::Agent => write!(f, "agent"),
             Token::Migrate => write!(f, "migrate"),
-            Token::Environment => write!(f, "environment"),
+            Token::Env => write!(f, "env"),
             Token::And => write!(f, "and"),
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),
             Token::Is => write!(f, "is"),
-            Token::Isnt => write!(f, "isnt"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
             Token::AtComponent => write!(f, "@component"),
-            Token::AtMcpTool => write!(f, "@mcp.tool"),
-            Token::AtMcpResource => write!(f, "@mcp.resource"),
+            Token::AtTool => write!(f, "@tool"),
+            Token::AtResource => write!(f, "@resource"),
             Token::AtTest => write!(f, "@test"),
             Token::AtServer => write!(f, "@server"),
             Token::AtQuery => write!(f, "@query"),
             Token::AtMutation => write!(f, "@mutation"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
-            Token::AtV0 => write!(f, "@v0"),
-            Token::AtMobileNative => write!(f, "@mobile.native"),
+            Token::AtNative => write!(f, "@native"),
             Token::AtIsland => write!(f, "@island"),
             Token::AtLoading => write!(f, "@loading"),
             Token::AtRequire => write!(f, "@require"),
@@ -376,6 +367,7 @@ impl std::fmt::Display for Token {
             Token::AtPure => write!(f, "@pure"),
             Token::AtScheduled => write!(f, "@scheduled"),
             Token::AtDeprecated => write!(f, "@deprecated"),
+            Token::AtAi => write!(f, "@ai"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),
@@ -387,8 +379,6 @@ impl std::fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::Eq => write!(f, "="),
-            Token::EqEq => write!(f, "=="),
-            Token::NotEq => write!(f, "!="),
             Token::PlusEq => write!(f, "+="),
             Token::MinusEq => write!(f, "-="),
             Token::StarEq => write!(f, "*="),
@@ -412,6 +402,7 @@ impl std::fmt::Display for Token {
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),
+            Token::SingleStringLit(s) => write!(f, "'{s}'"),
             Token::DecLit(s) => write!(f, "{s}dec"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),

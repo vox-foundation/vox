@@ -104,7 +104,7 @@
         },
         {
           "name": "storage.type.vox",
-          "match": "\\b(fn|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use)\\b"
+          "match": "\\b(fn|component|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use|str|int|float|bool|Unit|Result|Option|List|Map|Id|island|style)\\b"
         },
         {
           "name": "storage.modifier.vox",
@@ -187,8 +187,11 @@
     "functions": {
       "patterns": [
         {
-          "name": "entity.name.function.vox",
-          "match": "(?<=fn\\s+)[a-zA-Z_][a-zA-Z0-9_]*"
+          "match": "\\b(fn|component|test|workflow|activity)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.vox" },
+            "2": { "name": "entity.name.function.vox" }
+          }
         },
         {
           "name": "entity.name.function.call.vox",

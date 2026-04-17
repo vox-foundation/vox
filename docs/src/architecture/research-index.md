@@ -54,6 +54,17 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 
 ## Suggested reading paths
 
+## LLM Target Language Pipeline (April 2026)
+
+- **[LLM Target Language Implementation Plan 2026](llm-target-language-implementation-plan-2026.md)** — **Authoritative, file-level implementation plan** produced after a second full audit pass. Corrects false positives from the gap analysis, documents 6 confirmed bugs (with exact file/line references), specifies all deprecated surfaces with machine-readable `> [!DEPRECATED]` callouts for AI tool consumption, and organizes work into 5 waves. **Start here for implementation guidance.**
+- **[LLM Target Language Gap Analysis 2026](llm-target-language-gap-analysis-2026.md)** — Original 77-gap cross-cutting audit. False positives in B-1, B-2, B-4, B-6 corrected with `> [!NOTE]` callouts. Superseded by the implementation plan above for implementation guidance; retained as audit record.
+- **[Vox Language Testing Pipeline](vox-language-testing-pipeline.md)** — five-stage LLM delivery gate, contract-first generation, `@llm` annotation design, `vox test` CLI spec, ARS skill `vox.testing.validate`.
+- **[Fuzzy & Partial Parsing](research-fuzzy-parsing-2026.md)** — skeleton AST on parse failure, phonetic keyword matching, incremental verification, constrained decoding integration.
+- **[Grammar-Constrained Decoding](research-grammar-constrained-decoding-2026.md)** — XGrammar-2 vs llguidance vs GBNF comparative analysis, CVE-2026-2069, Stream of Revision, hybrid orchestrated inference architecture.
+- **[AST-Aware Tokenization & Syntax Weighting](ast-token-alignment-2026.md)** — mapping AST spans to token streams for syntax-critical loss weighting.
+
+---
+
 ### Deep Research Clusters (April 2026)
 
 - **[Research Synthesis: Grand Strategy Seed 2026](research-synthesis-grand-strategy-seed-2026.md)** — the master framework connecting these discoveries.
@@ -61,6 +72,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 #### LLM Hallucination & Type System Impact (Wave 1)
 - **[LLM-Native Language Design](research-llm-native-lang-design-2026.md)** — cluster overview with Vox implications
 - **[Vox as the First AI-Native Language: Reducing K-Complexity](vox-llm-native-language-research-2026.md)**
+- **[Language Alias Canonicalization for LLM Target Languages](research-language-alias-canonicalization-2026.md)**
 - [Cognitive Science of LLM Hallucinations](research-ts-hallucination-cognitive-science-2026.md)
 - [Empirical Evidence for Type Systems](research-ts-hallucination-empirical-evidence-2026.md)
 - [Frontier Model Challenges](research-ts-hallucination-frontier-2026.md)
@@ -177,6 +189,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 
 - **[Dependency Sprawl Audit and Resolution (2026)](dependency-sprawl-research-2026.md)** — Records the workspace-wide audit of sprawling Cargo dependencies, centralization into the root `[workspace.dependencies]`, and implementation of TOESTUB CI-CD enforcement rules.
 - **[Version Tracking SSOT Research 2026](version-tracking-ssot-research-2026.md)** — Architectural guidance on centralizing Cargo crate versions (`workspace.package.version`), establishing payload versioning limits for Vox IR artifacts, and bonding documentation to strict Git tag releases to reduce technical debt.
+- **[VoxScript as Universal Glue Code — Implementation Plan 2026](vox-as-glue-implementation-plan-2026.md)** — Phased roadmap for decommissioning legacy shell/PowerShell technical debt and standardizing on native .vox automation.
 - **[VoxScript as Universal Glue Code (research 2026)](vox-as-glue-research-2026.md)** — Policy, security model, execution-tier map, cross-platform deployment analysis, and wave-gated migration plan for replacing all `.ps1`, `.sh`, and `.py` automation scripts with `.vox` files driven by `vox run`. Covers bootstrap exception, capability-permissions model, stdlib gap analysis (`fs`/`process`/`clavis` builtins), and `workflow`-vs-`fn main()` guidance for durable pipelines.
 
 ### Agentic planning and orchestration

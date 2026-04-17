@@ -72,7 +72,7 @@ fn is_word(t: &Token) -> bool {
             | Token::For
             | Token::In
             | Token::To
-            | Token::Ret
+            | Token::Return
             | Token::TypeKw
             | Token::Import
             | Token::Actor
@@ -87,17 +87,15 @@ fn is_word(t: &Token) -> bool {
             | Token::Or
             | Token::Not
             | Token::Is
-            | Token::Isnt
             | Token::True
             | Token::False
             | Token::AtComponent
-            | Token::AtMcpTool
-            | Token::AtMcpResource
+            | Token::AtTool
+            | Token::AtResource
             | Token::AtTest
             | Token::AtServer
             | Token::AtTable
             | Token::AtIndex
-            | Token::AtV0
             | Token::AtIsland
             | Token::AtPure
             | Token::AtScheduled

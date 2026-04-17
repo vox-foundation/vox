@@ -26,6 +26,8 @@ impl LowerCtx {
             is_pub: f.is_pub,
             is_mobile_native: f.is_mobile_native,
             is_pure: f.is_pure,
+            is_llm: f.is_llm,
+            llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
             span: f.span,

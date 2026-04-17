@@ -15,6 +15,7 @@ use super::contracts_index;
 use super::coverage_gates;
 use super::eval_matrix;
 use super::exec_policy_contract;
+use super::grammar_ssot_parity;
 use super::line_endings;
 use super::mens_scorecard;
 use super::openclaw_contract;
@@ -205,6 +206,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
+        CiCmd::GrammarSsotParity => grammar_ssot_parity::run().await,
         CiCmd::KComplexityBudget {
             tolerance_percent,
             update,

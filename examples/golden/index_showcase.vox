@@ -15,7 +15,7 @@
 
 @server fn complete_task(id: Id[Task]) -> Result[Unit] {
     db.Task.update(id, { done: true })
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 // ANCHOR_END: data
 
@@ -39,6 +39,6 @@ component TaskList(tasks: List[Task]) {
 // ANCHOR: mcp
 @mcp.tool "search_docs: Search documentation for a query"
 fn search_docs(query: str) -> List[str] {
-    ret db.query("SELECT context FROM Docs WHERE context LIKE ?", ["%" + query + "%"])
+    return db.query("SELECT context FROM Docs WHERE context LIKE ?", ["%" + query + "%"])
 }
 // ANCHOR_END: mcp

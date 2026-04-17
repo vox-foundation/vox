@@ -20,20 +20,20 @@
 
 @query
 fn available_products() -> List[Product] {
-    ret db.Product.filter({ in_stock: true })
+    return db.Product.filter({ in_stock: true })
 }
 
 @query
 fn category_preview(cat: str, max_items: int) -> List[Product] {
     let all_in_cat = db.Product.filter({ category: cat })
     // In actual implementation, .limit() is supported, demonstrating query chaining conceptual logic
-    ret all_in_cat
+    return all_in_cat
 }
 
 @query
 fn is_in_stock(name: str) -> bool {
     let items = db.Product.filter({ name: name, in_stock: true })
-    ret len(items) > 0
+    return len(items) > 0
 }
 
 @mutation
@@ -46,6 +46,6 @@ fn restock(name: str, price: int) -> Result[Unit] {
         let current = items[0]
         db.Product.insert({ name: current.name, category: current.category, price: current.price, in_stock: true })?
     }
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 // ANCHOR_END: display

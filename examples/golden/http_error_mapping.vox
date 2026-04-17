@@ -13,8 +13,8 @@
 http get "/api/echo" to Result[str] {
     let mode = "ok"
     if mode == "err" {
-        ret Error("mapped_failure")
+        return Error("mapped_failure")
     }
-    ret Ok("pong")
+    return Ok("pong")
 }
 // ANCHOR_END: http_result_region

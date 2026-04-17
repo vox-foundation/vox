@@ -13,16 +13,16 @@
 // ANCHOR: display
 fn parse_int(s: str) -> Result[int] {
     if len(s) == 0 {
-        ret Error("empty string")
+        return Error("empty string")
     }
-    ret Ok(42)
+    return Ok(42)
 }
 
 fn divide(a: int, b: int) -> Result[int] {
     if b == 0 {
-        ret Error("division by zero")
+        return Error("division by zero")
     }
-    ret Ok(a / b)
+    return Ok(a / b)
 }
 
 fn handle_numerator(raw_b: str, av: int) -> Result[int] {
@@ -43,13 +43,13 @@ fn compute(raw_a: str, raw_b: str) -> Result[int] {
 
 activity validate_email(email: str) -> Result[str] {
     if len(email) < 5 {
-        ret Error("email too short")
+        return Error("email too short")
     }
-    ret Ok(email)
+    return Ok(email)
 }
 
 activity send_welcome(email: str) -> Result[Unit] {
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 
 fn proceed_onboarding(addr: str) -> Result[str] {

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::Subcommand;
 use std::io::{self, Write};
 use vox_identity::{NodeIdentity, TrustedNodeRegistry};
 use vox_identity::storage::{save_identity, load_identity};
@@ -71,7 +71,7 @@ async fn run_init() -> Result<()> {
     let identity = NodeIdentity::generate();
     save_identity(&identity, pwd1)?;
     
-    println!("\\nSuccess! Node identity generated and encrypted at ~/.vox/identity.key.enc");
+    println!("\nSuccess! Node identity generated and encrypted at ~/.vox/identity.key.enc");
     println!("Node ID: {}", identity.node_id());
     
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);

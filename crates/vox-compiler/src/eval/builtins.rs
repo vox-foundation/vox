@@ -158,20 +158,34 @@ pub fn call_builtin_method(
             "to_str" | "to_string" => Some(VoxValue::Str(b.to_string())),
             _ => None,
         },
+        // ── Option ───────────────────────────────────────────────────
+        VoxValue::Option(opt) => match method {
+            "is_some" => Some(VoxValue::Bool(opt.is_some())),
+            "is_none" => Some(VoxValue::Bool(opt.is_none())),
+            "unwrap" => opt.as_ref().map(|v| *v.clone()),
+            _ => None,
+        },
+        // ── Result ───────────────────────────────────────────────────
+        VoxValue::Result(res) => match method {
+            "is_ok" => Some(VoxValue::Bool(res.is_ok())),
+            "is_err" => Some(VoxValue::Bool(res.is_err())),
+            "unwrap" => res.as_ref().ok().map(|v| *v.clone()),
+            _ => None,
+        },
 
         // ── Object (including Namespaces) ───────────────────────────
         VoxValue::Object(fields) => {
-            if method == "get" {
+            let ns = fields.iter().find(|(k, _)| k == "__namespace__").and_then(|(_, v)| {
+                if let VoxValue::Str(s) = v { Some(s.as_str()) } else { None }
+            });
+
+            if ns.is_none() && method == "get" {
                 let key = match args.into_iter().next() {
                     Some(VoxValue::Str(s)) => s,
                     _ => return Some(VoxValue::Null),
                 };
                 return Some(fields.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone()).unwrap_or(VoxValue::Null));
             }
-
-            let ns = fields.iter().find(|(k, _)| k == "__namespace__").and_then(|(_, v)| {
-                if let VoxValue::Str(s) = v { Some(s.as_str()) } else { None }
-            });
 
             if let Some(ns_str) = ns {
                 if let Some(c) = caps {
@@ -214,15 +228,33 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => ".".to_string(),
                         };
-                        if let Ok(entries) = std::fs::read_dir(path) {
+                        let res = if let Ok(entries) = std::fs::read_dir(path) {
                             let list: Vec<VoxValue> = entries
                                 .filter_map(|e| e.ok())
-                                .map(|e| VoxValue::Str(e.path().to_string_lossy().to_string()))
+                                .map(|e| VoxValue::Str(e.file_name().to_string_lossy().to_string()))
                                 .collect();
-                            Some(VoxValue::List(list))
+                            Ok(Box::new(VoxValue::List(list)))
                         } else {
-                            Some(VoxValue::List(vec![]))
-                        }
+                            Err("failed to list directory".to_string())
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    "glob" => {
+                        let pattern = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match glob::glob(&pattern) {
+                            Ok(paths) => {
+                                let list: Vec<VoxValue> = paths
+                                    .filter_map(|p: std::result::Result<std::path::PathBuf, glob::GlobError>| p.ok())
+                                    .map(|p: std::path::PathBuf| VoxValue::Str(p.to_string_lossy().to_string()))
+                                    .collect();
+                                Ok(Box::new(VoxValue::List(list)))
+                            }
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
                     }
                     _ => None,
                 },
@@ -232,7 +264,8 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(std::env::var(name).map(VoxValue::Str).unwrap_or(VoxValue::Null))
+                        let val = std::env::var(name).ok().map(|s| Box::new(VoxValue::Str(s)));
+                        Some(VoxValue::Option(val))
                     }
                     _ => None,
                 },
@@ -301,6 +334,13 @@ pub fn call_builtin_method(
                             }
                             Err(_) => Some(VoxValue::Null),
                         }
+                    }
+                    "exit" => {
+                        let code = match args.into_iter().next() {
+                            Some(VoxValue::Int(c)) => c as i32,
+                            _ => 0,
+                        };
+                        std::process::exit(code);
                     }
                     _ => None,
                 },

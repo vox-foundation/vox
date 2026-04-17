@@ -299,11 +299,27 @@ fn test_export_dispatch_all_formats() {
             ..GrammarExportConfig::default()
         };
         let result = export(&config);
-        assert!(
-            !result.grammar_text.is_empty(),
-            "export({}) returned empty text",
-            format.as_str()
-        );
+        if matches!(format, GrammarFormat::Gbnf | GrammarFormat::TreeSitterGrammar) {
+            assert!(result.is_err(), "export({}) should be an error", format.as_str());
+            let err = result.err().unwrap().to_string();
+            if matches!(format, GrammarFormat::Gbnf) {
+                assert!(err.contains("CVE-2026-2069"), "GBNF error missing CVE reference");
+            } else {
+                assert!(err.contains("not yet implemented"), "Tree-sitter error missing 'not yet implemented'");
+            }
+        } else {
+            assert!(
+                result.is_ok(),
+                "export({}) returned error: {:?}",
+                format.as_str(),
+                result.err()
+            );
+            assert!(
+                !result.unwrap().grammar_text.is_empty(),
+                "export({}) returned empty text",
+                format.as_str()
+            );
+        }
     }
 }
 

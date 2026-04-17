@@ -75,7 +75,7 @@ fn qwen35_cutover_mode() -> Qwen35CutoverMode {
     {
         "shadow" => Qwen35CutoverMode::Shadow,
         "enforced" => Qwen35CutoverMode::Enforced,
-        _ => Qwen35CutoverMode::Default,
+        _ => Qwen35CutoverMode::Enforced,
     }
 }
 

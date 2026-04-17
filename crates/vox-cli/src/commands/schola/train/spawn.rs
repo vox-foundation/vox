@@ -63,12 +63,32 @@ pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+
+        // Try with breakaway first (allows child to survive parent death)
         cmd.creation_flags(CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB);
+        
+        // Check if we can actually spawn with these flags. 
+        // We use a dummy command to probe, or we just rely on the fallback logic.
+        // Actually, we'll just try to spawn and catch the error.
     }
 
-    let child = cmd
-        .spawn()
-        .map_err(|e| anyhow::anyhow!("spawn training process: {}", e))?;
+    let child_res = cmd.spawn();
+    
+    #[cfg(windows)]
+    let child = match child_res {
+        Ok(c) => Ok(c),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            // Fallback: spawn without breakaway
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            cmd.spawn().map_err(|e2| anyhow::anyhow!("spawn training process (fallback): {} (original error: {})", e2, e))
+        }
+        Err(e) => Err(anyhow::anyhow!("spawn training process: {}", e)),
+    }?;
+
+    #[cfg(not(windows))]
+    let child = child_res.map_err(|e| anyhow::anyhow!("spawn training process: {}", e))?;
     let pid = child.id();
 
     eprintln!(

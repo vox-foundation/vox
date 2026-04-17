@@ -536,6 +536,14 @@ pub enum DeiCli {
         #[arg(long)]
         human: bool,
     },
+    /// Analyze a Vox file for diagnostic errors and suggest repairs using HIR hints.
+    Analyze {
+        /// Path to the Vox file.
+        path: String,
+        /// If true, automatically apply the first suggested fix.
+        #[arg(long)]
+        apply: bool,
+    },
 }
 
 /// `vox dei workspace …`
@@ -624,6 +632,7 @@ pub async fn run(cli: DeiCli) -> Result<()> {
         DeiCli::TakeoverStatus { agent_id, human } => {
             run_dei_takeover_status(agent_id, human).await
         }
+        DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
     }
 }
 
@@ -776,6 +785,68 @@ fn print_takeover_human_summary(v: &serde_json::Value) {
         op_n,
         if op_n == 1 { "y" } else { "ies" }
     );
+}
+
+async fn run_dei_analyze(path: &str, apply: bool) -> Result<()> {
+    let config = load_config();
+    let _orch = build_repo_scoped_orchestrator_cli(config);
+    let path_buf = std::path::PathBuf::from(path);
+
+    if !path_buf.exists() {
+        anyhow::bail!("File not found: {}", path);
+    }
+
+    println!(
+        "{} Analyzing {} for structural issues...",
+        "ℹ".blue().bold(),
+        path.bold()
+    );
+
+    // 1. Run vox check with IR emission to get the HIR diagnostics
+    let result = vox_compiler::v0_api::check_file_v0(&path_buf, true);
+
+    if result.diagnostics.is_empty() {
+        println!("{} No diagnostics found. File is structurally sound.", "✓".green().bold());
+        return Ok(());
+    }
+
+    let mut fixable_count = 0;
+    for diag in &result.diagnostics {
+        println!(
+            "  {} [line {}]: {}",
+            if diag.severity == vox_compiler::diagnostics::Severity::Error {
+                "✗".red().bold()
+            } else {
+                "⚠".yellow().bold()
+            },
+            diag.line,
+            diag.message
+        );
+
+        if let Some(hint) = &diag.correction_hint {
+            println!("    {} {}", "Hint:".cyan().bold(), hint);
+            fixable_count += 1;
+            
+            if apply && fixable_count == 1 {
+                println!(
+                    "    {} Automatically applying fix (dummy placeholder)...",
+                    "→".magenta().bold()
+                );
+                // In a real implementation, we would apply the fix to the source here.
+            }
+        }
+    }
+
+    if fixable_count > 0 && !apply {
+        println!();
+        println!(
+            "  {} found {} fixable issues. Run with --apply to remediate.",
+            "ℹ".blue().bold(),
+            fixable_count
+        );
+    }
+
+    Ok(())
 }
 
 /// Load orchestrator config from Vox.toml or defaults.

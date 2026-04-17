@@ -10,7 +10,7 @@ fn main() {
     // Build for PTX
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let ptx_path = out_dir.join("ptx.rs");
-    let builder = bindgen_cuda::Builder::default()
+    let mut builder = bindgen_cuda::Builder::default()
         .arg("--expt-relaxed-constexpr")
         .arg("-std=c++17")
         .arg("-O3");
@@ -21,9 +21,11 @@ fn main() {
         .arg("-O3");
 
     // Discover MSVC toolchain to run headless on Windows without a Developer Prompt
+    let mut msvc_cl_path = None;
     if let Ok(target) = env::var("TARGET") {
         if target.contains("msvc") {
             let cl_tool = cc::Build::new().target(&target).get_compiler();
+            msvc_cl_path = Some(cl_tool.path().to_path_buf());
             for (key, val) in cl_tool.env() {
                 if key == "PATH" {
                     let old = std::env::var_os("PATH").unwrap_or_default();
@@ -39,9 +41,14 @@ fn main() {
         }
     }
 
-    // Ergonomics: Fast-fail if cl.exe is missing on Windows to avoid cryptic nvcc errors
+    if let Some(ref path) = msvc_cl_path {
+        std::env::set_var("NVCC_CCBIN", path);
+    }
+
+    // Ergonomics: Fast-fail if cl.exe is missing on Windows to avoid cryptic nvcc errors.
+    // We only fail if we didn't already find it via cc and passed it via -ccbin.
     if let Ok(target) = env::var("TARGET") {
-        if target.contains("msvc") {
+        if target.contains("msvc") && msvc_cl_path.is_none() {
             if let Err(e) = std::process::Command::new("cl.exe").arg("/?").output() {
                 panic!(
                     "\n\n\

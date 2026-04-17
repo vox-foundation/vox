@@ -61,7 +61,8 @@
         "scopeName": "markdown.vox.codeblock",
         "path": "./syntaxes/markdown-injection.json",
         "injectTo": [
-          "text.html.markdown"
+          "text.html.markdown",
+          "source.markdown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.vox": "vox"

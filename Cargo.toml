@@ -201,6 +201,7 @@ futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
 globset            = "0.4"
+which              = "7"
 
 
 [patch.crates-io]

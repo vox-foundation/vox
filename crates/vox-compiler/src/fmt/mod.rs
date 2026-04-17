@@ -82,14 +82,14 @@ mod tests {
     fn idempotent_simple_fn() {
         assert_idempotent(
             "fn add(x: int, y: int) to int {
-    ret x + y
+    return x + y
 }\n",
         );
     }
 
     #[test]
     fn try_format_matches_soft_format_when_valid() {
-        let src = "fn add(x: int, y: int) to int {\n    ret x + y\n}\n";
+        let src = "fn add(x: int, y: int) to int {\n    return x + y\n}\n";
         let soft = format(src);
         let strict = try_format(src).expect("try_format");
         assert_eq!(soft, strict);
@@ -110,7 +110,7 @@ mod tests {
     fn idempotent_server_fn() {
         assert_idempotent(
             "@server fn greet(name: str) to str {
-    ret \"hello\"
+    return \"hello\"
 }\n",
         );
     }
@@ -119,7 +119,7 @@ mod tests {
     fn idempotent_query_fn() {
         assert_idempotent(
             "@query fn list_items() to list[Item] {
-    ret []
+    return []
 }\n",
         );
     }
@@ -128,7 +128,7 @@ mod tests {
     fn idempotent_mutation_fn() {
         assert_idempotent(
             "@mutation fn add_item(name: str) to Result[str] {
-    ret Ok(name)
+    return Ok(name)
 }\n",
         );
     }
@@ -148,9 +148,9 @@ mod tests {
         assert_idempotent(
             "fn process(items: list[str]) to int {
     for item in items {
-        ret 0
+        return 0
     }
-    ret 1
+    return 1
 }\n",
         );
     }
@@ -159,7 +159,7 @@ mod tests {
     fn idempotent_workflow() {
         assert_idempotent(
             "workflow my_flow(input: str) to Result[str] {
-    ret Ok(input)
+    return Ok(input)
 }\n",
         );
     }
@@ -169,7 +169,7 @@ mod tests {
         assert_idempotent(
             "actor Counter {
     on increment(n: int) to int {
-        ret n
+        return n
     }
 }\n",
         );

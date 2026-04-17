@@ -319,6 +319,12 @@ pub struct HirFn {
     /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
     #[serde(default)]
     pub is_pure: bool,
+    /// Whether the function body is implemented via an LLM.
+    #[serde(default)]
+    pub is_llm: bool,
+    /// Optional specific LLM model to use for implementation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_model: Option<String>,
     /// `@deprecated` on the source `fn`.
     #[serde(default)]
     pub is_deprecated: bool,

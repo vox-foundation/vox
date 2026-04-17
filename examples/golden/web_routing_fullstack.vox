@@ -12,11 +12,11 @@
 // @training_prompt: Model a small app with nested routes, a @query route loader, pending UI, and not_found/error boundaries.
 
 @query fn load_section() -> int {
-    ret 1
+    return 1
 }
 
 @loading fn RoutePending() to Element {
-    ret <div>"wait"</div>
+    return <div>"wait"</div>
 }
 
 component Home() {

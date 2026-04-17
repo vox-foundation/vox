@@ -418,8 +418,9 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
         if let Some(last) = msgs.last() {
             let role = last.get("role").and_then(|v| v.as_str()).unwrap_or("");
             if role != "assistant" {
-                // If the last message isn't an assistant turn, try to append 'response' if it exists
-                if let Some(resp) = obj.get("response").and_then(|v| v.as_str()) {
+                // If the last message isn't an assistant turn, try to append 'response'/'output' if it exists
+                let resp_val = obj.get("response").or_else(|| obj.get("output"));
+                if let Some(resp) = resp_val.and_then(|v| v.as_str()) {
                     let mut msgs = msgs.clone();
                     let mut turn = serde_json::Map::new();
                     turn.insert("role".to_string(), serde_json::Value::String("assistant".into()));
@@ -427,14 +428,17 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
                     msgs.push(serde_json::Value::Object(turn));
                     obj.insert("messages".to_string(), serde_json::Value::Array(msgs));
                 } else {
-                    return Err("messages array does not end with assistant turn and no response field found".into());
+                    return Err("messages array does not end with assistant turn and no response/output field found".into());
                 }
             }
         } else {
             return Err("messages array is empty".into());
         }
-    } else if obj.get("response").and_then(|v| v.as_str()).is_none() {
-        return Err("neither messages nor response field present".into());
+    } else {
+        let has_resp = obj.get("response").or_else(|| obj.get("output")).and_then(|v| v.as_str()).is_some();
+        if !has_resp {
+            return Err("neither messages nor response/output field present".into());
+        }
     }
 
     serde_json::to_string(&v)

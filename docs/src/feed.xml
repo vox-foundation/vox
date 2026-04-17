@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 17 Apr 2026 02:37:32 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 17 Apr 2026 06:40:28 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -13,6 +13,36 @@
     <link>https://vox-lang.org/architecture/compiler-diagnostics-ergonomics.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/compiler-diagnostics-ergonomics.html</guid>
     <description>Policy for miette vs custom diagnostics, error layers, and how contributors should read and troubleshoot vox check output.</description>
+    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>LLM Target Language Gap Analysis (April 2026)</title>
+    <link>https://vox-lang.org/architecture/llm-target-language-gap-analysis-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/llm-target-language-gap-analysis-2026.html</guid>
+    <description>Comprehensive audit of gaps across syntax, AST, HIR, type checking, codegen, grammar-constrained decoding, diagnostics, testing, contract system, training, and LSP — with specific, actionable tasks for making Vox the premier LLM target language.</description>
+    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>LLM Target Language: Explicit Implementation Plan (April 2026)</title>
+    <link>https://vox-lang.org/architecture/llm-target-language-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/llm-target-language-implementation-plan-2026.html</guid>
+    <description>Fully explicit, file-level remediation plan for making Vox the premier LLM target language. Incorporates a full codebase audit pass, corrects erroneous prior analysis, surfaces real bugs, and marks all deprecated language surfaces with machine-readable deprecation notices.</description>
+    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>VoxScript as Universal Glue Code — Implementation Plan 2026</title>
+    <link>https://vox-lang.org/architecture/vox-as-glue-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-as-glue-implementation-plan-2026.html</guid>
+    <description>Phased roadmap for decommissioning legacy shell/PowerShell technical debt and standardizing on native .vox automation.</description>
     <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
@@ -219,35 +249,6 @@
     <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Vox and Erlang: Architectural Parallels and Divergences</title>
-    <link>https://vox-lang.org/architecture/vox-erlang-comparison-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-erlang-comparison-research-2026.html</guid>
-    <description>Research and findings comparing Vox&apos;s AI-native actor model with Erlang/OTP, highlighting specific capabilities and ideal use cases for each.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Vox as the First AI-Native Language: Reducing K-Complexity (Research 2026)</title>
-    <link>https://vox-lang.org/architecture/vox-llm-native-language-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-llm-native-language-research-2026.html</guid>
-    <description>Research analyzing the landscape of LLM-native programming languages, Kolmogorov complexity, and Vox&apos;s unprecedented position as the first production-ready AI-native language.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Vox Syntax Highlighting: Universal SSOT Strategy (2026)</title>
-    <link>https://vox-lang.org/architecture/vox-syntax-highlighting-ssot-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-syntax-highlighting-ssot-2026.html</guid>
-    <description>Research synthesis on how tree-sitter-vox, TextMate grammars, and Markdown injection queries combine to provide consistent, IDE-agnostic Vox syntax coloring everywhere code appears.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>

@@ -46,12 +46,18 @@ impl CompletionEngine {
     }
 
     fn add_decorators(items: &mut Vec<CompletionItem>) {
-        for &(name, doc) in language_surface::LSP_DECORATOR_DOCS {
+        // Map docs to names for easy lookup
+        let docs: std::collections::HashMap<&str, &str> =
+            language_surface::LSP_DECORATOR_DOCS.iter().cloned().collect();
+
+        for &(name, snippet) in language_surface::LSP_DECORATOR_SNIPPETS {
+            let doc = docs.get(name).cloned().unwrap_or("");
             items.push(CompletionItem {
                 label: name.to_string(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 documentation: Some(Documentation::String(doc.to_string())),
-                insert_text: Some(name.to_string()),
+                insert_text: Some(snippet.to_string()),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             });
         }

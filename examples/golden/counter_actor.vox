@@ -13,7 +13,7 @@
 // ANCHOR: display
 actor CounterActor {
     on Increment(current: int) -> int {
-        ret current + 1
+        return current + 1
     }
 }
 // ANCHOR_END: display

@@ -32,7 +32,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "server fn route_path is empty".into(),
                 span: s.span,
-                correction_hint: None,
+                correction_hint: Some("@server must declare a route, e.g. @server(\"/api/my-endpoint\")".into()),
             });
         }
     }
@@ -42,7 +42,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "@query fn route_path is empty".into(),
                 span: s.span,
-                correction_hint: None,
+                correction_hint: Some("@query must declare a route, e.g. @query(\"/api/get-item\")".into()),
             });
         }
     }
@@ -52,7 +52,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "@mutation fn route_path is empty".into(),
                 span: s.span,
-                correction_hint: None,
+                correction_hint: Some("@mutation must declare a route, e.g. @mutation(\"/api/update-item\")".into()),
             });
         }
     }
@@ -66,21 +66,21 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "mcp resource URI must not be empty".into(),
                 span: m.func.span,
-                correction_hint: None,
+                correction_hint: Some("@mcp.resource requires a URI, e.g. @mcp.resource(\"mcp://my-resource\")".into()),
             });
         }
         if !seen_resource_uris.insert(m.uri.as_str()) {
             errors.push(HirValidationError {
                 message: format!("duplicate @mcp.resource URI: {}", m.uri),
                 span: m.func.span,
-                correction_hint: None,
+                correction_hint: Some(format!("Use a unique URI for each @mcp.resource; '{}' is already declared elsewhere", m.uri)),
             });
         }
         if !m.func.params.is_empty() {
             errors.push(HirValidationError {
                 message: "mcp resource function must take no parameters (MCP resources/read supplies only `uri`)".into(),
                 span: m.func.span,
-                correction_hint: None,
+                correction_hint: Some("Remove parameters from the @mcp.resource function; the URI is the only identifier".into()),
             });
         }
     }
@@ -90,7 +90,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "workflow name is empty".into(),
                 span: w.span,
-                correction_hint: None,
+                correction_hint: Some("Define a name for the workflow, e.g. workflow MyWorkflow() { ... }".into()),
             });
         }
         for p in &w.params {
@@ -98,7 +98,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 errors.push(HirValidationError {
                     message: format!("Empty parameter name in workflow '{}'", w.name),
                     span: p.span,
-                    correction_hint: None,
+                    correction_hint: Some("All parameters must have a name, e.g. workflow W(my_param: str) { ... }".into()),
                 });
             }
         }
@@ -108,7 +108,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "activity name is empty".into(),
                 span: a.span,
-                correction_hint: None,
+                correction_hint: Some("Define a name for the activity, e.g. activity MyActivity() { ... }".into()),
             });
         }
         for p in &a.params {
@@ -116,7 +116,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 errors.push(HirValidationError {
                     message: format!("Empty parameter name in activity '{}'", a.name),
                     span: p.span,
-                    correction_hint: None,
+                    correction_hint: Some("All parameters must have a name, e.g. activity A(my_param: str) { ... }".into()),
                 });
             }
         }
@@ -127,7 +127,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "Actor name is empty".into(),
                 span: actor.span,
-                correction_hint: None,
+                correction_hint: Some("Define a name for the actor, e.g. actor MyActor { ... }".into()),
             });
         }
         for h in &actor.handlers {
@@ -135,7 +135,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 errors.push(HirValidationError {
                     message: format!("Empty handler event name in actor '{}'", actor.name),
                     span: h.span,
-                    correction_hint: None,
+                    correction_hint: Some("Handlers must respond to an event name, e.g. on MyEvent() { ... }".into()),
                 });
             }
             for p in &h.params {
@@ -146,7 +146,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                             actor.name, h.event_name
                         ),
                         span: p.span,
-                        correction_hint: None,
+                        correction_hint: Some("All handler parameters must have a name".into()),
                     });
                 }
             }
@@ -158,7 +158,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "HTTP route path is empty".into(),
                 span: r.span,
-                correction_hint: None,
+                correction_hint: Some("Specify a path for the route, e.g. routes { \"/\" to Home }".into()),
             });
         }
     }
@@ -168,7 +168,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "Table name is empty".into(),
                 span: table.span,
-                correction_hint: None,
+                correction_hint: Some("Define a name for the table, e.g. @table User { ... }".into()),
             });
         }
         for field in &table.fields {
@@ -176,7 +176,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 errors.push(HirValidationError {
                     message: format!("Empty field name in table '{}'", table.name),
                     span: field.span,
-                    correction_hint: None,
+                    correction_hint: Some("All table fields must have a name".into()),
                 });
             }
         }
@@ -187,7 +187,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "Type name is empty".into(),
                 span: t.span,
-                correction_hint: None,
+                correction_hint: Some("Define a name for the type, e.g. type MyType = ...".into()),
             });
         }
         for v in &t.variants {
@@ -195,7 +195,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 errors.push(HirValidationError {
                     message: format!("Empty variant name in type '{}'", t.name),
                     span: v.span,
-                    correction_hint: None,
+                    correction_hint: Some("All variants in an ADT must have a name".into()),
                 });
             }
             for (fname, _) in &v.fields {
@@ -206,7 +206,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                             v.name, t.name
                         ),
                         span: v.span,
-                        correction_hint: None,
+                        correction_hint: Some("All variant fields must have a name".into()),
                     });
                 }
             }
@@ -218,14 +218,14 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "index table_name is empty".into(),
                 span: idx.span,
-                correction_hint: None,
+                correction_hint: Some("Specify the table for the index, e.g. @index MyTable.idx_name on (field)".into()),
             });
         }
         if idx.index_name.is_empty() {
             errors.push(HirValidationError {
                 message: format!("index name is empty (table '{}')", idx.table_name),
                 span: idx.span,
-                correction_hint: None,
+                correction_hint: Some("Provide a name for the index, e.g. MyTable.my_index_name".into()),
             });
         }
     }
@@ -235,7 +235,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "collection name is empty".into(),
                 span: c.span,
-                correction_hint: None,
+                correction_hint: Some("Define a name for the collection, e.g. collection MyCollection { ... }".into()),
             });
         }
         for field in &c.fields {
@@ -243,7 +243,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 errors.push(HirValidationError {
                     message: format!("Empty field name in collection '{}'", c.name),
                     span: field.span,
-                    correction_hint: None,
+                    correction_hint: Some("All collection fields must have a name".into()),
                 });
             }
         }
@@ -254,21 +254,21 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "vector index table_name is empty".into(),
                 span: v.span,
-                correction_hint: None,
+                correction_hint: Some("Specify the table for the vector index".into()),
             });
         }
         if v.index_name.is_empty() {
             errors.push(HirValidationError {
                 message: format!("vector index name is empty (table '{}')", v.table_name),
                 span: v.span,
-                correction_hint: None,
+                correction_hint: Some("Provide a name for the vector index".into()),
             });
         }
         if v.column.is_empty() {
             errors.push(HirValidationError {
                 message: format!("vector index column is empty ('{}')", v.index_name),
                 span: v.span,
-                correction_hint: None,
+                correction_hint: Some("Specify the column to index for vector search".into()),
             });
         }
     }
@@ -278,21 +278,21 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "search index table_name is empty".into(),
                 span: s.span,
-                correction_hint: None,
+                correction_hint: Some("Specify the table for the search index".into()),
             });
         }
         if s.index_name.is_empty() {
             errors.push(HirValidationError {
                 message: format!("search index name is empty (table '{}')", s.table_name),
                 span: s.span,
-                correction_hint: None,
+                correction_hint: Some("Provide a name for the search index".into()),
             });
         }
         if s.search_field.is_empty() {
             errors.push(HirValidationError {
                 message: format!("search index field is empty ('{}')", s.index_name),
                 span: s.span,
-                correction_hint: None,
+                correction_hint: Some("Specify the field to index for full-text search".into()),
             });
         }
     }
@@ -312,14 +312,14 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             errors.push(HirValidationError {
                 message: "rust import crate name is empty".into(),
                 span: ri.span,
-                correction_hint: None,
+                correction_hint: Some("Specify the crate name, e.g. import rust:tokio".into()),
             });
         }
         if ri.alias.trim().is_empty() {
             errors.push(HirValidationError {
                 message: format!("rust import alias is empty for crate '{}'", ri.crate_name),
                 span: ri.span,
-                correction_hint: None,
+                correction_hint: Some("Provide an alias for the rust import".into()),
             });
         }
         if ri.path.is_some() && ri.git.is_some() {
@@ -329,7 +329,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                     ri.crate_name
                 ),
                 span: ri.span,
-                correction_hint: None,
+                correction_hint: Some("Use either 'path' or 'git', not both for a single import".into()),
             });
         }
     }
@@ -364,7 +364,7 @@ fn validate_name_and_params(
         errors.push(HirValidationError {
             message: format!("{kind} name is empty"),
             span,
-            correction_hint: None,
+            correction_hint: Some(format!("Provide a name for this {kind}")),
         });
     }
     for p in params {
@@ -372,7 +372,7 @@ fn validate_name_and_params(
             errors.push(HirValidationError {
                 message: format!("Empty parameter name in {kind} '{name}'"),
                 span: p.span,
-                correction_hint: None,
+                correction_hint: Some("All parameters must have a valid identifier name".into()),
             });
         }
     }

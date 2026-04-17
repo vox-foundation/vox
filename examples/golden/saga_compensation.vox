@@ -12,23 +12,23 @@
 // @training_prompt: Show a saga pattern implementation in Vox using workflows for compensation handling on failure.
 // ANCHOR: display
 activity reserve_inventory(item_id: str) -> Result[str] {
-    ret Ok("reservation_999")
+    return Ok("reservation_999")
 }
 
 activity cancel_reservation(reservation_id: str) -> Result[Unit] {
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 
 activity charge_payment(amount: int) -> Result[str] {
     if amount > 5000 {
-        ret Error("Insufficient funds")
+        return Error("Insufficient funds")
     }
-    ret Ok("txn_abc123")
+    return Ok("txn_abc123")
 }
 
 fn trigger_cancel(res_id: str) -> Result[str] {
     let ignore = cancel_reservation(res_id)
-    ret Error("Payment failed.")
+    return Error("Payment failed.")
 }
 
 fn handle_payment(res_id: str, pay_res: Result[str]) -> Result[str] {

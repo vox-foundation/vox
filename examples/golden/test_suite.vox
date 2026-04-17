@@ -12,11 +12,11 @@
 // @training_prompt: Write a Vox @test that uses helper fns and assert.
 // ANCHOR: display
 fn setup_user() -> list[str] {
-    ret ["alice", "bob"]
+    return ["alice", "bob"]
 }
 
 fn mock_db_read() -> str {
-    ret "mock_data"
+    return "mock_data"
 }
 
 @test

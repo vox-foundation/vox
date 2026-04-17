@@ -1,0 +1,8 @@
+fn main() {
+    let arr = ["foo", "bar"];
+    print(arr.contains("foo"));
+    print(arr.contains("baz"));
+    
+    let a = "foo";
+    print(arr.contains(a));
+}

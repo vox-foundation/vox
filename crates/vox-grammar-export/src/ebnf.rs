@@ -86,7 +86,7 @@ pub fn emit_ebnf() -> String {
 
     // ── Components & Islands
     g.push_str("(* head.rs: parse_component, parse_reactive_component, parse_island, parse_v0_component *)\n");
-    g.push_str("component = \"@component\", \"fn\", ident, \"(\", [ params ], \")\", [ \"to\", type_expr ], block ;\n");
+    g.push_str("component = \"@component\", \"fn\", ident, \"(\", [ params ], \")\", [ \"to\", type_expr ], block (* RETIRED: use component Name() {} *) ;\n");
     g.push_str(
         "reactive_component = \"component\", ident, \"(\", [ params ], \")\", reactive_block ;\n",
     );
@@ -131,7 +131,7 @@ pub fn emit_ebnf() -> String {
     g.push_str("let_stmt = \"let\", [ \"mut\" ], ident, [ \":\", type_expr ], \"=\", expr ;\n");
     g.push_str("assign_stmt = ident, assign_op, expr ;\n");
     g.push_str("assign_op = \"=\" | \"+=\" | \"-=\" | \"*=\" | \"/=\" ;\n");
-    g.push_str("return_stmt = ( \"ret\" | \"return\" ), [ expr ] ;\n");
+    g.push_str("return_stmt = ( \"ret\" (* DEPRECATED: use \"return\" *) | \"return\" ), [ expr ] ;\n");
     g.push_str("while_stmt = \"while\", expr, block ;\n");
     g.push_str("loop_stmt = \"loop\", block ;\n");
     g.push_str("break_stmt = \"break\" ;\n");

@@ -379,7 +379,17 @@ impl Parser {
             }
             let arm_start = self.span();
             let pattern = self.parse_pattern()?;
-            self.expect(&Token::Arrow)?;
+            if self.eat(&Token::Arrow) {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "The '->' syntax is deprecated for match arms. Use '=>'.",
+                    vec![],
+                    None,
+                    ParseErrorClass::Expression,
+                ));
+            } else {
+                self.expect(&Token::FatArrow)?;
+            }
             let body = self.parse_expr()?;
             arms.push(MatchArm {
                 pattern,
@@ -439,7 +449,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::Arrow) || self.eat(&Token::To) {
+        let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
             None

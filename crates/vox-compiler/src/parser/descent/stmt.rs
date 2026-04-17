@@ -37,7 +37,7 @@ impl Parser {
         let start = self.span();
         match self.peek().clone() {
             Token::Let => self.parse_let_stmt(),
-            Token::Ret | Token::Return => {
+            Token::Return => {
                 self.advance();
                 let value = if matches!(self.peek(), Token::Newline | Token::RBrace | Token::Eof) {
                     None

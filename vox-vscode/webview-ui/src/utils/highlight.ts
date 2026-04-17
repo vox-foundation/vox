@@ -71,7 +71,9 @@ export async function highlightCode(
     try {
         const hl = await getHighlighter();
         const loaded = hl.getLoadedLanguages();
-        const safeLang = loaded.includes(lang as (typeof loaded)[number]) ? lang : 'bash';
+        const normalizedLang = lang.toLowerCase();
+        const searchLang = normalizedLang === 'voxcode' ? 'vox' : normalizedLang;
+        const safeLang = loaded.find(l => l.toLowerCase() === searchLang) || 'bash';
         return hl.codeToHtml(code, {
             lang: safeLang,
             theme: dark ? 'github-dark' : 'github-light',

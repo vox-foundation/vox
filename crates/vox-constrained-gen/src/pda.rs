@@ -10,10 +10,9 @@
 //! naive Earley on large vocabularies.
 
 use std::collections::{HashMap, HashSet};
-
 use tracing::debug;
+use vox_grammar_export::grammar_ir::{Grammar, Symbol};
 
-use crate::earley::{Grammar, Symbol};
 use crate::{ConstrainedGenError, ConstrainedSampler, Result, SamplerState};
 
 // ── PDA state ────────────────────────────────────────────────────────────────
@@ -231,7 +230,7 @@ pub struct PdaSampler {
 impl PdaSampler {
     /// Build from an explicit EBNF string.
     pub fn from_ebnf(ebnf: &str) -> Result<Self> {
-        let grammar = Grammar::from_ebnf(ebnf)?;
+        let grammar = Grammar::from_ebnf(ebnf).map_err(|e| ConstrainedGenError::GrammarError { reason: e })?;
         debug!(
             productions = grammar.productions.len(),
             start = %grammar.start,

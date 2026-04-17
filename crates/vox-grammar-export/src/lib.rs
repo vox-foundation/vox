@@ -15,6 +15,10 @@ pub enum GrammarFormat {
     Lark,
     /// Tree-sitter grammar (reserved for future use).
     TreeSitterGrammar,
+    /// Canonical GRAMMAR_SSOT.md markdown.
+    SsotMarkdown,
+    /// XGrammar-2 for high-integrity constrained inference.
+    XGrammar2,
 }
 
 impl GrammarFormat {
@@ -26,6 +30,8 @@ impl GrammarFormat {
             GrammarFormat::JsonSchema => "json-schema",
             GrammarFormat::Lark => "lark",
             GrammarFormat::TreeSitterGrammar => "tree-sitter",
+            GrammarFormat::SsotMarkdown => "ssot-markdown",
+            GrammarFormat::XGrammar2 => "x-grammar-2",
         }
     }
 }
@@ -65,38 +71,52 @@ pub struct GrammarExportResult {
     pub rule_count: usize,
     /// Version string embedded in output.
     pub version: String,
+    /// SHA256 hash of the emitted grammar.
+    pub grammar_hash: String,
 }
 
 pub mod automaton;
 pub mod compact_prompt;
 pub mod ebnf;
+pub mod grammar_ir;
 pub mod gbnf;
 pub mod json_schema;
 pub mod lark;
+pub mod ssot_markdown;
 pub mod versioning;
+pub mod x_grammar_2;
 
 /// Dispatch grammar export to the appropriate emitter based on `config.format`.
-pub fn export(config: &GrammarExportConfig) -> GrammarExportResult {
+pub fn export(config: &GrammarExportConfig) -> anyhow::Result<GrammarExportResult> {
     let grammar_text = match config.format {
         GrammarFormat::Ebnf => ebnf::emit_ebnf(),
-        GrammarFormat::Gbnf => gbnf::emit_gbnf(),
+        GrammarFormat::Gbnf => {
+            return Err(anyhow::anyhow!(
+                "GBNF format is DEPRECATED due to CVE-2026-2069 (ReDoS vulnerability in recursive rule expansion). \
+                 Please migrate to XGrammar-2 or Lark for constrained sampling."
+            ));
+        }
         GrammarFormat::JsonSchema => json_schema::emit_json_schema(),
         GrammarFormat::Lark => lark::emit_lark(),
         GrammarFormat::TreeSitterGrammar => {
-            // Reserved — emit stub text so callers get a non-empty string.
-            "// tree-sitter grammar generation not yet implemented\n".to_string()
+            return Err(anyhow::anyhow!(
+                "Tree-sitter grammar generation is not yet implemented (Wave 3 backlog)."
+            ));
         }
+        GrammarFormat::SsotMarkdown => ssot_markdown::emit_ssot_markdown(),
+        GrammarFormat::XGrammar2 => x_grammar_2::emit_x_grammar_2(),
     };
     let rule_count = grammar_text
         .lines()
         .filter(|l| !l.trim().is_empty() && !l.starts_with('/') && !l.starts_with("(*"))
         .count();
-    GrammarExportResult {
+    Ok(GrammarExportResult {
         construct_count: rule_count,
         rule_count,
         version: config.version.to_string(),
+        grammar_hash: versioning::compute_ebnf_hash(),
         grammar_text,
-    }
+    })
 }
 
 /// Check that the grammar crate version matches the compiler crate version.

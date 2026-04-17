@@ -328,7 +328,17 @@ Docs follow the **Diátaxis** framework (tutorials, how-to guides, explanations,
 | **Architecture** | SSOT planning and ADRs. | [Master Arch Index](docs/src/architecture/architecture-index.md) <br> [Contributor Hub](docs/src/contributors/contributor-hub.md) |
 | **Operations & Quality** | Deployment runbooks, CI constraints, Docker topology. | [Docker Deployment](docs/src/reference/deployment-compose.md) <br> [CI Runner Contract](docs/src/ci/runner-contract.md) |
 
-> **Looking to contribute?** We actively track undocumented surfaces. Check our [Known Documentation Gaps & Backlog](docs/src/api/DOC_GAPS.md) to see where the community needs help.
+---
+
+## Contributing to Vox
+
+We welcome contributors! Vox is built for AI and humans, and our contributor experience reflects that. Whether you're fixing a bug, adding a new feature, or improving our documentation, please start with our:
+
+- **[Contributor Hub](docs/src/contributors/contributor-hub.md)** — The entry point for all developers.
+- **[Contribution Loop](docs/src/contributors/contribution-loop.md)** — Understanding the cycle of writing, verifying, and training.
+- **[TOESTUB Guide](docs/src/contributors/toestub-contributor-guide.md)** — How to fix common CI and architectural gate failures.
+
+We actively track undocumented surfaces in our [Known Documentation Gaps & Backlog](docs/src/api/DOC_GAPS.md).
 
 ---
 

@@ -1,0 +1,82 @@
+// vox:caps fs subprocess env
+// Native replacement for run_4080_experiment_cycles.ps1.
+
+fn run_step(name: str, args: list[str]) -> bool {
+    print("[cycle] " + name)
+    print("  cmd: vox " + " ".join(args))
+    
+    let mut proc = process.run("vox", args)
+    if proc is null {
+        let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+        for a in args {
+            cargo_args.push(a)
+        }
+        proc = process.run("cargo", cargo_args)
+    }
+
+    match proc {
+        Some(res) -> {
+            if res.code == 0 {
+                print("  ✓ step complete.")
+                ret true
+            } else {
+                print("  ✗ step failed with code: " + str(res.code))
+                ret false
+            }
+        }
+        None -> {
+            print("  ✗ failed to execute step.")
+            ret false
+        }
+    }
+}
+
+fn main() {
+    let run_dir = "mens/runs/latest"
+    let policy_path = "mens/config/eval-gates.yaml"
+    let model_path = "mens/runs/latest/candle_qlora_adapter.safetensors"
+    let bench_path = "mens/data/heldout_bench"
+
+    print("Running 4080 experiment cycle pipeline")
+    print("  run_dir: " + run_dir)
+    print("  policy:  " + policy_path)
+    
+    // Cycle 1: stability-first checks
+    if run_step("Cycle1/checkpoint-integrity", ["mens", "eval-gate", "--run-dir", run_dir, "--policy", policy_path]) == false {
+        print("Cycle pipeline aborted at Cycle 1.")
+        return null
+    }
+
+    // Cycle 2: quality measurement
+    let eval_local_args = [
+        "mens", "eval-local", 
+        "--model", model_path, 
+        "--bench", bench_path, 
+        "--samples", "4", 
+        "--seed-base", "1337", 
+        "-o", run_dir + "/eval_local_report.json"
+    ]
+    if run_step("Cycle2/eval-local-passk", eval_local_args) == false {
+        print("Cycle pipeline aborted at Cycle 2 (eval).")
+        return null
+    }
+    
+    if run_step("Cycle2/gate-passk", ["mens", "eval-gate", "--run-dir", run_dir, "--policy", policy_path]) == false {
+        print("Cycle pipeline aborted at Cycle 2 (gate).")
+        return null
+    }
+
+    // Cycle 3: orchestrator compile sanity
+    print("[cycle] Cycle3/orchestrator-compile-check")
+    let mut check_proc = process.run("cargo", ["check", "-p", "vox-orchestrator"])
+    if check_proc isnt null {
+        let res = check_proc.unwrap()
+        if res.code == 0 {
+            print("  ✓ step complete.")
+        } else {
+            print("  ✗ step failed.")
+        }
+    }
+
+    print("Cycle pipeline complete.")
+}

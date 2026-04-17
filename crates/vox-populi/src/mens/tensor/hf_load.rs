@@ -11,6 +11,7 @@ use vox_bounded_fs::read_utf8_path_capped;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HfArchitecture {
     Gpt2,
+    #[deprecated(note = "Standardizing on Qwen 3.5 defaults. Use qwen35 for all new models.")]
     Qwen2,
     Qwen35,
 }

@@ -13,17 +13,17 @@
 // ANCHOR: display
 activity process_batch(batch_id: str) -> Result[int] {
     // Heavy compute task
-    ret Ok(100)
+    return Ok(100)
 }
 
 activity notify_completion(batch_id: str, count: int) -> Result[Unit] {
     // External API call mock
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 
 fn handle_batch(batch_id: str, count: int) -> Result[Unit] {
     let ignore = notify_completion(batch_id, count)
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 
 workflow async_batch_job(batch_id: str) -> Result[Unit] {
@@ -39,6 +39,6 @@ http post "/webhook/batch" to str {
     let simulated_batch_id = "batch_789"
     // Fire and forget triggering of the durable workflow
     let _ = async_batch_job(simulated_batch_id)
-    ret "Batch job accepted"
+    return "Batch job accepted"
 }
 // ANCHOR_END: display

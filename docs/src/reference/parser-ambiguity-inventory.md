@@ -32,7 +32,7 @@ Each [`ParseError`](../../../crates/vox-compiler/src/parser/error.rs) carries a 
 | **INV-02** | [`examples/parser-inventory/nested-unclosed.vox`](../../../examples/parser-inventory/nested-unclosed.vox) | Unbalanced braces inside function → parser errors + recovery. |
 | **INV-03** | [`examples/parser-inventory/pub-bogus.vox`](../../../examples/parser-inventory/pub-bogus.vox) | `pub` not followed by `fn`/`type` → declaration-class error. |
 
-Automated **no-panic** corpus { [`crates/vox-compiler/tests/parser_corpus_no_panic.rs`](../../../crates/vox-compiler/tests/parser_corpus_no_panic.rs).
+Automated **no-panic** corpus { [`crates/vox-compiler/tests/parser_corpus_no_panic_test.rs`](../../../crates/vox-compiler/tests/parser_corpus_no_panic_test.rs).
 
 ## Related
 

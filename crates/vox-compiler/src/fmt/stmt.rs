@@ -35,7 +35,7 @@ impl Printer {
             }
             Stmt::Return { value, .. } => {
                 self.write_indent();
-                self.out.push_str("ret");
+                self.out.push_str("return");
                 if let Some(e) = value.as_ref() {
                     self.out.push(' ');
                     self.print_expr(e);

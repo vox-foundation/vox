@@ -140,6 +140,17 @@ impl BuiltinTypes {
             },
         );
 
+        // assert(condition: bool) → Unit
+        env.define(
+            "assert".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Bool], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // std — namespace for `std.fs.*`, `std.path.*`, `std.env.*`, `std.process.*`,
         // `std.json.*`, `std.http.*`, `std.crypto.*`, `std.time.*`, `std.log.*`,
         // and direct hash/time helpers.
@@ -487,7 +498,11 @@ impl BuiltinTypes {
         );
         fs_methods.insert(
             "list_dir".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::List(Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str)))))),
+        );
+        fs_methods.insert(
+            "glob".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str)))))),
         );
         methods.insert("FsModule".into(), fs_methods);
 
@@ -526,6 +541,10 @@ impl BuiltinTypes {
             "run".into(),
             Ty::Fn(vec![Ty::Str, Ty::List(Box::new(Ty::Str))], Box::new(Ty::Option(Box::new(process_output.clone())))),
         );
+        process_methods.insert(
+            "exit".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
+        );
         methods.insert("ProcessModule".into(), process_methods);
 
         // Env module methods
@@ -555,6 +574,12 @@ impl BuiltinTypes {
         str_methods.insert("trim".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         str_methods.insert("to_upper".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         str_methods.insert("to_lower".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        str_methods.insert(
+            "replace".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
+        );
+        str_methods.insert("ends_with".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
+        str_methods.insert("starts_with".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
@@ -661,6 +686,8 @@ impl BuiltinTypes {
             "unwrap".into(),
             Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
         );
+        option_methods.insert("is_some".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        option_methods.insert("is_none".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
         methods.insert("Option".into(), option_methods);
 
         // Response methods
@@ -672,6 +699,16 @@ impl BuiltinTypes {
         );
         resp_methods.insert("status".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         methods.insert("Response".into(), resp_methods);
+
+        // Result methods
+        let mut result_methods = std::collections::HashMap::new();
+        result_methods.insert(
+            "unwrap".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        result_methods.insert("is_ok".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        result_methods.insert("is_err".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        methods.insert("Result".into(), result_methods);
 
         Self { methods }
     }

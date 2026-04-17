@@ -18,6 +18,7 @@ The `docs/src/architecture/` section contains several different kinds of documen
 ## Documentation
 
 - [Documentation governance](../contributors/documentation-governance.md)
+- [Contributor hub](../contributors/contributor-hub.md)
 - [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
 - [Orphan surface inventory](orphan-surface-inventory.md)
 - [Documentation hygiene and AI-agent guidelines 2026](doc-hygiene-agent-guidelines-2026.md)
@@ -29,6 +30,10 @@ If you are contributing code — not doing architecture research — these are t
 | Page | When to read it |
 |---|---|
 | [Testing standard](testing-standard.md) | Before writing any test |
+| [Contributor hub](../contributors/contributor-hub.md) | The main entry point for all contributors |
+| [Contribution loop](../contributors/contribution-loop.md) | Understanding the WRITE → VERIFY → TRAIN flywheel |
+| [TOESTUB contributor guide](../contributors/toestub-contributor-guide.md) | Fixing `arch/*`, `stub/*`, and `skeleton/*` failures |
+| [Coding agent instructions](../contributors/coding-agents.md) | Quick-reference for AI agents (loaded as context) |
 | [God object defactor checklist](god-object-defactor-checklist.md) | When fixing `arch/god_object` CI failures |
 | [TOESTUB scaling rules SSOT](scaling-toestub-rules.md) | When `scaling/*` findings appear |
 | [TOESTUB self-healing architecture](toestub-self-healing-architecture-2026.md) | Understanding why rules exist |

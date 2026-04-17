@@ -15,12 +15,12 @@ type TaskMessage =
     | Msg(id: int, payload: str)
 
 fn data_agent_ready() -> str {
-    ret "Ready"
+    return "Ready"
 }
 
 actor WorkerAgent {
     on HandleTask(id: int, payload: str) -> str {
-        ret "Task " + str(id) + " done"
+        return "Task " + str(id) + " done"
     }
 }
 // ANCHOR_END: display

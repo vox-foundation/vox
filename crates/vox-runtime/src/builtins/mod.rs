@@ -129,6 +129,11 @@ pub fn vox_process_which(cmd: &str) -> Option<String> {
         .map(|p| p.to_string_lossy().into_owned())
 }
 
+/// Terminate the current process with an exit code (`std.process.exit` in Vox scripts).
+pub fn vox_process_exit(code: i32) -> ! {
+    std::process::exit(code)
+}
+
 /// Captured stdout/stderr/exit from a subprocess (`std.process.run_capture` in Vox scripts).
 ///
 /// Unlike [`vox_process_run`], this always returns **`Ok`** when the process was spawned and

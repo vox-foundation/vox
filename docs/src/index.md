@@ -27,9 +27,13 @@ schema_type: "HowTo"
 *“Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!”*  
 — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
 
-{{#include ../../README.md:why_vox}}
+## The Architecture: Designed for AI and Humans
 
-{{#include ../../README.md:how_vox}}
+Traditional programming languages predate LLMs by decades, assuming local, CPU-bound execution. Their dynamic typing, pointer mutation, and configuration layers compound into hallucination. While human developers manage undeclared state and hidden exceptions, LLMs struggle due to their statistical nature.
+
+Furthermore, AI depends profoundly on cloud infrastructure and distributed GPU meshes. Yet, contemporary ecosystems treat networking and agent-to-agent orchestration as separated, external frameworks. A million-token context window sounds generous until the signal is buried in integration boilerplate, exacerbating the technical debt of the object-relational impedance mismatch.
+
+Vox resolves these structural bottlenecks by natively outfitting developers with built-in supplemental models, integrated databasing, and distributed agent tooling out of the box. Unifying the entire stack under one architecturally complete syntax provides the determinism machines require and the expressiveness humans expect.
 
 ## The Language, Step by Step
 
@@ -173,7 +177,15 @@ Vox uses the **Diátaxis** framework to organize knowledge by user intent.
     </div>
 </div>
 
-{{#include ../../README.md:community_license}}
+## Community, Backing & License
+
+### Backing Vox (Open Collective)
+
+Community-backed via **Open Collective** — every dollar raised and spent is public. Sponsorships fund developer grants, CI hardware for MENS neural training, and academic bounties.
+
+### License
+
+**Apache 2.0** — commercial use permitted, patent rights granted, modifications allowed with attribution.
 
 ### Quick Documentation Links
 - **[Installation Guide](tutorials/tut-getting-started.md)**: Set up the `vox` toolchain on your machine.

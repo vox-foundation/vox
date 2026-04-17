@@ -18,12 +18,12 @@
 
 @query
 fn user_count() -> int {
-    ret len(db.User.all())
+    return len(db.User.all())
 }
 
 @query
 fn active_user_count() -> int {
-    ret len(db.User.filter({ active: true }))
+    return len(db.User.filter({ active: true }))
 }
 
 @mutation
@@ -32,6 +32,6 @@ fn seed_user(name: str) -> Unit {
 }
 
 http get "/api/users" to int {
-    ret len(db.User.all())
+    return len(db.User.all())
 }
 // ANCHOR_END: display

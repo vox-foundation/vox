@@ -15,6 +15,8 @@ pub enum VoxValue {
         body: Vec<HirStmt>,
         env: crate::eval::env::Scope,
     },
+    Option(core::option::Option<Box<VoxValue>>),
+    Result(core::result::Result<Box<VoxValue>, String>),
     // Sentinel for control flow
     _Return(Box<VoxValue>),
     _Break,
@@ -32,6 +34,8 @@ impl PartialEq for VoxValue {
             (Self::Object(a), Self::Object(b)) => a == b,
             (Self::Tuple(a), Self::Tuple(b)) => a == b,
             (Self::Null, Self::Null) => true,
+            (Self::Option(a), Self::Option(b)) => a == b,
+            (Self::Result(a), Self::Result(b)) => a == b,
             _ => false,
         }
     }
