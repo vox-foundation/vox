@@ -77,6 +77,8 @@ pub(crate) mod workspace_path;
 pub mod training_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
+/// GUI Visual Intelligence tools.
+pub mod visus_tools;
 
 pub mod a2a_tools;
 pub use a2a_tools as a2a;

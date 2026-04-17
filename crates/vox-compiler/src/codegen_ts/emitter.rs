@@ -230,7 +230,14 @@ pub fn generate_with_options(
                         }
                         acc
                     });
-                    css.push_str(&format!("    {}: {};\n", css_prop, val));
+                    
+                    let css_val = if val.trim().starts_with("tokens.") {
+                        format!("var(--vox-{})", val.trim().strip_prefix("tokens.").unwrap().replace('.', "-"))
+                    } else {
+                        val.clone()
+                    };
+
+                    css.push_str(&format!("    {}: {};\n", css_prop, css_val));
                 }
                 css.push_str("  }\n\n");
             }
@@ -257,12 +264,43 @@ pub fn generate_with_options(
                     }
                     acc
                 });
-                css.push_str(&format!("    {}: {};\n", css_prop, val));
+
+                let css_val = if val.trim().starts_with("tokens.") {
+                    format!("var(--vox-{})", val.trim().strip_prefix("tokens.").unwrap().replace('.', "-"))
+                } else {
+                    val.clone()
+                };
+
+                css.push_str(&format!("    {}: {};\n", css_prop, css_val));
             }
             css.push_str("  }\n\n");
         }
         css.push_str("}\n\n");
         files.push((filename, css));
+    }
+
+    // Process vox.tokens.json into vox-tokens.css
+    if let Ok(tokens_content) = std::fs::read_to_string("vox.tokens.json") {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&tokens_content) {
+            let mut tokens_css = String::from(":root {\n");
+            
+            fn flatten_tokens(val: &serde_json::Value, prefix: &str, out: &mut String) {
+                if let Some(obj) = val.as_object() {
+                    for (k, v) in obj {
+                        let new_prefix = if prefix.is_empty() { k.clone() } else { format!("{}-{}", prefix, k) };
+                        flatten_tokens(v, &new_prefix, out);
+                    }
+                } else if let Some(s) = val.as_str() {
+                    out.push_str(&format!("  --vox-{}: {};\n", prefix, s));
+                } else if let Some(n) = val.as_number() {
+                    out.push_str(&format!("  --vox-{}: {};\n", prefix, n));
+                }
+            }
+            
+            flatten_tokens(&json, "", &mut tokens_css);
+            tokens_css.push_str("}\n");
+            files.push(("vox-tokens.css".to_string(), tokens_css));
+        }
     }
 
     maybe_web_ir_validate(hir, web_projection_cache.as_ref())?;

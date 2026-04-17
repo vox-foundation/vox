@@ -102,6 +102,7 @@ mod tests {
             qdrant_lines: vec!["[qdrant:9] z".into()],
             rrf_fused_lines: vec!["fused".into()],
             web_lines: vec![],
+            symbol_proximity_lines: vec![],
             durable_artifacts: vec![],
             warnings: Vec::new(),
             used_vector: false,

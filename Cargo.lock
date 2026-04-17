@@ -40,7 +40,6 @@ dependencies = [
 name = "aegis"
 version = "0.9.8"
 dependencies = [
- "cc",
  "softaes",
 ]
 
@@ -12711,6 +12710,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "similar",
  "tantivy",
  "tavily",
  "tempfile",

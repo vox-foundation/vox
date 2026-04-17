@@ -111,8 +111,7 @@ version = "1.0"
 [dev-dependencies.sthash]
 version = "0.2.16"
 
-[build-dependencies.cc]
-version = "1.2.57"
+
 
 [target.'cfg(not(any(all(target_arch = "aarch64", target_feature = "aes"),all(target_arch = "x86_64", target_feature = "aes"),all(target_arch = "x86", target_feature = "aes"))))'.dependencies.softaes]
 version = "0.1"

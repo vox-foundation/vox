@@ -23,6 +23,8 @@ pub enum RiskDecision {
     Ask,
     /// Refuse or escalate — evidence is insufficient or contradictory.
     Abstain,
+    /// Provide a disambiguation hint due to symbol proximity / KCH risk.
+    Disambiguate,
 }
 
 /// Discrete complexity band for routing and Adaptive RAG.

@@ -18,9 +18,7 @@ fn main() {
         "scripts/install.ps1",
         "scripts/install.sh",
         "scripts/import-voxdotenv.ps1",
-        "scripts/invoke-voxwithenv.ps1",
-        "scripts/ci/add_canonical_names.py",
-        "scripts/ci/patch_catalog.py"
+        "scripts/invoke-voxwithenv.ps1"
     ];
 
     print("Running script-hygiene check...");
@@ -39,14 +37,17 @@ fn main() {
             }
             let found = found_res.unwrap();
             for f in found {
+                if f.contains("node_modules") {
+                    continue;
+                }
                 // Normalize path: forward slashes and lowercase
                 let f_norm = f.replace("\\", "/").to_lower();
                 
                 // Trim root prefix if present
                 let mut f_rel = f_norm;
-                if root != "." {
+                if root isnt "." {
                     let mut root_norm = root.replace("\\", "/").to_lower();
-                    if !root_norm.ends_with("/") {
+                    if not root_norm.ends_with("/") {
                         root_norm = root_norm + "/";
                     }
                     if f_norm.starts_with(root_norm) {
@@ -58,7 +59,7 @@ fn main() {
                     }
                 }
                 
-                if !allowlist.contains(f_rel) {
+                if not allowlist.contains(f_rel) {
                     violations = violations.push(f);
                 }
             }

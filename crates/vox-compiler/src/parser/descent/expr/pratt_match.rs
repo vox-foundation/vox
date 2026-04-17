@@ -195,7 +195,7 @@ impl Parser {
                 }
             }
             Token::Lt => self.parse_jsx()?,
-            Token::Ident(name) => {
+            Token::Ident(name) | Token::TypeIdent(name) => {
                 self.advance();
                 if self.eat(&Token::FatArrow) {
                     let body = self.parse_expr()?;
@@ -214,9 +214,26 @@ impl Parser {
                     Expr::Ident { name, span: start }
                 }
             }
-            Token::TypeIdent(name) => {
+            Token::Env => {
                 self.advance();
-                Expr::Ident { name, span: start }
+                Expr::Ident {
+                    name: "env".to_string(),
+                    span: start,
+                }
+            }
+            Token::To => {
+                self.advance();
+                Expr::Ident {
+                    name: "to".to_string(),
+                    span: start,
+                }
+            }
+            Token::Http => {
+                self.advance();
+                Expr::Ident {
+                    name: "http".to_string(),
+                    span: start,
+                }
             }
             _ => {
                 self.errors.push(ParseError::classified(

@@ -31,7 +31,12 @@ fn canonical_env_wins_over_alias() {
 }
 
 #[test]
+#[allow(unsafe_code)]
 fn backend_unavailable_status_is_explicit() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    unsafe {
+        std::env::remove_var("OPENROUTER_API_KEY");
+    }
     let resolver = SecretResolver::new(UnavailableBackend {
         reason: "feature disabled".to_string(),
     });

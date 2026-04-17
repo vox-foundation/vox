@@ -27,6 +27,7 @@ This page provides the canonical structural layout for Vox v0.3 features. All co
 Variable assignments are immutable by default in Vox. Prefix with `mut` for mutability.
 
 ```vox
+// vox:skip
 // ANCHOR: variables
 fn demo_vars() {
     let x = 10
@@ -39,8 +40,9 @@ fn demo_vars() {
 Functions mapping natively to networking, storage, or internal agentic constraints.
 
 ```vox
+// vox:skip
 // ANCHOR: functions
-fn add(a: int, b: int) -> int {
+fn add(a: int, b: int) to int {
     return a + b;
 }
 
@@ -51,9 +53,10 @@ component Button(label: str) {
 ```
 
 ```vox
+// vox:skip
 // From examples/golden/ref_orchestrator.vox
 @mcp.tool "search: Search the knowledge base"
-fn search(query: str) -> List[str] {
+fn search(query: str) to List[str] {
     return ["result 1", "result 2"]
 }
 ```
@@ -61,6 +64,7 @@ fn search(query: str) -> List[str] {
 Lexical constraints and properties can be modeled strictly using Abstract Data Types (ADTs) and Table definitions.
 
 ```vox
+// vox:skip
 type Shape =
     | Circle(radius: float)
     | Rect(w: float, h: float)
@@ -77,7 +81,8 @@ type Shape =
 
 ### Branching
 ```vox
-fn check(n: int) -> str {
+// vox:skip
+fn check(n: int) to str {
     if n > 0 {
         return "positive"
     } else {
@@ -88,10 +93,11 @@ fn check(n: int) -> str {
 
 ### Pattern Matching (`match`)
 ```vox
-fn area(s: Shape) -> float {
+// vox:skip
+fn area(s: Shape) to float {
     match s {
-        Circle(r) -> 3.14 * r * r
-        Rect(w, h) -> w * h
+        Circle(r) => 3.14 * r * r
+        Rect(w, h) => w * h
     }
 }
 ```
@@ -126,7 +132,7 @@ The `?` suffix unpacks an `Ok` result, returning early if the result is an `Erro
 
 ```vox
 // vox:skip
-fn build_report() -> Result[str] {
+fn build_report() to Result[str] {
     let raw_data = get_data()?
     return Ok("Report { " + raw_data)
 }
@@ -135,18 +141,20 @@ fn build_report() -> Result[str] {
 Actors operate isolated asynchronous loops responding to discrete event handler payloads via `on`. 
 
 ```vox
+// vox:skip
 actor Counter {
     count: int = 0
     on increment(n: int) {
         count += n
     }
-    on get() -> int {
+    on get() to int {
         return count
     }
 }
 ```
 
 ```vox
+// vox:skip
 let c = spawn Counter()
 c ! increment(5)
 let val = c.get()
@@ -157,25 +165,23 @@ let val = c.get()
 Agents define LLM-backed roles with systematic instructions and toolsets.
 
 ```vox
-```vox
+// vox:skip
 @llm(model="claude-3-opus")
-fn summarize(text: str) -> str
-```
+fn summarize(text: str) to str
 ```
 
 Use `workflow` to group state machine processes that survive process restarts. Use `activity` to dictate atomic, retry-able execution sequences.
 
 ```vox
-```vox
-@query fn get_notes() -> List[Note] {
+// vox:skip
+@query fn get_notes() to List[Note] {
     return db.Note.all()
 }
 
-@mutation fn create_note(title: str, content: str) -> Result[Id[Note]] {
+@mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
     return Ok(id)
 }
-```
 ```
 
 ## Island and UI Syntax
@@ -188,8 +194,8 @@ The `@island` directive dictates interactive DOM components.
 
 // Web Routing Layout Mapping
 routes {
-    "/"         -> TaskList
-    "/about"    -> AboutPage
+    "/"         to TaskList
+    "/about"    to AboutPage
 }
 ```
 
@@ -201,8 +207,8 @@ routes {
 
 ```vox
 // vox:skip
-fn double(x: int) -> int { return x * 2 }
-fn square(x: int) -> int { return x * x }
+fn double(x: int) to int { return x * 2 }
+fn square(x: int) to int { return x * x }
 ```
 
 Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.

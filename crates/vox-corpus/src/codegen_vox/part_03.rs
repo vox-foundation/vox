@@ -82,6 +82,31 @@ pub fn generate_organic_corpus(seed: u64) -> Vec<OrganicPair> {
     pairs
 }
 
+/// Generate the Chain-of-Thought (CoT) organic corpus by iterating over `TAXONOMY_FROM_AST`.
+/// Prepends structured reasoning blocks before the generated Vox code.
+pub fn generate_cot_organic_corpus(seed: u64) -> Vec<OrganicPair> {
+    let base_pairs = generate_organic_corpus(seed);
+    let mut cot_pairs = Vec::new();
+
+    for pair in base_pairs {
+        let mut new_pair = pair.clone();
+        let construct_name = new_pair.category.replace("vox_", "");
+        
+        let think_block = format!(
+            "<think>\n1. Plan: The user wants to generate a `{construct_name}` construct in Vox.\n\
+             2. Syntax considerations: A valid `{construct_name}` requires correct keywords, valid identifiers, and proper brace formatting based on the Vox AST specification.\n\
+             3. Implementation: I will synthesize a realistic, minimal example of a `{construct_name}` satisfying these requirements.\n\
+             </think>\n\n"
+        );
+        
+        new_pair.response = format!("{think_block}{}", new_pair.response);
+        new_pair.category = "vox_gen_cot".into();
+        cot_pairs.push(new_pair);
+    }
+    
+    cot_pairs
+}
+
 /// Parse verification (heuristic fallback when parser feature not enabled).
 fn verify_parse(source: &str) -> bool {
     #[cfg(feature = "parser-verify")]

@@ -31,7 +31,7 @@ fn demo_flow(val: int) {
 // ANCHOR_END: control_flow
 
 // ANCHOR: functions
-fn add(a: int, b: int) -> int {
+fn add(a: int, b: int) to int {
     return a + b;
 }
 

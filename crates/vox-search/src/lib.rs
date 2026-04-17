@@ -24,6 +24,7 @@ pub mod scraper;
 mod searxng_defaults;
 pub mod searxng;
 pub mod web_dispatcher;
+pub mod symbol_proximity;
 
 #[cfg(feature = "tantivy-lexical")]
 pub mod lexical_tantivy;

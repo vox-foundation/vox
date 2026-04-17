@@ -46,6 +46,8 @@ pub struct SearchExecution {
     pub rrf_fused_lines: Vec<String>,
     /// Optional web-retrieval hits (SearXNG, DuckDuckGo, or Tavily).
     pub web_lines: Vec<String>,
+    /// Candidates from semantic proximity scanning (split-brain detection).
+    pub symbol_proximity_lines: Vec<String>,
     /// Secure references to large evidence bodies, replacing inline text for high-volume results.
     pub durable_artifacts: Vec<DurableArtifact>,
     /// Non-fatal issues (e.g. Qdrant HTTP errors) copied into [`SearchDiagnostics::notes`].
@@ -528,6 +530,16 @@ pub async fn execute_search_plan(
         Vec::new()
     };
 
+    let symbol_proximity_lines = if plan.corpora.contains(&SearchCorpus::SymbolProximity) {
+        let hits = crate::symbol_proximity::scan_symbol_proximity(ctx, query, policy, query_vector.as_deref()).await;
+        if !hits.is_empty() {
+            backend_mix.push(SearchBackend::SymbolProximity);
+        }
+        hits
+    } else {
+        Vec::new()
+    };
+
     let rrf_fused_lines: Vec<String> = if policy.prefer_rrf_merge {
         let lists = vec![
             memory_lines.clone(),
@@ -537,6 +549,7 @@ pub async fn execute_search_plan(
             tantivy_doc_lines.clone(),
             qdrant_lines.clone(),
             web_lines.clone(),
+            symbol_proximity_lines.clone(),
         ];
         let non_empty: Vec<_> = lists.into_iter().filter(|v| !v.is_empty()).collect();
         if non_empty.len() >= 2 {
@@ -561,7 +574,8 @@ pub async fn execute_search_plan(
         + repo_lines.len()
         + tantivy_doc_lines.len()
         + qdrant_lines.len()
-        + web_lines.len();
+        + web_lines.len()
+        + symbol_proximity_lines.len();
 
     let citation_coverage = if evidence_total == 0 {
         0.0
@@ -599,6 +613,7 @@ pub async fn execute_search_plan(
         qdrant_lines,
         rrf_fused_lines,
         web_lines,
+        symbol_proximity_lines,
         durable_artifacts: Vec::new(),
         warnings,
         used_vector,

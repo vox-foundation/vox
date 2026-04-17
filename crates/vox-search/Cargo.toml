@@ -32,6 +32,7 @@ scraper = { workspace = true }
 html2text = { workspace = true }
 workspace-hack = { workspace = true }
 tavily = { version = "2.1.0", optional = true }
+similar.workspace = true
 
 [dev-dependencies]
 tempfile = { workspace = true }

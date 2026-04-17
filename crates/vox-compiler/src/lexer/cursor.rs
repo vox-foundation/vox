@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_keywords() {
-        let tokens = lex_tokens("fn let mut if else match for in to ret type import");
+        let tokens = lex_tokens("fn let mut if else match for in to return type import");
         let expected = vec![
             Token::Fn,
             Token::Let,
@@ -74,7 +74,7 @@ mod tests {
             Token::For,
             Token::In,
             Token::To,
-            Token::Ret,
+            Token::Return,
             Token::TypeKw,
             Token::Import,
             Token::Eof,
@@ -138,9 +138,9 @@ mod tests {
             tokens,
             vec![
                 Token::AtComponent,
-                Token::AtMcpTool,
-                Token::AtMcpResource,
-                Token::AtMobileNative,
+                Token::AtTool,
+                Token::AtResource,
+                Token::AtNative,
                 Token::AtIsland,
                 Token::Eof
             ]
@@ -189,23 +189,22 @@ mod tests {
     /// Brace syntax: no Indent/Dedent in output — braces carry block structure.
     #[test]
     fn test_brace_block_no_indent_tokens() {
-        let source = "fn foo() to int { ret 5 }";
+        let source = "fn foo() to int { return 5 }";
         let tokens = lex_tokens(source);
         assert!(
             tokens.contains(&Token::Eof),
             "lexer output must include trailing Eof"
         );
-        // The token stream for a brace block should be:
-        // Fn, Ident(foo), LParen, RParen, To, Ident(int), LBrace, Ret, IntLit(5), RBrace, Eof
+        // Fn, Ident(foo), LParen, RParen, To, Ident(int), LBrace, Return, IntLit(5), RBrace, Eof
         assert!(tokens.contains(&Token::LBrace), "Should have LBrace");
         assert!(tokens.contains(&Token::RBrace), "Should have RBrace");
-        assert!(tokens.contains(&Token::Ret), "Should have Ret");
+        assert!(tokens.contains(&Token::Return), "Should have Return");
     }
 
     /// Newlines are now cosmetic — they are emitted but not structurally significant.
     #[test]
     fn test_newlines_emitted_but_not_structural() {
-        let source = "fn foo() to int {\n    ret 5\n}";
+        let source = "fn foo() to int {\n    return 5\n}";
         let tokens = lex_tokens(source);
         // Should contain Newline tokens but no Indent/Dedent
         assert!(
@@ -267,7 +266,7 @@ mod tests {
     fn test_agent_environment_tokens() {
         let tokens = lex_tokens("agent environment migrate");
         assert!(tokens.contains(&Token::Agent));
-        assert!(tokens.contains(&Token::Environment));
+        assert!(tokens.contains(&Token::Env));
         assert!(tokens.contains(&Token::Migrate));
     }
 
@@ -299,7 +298,7 @@ mod tests {
 }
 
 http post "/api/chat" to Result {
-    ret spawn(Claude).send(request.json().input)
+    return spawn(Claude).send(request.json().input)
 }"#;
 
         let tokens = lex(source);

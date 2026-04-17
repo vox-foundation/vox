@@ -92,6 +92,8 @@ pub enum Token {
     Not,
     #[token("is")]
     Is,
+    #[token("isnt")]
+    Isnt,
     #[token("true")]
     True,
     #[token("false")]
@@ -345,6 +347,7 @@ impl std::fmt::Display for Token {
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),
             Token::Is => write!(f, "is"),
+            Token::Isnt => write!(f, "isnt"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
             Token::AtComponent => write!(f, "@component"),

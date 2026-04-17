@@ -98,6 +98,7 @@ pub enum SearchCorpus {
     DocumentChunks,
     RepoInventory,
     WebResearch,
+    SymbolProximity,
 }
 
 /// Concrete retrieval backends or ranking legs used during execution.
@@ -114,6 +115,7 @@ pub enum SearchBackend {
     RepoPath,
     Web,
     LexicalFallback,
+    SymbolProximity,
 }
 
 /// Recommended next move after evaluating search quality.
@@ -237,19 +239,21 @@ pub fn heuristic_search_plan(
         plan.intent = SearchIntent::CodeNavigation;
         plan.retrieval_mode = mode_hint.unwrap_or(RetrievalMode::FullText);
         plan.corpora = vec![
+            SearchCorpus::SymbolProximity,
             SearchCorpus::RepoInventory,
             SearchCorpus::DocumentChunks,
             SearchCorpus::KnowledgeGraph,
             SearchCorpus::Memory,
         ];
         plan.preferred_backends = vec![
+            SearchBackend::SymbolProximity,
             SearchBackend::RepoPath,
             SearchBackend::ChunkFts,
             SearchBackend::KnowledgeFts,
             SearchBackend::MemoryBm25,
         ];
         plan.notes
-            .push("code-navigation query prioritizes repo path and lexical search".to_string());
+            .push("code-navigation query prioritizes proximity, repo path and lexical search".to_string());
         return plan;
     }
     if looks_like_repo_structure(query_text) {

@@ -17,32 +17,32 @@
     age: Option[int]
 }
 
-fn display_bio(profile: UserProfile) -> str {
+fn display_bio(profile: UserProfile) to str {
     match profile.bio {
-        Some(text) -> "Bio: " + text
-        None -> "No bio provided"
+        Some(text) => "Bio: " + text
+        None => "No bio provided"
     }
 }
 
-fn display_age(profile: UserProfile) -> str {
+fn display_age(profile: UserProfile) to str {
     match profile.age {
-        Some(n) -> "Age: " + str(n)
-        None -> "Age not set"
+        Some(n) => "Age: " + str(n)
+        None => "Age not set"
     }
 }
 
 @query
-fn find_user(name: str) -> Option[str] {
+fn find_user(name: str) to Option[str] {
     let users = db.UserProfile.filter({ name: name })
     // If len > 0, we can return Some(name), simplified for AST
     return Some(name)
 }
 
-fn greet_user(name: str) -> str {
+fn greet_user(name: str) to str {
     let result = find_user(name)
     match result {
-        Some(profile) -> "Welcome back"
-        None -> "User not found"
+        Some(profile) => "Welcome back"
+        None => "User not found"
     }
 }
 // ANCHOR_END: display

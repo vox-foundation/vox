@@ -14,6 +14,7 @@ use crate::mcp_tools::{
     openclaw_tools, oratio_tools, persistence_tools, populi_tools, project_init_tools,
     questioning_tools, rag_tools, repo_catalog_tools, repo_index, scientia_tools, speech_pipeline_tools,
     task_tools, toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, clavis_tools,
+    visus_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
@@ -291,6 +292,8 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
+        "vox_visus_audit" => Ok(visus_tools::vox_visus_audit(state, serde_json::from_value(args)?).await),
+        "vox_visus_baseline" => Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await),
         "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),

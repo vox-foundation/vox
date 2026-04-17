@@ -536,6 +536,7 @@ pub enum DeiCli {
         #[arg(long)]
         human: bool,
     },
+    /*
     /// Analyze a Vox file for diagnostic errors and suggest repairs using HIR hints.
     Analyze {
         /// Path to the Vox file.
@@ -544,6 +545,7 @@ pub enum DeiCli {
         #[arg(long)]
         apply: bool,
     },
+    */
 }
 
 /// `vox dei workspace …`
@@ -632,7 +634,7 @@ pub async fn run(cli: DeiCli) -> Result<()> {
         DeiCli::TakeoverStatus { agent_id, human } => {
             run_dei_takeover_status(agent_id, human).await
         }
-        DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
+        // DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
     }
 }
 
@@ -787,6 +789,7 @@ fn print_takeover_human_summary(v: &serde_json::Value) {
     );
 }
 
+/*
 async fn run_dei_analyze(path: &str, apply: bool) -> Result<()> {
     let config = load_config();
     let _orch = build_repo_scoped_orchestrator_cli(config);
@@ -848,6 +851,7 @@ async fn run_dei_analyze(path: &str, apply: bool) -> Result<()> {
 
     Ok(())
 }
+*/
 
 /// Load orchestrator config from Vox.toml or defaults.
 fn load_config() -> OrchestratorConfig {

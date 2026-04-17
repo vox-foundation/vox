@@ -182,6 +182,21 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         );
     }
 
+    // CoT Organic Vox Code Generation (Reasoning-First)
+    if cfg.emit_cot_organic_vox {
+        let cot_organic = crate::codegen_vox::generate_cot_organic_corpus(cfg.seed);
+        let cot_n = crate::codegen_vox::write_organic_to_jsonl(&cot_organic, &output_path.with_file_name("synthetic_cot_temp.jsonl"), false)?;
+        
+        // Append the CoT lines to the main file
+        let cot_lines = std::fs::read_to_string(output_path.with_file_name("synthetic_cot_temp.jsonl"))?;
+        for line in cot_lines.lines() {
+            writeln!(file, "{line}")?;
+            total += 1;
+        }
+        let _ = std::fs::remove_file(output_path.with_file_name("synthetic_cot_temp.jsonl"));
+        eprintln!("  [synthetic] organic_vox_cot (Reasoning-First): {cot_n} pairs");
+    }
+
     // Tool-chain orchestration pairs
     let tc_n = routing_pairs::generate_tool_chain_pairs(&mut file, cfg)?;
     total += tc_n;
@@ -225,6 +240,13 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         let n = telemetry_pairs::generate_telemetry_interpretation_pairs(&mut file, cfg)?;
         total += n;
         eprintln!("  [synthetic] telemetry_trace: {n} pairs");
+    }
+
+    // KCH Anti-conflation negative DPO pairs (Wave 4)
+    if cfg.emit_kch_anticonflation {
+        let n = kch_anticonflation::generate_kch_anticonflation_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] kch_anticonflation: {n} pairs");
     }
 
     file.flush()?;

@@ -26,6 +26,7 @@ pub fn hallucination_risk_proxy(decision: RiskDecision, contradiction_ratio: f64
         RiskDecision::Answer => 0.0_f64,
         RiskDecision::Ask => 0.45_f64,
         RiskDecision::Abstain => 1.0_f64,
+        RiskDecision::Disambiguate => 0.5_f64,
     };
     let cr = contradiction_ratio.clamp(0.0, 1.0);
     (base + 0.35 * cr).min(1.0)
@@ -256,6 +257,7 @@ impl VoxDb {
         let refusal_observation = match decision {
             RiskDecision::Abstain => 0.0,
             RiskDecision::Ask => 0.5,
+            RiskDecision::Disambiguate => 0.5,
             RiskDecision::Answer => 1.0,
         };
         let _ = self
@@ -363,6 +365,7 @@ impl VoxDb {
                         RiskDecision::Answer => agg.answer_count += 1,
                         RiskDecision::Ask => agg.ask_count += 1,
                         RiskDecision::Abstain => agg.abstain_count += 1,
+                        RiskDecision::Disambiguate => agg.abstain_count += 1,
                     }
                 }
             }

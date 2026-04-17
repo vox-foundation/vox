@@ -56,6 +56,7 @@ impl Parser {
                 Token::And => BinOp::And,
                 Token::Or => BinOp::Or,
                 Token::Is => BinOp::Is,
+                Token::Isnt => BinOp::Isnt,
                 Token::PipeOp => BinOp::Pipe,
                 _ => break,
             };
