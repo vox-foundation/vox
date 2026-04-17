@@ -1,7 +1,6 @@
 [package]
 name = "vox-publisher"
-# Intentionally not `version.workspace`: publisher release line stays on 0.8.x while workspace default is 0.1.0.
-version = "0.8.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
@@ -50,7 +49,7 @@ unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
 bsky-sdk = { workspace = true, optional = true }
 atrium-api = { workspace = true, optional = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

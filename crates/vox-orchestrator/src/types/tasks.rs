@@ -11,6 +11,22 @@ fn default_victory_condition() -> crate::VictoryCondition {
     crate::VictoryCondition::CompilationOnly
 }
 
+/// Maximum number of times a task can be handed off before it is considered an infinite loop.
+pub const MAX_A2A_BOUNCE: u8 = 5;
+
+/// One turn in a task's conversational history (for agent-to-agent context).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskTurn {
+    /// Agent that performed this turn.
+    pub agent_id: super::ids::AgentId,
+    /// Human-readable agent name.
+    pub agent_name: String,
+    /// Final condensed summary/report from the agent.
+    pub message: String,
+    /// Unix timestamp (ms) when turn was recorded.
+    pub timestamp_ms: u64,
+}
+
 /// Priority level for a task. Higher priority tasks are dequeued first.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -140,6 +156,8 @@ pub enum TaskCategory {
     InterAgent,
     /// Structured tool call orchestration — needs native-tool support but not deep reasoning.
     ToolOrchestration,
+    /// Visual intelligence and layout auditing (VLM).
+    Visus,
 }
 
 /// Populi mesh holds execution authority for this task; local actors must not dequeue it.
@@ -203,6 +221,9 @@ pub struct TaskEnqueueHints {
     /// Pre-computed Socrates tracking from the planner phase.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub socrates_context: Option<crate::socrates::SocratesTaskContext>,
+    /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
@@ -377,6 +398,15 @@ pub struct AgentTask {
     /// for this task. Intentionally excluded from the hot serialization path via `skip_serializing_if`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observation_history: Vec<vox_db::store::ObservationReport>,
+    /// Number of times this task was handed off between agents (A2A bounce guard).
+    #[serde(default)]
+    pub handoff_count: u8,
+    /// Structured execution history for context injection (Surgical Injection).
+    #[serde(default)]
+    pub transcript: Vec<TaskTurn>,
+    /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 impl AgentTask {
@@ -389,6 +419,15 @@ impl AgentTask {
     ) -> Self {
         let description = description.into();
         let (tool_hints, research_hints) = Self::parse_description_hints(&description);
+        let mut task_category = TaskCategory::default();
+        if description.contains("[[category:visus]]") {
+            task_category = TaskCategory::Visus;
+        } else if description.contains("[[category:research]]") {
+            task_category = TaskCategory::Research;
+        } else if description.contains("[[category:codegen]]") {
+            task_category = TaskCategory::CodeGen;
+        }
+
         Self {
             id,
             description,
@@ -400,7 +439,7 @@ impl AgentTask {
             model_preference: None,
             model_override: None,
             test_decision: None,
-            task_category: TaskCategory::default(),
+            task_category,
             debug_iterations: 0,
             toestub_iterations: 0,
             socrates_iterations: 0,
@@ -429,6 +468,9 @@ impl AgentTask {
             populi_remote_delegate: None,
             victory_condition: crate::VictoryCondition::CompilationOnly,
             observation_history: Vec::new(),
+            handoff_count: 0,
+            transcript: Vec::new(),
+            attachment_manifest: None,
         }
     }
 
@@ -453,6 +495,10 @@ impl AgentTask {
                         match kind {
                             "tool" => tools.push(value.to_string()),
                             "research" => research.push(value.to_string()),
+                            "category" => {
+                                // Category hints are handled at the dispatch/creation layer
+                                // but we store them here if needed for telemetry.
+                            }
                             _ => {}
                         }
                     }
@@ -520,6 +566,20 @@ impl AgentTask {
     pub fn elapsed_since_last_expensive_op_ms(&self) -> Option<u64> {
         self.last_expensive_op_ms
             .map(|t| now_unix_ms().saturating_sub(t))
+    }
+
+    /// Append a turn to the task's transcript, maintaining a rolling window to prevent context bloat.
+    pub fn append_turn(&mut self, agent_id: super::ids::AgentId, name: String, message: String) {
+        self.transcript.push(TaskTurn {
+            agent_id,
+            agent_name: name,
+            message,
+            timestamp_ms: now_unix_ms(),
+        });
+        // Hard limit on transcript depth to ensure LLM prompt density.
+        if self.transcript.len() > 10 {
+            self.transcript.remove(0);
+        }
     }
 }
 
@@ -628,6 +688,7 @@ mod tests {
             is_detached: None,
             requires_approval: None,
             socrates_context: None,
+            attachment_manifest: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

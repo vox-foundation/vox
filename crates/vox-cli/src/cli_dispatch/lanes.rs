@@ -115,7 +115,7 @@ pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
     use latin_cmd::FabricaCmd;
     match cmd {
         FabricaCmd::Build(a) => {
-            commands::build::run(&a.file, &a.out_dir, a.target.clone(), a.scaffold, a.emit_ir)
+            commands::build::run(&a.file, &a.out_dir, a.target.clone(), a.scaffold, a.emit_ir, a.mode)
                 .await?;
         }
         FabricaCmd::Check(a) => {

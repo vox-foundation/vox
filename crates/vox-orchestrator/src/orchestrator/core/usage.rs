@@ -1,5 +1,4 @@
-use crate::types::{AgentId, now_unix_ms};
-use crate::oplog::OperationId;
+use crate::types::AgentId;
 
 impl crate::orchestrator::Orchestrator {
     /// Record a single AI model call: emits [`crate::events::AgentEventKind::CostIncurred`],

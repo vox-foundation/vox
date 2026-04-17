@@ -1,4 +1,4 @@
-﻿use super::params::{ANTI_LAZINESS_RIDER, InlineEditParams, InlineEditResult};
+use super::params::{ANTI_LAZINESS_RIDER, InlineEditParams, InlineEditResult};
 use crate::mcp_tools::llm_bridge::{
     McpChatModelResolution, McpInferRouting, clamp_http_max_output_tokens, mcp_infer_completion,
 };
@@ -115,6 +115,7 @@ OUTPUT RULES:
         max_tokens,
         temperature,
         params.json_mode,
+        None,
     )
     .await
     {

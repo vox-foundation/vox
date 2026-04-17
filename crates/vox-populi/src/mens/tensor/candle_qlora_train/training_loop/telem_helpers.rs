@@ -20,6 +20,7 @@ pub fn build_train_step_payload(
     total_theoretical_tokens: u64,
     batch_size: u64,
     seq_len: u64,
+    syntax_weight_sum: f64,
 ) -> serde_json::Value {
     let supervised_ratio_pct = if total_theoretical_tokens == 0 {
         0.0
@@ -48,5 +49,6 @@ pub fn build_train_step_payload(
         "skip_token_id_oob": skip_token_id_oob,
         "trajectory_weighted_pairs": trajectory_weighted_pairs,
         "trajectory_clamped_pairs": trajectory_clamped_pairs,
+        "syntax_weight_sum": syntax_weight_sum,
     })
 }

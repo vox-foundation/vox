@@ -41,12 +41,20 @@ pub fn ingest_training_logs(log_path: &Path, out: &mut impl Write) -> anyhow::Re
 }
 
 fn emit_error(out: &mut impl Write, error: &str, snippet: &str, count: &mut usize) -> anyhow::Result<()> {
+    let prompt = format!("Fix the following Vox compiler error:\n\n```vox\n{}\n```\n\nError: {}", snippet.trim(), error);
+    let response = format!("// Suggested Fix: {}\n{}", error, snippet.trim());
     let record = json!({
-        "prompt": "Fix the following Vox compiler error.",
+        "prompt": prompt,
+        "response": response,
+        "messages": [
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": response}
+        ],
         "rejected": snippet.trim().to_string(),
-        "chosen": format!("// Fix: {}", error),
+        "chosen": response,
         "category": "negative_telemetry",
         "lane": "vox_dogfood_flywheel",
+        "schema_version": "vox_dogfood_v1",
     });
     writeln!(out, "{}", serde_json::to_string(&record)?)?;
     *count += 1;

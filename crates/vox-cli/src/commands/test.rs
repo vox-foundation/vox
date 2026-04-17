@@ -12,7 +12,7 @@ pub async fn run(args: &crate::cli_args::TestArgs) -> Result<()> {
     let file = &args.file;
 
     println!("Building for tests: {}...", file.display());
-    build::run(file, &out_dir, None, false, false).await?;
+    build::run(file, &out_dir, None, false, false, crate::cli_args::BuildMode::App).await?;
 
     // 2. Run Tests
     let generated_dir = Path::new("target").join("generated");

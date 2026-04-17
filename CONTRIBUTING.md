@@ -1,6 +1,6 @@
 # Contributing to Vox
 
-Welcome. This file is the **short golden path**; deeper policy lives in [`docs/agents/governance.md`](docs/agents/governance.md) and [`AGENTS.md`](AGENTS.md) (secrets / Clavis).
+Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.md](AGENTS.md) (required for all contributors and agents) and [docs/agents/governance.md](docs/agents/governance.md) (TOESTUB, architecture rules).
 
 ## Quick start
 

@@ -1,4 +1,4 @@
-﻿//! Bounded LLM assist for SCIENTIA — JSON-only suggestions, [`TaskCategory::Research`] routing.
+//! Bounded LLM assist for SCIENTIA — JSON-only suggestions, [`TaskCategory::Research`] routing.
 
 use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
@@ -152,6 +152,7 @@ pub async fn vox_scientia_assist_suggestions(
         1024,
         0.2,
         false,
+        None,
     )
     .await
     {

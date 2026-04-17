@@ -34,6 +34,7 @@ impl Orchestrator {
                     dynamic: dynamic_agents.contains(id),
                     weighted_load: queue.weighted_load(),
                     agent_session_id: queue.agent_session_id.clone(),
+                    max_handoff_count: queue.max_handoff_count(),
                 }
             })
             .collect();
@@ -91,6 +92,7 @@ impl Orchestrator {
             reserved_agents: reserved_count,
             dynamic_agents: dynamic_count,
             context_entries: crate::sync_lock::rw_read(&self.context_store).entries(),
+            max_handoff_count: agents.iter().map(|a| a.max_handoff_count).max().unwrap_or(0),
             agents,
         }
     }

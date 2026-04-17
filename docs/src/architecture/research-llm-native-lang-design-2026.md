@@ -24,6 +24,12 @@ Conversely, a critical counter-force has been documented: the **Alignment Tax** 
 
 For Vox language design: the optimal architecture must minimize syntactic complexity while maximizing semantic verification — maximizing semantic verification without requiring dense, syntactically complex boilerplate text.
 
+## The Syntactic Configurability Paradox
+
+Syntactic configurability (macros, DSLs, custom syntax expansion) is a trap for LLMs and is permanently out-of-scope for the core architecture. When a foundation model is forced to dedicate its attention budget to learning developer-defined syntactic sugar injected via context, its semantic reasoning collapses. It achieves superficial syntactic alignment but entirely misses deep semantic errors (Structure Snowballing).
+
+To ensure zero-shot reliability, the core grammar must remain ruthless, small, and completely standard. Extended logic must be deferred to native integrations (`vox-tensor`) or Agent Orchestration Skills (`vox-skills`).
+
 ## Detailed Research Pages
 
 - [Empirical Evidence: Strictly-Typed vs. Dynamically-Typed Languages](research-ts-hallucination-empirical-evidence-2026.md)

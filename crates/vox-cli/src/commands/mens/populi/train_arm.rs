@@ -165,6 +165,7 @@ pub async fn run_train(
 
     let mut effective_min_rating = min_rating;
     let mut effective_ce_last_k = qlora_ce_last_k;
+    let mut effective_seq_len = seq_len;
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -195,6 +196,7 @@ pub async fn run_train(
 
                 effective_min_rating = profile.min_rating.or(min_rating);
                 effective_ce_last_k = profile.ce_last_k.unwrap_or(qlora_ce_last_k);
+                effective_seq_len = profile.seq_len.unwrap_or(seq_len);
                 effective_validation_split_ratio = profile
                     .validation_split_ratio
                     .unwrap_or(validation_split_ratio);
@@ -265,7 +267,7 @@ pub async fn run_train(
         output_dir,
         rank,
         alpha,
-        Some(seq_len),
+        Some(effective_seq_len),
         batch_size,
         grad_accum,
         resume,

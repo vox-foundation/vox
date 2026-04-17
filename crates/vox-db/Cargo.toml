@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 vox-compiler = { workspace = true }
-vox-config = { workspace = true }
+vox-config.workspace = true
 vox-socrates-policy = { workspace = true }
 turso = { workspace = true }
 tokio = { workspace = true }
@@ -22,7 +22,7 @@ blake3 = { workspace = true }
 data-encoding = { workspace = true }
 keyring = { workspace = true }
 uuid = { version = "1.0", features = ["v4", "serde"] }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [features]
 default = ["local"]

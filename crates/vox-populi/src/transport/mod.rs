@@ -366,6 +366,9 @@ pub struct PopuliTransportState {
     pub(crate) dispatch_results: Arc<dashmap::DashMap<String, DispatchResponse>>,
     #[cfg(feature = "transport")]
     pub(crate) dispatch_results_store_path: Option<PathBuf>,
+    /// Optional callback to verify if a given node_id is trusted.
+    #[allow(clippy::type_complexity)]
+    pub node_trust_verifier: Option<Arc<dyn Fn(String) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>> + Send + Sync>>,
 }
 
 impl PopuliTransportState {
@@ -410,6 +413,7 @@ impl PopuliTransportState {
             dispatch_results: Arc::new(dashmap::DashMap::new()),
             #[cfg(feature = "transport")]
             dispatch_results_store_path: None,
+            node_trust_verifier: None,
         }
     }
 
@@ -537,6 +541,7 @@ impl PopuliTransportState {
             },
             #[cfg(feature = "transport")]
             dispatch_results_store_path,
+            node_trust_verifier: None,
         })
     }
 }

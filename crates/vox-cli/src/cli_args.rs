@@ -4,12 +4,25 @@ use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Build mode (`app` or `library`).
+#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq)]
+pub enum BuildMode {
+    /// Emit app code + components (default).
+    #[default]
+    App,
+    /// Emit UI-agnostic models, schemas, and client fetchers.
+    Library,
+}
+
 /// `vox build` / `vox fabrica build`
 #[derive(Args, Clone, Debug)]
 pub struct BuildArgs {
     /// Path to the `.vox` file
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Build mode (App or Library)
+    #[arg(long, value_enum, default_value_t = crate::cli_args::BuildMode::App)]
+    pub mode: crate::cli_args::BuildMode,
     /// Output directory for generated TypeScript
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,

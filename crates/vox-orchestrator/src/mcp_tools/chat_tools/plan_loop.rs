@@ -1,4 +1,4 @@
-﻿//! Bounded iterative refinement for `vox_plan` (draft → gap/adequacy → expansion-first LLM refine).
+//! Bounded iterative refinement for `vox_plan` (draft → gap/adequacy → expansion-first LLM refine).
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -335,6 +335,7 @@ pub async fn maybe_refine_plan(
             u64::from(max_out),
             0.25,
             true,
+            None,
         )
         .await
         {
@@ -390,6 +391,7 @@ Broken output (may be truncated):
                     retry_cap,
                     0.15,
                     true,
+                    None,
                 )
                 .await
                 {

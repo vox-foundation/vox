@@ -1,8 +1,14 @@
 use super::value::VoxValue;
+use secrecy::ExposeSecret;
 
 /// Dispatch a method call on a runtime value. Returns `None` if the method is
 /// not known — callers should surface a user-visible `MethodNotFound` error.
-pub fn call_builtin_method(obj: &VoxValue, method: &str, args: Vec<VoxValue>) -> Option<VoxValue> {
+pub fn call_builtin_method(
+    obj: &VoxValue,
+    method: &str,
+    args: Vec<VoxValue>,
+    caps: Option<&std::collections::HashSet<String>>,
+) -> Option<VoxValue> {
     match obj {
         // ── List ──────────────────────────────────────────────────────
         VoxValue::List(v) => match method {
@@ -153,7 +159,227 @@ pub fn call_builtin_method(obj: &VoxValue, method: &str, args: Vec<VoxValue>) ->
             _ => None,
         },
 
+        // ── Object (including Namespaces) ───────────────────────────
+        VoxValue::Object(fields) => {
+            if method == "get" {
+                let key = match args.into_iter().next() {
+                    Some(VoxValue::Str(s)) => s,
+                    _ => return Some(VoxValue::Null),
+                };
+                return Some(fields.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone()).unwrap_or(VoxValue::Null));
+            }
+
+            let ns = fields.iter().find(|(k, _)| k == "__namespace__").and_then(|(_, v)| {
+                if let VoxValue::Str(s) = v { Some(s.as_str()) } else { None }
+            });
+
+            if let Some(ns_str) = ns {
+                if let Some(c) = caps {
+                    if (ns_str == "fs" || ns_str == "process" || ns_str == "env" || ns_str == "clavis") && !c.contains(ns_str) {
+                        println!("Capability denied: script missing capability '{}'", ns_str);
+                        return Some(VoxValue::Null);
+                    }
+                }
+            }
+
+            match ns {
+                Some("fs") => match method {
+                    "read_file" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        match std::fs::read_to_string(path) {
+                            Ok(s) => Some(VoxValue::Str(s)),
+                            Err(_) => Some(VoxValue::Null),
+                        }
+                    }
+                    "write_file" => {
+                        let mut it = args.into_iter();
+                        let path = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let content = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        match std::fs::write(path, content) {
+                            Ok(_) => Some(VoxValue::Bool(true)),
+                            Err(_) => Some(VoxValue::Bool(false)),
+                        }
+                    }
+                    "list_dir" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => ".".to_string(),
+                        };
+                        if let Ok(entries) = std::fs::read_dir(path) {
+                            let list: Vec<VoxValue> = entries
+                                .filter_map(|e| e.ok())
+                                .map(|e| VoxValue::Str(e.path().to_string_lossy().to_string()))
+                                .collect();
+                            Some(VoxValue::List(list))
+                        } else {
+                            Some(VoxValue::List(vec![]))
+                        }
+                    }
+                    _ => None,
+                },
+                Some("env") => match method {
+                    "get" => {
+                        let name = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(std::env::var(name).map(VoxValue::Str).unwrap_or(VoxValue::Null))
+                    }
+                    _ => None,
+                },
+                Some("path") => match method {
+                    "join" => {
+                        let mut it = args.into_iter();
+                        let a = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let b = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let joined = std::path::Path::new(&a).join(b);
+                        Some(VoxValue::Str(joined.to_string_lossy().to_string()))
+                    }
+                    _ => None,
+                },
+                Some("clavis") => match method {
+                    "resolve" => {
+                        let name = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        
+                        let id = match std::str::FromStr::from_str(&name) {
+                            Ok(id) => id,
+                            Err(_) => return Some(VoxValue::Null),
+                        };
+                        
+                        let resolved = vox_clavis::resolve_secret_with_context(id, "script");
+                        if let Some(val) = resolved.value {
+                            Some(VoxValue::Str(val.expose_secret().to_string()))
+                        } else {
+                            Some(VoxValue::Null)
+                        }
+                    }
+                    _ => None,
+                },
+                Some("process") => match method {
+                    "spawn" | "run" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls.into_iter().filter_map(|v| {
+                                if let VoxValue::Str(s) = v { Some(s) } else { None }
+                            }).collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+                        
+                        let output = std::process::Command::new(cmd_name)
+                            .args(cmd_args)
+                            .output();
+                            
+                        match output {
+                            Ok(out) => {
+                                let mut res = Vec::new();
+                                res.push(("stdout".to_string(), VoxValue::Str(String::from_utf8_lossy(&out.stdout).to_string())));
+                                res.push(("stderr".to_string(), VoxValue::Str(String::from_utf8_lossy(&out.stderr).to_string())));
+                                res.push(("code".to_string(), VoxValue::Int(out.status.code().unwrap_or(0) as i64)));
+                                Some(VoxValue::Object(res))
+                            }
+                            Err(_) => Some(VoxValue::Null),
+                        }
+                    }
+                    _ => None,
+                },
+                Some("json") => match method {
+                    "parse" => {
+                        let s = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        match serde_json::from_str::<serde_json::Value>(&s) {
+                            Ok(v) => Some(json_to_vox(v)),
+                            Err(_) => Some(VoxValue::Null),
+                        }
+                    }
+                    "stringify" | "encode" => {
+                        let v = match args.into_iter().next() {
+                            Some(v) => v,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let j = vox_to_json(v);
+                        Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }
+        }
+
         _ => None,
+    }
+}
+
+fn vox_to_json(v: VoxValue) -> serde_json::Value {
+    match v {
+        VoxValue::Int(n) => serde_json::Value::Number(n.into()),
+        VoxValue::Float(f) => serde_json::json!(f),
+        VoxValue::Str(s) => serde_json::Value::String(s),
+        VoxValue::Bool(b) => serde_json::Value::Bool(b),
+        VoxValue::Null => serde_json::Value::Null,
+        VoxValue::List(ls) => {
+            serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect())
+        }
+        VoxValue::Object(fields) => {
+            let mut map = serde_json::Map::new();
+            for (k, v) in fields {
+                if k == "__namespace__" { continue; }
+                map.insert(k, vox_to_json(v));
+            }
+            serde_json::Value::Object(map)
+        }
+        VoxValue::Tuple(ls) => {
+            serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect())
+        }
+        _ => serde_json::Value::Null,
+    }
+}
+
+fn json_to_vox(v: serde_json::Value) -> VoxValue {
+    match v {
+        serde_json::Value::Null => VoxValue::Null,
+        serde_json::Value::Bool(b) => VoxValue::Bool(b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                VoxValue::Int(i)
+            } else {
+                VoxValue::Float(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::String(s) => VoxValue::Str(s),
+        serde_json::Value::Array(arr) => {
+            VoxValue::List(arr.into_iter().map(json_to_vox).collect())
+        }
+        serde_json::Value::Object(obj) => {
+            let mut fields = Vec::new();
+            for (k, v) in obj {
+                fields.push((k, json_to_vox(v)));
+            }
+            VoxValue::Object(fields)
+        }
     }
 }
 

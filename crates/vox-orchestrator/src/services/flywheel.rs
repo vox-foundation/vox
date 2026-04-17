@@ -2,19 +2,8 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::time::{interval, Duration};
 use vox_corpus::flywheel::{FlywheelState, FlywheelConfig, FlywheelSignal};
-use serde::Deserialize;
 use crate::Orchestrator;
 
-#[derive(Debug, Deserialize)]
-struct DomainProfilesConfig {
-    profiles: HashMap<String, DomainProfile>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DomainProfile {
-    #[serde(default)]
-    mix_config: Option<String>,
-}
 
 /// Background service that monitors corpus diversity and triggers training.
 pub struct FlywheelMonitor {

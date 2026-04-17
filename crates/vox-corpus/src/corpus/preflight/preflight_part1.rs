@@ -68,9 +68,14 @@ pub fn to_compact(src: &str) -> String {
 /// Returns a JSONL string adding a compact-format training pair.
 pub fn compact_variant(prompt: &str, pretty_response: &str, category: &str) -> String {
     let compact = to_compact(pretty_response);
+    let prompt_full = format!("{prompt} (compact, no whitespace)");
     serde_json::json!({
-        "prompt": format!("{prompt} (compact, no whitespace)"),
+        "prompt": prompt_full,
         "response": compact,
+        "messages": [
+            {"role": "user", "content": prompt_full},
+            {"role": "assistant", "content": compact}
+        ],
         "category": format!("{category}_compact"),
         "format": "vox_organic_compact",
         "schema_version": "vox_dogfood_v1",

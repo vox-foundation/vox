@@ -35,6 +35,7 @@ pub mod scaling;
 pub mod campaign_scheduler;
 pub mod embeddings;
 pub mod flywheel;
+pub mod topology_ingest;
 
 pub use campaign_scheduler::{CampaignSchedulePlan, CampaignScheduler, CampaignSchedulingMode};
 pub use discovery_gate::DiscoveryGate;

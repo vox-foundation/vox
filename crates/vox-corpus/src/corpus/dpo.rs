@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::ast_mutator;
+#[cfg(feature = "database")]
+use vox_db::VoxDb;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DpoPair {
@@ -82,6 +84,35 @@ pub fn generate_dpo_from_extract(config: &DpoConfig) -> anyhow::Result<usize> {
 
         if config.limit > 0 && count >= config.limit {
             break;
+        }
+    }
+
+    Ok(count)
+}
+
+/// Export DPO preference pairs from VoxDB (corrections vs original failures).
+#[cfg(feature = "database")]
+pub async fn export_dogfood_dpo(db: &VoxDb, limit: i64, output: &PathBuf) -> anyhow::Result<usize> {
+    use std::io::Write;
+    use std::fs::File;
+
+    let pairs = db.get_training_data(limit).await?;
+    let mut out_file = File::create(output)?;
+    let mut count = 0;
+
+    for pair in pairs {
+        if let Some(preferred) = pair.correction.as_ref().filter(|c: &&String| !c.is_empty()) {
+            let preferred_str: &str = preferred.as_str();
+            let dpo = DpoPair {
+                prompt: pair.prompt,
+                chosen: preferred_str.to_string(),
+                rejected: pair.response,
+                category: "agents_dogfood_dpo".to_string(),
+                source: Some("vox_db".to_string()),
+            };
+            let json = serde_json::to_string(&dpo)?;
+            writeln!(out_file, "{}", json)?;
+            count += 1;
         }
     }
 

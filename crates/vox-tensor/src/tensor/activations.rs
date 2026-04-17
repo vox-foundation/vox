@@ -11,6 +11,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D3(burn::tensor::activation::relu(t.clone())),
             Tensor::D4(t) => Tensor::D4(burn::tensor::activation::relu(t.clone())),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("relu: unsupported for int tensors"),
+            Tensor::Tuple2(_, _) => panic!("relu: unsupported for Tuple2"),
         }
     }
 
@@ -22,6 +23,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D3(t.clone().tanh()),
             Tensor::D4(t) => Tensor::D4(t.clone().tanh()),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("tanh: unsupported for int tensors"),
+            Tensor::Tuple2(_, _) => panic!("tanh: unsupported for Tuple2"),
         }
     }
 
@@ -33,6 +35,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D3(burn::tensor::activation::sigmoid(t.clone())),
             Tensor::D4(t) => Tensor::D4(burn::tensor::activation::sigmoid(t.clone())),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("sigmoid: unsupported for int tensors"),
+            Tensor::Tuple2(_, _) => panic!("sigmoid: unsupported for Tuple2"),
         }
     }
 
@@ -44,6 +47,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D3(burn::tensor::activation::gelu(t.clone())),
             Tensor::D4(t) => Tensor::D4(burn::tensor::activation::gelu(t.clone())),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("gelu: unsupported for int tensors"),
+            Tensor::Tuple2(_, _) => panic!("gelu: unsupported for Tuple2"),
         }
     }
 
@@ -55,6 +59,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D3(burn::tensor::activation::silu(t.clone())),
             Tensor::D4(t) => Tensor::D4(burn::tensor::activation::silu(t.clone())),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("silu: unsupported for Int tensors"),
+            Tensor::Tuple2(_, _) => panic!("silu: unsupported for Tuple2"),
         }
     }
 
@@ -80,6 +85,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D1Int(_) | Tensor::D2Int(_) => {
                 panic!("leaky_relu: unsupported for Int tensors")
             }
+            Tensor::Tuple2(_, _) => panic!("leaky_relu: unsupported for Tuple2"),
         }
     }
 
@@ -91,6 +97,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D3(burn::tensor::activation::softmax(t.clone(), dim)),
             Tensor::D4(t) => Tensor::D4(burn::tensor::activation::softmax(t.clone(), dim)),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("softmax: unsupported for Int tensors"),
+            Tensor::Tuple2(_, _) => panic!("softmax: unsupported for Tuple2"),
         }
     }
 }

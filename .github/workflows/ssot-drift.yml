@@ -1,0 +1,33 @@
+name: SSOT Drift Checker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for hardcoded versions
+        run: |
+          # Fails if any crate Cargo.toml has a hardcoded version instead of workspace inheritance
+          if grep -rnE '^version\s*=\s*"[^"]+"' crates/*/Cargo.toml; then
+            echo "::error title=SSOT Drift::Found hardcoded versions in crate Cargo.toml files. Use 'version.workspace = true'."
+            exit 1
+          fi
+          echo "All crates use workspace versioning."
+          
+      - name: Check vox-schema.json version matches workspace
+        run: |
+          WORKSPACE_VER=$(grep -oE '^version\s*=\s*"[^"]+"' Cargo.toml | cut -d '"' -f 2)
+          SCHEMA_VER=$(grep -oE '"version":\s*"[^"]+"' vox-schema.json | cut -d '"' -f 4)
+          if [ "$WORKSPACE_VER" != "$SCHEMA_VER" ]; then
+            echo "::error title=SSOT Drift::Version in vox-schema.json ($SCHEMA_VER) does not match workspace Cargo.toml ($WORKSPACE_VER)."
+            exit 1
+          fi
+          echo "vox-schema.json matches workspace version $WORKSPACE_VER."

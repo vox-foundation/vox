@@ -1,0 +1,10 @@
+fn main() {
+    print("Test with while loop")
+    let categories = ["a", "b"]
+    let mut i = 0
+    while i < categories.len() {
+        let cat = categories.get(i)
+        print(cat)
+        i = i + 1
+    }
+}

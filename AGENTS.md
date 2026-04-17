@@ -1,3 +1,11 @@
+---
+title: "AGENTS.md"
+description: "Documentation for AGENTS.md."
+category: "architecture"
+status: "current"
+training_eligible: true
+training_rationale: "Project architecture context."
+---
 # Agents Policy (Cross-Tool, Session-Critical)
 
 This file is the always-loaded policy surface for contributors and coding agents.
@@ -15,6 +23,7 @@ Primary navigation:
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
 - Research index: [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+- Agent discovery index: [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt)
 
 ## Research and Documentation Storage (IDE Agent Directive)
 
@@ -67,18 +76,57 @@ API key lifecycle checklist:
 All cryptographic logic MUST use the `vox-crypto` crate. We explicitly ban AEGIS, `ring`, `zig`-chains, and any wrapper dragging in `cmake` or `nasm` for C-assembly optimization on Windows. Pure-Rust `chacha20poly1305` is standard for AEAD. See:
 - Policy: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
 
+## VoxScript-First Glue Code (Required)
+
+All project automation — CI prep, corpus transforms, training pipelines, install helpers, data migrations — MUST be written as `.vox` files and executed via `vox run`. Do **not** introduce new `.ps1`, `.sh`, or `.py` glue scripts.
+
+**Why:** A single `vox run scripts/foo.vox` command shape is:
+- Type-checked by the Vox compiler before execution (`vox check scripts/foo.vox`)
+- Cross-platform (same file, same command on Windows/Linux/macOS)
+- Auditable via `vox.script.*` telemetry events
+- Free from shell-specific approval friction in IDE allowlists
+- A natural addition to the MENS training corpus
+
+**Execution tiers** (choose based on need):
+
+| Need | Command | Notes |
+|---|---|---|
+| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; ~50ms cold start |
+| File I/O, subprocess | `vox run scripts/foo.vox` | Native tier; content-hash cached |
+| Untrusted / sandboxed | `vox run --isolation wasm scripts/foo.vox` | Wasmtime WASI; explicit `--wasi-dir` |
+
+**Bootstrap exception:** `scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **retained as thin launchers only** (≤10 lines, no logic). They forward to `cargo run -p vox-cli -- run <args>` to solve the chicken-and-egg problem of needing `vox` to run `.vox` before `vox` is built.
+
+**Security invariants:**
+- Scripts that modify the Vox repository MUST be committed to VCS before an agent executes them
+- No `.vox` script may use `shell_exec` to bypass the compiler sandbox
+- Subprocess calls go through `vox-runtime` process primitives (telemetry-observable)
+- Use Clavis (`clavis.resolve(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
+
+**Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
+
+Full rationale, execution tier map, security model, and migration plan: [`docs/src/architecture/vox-as-glue-research-2026.md`](docs/src/architecture/vox-as-glue-research-2026.md)
+
 ## Cross-Platform Shell Discipline (Stable Rules)
 
-- **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for interactive terminal work and agent-driven shell steps so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
+- **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for the **two retained launcher files** and for interactive terminal work, so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
 - **CI vs local:** Repository CI jobs often run under **bash** on Linux self-hosted runners ([`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)); that does not override the **local/agent** preference for `pwsh` when you have it.
-- Prefer structured tooling and project CLIs (`vox`, `cargo`, `pnpm`, `uv`, `rg`) over ad hoc shell pipelines.
+- Prefer structured tooling and project CLIs (`vox`, `cargo`, `pnpm`, `rg`) over ad hoc shell pipelines. **`uv` and Python are no longer preferred** for project automation — use `vox run` instead.
 - **Dev launcher when `vox` is missing from `PATH`:** [`scripts/windows/vox-dev.ps1`](scripts/windows/vox-dev.ps1) / [`scripts/vox-dev.sh`](scripts/vox-dev.sh) — forwards argv to `vox` via `cargo run -p vox-cli` from the workspace root (optional env: `VOX_REPO_ROOT`, `VOX_USE_PATH=1`, `VOX_DEV_FEATURES`, `VOX_DEV_QUIET=1`). See [`docs/src/reference/cli.md`](docs/src/reference/cli.md) (heading **Bootstrap / dev launcher (missing `vox` on `PATH`)**).
 - Do not rely on shell-specific one-liners as policy boundaries; approvals and allowlists vary across IDEs.
 - Keep commands decomposed into clear steps when safety or portability is at risk.
 
-Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md).
+Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md). If Claude Code is in use, also see [`CLAUDE.md`](CLAUDE.md) for Claude-specific additions.
+For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc` rule files control build environment, CI runner conventions, CLI registry, and source hygiene.
 
 Research synthesis (IDE matchers, PowerShell-first, SSOT terminal policy): [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](docs/src/architecture/terminal-exec-policy-research-findings-2026.md). Machine-checked policy entrypoint: [`docs/src/architecture/terminal-ast-validation-research-2026.md`](docs/src/architecture/terminal-ast-validation-research-2026.md).
+
+## Markdown Hygiene and Code Snippets (Doctest Policy)
+
+- All ````vox``` blocks in documentation must compile cleanly via `vox-doc-pipeline`'s dynamic doctest runner.
+- Always write inline ````vox``` blocks, do NOT use mdBook `{{#include}}` directives for new code.
+- If rendering invalid code for illustrative reasons, disable validation explicitly by using `// vox:skip` inside the snippet. 
+- You MUST enforce syntax correctness programmatically over legacy include files. 
 
 ## Retired Surfaces (LLM Guard)
 
@@ -97,24 +145,18 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 
 ## Structural Limits & Code Quality
 
-Agents and contributors must strictly adhere to these invariants. These take precedence over general coding guidelines.
+Agents and contributors must strictly adhere to architectural invariants. Ensure you verify against skeleton code limits (TOESTUB), God Object constraints, and maximum sprawl limits.
 
-- **TOESTUB / Skeleton Code:** Structural quality is enforced via TOESTUB. Finding IDs (`stub/todo`, `stub/unimplemented`, `empty-body`, etc.) in non-test code are CI blockers.
-- **Verification Ritual:** Before completing work, mentally (or physically) run `vox stub-check --path <changed-dirs>` to ensure no skeleton code leaked.
-- **God Object Limit (Multi-Tier):** Soft 300 / Warning 400 / Hard Error 500 lines or 12 methods per struct/class. Refactor into domains before adding logic. This aligns with optimal chunking constraints for MENS QLoRA pipelines (`toestub-line-limit-mens-research-2026.md`).
-- **Sprawl Limit:** Maximum 20 files per directory. Create sub-modules if you exceed this.
-- **Frozen Modules:** Do not expose new `pub` items in modules marked as FROZEN.
-- **Scripting Restraint:** Do not write new `.py` files in the `scripts/` directory; prefer Rust tooling.
-- **Documentation Hygiene:** All `.vox` or `.tsx` code blocks in `docs/src/` must use the `{{#include}}` directive (pulling from `examples/golden/`) or be marked with `// vox:skip` to ensure examples are machine-verified.
-- **Completion Policy:** Understand `contracts/operations/completion-policy.v1.yaml` (Tier A, Tier B, Tier C detectors).
+**Full details:** See [`docs/agents/governance.md`](docs/agents/governance.md) for the complete policy, line limits, and module freeze rules.
 
 ## Related Operational Surfaces
 
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
-- Workspace artifact hygiene (Cargo target sprawl, `mens/runs`, scratch): [`docs/agents/governance.md`](docs/agents/governance.md) — `vox ci artifact-audit` / `artifact-prune`, retention SSOT [`contracts/operations/workspace-artifact-retention.v1.yaml`](contracts/operations/workspace-artifact-retention.v1.yaml)
+- Workspace artifact hygiene and governance policy: [`docs/agents/governance.md`](docs/agents/governance.md)
+- Agent instruction architecture: [`docs/src/contributors/agent-instruction-architecture.md`](docs/src/contributors/agent-instruction-architecture.md)
 - Continuation prompt strategy: [`docs/src/contributors/continuation-prompt-engineering.md`](docs/src/contributors/continuation-prompt-engineering.md)
-- Governance and TOESTUB policy: [`docs/agents/governance.md`](docs/agents/governance.md)
+- Machine-readable feature matrix: [`docs/agents/ai-ide-feature-matrix-2026.json`](docs/agents/ai-ide-feature-matrix-2026.json); full doc inventory: [`docs/agents/doc-inventory.json`](docs/agents/doc-inventory.json)
 
 ## Archival Protocol (LLM Guard)
 
-Do **NOT** read, ingest, or attempt to modify files in the `archive/` or `docs/src/archive/` directories when planning new features or writing new code. These directories are tombstoned. They exist for manual human reference only. If an LLM includes an archived pattern in new code, it is considered a severe system hallucination.
+Do **NOT** read, ingest, or attempt to modify files in the `archive/` or `docs/src/archive/` directories when planning new features or writing new code. These directories are tombstoned. They exist for manual human reference only. If an LLM includes an archived pattern in new code, it is considered a severe system hallucination. If you need historical context about an archived pattern, ask the human operator to retrieve it; do not ingest the archive autonomously. See [`docs/agents/governance.md`](docs/agents/governance.md) §Nomenclature for canonical migration paths.

@@ -19,7 +19,7 @@ tracing = { workspace = true }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-populi = { workspace = true, optional = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 vox-compiler = { workspace = true }

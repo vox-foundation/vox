@@ -8,12 +8,24 @@ This file is Antigravity-specific. It narrows behavior for this repo without rep
 - Use this file only for Antigravity-specific behavior and shell discipline.
 - Keep rules concise, concrete, and executable.
 
+## VoxScript-First Glue (Antigravity Reinforcement)
+
+This repo has adopted `.vox` files as the **sole glue language**. Antigravity agents MUST follow this:
+
+- Write all new automation scripts as `.vox` and run them via `vox run scripts/foo.vox`
+- Use `vox run --interp scripts/foo.vox` for pure computation (no compile step, ~50ms)
+- Use `vox run scripts/foo.vox` for scripts needing file I/O or subprocess
+- **Never** generate a new `.ps1`, `.sh`, or `.py` automation script; point the user to the existing thin launchers if the bootstrap issue arises
+- The two retained launchers (`scripts/windows/vox-dev.ps1`, `scripts/vox-dev.sh`) are exempt — they are thin forwarders only
+
+See: [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md) and [`docs/src/architecture/vox-as-glue-research-2026.md`](docs/src/architecture/vox-as-glue-research-2026.md)
+
 ## Shell Environment
 
-- Workspace environment is Windows; **PowerShell is canonical** here.
+- Workspace environment is Windows; **PowerShell is canonical** for the two retained launcher files and for interactive terminal work.
 - Repo-wide doctrine (see [`AGENTS.md`](AGENTS.md)): on **any** OS, prefer **`pwsh`** for terminal/agent shell work when installed, so behavior aligns with `vox shell check` and `contracts/terminal/exec-policy.v1.yaml`.
-- Prefer PowerShell-native commands for filesystem and process tasks.
-- Use project tools directly (`vox`, `cargo`, `pnpm`, `uv`, `rg`, `git`) instead of shell wrappers.
+- Prefer PowerShell-native commands for filesystem and process tasks **only when** not calling into project automation (which should be `.vox`).
+- Use project tools directly (`vox`, `cargo`, `pnpm`, `rg`, `git`) instead of shell wrappers.
 
 ## Command Shape Rules (Important)
 
@@ -29,12 +41,20 @@ Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vo
 ## Tooling Preferences
 
 - Search text: `rg`
-- Filesystem listing and checks: `Get-ChildItem`, `Test-Path`, `Resolve-Path`
+- Filesystem listing and checks: `Get-ChildItem`, `Test-Path`, `Resolve-Path` (interactive terminal only; use `vox run` for scripted file ops)
 - File reads/writes from the IDE: use structured read/edit tools when available
-- Package managers: `pnpm` for JS/TS, `uv` for Python
+- Package managers: `pnpm` for JS/TS
+- **Python (`uv`) is NOT a preferred automation tool** — use `vox run` instead
 
 ## Safety Posture
 
 - Treat allowlists as convenience, not as a hard security boundary.
 - Keep destructive operations explicitly denied in IDE policy where supported.
 - When unsure, choose decomposition and explicitness over shell cleverness.
+
+## Cursor IDE overlay
+
+For Cursor-specific rules, see [`.cursor/rules/`](.cursor/rules/).
+The `build-environment.mdc` and `retired-surfaces.mdc` rules supplement the PowerShell discipline above.
+
+See [agent-instruction-architecture.md](docs/src/contributors/agent-instruction-architecture.md) for the instruction layering model.

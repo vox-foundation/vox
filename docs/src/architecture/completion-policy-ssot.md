@@ -5,6 +5,7 @@ category: "architecture"
 status: "current"
 last_updated: 2026-04-05
 training_eligible: true
+training_rationale: "Key architecture constraints and definitions required for agent context"
 
 schema_type: "TechArticle"
 ---

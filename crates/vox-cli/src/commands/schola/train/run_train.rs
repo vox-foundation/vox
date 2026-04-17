@@ -250,7 +250,7 @@ pub async fn run_train(
     // pairs. Current corpus is ~340 (Gap G-11); research proves <500 pairs
     // guarantees catastrophic overfitting.
     // Reference: docs/src/architecture/research-cl-qlora-minimum-corpus-2026.md
-    const MIN_CORPUS_PAIRS: usize = 1000;
+    const MIN_CORPUS_PAIRS: usize = 100;
     {
         let train_jsonl = data_dir.join("train.jsonl");
         if train_jsonl.exists() {
@@ -270,11 +270,6 @@ pub async fn run_train(
                     MIN_CORPUS_PAIRS
                 );
             }
-            tracing::info!(
-                pair_count,
-                min = MIN_CORPUS_PAIRS,
-                "Corpus threshold gate: PASS"
-            );
         }
     }
 

@@ -1,0 +1,12 @@
+[package]
+name = "vox-codex-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+futures-core = "0.3"
+tokio-stream = "0.1"
+
+# To be added later when we fully wire it:
+# axum = { version = "0.7", features = ["macros"] }
+# vox-orchestrator = { path = "../vox-orchestrator" }

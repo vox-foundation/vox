@@ -17,12 +17,21 @@ pub(super) fn emit_stmt(
             ..
         } => {
             let mut_kw = if *mutable { "mut " } else { "" };
-            format!(
-                "{pad}let {}{} = {};\n",
-                mut_kw,
-                emit_pattern(pattern, is_route, is_actor, mutation_tx),
-                emit_expr_with(value, is_route, is_actor, mutation_tx)
-            )
+            if is_actor {
+                format!(
+                    "{pad}let {}{} = ctx.heap.allocate({});\n",
+                    mut_kw,
+                    emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                    emit_expr_with(value, is_route, is_actor, mutation_tx)
+                )
+            } else {
+                format!(
+                    "{pad}let {}{} = {};\n",
+                    mut_kw,
+                    emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                    emit_expr_with(value, is_route, is_actor, mutation_tx)
+                )
+            }
         }
         HirStmt::Assign { target, value, .. } => {
             format!(
@@ -77,6 +86,14 @@ pub(super) fn emit_stmt(
                 "{pad}while {} {{\n",
                 emit_expr_with(condition, is_route, is_actor, mutation_tx)
             );
+            if is_actor {
+                s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
+                s.push_str(&format!("{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"));
+                s.push_str(&format!("{pad}        ctx.reduction_count = 0;\n"));
+                s.push_str(&format!("{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"));
+                s.push_str(&format!("{pad}        tokio::task::yield_now().await;\n"));
+                s.push_str(&format!("{pad}    }}\n"));
+            }
             for stmt in body {
                 s.push_str(&emit_stmt(
                     stmt,
@@ -91,6 +108,14 @@ pub(super) fn emit_stmt(
         }
         HirStmt::Loop { body, .. } => {
             let mut s = format!("{pad}loop {{\n");
+            if is_actor {
+                s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
+                s.push_str(&format!("{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"));
+                s.push_str(&format!("{pad}        ctx.reduction_count = 0;\n"));
+                s.push_str(&format!("{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"));
+                s.push_str(&format!("{pad}        tokio::task::yield_now().await;\n"));
+                s.push_str(&format!("{pad}    }}\n"));
+            }
             for stmt in body {
                 s.push_str(&emit_stmt(
                     stmt,

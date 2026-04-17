@@ -80,13 +80,16 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         let search_query = tmpl.1.replace("{cmd}", cmd);
         let fake_file = "crates/vox-cli/src/commands/mod.rs".to_string();
         let conversation = json!({
-            "prompt": "",
-            "response": "",
+            "prompt": query,
+            "response": format!(
+                "The `vox {}` command is used to {}. It is implemented in `{}`. Usage:\n\n```\nvox {}\n```",
+                cmd, desc, fake_file, cmd
+            ),
             "category": "codebase_search",
             "record_type": "conversation",
             "schema_version": "vox_dogfood_v1",
             "format": "conversation",
-            "turns": [
+            "messages": [
                 { "role": "user", "content": query },
                 {
                     "role": "assistant",
@@ -179,14 +182,18 @@ fn emit_search_trace(
     fake_file: &str,
     context_name: &str,
 ) -> anyhow::Result<()> {
+    let final_answer = format!(
+        "Based on the search results, `{}` is implemented in `{}`. The implementation handles the core logic for this feature in the Vox ecosystem.",
+        context_name, fake_file
+    );
     let conversation = json!({
-        "prompt": "",
-        "response": "",
+        "prompt": query,
+        "response": final_answer,
         "category": "codebase_search",
         "record_type": "conversation",
         "schema_version": "vox_dogfood_v1",
         "format": "conversation",
-        "turns": [
+        "messages": [
             { "role": "user", "content": query },
             {
                 "role": "assistant",
@@ -201,10 +208,7 @@ fn emit_search_trace(
             },
             {
                 "role": "assistant",
-                "content": format!(
-                    "Based on the search results, `{}` is implemented in `{}`. The implementation handles the core logic for this feature in the Vox ecosystem.",
-                    context_name, fake_file
-                )
+                "content": final_answer
             }
         ]
     });
@@ -220,13 +224,13 @@ fn emit_search_trace_with_answer(
     answer: &str,
 ) -> anyhow::Result<()> {
     let conversation = json!({
-        "prompt": "",
-        "response": "",
+        "prompt": query,
+        "response": answer,
         "category": "codebase_search",
         "record_type": "conversation",
         "schema_version": "vox_dogfood_v1",
         "format": "conversation",
-        "turns": [
+        "messages": [
             { "role": "user", "content": query },
             {
                 "role": "assistant",

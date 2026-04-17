@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   check-links:
     runs-on: ubuntu-latest
@@ -14,5 +17,13 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v1.9.3
         with:
-          args: --base . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 --exclude '.*cursor\.com/.*' --exclude '.*sigstore\.dev/.*' --exclude '.*tanstack\.com/.*' --exclude '^https://slsa\\.dev/how-to/get-started/?$' --exclude 'docs/src/archive/' --exclude 'crates/.*' --exclude 'scripts/.*' --exclude '\.agents/.*' --exclude 'docs/news/templates/.*' --exclude '.*iclr\.cc/.*' --exclude '.*ascentcore\.com/.*' --exclude '.*eslint-react.*' --exclude '.*modelcontextprotocol\.io.*' --exclude '.*docs\.doppler\.com.*' --exclude '.*learn\.microsoft\.com.*' --exclude '.*storage\.googleapis\.com.*' --exclude '.*babel\.dev.*' --exclude '.*diva-portal\.org.*' --exclude '.*\.gemini/antigravity/.*' '**/*.md'
+          args: --base . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 '**/*.md'
           fail: true
+
+      - name: Link Checker Guidance
+        if: failure()
+        run: |
+          echo "::error title=Link Checker Failure::Broken links were detected. Please review the output above."
+          echo "::notice title=Whitelist Guidance::To ignore a persistent or archival link, add it to the project whitelist."
+          echo "Whitelist Location: .lycheeignore"
+          echo "Action Required: Decide if the link should be fixed in Markdown or added to the whitelist for archival maintenance."

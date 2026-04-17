@@ -117,9 +117,22 @@ impl AiTaskProcessor {
         prior_notes: &str,
         route: vox_ludus::StreamRoute<'_>,
     ) -> String {
+        let mut history_block = String::new();
+        if !task.transcript.is_empty() {
+            history_block.push_str("### Prior Agent Turns (Context)\n");
+            // Inject a max of 3 relevant history turns (Surgical Injection phase 1).
+            for turn in task.transcript.iter().rev().take(3).rev() {
+                history_block.push_str(&format!(
+                    "[{}] (Agent: {}):\n{}\n\n",
+                    turn.agent_id, turn.agent_name, turn.message
+                ));
+            }
+        }
+
         let prompt = format!(
-            "Task: {}\n\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
+            "Task: {}\n\n{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
             task.description,
+            history_block,
             phase.as_str(),
             task.task_category,
             usage_model,
@@ -339,6 +352,42 @@ impl TaskProcessor for AiTaskProcessor {
                     .and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
             )
             .await;
+
+        // Record the final condensed summary back into the task's transcript for future handoffs.
+        let agent_name = {
+            if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
+                crate::sync_lock::rw_read(&*queue_lock).name.clone()
+            } else {
+                "unknown".to_string()
+            }
+        };
+
+        // We update the task transcript in the orchestrator's state so it persists
+        // across handoffs if the task is re-queued or migrated.
+        let turn_opt = {
+            if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
+                let mut queue = crate::sync_lock::rw_write(&*queue_lock);
+                if let Some(t) = queue.find_task_mut(task.id) {
+                    t.append_turn(agent_id, agent_name.clone(), full_text.clone());
+                    t.transcript.last().cloned()
+                } else if let Some(t) = queue.current_task_mut() {
+                    if t.id == task.id {
+                        t.append_turn(agent_id, agent_name, full_text.clone());
+                        t.transcript.last().cloned()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(turn) = turn_opt {
+            self.orchestrator.record_workflow_turn(task.id, &turn).await;
+        }
 
         Ok(task.id)
     }
@@ -663,6 +712,7 @@ impl AgentFleet {
                             &name,
                             None,
                             Some("scaling_load"),
+                            None,
                             None,
                         );
                         self.spawns_this_tick

@@ -59,7 +59,7 @@ pub(super) async fn list_nodes(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
 ) -> Result<Json<PopuliRegistryFile>, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for node list".into(),
@@ -80,7 +80,7 @@ pub(super) async fn join_node(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(mut node): Json<NodeRecord>,
 ) -> Result<Json<NodeRecord>, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for join".into(),
@@ -159,7 +159,7 @@ pub(super) async fn heartbeat(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(mut node): Json<NodeRecord>,
 ) -> Result<Json<NodeRecord>, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for heartbeat".into(),
@@ -206,7 +206,7 @@ pub(super) async fn leave_node(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<LeaveRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for leave".into(),
@@ -360,7 +360,7 @@ pub(super) async fn exec_lease_grant(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<RemoteExecLeaseGrantRequest>,
 ) -> Result<Json<RemoteExecLeaseGrantResponse>, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for exec lease grant".into(),
@@ -430,7 +430,7 @@ pub(super) async fn exec_lease_renew(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<RemoteExecLeaseRenewRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for exec lease renew".into(),
@@ -470,7 +470,7 @@ pub(super) async fn exec_lease_release(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<RemoteExecLeaseReleaseRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for exec lease release".into(),
@@ -508,7 +508,7 @@ pub(super) async fn exec_lease_list(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
 ) -> Result<Json<RemoteExecLeaseListResponse>, ResponseErr> {
-    if !auth_allows_admin_route(ctx) {
+    if !auth_allows_admin_route(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: mesh/admin bearer required for exec lease list".into(),
@@ -537,7 +537,7 @@ pub(super) async fn admin_exec_lease_revoke(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<AdminExecLeaseRevokeRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_admin_route(ctx) {
+    if !auth_allows_admin_route(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: mesh/admin bearer required for exec lease revoke".into(),
@@ -597,7 +597,7 @@ pub(super) async fn deliver_a2a(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<A2ADeliverRequest>,
 ) -> Result<Json<A2ADeliverResponse>, ResponseErr> {
-    if !auth_allows_deliver(ctx) {
+    if !auth_allows_deliver(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: submitter/mesh/admin token required for a2a/deliver".into(),
@@ -719,7 +719,7 @@ pub(super) async fn admin_quarantine(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<AdminQuarantineRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_admin_route(ctx) {
+    if !auth_allows_admin_route(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: mesh/admin bearer required for quarantine".into(),
@@ -746,7 +746,7 @@ pub(super) async fn admin_maintenance(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<AdminMaintenanceRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_admin_route(ctx) {
+    if !auth_allows_admin_route(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: mesh/admin bearer required for maintenance".into(),
@@ -791,7 +791,7 @@ pub(super) async fn a2a_lease_renew(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<A2ALeaseRenewRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for lease renew".into(),
@@ -854,7 +854,7 @@ pub(super) async fn a2a_inbox(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<A2AInboxRequest>,
 ) -> Result<Json<A2AInboxResponse>, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for a2a/inbox".into(),
@@ -960,7 +960,7 @@ pub(super) async fn a2a_ack(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<A2AAckRequest>,
 ) -> Result<StatusCode, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for a2a/ack".into(),
@@ -994,7 +994,7 @@ pub(super) async fn dispatch_script(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> Result<Json<DispatchResponse>, ResponseErr> {
-    if !auth_allows_deliver(ctx) {
+    if !auth_allows_deliver(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: submitter/mesh/admin token required for dispatch".into(),
@@ -1124,7 +1124,7 @@ pub(super) async fn dispatch_results_poll(
     Extension(ctx): Extension<PopuliAuthContext>,
     axum::extract::Path(dispatch_id): axum::extract::Path<String>,
 ) -> Result<Json<DispatchResponse>, ResponseErr> {
-    if !auth_allows_deliver(ctx) {
+    if !auth_allows_deliver(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: submitter/mesh/admin token required for dispatch polls".into(),
@@ -1152,7 +1152,7 @@ pub(super) async fn execute_on_worker(
     Extension(ctx): Extension<PopuliAuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> Result<Json<DispatchResponse>, ResponseErr> {
-    if !auth_allows_worker_plane(ctx) {
+    if !auth_allows_worker_plane(&ctx) {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: worker/mesh/admin token required for worker execution".into(),

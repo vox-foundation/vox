@@ -1,3 +1,10 @@
+---
+title: "Doc Quality Verification"
+description: "Agent support documentation for doc quality verification"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Documentation quality: verification and progress tracking
 
 ## After each documentation batch

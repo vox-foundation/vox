@@ -113,6 +113,8 @@ pub enum SecretId {
     VoxScientiaCrossrefMailto,
     VoxMeshBootstrapToken,
     VoxMeshBootstrapExpiresUnixMs,
+    VoxIdentityKeyPath,
+    VoxIdentityMasterPwd,
     VoxMeshEnabled,
     VoxMeshMode,
     VoxMeshNodeId,
@@ -492,7 +494,9 @@ impl SecretId {
             | SecretId::VoxDataCiteRepository
             | SecretId::TavilyApiKey
             | SecretId::TavilyProject
-            | SecretId::VoxDataCitePassword => SecretMetadata {
+            | SecretId::VoxDataCitePassword
+            | SecretId::VoxIdentityKeyPath
+            | SecretId::VoxIdentityMasterPwd => SecretMetadata {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::ApiKey,
                 persistable_account_secret: true,

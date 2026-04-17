@@ -45,3 +45,37 @@ pub(super) fn aligned_prefix_token_len(
 
     Ok(matched)
 }
+
+/// Align byte-level syntax spans (from AST) to token indices and weights.
+pub(super) fn align_syntax_spans_to_tokens(
+    encoding: &tokenizers::Encoding,
+    spans: &[vox_tensor::data::SyntaxSpan],
+    trunc_offset: usize,
+) -> Vec<f32> {
+    let mut weights = vec![1.0; encoding.len()];
+    let offsets = encoding.get_offsets();
+    
+    // Safety check: offsets must match encoding length
+    if offsets.len() != weights.len() {
+        return weights;
+    }
+
+    for span in spans {
+        for (i, (start, end)) in offsets.iter().enumerate() {
+            // Check if token intersects with span
+            if *start < span.end && *end > span.start {
+                weights[i] = weights[i].max(span.weight);
+            }
+        }
+    }
+
+    if trunc_offset > 0 {
+        if trunc_offset < weights.len() {
+            weights[trunc_offset..].to_vec()
+        } else {
+            vec![1.0]
+        }
+    } else {
+        weights
+    }
+}

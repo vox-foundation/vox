@@ -16,3 +16,7 @@ sources:
   - path: mens/data/mix_sources/attention_dogfood.jsonl
     weight: 5.0
     optional: true
+  - path: target/dogfood/workflow_traces.jsonl
+    weight: 2.0
+    record_format: workflow_trace
+    optional: true

@@ -118,9 +118,26 @@ impl Parser {
     }
 
     pub(crate) fn recover_to_top_level(&mut self) {
+        let mut brace_depth = 0;
         loop {
             match self.peek() {
                 Token::Eof => break,
+                Token::LBrace => {
+                    brace_depth += 1;
+                    self.advance();
+                }
+                Token::RBrace => {
+                    if brace_depth > 0 {
+                        brace_depth -= 1;
+                        self.advance();
+                        if brace_depth == 0 {
+                            break;
+                        }
+                    } else {
+                        self.advance();
+                        break;
+                    }
+                }
                 Token::Fn
                 | Token::AtComponent
                 | Token::AtIsland
@@ -147,15 +164,7 @@ impl Parser {
                 | Token::Let
                 | Token::Agent
                 | Token::Environment
-                | Token::Async => break,
-                Token::RBrace => {
-                    self.advance();
-                    break;
-                }
-                Token::Newline => {
-                    self.advance();
-                    break;
-                }
+                | Token::Async if brace_depth == 0 => break,
                 _ => {
                     self.advance();
                 }

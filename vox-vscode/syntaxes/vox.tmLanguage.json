@@ -103,12 +103,16 @@
           "match": "(\\.|,|:|;|->|\\?|!|\\|)"
         },
         {
-          "name": "keyword.declaration.vox",
-          "match": "\\b(fn|type|actor|workflow|activity|struct|enum|trait|impl|pub|const|message|state|routes|on|to|from|import|use)\\b"
+          "name": "storage.type.vox",
+          "match": "\\b(fn|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use)\\b"
+        },
+        {
+          "name": "storage.modifier.vox",
+          "match": "\\b(pub|const|async|mut)\\b"
         },
         {
           "name": "keyword.control.vox",
-          "match": "\\b(if|else|for|while|match|return|as|try|catch|throw|async|await|with|spawn|yield)\\b"
+          "match": "\\b(if|else|for|while|match|return|as|try|catch|throw|await|with|spawn|yield)\\b"
         },
         {
           "name": "keyword.other.http-method.vox",

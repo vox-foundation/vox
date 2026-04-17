@@ -1,4 +1,4 @@
-﻿use schemars::JsonSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -71,6 +71,9 @@ pub struct ChatMessageParams {
     /// Optional correlation id; used for retrieval when `trace_id` is unset.
     #[serde(default)]
     pub correlation_id: Option<String>,
+    /// Multimodal attachments bounded by specific MIME types.
+    #[serde(default)]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 fn default_chat_history_session_id() -> String {
@@ -119,6 +122,9 @@ pub struct InlineEditParams {
     /// Optional tenant/session partition key for usage attribution.
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Multimodal attachments bounded by specific MIME types.
+    #[serde(default)]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 /// Successful inline edit payload returned to the editor host.
@@ -211,6 +217,9 @@ pub struct PlanParams {
     /// Reserved: `local_first` | `cloud_first` | `balanced` for multi-answer orchestration.
     #[serde(default)]
     pub answerer_profile: Option<String>,
+    /// Multimodal attachments bounded by specific MIME types.
+    #[serde(default)]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-dei-d` is available.

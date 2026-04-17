@@ -64,5 +64,24 @@ pub struct ChatCompletionRequest<'a> {
 #[derive(Debug, Serialize)]
 pub struct ChatMessageTurn<'a> {
     pub role: &'a str,
-    pub content: &'a str,
+    pub content: ChatMessageContent<'a>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(untagged)]
+pub enum ChatMessageContent<'a> {
+    Text(&'a str),
+    Parts(Vec<ChatMessagePart<'a>>),
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ChatMessagePart<'a> {
+    Text { text: &'a str },
+    ImageUrl { image_url: ImageUrl<'a> },
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ImageUrl<'a> {
+    pub url: &'a str,
 }

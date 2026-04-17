@@ -9,6 +9,7 @@ pub fn forward_masked_ce(
     prefix_len: usize,
     trunc_offset: usize,
     sample_weight: f64,
+    token_weights: Option<&[f32]>,
     config: &LoraTrainingConfig,
     device: &Device,
 ) -> Result<MaskedCeForward> {
@@ -38,7 +39,7 @@ pub fn forward_masked_ce(
     };
     let last_k_start = ids_len.saturating_sub(ce_last_k);
 
-    let mask_vec: Vec<f32> = (0..ids_len - 1)
+    let mut mask_vec: Vec<f32> = (0..ids_len - 1)
         .map(|i| {
             let target_idx = i + 1;
             if target_idx >= prompt_len && target_idx >= last_k_start {
@@ -48,6 +49,20 @@ pub fn forward_masked_ce(
             }
         })
         .collect();
+    
+    if let Some(tw) = token_weights {
+        for (i, &w) in tw.iter().enumerate() {
+            let target_idx = i + 1;
+            if target_idx < ids_len {
+                 // targets[i] corresponds to tw[target_idx]
+                 // mask_vec[i] is the weight for predicting target_idx
+                 if i < mask_vec.len() {
+                     mask_vec[i] *= w;
+                 }
+            }
+        }
+    }
+
     let mask = candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device)?;
 
     let mask_sum = mask.sum_all()?.to_scalar::<f32>()?;
@@ -81,5 +96,6 @@ pub fn forward_masked_ce(
         loss_scalar,
         supervised_tokens: mask_sum.max(0.0) as u64,
         theoretical_tokens: (ids_len.saturating_sub(1)) as u64,
+        syntax_weight_sum: mask_sum,
     })
 }

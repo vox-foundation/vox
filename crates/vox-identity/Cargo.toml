@@ -1,0 +1,17 @@
+[package]
+name = "vox-identity"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+vox-crypto = { workspace = true }
+argon2 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+rand = { workspace = true }
+dirs = { workspace = true }
+chrono = { workspace = true }
+hex = "0.4.3"

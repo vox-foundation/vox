@@ -32,7 +32,7 @@ pub(crate) enum LintKind {
     UnknownCategory { value: String },
     UnknownStatus { value: String },
     UnknownSchemaType { value: String },
-    RawVoxCodeBlock,
     BrokenIncludeAnchor { file: String, anchor: String },
     WholeFileIncludeHasTrainingHeader { file: String },
+    DocTestFailed { msg: String },
 }

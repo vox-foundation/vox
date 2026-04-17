@@ -5,12 +5,12 @@ edition.workspace = true
 description = "Centralized configuration and env/default resolution for Vox tooling"
 
 [dependencies]
-serde       = { workspace = true }
-toml        = { workspace = true }
+serde       = { workspace = true, features = ["derive"] }
+toml.workspace = true
 serde_json  = { workspace = true }
 tracing     = { workspace = true }
 vox-clavis  = { workspace = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

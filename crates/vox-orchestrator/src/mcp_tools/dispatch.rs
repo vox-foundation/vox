@@ -1,4 +1,4 @@
-﻿//! `handle_tool_call` routing for all static MCP tools.
+//! `handle_tool_call` routing for all static MCP tools.
 //!
 //! ## Persisted tool args (Ludus / raw `tool_call` rows)
 //! After each dispatch, when Codex is attached, stored payloads use
@@ -12,7 +12,7 @@ use crate::mcp_tools::{
     benchmark_tools, browser_tools, chat_tools, code_validator, codex_tools, compiler_tools,
     db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, news_tools,
     openclaw_tools, oratio_tools, persistence_tools, populi_tools, project_init_tools,
-    questioning_tools, repo_catalog_tools, repo_index, scientia_tools, speech_pipeline_tools,
+    questioning_tools, rag_tools, repo_catalog_tools, repo_index, scientia_tools, speech_pipeline_tools,
     task_tools, toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, clavis_tools,
 };
 
@@ -159,6 +159,9 @@ async fn handle_tool_call_inner(
     args: serde_json::Value,
 ) -> Result<String, anyhow::Error> {
     match name {
+        "vox_visual_rag_query" => {
+            Ok(rag_tools::visual_rag_query(state, serde_json::from_value(args)?).await)
+        }
         "vox_submit_task" => {
             Ok(task_tools::submit_task(state, serde_json::from_value(args)?).await)
         }

@@ -12,11 +12,16 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         HirExpr::Ident(name, _) => {
             if let Some(val) = interp.scope.get(name) {
                 Ok(val.clone())
-            } else if let Some(val) = super::builtins::call_global_builtin(name, vec![]) {
-                // Some globals like `print` are looked up without args on first access
-                // and called via HirExpr::Call. Return a sentinel Fn that wraps the global.
-                let _ = val; // don't short-circuit; fall through to undefined
-                Err(EvalError::UndefinedVariable(name.clone()))
+            } else if matches!(
+                name.as_str(),
+                "print" | "range" | "str" | "int" | "float" | "len" | "assert"
+            ) {
+                // Return a placeholder function for builtins
+                Ok(VoxValue::Fn {
+                    params: vec!["args".into()],
+                    body: vec![], // Not used for builtins
+                    env: interp.scope.clone(),
+                })
             } else {
                 Err(EvalError::UndefinedVariable(name.clone()))
             }
@@ -226,7 +231,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             for a in args {
                 eval_args.push(eval_expr(interp, &a.value)?);
             }
-            if let Some(r) = super::builtins::call_builtin_method(&o, method, eval_args) {
+            if let Some(r) = super::builtins::call_builtin_method(&o, method, eval_args, interp.caps.as_ref()) {
                 Ok(r)
             } else {
                 Err(EvalError::AssertionFailed(format!(
@@ -272,6 +277,23 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             } else {
                 Err(EvalError::TypeError {
                     expected: "List",
+                    found: "other".into(),
+                })
+            }
+        }
+        HirExpr::FieldAccess(obj, field, _) => {
+            let o = eval_expr(interp, obj)?;
+            if let VoxValue::Object(fields) = o {
+                fields
+                    .iter()
+                    .find(|(k, _)| k == field)
+                    .map(|(_, v)| v.clone())
+                    .ok_or_else(|| {
+                        EvalError::AssertionFailed(format!("Field {} not found on object", field))
+                    })
+            } else {
+                Err(EvalError::TypeError {
+                    expected: "Object",
                     found: "other".into(),
                 })
             }

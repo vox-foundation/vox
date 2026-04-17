@@ -753,6 +753,7 @@ mod orch_smoke {
         let orch = Orchestrator::new(OrchestratorConfig {
             planning_enabled: true,
             planning_router_enabled: true,
+            planning_auto_mode_enabled: true,
             ..OrchestratorConfig::for_testing()
         });
         let task_id = orch
@@ -786,6 +787,7 @@ mod orch_smoke {
         let orch = Orchestrator::new(OrchestratorConfig {
             planning_enabled: true,
             planning_replan_enabled: true,
+            planning_auto_mode_enabled: true,
             ..OrchestratorConfig::for_testing()
         });
         let agent_id = orch.spawn_agent("planner").expect("spawn");
@@ -841,6 +843,7 @@ mod orch_smoke {
         let orch = Orchestrator::new(OrchestratorConfig {
             planning_enabled: true,
             planning_router_enabled: true,
+            planning_auto_mode_enabled: true,
             ..OrchestratorConfig::for_testing()
         })
         .with_db(db.clone());

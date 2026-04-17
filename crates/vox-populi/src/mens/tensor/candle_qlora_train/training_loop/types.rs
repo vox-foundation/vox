@@ -1,4 +1,4 @@
-use candle_core::Tensor;
+
 
 #[derive(Debug, Clone)]
 pub struct QloraTrainingResume {
@@ -14,6 +14,7 @@ pub struct EncodedTrainStep {
     pub prefix_len: usize,
     pub trunc_offset: usize,
     pub sample_weight: f64,
+    pub token_weights: Option<Vec<f32>>,
 }
 
 pub enum TryEncodeOutcome {
@@ -29,9 +30,10 @@ pub enum MaskedCeForward {
         mask_sum: f32,
     },
     Finite {
-        loss: Tensor,
+        loss: candle_core::Tensor,
         loss_scalar: f32,
         supervised_tokens: u64,
         theoretical_tokens: u64,
+        syntax_weight_sum: f32,
     },
 }

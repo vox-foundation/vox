@@ -1,6 +1,6 @@
 {
   "schema": "contracts/clavis/managed-env-names.v1.json",
-  "generated_at_ms": 1776108559828,
+  "generated_at_ms": 1776373202552,
   "generator": "vox ci clavis-contracts",
   "secrets": [
     {
@@ -254,7 +254,9 @@
     {
       "id": "VoxOpenrouterHttpReferer",
       "canonical_env": "OPENROUTER_HTTP_REFERER",
-      "aliases": [],
+      "aliases": [
+        "VOX_OPENROUTER_HTTP_REFERER"
+      ],
       "deprecated_aliases": [],
       "class": "Operator",
       "material_kind": "ApiKey",
@@ -265,7 +267,9 @@
     {
       "id": "VoxOpenrouterAppTitle",
       "canonical_env": "OPENROUTER_APP_TITLE",
-      "aliases": [],
+      "aliases": [
+        "VOX_OPENROUTER_APP_TITLE"
+      ],
       "deprecated_aliases": [],
       "class": "Operator",
       "material_kind": "ApiKey",
@@ -515,7 +519,7 @@
       "canonical_env": "VOX_WEBHOOK_SIGNING_SECRET",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "Orchestration"
@@ -1199,6 +1203,20 @@
       ]
     },
     {
+      "id": "VoxNewsTwitterBearer",
+      "canonical_env": "VOX_NEWS_TWITTER_TOKEN",
+      "aliases": [
+        "VOX_SOCIAL_TWITTER_TOKEN"
+      ],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "ScientiaSyndication",
+        "AutonomousResearch"
+      ]
+    },
+    {
       "id": "VoxSocialDiscordWebhook",
       "canonical_env": "VOX_SOCIAL_DISCORD_WEBHOOK",
       "aliases": [],
@@ -1239,7 +1257,7 @@
       "canonical_env": "VOX_SOCIAL_REDDIT_CLIENT_ID",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScientiaSyndication",
@@ -1251,7 +1269,7 @@
       "canonical_env": "VOX_SOCIAL_REDDIT_CLIENT_SECRET",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScientiaSyndication",
@@ -1263,7 +1281,7 @@
       "canonical_env": "VOX_SOCIAL_REDDIT_REFRESH_TOKEN",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScientiaSyndication",
@@ -1275,7 +1293,7 @@
       "canonical_env": "VOX_SOCIAL_REDDIT_USER_AGENT",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScientiaSyndication",
@@ -1367,6 +1385,143 @@
       ]
     },
     {
+      "id": "VoxSocialTwitterApiBase",
+      "canonical_env": "VOX_SOCIAL_TWITTER_API_BASE",
+      "aliases": [
+        "VOX_NEWS_TWITTER_API_BASE"
+      ],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialLinkedinApiBase",
+      "canonical_env": "VOX_SOCIAL_LINKEDIN_API_BASE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialRedditApiBase",
+      "canonical_env": "VOX_SOCIAL_REDDIT_API_BASE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxNewsTwitterTextChunkMax",
+      "canonical_env": "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxNewsTwitterTruncationSuffix",
+      "canonical_env": "VOX_NEWS_TWITTER_TRUNCATION_SUFFIX",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialTwitterSummaryMarginChars",
+      "canonical_env": "VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialRedditSelfpostSummaryMax",
+      "canonical_env": "VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialHnMode",
+      "canonical_env": "VOX_SOCIAL_HN_MODE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialYoutubeDefaultCategoryId",
+      "canonical_env": "VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialLinkedinAuthorUrn",
+      "canonical_env": "VOX_SOCIAL_LINKEDIN_AUTHOR_URN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "ScientiaSyndication",
+        "AutonomousResearch"
+      ]
+    },
+    {
+      "id": "VoxSocialBlueskyPdsUrl",
+      "canonical_env": "VOX_SOCIAL_BLUESKY_PDS_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "ScientiaSyndication",
+        "AutonomousResearch"
+      ]
+    },
+    {
+      "id": "VoxNewsOpenCollectiveSlug",
+      "canonical_env": "VOX_NEWS_OPENCOLLECTIVE_SLUG",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "ScientiaSyndication",
+        "AutonomousResearch"
+      ]
+    },
+    {
       "id": "VoxZenodoAccessToken",
       "canonical_env": "ZENODO_ACCESS_TOKEN",
       "aliases": [
@@ -1384,7 +1539,7 @@
       "canonical_env": "VOX_OPENREVIEW_EMAIL",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScholarlyPublication"
@@ -1395,7 +1550,7 @@
       "canonical_env": "VOX_OPENREVIEW_ACCESS_TOKEN",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScholarlyPublication"
@@ -1406,7 +1561,7 @@
       "canonical_env": "VOX_OPENREVIEW_PASSWORD",
       "aliases": [],
       "deprecated_aliases": [],
-      "class": "Operator",
+      "class": "Integration",
       "material_kind": "ApiKey",
       "capabilities": [
         "ScholarlyPublication"
@@ -1813,6 +1968,2856 @@
     {
       "id": "VoxWorkspaceRoot",
       "canonical_env": "VOX_WORKSPACE_ROOT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OpenaiModel",
+      "canonical_env": "VOX_OPENAI_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OpenaiBaseUrl",
+      "canonical_env": "VOX_OPENAI_BASE_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "GeminiModel",
+      "canonical_env": "VOX_GEMINI_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "PopuliApiKey",
+      "canonical_env": "POPULI_API_KEY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "AuxTools"
+      ]
+    },
+    {
+      "id": "VoxNewsSiteBaseUrl",
+      "canonical_env": "VOX_NEWS_SITE_BASE_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxNewsRssFeedPath",
+      "canonical_env": "VOX_NEWS_RSS_FEED_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxNewsPublishArmed",
+      "canonical_env": "VOX_NEWS_PUBLISH_ARMED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxZenodoVerifyStagingChecksums",
+      "canonical_env": "VOX_ZENODO_VERIFY_STAGING_CHECKSUMS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxZenodoRequireMetadataParity",
+      "canonical_env": "VOX_ZENODO_REQUIRE_METADATA_PARITY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpAgentFleet",
+      "canonical_env": "VOX_MCP_AGENT_FLEET",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxZenodoHttpMaxAttempts",
+      "canonical_env": "VOX_ZENODO_HTTP_MAX_ATTEMPTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOpenReviewHttpMaxAttempts",
+      "canonical_env": "VOX_OPEN_REVIEW_HTTP_MAX_ATTEMPTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxScholarlyJobLockOwner",
+      "canonical_env": "VOX_SCHOLARLY_JOB_LOCK_OWNER",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxScientiaCrossrefMailto",
+      "canonical_env": "VOX_SCIENTIA_CROSSREF_MAILTO",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshBootstrapToken",
+      "canonical_env": "VOX_MESH_BOOTSTRAP_TOKEN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshBootstrapExpiresUnixMs",
+      "canonical_env": "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshEnabled",
+      "canonical_env": "VOX_MESH_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshMode",
+      "canonical_env": "VOX_MESH_MODE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshNodeId",
+      "canonical_env": "VOX_MESH_NODE_ID",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshLabels",
+      "canonical_env": "VOX_MESH_LABELS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshControlAddr",
+      "canonical_env": "VOX_MESH_CONTROL_ADDR",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshRegistryPath",
+      "canonical_env": "VOX_MESH_REGISTRY_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshAdvertiseGpu",
+      "canonical_env": "VOX_MESH_ADVERTISE_GPU",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshScopeId",
+      "canonical_env": "VOX_MESH_SCOPE_ID",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshServerStalePruneMs",
+      "canonical_env": "VOX_MESH_SERVER_STALE_PRUNE_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshA2aMaxMessages",
+      "canonical_env": "VOX_MESH_A2A_MAX_MESSAGES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshA2aLeaseMs",
+      "canonical_env": "VOX_MESH_A2A_LEASE_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshHttpRateLimit",
+      "canonical_env": "VOX_MESH_HTTP_RATE_LIMIT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMaxAgents",
+      "canonical_env": "VOX_ORCHESTRATOR_MAX_AGENTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorLockTimeoutMs",
+      "canonical_env": "VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorToestubGate",
+      "canonical_env": "VOX_ORCHESTRATOR_TOESTUB_GATE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMaxDebugIterations",
+      "canonical_env": "VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMaxToestubDebugIterations",
+      "canonical_env": "VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMaxSocratesDebugIterations",
+      "canonical_env": "VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorFallbackSingle",
+      "canonical_env": "VOX_ORCHESTRATOR_FALLBACK_SINGLE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMinAgents",
+      "canonical_env": "VOX_ORCHESTRATOR_MIN_AGENTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorScalingThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_SCALING_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorIdleRetirementMs",
+      "canonical_env": "VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorScalingEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_SCALING_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorCostPreference",
+      "canonical_env": "VOX_ORCHESTRATOR_COST_PREFERENCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorScalingLookback",
+      "canonical_env": "VOX_ORCHESTRATOR_SCALING_LOOKBACK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorResourceWeight",
+      "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_WEIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorResourceCpuMult",
+      "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_CPU_MULT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorResourceMemMult",
+      "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_MEM_MULT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorResourceExponent",
+      "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_EXPONENT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorScalingProfile",
+      "canonical_env": "VOX_ORCHESTRATOR_SCALING_PROFILE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMaxSpawnPerTick",
+      "canonical_env": "VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorScalingCooldownMs",
+      "canonical_env": "VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorUrgentRebalanceThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorSocratesGateShadow",
+      "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorSocratesGateEnforce",
+      "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorSocratesReputationRouting",
+      "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorSocratesReputationWeight",
+      "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTrustGateRelaxEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTrustGateRelaxMinReliability",
+      "canonical_env": "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTrustEwmaAlpha",
+      "canonical_env": "VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTrustProvisionalThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTrustTrustedThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTrustAutoApproveMin",
+      "canonical_env": "VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMigrationV2Enabled",
+      "canonical_env": "VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMigrationLegacyFallback",
+      "canonical_env": "VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshControlUrl",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_CONTROL_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPopuliInferenceBaseUrl",
+      "canonical_env": "VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshPollIntervalSecs",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshHttpTimeoutMs",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRoutingExperimental",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRebalanceOnRemoteSchedulableDrop",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshReplayQueuedRoutesOnRemoteSchedulableDrop",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshTrainingRoutingExperimental",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshTrainingBudgetPressure",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteExecuteExperimental",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteExecuteReceiverAgent",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_RECEIVER_AGENT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteExecuteSenderAgent",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteResultPollIntervalSecs",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteResultMaxMessagesPerPoll",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteWorkerPollIntervalSecs",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteLeaseGatingEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshRemoteLeaseGatedRoles",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorChatmlStrict",
+      "canonical_env": "VOX_ORCHESTRATOR_CHATML_STRICT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorCompletionGroundingShadow",
+      "canonical_env": "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorCompletionGroundingEnforce",
+      "canonical_env": "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningLlmSynthesisEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_LLM_SYNTHESIS_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningLlmSynthesisModel",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_LLM_SYNTHESIS_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningRouterEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningReplanEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningWorkflowHandoffEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningShadowMode",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningAutoModeEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanningRolloutPercent",
+      "canonical_env": "VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanAdequacyShadow",
+      "canonical_env": "VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorPlanAdequacyEnforce",
+      "canonical_env": "VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorContextLifecycleShadow",
+      "canonical_env": "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorContextLifecycleEnforce",
+      "canonical_env": "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorSocratesGateAutoMode",
+      "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_AUTO_MODE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorSocratesGateThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorAttentionAlertThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorAttentionInterruptCostMs",
+      "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTlxMental",
+      "canonical_env": "VOX_ORCHESTRATOR_TLX_MENTAL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTlxTemporal",
+      "canonical_env": "VOX_ORCHESTRATOR_TLX_TEMPORAL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTlxFrustration",
+      "canonical_env": "VOX_ORCHESTRATOR_TLX_FRUSTRATION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTlxTrustDiscount",
+      "canonical_env": "VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTierGateEntropyThreshold",
+      "canonical_env": "VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorTierGateMinObservations",
+      "canonical_env": "VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorInterruptionCalPlanGain",
+      "canonical_env": "VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorInterruptionCalA2AGain",
+      "canonical_env": "VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2_A_GAIN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorInterruptionCalBacklogPenalty",
+      "canonical_env": "VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorAttentionTrustRoutingWeight",
+      "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorRepoShardSpecializationWeight",
+      "canonical_env": "VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorRepoShardValidationFailurePenalty",
+      "canonical_env": "VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorRepoReduceConflictCooldownPenalty",
+      "canonical_env": "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorRepoReduceConflictCooldownMs",
+      "canonical_env": "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorExecTimeBudgetEnabled",
+      "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_BUDGET_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorExecTimeSafetyMultiplier",
+      "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorExecTimeTimeoutRateAlert",
+      "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorExecTimeDefaultBudgetMs",
+      "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorExecTimeHistoryWindowDays",
+      "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorCampaignId",
+      "canonical_env": "VOX_ORCHESTRATOR_CAMPAIGN_ID",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "PopuliModel",
+      "canonical_env": "POPULI_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOpenRouterCatalogMinRefreshIntervalSecs",
+      "canonical_env": "VOX_OPEN_ROUTER_CATALOG_MIN_REFRESH_INTERVAL_SECS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOpenRouterCatalogRefreshJitterMs",
+      "canonical_env": "VOX_OPEN_ROUTER_CATALOG_REFRESH_JITTER_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorHarnessCompletionGuard",
+      "canonical_env": "VOX_ORCHESTRATOR_HARNESS_COMPLETION_GUARD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshExecLeaseReconcile",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorMeshExecLeaseAutoRevoke",
+      "canonical_env": "VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorDaemonSocket",
+      "canonical_env": "VOX_ORCHESTRATOR_DAEMON_SOCKET",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOpenRouterClassifierEnabled",
+      "canonical_env": "VOX_OPEN_ROUTER_CLASSIFIER_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "ScientiaSyndication",
+        "AutonomousResearch"
+      ]
+    },
+    {
+      "id": "VoxSocialWorthinessScoreMin",
+      "canonical_env": "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialChannelWorthinessFloors",
+      "canonical_env": "VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxNewsScanRecursive",
+      "canonical_env": "VOX_NEWS_SCAN_RECURSIVE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshExecPolicy",
+      "canonical_env": "VOX_MESH_EXEC_POLICY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshA2aStorePath",
+      "canonical_env": "VOX_MESH_A2A_STORE_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshExecLeaseStorePath",
+      "canonical_env": "VOX_MESH_EXEC_LEASE_STORE_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshDispatchStorePath",
+      "canonical_env": "VOX_MESH_DISPATCH_STORE_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshHttpMaxBodyBytes",
+      "canonical_env": "VOX_MESH_HTTP_MAX_BODY_BYTES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshReplayPersist",
+      "canonical_env": "VOX_MESH_REPLAY_PERSIST",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshReplayStatePath",
+      "canonical_env": "VOX_MESH_REPLAY_STATE_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCloudMaxBudget",
+      "canonical_env": "VOX_CLOUD_MAX_BUDGET",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshTrain",
+      "canonical_env": "VOX_MESH_TRAIN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshRank",
+      "canonical_env": "VOX_MESH_RANK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxQuestioningMirrorGlobalAttention",
+      "canonical_env": "VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorDaemonRepositoryIdStrict",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorRpcReads",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_RPC_READS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorRpcWrites",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorTaskStatusRpc",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorStartRpc",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_START_RPC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorStatusToolRpc",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorTaskWritesRpc",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_TASK_WRITES_RPC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpOrchestratorAgentWritesRpc",
+      "canonical_env": "VOX_MCP_ORCHESTRATOR_AGENT_WRITES_RPC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxQuestioningMaxAttentionMs",
+      "canonical_env": "VOX_QUESTIONING_MAX_ATTENTION_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioLogitBiasStrength",
+      "canonical_env": "VOX_ORATIO_LOGIT_BIAS_STRENGTH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioLogitBiasMaxTokens",
+      "canonical_env": "VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioLogitForbidTokens",
+      "canonical_env": "VOX_ORATIO_LOGIT_FORBID_TOKENS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioConstrainedTrie",
+      "canonical_env": "VOX_ORATIO_CONSTRAINED_TRIE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioConstrainedPhrases",
+      "canonical_env": "VOX_ORATIO_CONSTRAINED_PHRASES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioTrieStuckSteps",
+      "canonical_env": "VOX_ORATIO_TRIE_STUCK_STEPS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioSpeechLexiconPath",
+      "canonical_env": "VOX_ORATIO_SPEECH_LEXICON_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioSessionHotwords",
+      "canonical_env": "VOX_ORATIO_SESSION_HOTWORDS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioMaxBiasPhrases",
+      "canonical_env": "VOX_ORATIO_MAX_BIAS_PHRASES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioContextualBias",
+      "canonical_env": "VOX_ORATIO_CONTEXTUAL_BIAS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioAcousticPreprocessBudgetMs",
+      "canonical_env": "VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioModel",
+      "canonical_env": "VOX_ORATIO_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioRevision",
+      "canonical_env": "VOX_ORATIO_REVISION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioCuda",
+      "canonical_env": "VOX_ORATIO_CUDA",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioLanguage",
+      "canonical_env": "VOX_ORATIO_LANGUAGE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioChunkSec",
+      "canonical_env": "VOX_ORATIO_CHUNK_SEC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioChunkOverlapSec",
+      "canonical_env": "VOX_ORATIO_CHUNK_OVERLAP_SEC",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioEmitPartialPath",
+      "canonical_env": "VOX_ORATIO_EMIT_PARTIAL_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioStreamTokens",
+      "canonical_env": "VOX_ORATIO_STREAM_TOKENS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioSeed",
+      "canonical_env": "VOX_ORATIO_SEED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioVerbose",
+      "canonical_env": "VOX_ORATIO_VERBOSE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioTask",
+      "canonical_env": "VOX_ORATIO_TASK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioNoSpeechThreshold",
+      "canonical_env": "VOX_ORATIO_NO_SPEECH_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxPopuliModel",
+      "canonical_env": "VOX_POPULI_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxPopuliTemperature",
+      "canonical_env": "VOX_POPULI_TEMPERATURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxPopuliMaxTokens",
+      "canonical_env": "VOX_POPULI_MAX_TOKENS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchBm25K1",
+      "canonical_env": "VOX_SEARCH_BM25_K1",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchBm25B",
+      "canonical_env": "VOX_SEARCH_BM25_B",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchRrfK",
+      "canonical_env": "VOX_SEARCH_RRF_K",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchQdrantUrl",
+      "canonical_env": "VOX_SEARCH_QDRANT_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchQdrantCollection",
+      "canonical_env": "VOX_SEARCH_QDRANT_COLLECTION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchQdrantVectorName",
+      "canonical_env": "VOX_SEARCH_QDRANT_VECTOR_NAME",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTantivyRoot",
+      "canonical_env": "VOX_SEARCH_TANTIVY_ROOT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchPreferRrf",
+      "canonical_env": "VOX_SEARCH_PREFER_RRF",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTavilyEnabled",
+      "canonical_env": "VOX_SEARCH_TAVILY_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTavilyDepth",
+      "canonical_env": "VOX_SEARCH_TAVILY_DEPTH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTavilyMaxResults",
+      "canonical_env": "VOX_SEARCH_TAVILY_MAX_RESULTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTavilyOnEmpty",
+      "canonical_env": "VOX_SEARCH_TAVILY_ON_EMPTY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTavilyOnWeak",
+      "canonical_env": "VOX_SEARCH_TAVILY_ON_WEAK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchTavilyBudget",
+      "canonical_env": "VOX_SEARCH_TAVILY_BUDGET",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchSearxngUrl",
+      "canonical_env": "VOX_SEARCH_SEARXNG_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchSearxngMaxResults",
+      "canonical_env": "VOX_SEARCH_SEARXNG_MAX_RESULTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchSearxngMaxScrape",
+      "canonical_env": "VOX_SEARCH_SEARXNG_MAX_SCRAPE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchSearxngEngines",
+      "canonical_env": "VOX_SEARCH_SEARXNG_ENGINES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchSearxngLanguage",
+      "canonical_env": "VOX_SEARCH_SEARXNG_LANGUAGE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchDdgFallbackDisabled",
+      "canonical_env": "VOX_SEARCH_DDG_FALLBACK_DISABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchScraperTimeout",
+      "canonical_env": "VOX_SEARCH_SCRAPER_TIMEOUT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchScraperRobotsRespect",
+      "canonical_env": "VOX_SEARCH_SCRAPER_ROBOTS_RESPECT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchScraperMinDensity",
+      "canonical_env": "VOX_SEARCH_SCRAPER_MIN_DENSITY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchMaxHops",
+      "canonical_env": "VOX_SEARCH_MAX_HOPS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSocialWorthinessEnforce",
+      "canonical_env": "VOX_SOCIAL_WORTHINESS_ENFORCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxEvalMinParseRate",
+      "canonical_env": "VOX_EVAL_MIN_PARSE_RATE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxEvalMinCoverage",
+      "canonical_env": "VOX_EVAL_MIN_COVERAGE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxEvalStrict",
+      "canonical_env": "VOX_EVAL_STRICT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxBenchmarkTelemetry",
+      "canonical_env": "VOX_BENCHMARK_TELEMETRY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSyntaxKTelemetry",
+      "canonical_env": "VOX_SYNTAX_K_TELEMETRY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshCodexTelemetry",
+      "canonical_env": "VOX_MESH_CODEX_TELEMETRY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioBackend",
+      "canonical_env": "VOX_ORATIO_BACKEND",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioAcousticPreprocess",
+      "canonical_env": "VOX_ORATIO_ACOUSTIC_PREPROCESS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioRmsTargetDbfs",
+      "canonical_env": "VOX_ORATIO_RMS_TARGET_DBFS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioRoutingSessionCap",
+      "canonical_env": "VOX_ORATIO_ROUTING_SESSION_CAP",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioRoutingSessionTtlSecs",
+      "canonical_env": "VOX_ORATIO_ROUTING_SESSION_TTL_SECS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioStreamPartialQuietMs",
+      "canonical_env": "VOX_ORATIO_STREAM_PARTIAL_QUIET_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioStreamMaxWaitMs",
+      "canonical_env": "VOX_ORATIO_STREAM_MAX_WAIT_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioConfig",
+      "canonical_env": "VOX_ORATIO_CONFIG",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioToolRouteMinConfidence",
+      "canonical_env": "VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioVad",
+      "canonical_env": "VOX_ORATIO_VAD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioVadEnergyThreshold",
+      "canonical_env": "VOX_ORATIO_VAD_ENERGY_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioVadMergeGapMs",
+      "canonical_env": "VOX_ORATIO_VAD_MERGE_GAP_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioSherpaModelDir",
+      "canonical_env": "VOX_ORATIO_SHERPA_MODEL_DIR",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioSherpaHfModel",
+      "canonical_env": "VOX_ORATIO_SHERPA_HF_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOratioSherpaModel",
+      "canonical_env": "VOX_ORATIO_SHERPA_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpHost",
+      "canonical_env": "VOX_MCP_HTTP_HOST",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpPort",
+      "canonical_env": "VOX_MCP_HTTP_PORT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpRateLimitPerMinute",
+      "canonical_env": "VOX_MCP_HTTP_RATE_LIMIT_PER_MINUTE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpAllowedTools",
+      "canonical_env": "VOX_MCP_HTTP_ALLOWED_TOOLS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpReadRoleAllowedTools",
+      "canonical_env": "VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpEnabled",
+      "canonical_env": "VOX_MCP_HTTP_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpAllowUnauthenticated",
+      "canonical_env": "VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpRequireForwardedHttps",
+      "canonical_env": "VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpHealthAuth",
+      "canonical_env": "VOX_MCP_HTTP_HEALTH_AUTH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpHttpTrustXForwardedFor",
+      "canonical_env": "VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshMaxStaleMs",
+      "canonical_env": "VOX_MESH_MAX_STALE_MS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpLlmCostEvents",
+      "canonical_env": "VOX_MCP_LLM_COST_EVENTS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpGrammarMask",
+      "canonical_env": "VOX_MCP_GRAMMAR_MASK",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMcpDecodePolicy",
+      "canonical_env": "VOX_MCP_DECODE_POLICY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxBrowserLlmContextChars",
+      "canonical_env": "VOX_BROWSER_LLM_CONTEXT_CHARS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxDashHost",
+      "canonical_env": "VOX_DASH_HOST",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxDashPort",
+      "canonical_env": "VOX_DASH_PORT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSubmitTaskBypassQuestioningGate",
+      "canonical_env": "VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusExperiment",
+      "canonical_env": "VOX_LUDUS_EXPERIMENT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchPolicyVersion",
+      "canonical_env": "VOX_SEARCH_POLICY_VERSION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchMemoryVectorWeight",
+      "canonical_env": "VOX_SEARCH_MEMORY_VECTOR_WEIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchVerificationQualityThreshold",
+      "canonical_env": "VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchRepoMaxFiles",
+      "canonical_env": "VOX_SEARCH_REPO_MAX_FILES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchRepoSkipDirs",
+      "canonical_env": "VOX_SEARCH_REPO_SKIP_DIRS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOrchestratorEventLog",
+      "canonical_env": "VOX_ORCHESTRATOR_EVENT_LOG",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxBenchmarkDir",
+      "canonical_env": "VOX_BENCHMARK_DIR",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxWebViteSmoke",
+      "canonical_env": "VOX_WEB_VITE_SMOKE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxGuiPlaywright",
+      "canonical_env": "VOX_GUI_PLAYWRIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLineEndingsHead",
+      "canonical_env": "VOX_LINE_ENDINGS_HEAD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLineEndingsBase",
+      "canonical_env": "VOX_LINE_ENDINGS_BASE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxToestubMaxRustParseFailures",
+      "canonical_env": "VOX_TOESTUB_MAX_RUST_PARSE_FAILURES",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxBuildTimingsBudgetWarn",
+      "canonical_env": "VOX_BUILD_TIMINGS_BUDGET_WARN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxBuildTimingsBudgetFail",
+      "canonical_env": "VOX_BUILD_TIMINGS_BUDGET_FAIL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusChannel",
+      "canonical_env": "VOX_LUDUS_CHANNEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusMcpToolArgs",
+      "canonical_env": "VOX_LUDUS_MCP_TOOL_ARGS",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusEmergencyOff",
+      "canonical_env": "VOX_LUDUS_EMERGENCY_OFF",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusSessionEnabled",
+      "canonical_env": "VOX_LUDUS_SESSION_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusSessionMode",
+      "canonical_env": "VOX_LUDUS_SESSION_MODE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxLudusExperimentRewardMult",
+      "canonical_env": "VOX_LUDUS_EXPERIMENT_REWARD_MULT",
       "aliases": [],
       "deprecated_aliases": [],
       "class": "Operator",

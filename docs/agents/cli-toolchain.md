@@ -1,3 +1,10 @@
+---
+title: "Cli Toolchain"
+description: "Agent support documentation for cli toolchain"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Vox CLI & Toolchain — Execution Layer
 
 The `vox` binary is the **canonical tool surface** for all compilation, analysis, and

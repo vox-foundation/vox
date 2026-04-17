@@ -1,4 +1,4 @@
-﻿use std::sync::Mutex;
+use std::sync::Mutex;
 use crate::Orchestrator;
 use crate::config::{CostPreference, OrchestratorConfig};
 use crate::models::{
@@ -57,7 +57,7 @@ fn mcp_global_llm_context_fill_ratio_none_without_budget() {
 fn enforce_free_tier_only_swaps_paid_best_for() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     *crate::sync_lock::rw_write(&*orch.models_handle()) = tiny_registry_with_free_and_paid();
 
     let resolved = resolve_mcp_chat_model_sync(
@@ -119,12 +119,10 @@ fn registry_paid_plus_ollama_free() -> ModelRegistry {
 fn sticky_ollama_rejected_when_inference_profile_disallows() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
     // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK`; no concurrent env access in tests.
-    unsafe {
-        unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
-    }
+    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     *crate::sync_lock::rw_write(&*orch.models_handle()) = registry_ollama_only();
 
     let err = resolve_mcp_chat_model_sync(
@@ -324,12 +322,10 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
 #[test]
 fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
-    unsafe {
-        unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
-    }
+    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     *crate::sync_lock::rw_write(&*orch.models_handle()) = registry_paid_plus_ollama_free();
 
     let err = resolve_mcp_chat_model_sync(

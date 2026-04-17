@@ -14,3 +14,5 @@ chacha20poly1305 = { workspace = true }
 zeroize = { version = "1.8", features = ["zeroize_derive"] }
 aead = { workspace = true }
 rand = { workspace = true }
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+hex = "0.4.3"

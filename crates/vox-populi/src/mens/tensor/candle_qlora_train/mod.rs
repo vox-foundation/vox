@@ -411,7 +411,7 @@ pub fn run_candle_qlora_train(
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
     let alpha_u = config.alpha.round() as usize;
-    let qlora_cfg = QLoraConfig::preset_qv_bf16(rank, alpha_u);
+    let qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;

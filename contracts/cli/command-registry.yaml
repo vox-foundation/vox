@@ -2769,6 +2769,30 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::upgrade
+- surface: vox-cli
+  path:
+  - visus
+  - audit
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::visus::dispatch
+- surface: vox-cli
+  path:
+  - visus
+  - baseline
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::visus::dispatch
 - surface: compilerd
   path:
   - build
@@ -3030,7 +3054,6 @@ script_duals:
   canonical_cli: vox ci mesh-gate --profile m1m4
 - script_glob: scripts/populi/release_training_gate.*
   canonical_cli: vox ci mesh-gate --profile training
-
 env_var_ssot_index:
 - VOX_WEB_TANSTACK_START
 - VOX_WEB_EMIT_SCAFFOLD

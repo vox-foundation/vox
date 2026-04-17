@@ -15,9 +15,9 @@ pub fn try_encode_training_step(
     if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
         return Ok(TryEncodeOutcome::SkipCurriculum);
     }
-    let text = if let Some(ref turns) = pair.turns {
+    let text = if let Some(ref turns) = pair.messages {
         crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
-    } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+    } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
         crate::mens::tensor::training_text::chatml_supervised_text(
             system_prompt,
             p,
@@ -27,12 +27,12 @@ pub fn try_encode_training_step(
     } else {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     };
-    let prefix_text = if let Some(ref turns) = pair.turns {
+    let prefix_text = if let Some(ref turns) = pair.messages {
         crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(
             turns,
             &config.chatml,
         )
-    } else if let Some(ref p) = pair.prompt {
+    } else if let Some(p) = pair.effective_prompt() {
         crate::mens::tensor::training_text::chatml_prefix_open_assistant(
             system_prompt,
             p,
@@ -60,12 +60,21 @@ pub fn try_encode_training_step(
         return Ok(TryEncodeOutcome::SkipShortSeq);
     }
     let (sample_weight, _) = super::logic::trajectory_weight_for_pair(pair, config);
+    let token_weights = pair.syntax_spans.as_ref().map(|spans| {
+        crate::mens::tensor::candle_qlora_train::ce_mask_align::align_syntax_spans_to_tokens(
+            &enc,
+            spans,
+            trunc_offset,
+        )
+    });
+
     Ok(TryEncodeOutcome::Encoded(EncodedTrainStep {
         raw_token_len,
         ids,
         prefix_len,
         trunc_offset,
         sample_weight,
+        token_weights,
     }))
 }
 

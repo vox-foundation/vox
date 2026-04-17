@@ -24,7 +24,6 @@ use crate::hir::*;
 use crate::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
 use crate::web_ir::WebIrModule;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 fn web_ir_reactive_views_env_enabled() -> bool {
     crate::web_migration_env::web_ir_emit_reactive_views_enabled()
@@ -51,23 +50,6 @@ pub enum ReactiveViewEmitPathway {
     WebIrViewEmitted,
 }
 
-static CTR_LEGACY_ENV: AtomicU64 = AtomicU64::new(0);
-static CTR_VALIDATE_FALLBACK: AtomicU64 = AtomicU64::new(0);
-static CTR_NO_TSX_FALLBACK: AtomicU64 = AtomicU64::new(0);
-static CTR_PARITY_FALLBACK: AtomicU64 = AtomicU64::new(0);
-static CTR_WEB_IR_SELECTED: AtomicU64 = AtomicU64::new(0);
-
-fn record_pathway(p: ReactiveViewEmitPathway) {
-    let c = match p {
-        ReactiveViewEmitPathway::LegacyEnvDisabled => &CTR_LEGACY_ENV,
-        ReactiveViewEmitPathway::LegacyFallbackValidateFailed => &CTR_VALIDATE_FALLBACK,
-        ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => &CTR_NO_TSX_FALLBACK,
-        ReactiveViewEmitPathway::LegacyFallbackParityMismatch => &CTR_PARITY_FALLBACK,
-        ReactiveViewEmitPathway::WebIrViewEmitted => &CTR_WEB_IR_SELECTED,
-    };
-    c.fetch_add(1, Ordering::Relaxed);
-}
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ReactiveViewBridgeStats {
     pub legacy_env_disabled: u64,
@@ -77,27 +59,18 @@ pub struct ReactiveViewBridgeStats {
     pub web_ir_view_emitted: u64,
 }
 
-/// Snapshot of [`ReactiveViewEmitPathway`] tallies (process-wide, test with env mutex / single-threaded care).
-pub fn reactive_view_bridge_stats() -> ReactiveViewBridgeStats {
-    ReactiveViewBridgeStats {
-        legacy_env_disabled: CTR_LEGACY_ENV.load(Ordering::Relaxed),
-        legacy_fallback_validate_failed: CTR_VALIDATE_FALLBACK.load(Ordering::Relaxed),
-        legacy_fallback_no_component_tsx: CTR_NO_TSX_FALLBACK.load(Ordering::Relaxed),
-        legacy_fallback_parity_mismatch: CTR_PARITY_FALLBACK.load(Ordering::Relaxed),
-        web_ir_view_emitted: CTR_WEB_IR_SELECTED.load(Ordering::Relaxed),
+impl ReactiveViewBridgeStats {
+    pub fn record_pathway(&mut self, p: ReactiveViewEmitPathway) {
+        match p {
+            ReactiveViewEmitPathway::LegacyEnvDisabled => self.legacy_env_disabled += 1,
+            ReactiveViewEmitPathway::LegacyFallbackValidateFailed => self.legacy_fallback_validate_failed += 1,
+            ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => self.legacy_fallback_no_component_tsx += 1,
+            ReactiveViewEmitPathway::LegacyFallbackParityMismatch => self.legacy_fallback_parity_mismatch += 1,
+            ReactiveViewEmitPathway::WebIrViewEmitted => self.web_ir_view_emitted += 1,
+        }
     }
 }
 
-/// Zero adoption counters. **`#[doc(hidden)]`**: intended for `tests/reactive_smoke.rs` only (integration tests
-/// link this crate **without** `--cfg test`, so a `#[cfg(test)]` helper would not compile there).
-#[doc(hidden)]
-pub fn reset_reactive_view_bridge_stats_for_tests() {
-    CTR_LEGACY_ENV.store(0, Ordering::Relaxed);
-    CTR_VALIDATE_FALLBACK.store(0, Ordering::Relaxed);
-    CTR_NO_TSX_FALLBACK.store(0, Ordering::Relaxed);
-    CTR_PARITY_FALLBACK.store(0, Ordering::Relaxed);
-    CTR_WEB_IR_SELECTED.store(0, Ordering::Relaxed);
-}
 
 /// Whitespace normalization for the reactive view parity guard (OP-0261 / OP-0179).
 #[doc(hidden)]
@@ -128,13 +101,14 @@ fn emit_reactive_view_body(
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
     web_projection: Option<&WebIrModule>,
+    stats: &mut ReactiveViewBridgeStats,
 ) -> String {
     let Some(view) = &rc.view else {
         return String::new();
     };
     let legacy = emit_hir_expr(view, state_names, island_names);
     if !web_ir_reactive_views_env_enabled() {
-        record_pathway(ReactiveViewEmitPathway::LegacyEnvDisabled);
+        stats.record_pathway(ReactiveViewEmitPathway::LegacyEnvDisabled);
         if web_ir_reactive_trace_enabled() {
             eprintln!("[vox-webir-reactive] component={component_name} pathway=LegacyEnvDisabled");
         }
@@ -148,7 +122,7 @@ fn emit_reactive_view_body(
         &owned_web
     };
     if !crate::web_ir::validate::validate_web_ir(web).is_empty() {
-        record_pathway(ReactiveViewEmitPathway::LegacyFallbackValidateFailed);
+        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackValidateFailed);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
                 "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackValidateFailed"
@@ -157,7 +131,7 @@ fn emit_reactive_view_body(
         return legacy;
     }
     let Some(tsx) = crate::web_ir::emit_tsx::emit_component_view_tsx(web, &rc.name) else {
-        record_pathway(ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx);
+        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
                 "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackNoComponentTsx"
@@ -168,13 +142,13 @@ fn emit_reactive_view_body(
     let n_legacy = normalize_reactive_view_jsx_ws(&legacy);
     let n_tsx = normalize_reactive_view_jsx_ws(&tsx);
     if n_legacy == n_tsx {
-        record_pathway(ReactiveViewEmitPathway::WebIrViewEmitted);
+        stats.record_pathway(ReactiveViewEmitPathway::WebIrViewEmitted);
         if web_ir_reactive_trace_enabled() {
             eprintln!("[vox-webir-reactive] component={component_name} pathway=WebIrViewEmitted");
         }
         indent_view_for_return(&tsx)
     } else {
-        record_pathway(ReactiveViewEmitPathway::LegacyFallbackParityMismatch);
+        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackParityMismatch);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
                 "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackParityMismatch"
@@ -672,6 +646,7 @@ pub fn generate_reactive_component(
     rc: &HirReactiveComponent,
     island_names: &HashSet<String>,
     web_projection: Option<&WebIrModule>,
+    stats: &mut ReactiveViewBridgeStats,
 ) -> (String, String) {
     let name = &rc.name;
     let filename = format!("{name}.tsx");
@@ -755,7 +730,7 @@ pub fn generate_reactive_component(
 
     if rc.view.is_some() {
         let view_js =
-            emit_reactive_view_body(name, hir, rc, &state_names, island_names, web_projection);
+            emit_reactive_view_body(name, hir, rc, &state_names, island_names, web_projection, stats);
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 

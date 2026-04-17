@@ -22,7 +22,8 @@ zstd = "0.13.3"
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
 vox-clavis = { path = "../vox-clavis" }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+secrecy = { workspace = true }
+workspace-hack = { workspace = true }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }

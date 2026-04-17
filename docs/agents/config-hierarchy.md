@@ -1,3 +1,10 @@
+---
+title: "Config Hierarchy"
+description: "Agent support documentation for config hierarchy"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Vox Config Hierarchy — Single Source of Truth
 
 Configuration in the Vox ecosystem flows through a strict precedence chain. Understanding

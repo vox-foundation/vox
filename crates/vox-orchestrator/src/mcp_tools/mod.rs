@@ -1,4 +1,4 @@
-﻿//! Unified tool registry and dispatcher for the Vox MCP server.
+//! Unified tool registry and dispatcher for the Vox MCP server.
 
 pub mod params;
 pub mod server_state;
@@ -46,6 +46,8 @@ pub mod persistence_tools;
 pub mod populi_tools;
 /// `vox init` parity scaffold (`vox_project_init`).
 pub mod project_init_tools;
+/// Multi-modal Visual Retrieval-Augmented Generation RAG handler.
+pub mod rag_tools;
 /// Socrates questioning / clarification answer persistence (`VoxDb`).
 pub mod questioning_tools;
 pub mod registry;

@@ -322,3 +322,13 @@ pub struct CodexChangeLogEntry {
     /// Insertion timestamp.
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NodeIdentityRow {
+    pub node_id: String,
+    pub pubkey_hex: String,
+    pub label: Option<String>,
+    pub account_id: Option<String>,
+    pub created_at: String,
+    pub last_seen_at: String,
+}

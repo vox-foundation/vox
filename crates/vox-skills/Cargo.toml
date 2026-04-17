@@ -28,7 +28,7 @@ semver       = { workspace = true }
 vox-container = { workspace = true }
 vox-clavis.workspace = true
 secrecy      = { workspace = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [features]
 default = []

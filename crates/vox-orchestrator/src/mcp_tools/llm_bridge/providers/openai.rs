@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 
 use super::metadata::HttpCallMetadata;
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
@@ -14,7 +14,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
     bearer: &str,
     model: &str,
     system: &str,
-    user: &str,
+    user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
@@ -26,7 +26,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
     if !system.is_empty() {
         messages.push(OpenAiMsg {
             role: "system",
-            content: system,
+            content: vox_openai_wire::ChatMessageContent::Text(system),
         });
     }
     messages.push(OpenAiMsg {

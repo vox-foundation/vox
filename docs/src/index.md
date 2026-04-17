@@ -17,7 +17,7 @@ schema_type: "HowTo"
 <div class="vox-hero">
     <img src="assets/vox_logo_modern.png" alt="Vox logo" class="logo" style="max-width: 200px; border-radius: 12px; margin-bottom: 1rem;" />
     <h2>The AI-Native Programming Language</h2>
-    <p class="subtitle">One language. Database, backend, UI, and agent tools — designed first as a target for large language models, and for the developers who work alongside them.</p>
+    <p class="subtitle">One language. Database, backend, UI, and agent tools — designed first as a target for large language models, and for the developers who work alongside them. Initiated by Bertrand Reyna-Brainerd.</p>
     <div class="vox-cta-container">
         <a href="tutorials/tut-getting-started.md" class="vox-cta primary">Get Started</a>
         <a href="reference/ref-syntax.md" class="vox-cta secondary">Syntax Reference</a>

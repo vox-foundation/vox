@@ -116,9 +116,7 @@ fn pipeline_hooks_demo_codegen() {
 
 #[test]
 fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
-    use vox_compiler::codegen_ts::reactive::{
-        reactive_view_bridge_stats, reset_reactive_view_bridge_stats_for_tests,
-    };
+
     use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
     use vox_compiler::web_ir::validate::validate_web_ir;
@@ -144,7 +142,7 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
     let mix_hir = vox_compiler::hir::lower_module(&mix_mod);
     // Do not nest `with_web_ir_validate_cleared` here: it also takes `ENV_MUTEX` and would deadlock.
     with_reactive_emit_views_enabled(|| {
-        reset_reactive_view_bridge_stats_for_tests();
+
         let out = generate(&mix_hir).expect("MIXED_SURFACE codegen");
         let dash = out
             .files
@@ -166,7 +164,7 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
             shell.contains("useState"),
             "Shell retains hooks:\n{shell}"
         );
-        let stats = reactive_view_bridge_stats();
+        let stats = out.reactive_stats;
         assert!(
             stats.web_ir_view_emitted >= 1,
             "expected Web IR preview for reactive Dash (island prop order matches legacy); stats={stats:?}"

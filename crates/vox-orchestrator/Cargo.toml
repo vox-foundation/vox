@@ -79,7 +79,7 @@ vox-oratio = { path = "../vox-oratio", features = ["compiler-rerank"] }
 rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
-vox-grammar-export = { version = "0.1.0", path = "../vox-grammar-export" }
+vox-grammar-export = {  path = "../vox-grammar-export" }
 vox-browser.workspace = true
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 regex = "1"
@@ -99,7 +99,7 @@ base64.workspace = true
 vox-clavis.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 vox-compiler.workspace = true
 glob.workspace = true
 ignore = "0.4.25"

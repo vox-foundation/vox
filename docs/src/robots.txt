@@ -1,4 +1,5 @@
 User-agent: *
+Allow: /.well-known/llms.txt
 Allow: /
 
 # Internal inventory / gap tracking — no user value, wastes crawl budget
@@ -20,3 +21,4 @@ Disallow: /architecture/research-ts-hallucination-
 Disallow: /api/*-ARCHIVED.html
 
 Sitemap: https://vox-lang.org/sitemap.xml
+Sitemap: https://vox.foundation/.well-known/llms.txt

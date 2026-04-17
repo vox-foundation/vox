@@ -316,3 +316,76 @@ fn dynamic_param_object_innards(path: &str) -> String {
     }
     parts.join(", ")
 }
+
+/// JSON format for library mode (`routes.manifest.json`).
+pub fn try_emit_route_manifest_json_from_web_ir(
+    web: &WebIrModule,
+    hir: &HirModule,
+) -> Result<Option<String>, String> {
+    if hir.client_routes.is_empty() {
+        return Ok(None);
+    }
+    validate_manifest_symbols(web, hir)?;
+    let content = emit_route_manifest_json(web, hir).ok_or_else(|| {
+        "internal: routes.manifest.json emit failed after validation".to_string()
+    })?;
+    Ok(Some(content))
+}
+
+pub fn emit_route_manifest_json(web: &WebIrModule, hir: &HirModule) -> Option<String> {
+    if hir.client_routes.is_empty() {
+        return None;
+    }
+    let top = route_tree_top_contracts(web);
+    if top.is_empty() {
+        return None;
+    }
+
+    let mut not_found: Option<String> = None;
+    let mut error_comp: Option<String> = None;
+    let mut global_pending: Option<String> = None;
+
+    for block in &hir.client_routes {
+        let d = &block.0;
+        if not_found.is_none() {
+            not_found.clone_from(&d.not_found_component);
+        }
+        if error_comp.is_none() {
+            error_comp.clone_from(&d.error_component);
+        }
+    }
+
+    if let Some(l) = hir.loadings.first() {
+        global_pending = Some(l.0.func.name.clone());
+    }
+
+    let json_obj = serde_json::json!({
+        "notFoundComponent": not_found,
+        "errorComponent": error_comp,
+        "globalPendingComponent": global_pending,
+        "routes": top.iter().map(|c| get_contract_route_json(c)).collect::<Vec<_>>()
+    });
+
+    Some(serde_json::to_string_pretty(&json_obj).unwrap())
+}
+
+fn get_contract_route_json(e: &RouteContract) -> serde_json::Value {
+    let component = meta_str(&e.meta, "component").unwrap_or_else(|| "Unknown".to_string());
+    let mut obj = serde_json::Map::new();
+    obj.insert("path".to_string(), serde_json::json!(e.pattern));
+    obj.insert("component".to_string(), serde_json::json!(component));
+    if let Some(l) = meta_str(&e.meta, "loader") {
+        obj.insert("loader".to_string(), serde_json::json!(l));
+    }
+    if let Some(p) = meta_str(&e.meta, "pending") {
+        obj.insert("pendingComponent".to_string(), serde_json::json!(p));
+    }
+    if e.pattern.trim() == "/" {
+        obj.insert("index".to_string(), serde_json::json!(true));
+    }
+    if !e.children.is_empty() {
+        let children: Vec<_> = e.children.iter().map(|c| get_contract_route_json(c)).collect();
+        obj.insert("children".to_string(), serde_json::json!(children));
+    }
+    serde_json::Value::Object(obj)
+}

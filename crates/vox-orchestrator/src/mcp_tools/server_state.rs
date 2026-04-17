@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use parking_lot::RwLock as PrRwLock;
@@ -352,7 +352,7 @@ impl ServerState {
     }
 }
 
-#[cfg(any(test, feature = "mcp-test-utils"))]
+#[cfg(test)]
 impl ServerState {
     /// Create a minimally initialized `ServerState` for unit testing with full control over members.
     pub fn test_stub(

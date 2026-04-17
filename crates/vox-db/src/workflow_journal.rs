@@ -11,7 +11,7 @@ use serde_json::Value;
 use crate::research_metrics_contract::{METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY, TelemetryWriteOptions};
 use crate::{StoreError, VoxDb};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 struct WorkflowJournalMeta {
     /// Workflow name executed.
     pub workflow: String,
@@ -41,5 +41,38 @@ impl VoxDb {
             Some(&json),
         )
         .await
+    }
+
+    /// Load all journal entries for a given repository and workflow, ordered by creation (id).
+    /// Returns the raw `entry` payloads from the journal.
+    pub async fn load_workflow_journal(
+        &self,
+        repository_id: &str,
+        workflow_name: &str,
+    ) -> Result<Vec<Value>, StoreError> {
+        let tw = TelemetryWriteOptions::new(repository_id);
+        let session_id = tw.session_workflow();
+
+        let mut entries = Vec::new();
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT metadata_json FROM research_metrics
+                 WHERE session_id = ?1 AND metric_type = ?2
+                 ORDER BY id ASC",
+                (session_id, METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY),
+            )
+            .await?;
+
+        while let Some(row) = rows.next().await? {
+            let json: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            if let Ok(meta) = serde_json::from_str::<WorkflowJournalMeta>(&json) {
+                if meta.workflow == workflow_name {
+                    entries.push(meta.entry);
+                }
+            }
+        }
+
+        Ok(entries)
     }
 }

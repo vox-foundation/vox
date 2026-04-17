@@ -3,6 +3,12 @@
 use std::io::Write;
 use std::path::Path;
 
+pub fn log_routing_efficiency(out_dir: &Path, score: f64) -> anyhow::Result<()> {
+    append(out_dir, "routing_efficiency", serde_json::json!({
+        crate::mens::tensor::telemetry_schema::keys::ROUTING_EFFICIENCY: score,
+    }))
+}
+
 pub fn append(out_dir: &Path, event: &str, payload: serde_json::Value) -> anyhow::Result<()> {
     let p = out_dir.join("telemetry.jsonl");
     let mut f = std::fs::OpenOptions::new()

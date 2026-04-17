@@ -1,0 +1,47 @@
+---
+description: VoxScript is the canonical glue language; never introduce new .ps1/.sh/.py automation scripts
+globs: ["**/*.ps1", "**/*.sh", "**/*.py", "**/*.vox", "scripts/**"]
+alwaysApply: true
+---
+
+# VoxScript-first automation
+
+## Policy
+
+All project automation MUST be `.vox` files executed via `vox run`. Do **not** create new `.ps1`, `.sh`, or `.py` scripts for project automation.
+
+```
+# Correct — cross-platform, type-checked, telemetry-observable
+vox run scripts/corpus-prep.vox
+
+# Correct — fast interpreter tier, no compile step
+vox run --interp scripts/compute-config.vox
+
+# WRONG — do not introduce new shell scripts
+# pwsh -File scripts/my-new-pipeline.ps1
+# python scripts/my-transform.py
+# bash scripts/my-setup.sh
+```
+
+## Execution tiers
+
+| Need | Command |
+|---|---|
+| Pure computation | `vox run --interp` |
+| File I/O or subprocess | `vox run` (native, cached) |
+| Untrusted execution | `vox run --isolation wasm` |
+
+## Bootstrap exception
+
+`scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **exempt** — they are thin (≤10 line) forwarders that run `cargo run -p vox-cli` before `vox` is built. No new logic may be added to these files.
+
+## Security invariants
+
+- Scripts modifying the repo MUST be committed to VCS before agent execution
+- Subprocess calls use `vox-runtime` process primitives (telemetry-observable)
+- Secrets via Clavis only (`clavis.resolve(...)`)
+
+## References
+
+- `AGENTS.md §VoxScript-First Glue Code` — authoritative policy
+- `docs/src/architecture/vox-as-glue-research-2026.md` — security model, tiers, migration plan

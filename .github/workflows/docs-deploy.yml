@@ -21,6 +21,7 @@ jobs:
     name: Build Documentation
     runs-on: ubuntu-latest
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       # Public site origin for sitemap.xml (match GitHub Pages / docs URL).
       MDBOOK_SITEMAP_DOMAIN: https://vox-lang.org/
     steps:
@@ -89,6 +90,25 @@ jobs:
       - name: Build mdBook
         id: mdbook_build
         run: mdbook build docs
+
+      - name: Run Lychee Link Checker for UI
+        continue-on-error: true
+        uses: lycheeverse/lychee-action@v1.9.3
+        with:
+          args: --base docs --verbose --no-progress --format json --output docs/lychee_report.json 'docs/**/*.md'
+          fail: false
+
+      - name: Inject Lychee Icons
+        run: python docs/scripts/lychee_icons.py
+
+      - name: Link Checker Guidance
+        run: |
+          if grep -q '"errors": [1-9]' docs/lychee_report.json; then
+            echo "::warning title=Broken Links Warning::Documentation contains broken links (marked with red icons)."
+            echo "::notice title=Whitelist Guidance::To ignore a persistent or archival link, add it to .lycheeignore."
+            echo "Whitelist Location: .lycheeignore"
+            echo "Action Required: Decide if links should be fixed in Markdown or added to the whitelist for archival maintenance."
+          fi
 
       - name: Run SEO post-build pass
         run: python docs/scripts/seo_postprocess.py

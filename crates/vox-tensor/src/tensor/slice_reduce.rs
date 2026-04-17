@@ -60,6 +60,7 @@ impl<B: Backend> Tensor<B> {
                 1 => Tensor::D2Int(t.clone().slice([0..t.dims()[0], start..end])),
                 _ => panic!("slice: invalid dim for D2Int"),
             },
+            Tensor::Tuple2(_, _) => panic!("slice: unsupported for Tuple2"),
         }
     }
 
@@ -71,6 +72,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D1(t.clone().sum().unsqueeze()),
             Tensor::D4(t) => Tensor::D1(t.clone().sum().unsqueeze()),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("sum: unsupported for int tensors"),
+            Tensor::Tuple2(_, _) => panic!("sum: unsupported for Tuple2"),
         }
     }
 
@@ -82,6 +84,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D3(t) => Tensor::D1(t.clone().mean().unsqueeze()),
             Tensor::D4(t) => Tensor::D1(t.clone().mean().unsqueeze()),
             Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("mean: unsupported for int tensors"),
+            Tensor::Tuple2(_, _) => panic!("mean: unsupported for Tuple2"),
         }
     }
 
@@ -108,6 +111,7 @@ impl<B: Backend> Tensor<B> {
                 .into_iter()
                 .map(|v| v as f32)
                 .collect(),
+            Tensor::Tuple2(_, _) => panic!("to_vec: unsupported for Tuple2"),
         }
     }
 

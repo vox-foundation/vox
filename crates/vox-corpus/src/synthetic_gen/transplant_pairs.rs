@@ -49,12 +49,17 @@ pub fn generate_transplant_pairs(input_path: &std::path::Path, out: &mut impl Wr
                         new_code.push('\n');
                         new_code.push_str(&target_code[last_brace..]);
 
+                        let prompt = format!("Transplant the function logic from the first example into the data structure of the second example.\n\nSource:\n```vox\n{}\n```\nTarget:\n```vox\n{}\n```", source_code, target_code);
                         let record = json!({
-                            "instruction": "Transplant the function logic from the first example into the data structure of the second example.",
-                            "input": format!("Source:\n```vox\n{}\n```\nTarget:\n```vox\n{}\n```", source_code, target_code),
+                            "prompt": prompt,
                             "response": new_code,
+                            "messages": [
+                                {"role": "user", "content": prompt},
+                                {"role": "assistant", "content": new_code}
+                            ],
                             "category": "construct_transplant",
                             "lane": "vox_logic_composition",
+                            "schema_version": "vox_dogfood_v1",
                         });
 
                         writeln!(out, "{}", serde_json::to_string(&record)?)?;

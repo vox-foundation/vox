@@ -19,6 +19,7 @@ pub async fn run(
     target: Option<String>,
     emit_scaffold: bool,
     emit_ir: bool,
+    mode: crate::cli_args::BuildMode,
 ) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
@@ -39,6 +40,10 @@ pub async fn run(
     let ts_opts = vox_compiler::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
         target: target.clone(),
+        mode: match mode {
+            crate::cli_args::BuildMode::App => vox_compiler::codegen_ts::emitter::BuildMode::App,
+            crate::cli_args::BuildMode::Library => vox_compiler::codegen_ts::emitter::BuildMode::Library,
+        },
     };
     let ts_output = vox_compiler::codegen_ts::generate_with_options(&hir, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
@@ -62,9 +67,13 @@ pub async fn run(
     let emitted_manifest = ts_output
         .files
         .iter()
-        .any(|(n, _)| n == "routes.manifest.ts");
+        .any(|(n, _)| n == "routes.manifest.ts" || n == "routes.manifest.json");
     if emitted_manifest {
-        for stale_name in ["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"] {
+        let mut to_remove = vec!["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"];
+        if mode == crate::cli_args::BuildMode::Library {
+            to_remove.push("routes.manifest.ts");
+        }
+        for stale_name in to_remove {
             let stale = out_dir.join(stale_name);
             if stale.is_file() {
                 fs::remove_file(&stale)

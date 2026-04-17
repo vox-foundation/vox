@@ -15,3 +15,4 @@ pub mod packages;
 pub mod publish_cloud;
 pub mod scientia;
 pub mod toestub_build;
+pub mod visus;

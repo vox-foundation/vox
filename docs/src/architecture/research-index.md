@@ -35,8 +35,22 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - **[Vox corpus lab: mass examples, metrics, and eval harness (research 2026)](vox-corpus-lab-research-2026.md)** — Tier A/B/C layout, compiler lanes vs golden parity, Syntax-K and WebIR aggregates, optional UI and vision rubrics, Mens `validate-batch` integration sketch.
 - **[Mens vision and multimodal inputs (research 2026)](mens-vision-multimodal-research-2026.md)** — `TrainingPair` limits, orchestrator hints vs attachments, screenshot-to-JSON pipeline, Candle text-only vs remote VLMs.
 - **[Mens Qwen family migration and native stack (research 2026)](mens-qwen-family-migration-research-2026.md)** — Qwen2 vs Qwen3.5 retention tiers, operator runbook vs code removal, external QwenLM and Hugging Face references.
+- **[Custom Model Pretraining vs Qwen Fine-Tuning Research (2026)](custom-model-pretraining-research-2026.md)** — Analysis of hardware costs (cloud vs local clusters), advantages of full pretraining, and hard limitations of the current Qwen 3.5 QLoRA pipeline.
 - **[GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)](vox-gui-vision-virtuous-cycle-implementation-plan-2026.md)** — 50+ tracked ideas with repo anchors: WebIR, `vox island`, Playwright/MCP screenshots, orchestrator vision, Mens Qwen3.5 text vs optional VL rubric lane, execution waves W0–W5.
 - **[Orchestrator `attachment_manifest` RFC (2026)](orchestrator-attachment-manifest-rfc-2026.md)** — MIME+hash task attachments and vision routing without substring-only hints (spec ahead of types).
+- **[Agentic Planning and MENS Multimodal Boundaries (SSOT)](agent-planning-multimodal-ssot.md)** — Consolidates the Phase 4/5 integration boundaries: explicit "no-pixels-in-prompt" vision validation, explicit deterministic Agentic Planning (V2) gating schemas, and SSE telemetry bridges via vox-codex-api.
+- **[GUI Visual Intelligence: Image Analysis Lane Architecture (research 2026)](gui-visual-intelligence-research-2026.md)** — Comprehensive taxonomy of GUI visual bugs AI and LLMs miss (stacking context traps, hydration flash, cross-browser font divergence, clip/overflow, invisible blockers), hub-and-spoke image analysis lane design, Qwen2.5-VL vs Gemini Vision routing, AXTree + screenshot hybrid payload construction, Vox TypeScript codegen-specific risks, continuous feedback flywheel design, and 4-wave implementation roadmap.
+- **[CSS and AI Inference: The Computed Styles Cascade Problem (research 2026)](css-ai-inference-research-2026.md)** — Documents the gap between static CSS text analysis and runtime browser computed styles, detailing why CSS cascading makes predictive visual styling exceptionally difficult for AI.
+- **[CSS Determinism: Implementation Plan for Vox Style Emission (roadmap 2026)](css-determinism-implementation-plan-2026.md)** — Six-wave implementation plan grounded in live code audit of `codegen_ts/emitter.rs`, `web_ir/`, and the `StyleBlock`/`StyleNode` pipeline. Covers property allowlist validation, selector parsing, specificity tracking, typed value buckets, `@layer` scoping, and a design token system.
+- **[Visus Audit Grounding Prompt (SSOT)](prompts/visus-audit-grounding.v1.md)** — Specialized instructions for Qwen 3.5-VL to perform hybrid pixel-level grounding and AXTree verification for GUI audits.
+- **[Vox Visus: Image Intelligence and VLM Flywheel Implementation Plan (2026)](vox-visus-vlm-implementation-plan-2026.md)** — Wave-gated roadmap for integrating visual intelligence into the Vox orchestrator. Covers Wave 0 (Foundations), Wave 1 (VLM Spoke Integration), Wave 2 (Golden Baseline Arca Integration), and Wave 3 (Training Flywheel Closure).
+- **[AST-Aware Tokenization & Syntax Weighting (finding 2026)](ast-token-alignment-2026.md)** — Strategy and implementation of mapping AST spans to token streams for syntax-critical loss weighting (identifiers, types, control flow weighting k=2.5-5.0). Connects `vox-compiler` spans to `vox-populi` CE loss.
+
+### Contributor and quality research (April 2026)
+
+- **[AI agent panic and shortcut pathology](research-ai-panic-shortcuts-2026.md)** — the shortcut pathology model, VCS guardrails, and PANIC- tracking.
+- **[Terminal execution policy research findings](terminal-exec-policy-research-findings-2026.md)** — PowerShell-first terminal discipline for agentic workflows.
+- **[Documentation hygiene and AI-agent guidelines 2026](doc-hygiene-agent-guidelines-2026.md)** — LLM instructions for maintaining SSOT integrity.
 
 ## Suggested reading paths
 
@@ -46,10 +60,14 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 
 #### LLM Hallucination & Type System Impact (Wave 1)
 - **[LLM-Native Language Design](research-llm-native-lang-design-2026.md)** — cluster overview with Vox implications
+- **[Vox as the First AI-Native Language: Reducing K-Complexity](vox-llm-native-language-research-2026.md)**
 - [Cognitive Science of LLM Hallucinations](research-ts-hallucination-cognitive-science-2026.md)
 - [Empirical Evidence for Type Systems](research-ts-hallucination-empirical-evidence-2026.md)
 - [Frontier Model Challenges](research-ts-hallucination-frontier-2026.md)
 - [K-Complexity Reduction Strategies](research-ts-hallucination-k-complexity-2026.md)
+- [Memory Management & Per-Actor GC for LLMs](memory-management-llm-research-2026.md) — Erlang-style GC vs Borrow Checker vs Global GC trade-offs.
+- [Actor GC Implementation Blueprint](actor-gc-implementation-blueprint-2026.md) — Operational architecture and codebase mutation pathways for injecting the local runtime allocators.
+- [Adopting Erlang's Benefits for LLM-Native Code Generation](erlang-benefits-for-llms-research-2026.md) — Preemption via loop-yielding and supervisor "let-it-crash" integration.
 - [Zero-Shot Invariants Validation](research-ts-hallucination-zero-shot-invariants-2026.md)
 - [Works Cited: Hallucination & Type Systems](research-ts-hallucination-works-cited-2026.md)
 
@@ -78,6 +96,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Works Cited: GRPO Reward Shaping](research-grpo-works-cited-2026.md)
 
 #### AI Agent Context and Handoff Continuity (Wave 4)
+- [Vox A2A Orchestration Hardening Findings (2026)](a2a-orchestration-hardening-findings-2026.md) — synthesizes the April wave: loop blocking, durable journals, and surgical context injection.
 - [Empirical Evidence for Context Compaction](research-agent-handoff-empirical-compaction-2026.md)
 - [Context Bleed and Identity Confusion](research-agent-handoff-context-bleed-2026.md)
 - [SOTA Context-Aware Protocols](research-agent-handoff-sota-protocols-2026.md)
@@ -112,9 +131,14 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Multi-Agent Mesh Economics](research-multi-agent-mesh-economics-2026.md)
 - [Grammar-Constrained Decoding for Code LLMs](research-grammar-constrained-decoding-2026.md)
 - [LLM Output Mediation and Programmatic Validator Generation](research-llm-output-mediation-validation-2026.md) — Proposes a unified `LlmMediator<T>` architecture connecting `vox-constrained-gen` (Tier 1), `vox-jsonschema-util` (Tier 2), Socrates confidence (Tier 3), and the trust layer into a single composable seam. Covers dynamic finite-response-set schema derivation, MCP reduction strategy, RLVR training alignment, and a four-wave implementation roadmap. Cross-references grammar-constrained decoding, trust reliability, HITL doubt loop, and capability registry.
+- **[AI Agent Panic and Shortcut Pathology (research 2026)](research-ai-panic-shortcuts-2026.md)** — Why AI coding agents suppress errors, use `git restore`/`git reset` destructively, delete tests, and hardcode answers rather than fixing root causes. Synthesizes specification gaming theory, context anxiety, sycophancy, and goal misgeneralization research. Defines 7 platform-level countermeasures for Vox (VCS tiering, allow-drift CI gate, step-friction counter, MENS DPO negative lane, GRPO shortcut signal, annotation fingerprinting, test count differential gate) with a `PANIC-NNN` task tracking prefix.
 - **[Clavis as a one-stop secrets manager: research findings 2026](clavis-one-stop-secrets-research-2026.md)** — Comprehensive gap analysis for evolving Vox Clavis into a full-lifecycle secrets management platform. Covers: complete env-var taxonomy across 9 secret classes, user-facing feature requirements, OWASP NHI Top 10 alignment, AI-agent credential isolation boundaries, MCP OAuth 2.1 target model, A2A credential delegation via RFC 8693 Token Exchange, runtime secret redaction pipeline, KEK/DEK envelope encryption model, competitive feature gap table vs. Doppler/Infisical/Pulumi ESC/Vault. Extends [clavis-secrets-env-research-2026.md](clavis-secrets-env-research-2026.md).
+- **[Environment Variables vs. Clavis: Strategy and Cross-System Settings 2026](env-vars-clavis-strategy-2026.md)** — Answers when env vars are necessary vs. harmful, the three-tier taxonomy (bootstrap/secrets/config), concrete Docker/deployment guidance, and the architecture for letting logged-in Vox users share settings and secrets across machines, orchestrators, and mesh nodes. Synthesizes the existing Clavis research with new research on distributed config, cross-system sync, and the Hybrid (Keyring + VoxDB ciphertext) model for sovereign cross-device secret sync.
 - **[Clavis V2: Full Implementation Plan (2026)](clavis-implementation-plan-2026.md)** — Codebase-verified, code-grounded implementation plan for the full Clavis V2 platform. Anchored in the live codebase (spec.rs, vox_vault.rs, resolver.rs, clavis.rs CLI). Defines: single canonical data structure for all ~580 secrets (TaxonomyClass + LifecycleMeta + scope_description on SecretSpec, 3 new ResolutionStatus variants, 4 new SecretMaterialKind variants); 4 new VoxDB tables (version history, audit log, profile overrides, A2A delegations); updated write path with atomic multi-table transactions; 12 new/updated CLI subcommands (set-secret, rotate, rollback, history, list, diff, run, audit-log, delegate, revoke-delegation); runtime secret scrubber (redact.rs + aho-corasick); consumer wiring for all 8 platform crates; 8-wave execution plan with verification steps per wave; 5 new security invariants extending the V1 threat model.
 - **[Cryptography Research Findings 2026](cryptography-research-findings-2026.md)** — ZIG/AEGIS eradication and AES performance evaluation.
+- **[Rosetta language comparison: C++, Rust, Python pedagogy research 2026](rosetta-language-comparison-research-2026.md)** — Pedagogy and mechanism findings supporting the Rosetta Inventory rewrite.
+- [Vox and Erlang architectural comparison 2026](vox-erlang-comparison-research-2026.md) — Capability breakdown contrasting Vox's durable typed executions and agent orchestration with Erlang's distributed hot code swapping BEAM architecture.
+- [FableForge to Vox conversion analysis 2026](fableforge-to-vox-conversion-research-2026.md) — Feasibility study contrasting FableForge's TypeScript/Convex/Next.js stack with Vox's AI-native unified architecture.
 
 
 ### Documentation
@@ -145,10 +169,15 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Vox bell-curve strategy](vox-bell-curve-strategy.md)
 - [Feature growth boundaries](feature-growth-boundaries.md)
 - [Interop tier policy](interop-tier-policy.md)
+- **[Web Framework Interop Research 2026](web-framework-interop-research-2026.md)** — Codebase-grounded analysis of React, TanStack, Svelte 5, SolidJS 2.0, Next.js 16, Qwik, Astro, and Vite 8/Rolldown. Includes full artifact inventory from `codegen_ts/emitter.rs`, framework coupling audit of every generated file, corrected gap analysis (e.g. `vox-client.ts` is already framework-agnostic), and the "library mode" vs "app mode" multi-backend strategy. Cross-references `web_ir/`, `react_bridge.rs`, `app_contract.rs`, ADR 010, ADR 012.
+- **[Web Framework Interop Backlog 2026](web-framework-interop-backlog-2026.md)** — 160-item prioritized task backlog derived from the interop research audit. Covers 18 subsystems (library mode, Zod, route manifest, WebIR multi-backend, React bridge decoupling, app contract, vox-client, ADTs, CLI templates, reactive refactoring, shared route IR, WebIR validation, CSS emission, Axum alignment, testing, documentation, npm publishing). Each item traces to a specific source file and line range.
+- **[Vox Library Mode — Framework-Agnostic Codegen SSOT](vox-library-mode-ssot.md)** — Architectural definition of the framework-agnostic Vox codegen output. Details the zero-dependency SDK generation (Zod schemas, typed fetch client, JSON route manifests) and the transition policy for existing React-coupled projects. Enables Vox consumption from Svelte, Vue, or vanilla TypeScript.
 
 ### Hygiene and maintenance
 
 - **[Dependency Sprawl Audit and Resolution (2026)](dependency-sprawl-research-2026.md)** — Records the workspace-wide audit of sprawling Cargo dependencies, centralization into the root `[workspace.dependencies]`, and implementation of TOESTUB CI-CD enforcement rules.
+- **[Version Tracking SSOT Research 2026](version-tracking-ssot-research-2026.md)** — Architectural guidance on centralizing Cargo crate versions (`workspace.package.version`), establishing payload versioning limits for Vox IR artifacts, and bonding documentation to strict Git tag releases to reduce technical debt.
+- **[VoxScript as Universal Glue Code (research 2026)](vox-as-glue-research-2026.md)** — Policy, security model, execution-tier map, cross-platform deployment analysis, and wave-gated migration plan for replacing all `.ps1`, `.sh`, and `.py` automation scripts with `.vox` files driven by `vox run`. Covers bootstrap exception, capability-permissions model, stdlib gap analysis (`fs`/`process`/`clavis` builtins), and `workflow`-vs-`fn main()` guidance for durable pipelines.
 
 ### Agentic planning and orchestration
 
@@ -161,6 +190,8 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - [Context management implementation blueprint](context-management-implementation-blueprint.md)
 - [Vox agentic loop and MENS plan](vox_agentic_loop_and_mens_plan.md)
 - [VCS for agent state and artifact snapshotting research 2026](vcs-agent-state-research-2026.md) — Using Jujutsu to automate artifact persistence and reversibility over Vox DEI.
+- **[Network Neuroscience Theory and AI Agent Orchestration (Research 2026)](network-neuroscience-theory-research-2026.md)** — Applying NNT principles (small-world topology, dynamic reconfiguration) to Vox's multi-agent orchestrator.
+- **[Network Neuroscience Theory Orchestration Implementation Plan (2026)](nnt-orchestration-implementation-plan-2026.md)** — The 3-wave implementation roadmap for dynamic affinity routing and MENS GRPO `r_routing_efficiency` optimization.
 
 ### SCIENTIA novelty / publication ledger (contracts)
 

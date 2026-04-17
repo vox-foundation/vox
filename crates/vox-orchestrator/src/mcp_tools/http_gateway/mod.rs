@@ -59,13 +59,13 @@ const DEFAULT_ALLOWED_TOOLS: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AccessRole {
+pub(super) enum AccessRole {
     Read,
     Write,
 }
 
 #[derive(Clone)]
-struct GatewayState {
+pub(super) struct GatewayState {
     server_state: ServerState,
     bearer_token: Option<String>,
     read_bearer_token: Option<String>,

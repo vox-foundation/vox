@@ -101,16 +101,19 @@ pub fn router(state: PopuliTransportState) -> Router {
 /// The expected bearer value is **captured at build time** (not re-read on every request).
 pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAuth) -> Router {
     let mesh_replay = Arc::clone(&state.mesh_replay);
+    let trust_verifier = state.node_trust_verifier.clone();
     let r = router(state);
     let runtime = Arc::new(mesh_auth_runtime_for(&auth));
     let runtime_cl = Arc::clone(&runtime);
     let mesh_replay_cl = Arc::clone(&mesh_replay);
+    let trust_verifier_cl = trust_verifier;
     let r = r.layer(middleware::from_fn(
         move |mut req: Request<Body>, next: Next| {
             // Clone Arcs here so the inner `async move` does not capture `runtime_cl` /
             // `mesh_replay_cl` (which would make this middleware closure `FnOnce`).
             let runtime = Arc::clone(&runtime_cl);
             let mesh_replay = Arc::clone(&mesh_replay_cl);
+            let trust_verifier = trust_verifier_cl.clone();
             async move {
                 let path = req.uri().path();
                 if path == "/health" || path == "/v1/populi/bootstrap/exchange" {
@@ -133,7 +136,45 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                     .map(str::trim)
                     .filter(|t| !t.is_empty());
                 let Some(presented) = token else {
-                    warn!(path = %path, "populi bearer auth missing");
+                    // Try Decentralized Identity Headers
+                    let pubkey = req.headers().get("X-Vox-Node-Pubkey").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    let sig = req.headers().get("X-Vox-Node-Signature").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    let nonce = req.headers().get("X-Vox-Node-Nonce").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    let timestamp = req.headers().get("X-Vox-Node-Timestamp").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    
+                    if let (Some(pk), Some(sg), Some(nc), Some(ts)) = (pubkey, sig, nonce, timestamp) {
+                        // Note: To be fully secure, the signature should cover path+body, but for now we verify the nonce+timestamp
+                        // Verify timestamp is within 5 minutes
+                        if let Ok(ts_u64) = ts.parse::<u64>() {
+                            let now = crate::now_ms() / 1000;
+                            if now.abs_diff(ts_u64) < 300 {
+                                let payload = format!("{}.{}.{}", path, ts, nc);
+                                if vox_crypto::facades::verify_signature_hex(&pk, payload.as_bytes(), &sg).unwrap_or(false) {
+                                    let node_id = hex::encode(&vox_crypto::secure_hash(&hex::decode(&pk).unwrap_or_default())[0..16]);
+                                    
+                                    // Optional strict DB trust enforcement
+                                    if let Some(verifier) = &trust_verifier {
+                                        if !verifier(node_id.clone()).await {
+                                            warn!(path = %path, node_id = %node_id, "node signature valid but node is untrusted");
+                                            let mut res = (StatusCode::FORBIDDEN, "untrusted node").into_response();
+                                            stamp_populi_feature_header(&mut res);
+                                            return res;
+                                        }
+                                    }
+
+                                    req.extensions_mut().insert(PopuliAuthContext::NodeSignature {
+                                        node_id,
+                                        pubkey_hex: pk.to_string(),
+                                    });
+                                    let mut res = next.run(req).await;
+                                    stamp_populi_feature_header(&mut res);
+                                    return res;
+                                }
+                            }
+                        }
+                    }
+
+                    warn!(path = %path, "populi bearer/signature auth missing");
                     let mut res = (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
                     stamp_populi_feature_header(&mut res);
                     return res;

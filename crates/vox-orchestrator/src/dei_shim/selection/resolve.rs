@@ -7,29 +7,13 @@ use crate::usage::RemainingBudget;
 
 use super::free_tier::FreeTierRouteRequest;
 
-/// Heuristic `(requires_vision, requires_web_search)` from prompt text for routing.
+/// DEPRECATED: Vision inference heuristics have been eradicated. 
+/// Agents MUST provide an explicit `attachment_manifest` to trigger a vision evaluation pass.
+/// This function now exclusively infers whether a prompt needs `web search`.
 #[must_use]
 pub fn infer_prompt_capability_hints(prompt: &str) -> (bool, bool) {
     let p = prompt.to_lowercase();
-    let requires_vision = p.contains("image")
-        || p.contains("screenshot")
-        || p.contains("photo")
-        || p.contains("diagram")
-        || p.contains("multimodal")
-        || p.contains("base64 image")
-        || p.contains(".png")
-        || p.contains(".jpg")
-        || p.contains(".jpeg")
-        || p.contains(".webp")
-        || p.contains(".gif")
-        || p.contains("<img")
-        || p.contains("![](")
-        || p.contains("ocr")
-        || p.contains("cloud vision")
-        || p.contains("figure ")
-        || p.contains(" chart")
-        || p.contains("webcam")
-        || p.contains("video frame");
+    let requires_vision = false; // Heuristic eradication. Vision via manifests only.
     let requires_web_search = p.contains("web search")
         || p.contains("search web")
         || p.contains("search the web")

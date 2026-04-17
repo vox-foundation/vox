@@ -1,7 +1,7 @@
 ---
 title: "Dependency Sprawl Audit and Resolution (2026)"
 category: "architecture"
-status: "current"
+status: "research"
 ---
 
 # Dependency Sprawl Audit and Resolution (2026)

@@ -284,7 +284,7 @@ pub async fn run_workflow(
         let _ = requested_run_id;
         // Build the project (same as vox run)
         let out_dir = std::path::PathBuf::from("dist");
-        crate::commands::build::run(file, &out_dir, None, false).await?;
+        crate::commands::build::run(file, &out_dir, None, false, false, crate::cli_args::BuildMode::App).await?;
 
         let generated_dir = std::path::PathBuf::from("target").join("generated");
         let shared_target = crate::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));

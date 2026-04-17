@@ -1,5 +1,6 @@
 ---
 description: LF line endings, paths, and cross-platform guardrails for Vox repo work
+globs: ["**/*.rs", "**/*.vox", "**/*.ts"]
 alwaysApply: true
 ---
 

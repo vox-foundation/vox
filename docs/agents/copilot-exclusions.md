@@ -1,3 +1,10 @@
+---
+title: "Copilot Exclusions"
+description: "Agent support documentation for copilot exclusions"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # GitHub Copilot Content Exclusions
 
 GitHub Copilot's content exclusion cannot be configured via a file in the repository. Exclusions must be set in the GitHub web UI at the organization or repository level.

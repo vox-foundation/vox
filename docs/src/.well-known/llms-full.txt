@@ -1,0 +1,27 @@
+# Vox Programming Language — Complete LLM / Agent Documentation Index
+> Vox is an AI-native full-stack programming language that compiles to Rust and TypeScript.
+
+## Agent Policy Entry Points
+- [AGENTS.md](https://vox.foundation/AGENTS.md): Cross-tool policy for all coding agents (required reading)
+- [GEMINI.md](https://vox.foundation/GEMINI.md): Antigravity-specific overlay
+- [CLAUDE.md](https://vox.foundation/CLAUDE.md): Claude Code overlay
+
+## Core Documentation
+- [Getting Started](https://vox.foundation/tutorials/tut-getting-started.html)
+- [Language Syntax Reference](https://vox.foundation/reference/ref-syntax.html)
+- [CLI Reference](https://vox.foundation/reference/cli.html)
+- [Environment Variables SSOT](https://vox.foundation/reference/env-vars.html)
+- [Clavis (Secret Management)](https://vox.foundation/reference/clavis-ssot.html)
+
+## Architecture Authority
+- [Architecture Index](https://vox.foundation/architecture/architecture-index.html)
+- [Research Index](https://vox.foundation/architecture/research-index.html)
+- [Legacy Retirement Roadmap](https://vox.foundation/architecture/legacy-retirement-roadmap.html)
+- [Nomenclature Migration Map](https://vox.foundation/architecture/nomenclature-migration-map.html)
+
+## Contributor Hub
+- [Contributor Hub](https://vox.foundation/contributors/contributor-hub.html)
+- [Documentation Governance](https://vox.foundation/contributors/documentation-governance.html)
+- [Agent Instruction Architecture](https://vox.foundation/contributors/agent-instruction-architecture.html)
+
+*(This file serves as a comprehensive index for agent retrieval. The shorter `llms.txt` file is the primary lightweight navigational discovery method.)*

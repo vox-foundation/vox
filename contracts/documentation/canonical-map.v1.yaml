@@ -64,7 +64,6 @@ domains:
     generated_docs: []
     aliases:
       - docs/src/ci/documentation-pointers.md
-      - docs/src/ci/doc-inventory-ssot.md
     owning_crate_globs:
       - crates/vox-doc-inventory/src/**/*.rs
       - crates/vox-cli/src/commands/ci/**/*.rs
@@ -125,3 +124,50 @@ domains:
       - docs/src/reference/hitl-and-doubt.md
     owning_crate_globs:
       - crates/vox-dei/**
+
+  - id: agent-instruction-files
+    title: Agent instruction file hierarchy
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/terminal/exec-policy.v1.yaml
+    canon_doc: docs/src/contributors/agent-instruction-architecture.md
+    aliases:
+      - AGENTS.md
+      - GEMINI.md
+      - CLAUDE.md
+    notes: Cross-tool policy hierarchy for all AI coding agents.
+
+  - id: cryptography-policy
+    title: Cryptography Policy
+    tier: B-canon
+    status: current
+    spec_paths: []
+    canon_doc: docs/src/architecture/cryptography-ssot-2026.md
+    aliases: []
+
+  - id: context-isolation
+    title: Context Isolation
+    tier: B-canon
+    status: current
+    spec_paths: []
+    canon_doc: docs/src/architecture/multi-repo-context-isolation-research-2026.md
+    aliases: []
+
+  - id: ai-ide-feature-matrix
+    title: AI IDE feature matrix
+    tier: B-canon
+    status: current
+    spec_paths:
+      - docs/agents/ai-ide-feature-matrix-2026.json
+    canon_doc: docs/src/architecture/ai-ide-feature-research-findings-2026.md
+
+    aliases: []
+
+  - id: toestub-quality
+    title: TOESTUB structural limits
+    tier: B-canon
+    status: current
+    spec_paths: []
+    canon_doc: docs/agents/governance.md
+    aliases: []

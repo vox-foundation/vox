@@ -36,6 +36,27 @@ pub async fn enqueue_plan_node(
     } else {
         node.execution_policy.file_manifest.clone()
     };
+    // 1. Compute the deterministic planning tracking hash (session_id:step_id)
+    let deterministic_identifier = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&format!("{}:{}", plan_session_id, node.node_id), &mut hasher);
+        std::hash::Hasher::finish(&hasher)
+    };
+
+    let mut hints = node.execution_policy.enqueue_hints.clone().unwrap_or_default();
+    
+    // 2. Wire the deterministic signature into the thread_id/campaign trace for dispatch tracking
+    if hints.thread_id.is_none() {
+        hints.thread_id = Some(format!("plan-{}", deterministic_identifier));
+    }
+
+    // 3. Apply the RequiresApproval freeze logic
+    // We explicitly freeze the progression of planner task handoffs to capture user consent.
+    let auto_mode = crate::sync_lock::rw_read(&*orch.config).planning_auto_mode_enabled;
+    if !auto_mode && hints.requires_approval.is_none() {
+        hints.requires_approval = Some(true);
+    }
+
     // Planning is task-centric in orchestrator; this bridge just enriches task metadata.
     orch.submit_task_with_agent_planned(
         node.description.clone(),
@@ -44,7 +65,7 @@ pub async fn enqueue_plan_node(
         None,
         None,
         session_id,
-        node.execution_policy.enqueue_hints.clone(),
+        Some(hints),
         Some(meta),
     )
     .await

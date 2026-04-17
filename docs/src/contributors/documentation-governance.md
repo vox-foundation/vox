@@ -4,8 +4,9 @@ description: "Authority map, taxonomy, status vocabulary, and maintenance rules 
 category: "contributor"
 status: "current"
 sort_order: 10
-last_updated: 2026-04-06
+last_updated: 2026-04-16
 training_eligible: true
+training_rationale: "Defines how all docs are organized, which agents must understand to write compliant documentation."
 
 schema_type: "TechArticle"
 ---
@@ -27,6 +28,7 @@ This page defines how Vox documentation is organized and how to keep it from dri
 | `docs/src/architecture/` | contributors | current architecture, authority maps, research, and roadmaps | quick-start or beginner onboarding |
 | `docs/src/contributors/` | contributors | contributor hub, documentation governance, contributor-facing process guidance | public product marketing |
 | [`docs/agents/`](../../agents/) | contributors and automation | inventories, governance, machine-oriented support docs | duplicated public documentation |
+| [`docs/agents/*.json`](../../agents/) | contributors and automation | machine-readable IDE feature matrix, doc inventory, script registry | must not become hand-edited prose |
 | [`contracts/`](../../../contracts/) | code and CI | machine-readable specs and schemas | long-form human explanation |
 
 ## Taxonomy
@@ -171,7 +173,7 @@ Use this lightweight review matrix for high-drift surfaces:
 
 Before committing documentation to the repository, verify the following constraints:
 
-1. **Syntax correctness**: Code snippets must parse cleanly under current validation. Prefer `{{#include}}` from `examples/golden/` where policy requires it. Machine-checked layout lives in `examples/examples.ssot.v1.yaml` (`mdbook_includes_resolve_to_existing_golden_vox` in `vox-compiler` tests).
+1. **Syntax correctness**: All code snippets must parse and type-check cleanly. You must write raw, inline ````vox``` code blocks within the document. The `vox-doc-pipeline` will dynamically extract and validate all inline Vox blocks. Only use `{{#include}}` for legacy files, or use `// vox:skip` inside the block to explicitly disable dynamic validation for pseudo-code.
 2. **Authority registration**: New canonical pages must be reflected in `contracts/documentation/canonical-map.v1.yaml`; aliases must remain link-only.
 3. **Status marker**: Use `status` only when needed (`current`, `experimental`, `legacy`, `research`, `roadmap`, `deprecated`).
 4. **Terminology**: Use established nomenclature (Codex vs Arca, Mens vs Populi, Islands vs Components).

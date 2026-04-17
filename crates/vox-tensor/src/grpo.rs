@@ -30,6 +30,8 @@ pub struct RewardWeights {
     pub test_weight: f64,
     /// Weight for conciseness penalty in the composite reward (default 0.3).
     pub conciseness_weight: f64,
+    /// Weight for routing efficiency (NNT small-world topology) in the composite reward (default 0.2).
+    pub routing_efficiency_weight: f64,
     /// Maximum expected candidate length in characters for conciseness scoring.
     pub max_expected_len: usize,
 }
@@ -38,7 +40,8 @@ impl Default for RewardWeights {
     fn default() -> Self {
         Self {
             test_weight: 0.7,
-            conciseness_weight: 0.3,
+            conciseness_weight: 0.1,
+            routing_efficiency_weight: 0.2,
             max_expected_len: 2000,
         }
     }
@@ -121,6 +124,8 @@ pub struct RewardSignal {
     pub test_score: f64,
     /// Conciseness penalty: shorter code scores higher.
     pub conciseness_score: f64,
+    /// NNT small-world routing efficiency score in `[0.0, 1.0]`.
+    pub routing_efficiency_score: f64,
     /// Final composite reward (gated).
     pub composite: f64,
 }
@@ -142,6 +147,7 @@ pub struct RewardSignal {
 pub fn compute_reward(
     candidate: &str,
     test_results: &TestResults,
+    routing_efficiency: f64,
     weights: &RewardWeights,
 ) -> RewardSignal {
     let report = vox_compiler::ast_eval(candidate);
@@ -149,14 +155,18 @@ pub fn compute_reward(
     let test_score = test_results.pass_rate();
     let conciseness_score =
         1.0 - (candidate.len() as f64 / weights.max_expected_len as f64).min(1.0);
+    let routing_efficiency_score = routing_efficiency.clamp(0.0, 1.0);
 
     let composite = parse_score
-        * (weights.test_weight * test_score + weights.conciseness_weight * conciseness_score);
+        * (weights.test_weight * test_score
+            + weights.conciseness_weight * conciseness_score
+            + weights.routing_efficiency_weight * routing_efficiency_score);
 
     RewardSignal {
         parse_score,
         test_score,
         conciseness_score,
+        routing_efficiency_score,
         composite,
     }
 }
@@ -302,7 +312,7 @@ mod tests {
             total: 1,
             passed: 1,
         };
-        let signal = compute_reward(bad_code, &tests, &RewardWeights::default());
+        let signal = compute_reward(bad_code, &tests, 0.0, &RewardWeights::default());
         assert_eq!(signal.parse_score, 0.0);
         assert_eq!(
             signal.composite, 0.0,
@@ -317,7 +327,7 @@ mod tests {
             total: 1,
             passed: 1,
         };
-        let signal = compute_reward(good_code, &tests, &RewardWeights::default());
+        let signal = compute_reward(good_code, &tests, 0.0, &RewardWeights::default());
         assert_eq!(signal.parse_score, 1.0);
         assert!(signal.composite > 0.0);
     }
@@ -331,9 +341,23 @@ mod tests {
             passed: 0,
         };
         let w = RewardWeights::default();
-        let short_signal = compute_reward(short, &tests, &w);
-        let long_signal = compute_reward(long, &tests, &w);
+        let short_signal = compute_reward(short, &tests, 0.0, &w);
+        let long_signal = compute_reward(long, &tests, 0.0, &w);
         assert!(short_signal.conciseness_score > long_signal.conciseness_score);
+    }
+
+    #[test]
+    fn gated_reward_routing_efficiency_rewards_dense_topology() {
+        let code = "fn a() -> int { ret 1 }";
+        let tests = TestResults {
+            total: 0,
+            passed: 0,
+        };
+        let w = RewardWeights::default();
+        let efficient = compute_reward(code, &tests, 1.0, &w);
+        let inefficient = compute_reward(code, &tests, 0.5, &w);
+        assert!(efficient.routing_efficiency_score > inefficient.routing_efficiency_score);
+        assert!(efficient.composite > inefficient.composite);
     }
 
     #[test]

@@ -4,7 +4,7 @@ members = ["crates/*","crates/workspace-hack"]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.4.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
@@ -20,6 +20,7 @@ unsafe_code = "warn"
 all = "warn"
 
 [workspace.dependencies]
+workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
@@ -39,6 +40,7 @@ vox-db                    = { path = "crates/vox-db" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
+vox-identity              = { path = "crates/vox-identity" }
 
 vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
 vox-bootstrap             = { path = "crates/vox-bootstrap" }
@@ -161,6 +163,7 @@ dashmap            = { version = "6", default-features = false }
 rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"], default-features = false }
 aes-gcm            = "0.10"
 unicode-segmentation = "1.12"
+argon2             = "0.5"
 
 # [VOX AUDIT 2026-04-13] Centralized sprawling versions found in sub-crates
 axum               = { version = "0.8", default-features = false }

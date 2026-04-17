@@ -418,6 +418,13 @@ pub enum CiCmd {
     /// Install the local Git pre-commit hook to automate line-ending enforcement.
     #[command(name = "install-hooks")]
     InstallHooks,
+    /// Check VoxScript hygiene: run `vox check` on all `.vox` files in `scripts/`.
+    #[command(name = "script-hygiene")]
+    ScriptHygiene {
+        /// Scan for retired patterns in script bodies.
+        #[arg(long)]
+        retired_check: bool,
+    },
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].

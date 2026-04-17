@@ -25,9 +25,9 @@ pub(super) fn run_validation_pass(
         eval_pairs.len()
     ));
     for pair in eval_pairs {
-        let text = if let Some(ref turns) = pair.turns {
+        let text = if let Some(ref turns) = pair.messages {
             crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
-        } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+        } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
             crate::mens::tensor::training_text::chatml_supervised_text(
                 system_prompt,
                 p,
@@ -37,12 +37,12 @@ pub(super) fn run_validation_pass(
         } else {
             continue;
         };
-        let prefix_text = if let Some(ref turns) = pair.turns {
+        let prefix_text = if let Some(ref turns) = pair.messages {
             crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(
                 turns,
                 &config.chatml,
             )
-        } else if let Some(ref p) = pair.prompt {
+        } else if let Some(p) = pair.effective_prompt() {
             crate::mens::tensor::training_text::chatml_prefix_open_assistant(
                 system_prompt,
                 p,

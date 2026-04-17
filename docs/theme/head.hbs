@@ -99,4 +99,21 @@ document.addEventListener("DOMContentLoaded", function() {
 <!-- Atom feed discovery -->
 <link rel="alternate" type="application/rss+xml" title="Vox Release Notes" href="{{path_to_root}}feed.xml">
 
+<style>
+.lychee-status {
+    font-size: 0.85em;
+    margin-left: 6px;
+    vertical-align: middle;
+    cursor: help;
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+.lychee-status:hover {
+    transform: scale(1.2);
+}
+.lychee-status.success { color: #22c55e; }
+.lychee-status.error { color: #ef4444; }
+.lychee-status.excluded { color: #94a3b8; opacity: 0.7; }
+</style>
+
 

@@ -1,4 +1,4 @@
-﻿use super::params::{
+use super::params::{
     AgentEventsParams, AttentionSummaryParams, CostHistoryParams, HandoffLineageParams,
     QueueStatusParams,
 };
@@ -443,6 +443,7 @@ pub async fn spawn_agent(state: &ServerState, params: crate::mcp_tools::params::
             out_parent.map(crate::AgentId),
             params.delegation_reason.as_deref(),
             out_source.map(crate::TaskId),
+            None,
         )
     } else {
         state.orchestrator.spawn_agent(&out_name)

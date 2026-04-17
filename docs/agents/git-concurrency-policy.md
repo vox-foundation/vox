@@ -1,3 +1,10 @@
+---
+title: "Git Concurrency Policy"
+description: "Agent support documentation for git concurrency policy"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Vox Git Concurrency & Integrity Policy
 
 > [!IMPORTANT]

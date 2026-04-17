@@ -83,6 +83,10 @@ impl OrganicPair {
         json!({
             "prompt": self.prompt,
             "response": self.response,
+            "messages": [
+                {"role": "user", "content": self.prompt},
+                {"role": "assistant", "content": self.response}
+            ],
             "category": self.category,
             "rating": if self.verified { 5 } else { 1 },
             "format": "vox_organic",

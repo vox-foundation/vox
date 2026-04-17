@@ -286,6 +286,26 @@ pub fn normalize_training_jsonl_line(
             }
             serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
         }
+        Some("workflow_trace") => {
+            let rec: crate::tool_workflow_corpus::WorkflowTraceRecord = serde_json::from_str(trimmed)
+                .map_err(|e| format!("workflow_trace: invalid json: {e}"))?;
+            let prompt = format!(
+                "[vox_workflow_supervision]\nIntent: {}\n\nExecution Log Excerpt:\n{}\n\nEmit a JSON object with routing_efficiency (0.0-1.0).\n",
+                rec.intent.trim(),
+                rec.execution_log_excerpt.trim()
+            );
+            let mut row = serde_json::Map::new();
+            row.insert("prompt".to_string(), serde_json::Value::String(prompt));
+            let response = serde_json::json!({
+                "routing_efficiency": rec.routing_efficiency.unwrap_or(1.0),
+            });
+            row.insert("response".to_string(), serde_json::Value::String(response.to_string()));
+            row.insert(
+                "category".to_string(),
+                serde_json::Value::String("workflow_trace".into()),
+            );
+            serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
+        }
         _ => Ok(trimmed.to_string()),
     }
 }
@@ -391,6 +411,32 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
             serde_json::Value::String(origin.to_string()),
         );
     }
+
+    // Ensure assistant-token density: every training pair MUST have an assistant response.
+    // If using 'messages', the last message MUST be from the 'assistant'.
+    if let Some(serde_json::Value::Array(msgs)) = obj.get("messages") {
+        if let Some(last) = msgs.last() {
+            let role = last.get("role").and_then(|v| v.as_str()).unwrap_or("");
+            if role != "assistant" {
+                // If the last message isn't an assistant turn, try to append 'response' if it exists
+                if let Some(resp) = obj.get("response").and_then(|v| v.as_str()) {
+                    let mut msgs = msgs.clone();
+                    let mut turn = serde_json::Map::new();
+                    turn.insert("role".to_string(), serde_json::Value::String("assistant".into()));
+                    turn.insert("content".to_string(), serde_json::Value::String(resp.into()));
+                    msgs.push(serde_json::Value::Object(turn));
+                    obj.insert("messages".to_string(), serde_json::Value::Array(msgs));
+                } else {
+                    return Err("messages array does not end with assistant turn and no response field found".into());
+                }
+            }
+        } else {
+            return Err("messages array is empty".into());
+        }
+    } else if obj.get("response").and_then(|v| v.as_str()).is_none() {
+        return Err("neither messages nor response field present".into());
+    }
+
     serde_json::to_string(&v)
         .map(|s| (s, lane))
         .map_err(|e| e.to_string())

@@ -133,6 +133,9 @@ impl Orchestrator {
             if let Some(ref soc) = h.socrates_context {
                 task.socrates = Some(soc.clone());
             }
+            if let Some(ref attachment_manifest) = h.attachment_manifest {
+                task.attachment_manifest = Some(attachment_manifest.clone());
+            }
             // `is_detached` would typically inform the task's execution policy or PopuliRemoteDelegate.
             // For now, if specified, we just pass the flag gracefully into the system.
         }

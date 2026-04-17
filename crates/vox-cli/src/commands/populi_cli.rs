@@ -2,6 +2,8 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::pin::Pin;
+use std::sync::Arc;
 
 use crate::commands::populi_lifecycle::{
     OverlayProviderArg, PopuliConnectivityMode, PopuliLifecycleCmd,
@@ -265,6 +267,15 @@ pub enum PopuliCorpusCmd {
         #[arg(long, default_value = "mens/data/snapshots")]
         dest: PathBuf,
     },
+    /// Ingest persistent orchestration lineage to calculate NNT routing efficiency traces.
+    IngestWorkflows {
+        /// Repository ID to scan.
+        #[arg(long, default_value = "vox")]
+        repository: String,
+        /// Output JSONL file (default: `target/dogfood/workflow_traces.jsonl`).
+        #[arg(long, default_value = "target/dogfood/workflow_traces.jsonl")]
+        output: PathBuf,
+    },
 }
 
 /// Mesh node management subcommands.
@@ -402,13 +413,46 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             let addr: SocketAddr = bind
                 .parse()
                 .with_context(|| format!("invalid --bind address: {bind}"))?;
-            let state = if let Some(p) = registry {
+            let mut state = if let Some(p) = registry {
                 vox_populi::transport::PopuliTransportState::load_from_path(&p)
                     .await
                     .with_context(|| format!("load registry {}", p.display()))?
             } else {
                 vox_populi::transport::PopuliTransportState::new_for_serve()
             };
+
+            // Optional: DB-backed trust verifier and reputation decay (hardens mesh from Sybil/poisoning)
+            if let Ok(db) = vox_db::VoxDb::connect_canonical().await {
+                if let Some(self_id) = vox_populi::populi_env().node_id {
+                    let db_for_verifier = Arc::new(db);
+                    let db_for_decay = Arc::clone(&db_for_verifier);
+                    let grantor_verifier = self_id.clone();
+                    let grantor_decay = self_id.clone();
+                    
+                    state.node_trust_verifier = Some(Arc::new(move |trusted_id| {
+                        let db = Arc::clone(&db_for_verifier);
+                        let grantor = grantor_verifier.clone();
+                        Box::pin(async move {
+                            db.is_node_trusted(&grantor, &trusted_id).await.unwrap_or(false)
+                        })
+                    }));
+                    
+                    // Spawn reputation decay worker
+                    tokio::spawn(async move {
+                        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+                        loop {
+                            interval.tick().await;
+                            // Threshold 10 severity sum within 24h
+                            if let Ok(affected) = db_for_decay.process_reputation_decay(&grantor_decay, 10).await {
+                                if affected > 0 {
+                                    tracing::warn!("Reputation decay: removed {} trust grants", affected);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
             vox_populi::transport::serve(addr, state)
                 .await
                 .with_context(|| format!("populi HTTP serve on {addr}"))?;
@@ -515,7 +559,37 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 println!("Joined mesh at {} as node {}", base, updated.id);
 
                 // Start heartbeat loop and worker listener
-                let state = vox_populi::transport::PopuliTransportState::new_for_serve();
+                let mut state = vox_populi::transport::PopuliTransportState::new_for_serve();
+
+                // Optional: DB-backed trust verifier and reputation decay (hardens mesh from Sybil/poisoning)
+                if let Ok(db) = vox_db::VoxDb::connect_canonical().await {
+                    let db_for_verifier = Arc::new(db);
+                    let db_for_decay = Arc::clone(&db_for_verifier);
+                    let grantor_verifier = updated.id.clone();
+                    let grantor_decay = updated.id.clone();
+                    
+                    state.node_trust_verifier = Some(Arc::new(move |trusted_id| {
+                        let db = Arc::clone(&db_for_verifier);
+                        let grantor = grantor_verifier.clone();
+                        Box::pin(async move {
+                            db.is_node_trusted(&grantor, &trusted_id).await.unwrap_or(false)
+                        })
+                    }));
+                    
+                    // Spawn reputation decay worker
+                    tokio::spawn(async move {
+                        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+                        loop {
+                            interval.tick().await;
+                            // Threshold 10 severity sum within 24h
+                            if let Ok(affected) = db_for_decay.process_reputation_decay(&grantor_decay, 10).await {
+                                if affected > 0 {
+                                    tracing::warn!("Reputation decay: removed {} trust grants", affected);
+                                }
+                            }
+                        }
+                    });
+                }
 
                 // Spawn heartbeat
                 let base_cl = base.clone();
@@ -936,6 +1010,29 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 let version = vox_corpus::dataset_snapshot::create_snapshot(&src, &dest)?;
                 println!("✓ Snapshot created: {}", version);
                 Ok(())
+            }
+            PopuliCorpusCmd::IngestWorkflows { repository, output } => {
+                #[cfg(feature = "dei")]
+                {
+                    use std::io::BufWriter;
+                    println!("Ingesting workflow traces from repository '{}' to {} ...", repository, output.display());
+                    if let Some(parent) = output.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    let db = vox_db::VoxDb::connect(vox_db::resolve_canonical_config().map_err(|e| anyhow::anyhow!(e))?).await?;
+                    let mut f = BufWriter::new(std::fs::File::create(&output)?);
+                    let count = vox_orchestrator::services::topology_ingest::ingest_workflow_traces_to_jsonl(
+                        &db,
+                        &repository,
+                        &mut f
+                    ).await?;
+                    println!("✓ Ingested {} workflow traces", count);
+                    Ok(())
+                }
+                #[cfg(not(feature = "dei"))]
+                {
+                    anyhow::bail!("IngestWorkflows requires `dei` feature (vox-orchestrator)")
+                }
             }
         },
     }

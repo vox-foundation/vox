@@ -69,6 +69,8 @@ pub mod keys {
     pub const PROGRESS_FRACTION: &str = "progress_fraction";
     /// **S0** — smoothed steps/sec (EMA over progress intervals) for ETA; `null` until first interval sample.
     pub const STEPS_PER_SEC_EMA: &str = "steps_per_sec_ema";
+    /// **S0** — NNT small-world routing efficiency metric (0.0-1.0).
+    pub const ROUTING_EFFICIENCY: &str = "routing_efficiency";
 }
 
 /// **S0** — current telemetry schema version written alongside events (integer, not content).

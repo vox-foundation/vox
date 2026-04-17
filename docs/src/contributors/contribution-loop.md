@@ -1,0 +1,131 @@
+---
+title: "The Vox Contribution Loop"
+description: "How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible."
+category: "contributor"
+status: "current"
+last_updated: 2026-04-17
+training_eligible: true
+training_rationale: "Core motivational narrative for the contribution-to-corpus feedback loop."
+
+schema_type: "TechArticle"
+---
+
+# The Vox Contribution Loop
+
+Every quality gate in this repository has two jobs: (1) keep the codebase sound, and (2) keep the training corpus clean. This page explains the loop and what it means for your contributions.
+
+## The shipped loop (today)
+
+```
+① WRITE
+  .vox files, Rust code, golden examples
+  │
+② VERIFY  ← where most of your friction happens
+  vox stub-check      — zero stubs / hollow fns
+  cargo check/test    — compiler + unit tests green
+  vox corpus eval     — .vox parse_rate ≥ 99.5%
+  │                    ↓ fails here → negative example pool
+③ INGEST
+  examples/golden/**/*.vox  ─→  vox corpus validate-batch
+  synthetic.jsonl           ─→  synthetic_valid.jsonl
+                            ─→  golden_validated.jsonl
+  │
+④ TRAIN
+  vox mens train  (Candle QLoRA, local GPU or cloud)
+  │
+⑤ IMPROVE
+  Better .vox completions via LSP + local Populi serve
+  └─→ back to ①
+```
+
+The verify step is the filter. Contributions that pass become training data;
+contributions with stubs, hollow functions, or parse failures become
+**negative examples** — the model learns to avoid those patterns.
+
+## What makes a contribution training-eligible
+
+To land in the positive training pool, a `.vox` file or Rust change must:
+
+| Check | Command | Threshold |
+|---|---|---|
+| Zero stubs and hollow fns | `vox stub-check --path <dir>` | No `Error` findings |
+| Compiler clean | `cargo check -p <crate>` | Zero errors |
+| Tests present and passing | `cargo test -p <crate>` | Green |
+| `.vox` parse rate | `vox corpus eval --mode ast` | ≥ 99.5% |
+| No CRLF line endings | `vox ci line-endings` | Zero CRLF |
+| Docs code blocks valid | `// vox:skip` or `{{#include}}` | No bare snippets |
+
+## What sends code to the negative pool
+
+The system generates negative training examples from:
+
+- `stub/todo`, `stub/unimplemented`, `skeleton/hollow-fn` findings
+- `.vox` parse failures during `vox corpus validate-batch`
+- MCP pre-emit validation failures (planned — see roadmap section)
+- Replans triggered by failed victory-condition tiers
+
+This is **not punitive** — negative examples are essential for DPO training.
+But it means AI-generated skeleton code that looks plausible does real harm if
+it enters the corpus unchecked. The `VictoryClaimDetector` specifically watches
+for "implementation complete" adjacent to `unimplemented!()`.
+
+## The golden examples path
+
+The highest-signal contribution you can make to MENS is a well-formed golden example:
+
+```
+examples/golden/<capability>.vox
+```
+
+Golden files are compiled against the current compiler in CI
+(`cargo test -p vox-compiler --test golden_vox_examples`), validated for
+corpus quality, and have first-priority ingest into the training mix.
+
+See the [examples SSOT](../../../examples/examples.ssot.v1.yaml) for the
+declared golden roots and the [golden examples corpus guide](../how-to/examples-corpus.md)
+for how to add one correctly.
+
+## Checking your own contribution's quality
+
+```bash
+# 1. Stub check on your directory
+cargo run -p vox-cli --features stub-check -- stub-check crates/your-crate
+
+# 2. Compiler + tests
+cargo check -p your-crate
+cargo test -p your-crate
+
+# 3. .vox corpus quality (if you touched .vox files)
+cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
+
+# 4. Full pre-push parity
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo run -p vox-cli -- ci ssot-drift
+```
+
+## Planned additions (roadmap — Wave 7–9)
+
+> **These are not yet shipped.** They describe the direction from
+> [`vox_agentic_loop_and_mens_plan.md`](../architecture/vox_agentic_loop_and_mens_plan.md).
+
+**Scientia auto-ingest (Wave 7):** IDE sessions will be observed by
+`ScientiaObserver`. Sessions that produce valid `.vox` with high
+`worthiness_score` auto-ingest as training rows without manual corpus tooling.
+Sessions that trigger multiple replans auto-ingest as negative examples.
+
+**GRPO reward shaping (Wave 9):** Instead of SFT-only training, the model will
+be scored on three signals per generated candidate:
+- `r_syntax` — parse passes (0/1)
+- `r_test` — `@test` block pass rate
+- `r_coverage` — AST construct richness
+
+Combined reward: `0.6×parse + 0.3×test + 0.1×coverage`. This makes test
+coverage inside `.vox` files a first-class quality signal.
+
+## Related
+
+- [TOESTUB contributor guide](toestub-contributor-guide.md) — fix specific CI failures
+- [Vox source → MENS pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md) — authoritative technical crosswalk
+- [Mens native training SSOT](../reference/mens-training.md) — training pipeline reference
+- [AI agent panic and shortcut pathology](../architecture/research-ai-panic-shortcuts-2026.md) — why shortcuts harm the corpus

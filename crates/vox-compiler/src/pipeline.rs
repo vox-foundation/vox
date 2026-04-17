@@ -51,8 +51,37 @@ pub fn run_frontend_str_with_options(
     // 1. Lex
     let tokens = crate::lexer::lex(source);
 
+    // 1.5. Prevent Syntactic Configurability (K-Complexity Guard)
+    for spanned in &tokens {
+        if let crate::lexer::token::Token::Ident(ref name) = spanned.token {
+            if name == "macro_rules" || name == "macro" {
+                let diag = Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: "SyntacticConfigurabilityNotAllowed: Vox is strictly constrained. Do not use macros or custom syntactic configurability. Use vox-skills for extended actions.".to_string(),
+                    span: crate::ast::span::Span::new(spanned.span.start, spanned.span.end),
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec!["Rewrite using standard syntax and route out-of-band logic through MCP skills.".to_string()],
+                    category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
+                    code: Some("E091".to_string()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                };
+                return Ok(FrontendResult {
+                    module: crate::ast::decl::Module { declarations: vec![], span: crate::ast::span::Span::new(0, 0) },
+                    hir: crate::hir::HirModule::default(),
+                    diagnostics: vec![diag],
+                    source: source.to_owned(),
+                });
+            }
+        }
+    }
+
     // 2. Parse
-    let module = crate::parser::parse(tokens)
+    let module = crate::parser::parse(tokens.clone())
         .map_err(|errors| anyhow::anyhow!("Parsing failed with {} error(s)", errors.len()))?;
 
     // 3. Lower to HIR + structural validation
@@ -90,6 +119,31 @@ pub fn format_diagnostics_json(result: &FrontendResult, file_path: &str) -> Stri
 /// Run the full check pipeline and return machine-readable diagnostics even on parse failure.
 pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPayload> {
     let tokens = crate::lexer::lex(source);
+    
+    // 1.5. Prevent Syntactic Configurability (K-Complexity Guard)
+    for spanned in &tokens {
+        if let crate::lexer::token::Token::Ident(ref name) = spanned.token {
+            if name == "macro_rules" || name == "macro" {
+                let diag = Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: "SyntacticConfigurabilityNotAllowed: Vox is strictly constrained. Do not use macros or custom syntactic configurability. Use vox-skills for extended actions.".to_string(),
+                    span: crate::ast::span::Span::new(spanned.span.start, spanned.span.end),
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec!["Rewrite using standard syntax and route out-of-band logic through MCP skills.".to_string()],
+                    category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
+                    code: Some("E091".to_string()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                };
+                return vec![VoxCompilerDiagnosticPayload::from_diagnostic(&diag, file_path, source)];
+            }
+        }
+    }
+
     match crate::parser::parse(tokens) {
         Ok(module) => {
             let mut hir = crate::hir::lower_module(&module);
@@ -128,5 +182,24 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
                 VoxCompilerDiagnosticPayload::from_diagnostic(&diag, file_path, source)
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reject_macros_e091() {
+        let source = "macro_rules! my_macro { () => {} }";
+        let diagnostics = check_file(source, "test.vox");
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].error_code, "E091".to_string());
+        assert!(diagnostics[0].message.contains("SyntacticConfigurabilityNotAllowed"));
+        
+        // Also test run_frontend_str
+        let frontend_res = run_frontend_str(source, "test.vox").unwrap();
+        assert_eq!(frontend_res.diagnostics.len(), 1);
+        assert_eq!(frontend_res.diagnostics[0].code, Some("E091".to_string()));
     }
 }

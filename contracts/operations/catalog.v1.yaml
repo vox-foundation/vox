@@ -10873,6 +10873,83 @@ operations:
     name: vox_exec_time_record
     http_read_role_eligible: false
   cli: null
+- id: rag.visual.query
+  title: Rag Visual Query
+  description: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_visual_rag_query
+    http_read_role_eligible: false
+  cli: null
+- id: visus.audit
+  title: Visus Audit
+  description: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
+  description_human: null
+  product_lane: ai
+  intent_tags: [gui, visual, testing]
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_visus_audit
+    http_read_role_eligible: false
+  cli:
+    path:
+    - visus
+    - audit
+    status: active
+    latin_ns: dei
+    handler_rust: commands::visus::dispatch
+    feature_gate: dei
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: visus.baseline
+  title: Visus Baseline
+  description: Manages golden visual baselines for regression testing.
+  description_human: null
+  product_lane: ai
+  intent_tags: [gui, visual, testing, baseline]
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_visus_baseline
+    http_read_role_eligible: false
+  cli:
+    path:
+    - visus
+    - baseline
+    status: active
+    latin_ns: dei
+    handler_rust: commands::visus::dispatch
+    feature_gate: dei
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 exemptions:
   mcp_tools: []
   cli_paths: []

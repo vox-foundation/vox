@@ -2,14 +2,18 @@
  * Lazy-initialised shiki highlighter singleton for the Vox webview.
  *
  * Shiki v4 ships `createHighlighter` which accepts bundled languages by name
- * and TextMate grammars via the `langs` option. The Vox TextMate grammar is
- * already bundled with the extension at `../../syntaxes/vox.tmLanguage.json`
- * relative to this file's compiled output location.
+ * and TextMate grammars as inlined JSON objects via the `langs` option. The
+ * Vox TextMate grammar is imported statically so esbuild inlines it at bundle
+ * time — the webview sandbox has no filesystem access, so a `path:` string
+ * would silently fall back to `bash` at runtime.
  *
  * Languages not in the bundled set or the Vox grammar fall back to `bash` so
  * `codeToHtml` never throws on an unknown language id.
  */
-import { createHighlighter, type Highlighter } from 'shiki';
+import { createHighlighter, type Highlighter, type LanguageRegistration } from 'shiki';
+// Static import — esbuild resolves and inlines this JSON at build time so the
+// grammar is always available inside the webview sandbox (no filesystem reads).
+import voxGrammar from '../../../syntaxes/vox.tmLanguage.json';
 
 let _hl: Highlighter | null = null;
 let _initPromise: Promise<Highlighter> | null = null;
@@ -18,6 +22,8 @@ const BUNDLED_LANGS = [
     'rust',
     'typescript',
     'javascript',
+    'python',
+    'css',
     'bash',
     'json',
     'toml',
@@ -34,17 +40,10 @@ async function getHighlighter(): Promise<Highlighter> {
         themes: ['github-dark', 'github-light'],
         langs: [
             ...BUNDLED_LANGS,
-            // Register the existing Vox TextMate grammar shipped with the extension.
-            // The path is relative to the esbuild output location (out/webview.js).
-            // esbuild bundles the import; the json file is resolved at build time,
-            // so we inline it to guarantee availability in the webview sandbox.
-            // NOTE: if the path resolution fails at build, shiki degrades to bash.
-            {
-                name: 'vox',
-                scopeName: 'source.vox',
-                // Reach from out/webview.js up to syntaxes/
-                path: '../../syntaxes/vox.tmLanguage.json',
-            } as Parameters<typeof createHighlighter>[0]['langs'][number],
+            // Inline Vox TextMate grammar — imported statically above so esbuild
+            // bundles it. The cast is required because the JSON type doesn't
+            // carry the full LanguageRegistration discriminant.
+            voxGrammar as unknown as LanguageRegistration,
         ],
     }).then((hl) => {
         _hl = hl;

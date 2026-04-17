@@ -1,6 +1,6 @@
 [package]
 name = "vox-dei"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [dependencies]
@@ -15,4 +15,4 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }

@@ -162,11 +162,17 @@ impl Parser {
                 self.advance();
                 let mut elems = Vec::new();
                 while !matches!(self.peek(), Token::RBracket | Token::Eof) {
+                    self.skip_newlines();
+                    if matches!(self.peek(), Token::RBracket | Token::Eof) {
+                        break;
+                    }
                     elems.push(self.parse_expr()?);
+                    self.skip_newlines();
                     if !self.eat(&Token::Comma) {
                         break;
                     }
                 }
+                self.skip_newlines();
                 self.expect(&Token::RBracket)?;
                 Expr::ListLit {
                     elements: elems,
@@ -351,6 +357,7 @@ impl Parser {
                 break;
             }
         }
+        self.skip_newlines();
         self.expect(&Token::RBrace)?;
         Ok(Expr::ObjectLit {
             fields,
@@ -417,11 +424,7 @@ impl Parser {
         let binding = self.parse_ident_name()?;
         self.expect(&Token::In)?;
         let iterable = self.parse_expr()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
         let body = self.parse_expr()?;
-        self.skip_newlines();
-        self.eat(&Token::RBrace);
         Ok(Expr::For {
             binding,
             iterable: Box::new(iterable),

@@ -27,20 +27,16 @@ pub enum WorkspaceJourneyStoreMode {
 /// Read `VOX_WORKSPACE_JOURNEY_STORE`: `project` (default) or `canonical`.
 #[must_use]
 pub fn workspace_journey_store_mode_from_env() -> WorkspaceJourneyStoreMode {
-    match std::env::var("VOX_WORKSPACE_JOURNEY_STORE") {
-        Ok(v) if v.trim().eq_ignore_ascii_case("canonical") => WorkspaceJourneyStoreMode::Canonical,
-        _ => WorkspaceJourneyStoreMode::Project,
+    let val = vox_config::env_parse::resolve_config_str("VOX_WORKSPACE_JOURNEY_STORE", "project");
+    if val.trim().eq_ignore_ascii_case("canonical") {
+        WorkspaceJourneyStoreMode::Canonical
+    } else {
+        WorkspaceJourneyStoreMode::Project
     }
 }
 
 fn workspace_journey_fallback_canonical_enabled() -> bool {
-    match std::env::var("VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL") {
-        Ok(v) => {
-            let t = v.trim();
-            !(t == "0" || t.eq_ignore_ascii_case("false") || t.eq_ignore_ascii_case("no"))
-        }
-        Err(_) => true,
-    }
+    vox_config::env_parse::resolve_config_bool("VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL", true)
 }
 
 /// Connect the primary DB for a repo-backed journey using CWD discovery.

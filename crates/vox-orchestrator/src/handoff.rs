@@ -96,6 +96,9 @@ pub struct HandoffPayload {
     /// Verification criteria the receiver should check before considering work done.
     #[serde(default)]
     pub verification_criteria: Vec<String>,
+    /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 impl HandoffPayload {
@@ -126,6 +129,7 @@ impl HandoffPayload {
             metadata: Vec::new(),
             unresolved_objectives: Vec::new(),
             verification_criteria: Vec::new(),
+            attachment_manifest: None,
         }
     }
 
@@ -201,6 +205,15 @@ impl HandoffPayload {
         self
     }
 
+    /// Builder: add an attachment manifest.
+    pub fn with_attachments(
+        mut self,
+        manifest: crate::attachment_manifest::AttachmentManifest,
+    ) -> Self {
+        self.attachment_manifest = Some(manifest);
+        self
+    }
+
     /// Serialize to JSON for transmission.
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_else(|_| "{}".to_string())
@@ -240,6 +253,14 @@ impl HandoffPayload {
             md.push_str("## Files\n\n");
             for f in &self.owned_files {
                 md.push_str(&format!("- `{}`\n", f.display()));
+            }
+            md.push('\n');
+        }
+
+        if let Some(manifest) = &self.attachment_manifest {
+            md.push_str("## Attachments\n\n");
+            for a in &manifest.attachments {
+                md.push_str(&format!("- **{}** (`{}`) [sha256: {}]\n", a.label, a.mime_type, a.sha256));
             }
             md.push('\n');
         }
@@ -430,6 +451,18 @@ pub fn execute_handoff(
         .map(|a| a.to_string())
         .unwrap_or_else(|| "any".to_string());
 
+    let from_role = payload.metadata.iter()
+        .find(|(k, _)| k == "execution_role")
+        .and_then(|(_, v)| match v.to_lowercase().as_str() {
+            "planner" => Some(crate::topology::AgentRole::Planner),
+            "executor" | "builder" => Some(crate::topology::AgentRole::Executor),
+            "verifier" => Some(crate::topology::AgentRole::Verifier),
+            "synthesizer" => Some(crate::topology::AgentRole::Synthesizer),
+            "researcher" => Some(crate::topology::AgentRole::Researcher),
+            "observer" => Some(crate::topology::AgentRole::Observer),
+            _ => Some(crate::topology::AgentRole::Generalist),
+        });
+
     tracing::info!(
         from = %payload.from_agent,
         to = %to_str,
@@ -445,6 +478,7 @@ pub fn execute_handoff(
         has_harness_spec,
         session_id,
         thread_id,
+        from_role,
     });
     Ok(())
 }
@@ -528,6 +562,7 @@ mod tests {
                 has_harness_spec,
                 session_id,
                 thread_id,
+                from_role,
                 ..
             } => {
                 assert_eq!(from, AgentId(1));
@@ -536,6 +571,7 @@ mod tests {
                 assert!(!has_harness_spec);
                 assert!(session_id.is_none());
                 assert!(thread_id.is_none());
+                assert!(from_role.is_none());
             }
             _ => panic!("wrong event type"),
         }
@@ -696,12 +732,14 @@ mod tests {
                 has_harness_spec,
                 session_id,
                 thread_id,
+                from_role,
                 ..
             } => {
                 assert!(has_context_envelope);
                 assert!(!has_harness_spec);
                 assert_eq!(session_id.as_deref(), Some("sid-event"));
                 assert!(thread_id.is_none());
+                assert!(from_role.is_none());
             }
             other => panic!("unexpected event: {other:?}"),
         }
@@ -765,12 +803,14 @@ mod tests {
                 has_harness_spec,
                 session_id,
                 thread_id,
+                from_role,
                 ..
             } => {
                 assert!(!has_context_envelope);
                 assert!(has_harness_spec);
                 assert_eq!(session_id.as_deref(), Some("sid-harness-event"));
                 assert_eq!(thread_id.as_deref(), Some("thread-harness-event"));
+                assert!(from_role.is_none());
             }
             other => panic!("unexpected event: {other:?}"),
         }

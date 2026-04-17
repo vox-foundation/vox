@@ -9,12 +9,7 @@ pub const ROUTING_REASON_JSON_MAX_BYTES: usize = 4096;
 
 #[must_use]
 pub fn unified_routing_rollout_enabled() -> bool {
-    matches!(
-        std::env::var("VOX_UNIFIED_ROUTING")
-            .map(|v| v.trim().to_ascii_lowercase())
-            .as_deref(),
-        Ok("1" | "true" | "yes")
-    )
+    vox_config::env_parse::resolve_config_bool("VOX_UNIFIED_ROUTING", false)
 }
 
 /// Versioned payload written by [`crate::routing_telemetry::OrchestratorTaskRoutingReasonV1::to_json_bounded`].

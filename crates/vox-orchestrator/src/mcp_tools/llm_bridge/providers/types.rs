@@ -1,4 +1,4 @@
-﻿use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct GeminiResponse {
@@ -60,8 +60,19 @@ pub(crate) struct GeminiSys<'a> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiPartOut<'a> {
-    pub text: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inline_data: Option<GeminiInlineData<'a>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiInlineData<'a> {
+    pub mime_type: &'a str,
+    pub data: &'a str,
 }
 
 #[derive(Serialize)]

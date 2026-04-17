@@ -1,4 +1,4 @@
-﻿use schemars::JsonSchema;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use crate::types::TaskCategory;
 
@@ -48,6 +48,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         "general" | "ars" | "planning" => TaskCategory::General,
         "inter_agent" => TaskCategory::InterAgent,
         "tool_orchestration" => TaskCategory::ToolOrchestration,
+        "visus" | "vision" | "gui" => TaskCategory::Visus,
         _ => {
             return ToolResult::<String>::err_with_remediation(
                 "Unknown task_category",
@@ -67,6 +68,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         TaskCategory::Ars => 9,
         TaskCategory::InterAgent => 2,
         TaskCategory::ToolOrchestration => 5,
+        TaskCategory::Visus => 8,
     };
     let resolution = McpChatModelResolution {
         allow_cheapest_fallback: true,

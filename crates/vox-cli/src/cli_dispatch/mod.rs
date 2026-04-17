@@ -76,6 +76,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Auth { cmd } => {
             crate::commands::auth::run(cmd).await?;
         }
+        Cli::Config { cmd } => {
+            crate::commands::config::run(cmd).await?;
+        }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {
             run_review_subcommand(cmd).await?;
@@ -271,6 +274,13 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         Cli::Mens { action } => {
             crate::commands::mens::run(action, global.json, global.verbose).await?;
+        }
+        Cli::Plan { cmd } => {
+            crate::commands::plan::dispatch(cmd).await?;
+        }
+        #[cfg(feature = "dei")]
+        Cli::Visus { cmd } => {
+            crate::commands::visus::dispatch(cmd).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
         }
         Cli::Research { cmd } => crate::commands::research::run(cmd).await?,
         #[cfg(feature = "oratio")]

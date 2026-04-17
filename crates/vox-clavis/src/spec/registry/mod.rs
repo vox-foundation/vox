@@ -10,4 +10,6 @@ mod scholarly;
 pub use scholarly::*;
 mod social;
 pub use social::*;
+mod identity;
+pub use identity::*;
 pub mod missing;

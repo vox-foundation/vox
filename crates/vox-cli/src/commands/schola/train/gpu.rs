@@ -117,8 +117,8 @@ pub(super) async fn run_gpu_training(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) {
-        let k = qlora_ce_last_k.max(1);
-        if k > 64 {
+        let k = qlora_ce_last_k;
+        if k > 0 && k > 64 {
             anyhow::bail!("--qlora-ce-last-k must be at most 64 (got {k})");
         }
         if k > seq_len {
@@ -278,7 +278,7 @@ pub(super) async fn run_gpu_training(
         qlora_max_skip_rate,
         qlora_lm_head_only,
         qlora_proxy_max_layers,
-        qlora_ce_last_k: qlora_ce_last_k.max(1),
+        qlora_ce_last_k,
         checkpoint_every,
         force_restart,
         deployment_target,

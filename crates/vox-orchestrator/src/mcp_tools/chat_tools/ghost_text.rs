@@ -1,4 +1,4 @@
-﻿use super::params::{GhostTextParams, GhostTextResult};
+use super::params::{GhostTextParams, GhostTextResult};
 use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
@@ -114,6 +114,7 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         max_tokens,
         temperature,
         false,
+        None,
     )
     .await
     {

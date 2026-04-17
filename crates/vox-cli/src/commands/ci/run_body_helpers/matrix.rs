@@ -26,6 +26,60 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
     Ok(())
 }
 
+pub(crate) fn visit_vox_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+        let entry = entry?;
+        let p = entry.path();
+        let t = entry.file_type()?;
+        if t.is_dir() {
+            visit_vox_files(&p, f)?;
+        } else if t.is_file() && p.extension().and_then(|x| x.to_str()) == Some("vox") {
+            f(&p)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()> {
+    let scripts_dir = root.join("scripts");
+    if !scripts_dir.is_dir() {
+        return Ok(());
+    }
+
+    let mut violations = Vec::new();
+    let mut total_scripts = 0;
+
+    let vox_exe = std::env::current_exe().context("get current exe")?;
+
+    visit_vox_files(&scripts_dir, &mut |p: &Path| {
+        total_scripts += 1;
+        let rel_p = p.strip_prefix(root).unwrap_or(p);
+        
+        let st = Command::new(&vox_exe)
+            .arg("check")
+            .arg(p)
+            .status()
+            .with_context(|| format!("failed to run vox check on {}", p.display()))?;
+        
+        if !st.success() {
+            violations.push(rel_p.display().to_string());
+        }
+
+        Ok(())
+    })?;
+
+    if !violations.is_empty() {
+        return Err(anyhow!(
+            "VoxScript hygiene failed for {} scripts:\n{}",
+            violations.len(),
+            violations.join("\n")
+        ));
+    }
+
+    println!("VoxScript hygiene OK ({} scripts checked)", total_scripts);
+    Ok(())
+}
+
 pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
     let src = root.join("crates/vox-cli/src");
     let re = regex::Regex::new(r"\bvox_dei::")?;

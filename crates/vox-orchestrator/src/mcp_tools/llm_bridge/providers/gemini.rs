@@ -1,9 +1,10 @@
-﻿use super::metadata::HttpCallMetadata;
+use super::metadata::HttpCallMetadata;
 use super::types::{
     GeminiCandidate, GeminiContent, GeminiGenCfg, GeminiGenerateBody, GeminiPart, GeminiPartOut,
     GeminiResponse, GeminiSys, GeminiTurn,
 };
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
+use crate::mcp_tools::llm_bridge::providers::types::GeminiInlineData;
 
 
 pub(crate) async fn http_gemini_with_metadata(
@@ -11,7 +12,7 @@ pub(crate) async fn http_gemini_with_metadata(
     model_id: &str,
     api_key: &str,
     system: &str,
-    user: &str,
+    user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
@@ -24,7 +25,7 @@ pub(crate) async fn http_gemini_with_metadata(
         None
     } else {
         Some(GeminiSys {
-            parts: vec![GeminiPartOut { text: system }],
+            parts: vec![GeminiPartOut { text: Some(system), inline_data: None }],
         })
     };
 
@@ -34,11 +35,46 @@ pub(crate) async fn http_gemini_with_metadata(
         None
     };
 
+    let mut parts = Vec::new();
+    match user {
+        vox_openai_wire::ChatMessageContent::Text(t) => {
+            parts.push(GeminiPartOut { text: Some(t), inline_data: None });
+        }
+        vox_openai_wire::ChatMessageContent::Parts(p) => {
+            for part in p {
+                match part {
+                    vox_openai_wire::ChatMessagePart::Text { text } => {
+                        parts.push(GeminiPartOut { text: Some(text), inline_data: None });
+                    }
+                    vox_openai_wire::ChatMessagePart::ImageUrl { image_url } => {
+                        // Gemini expects data format. We assume data:mime;base64,data
+                        if image_url.url.starts_with("data:") {
+                            if let Some(comma_pos) = image_url.url.find(',') {
+                                let header = &image_url.url[5..comma_pos];
+                                let data = &image_url.url[comma_pos+1..];
+                                if let Some(semi_pos) = header.find(';') {
+                                    let mime = &header[..semi_pos];
+                                    parts.push(GeminiPartOut {
+                                        text: None,
+                                        inline_data: Some(GeminiInlineData {
+                                            mime_type: mime,
+                                            data,
+                                        }),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let body = GeminiGenerateBody {
         system_instruction,
         contents: vec![GeminiTurn {
             role: "user",
-            parts: vec![GeminiPartOut { text: user }],
+            parts,
         }],
         generation_config: GeminiGenCfg {
             temperature,

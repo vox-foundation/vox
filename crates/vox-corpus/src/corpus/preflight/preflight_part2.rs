@@ -1,9 +1,15 @@
 
 /// Generate an error→fix training pair as JSONL.
 pub fn error_fix_to_jsonl(broken: &str, explanation: &str, fixed: &str, category: &str) -> String {
+    let prompt = format!("Why doesn't this Vox code compile?\n\n```vox\n{broken}\n```");
+    let response = format!("{explanation}\n\nFixed version:\n```vox\n{fixed}\n```");
     serde_json::json!({
-        "prompt": format!("Why doesn't this Vox code compile?\n\n```vox\n{broken}\n```"),
-        "response": format!("{explanation}\n\nFixed version:\n```vox\n{fixed}\n```"),
+        "prompt": prompt,
+        "response": response,
+        "messages": [
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": response}
+        ],
         "category": format!("{category}_error_fix"),
         "format": "error_fix",
         "schema_version": "vox_dogfood_v1",
@@ -37,6 +43,10 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Resul
         let line1 = serde_json::json!({
             "prompt": question1,
             "response": answer1,
+            "messages": [
+                {"role": "user", "content": question1},
+                {"role": "assistant", "content": answer1}
+            ],
             "category": "vox_architectural_qa",
             "format": "qa_pair",
             "schema_version": "vox_dogfood_v1",
@@ -49,6 +59,10 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Resul
             let line2 = serde_json::json!({
                 "prompt": question2,
                 "response": example.response,
+                "messages": [
+                    {"role": "user", "content": question2},
+                    {"role": "assistant", "content": example.response}
+                ],
                 "category": "vox_architectural_qa",
                 "format": "qa_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -81,15 +95,21 @@ pub fn gen_explain_pairs(
         .enumerate()
         .filter(|(i, _)| i % stride == 0)
         .map(|(_, (_, code, category))| {
+            let prompt = format!("Explain this Vox code in plain English:\n\n```vox\n{code}\n```");
+            let response = format!(
+                "This Vox code defines a `{category}` construct. \
+                 It uses Vox's strong static type system and explicit return types. \
+                 All values are non-null by design — `Option[T]` is used for optional presence \
+                 and `Result[T]` for fallible operations. \
+                 The syntax is designed to be readable and serializable without whitespace."
+            );
             serde_json::json!({
-                "prompt": format!("Explain this Vox code in plain English:\n\n```vox\n{code}\n```"),
-                "response": format!(
-                    "This Vox code defines a `{category}` construct. \
-                     It uses Vox's strong static type system and explicit return types. \
-                     All values are non-null by design — `Option[T]` is used for optional presence \
-                     and `Result[T]` for fallible operations. \
-                     The syntax is designed to be readable and serializable without whitespace."
-                ),
+                "prompt": prompt,
+                "response": response,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response}
+                ],
                 "category": format!("{category}_explain"),
                 "format": "explain_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -136,16 +156,22 @@ pub fn gen_debug_pairs(organic_samples: &[(String, String, String)], stride: usi
         .filter(|(i, _)| i % stride == 0)
         .zip(runtime_errors.iter().cycle())
         .map(|((_, (_, code, category)), (error, diagnosis))| {
+            let prompt = format!(
+                "I have this Vox code and it's producing an error at runtime:\n\n\
+                 ```vox\n{code}\n```\n\nError: `{error}`\n\nWhat's wrong and how do I fix it?"
+            );
+            let response = format!(
+                "{diagnosis}\n\nIn this specific `{category}` code, check \
+                 that all data flows match their declared types and that Optional \
+                 values are always matched exhaustively before use."
+            );
             serde_json::json!({
-                "prompt": format!(
-                    "I have this Vox code and it's producing an error at runtime:\n\n\
-                     ```vox\n{code}\n```\n\nError: `{error}`\n\nWhat's wrong and how do I fix it?"
-                ),
-                "response": format!(
-                    "{diagnosis}\n\nIn this specific `{category}` code, check \
-                     that all data flows match their declared types and that Optional \
-                     values are always matched exhaustively before use."
-                ),
+                "prompt": prompt,
+                "response": response,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response}
+                ],
                 "category": format!("{category}_debug"),
                 "format": "debug_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -195,13 +221,19 @@ pub fn gen_refactor_pairs(
         .filter(|(i, _)| i % stride == 0)
         .zip(refactor_goals.iter().cycle())
         .map(|((_, (_, code, category)), (goal, guidance))| {
+            let prompt = format!(
+                "Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```"
+            );
+            let response = format!(
+                "{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```"
+            );
             serde_json::json!({
-                "prompt": format!(
-                    "Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```"
-                ),
-                "response": format!(
-                    "{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```"
-                ),
+                "prompt": prompt,
+                "response": response,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response}
+                ],
                 "category": format!("{category}_refactor"),
                 "format": "refactor_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -258,6 +290,10 @@ pub fn write_ts_interop_pairs(out: &mut impl std::io::Write) -> Result<usize> {
         let line = serde_json::json!({
             "prompt": prompt,
             "response": response,
+            "messages": [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": response}
+            ],
             "category": "vox_ts_interop",
             "format": "qa_pair",
             "schema_version": "vox_dogfood_v1",

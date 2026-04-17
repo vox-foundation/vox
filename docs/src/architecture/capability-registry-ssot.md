@@ -6,6 +6,7 @@ status: "current"
 sort_order: 12
 last_updated: 2026-03-31
 training_eligible: true
+training_rationale: "Key architecture constraints and definitions required for agent context"
 
 schema_type: "TechArticle"
 ---

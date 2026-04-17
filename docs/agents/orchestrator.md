@@ -1,3 +1,10 @@
+---
+title: "Orchestrator"
+description: "Agent support documentation for orchestrator"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Vox Orchestrator — Coordination Layer
 
 The **orchestrator** is the in-process Rust library in `crates/vox-orchestrator`. The default agent stack exposes it through **`vox-mcp`**, a Model Context Protocol **stdio server** that constructs `ServerState` and embeds an `Orchestrator` — not a separate always-on network daemon.

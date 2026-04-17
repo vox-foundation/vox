@@ -66,11 +66,7 @@ pub fn embedding_candidate_cap(
     default_multiplier: i64,
     probe: Option<&SqliteProbeSnapshot>,
 ) -> i64 {
-    let mut mult = std::env::var("VOX_EMBEDDING_SEARCH_CANDIDATE_MULT")
-        .ok()
-        .and_then(|s| s.parse::<i64>().ok())
-        .filter(|&m| m >= 1)
-        .unwrap_or(default_multiplier);
+    let mut mult = vox_config::env_parse::resolve_config_u64("VOX_EMBEDDING_SEARCH_CANDIDATE_MULT", default_multiplier as u64) as i64;
     if let Some(p) = probe {
         if !p.fts5_reported {
             mult = (mult * 2).min(30);

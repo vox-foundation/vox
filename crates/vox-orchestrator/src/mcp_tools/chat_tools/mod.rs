@@ -1,4 +1,4 @@
-﻿//! Chat, inline edit, planning, ghost text, and ambient editor tools for the Vox MCP server.
+//! Chat, inline edit, planning, ghost text, and ambient editor tools for the Vox MCP server.
 //!
 //! These back the VS Code extension thin-client layer. All context gathering,
 //! @mention resolution, LLM routing, and history persistence happen here in Rust.
@@ -143,7 +143,7 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
 #[cfg(test)]
 mod routing_tests {
     use super::super::chat_socrates_meta::{SocratesJsonMeta, socrates_tool_meta};
-    use super::chat::{chat_grounding_score, safe_truncate_for_prompt};
+    use super::chat::mentions::{chat_grounding_score, safe_truncate_for_prompt};
     use super::ghost_text::ghost_grounding_score;
     use super::params::{ChatMessageParams, GhostTextParams, PlanTask};
     use crate::mcp_tools::llm_bridge::clamp_http_max_output_tokens;
@@ -250,6 +250,7 @@ mod routing_tests {
             json_mode: false,
             trace_id: None,
             correlation_id: None,
+            attachment_manifest: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -266,6 +267,7 @@ mod routing_tests {
             json_mode: false,
             trace_id: None,
             correlation_id: None,
+            attachment_manifest: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

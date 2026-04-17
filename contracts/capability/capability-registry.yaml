@@ -4106,6 +4106,49 @@ curated:
   cli_path:
   - upgrade
   parameters: null
+- id: cli.visus.audit
+  title: Visus Audit
+  description_human: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
+  description_model: null
+  intent_tags:
+  - gui
+  - visual
+  - testing
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - visus
+  - audit
+  parameters: null
+- id: cli.visus.baseline
+  title: Visus Baseline
+  description_human: Manages golden visual baselines for regression testing.
+  description_model: null
+  intent_tags:
+  - gui
+  - visual
+  - testing
+  - baseline
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - visus
+  - baseline
+  parameters: null
 - id: mcp.vox_a2a_ack
   title: A2a Ack
   description_human: null
@@ -8000,6 +8043,61 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_vcs_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_visual_rag_query
+  title: Rag Visual Query
+  description_human: null
+  description_model: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_visual_rag_query
+  cli_path: null
+  parameters: null
+- id: mcp.vox_visus_audit
+  title: Visus Audit
+  description_human: null
+  description_model: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
+  intent_tags:
+  - gui
+  - visual
+  - testing
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_visus_audit
+  cli_path: null
+  parameters: null
+- id: mcp.vox_visus_baseline
+  title: Visus Baseline
+  description_human: null
+  description_model: Manages golden visual baselines for regression testing.
+  intent_tags:
+  - gui
+  - visual
+  - testing
+  - baseline
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_visus_baseline
   cli_path: null
   parameters: null
 - id: mcp.vox_workspace_create

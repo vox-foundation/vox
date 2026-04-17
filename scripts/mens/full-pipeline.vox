@@ -1,0 +1,167 @@
+// vox:caps fs subprocess env
+
+fn main() {
+    print("  ╔══════════════════════════════════════════════════╗")
+    print("  ║     VoxMens — Automated Training Pipeline        ║")
+    print("  ╚══════════════════════════════════════════════════╝")
+    print("")
+
+    let mut domain = "vox-lang"
+    let domain_env = env.get("VOX_MENS_DOMAIN")
+    if domain_env isnt null {
+        domain = domain_env.unwrap()
+    }
+
+    let mut epochs = "3"
+    let epochs_env = env.get("VOX_MENS_EPOCHS")
+    if epochs_env isnt null {
+        epochs = epochs_env.unwrap()
+    }
+
+    let device = "cuda"
+    let preset = "qwen_4080_16g"
+
+    let skip_mix_env = env.get("VOX_MENS_SKIP_MIX")
+    let skip_eval_env = env.get("VOX_MENS_SKIP_EVAL")
+    let background_env = env.get("VOX_MENS_BACKGROUND")
+
+    let mut skip_mix = false
+    if skip_mix_env isnt null {
+        let val = skip_mix_env.unwrap()
+        if val == "1" { skip_mix = true }
+        if val == "true" { skip_mix = true }
+    }
+
+    let mut skip_eval = false
+    if skip_eval_env isnt null {
+        let val = skip_eval_env.unwrap()
+        if val == "1" { skip_eval = true }
+        if val == "true" { skip_eval = true }
+    }
+
+    let mut background = false
+    if background_env isnt null {
+        let val = background_env.unwrap()
+        if val == "1" { background = true }
+        if val == "true" { background = true }
+    }
+
+    print("  Domain:   " + domain)
+    print("  Epochs:   " + epochs)
+    print("  Device:   " + device)
+    print("  Preset:   " + preset)
+    
+    // Step 1: Corpus Mix
+    if skip_mix {
+        print("Step 1/4: Skipping corpus mix (VOX_MENS_SKIP_MIX set).")
+    } else {
+        print("Step 1/4: Running corpus mix for domain '" + domain + "'...")
+        
+        print("  Running primary mix (mix.yaml → target/dogfood/train_mixed.jsonl)...")
+        let primary_mix = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "mix", "--config", "mens/config/mix.yaml"])
+        if primary_mix isnt null {
+            let res = primary_mix.unwrap()
+            if res.code == 0 {
+                print("  ✓ Primary mix complete.")
+            } else {
+                print("  ✗ Primary mix failed.")
+                return null
+            }
+        }
+        
+        let mut domain_config = "mens/config/mix-" + domain + ".yaml"
+        if domain == "rust-expert" {
+            domain_config = "mens/config/mix-rust.yaml"
+        }
+        
+        print("  Running domain mix (" + domain_config + ")...")
+        let domain_mix = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "mix", "--config", domain_config])
+        if domain_mix isnt null {
+            let res = domain_mix.unwrap()
+            if res.code == 0 {
+                print("  ✓ Domain mix complete.")
+            } else {
+                print("  ⚠ Domain mix failed or not found (using primary mix output).")
+            }
+        }
+        
+        // Diversity check
+        let primary_corpus = "target/dogfood/validated_mixed.jsonl"
+        print("  Recording diversity metrics (Domain: " + domain + ")...")
+        let diversity = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "diversity-check", "--input", primary_corpus, "--domain", domain])
+        if diversity isnt null {
+            let res = diversity.unwrap()
+            if res.code == 0 {
+                print("  ✓ Diversity metrics recording attempt finished.")
+            } else {
+                print("  ⚠ Diversity check returned warning/alarm.")
+            }
+        }
+    }
+
+    // Step 2: Pre-flight eval gate
+    if skip_eval {
+        print("Step 2/4: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")
+    } else {
+        print("Step 2/4: Running pre-flight eval gate...")
+        let eval_run = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "warn"])
+        if eval_run isnt null {
+            let res = eval_run.unwrap()
+            if res.code == 0 {
+                print("  ✓ Eval gate passed.")
+            } else {
+                print("  ⚠ Eval gate warning (non-blocking).")
+            }
+        }
+    }
+
+    // Step 3: Training
+    print("Step 3/4: Launching training...")
+    let mut train_args = [
+        "run", "-p", "vox-cli", "--",
+        "mens", "train",
+        "--backend", "qlora",
+        "--tokenizer", "hf",
+        "--device", device,
+        "--preset", preset,
+        "--domain", domain,
+        "--epochs", epochs,
+        "--data-dir", "target/dogfood",
+        "--output-dir", "mens/runs/latest",
+        "--seed", "42",
+        "--qlora-ce-last-k", "64",
+        "--validation-split-ratio", "0.05",
+        "--force-restart"
+    ]
+
+    if background {
+        print("  Spawning background process via process.run (acting as spawn for now)...")
+        let train_proc = process.run("cargo", train_args)
+        if train_proc isnt null {
+            print("  ✓ Training process spawned in background.")
+        } else {
+            print("  ✗ Failed to spawn background process.")
+        }
+    } else {
+        print("  Running training in foreground...")
+        let train_proc = process.run("cargo", train_args)
+        if train_proc isnt null {
+            let res = train_proc.unwrap()
+            if res.code == 0 {
+                print("  ✓ Training complete.")
+            } else {
+                print("  ✗ Training failed with exit code: " + str(res.code))
+            }
+        } else {
+            print("  ✗ Failed to run training process.")
+        }
+    }
+
+    if background == false {
+        print("Step 4/4: Post-training verification...")
+        print("  Pipeline complete.")
+        print("  Next steps:")
+        print("    vox mens status --run-dir mens/runs/latest")
+        print("    vox mens eval-gate --run-dir mens/runs/latest")
+    }
+}

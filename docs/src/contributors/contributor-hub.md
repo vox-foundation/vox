@@ -20,11 +20,30 @@ If you are evaluating Vox as a language or product, start with the [site landing
 
 - [AGENTS.md](../../../AGENTS.md) - required contributor and agent policy entry point, with Clavis as the secret-management SSOT.
 - [Agent instruction architecture](agent-instruction-architecture.md) - instruction layering model (`AGENTS.md`, tool overlays, continuation prompts, CI gates).
-- [Coding Agents Guide](coding-agents.md) - heuristics and rules for agents, including god object constraints and stale docs guidelines.
+- [Coding Agent Instructions](coding-agents.md) - heuristics and rules for agents, including god object constraints and stale docs guidelines.
 - [Documentation governance](documentation-governance.md) - where docs live, which surface owns what, status vocabulary, and review cadence.
 - [CI runner contract](../ci/runner-contract.md) - canonical `vox ci` guidance, runner labels, and line-ending policy.
 - [Doc inventory verifier](../reference/doc-inventory.md) - machine-readable doc inventory workflow and drift expectations.
 - [Architectural governance (TOESTUB)](../../agents/governance.md) - repository governance, organization rules, and quality policy.
+- [`docs/agents/`](../../agents/) — full agent-facing support docs (orchestrator behavior, handoff protocol, editor contracts, time awareness).
+
+## I want to…
+
+Quick routing by goal. All links resolve from this directory.
+
+| Goal | Start here |
+|---|---|
+| Fix a TOESTUB / stub-check CI failure | [TOESTUB contributor guide](toestub-contributor-guide.md) |
+| Fix a `god_object` or `sprawl` violation | [God object defactor checklist](../architecture/god-object-defactor-checklist.md) |
+| Understand why my code affects model quality | [Contribution loop](contribution-loop.md) |
+| Add a golden `.vox` example | [Examples corpus how-to](../how-to/examples-corpus.md) |
+| Write or update documentation | [Documentation governance](documentation-governance.md) + [Doc-to-code checklist](../architecture/doc-to-code-acceptance-checklist.md) |
+| Contribute to the compiler / parser | [How-To: parser and HIR](../how-to/how-to-contribute-parser-hir.md) |
+| Contribute to MENS training pipeline | [How-To: Mens native training](../how-to/how-to-contribute-mens.md) |
+| Add a CLI command | [CLI design rules SSOT](../architecture/cli-design-rules-ssot.md) |
+| Work with secrets or credentials | [Clavis SSOT](../reference/clavis-ssot.md) |
+| Understand the agentic quality model | [Coding agent instructions](coding-agents.md) + [Governance (TOESTUB)](../../agents/governance.md) |
+| Read architecture or research context | [Architecture index](../architecture/architecture-index.md) → contributor-relevant section |
 
 ## Contributor map
 
@@ -32,6 +51,7 @@ Use these surfaces intentionally:
 
 | Need | Start with |
 | --- | --- |
+| Cursor IDE rules and per-glob patterns | [`.cursor/rules/`](../../../.cursor/rules/) |
 | Secrets, credentials, env parity | [AGENTS.md](../../../AGENTS.md), [Clavis SSOT](../reference/clavis-ssot.md) |
 | Agent behavior consistency across long sessions and IDEs | [Agent instruction architecture](agent-instruction-architecture.md), [Continuation prompt engineering](continuation-prompt-engineering.md) |
 | Antigravity-specific overrides | [GEMINI.md](../../../GEMINI.md), [Agent instruction architecture](agent-instruction-architecture.md) |

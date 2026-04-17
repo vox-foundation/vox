@@ -22,16 +22,33 @@ The `docs/src/architecture/` section contains several different kinds of documen
 - [Orphan surface inventory](orphan-surface-inventory.md)
 - [Documentation hygiene and AI-agent guidelines 2026](doc-hygiene-agent-guidelines-2026.md)
 
+## Contributor-relevant architecture (highest practical value)
+
+If you are contributing code — not doing architecture research — these are the pages with highest day-to-day utility.
+
+| Page | When to read it |
+|---|---|
+| [Testing standard](testing-standard.md) | Before writing any test |
+| [God object defactor checklist](god-object-defactor-checklist.md) | When fixing `arch/god_object` CI failures |
+| [TOESTUB scaling rules SSOT](scaling-toestub-rules.md) | When `scaling/*` findings appear |
+| [TOESTUB self-healing architecture](toestub-self-healing-architecture-2026.md) | Understanding why rules exist |
+| [AI agent panic and shortcut pathology](research-ai-panic-shortcuts-2026.md) | Why shortcuts devolve the codebase |
+| [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md) | Before merging any docs change |
+| [Vox source → MENS pipeline SSOT](vox-source-to-mens-pipeline-ssot.md) | How code becomes training data |
+| [Compiler diagnostics ergonomics](compiler-diagnostics-ergonomics.md) | Understanding the error surface |
+
 ## Current architecture and authority docs
 
 Use these when you need current policy and behavior. The canonical cross-domain map is [`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml); this page is navigation, not the source of behavioral truth.
 
 - [Feature growth boundaries](feature-growth-boundaries.md)
+- [Configuration SSOT](config-ssot.md) — precedence rules, toxonomy, layered config, and sync
 - [Interop tier policy](interop-tier-policy.md)
 - [MCP exposure from the Vox language](mcp-vox-language-exposure.md)
 - [Capability registry authority](capability-registry-ssot.md) — `contracts/capability`, `vox ci capability-sync`, model manifest
 - [Capability visualization views](capability-visualization-views.md)
 - [Vox bell-curve strategy](vox-bell-curve-strategy.md)
+- [Vox Lang Training SSOT (2026)](vox-lang-training-ssot-2026.md)
 - [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
 - [Orphan surface inventory](orphan-surface-inventory.md)
 - [Legacy retirement roadmap 2026](legacy-retirement-roadmap.md) — **LLM guard**: deprecated surfaces, frozen files, safe-to-extend surfaces

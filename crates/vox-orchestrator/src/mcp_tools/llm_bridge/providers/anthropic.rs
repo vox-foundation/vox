@@ -1,4 +1,4 @@
-﻿use super::metadata::HttpCallMetadata;
+use super::metadata::HttpCallMetadata;
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
 use serde::{Deserialize, Serialize};
 
@@ -44,10 +44,20 @@ pub(crate) async fn http_anthropic_direct(
     api_key: &str,
     model: &str,
     system: &str,
-    user: &str,
+    user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: f32,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
+    let user_text = match user {
+        vox_openai_wire::ChatMessageContent::Text(t) => t,
+        vox_openai_wire::ChatMessageContent::Parts(ref p) => {
+            p.iter().find_map(|part| match part {
+                vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
+                _ => None,
+            }).unwrap_or("")
+        }
+    };
+
     let body = AnthropicRequest {
         model,
         max_tokens: max_tokens.max(1024), // Anthropic requires max_tokens > 0
@@ -55,7 +65,7 @@ pub(crate) async fn http_anthropic_direct(
         system,
         messages: vec![AnthropicMessage {
             role: "user",
-            content: user,
+            content: user_text,
         }],
     };
 

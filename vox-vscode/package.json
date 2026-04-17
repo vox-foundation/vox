@@ -65,6 +65,9 @@
         ],
         "embeddedLanguages": {
           "meta.embedded.block.vox": "vox"
+        },
+        "tokenTypes": {
+          "meta.embedded.block.vox": "other"
         }
       }
     ],

@@ -11,6 +11,7 @@ pub struct DomainProfile {
     pub system_prompt: Option<String>,
     pub min_rating: Option<u8>,
     pub ce_last_k: Option<usize>,
+    pub seq_len: Option<usize>,
     pub max_grad_norm: Option<f32>,
     pub trajectory_weighting: Option<bool>,
     pub trajectory_tool_trace_boost: Option<f32>,
@@ -23,6 +24,7 @@ pub struct DomainProfile {
 pub struct DomainProfileDefaults {
     pub min_rating: Option<u8>,
     pub ce_last_k: Option<usize>,
+    pub seq_len: Option<usize>,
     pub validation_split_ratio: Option<f64>,
     pub weight_decay: Option<f32>,
     pub max_grad_norm: Option<f32>,
@@ -50,6 +52,7 @@ pub struct EffectiveDomainProfile {
     // Overrides over LoraTrainingConfig defaults
     pub min_rating: Option<u8>,
     pub ce_last_k: Option<usize>,
+    pub seq_len: Option<usize>,
     pub validation_split_ratio: Option<f64>,
     pub weight_decay: Option<f32>,
     pub max_grad_norm: Option<f32>,
@@ -82,6 +85,7 @@ impl EffectiveDomainProfile {
         let def = file.defaults.unwrap_or_else(|| DomainProfileDefaults {
             min_rating: None,
             ce_last_k: None,
+            seq_len: None,
             validation_split_ratio: None,
             weight_decay: None,
             max_grad_norm: None,
@@ -117,6 +121,7 @@ impl EffectiveDomainProfile {
 
             min_rating: profile.min_rating.or(def.min_rating),
             ce_last_k: profile.ce_last_k.or(def.ce_last_k),
+            seq_len: profile.seq_len.or(def.seq_len),
             validation_split_ratio: def.validation_split_ratio,
             weight_decay: def.weight_decay,
             max_grad_norm: profile.max_grad_norm.or(def.max_grad_norm),

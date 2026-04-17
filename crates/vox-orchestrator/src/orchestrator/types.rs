@@ -111,6 +111,8 @@ pub struct OrchestratorStatus {
     pub total_doubted: usize,
     /// Shared context keys visible to dashboards.
     pub context_entries: std::collections::HashMap<String, crate::context::ContextEntry>,
+    /// Maximum handoff count observed in any active task across all agents.
+    pub max_handoff_count: u8,
     /// Per-agent rollups for UI tables.
     pub agents: Vec<AgentSummary>,
 }
@@ -146,4 +148,6 @@ pub struct AgentSummary {
     pub weighted_load: f64,
     /// Linked Codex session id when known.
     pub agent_session_id: Option<String>,
+    /// Maximum handoff count observed in this agent's queue.
+    pub max_handoff_count: u8,
 }

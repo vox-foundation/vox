@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 tar = "0.4.45"
 zip = "8.4.0"
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

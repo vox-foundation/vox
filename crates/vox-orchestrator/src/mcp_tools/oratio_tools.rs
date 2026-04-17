@@ -1,4 +1,4 @@
-﻿//! MCP tools for Vox Oratio (Candle Whisper STT).
+//! MCP tools for Vox Oratio (Candle Whisper STT).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -178,6 +178,7 @@ async fn maybe_llm_polish(
         llm_max_output_tokens.max(64),
         0.1,
         true,
+        None,
     )
     .await
     {

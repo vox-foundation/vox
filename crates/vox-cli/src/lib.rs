@@ -11,7 +11,7 @@ pub mod benchmark_telemetry;
 mod build_lock;
 mod build_service;
 mod cli_actions;
-mod cli_args;
+pub mod cli_args;
 mod cli_dispatch;
 mod codex_cmd;
 mod command_contract;
@@ -184,6 +184,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
     },
+    /// Manage global configuration and preferences.
+    Config {
+        /// Subcommand
+        #[command(subcommand)]
+        cmd: commands::config::ConfigCmd,
+    },
     /// Identity and master key integration (`vox auth`).
     Auth {
         /// Subcommand
@@ -279,6 +285,18 @@ pub enum Cli {
     Pm {
         #[command(subcommand)]
         cmd: commands::pm::PmCli,
+    },
+    /// Agentic Planning tools: Create, replan, and bypass planning steps (`vox plan`).
+    Plan {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::plan::PlanCmd,
+    },
+    /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
+    #[cfg(feature = "dei")]
+    Visus {
+        #[command(subcommand)]
+        cmd: commands::visus::VisusCmd,
     },
     /// Toolchain upgrade: `--source release` (checksums.txt binary) or `--source repo` (git + `cargo install --locked`); never edits `Vox.toml` / `vox.lock`.
     Upgrade {

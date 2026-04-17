@@ -197,6 +197,96 @@ impl BuiltinTypes {
             },
         );
 
+        // range(start: int, end: int) → List[int]
+        env.define(
+            "range".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::List(Box::new(Ty::Int)))),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // null → Option[T]
+        env.define(
+            "null".into(),
+            Binding {
+                ty: Ty::Option(Box::new(Ty::GenericParam(0))),
+                mutable: false,
+                kind: BindingKind::Constructor,
+                is_deprecated: false,
+            },
+        );
+
+        // ── Automation/Glue namespaces ────────────────────────
+
+        // fs module
+        env.define(
+            "fs".into(),
+            Binding {
+                ty: Ty::Named("FsModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // path module
+        env.define(
+            "path".into(),
+            Binding {
+                ty: Ty::Named("PathModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // json module
+        env.define(
+            "json".into(),
+            Binding {
+                ty: Ty::Named("JsonModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // process module
+        env.define(
+            "process".into(),
+            Binding {
+                ty: Ty::Named("ProcessModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // env module
+        env.define(
+            "env".into(),
+            Binding {
+                ty: Ty::Named("EnvModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // clavis module
+        env.define(
+            "clavis".into(),
+            Binding {
+                ty: Ty::Named("ClavisModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // ── React/frontend bindings ───────────────────────────
 
         // use_state: fn(T) -> (T, fn(T) -> Unit)
@@ -346,7 +436,26 @@ impl BuiltinTypes {
                 Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
             ),
         );
+        list_methods.insert(
+            "push".into(),
+            Ty::Fn(
+                vec![Ty::GenericParam(0)],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        list_methods.insert(
+            "get".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
         list_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        list_methods.insert("len".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        list_methods.insert(
+            "join".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
+        );
         list_methods.insert(
             "map".into(),
             Ty::Fn(
@@ -365,6 +474,75 @@ impl BuiltinTypes {
             ),
         );
         methods.insert("List".into(), list_methods);
+
+        // Fs module methods
+        let mut fs_methods = std::collections::HashMap::new();
+        fs_methods.insert(
+            "read_file".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        fs_methods.insert(
+            "write_file".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
+        );
+        fs_methods.insert(
+            "list_dir".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        methods.insert("FsModule".into(), fs_methods);
+
+        // Path module methods
+        let mut path_methods = std::collections::HashMap::new();
+        path_methods.insert(
+            "join".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
+        );
+        methods.insert("PathModule".into(), path_methods);
+
+        // Json module methods
+        let mut json_methods = std::collections::HashMap::new();
+        json_methods.insert(
+            "stringify".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
+        );
+        json_methods.insert(
+            "parse".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::GenericParam(0))),
+        );
+        methods.insert("JsonModule".into(), json_methods);
+
+        // Process module methods
+        let mut process_methods = std::collections::HashMap::new();
+        let process_output = Ty::Record(vec![
+            ("stdout".into(), Ty::Str),
+            ("stderr".into(), Ty::Str),
+            ("code".into(), Ty::Int),
+        ]);
+        process_methods.insert(
+            "spawn".into(),
+            Ty::Fn(vec![Ty::Str, Ty::List(Box::new(Ty::Str))], Box::new(Ty::Option(Box::new(process_output.clone())))),
+        );
+        process_methods.insert(
+            "run".into(),
+            Ty::Fn(vec![Ty::Str, Ty::List(Box::new(Ty::Str))], Box::new(Ty::Option(Box::new(process_output.clone())))),
+        );
+        methods.insert("ProcessModule".into(), process_methods);
+
+        // Env module methods
+        let mut env_methods = std::collections::HashMap::new();
+        env_methods.insert(
+            "get".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        methods.insert("EnvModule".into(), env_methods);
+
+        // Clavis module methods
+        let mut clavis_methods = std::collections::HashMap::new();
+        clavis_methods.insert(
+            "resolve".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        methods.insert("ClavisModule".into(), clavis_methods);
 
         // String methods
         let mut str_methods = std::collections::HashMap::new();
@@ -477,6 +655,14 @@ impl BuiltinTypes {
         req_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Request".into(), req_methods);
 
+        // Option methods
+        let mut option_methods = std::collections::HashMap::new();
+        option_methods.insert(
+            "unwrap".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        methods.insert("Option".into(), option_methods);
+
         // Response methods
         let mut resp_methods = std::collections::HashMap::new();
         resp_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
@@ -539,6 +725,23 @@ impl BuiltinTypes {
                         vec![Ty::Int],
                         Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
                     ))
+                }
+                _ => None,
+            };
+        }
+
+        if let Ty::Record(_) = obj_ty {
+            return match method {
+                "get" => {
+                    // get(key: str) -> Option[any]
+                    Some(Ty::Fn(
+                        vec![Ty::Str],
+                        Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+                    ))
+                }
+                "keys" => {
+                    // keys() -> List[str]
+                    Some(Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))))
                 }
                 _ => None,
             };

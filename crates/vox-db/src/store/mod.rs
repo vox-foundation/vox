@@ -35,7 +35,7 @@ pub use types::{
     SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, TestDecision,
     TestDecisionPolicy, ThroughputProfileRow, TierResult, TrainingPair, TrustRollupEntry,
     TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry, VictoryVerdict,
-    WarningRow, WorkflowExecutionRow,
+    VisusAuditLogRow, VisusBaselineRow, WarningRow, WorkflowExecutionRow,
 };
 
 pub use ops_build::{BuildDependencyShape, BuildHealthSummary, CrateSample, RegressionRow};
@@ -54,6 +54,7 @@ mod ops_developer_journeys;
 pub mod ops_exec_time;
 mod ops_external_intelligence;
 mod ops_external_review;
+mod ops_identity;
 mod ops_learning;
 mod ops_lineage;
 mod ops_ludus;
@@ -67,3 +68,4 @@ mod ops_planning;
 mod ops_publication;
 mod ops_questioning;
 mod ops_retention;
+mod ops_visus;

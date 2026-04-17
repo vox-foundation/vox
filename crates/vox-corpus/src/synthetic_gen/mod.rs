@@ -128,9 +128,14 @@ pub(crate) fn emit_line(
     record_type: &str,
 ) -> anyhow::Result<()> {
     let difficulty = crate::training::construct_difficulty(category, record_type);
+    let resp_str = response.to_string();
     let row = json!({
         "prompt": prompt,
-        "response": response.to_string(),
+        "response": resp_str,
+        "messages": [
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": resp_str}
+        ],
         "category": category,
         "record_type": record_type,
         "schema_version": "vox_dogfood_v1",

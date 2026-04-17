@@ -30,14 +30,26 @@ pub struct Interpreter {
     pub scope: Scope,
     pub step_limit: usize,
     pub steps: usize,
+    pub caps: Option<std::collections::HashSet<String>>,
 }
 
 impl Interpreter {
     pub fn new(step_limit: usize) -> Self {
+        let mut scope = Scope::new();
+        // Seed namespaces for glue-code builtins
+        scope.set("null".to_string(), VoxValue::Null);
+        scope.set("fs".to_string(), VoxValue::Object(vec![("__namespace__".to_string(), VoxValue::Str("fs".to_string()))]));
+        scope.set("process".to_string(), VoxValue::Object(vec![("__namespace__".to_string(), VoxValue::Str("process".to_string()))]));
+        scope.set("env".to_string(), VoxValue::Object(vec![("__namespace__".to_string(), VoxValue::Str("env".to_string()))]));
+        scope.set("path".to_string(), VoxValue::Object(vec![("__namespace__".to_string(), VoxValue::Str("path".to_string()))]));
+        scope.set("clavis".to_string(), VoxValue::Object(vec![("__namespace__".to_string(), VoxValue::Str("clavis".to_string()))]));
+        scope.set("json".to_string(), VoxValue::Object(vec![("__namespace__".to_string(), VoxValue::Str("json".to_string()))]));
+
         Self {
-            scope: Scope::new(),
+            scope,
             step_limit,
             steps: 0,
+            caps: None,
         }
     }
 

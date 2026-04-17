@@ -70,6 +70,7 @@ vox-capability-registry
 vox-checksum-manifest
 vox-clavis
 vox-cli
+vox-codex-api
 vox-compiler
 vox-config
 vox-constrained-gen
@@ -85,6 +86,7 @@ vox-eval
 vox-forge
 vox-git
 vox-grammar-export
+vox-identity
 vox-install-policy
 vox-integration-tests
 vox-jsonschema-util

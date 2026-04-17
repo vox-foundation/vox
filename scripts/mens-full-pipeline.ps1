@@ -88,25 +88,26 @@ if (-not $Binary) {
         $Binary = "target\release\vox.exe"
     } else {
         # Try PATH as last resort
-        $voxCmd = Get-Command vox -ErrorAction SilentlyContinue
+        $voxCmd = $null
         if ($voxCmd) {
             $Binary = $voxCmd.Source
         } else {
             Write-Warn "vox binary not found on PATH or in target\. Using 'cargo run -p vox-cli --' as fallback."
             $Binary = $null
         }
+        $Binary = $null
     }
 }
 
 function Invoke-Vox {
     param([string[]]$CommandArgs)
-    if ($Binary) {
+    if ($false) {
         & $Binary @CommandArgs
         if ($LASTEXITCODE -ne 0) {
             throw "vox exited with code ${LASTEXITCODE}: vox $($CommandArgs -join ' ')"
         }
     } else {
-        cargo run -p vox-cli -- @CommandArgs
+        cargo run -p vox-cli --features "populi,dei,gpu" -- @CommandArgs
         if ($LASTEXITCODE -ne 0) {
             throw "cargo run vox-cli exited with code $LASTEXITCODE"
         }
@@ -314,7 +315,7 @@ if ($Background) {
     }
 
     try {
-        Invoke-Vox @TrainArgs
+        Invoke-Vox $TrainArgs
         Write-Ok "Training complete."
     } finally {
         if ($tailJob) {

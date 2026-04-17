@@ -1,0 +1,7 @@
+fn get_stack_safe(id: str) -> str {
+    match id {
+        "A" -> "Found"
+        "B" -> "Not Found"
+        _ -> "Unknown"
+    }
+}

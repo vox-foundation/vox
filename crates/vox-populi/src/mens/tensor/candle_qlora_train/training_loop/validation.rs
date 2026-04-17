@@ -54,7 +54,12 @@ pub fn preflight_masked_ce_finite(
     for (pair_idx, pair) in pairs.iter().enumerate() {
         let enc = match super::encoding::try_encode_training_step(pair, system_prompt, tokenizer, config, max_diff)?
         {
-            TryEncodeOutcome::SkipCurriculum | TryEncodeOutcome::SkipShortSeq => continue,
+            TryEncodeOutcome::SkipCurriculum => {
+                continue;
+            }
+            TryEncodeOutcome::SkipShortSeq => {
+                continue;
+            }
             TryEncodeOutcome::Encoded(enc) => enc,
         };
 
@@ -72,10 +77,13 @@ pub fn preflight_masked_ce_finite(
             enc.prefix_len,
             enc.trunc_offset,
             enc.sample_weight,
+            None,
             config,
             device,
         )? {
-            MaskedCeForward::NoSupervision => continue,
+            MaskedCeForward::NoSupervision => {
+                continue;
+            }
             MaskedCeForward::NonFinite { kind, mask_sum } => {
                 anyhow::bail!(
                     "masked CE preflight failed: non-finite loss ({kind}) before training (mask_sum={mask_sum:.6}, pair_idx={pair_idx}); \

@@ -22,6 +22,8 @@ pub mod catalog;
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
 pub mod ci;
+/// `vox config` CLI endpoint logic.
+pub mod config;
 /// Centralized secret lifecycle commands (`vox clavis`).
 pub mod clavis;
 /// Codex integration logic for `vox db` subcommands.
@@ -139,3 +141,10 @@ pub mod schola;
 
 /// Unified research operations: infrastructure and evaluation.
 pub mod research;
+
+/// Manual plan bridging via PlanningOrchestrator
+pub mod plan;
+
+/// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
+#[cfg(feature = "dei")]
+pub mod visus;

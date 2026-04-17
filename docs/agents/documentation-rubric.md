@@ -1,3 +1,10 @@
+---
+title: "Documentation Rubric"
+description: "Agent support documentation for documentation rubric"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Documentation rewrite rubric (Vox)
 
 Use this rubric when improving comments, rustdoc, or prose docs so edits stay aligned with repo SSOT and remain useful for humans and LLM agents.

@@ -666,3 +666,28 @@ pub struct ExternalReviewKpiSnapshotRow {
     pub auto_fix_acceptance_rate: Option<f64>,
     pub created_at: String,
 }
+
+/// One row from `visus_baselines`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VisusBaselineRow {
+    pub id: String,
+    pub target_url: String,
+    pub viewport: String,
+    pub theme: String,
+    pub screenshot_cas: String,
+    pub ax_tree_cas: String,
+    pub metadata_json: Option<String>,
+    pub created_at: String,
+}
+
+/// One row from `visus_audit_log`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VisusAuditLogRow {
+    pub id: String,
+    pub baseline_id: Option<String>,
+    pub target_url: String,
+    pub outcome: String,
+    pub findings_json: String,
+    pub screenshot_cas: Option<String>,
+    pub created_at: String,
+}

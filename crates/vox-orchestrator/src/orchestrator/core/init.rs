@@ -24,6 +24,10 @@ impl crate::orchestrator::Orchestrator {
                 tracing::debug!(error = %e, "sqlite capability probe failed during orchestrator init_db");
             }
         }
+
+        // Resuscitate task transcripts from the workflow journal (cross-session recovery)
+        let _ = self.hydrate_all_tasks_from_journal().await;
+
         Ok(())
     }
 

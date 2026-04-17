@@ -1,4 +1,4 @@
-﻿use serde::Deserialize;
+use serde::Deserialize;
 use serde_json::Value;
 
 use super::build_system_prompt;
@@ -290,6 +290,7 @@ Rules:
         initial_cap,
         0.3,
         true, // Enforce strict JSON mode for planning
+        None,
     )
     .await
     {
@@ -335,6 +336,7 @@ Invalid prior output (may be truncated):
                 retry_cap,
                 0.15,
                 true,
+                None,
             )
             .await
             {
@@ -746,6 +748,7 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                         4096,
                         0.2,
                         true,
+                        None,
                     )
                     .await
                     {

@@ -17,9 +17,6 @@ use crate::codegen_ts::adt::generate_types;
 use crate::codegen_ts::component::{generate_component, generate_component_from_web_ir};
 use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::reactive::generate_reactive_component;
-use crate::codegen_ts::route_manifest::{
-    ROUTE_MANIFEST_FILENAME, try_emit_route_manifest_from_web_ir,
-};
 use crate::codegen_ts::routes::generate_routes;
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
 use crate::codegen_ts::vox_client::{VOX_CLIENT_FILENAME, emit_vox_client};
@@ -29,6 +26,18 @@ use crate::hir::{HirFn, HirModule};
 pub struct CodegenOutput {
     /// List of (filename, content) pairs.
     pub files: Vec<(String, String)>,
+    /// Web IR bridge emit statistics
+    pub reactive_stats: crate::codegen_ts::reactive::ReactiveViewBridgeStats,
+}
+
+/// Build mode target for codegen.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum BuildMode {
+    /// Emit app code + components (default)
+    #[default]
+    App,
+    /// Emit UI-agnostic models, schemas, and client fetchers
+    Library,
 }
 
 /// Options for [`generate_with_options`].
@@ -38,6 +47,8 @@ pub struct CodegenOptions {
     pub tanstack_start: bool,
     /// Build Target
     pub target: Option<String>,
+    /// Build Mode
+    pub mode: BuildMode,
 }
 
 impl CodegenOptions {
@@ -50,6 +61,7 @@ impl CodegenOptions {
             tanstack_start: tanstack_start_resolved.expose()
                 .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true")),
             target: None,
+            mode: BuildMode::App,
         }
     }
 }
@@ -65,22 +77,26 @@ pub fn generate_with_options(
     options: CodegenOptions,
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
+    let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
     let island_names = collect_island_names(hir);
     let app_contract = project_app_contract(hir);
 
     // Generate type definitions
     let types_content = generate_types(hir);
-    if !types_content.is_empty() {
+    let has_types = !types_content.is_empty();
+    if has_types {
         files.push(("types.ts".to_string(), types_content));
     }
     if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
         files.push(("vox-app-contract.json".to_string(), contract_json));
     }
 
-    files.push((
-        "vox-tanstack-query.tsx".to_string(),
-        vox_tanstack_query_tsx(),
-    ));
+    if options.mode != BuildMode::Library {
+        files.push((
+            "vox-tanstack-query.tsx".to_string(),
+            vox_tanstack_query_tsx(),
+        ));
+    }
 
     let web_projection_cache = if hir.reactive_components.is_empty()
         && hir.components.is_empty()
@@ -93,72 +109,76 @@ pub fn generate_with_options(
     };
     let web_projection_ref = web_projection_cache.as_ref();
 
-    // Generate components
-    for hir_comp in &hir.components {
-        let comp = &hir_comp.0;
-        let (filename, content) = web_projection_ref
-            .and_then(|web| {
-                generate_component_from_web_ir(&comp.func, !comp.styles.is_empty(), web)
-            })
-            .unwrap_or_else(|| {
-                generate_component(&comp.func, !comp.styles.is_empty(), &island_names)
-            });
-        files.push((filename, content));
-    }
+    if options.mode != BuildMode::Library {
+        // Generate components
+        for hir_comp in &hir.components {
+            let comp = &hir_comp.0;
+            let (filename, content) = web_projection_ref
+                .and_then(|web| {
+                    generate_component_from_web_ir(&comp.func, !comp.styles.is_empty(), web)
+                })
+                .unwrap_or_else(|| {
+                    generate_component(&comp.func, !comp.styles.is_empty(), &island_names)
+                });
+            files.push((filename, content));
+        }
 
-    // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
-    // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
-    for rc in &hir.reactive_components {
-        let (filename, content) =
-            generate_reactive_component(hir, rc, &island_names, web_projection_ref);
-        files.push((filename, content));
-    }
+        // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
+        // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
+        for rc in &hir.reactive_components {
+            let (filename, content) =
+                generate_reactive_component(hir, rc, &island_names, web_projection_ref, &mut reactive_stats);
+            files.push((filename, content));
+        }
 
-    // Route loading / suspense UI (`@loading fn … to Element`) — TanStack `pendingComponent`
-    for hir_loading in &hir.loadings {
-        let (filename, content) = web_projection_ref
-            .and_then(|web| generate_component_from_web_ir(&hir_loading.0.func, false, web))
-            .unwrap_or_else(|| generate_component(&hir_loading.0.func, false, &island_names));
-        files.push((filename, content));
-    }
+        // Route loading / suspense UI (`@loading fn … to Element`) — TanStack `pendingComponent`
+        for hir_loading in &hir.loadings {
+            let (filename, content) = web_projection_ref
+                .and_then(|web| generate_component_from_web_ir(&hir_loading.0.func, false, web))
+                .unwrap_or_else(|| generate_component(&hir_loading.0.func, false, &island_names));
+            files.push((filename, content));
+        }
 
-    // Generate v0 component placeholders
-    for hir_v0 in &hir.v0_components {
-        let v0 = &hir_v0.0;
-        let filename = format!("{}.tsx", v0.name);
+        // Generate v0 component placeholders
+        for hir_v0 in &hir.v0_components {
+            let v0 = &hir_v0.0;
+            let filename = format!("{}.tsx", v0.name);
 
-        let comment = if let Some(ref img) = v0.image_path {
-            format!("From image: {img}")
-        } else {
-            format!("v0 integration ID: {}", v0.v0_id)
-        };
+            let comment = if let Some(ref img) = v0.image_path {
+                format!("From image: {img}")
+            } else {
+                format!("v0 integration ID: {}", v0.v0_id)
+            };
 
-        let content = format!(
-            "// @v0 generated component\n// {}\n// Note: This file will be overwritten by `npx v0 add` sidecar during build.\n// Install this island (shadcn): npx shadcn@latest add <component-url-or-name>\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* @v0 component pending v0 CLI download */}}</div>;\n}}\n",
-            comment, v0.name
-        );
-        files.push((filename, content));
+            let content = format!(
+                "// @v0 generated component\n// {}\n// Note: This file will be overwritten by `npx v0 add` sidecar during build.\n// Install this island (shadcn): npx shadcn@latest add <component-url-or-name>\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* @v0 component pending v0 CLI download */}}</div>;\n}}\n",
+                comment, v0.name
+            );
+            files.push((filename, content));
+        }
     }
 
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
-    let routes_content = generate_routes(hir);
-    let emit_express_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEmitExpressServer);
-    if !routes_content.is_empty()
-        && emit_express_resolved.expose()
-            .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true"))
-    {
-        files.push(("server.ts".to_string(), routes_content));
-    }
-
-    // Generate activities from HIR (canonical)
-    if !hir.activities.is_empty() {
-        let mut activities_content = String::new();
-        activities_content.push_str(&generate_activity_runner());
-        activities_content.push('\n');
-        for activity in &hir.activities {
-            activities_content.push_str(&generate_activity_hir(activity));
+    if options.mode != BuildMode::Library {
+        let routes_content = generate_routes(hir);
+        let emit_express_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEmitExpressServer);
+        if !routes_content.is_empty()
+            && emit_express_resolved.expose()
+                .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true"))
+        {
+            files.push(("server.ts".to_string(), routes_content));
         }
-        files.push(("activities.ts".to_string(), activities_content));
+
+        // Generate activities from HIR (canonical)
+        if !hir.activities.is_empty() {
+            let mut activities_content = String::new();
+            activities_content.push_str(&generate_activity_runner());
+            activities_content.push('\n');
+            for activity in &hir.activities {
+                activities_content.push_str(&generate_activity_hir(activity));
+            }
+            files.push(("activities.ts".to_string(), activities_content));
+        }
     }
 
     // Generate table interfaces + schema from HIR
@@ -177,6 +197,12 @@ pub fn generate_with_options(
         files.push(("schema.ts".to_string(), schema));
     }
 
+    let zod_schemas = crate::codegen_ts::zod_emit::generate_zod_schemas(hir);
+    let has_schemas = !zod_schemas.is_empty();
+    if has_schemas {
+        files.push(("schemas.ts".to_string(), zod_schemas));
+    }
+
     // Typed fetch client for `@query` (GET + JSON query values) / `@mutation` / `@server` (POST JSON).
     let has_api_fns =
         !hir.server_fns.is_empty() || !hir.query_fns.is_empty() || !hir.mutation_fns.is_empty();
@@ -190,8 +216,9 @@ pub fn generate_with_options(
         if !comp.styles.is_empty() {
             let filename = format!("{}.css", comp.func.name);
             let mut css = String::new();
+            css.push_str(&format!("@layer {} {{\n", comp.func.name));
             for block in &comp.styles {
-                css.push_str(&format!("{} {{\n", block.selector));
+                css.push_str(&format!("  {} {{\n", block.selector));
                 for (prop, val) in &block.properties {
                     // Convert Vox camelCase property names to CSS kebab-case
                     let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
@@ -203,10 +230,11 @@ pub fn generate_with_options(
                         }
                         acc
                     });
-                    css.push_str(&format!("  {}: {};\n", css_prop, val));
+                    css.push_str(&format!("    {}: {};\n", css_prop, val));
                 }
-                css.push_str("}\n\n");
+                css.push_str("  }\n\n");
             }
+            css.push_str("}\n\n");
             files.push((filename, css));
         }
     }
@@ -216,8 +244,9 @@ pub fn generate_with_options(
         }
         let filename = format!("{}.css", rc.name);
         let mut css = String::new();
+        css.push_str(&format!("@layer {} {{\n", rc.name));
         for block in &rc.styles {
-            css.push_str(&format!("{} {{\n", block.selector));
+            css.push_str(&format!("  {} {{\n", block.selector));
             for (prop, val) in &block.properties {
                 let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
                     if c.is_uppercase() {
@@ -228,25 +257,36 @@ pub fn generate_with_options(
                     }
                     acc
                 });
-                css.push_str(&format!("  {}: {};\n", css_prop, val));
+                css.push_str(&format!("    {}: {};\n", css_prop, val));
             }
-            css.push_str("}\n\n");
+            css.push_str("  }\n\n");
         }
+        css.push_str("}\n\n");
         files.push((filename, css));
     }
 
     maybe_web_ir_validate(hir, web_projection_cache.as_ref())?;
 
-    let route_manifest = match web_projection_ref {
-        Some(w) => try_emit_route_manifest_from_web_ir(w, hir)?,
+    let (manifest_filename, route_manifest) = match web_projection_ref {
+        Some(w) => {
+            if options.mode == BuildMode::Library {
+                ("routes.manifest.json", crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(w, hir)?)
+            } else {
+                ("routes.manifest.ts", crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(w, hir)?)
+            }
+        }
         None if !hir.client_routes.is_empty() => {
             let w = crate::web_ir::lower::project_web_from_core(hir);
-            try_emit_route_manifest_from_web_ir(&w, hir)?
+            if options.mode == BuildMode::Library {
+                ("routes.manifest.json", crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(&w, hir)?)
+            } else {
+                ("routes.manifest.ts", crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(&w, hir)?)
+            }
         }
-        _ => None,
+        _ => ("", None),
     };
     if let Some(manifest) = route_manifest {
-        files.push((ROUTE_MANIFEST_FILENAME.to_string(), manifest));
+        files.push((manifest_filename.to_string(), manifest));
     }
 
     let island_names: Vec<&str> = hir.islands.iter().map(|i| i.0.name.as_str()).collect();
@@ -267,31 +307,33 @@ pub fn generate_with_options(
         files.push(("vox-islands-meta.ts".to_string(), meta));
     }
 
-    // Generate mobile native bridge
-    let mobile_fns: Vec<&HirFn> = hir
-        .functions
-        .iter()
-        .filter(|f| f.is_mobile_native)
-        .collect();
-    if !mobile_fns.is_empty() {
-        let mut mobile_bridge = String::from("// Mobile native bridge generated by Vox compiler\n");
-        mobile_bridge.push_str("import { Capacitor } from \"@capacitor/core\";\n\n");
-        for f in mobile_fns {
-            mobile_bridge.push_str(&crate::codegen_ts::hir_emit::emit_mobile_bridge_fn(f));
-            mobile_bridge.push('\n');
+    if options.mode != BuildMode::Library {
+        // Generate mobile native bridge
+        let mobile_fns: Vec<&HirFn> = hir
+            .functions
+            .iter()
+            .filter(|f| f.is_mobile_native)
+            .collect();
+        if !mobile_fns.is_empty() {
+            let mut mobile_bridge = String::from("// Mobile native bridge generated by Vox compiler\n");
+            mobile_bridge.push_str("import { Capacitor } from \"@capacitor/core\";\n\n");
+            for f in mobile_fns {
+                mobile_bridge.push_str(&crate::codegen_ts::hir_emit::emit_mobile_bridge_fn(f));
+                mobile_bridge.push('\n');
+            }
+            files.push(("mobile-bridge.ts".to_string(), mobile_bridge));
         }
-        files.push(("mobile-bridge.ts".to_string(), mobile_bridge));
-    }
 
-    let uses_mobile_namespace = hir.imports.iter().any(|imp| {
-        (imp.module_path == vec!["std"] && imp.item == "mobile")
-            || (imp.module_path.is_empty() && imp.item == "mobile")
-    });
-    if uses_mobile_namespace {
-        files.push((
-            "mobile-utils.ts".to_string(),
-            crate::codegen_ts::hir_emit::emit_mobile_web_api_utils(options.target.as_deref()),
-        ));
+        let uses_mobile_namespace = hir.imports.iter().any(|imp| {
+            (imp.module_path == vec!["std"] && imp.item == "mobile")
+                || (imp.module_path.is_empty() && imp.item == "mobile")
+        });
+        if uses_mobile_namespace {
+            files.push((
+                "mobile-utils.ts".to_string(),
+                crate::codegen_ts::hir_emit::emit_mobile_web_api_utils(options.target.as_deref()),
+            ));
+        }
     }
 
     for env in &hir.environments {
@@ -314,7 +356,38 @@ pub fn generate_with_options(
         files.push((format!("Dockerfile.{}", env.name), dockerfile));
     }
 
-    Ok(CodegenOutput { files })
+    if options.mode == BuildMode::Library {
+        let package_json = serde_json::json!({
+            "name": "vox-generated-api",
+            "version": "0.1.0",
+            "type": "module",
+            "main": "./index.ts",
+            "exports": {
+                ".": "./index.ts"
+            },
+            "peerDependencies": {
+                "zod": "^3.22.4"
+            }
+        });
+        files.push((
+            "package.json".to_string(),
+            serde_json::to_string_pretty(&package_json).unwrap(),
+        ));
+
+        let mut index_ts = String::new();
+        if has_types {
+            index_ts.push_str("export * from \"./types\";\n");
+        }
+        if has_schemas {
+            index_ts.push_str("export * from \"./schemas\";\n");
+        }
+        if has_api_fns {
+            index_ts.push_str("export * from \"./vox-client\";\n");
+        }
+        files.push(("index.ts".to_string(), index_ts));
+    }
+
+    Ok(CodegenOutput { files, reactive_stats })
 }
 
 /// WebIR lower + validate gate (OP-0113, OP-0124). **On by default;** set `VOX_WEBIR_VALIDATE=0` / `false` /

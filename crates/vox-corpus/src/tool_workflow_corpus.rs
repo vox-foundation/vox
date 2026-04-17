@@ -32,6 +32,8 @@ pub struct WorkflowTraceRecord {
     pub execution_log_excerpt: String,
     /// Model-produced Vox snippet, if captured.
     pub synthesized_vox: Option<String>,
+    /// NNT small-world routing efficiency score (0.0-1.0).
+    pub routing_efficiency: Option<f64>,
 }
 
 /// A2A message pair for coordination training.

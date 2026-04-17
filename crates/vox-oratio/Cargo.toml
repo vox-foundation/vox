@@ -55,7 +55,7 @@ byteorder = { version = "1.5", optional = true }
 uuid = { workspace = true }
 tempfile = { workspace = true }
 sherpa-rs = { version = "0.6", optional = true, features = ["download-binaries"] }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 vox-clavis.workspace = true
 
 [dev-dependencies]

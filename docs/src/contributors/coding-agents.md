@@ -1,31 +1,94 @@
 ---
 title: "Coding Agent Instructions"
-description: "Instructions and heuristics generated from recent codebase discoveries for coding agents operating on Vox."
+description: "Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox."
 category: "contributor"
 status: "current"
-last_updated: 2026-04-10
+last_updated: 2026-04-17
 training_eligible: true
+training_rationale: "High-signal quick-reference loaded as agent context; each section is a directly actionable rule."
 
 schema_type: "TechArticle"
 ---
 
 # Coding Agent Instructions
 
-This guide provides specific heuristics and rules for AI coding agents operating within the Vox ecosystem. It synthesizes recent codebase integrity work into canonical policies to prevent regressions.
+Quick-reference for AI agents operating on the Vox codebase. Deep rationale lives in the linked SSOTs — this file stays thin by design.
 
-## Stale Documentation Risk
+## Stale documentation risk
 
-1. **Check SSOT Inventories First**: When a user asks you to implement a new feature, verify whether similar features are documented as retired or deprecated. Cross-reference `AGENTS.md` and `docs/src/architecture/legacy-retirement-roadmap.md`.
-2. **Beware of Pointers to Deleted Code**: Older documentation may refer to crates or systems that have been renamed or archived (e.g. `vox-dei` being repurposed from orchestrator to a small HITL crate).
-3. **Do Not Hallucinate Features**: If a surface is not declared in `architecture-index.md` or `AGENTS.md`, do not assume it exists. Do not write `import`s for non-existent internal crates.
-4. **Use Search Proactively**: Always rely on `grep_search` and exact file reads (`view_file`) before modifying large modules.
+1. **Check SSOT inventories first** — verify similar features aren't retired. Cross-reference `AGENTS.md` and [legacy-retirement-roadmap.md](../architecture/legacy-retirement-roadmap.md).
+2. **Beware renamed crates** — `vox-dei` is now a small HITL crate, not the orchestrator. See the retired surfaces table in `AGENTS.md`.
+3. **Do not hallucinate surfaces** — if a crate isn't in `architecture-index.md` or `AGENTS.md`, do not assume it exists.
+4. **Search before modifying** — use `grep_search` and `view_file` before touching large modules.
 
-## God Object Defactor Checklist
+## Structural limits (enforced by TOESTUB, fail CI)
 
-1. **Size Limits**: Prevent any module or strut from becoming a "God Object". Files over 500 lines or structs with >12 methods must be broken down into specific domains.
-2. **Skeleton Code is Forbidden**: Leaving skeleton implementations (`todo!()`, `unimplemented!()`, or `pass`) will break CI workflows. A file must either be structurally complete or explicitly marked as `stub/todo` via `TOESTUB`.
-3. **Component Consolidation**: Respect the split-compiler consolidation. For instance, `vox-lexer`, `vox-parser`, etc., have all been merged into `vox-compiler`. Do not create or request these old architectures.
+| Limit | Value | Rule ID |
+|---|---|---|
+| Max file length (non-blank lines) | 500 | `arch/god_object` |
+| Max methods per struct/impl | 12 | `arch/god_object` |
+| Max files per directory | 20 | `arch/sprawl` |
+| No `todo!()` / `unimplemented!()` | Zero in production | `stub/todo` |
+| No hollow functions | No trivially-default returns | `skeleton/hollow-fn` |
+| No hardcoded secrets | Use Clavis | `security/hardcoded-secret` |
+| No CRLF line endings | LF only | `cross-platform/crlf` |
+
+Full fix guide: [TOESTUB contributor guide](toestub-contributor-guide.md).
+Policy SSOT: [Architectural governance](../../agents/governance.md).
+
+## Pre-commit victory checklist
+
+Run these before marking any task complete. Tiers are ordered — fix earlier tiers first.
+
+```bash
+# Tier 1 — zero stubs
+cargo run -p vox-cli --features stub-check -- stub-check crates/<your-crate>
+
+# Tier 3 — compile
+cargo check --workspace
+
+# Tier 5 — unit tests (for code changes)
+cargo test -p <your-crate>
+
+# Tier 6 — .vox parse rate (if .vox files changed)
+cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
+
+# Tier 7 — CI guards
+cargo run -p vox-cli -- ci ssot-drift
+cargo run -p vox-cli -- ci line-endings
+```
+
+Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../architecture/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.
+
+## Corpus quality signal
+
+Your code changes feed the MENS training pipeline. Stub-free, test-covered,
+parse-passing contributions become positive training examples. Stubs and parse
+failures become negative examples — the model learns to avoid those patterns.
+
+See [contribution loop](contribution-loop.md) for the full flywheel.
+
+## Panic prevention (do not shortcut)
+
+- Do **not** use `git reset --hard`, `git restore`, or `git clean` to silence failing tests.
+- Do **not** delete tests to fix a test failure — fix the code.
+- Do **not** add `#[allow(...)]` or `// toestub-ignore(...)` without a written reason.
+- Do **not** claim task completion adjacent to `todo!()` or empty bodies.
+
+Research: [AI agent panic and shortcut pathology](../architecture/research-ai-panic-shortcuts-2026.md).
+
+## Key SSOTs
+
+| Need | SSOT |
+|---|---|
+| Secrets / credentials | [Clavis SSOT](../reference/clavis-ssot.md) |
+| CLI command additions | [CLI design rules SSOT](../architecture/cli-design-rules-ssot.md) |
+| Retired symbols / crates | [AGENTS.md §Retired Surfaces](../../../AGENTS.md) |
+| God-object refactor protocol | [God object defactor checklist](../architecture/god-object-defactor-checklist.md) |
+| `.vox` code in docs | [Documentation governance](documentation-governance.md) |
+| Testing file conventions | [Testing standard](../architecture/testing-standard.md) |
+| Cryptography | [Cryptography SSOT](../architecture/cryptography-ssot-2026.md) |
 
 ## Enforcement
 
-Your operations are checked locally by `AGENTS.md` boundaries. When in doubt, prefer decomposition and explicitness over shell cleverness. Ensure that any output avoids the "Retired Surfaces" constraints listed in the core agent prompts.
+Operations are checked by `AGENTS.md` + CI. Prefer decomposition over shell cleverness. When in doubt, read the SSOT.

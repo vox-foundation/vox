@@ -156,6 +156,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         is_detached: params.is_detached,
         requires_approval: None,
         socrates_context: None,
+        attachment_manifest: None,
     })
 }
 

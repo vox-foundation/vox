@@ -1,3 +1,10 @@
+---
+title: "Governance"
+description: "Agent support documentation for governance"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Architectural Governance (TOESTUB)
 
 The Vox codebase enforces architectural health automatically using the TOESTUB engine.

@@ -280,6 +280,24 @@ fn validate_styles(
                         span: None,
                         category: Some("style".to_string()),
                     });
+                } else {
+                    let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
+                        if c.is_uppercase() {
+                            acc.push('-');
+                            acc.push(c.to_ascii_lowercase());
+                        } else {
+                            acc.push(c);
+                        }
+                        acc
+                    });
+                    if !crate::codegen_shared::css_property_allowlist::is_allowed_css_property(&css_prop) {
+                        out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.style.unknown_property".to_string(),
+                            message: format!("Unknown CSS property '{}' (normalized to '{}')", prop, css_prop),
+                            span: None,
+                            category: Some("style".to_string()),
+                        });
+                    }
                 }
             }
         }

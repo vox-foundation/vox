@@ -31,6 +31,8 @@ pub mod schema;
 pub mod tanstack_query_emit;
 /// `vox-client.ts` typed `fetch` SDK.
 pub mod vox_client;
+/// Zod schema emission.
+pub mod zod_emit;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};

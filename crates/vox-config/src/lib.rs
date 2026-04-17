@@ -12,6 +12,7 @@ pub mod operator_registry;
 pub mod rollout;
 pub mod scholarly;
 pub mod routing_policy;
+pub mod toml_config;
 
 pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,

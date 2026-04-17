@@ -217,6 +217,7 @@ pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
     map.insert("planning".to_string(), pro_planning_id.clone());
     map.insert("review".to_string(), sonnet_id.clone());
     map.insert("logic".to_string(), r1_id.clone());
+    map.insert("visus".to_string(), "qwen/qwen-3.5-vl".to_string());
     // Fallback aliases will be handled by the updated registry logic soon
     map
 }
@@ -417,6 +418,24 @@ impl Default for ModelConfig {
                         "debugging".to_string(),
                         "security".to_string(),
                     ],
+                    capabilities: ModelCapabilities {
+                        supports_vision: true,
+                        tier: ModelTier::Pro,
+                        ..Default::default()
+                    },
+                    supported_parameters: vec![],
+                },
+                ModelSpec {
+                    id: "qwen/qwen-3.5-vl".to_string(),
+                    canonical_slug: "qwen/qwen-3.5-vl".to_string(),
+                    provider: "openrouter".to_string(),
+                    provider_type: ProviderType::OpenRouter,
+                    max_tokens: 128_000,
+                    cost_per_1k: 0.1, // estimated
+                    cost_per_1k_input: 0.05,
+                    cost_per_1k_output: 0.2,
+                    is_free: false,
+                    strengths: vec!["visus".to_string(), "vision".to_string()],
                     capabilities: ModelCapabilities {
                         supports_vision: true,
                         tier: ModelTier::Pro,

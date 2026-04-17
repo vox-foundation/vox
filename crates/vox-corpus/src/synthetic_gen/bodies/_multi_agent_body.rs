@@ -85,7 +85,7 @@ pub fn generate_multi_agent_conversation_pairs(
         for prompt in &prompts {
             let response = json!({
                 "scenario": desc,
-                "turns": turns_json,
+                "messages": turns_json,
                 "pattern": "sequential_a2a",
             });
             emit_line(

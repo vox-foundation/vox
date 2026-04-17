@@ -1,4 +1,4 @@
-﻿//! Chromium-backed browser MCP tools (`vox_browser_*`).
+//! Chromium-backed browser MCP tools (`vox_browser_*`).
 //!
 //! Uses [`vox_browser`] (CDP / `chromiumoxide`). Playwright is not required.
 
@@ -112,7 +112,7 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
         "Instruction:\n{}\n\nVisible page text (truncated):\n{}",
         p.instruction, summary
     );
-    match call_llm(state, sys, &user, None).await {
+    match call_llm(state, sys, &user, None, None).await {
         Ok((text, model, _)) => ToolResult::ok(serde_json::json!({
             "extraction": text,
             "model": model,
@@ -141,7 +141,7 @@ pub async fn browser_extract_json(state: &ServerState, p: BrowserExtractJsonPara
         "Schema (JSON Schema):\n{}\n\nTask:\n{}\n\nVisible page text:\n{}",
         p.schema_json, p.instruction, summary
     );
-    match call_llm(state, sys, &user, None).await {
+    match call_llm(state, sys, &user, None, None).await {
         Ok((text, model, _)) => {
             let trimmed = text.trim();
             let val: Result<serde_json::Value, _> = serde_json::from_str(trimmed);
@@ -194,7 +194,7 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
         "Goal:\n{}\n\nVisible page text:\n{}",
         p.instruction, summary
     );
-    let Ok((text, model, _)) = call_llm(state, sys, &user, None).await else {
+    let Ok((text, model, _)) = call_llm(state, sys, &user, None, None).await else {
         return ToolResult::<serde_json::Value>::err_with_remediation(
             "LLM call failed (check model / keys)",
             "Configure MCP chat model (`vox_set_active_model`) and Clavis secrets.",

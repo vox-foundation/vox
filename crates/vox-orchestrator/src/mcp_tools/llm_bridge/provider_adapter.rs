@@ -1,4 +1,4 @@
-﻿use std::future::Future;
+use std::future::Future;
 use std::pin::Pin;
 use crate::models::{ModelSpec, ProviderType};
 
@@ -22,7 +22,7 @@ pub(crate) struct ProviderInferResult {
 #[derive(Debug, Clone)]
 pub(crate) struct InferRequest<'a> {
     pub system_prompt: &'a str,
-    pub user_prompt: &'a str,
+    pub user_prompt: vox_openai_wire::ChatMessageContent<'a>,
     pub max_t: u64,
     pub temperature: f32,
     pub json_mode: bool,
@@ -214,7 +214,7 @@ pub(crate) async fn infer_via_provider_adapter(
     client: &reqwest::Client,
     model: &ModelSpec,
     system_prompt: &str,
-    user_prompt: &str,
+    user_prompt: vox_openai_wire::ChatMessageContent<'_>,
     max_t: u64,
     temperature: f32,
     json_mode: bool,

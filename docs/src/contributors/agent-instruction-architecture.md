@@ -35,7 +35,7 @@ Decision rule:
 - If it is machine-verifiable, prefer CI.
 - If it is a cross-tool invariant, put it in `AGENTS.md`.
 - If it is IDE or shell specific, put it in a tool overlay.
-- If it is about attention drift in long sessions, use continuation prompts.
+- If it is about attention drift in long sessions, use continuation prompts. For handling attention decay in long sessions, see [Continuation Prompt Engineering](continuation-prompt-engineering.md).
 
 ## Command policy strategy (PowerShell-first)
 

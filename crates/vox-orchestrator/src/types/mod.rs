@@ -19,5 +19,5 @@ pub use messages::{
 pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
 pub use tasks::{
     AccessKind, AgentTask, CompletionAttestation, FileAffinity, PopuliRemoteDelegate, TaskCategory,
-    TaskDescriptor, TaskEnqueueHints, TaskPriority, TaskStatus,
+    TaskDescriptor, TaskEnqueueHints, TaskPriority, TaskStatus, TaskTurn, MAX_A2A_BOUNCE,
 };

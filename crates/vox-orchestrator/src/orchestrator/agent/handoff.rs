@@ -107,13 +107,30 @@ impl crate::orchestrator::Orchestrator {
             });
         }
 
+        let hints = if let Some(ref manifest) = payload.attachment_manifest 
+            && manifest.has_vision_vitals() {
+            Some(crate::contract::TaskCapabilityHints {
+                visus_eligible: true,
+                multi_modal: true,
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
         let target_id = if let Some(id) = payload.to_agent {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             if agents.contains_key(&id) {
                 id
             } else {
                 drop(agents);
-                match self.spawn_agent(&format!("ResumingAgent-{}", id.0)) {
+                match self.spawn_dynamic_agent_with_parent(
+                    &format!("ResumingAgent-{}", id.0),
+                    None,
+                    Some("handoff_resume"),
+                    None,
+                    hints,
+                ) {
                     Ok(new_id) => new_id,
                     Err(e) => {
                         self.event_bus
@@ -126,7 +143,13 @@ impl crate::orchestrator::Orchestrator {
                 }
             }
         } else {
-            match self.spawn_agent("AdaptiveResumer") {
+            match self.spawn_dynamic_agent_with_parent(
+                "AdaptiveResumer",
+                None,
+                Some("handoff_resume"),
+                None,
+                hints,
+            ) {
                 Ok(new_id) => new_id,
                 Err(e) => {
                     self.event_bus
@@ -138,6 +161,30 @@ impl crate::orchestrator::Orchestrator {
                 }
             }
         };
+
+        // Task migration: Move pending tasks from source agent to target agent and increment handoff_count.
+        let mut moved_tasks = Vec::new();
+        if let Some(from_queue_lock) = self.agent_queue(from_agent) {
+            let mut from_queue = crate::sync_lock::rw_write(&from_queue_lock);
+            for task_id in &payload.pending_tasks {
+                if let Some(mut task) = from_queue.take_queued(*task_id) {
+                    task.handoff_count += 1;
+                    moved_tasks.push(task);
+                } else if let Some(mut task) = from_queue.take_in_progress_if(*task_id) {
+                    task.handoff_count += 1;
+                    moved_tasks.push(task);
+                }
+            }
+        }
+
+        if !moved_tasks.is_empty() {
+            if let Some(target_queue_lock) = self.agent_queue(target_id) {
+                let mut target_queue = crate::sync_lock::rw_write(&target_queue_lock);
+                for task in moved_tasks {
+                    target_queue.enqueue(task);
+                }
+            }
+        }
 
         for path in &payload.owned_files {
             self.affinity_map.assign(path, target_id);

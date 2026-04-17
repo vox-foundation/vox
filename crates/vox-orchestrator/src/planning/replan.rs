@@ -80,6 +80,7 @@ pub async fn enqueue_recovery_first_node(
                 requires_approval: None,
                 required_labels: None,
                 socrates_context: None,
+                attachment_manifest: None,
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

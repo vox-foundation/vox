@@ -82,3 +82,7 @@ registry.register(HookEvent::TaskCompleted, |event| {
 ```
 
 Available events: `TaskCompleted`, `TaskFailed`, `AgentStarted`, `AgentStopped`, `MemoryFlushed`.
+
+## Skills vs. Deep Execution Libraries (PyTorch)
+
+Skills are designed exclusively for **loose-coupled orchestration** (e.g., connecting to a database, resolving a Git conflict, routing workflows) and are not meant to replace high-speed, tight-loop native ML execution like PyTorch. Because Skills function as discrete event-driven bundles with high-latency JSON/IPC handoffs, they should never be used for per-pixel or per-node calculations. For heavy loop execution or math operations, rely on native, highly coupled Rust constructs (such as `vox-tensor`), avoiding external library spaghetti.

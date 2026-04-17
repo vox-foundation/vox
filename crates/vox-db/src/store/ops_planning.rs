@@ -345,6 +345,26 @@ impl crate::VoxDb {
             .await
     }
 
+    pub async fn approve_all_blocked_plan_nodes(
+        &self,
+        plan_session_id: &str,
+    ) -> Result<u64, StoreError> {
+        let plan_session_id = plan_session_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn.execute(
+                    "UPDATE plan_nodes SET status = 'pending', updated_at = datetime('now')
+                 WHERE plan_session_id = ?1 AND status = 'blocked_on_approval'",
+                    params![plan_session_id.as_str()],
+                )
+                .await?;
+                Ok::<u64, StoreError>(affected as u64)
+            })
+            .await
+    }
+
     pub async fn update_plan_session_iterative_fields(
         &self,
         plan_session_id: &str,

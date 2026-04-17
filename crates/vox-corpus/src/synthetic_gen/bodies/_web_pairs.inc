@@ -73,6 +73,10 @@ pub(crate) fn generate_web_construct_pairs(
         let line = json!({
             "prompt": prompt,
             "response": snippet,
+            "messages": [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": snippet}
+            ],
             "category": format!("vox.web.{}", construct),
             "format": "vox_organic",
             "schema_version": "vox_dogfood_v1",

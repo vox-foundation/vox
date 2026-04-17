@@ -149,6 +149,24 @@ pub enum CorpusAction {
         #[arg(long, default_value = "500")]
         limit: i64,
     },
+    /// Export high-quality agent traces from VoxDB for A2A training
+    Dogfood {
+        /// Output JSONL path
+        #[arg(short, long, default_value = "target/dogfood/agent_dogfood.jsonl")]
+        output: std::path::PathBuf,
+        /// Max records to query
+        #[arg(short, long, default_value = "1000")]
+        limit: i64,
+    },
+    /// Export high-quality agent DPO pairs (correction vs failure) from VoxDB
+    DpoDogfood {
+        /// Output JSONL path
+        #[arg(short, long, default_value = "target/dogfood/agent_dpo.jsonl")]
+        output: std::path::PathBuf,
+        /// Max records to query
+        #[arg(short, long, default_value = "1000")]
+        limit: i64,
+    },
     /// Auto-generate vox_system_prompt.txt from construct reference
     Prompt {
         /// Output file path
@@ -392,6 +410,42 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                     "Replay requires the `database` feature. Rebuild with --features database"
                 );
             }
+            Ok(())
+        }
+        CorpusAction::Dogfood { output, limit } => {
+            let db = vox_db::VoxDb::connect_default()
+                .await
+                .context("dogfood-export requires DB connection")?;
+            let exporter = vox_corpus::corpus::dogfood::DogfoodExporter::new(&db);
+            
+            if let Some(p) = output.parent() {
+                tokio::fs::create_dir_all(p).await?;
+            }
+            
+            let mut file = std::fs::File::create(&output)?;
+            let count = exporter.export_agent_traces(limit, &mut file).await?;
+            println!(
+                "✓ Exported {} high-quality agent traces → {}",
+                count,
+                output.display()
+            );
+            Ok(())
+        }
+        CorpusAction::DpoDogfood { output, limit } => {
+            let db = vox_db::VoxDb::connect_default()
+                .await
+                .context("dpo-dogfood-export requires DB connection")?;
+            
+            if let Some(p) = output.parent() {
+                tokio::fs::create_dir_all(p).await?;
+            }
+            
+            let count = vox_corpus::corpus::dpo::export_dogfood_dpo(&db, limit, &output).await?;
+            println!(
+                "✓ Exported {} agent DPO preference pairs → {}",
+                count,
+                output.display()
+            );
             Ok(())
         }
         CorpusAction::Stats { input } => stats::run_stats(&input).await,

@@ -1,4 +1,4 @@
-﻿//! HTTP inference loop: budget gate, provider dispatch, Ollama fallback, usage recording.
+//! HTTP inference loop: budget gate, provider dispatch, Ollama fallback, usage recording.
 //!
 //! ## LLM cost bus events (`VOX_MCP_LLM_COST_EVENTS`)
 //! After a successful completion, [`should_emit_llm_cost_events`] gates [`crate::AgentEventKind::CostIncurred`] on the
@@ -17,6 +17,7 @@ use super::MCP_GLOBAL_LLM_AGENT;
 use super::limits::HTTP_MAX_OUTPUT_TOKENS_CAP;
 use super::model_route_policy::{McpChatModelResolution, resolve_mcp_chat_model};
 use super::provider_adapter::{ProviderInferResult, infer_via_provider_adapter};
+use base64::Engine;
 
 /// Routing context for [`mcp_infer_completion`] (sticky override, free-tier policy, Ollama fallback).
 #[derive(Clone)]
@@ -151,6 +152,7 @@ pub async fn mcp_infer_completion(
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
+    attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
     mcp_infer_tool_completion(
         state,
@@ -163,6 +165,7 @@ pub async fn mcp_infer_completion(
         json_mode,
         None,
         None,
+        attachment_manifest,
     )
     .await
 }
@@ -179,6 +182,7 @@ pub async fn mcp_infer_tool_completion(
     json_mode: bool,
     tools: Option<serde_json::Value>,
     tool_choice: Option<serde_json::Value>,
+    attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
     if tool == "vox_plan" && super::infer_test_stub::infer_stub_env_active() {
         if let Some(body) = super::infer_test_stub::stub_completion_body() {
@@ -228,6 +232,16 @@ pub async fn mcp_infer_tool_completion(
 
         let usage = model.llm_usage_key();
 
+        let mut estimated_vision_tokens = 0;
+        if let Some(ref manifest) = attachment_manifest {
+            for a in &manifest.attachments {
+                if a.mime_type.starts_with("image/") {
+                    // Safe heuristic: 85 base + ~6 tiles (1020) ~ 1000 tokens per image.
+                    estimated_vision_tokens += 1000;
+                }
+            }
+        }
+
         if let Some(db) = state.db.as_ref() {
             let orch_arc = state.orchestrator.budget_manager_handle();
             let orch_attention = {
@@ -245,7 +259,7 @@ pub async fn mcp_infer_tool_completion(
                 &state.orchestrator_config,
             );
             match gate
-                .allow_with_pilot_attention(MCP_GLOBAL_LLM_AGENT, &usage, Some(orch_attention), 0)
+                .allow_with_pilot_attention(MCP_GLOBAL_LLM_AGENT, &usage, Some(orch_attention), estimated_vision_tokens)
                 .await
             {
                 GateResult::Allowed => {}
@@ -319,11 +333,39 @@ pub async fn mcp_infer_tool_completion(
             (system_prompt, routing.user_prompt)
         };
 
+        let mut user_parts = vec![vox_openai_wire::ChatMessagePart::Text { text: final_user }];
+        if let Some(ref manifest) = attachment_manifest {
+            if let Some(db) = state.db.as_ref() {
+                for attachment in &manifest.attachments {
+                    if attachment.mime_type.starts_with("image/") {
+                        match db.get(&attachment.sha256).await {
+                            Ok(bytes) => {
+                                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                                let url = format!("data:{};base64,{}", attachment.mime_type, b64);
+                                user_parts.push(vox_openai_wire::ChatMessagePart::ImageUrl {
+                                    image_url: vox_openai_wire::ImageUrl { url: Box::leak(url.into_boxed_str()) },
+                                });
+                            }
+                            Err(e) => {
+                                tracing::warn!(sha = %attachment.sha256, error = %e, "Failed to fetch attachment from CAS");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let user_content = if user_parts.len() > 1 {
+            vox_openai_wire::ChatMessageContent::Parts(user_parts)
+        } else {
+            vox_openai_wire::ChatMessageContent::Text(final_user)
+        };
+
         let infer_result = infer_via_provider_adapter(
             client,
             &model,
             final_system,
-            final_user,
+            user_content,
             max_t,
             temperature,
             json_mode,
@@ -449,6 +491,7 @@ pub async fn call_llm(
     system_prompt: &str,
     user_prompt: &str,
     user_id: Option<&str>,
+    attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
     let pref = match crate::mcp_tools::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
@@ -494,6 +537,7 @@ pub async fn call_llm(
         max_tokens,
         0.7,
         false,
+        attachment_manifest,
     )
     .await
 }

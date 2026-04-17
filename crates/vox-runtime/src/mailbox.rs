@@ -79,3 +79,11 @@ pub type MailboxReceiver = mpsc::Receiver<Envelope>;
 pub fn new_mailbox(capacity: usize) -> (MailboxSender, MailboxReceiver) {
     mpsc::channel(capacity)
 }
+
+/// Trait used to sever GC boundaries when passing messages between actors.
+/// The compiler derives this for custom types to deep-copy values outside
+/// the GC arena before they cross a mailbox boundary.
+pub trait DeepCloneToOwned {
+    type Owned;
+    fn deep_clone_to_owned(&self) -> Self::Owned;
+}

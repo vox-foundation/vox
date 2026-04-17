@@ -6,4 +6,4 @@ license.workspace = true
 
 [dependencies]
 vox-publisher = { path = "../vox-publisher", default-features = false }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }

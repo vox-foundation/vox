@@ -112,6 +112,13 @@ pub const ROUTING_TABLE: &[RoutingTableEntry] = &[
         preferred_tier: ModelTier::Pro,
         context_min_k: 32,
     },
+    RoutingTableEntry {
+        task_category: TaskCategory::Visus,
+        strength_tag: "visus",
+        premium_alias_key: "visus",
+        preferred_tier: ModelTier::Pro,
+        context_min_k: 32,
+    },
 ];
 
 /// Get the routing config for a category.

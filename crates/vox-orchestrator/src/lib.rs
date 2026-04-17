@@ -40,6 +40,7 @@
 
 pub mod dei_shim;
 pub mod sync_lock;
+pub mod attachment_manifest;
 
 #[cfg(feature = "mcp-native")]
 pub mod mcp_tools;
@@ -286,6 +287,7 @@ pub use types::{
     MessageEnvelope, MessageId, MessagePriority, TaskCategory, TaskDescriptor, TaskEnqueueHints,
     TaskId, TaskIdGenerator, TaskPriority, TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
+pub use attachment_manifest::{AttachmentEntry, AttachmentManifest, VisualSegment};
 pub use vox_db::store::types::VictoryCondition;
 pub use vox_db::store::{
     ObservationReport, ObserverAction, TestDecision, TestDecisionPolicy, TierResult, VictoryVerdict,

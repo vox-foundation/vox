@@ -4,6 +4,7 @@ mod feed;
 mod lint;
 mod summary;
 mod types;
+mod doctest;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -209,13 +210,6 @@ pub fn run() {
                         value
                     );
                 }
-                LintKind::RawVoxCodeBlock => {
-                    eprintln!(
-                        "  ERROR  {}:{} — raw vox/tsx code block detected; replace with `{{{{#include ...}}}}` from `examples/golden/` or add `// vox:skip`",
-                        rel.display(),
-                        e.line
-                    );
-                }
                 LintKind::BrokenIncludeAnchor { file, anchor } => {
                     eprintln!(
                         "  ERROR  {} — unresolved anchor `:{}` in `{{{{#include ...}}}}` (target {}). Check if REGION exists in the golden file.",
@@ -232,6 +226,9 @@ pub fn run() {
                         file
                     );
                 }
+                LintKind::DocTestFailed { msg } => {
+                    eprintln!("{}", msg);
+                }
             }
         }
 
@@ -246,10 +243,10 @@ pub fn run() {
                         | LintKind::UnknownCategory { .. }
                         | LintKind::UnknownStatus { .. }
                         | LintKind::UnknownSchemaType { .. }
-                        | LintKind::RawVoxCodeBlock
                         | LintKind::BrokenIncludeAnchor { .. }
                         | LintKind::WholeFileIncludeHasTrainingHeader { .. }
                         | LintKind::MissingTrainingRationale
+                        | LintKind::DocTestFailed { .. }
                 )
             })
             .count();

@@ -1,4 +1,4 @@
-﻿//! RPC parameter and response types for all Vox MCP tools.
+//! RPC parameter and response types for all Vox MCP tools.
 //!
 //! All `#[derive(Deserialize)]` structs accepted by tool handlers live here.
 //! All `#[derive(Serialize)]` response types live here.
@@ -603,6 +603,36 @@ pub struct PublishMessageParams {
 }
 
 // ---------------------------------------------------------------------------
+// RAG and Search types
+// ---------------------------------------------------------------------------
+
+/// Parameters for querying a multi-modal visual RAG handler.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct VoxVisualRagQueryParams {
+    /// Natural-language question or extraction instruction.
+    #[schemars(length(min = 1, max = 131072))]
+    pub query: String,
+    /// Optional list of workspace-relative paths to image files.
+    #[serde(default)]
+    pub image_paths: Vec<String>,
+    /// Optional list of base64-encoded image payloads.
+    #[serde(default)]
+    pub image_base64: Option<Vec<String>>,
+}
+
+/// Response returned from a successful visual RAG invocation.
+#[derive(Debug, Serialize)]
+pub struct VoxVisualRagQueryResponse {
+    /// Textual analysis/answer from the intelligence backend.
+    pub answer: String,
+    /// List of data sources, file paths, or DBs consulted.
+    pub sources_consulted: Vec<String>,
+    /// An estimated confidence score bounded between 0.0 and 1.0.
+    pub confidence_score: f32,
+}
+
+// ---------------------------------------------------------------------------
 // Response types
 // ---------------------------------------------------------------------------
 
@@ -619,6 +649,8 @@ pub struct AgentInfo {
     pub completed: usize,
     /// Whether the agent is paused.
     pub paused: bool,
+    /// Highest handoff count for any active task in this queue.
+    pub max_handoff_count: u8,
 }
 
 /// Structured `vox_orchestrator_start` payload (honest about in-process orchestrator limits).
@@ -686,6 +718,8 @@ pub struct StatusResponse {
     pub completed: usize,
     /// Per-agent rows.
     pub agents: Vec<AgentInfo>,
+    /// Global peak handoff count across all active agents.
+    pub max_handoff_count: u8,
     /// Current scaling profile (conservative / balanced / aggressive) for transparency.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scaling_profile: Option<String>,

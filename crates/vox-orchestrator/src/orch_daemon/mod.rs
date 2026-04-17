@@ -292,6 +292,7 @@ pub async fn dispatch_request(
                     parent_agent_id,
                     delegation_reason,
                     source_task_id,
+                    None,
                 )
             } else {
                 orch.spawn_agent(name)

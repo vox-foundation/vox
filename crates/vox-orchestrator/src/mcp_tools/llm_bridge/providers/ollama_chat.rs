@@ -1,4 +1,4 @@
-﻿use super::metadata::{HttpCallMetadata, ollama_base_url};
+use super::metadata::{HttpCallMetadata, ollama_base_url};
 use super::types::{
     OllamaChatMsg, OllamaChatRequest, OllamaChatResponse, OllamaMsg, OllamaOptions,
 };
@@ -9,7 +9,7 @@ pub(crate) async fn http_ollama_with_metadata(
     client: &reqwest::Client,
     model: &str,
     system: &str,
-    user: &str,
+    user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: f32,
     json_mode: bool,
@@ -18,6 +18,16 @@ pub(crate) async fn http_ollama_with_metadata(
     let url = format!("{}/api/chat", base.trim_end_matches('/'));
 
     let mut messages = Vec::new();
+    let user_text = match user {
+        vox_openai_wire::ChatMessageContent::Text(t) => t,
+        vox_openai_wire::ChatMessageContent::Parts(ref p) => {
+            p.iter().find_map(|part| match part {
+                vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
+                _ => None,
+            }).unwrap_or("")
+        }
+    };
+
     if !system.is_empty() {
         messages.push(OllamaChatMsg {
             role: "system",
@@ -26,7 +36,7 @@ pub(crate) async fn http_ollama_with_metadata(
     }
     messages.push(OllamaChatMsg {
         role: "user",
-        content: user,
+        content: user_text,
     });
 
     let format = if json_mode {

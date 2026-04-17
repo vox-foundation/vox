@@ -1,15 +1,10 @@
 ---
-title: "vox-dei HITL Redirect"
+title: "HITL Doubt Flow and Resolution (Redirect)"
 description: "Redirect to hitl-doubt-loop-ssot.md"
 category: "architecture"
 status: "deprecated"
-last_updated: 2026-04-10
+last_updated: 2026-04-16
 training_eligible: false
-
-schema_type: "TechArticle"
 ---
 
-# vox-dei HITL
-
-> [!WARNING] DEPRECATED
-> The architecture for the `vox-dei` HITL crate is now documented in [`hitl-doubt-loop-ssot.md`](./hitl-doubt-loop-ssot.md).
+This page is deprecated. The HITL doubt loop is now documented in [`hitl-doubt-loop-ssot.md`](hitl-doubt-loop-ssot.md).

@@ -282,15 +282,7 @@ mod tests {
         TrainingPair {
             prompt: Some(prompt.to_string()),
             response: Some("fn hello() {}".to_string()),
-            turns: None,
-            rating: None,
-            category: None,
-            difficulty: None,
-            lane: None,
-            response_mode: None,
-            task_family: None,
-            interruption_decision: None,
-            agent_trust_score: None,
+            ..Default::default()
         }
     }
 

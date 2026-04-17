@@ -1,2 +1,22 @@
 # Ignored dynamically for rate limit / anti-bot
 .*linkedin\.com.*
+.*cursor\.com/.*
+.*sigstore\.dev/.*
+.*tanstack\.com/.*
+^https://slsa\\.dev/how-to/get-started/?$
+docs/src/archive/
+crates/.*
+scripts/.*
+\.agents/.*
+docs/news/templates/.*
+.*iclr\.cc/.*
+.*ascentcore\.com/.*
+.*eslint-react.*
+.*modelcontextprotocol\.io.*
+.*docs\.doppler\.com.*
+.*learn\.microsoft\.com.*
+.*storage\.googleapis\.com.*
+.*babel\.dev.*
+.*diva-portal\.org.*
+.*\.gemini/antigravity/.*
+file://.*\.cargo/config\.toml

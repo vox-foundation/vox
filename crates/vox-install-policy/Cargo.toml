@@ -10,4 +10,4 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }

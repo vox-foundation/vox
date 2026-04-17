@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
+use std::sync::atomic::Ordering;
 use candle_core::Device;
 use owo_colors::OwoColorize;
 use tokenizers::Tokenizer;
@@ -14,7 +14,6 @@ use rand::SeedableRng;
 
 use super::{
     PAUSE_FLAG, QLORA_ETA_EMA_ALPHA, TrainingDbEvent, TrainingLoopStats, compute_cosine_lr,
-    load_adapter_into_trainer,
 };
 use crate::mens::tensor::{
     backend, manifest, qlora_preflight::QloraEmbedBundle,
@@ -176,6 +175,7 @@ pub fn run_training_loop(
     let mut trajectory_clamped_pairs: u64 = 0;
     let mut total_valid_tokens: u64 = 0;
     let mut total_theoretical_tokens: u64 = 0;
+    let mut total_syntax_weight: f64 = 0.0;
 
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
@@ -269,6 +269,7 @@ pub fn run_training_loop(
                 enc.prefix_len,
                 enc.trunc_offset,
                 enc.sample_weight,
+                enc.token_weights.as_deref(),
                 config,
                 device,
             )?;
@@ -289,6 +290,7 @@ pub fn run_training_loop(
                     loss_scalar,
                     supervised_tokens,
                     theoretical_tokens,
+                    syntax_weight_sum,
                 } => {
                     trainer
                         .backward_step(&loss)
@@ -296,6 +298,7 @@ pub fn run_training_loop(
                     total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
                     total_theoretical_tokens =
                         total_theoretical_tokens.saturating_add(theoretical_tokens);
+                    total_syntax_weight += syntax_weight_sum as f64;
 
                     lr_applied_this_step = trainer.current_lr();
 
@@ -338,7 +341,7 @@ pub fn run_training_loop(
                         if vox_eval::cargo_build_reward(resp) > 0.0 {
                             computed_reward = computed_reward.max(4.0) + 1.0;
                         }
-                    } else if let Some(turns) = &pair.turns {
+                    } else if let Some(turns) = &pair.messages {
                         if let Some(last) = turns.last() {
                             if vox_eval::cargo_build_reward(&last.content) > 0.0 {
                                 computed_reward = computed_reward.max(4.0) + 1.0;
@@ -416,6 +419,7 @@ pub fn run_training_loop(
                     skip_curriculum, skip_token_id_oob, trajectory_weighted_pairs, trajectory_clamped_pairs,
                     ema_steps_per_sec, total_valid_tokens, total_theoretical_tokens,
                     config.batch_size.max(1) as u64, config.seq_len as u64,
+                    total_syntax_weight,
                 );
                 telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;
                 progress_anchor_step = optimizer_step_count;

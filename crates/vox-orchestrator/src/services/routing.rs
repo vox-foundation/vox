@@ -269,16 +269,36 @@ impl RoutingService {
                 }
             }
         }
-        if req.npu {
-            for (agent_id, score) in scores.iter_mut() {
-                if let Some(q_lock) = agents.get(agent_id) {
-                    let q = crate::sync_lock::rw_read(q_lock);
-                    if !q.capabilities.npu {
-                        *score -= PENALTY;
-                    }
+    if req.npu {
+        for (agent_id, score) in scores.iter_mut() {
+            if let Some(q_lock) = agents.get(agent_id) {
+                let q = crate::sync_lock::rw_read(q_lock);
+                if !q.capabilities.npu {
+                    *score -= PENALTY;
                 }
             }
         }
+    }
+    if req.visus_eligible {
+        for (agent_id, score) in scores.iter_mut() {
+            if let Some(q_lock) = agents.get(agent_id) {
+                let q = crate::sync_lock::rw_read(q_lock);
+                if !q.capabilities.visus_eligible {
+                    *score -= PENALTY;
+                }
+            }
+        }
+    }
+    if req.multi_modal {
+        for (agent_id, score) in scores.iter_mut() {
+            if let Some(q_lock) = agents.get(agent_id) {
+                let q = crate::sync_lock::rw_read(q_lock);
+                if !q.capabilities.multi_modal {
+                    *score -= PENALTY;
+                }
+            }
+        }
+    }
         if let Some(min_v) = req.min_vram_mb {
             for (agent_id, score) in scores.iter_mut() {
                 if let Some(q_lock) = agents.get(agent_id) {
@@ -337,6 +357,8 @@ impl RoutingService {
         Self::labels_cover(&r.labels, &req.labels)
             && (!req.gpu_cuda || r.gpu_cuda)
             && (!req.gpu_metal || r.gpu_metal)
+            && (!req.visus_eligible || r.capabilities.visus_eligible)
+            && (!req.multi_modal || r.capabilities.multi_modal)
             && (!(req.gpu_cuda || req.gpu_metal || req.prefer_gpu_compute)
                 || r.is_federation_gpu_eligible())
             && match req.min_vram_mb {

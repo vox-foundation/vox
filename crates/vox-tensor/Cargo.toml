@@ -12,10 +12,11 @@ lstm = ["gpu"]
 [dependencies]
 burn = { workspace = true, optional = true, features = ["wgpu", "autodiff", "train"] }
 vox-compiler = { workspace = true }
+vox-runtime = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-workspace-hack = { version = "0.1", path = "../workspace-hack" }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

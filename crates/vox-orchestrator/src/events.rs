@@ -247,6 +247,10 @@ pub enum AgentEventKind {
         session_id: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         thread_id: Option<String>,
+        /// NNT Wave 1: Consumers must sort available agent pools by the shortest affinity distance 
+        /// from this role when `to` is AgentId(0) (any available agent).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        from_role: Option<crate::topology::AgentRole>,
     },
 
     /// A scope violation was detected.

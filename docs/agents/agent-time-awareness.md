@@ -1,3 +1,10 @@
+---
+title: "Agent Time Awareness"
+description: "Agent support documentation for agent time awareness"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Agent Time Awareness: Architecture & Implementation
 
 > [!IMPORTANT]

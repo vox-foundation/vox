@@ -3,23 +3,30 @@ use crate::services::MessageGateway;
 use crate::types::{AgentId, TaskId};
 
 impl crate::orchestrator::Orchestrator {
-    /// Spawn a new named agent, probe host capabilities, and register it with the
-    /// heartbeat monitor and event bus.
-    pub fn spawn_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
+    /// Spawn a new named agent with specific capability requirements.
+    pub fn spawn_agent_with_hints(
+        &self,
+        name: &str,
+        hints: Option<crate::contract::TaskCapabilityHints>,
+    ) -> Result<AgentId, OrchestratorError> {
         let config = crate::sync_lock::rw_read(&*self.config);
         if crate::sync_lock::rw_read(&*self.agents).len() >= config.max_agents {
             return Err(OrchestratorError::MaxAgentsReached {
                 max: config.max_agents,
             });
         }
-        let default_caps = config.default_agent_capabilities.clone();
+        let mut caps = config.default_agent_capabilities.clone();
         drop(config);
+
+        if let Some(h) = hints {
+            caps = crate::capability_probe::merge_agent_capabilities(&caps, h);
+        }
 
         let agent_id = self.agent_id_gen.next();
         let mut queue = crate::queue::AgentQueue::new(agent_id, name);
         let probed = crate::capability_probe::probe_host_capabilities();
         queue.capabilities =
-            crate::capability_probe::merge_agent_capabilities(&default_caps, probed);
+            crate::capability_probe::merge_agent_capabilities(&caps, probed);
         crate::sync_lock::rw_write(&*self.agents)
             .insert(agent_id, std::sync::Arc::new(std::sync::RwLock::new(queue)));
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).register(agent_id);
@@ -41,9 +48,14 @@ impl crate::orchestrator::Orchestrator {
         Ok(agent_id)
     }
 
+    /// Spawn a new named agent using default capabilities.
+    pub fn spawn_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
+        self.spawn_agent_with_hints(name, None)
+    }
+
     /// Spawn a transient (dynamic) agent, marking it for automatic retirement when idle.
     pub fn spawn_dynamic_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
-        self.spawn_dynamic_agent_with_parent(name, None, None, None)
+        self.spawn_dynamic_agent_with_parent(name, None, None, None, None)
     }
 
     /// Spawn a transient agent with an optional explicit parent binding.
@@ -53,6 +65,7 @@ impl crate::orchestrator::Orchestrator {
         parent_agent_id: Option<AgentId>,
         reason: Option<&str>,
         source_task_id: Option<TaskId>,
+        hints: Option<crate::contract::TaskCapabilityHints>,
     ) -> Result<AgentId, OrchestratorError> {
         if let Some(parent) = parent_agent_id {
             let parent_exists = crate::sync_lock::rw_read(&*self.agents).contains_key(&parent);
@@ -60,7 +73,7 @@ impl crate::orchestrator::Orchestrator {
                 return Err(OrchestratorError::DelegationParentNotFound(parent));
             }
         }
-        let agent_id = self.spawn_agent(name)?;
+        let agent_id = self.spawn_agent_with_hints(name, hints)?;
         crate::sync_lock::rw_write(&*self.dynamic_agents).insert(agent_id);
         let spawn_reason = reason
             .map(str::trim)

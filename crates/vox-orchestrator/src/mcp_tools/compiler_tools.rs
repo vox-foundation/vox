@@ -625,6 +625,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             2048,
             0.1,
             false,
+            None,
         )
         .await
         {
@@ -1075,6 +1076,7 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 2048,
                 0.2,
                 false,
+                None,
             ).await {
                 replacement_code = vox_compiler::generated_vox::normalize_generated_vox(
                     &completion,

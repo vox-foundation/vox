@@ -1,7 +1,7 @@
 {
-  "config_path": "\\\\?\\C:\\Users\\Owner\\vox\\mens\\config\\mix-vox-lang.yaml",
-  "output_path": "\\\\?\\C:\\Users\\Owner\\vox\\mens\\data\\train_mixed_vox_lang.jsonl",
-  "strict": false,
+  "config_path": "mens\\config\\mix-vox-lang.yaml",
+  "output_path": "C:\\Users\\Owner\\vox\\mens/data/train_mixed_vox_lang.jsonl",
+  "strict": true,
   "config_fingerprint": "bc9ed64d10d8ea4f",
   "sources": [
     {
@@ -9,20 +9,20 @@
       "weight": 6.0,
       "optional": true,
       "record_format": null,
-      "resolved_path": "\\\\?\\C:\\Users\\Owner\\vox\\target\\dogfood\\vox_corpus_extract.jsonl",
-      "source_fingerprint": "ed6b8b7e2a2bd391",
-      "input_lines": 16314,
+      "resolved_path": "C:\\Users\\Owner\\vox\\target/dogfood/vox_corpus_extract.jsonl",
+      "source_fingerprint": "b3b837f8634544d3",
+      "input_lines": 5000,
       "repeats": 6,
-      "emitted_lines": 97884,
+      "emitted_lines": 30000,
       "skipped_reason": null,
-      "share_of_output": 0.9963356540857456
+      "share_of_output": 0.9881422924901185
     },
     {
       "path": "target/dogfood/organic_vox.jsonl",
       "weight": 3.0,
       "optional": true,
       "record_format": null,
-      "resolved_path": "\\\\?\\C:\\Users\\Owner\\vox\\target\\dogfood\\organic_vox.jsonl",
+      "resolved_path": "C:\\Users\\Owner\\vox\\target/dogfood/organic_vox.jsonl",
       "source_fingerprint": "missing",
       "input_lines": 0,
       "repeats": 0,
@@ -35,20 +35,20 @@
       "weight": 2.0,
       "optional": true,
       "record_format": null,
-      "resolved_path": "\\\\?\\C:\\Users\\Owner\\vox\\mens\\data\\mix_sources\\docs.jsonl",
-      "source_fingerprint": "92b36cc11ba08033",
+      "resolved_path": "C:\\Users\\Owner\\vox\\mens/data/mix_sources/docs.jsonl",
+      "source_fingerprint": "c9950c2da342830f",
       "input_lines": 4123,
       "repeats": 2,
       "emitted_lines": 360,
       "skipped_reason": null,
-      "share_of_output": 0.003664345914254306
+      "share_of_output": 0.011857707509881422
     },
     {
       "path": "target/dogfood/synthetic.jsonl",
       "weight": 1.0,
       "optional": true,
       "record_format": null,
-      "resolved_path": "\\\\?\\C:\\Users\\Owner\\vox\\target\\dogfood\\synthetic.jsonl",
+      "resolved_path": "C:\\Users\\Owner\\vox\\target/dogfood/synthetic.jsonl",
       "source_fingerprint": "missing",
       "input_lines": 0,
       "repeats": 0,
@@ -61,7 +61,7 @@
       "weight": 2.0,
       "optional": true,
       "record_format": null,
-      "resolved_path": "\\\\?\\C:\\Users\\Owner\\vox\\target\\dogfood\\distillation_traces.jsonl",
+      "resolved_path": "C:\\Users\\Owner\\vox\\target/dogfood/distillation_traces.jsonl",
       "source_fingerprint": "missing",
       "input_lines": 0,
       "repeats": 0,
@@ -74,8 +74,8 @@
       "weight": 3.0,
       "optional": true,
       "record_format": "dpo",
-      "resolved_path": "\\\\?\\C:\\Users\\Owner\\vox\\target\\dogfood\\preference_pairs.jsonl",
-      "source_fingerprint": "9c000550a7c169d1",
+      "resolved_path": "C:\\Users\\Owner\\vox\\target/dogfood/preference_pairs.jsonl",
+      "source_fingerprint": "7b10e6f8f2f3bf40",
       "input_lines": 0,
       "repeats": 3,
       "emitted_lines": 0,
@@ -83,5 +83,5 @@
       "share_of_output": 0.0
     }
   ],
-  "total_emitted": 98244
+  "total_emitted": 30360
 }

@@ -1,4 +1,4 @@
-﻿use serde_json::Value;
+use serde_json::Value;
 
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
@@ -324,6 +324,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         max_tokens,
                         temperature,
                         params.json_mode,
+                        params.attachment_manifest.clone(),
                     )
                     .await
                     {
@@ -349,6 +350,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         &system_prompt,
                         &user_prompt,
                         Some(session_id.as_str()),
+                        params.attachment_manifest.clone(),
                     )
                     .await
                     {
@@ -369,6 +371,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             &system_prompt,
             &user_prompt,
             Some(session_id.as_str()),
+            params.attachment_manifest.clone(),
         )
         .await
         {

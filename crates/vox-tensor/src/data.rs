@@ -4,6 +4,15 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+/// A byte-level span aligned with a syntax element kind and a loss weight.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyntaxSpan {
+    pub start: usize,
+    pub end: usize,
+    pub weight: f32,
+    pub kind: String,
+}
+
 /// One turn in a ChatML conversation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatmlTurn {
@@ -14,15 +23,15 @@ pub struct ChatmlTurn {
 }
 
 /// A single prompt→response training pair or multi-turn sequence (matches dogfood JSONL schema).
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct TrainingPair {
-    #[serde(alias = "instruction")]
     pub prompt: Option<String>,
-    /// Target assistant completion for the same record (what the model should emit for `prompt`).
-    #[serde(alias = "output")]
+    pub instruction: Option<String>,
     pub response: Option<String>,
-    /// Optional multi-turn turns. If present, typically preferred over single-turn prompt/response.
-    pub turns: Option<Vec<ChatmlTurn>>,
+    pub output: Option<String>,
+    /// Optional multi-turn messages. If present, typically preferred over single-turn prompt/response.
+    #[serde(alias = "turns")]
+    pub messages: Option<Vec<ChatmlTurn>>,
     /// Optional quality rating (1-5). Absent means unrated.
     pub rating: Option<u8>,
     /// Optional category tag (construct type).
@@ -39,6 +48,18 @@ pub struct TrainingPair {
     pub interruption_decision: Option<String>,
     /// Attention budget agent trust score
     pub agent_trust_score: Option<f64>,
+    /// Optional syntax-aware spans for loss weighting.
+    pub syntax_spans: Option<Vec<SyntaxSpan>>,
+}
+
+impl TrainingPair {
+    pub fn effective_prompt(&self) -> Option<&String> {
+        self.prompt.as_ref().or(self.instruction.as_ref())
+    }
+
+    pub fn effective_response(&self) -> Option<&String> {
+        self.response.as_ref().or(self.output.as_ref())
+    }
 }
 
 // ─── Minimal character-level vocabulary ──────────────────────────────────────
@@ -307,7 +328,7 @@ impl Iterator for JsonlDataLoader {
                     continue;
                 }
             }
-            let (input_ids, labels) = if let Some(ref turns) = pair.turns {
+            let (input_ids, labels) = if let Some(ref turns) = pair.messages {
                 VoxTokenizer::tokenize_turns_for_training(turns, self.max_len)
             } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
                 VoxTokenizer::tokenize_for_training(&self.system_prompt, p, r, self.max_len)
@@ -468,6 +489,16 @@ mod tests {
                 .expect("instruction/output aliases");
         assert_eq!(p.prompt.as_deref(), Some("fix this"));
         assert_eq!(p.response.as_deref(), Some("fn ok() to int: ret 0"));
+    }
+
+    #[test]
+    fn debug_parse_real_data() {
+        let json = r#"{"category":"import","difficulty":1,"instruction":"Write Vox code demonstrating example","lane":"vox_codegen","origin":"human","output":"// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.\n\nimport std.mobile\n\ncomponent App() {\n    view:\n        <button onclick={fn() {\n            mobile.notify(\"Hello\", \"From Vox!\")\n        }}>\"Notify Me\"</button>\n}\n","prompt":"Write Vox code demonstrating example","rating":5,"response":"// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.\n\nimport std.mobile\n\ncomponent App() {\n    view:\n        <button onclick={fn() {\n            mobile.notify(\"Hello\", \"From Vox!\")\n        }}>\"Notify Me\"</button>\n}\n","response_mode":"code_only","schema_version":"vox_dogfood_v1","source":"examples\\golden\\mobile_test.vox","task_family":"vox_codegen"}"#;
+        let parsed: Result<TrainingPair, _> = serde_json::from_str(json);
+        match parsed {
+            Ok(_) => {},
+            Err(e) => panic!("Parse error on real data: {}", e),
+        }
     }
 
     #[test]

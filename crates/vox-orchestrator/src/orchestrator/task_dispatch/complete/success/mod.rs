@@ -115,13 +115,10 @@ impl Orchestrator {
             };
             let mut queue = crate::sync_lock::rw_write(&*queue_lock);
 
-            let (max_debug_iterations, max_toestub_debug_iterations, _max_socrates_debug_iterations, trust_floor, trust_relax_min) = {
+            let (max_debug_iterations, max_toestub_debug_iterations, _max_socrates_debug_iterations, trust_floor, _trust_relax_min) = {
                 let cfg = crate::sync_lock::rw_read(&*self.config);
                 (cfg.max_debug_iterations, cfg.max_toestub_debug_iterations, cfg.max_socrates_debug_iterations, cfg.trust_task_completion_floor, cfg.trust_gate_relax_min_reliability)
             };
-            let trust_relax_gates = crate::sync_lock::rw_read(&*self.config).trust_gate_relax_enabled 
-                && self.lookup_agent_reliability_sync(agent_id).is_some_and(|r| r >= trust_relax_min);
-
             let mut auto_debug_requeue: Option<(crate::types::AgentTask, String, usize, usize)> = None;
 
             if let Some(ref task) = queue.current_task() {

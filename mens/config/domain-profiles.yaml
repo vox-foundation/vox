@@ -33,6 +33,7 @@ profiles:
     # system_prompt intentionally omitted — resolved from scripts/vox_system_prompt.txt
     min_rating: 4
     ce_last_k: 0
+    seq_len: 1024
     curriculum_schedule:
       epoch_1_max_difficulty: 3  # start easier for syntax learning
       epoch_2_max_difficulty: 6

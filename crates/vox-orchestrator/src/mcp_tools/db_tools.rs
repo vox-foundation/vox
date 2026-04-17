@@ -1,4 +1,4 @@
-﻿//! Database introspection tool handlers for the Vox MCP server.
+//! Database introspection tool handlers for the Vox MCP server.
 //!
 //! Covers: db_schema, db_relationships, db_data_flow, db_sample_data,
 //! db_explain_query, db_suggest_query, and the shared parse_vox_module helper.
@@ -304,6 +304,7 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         1024,
         0.3,
         false,
+        None,
     )
     .await
     {

@@ -208,6 +208,18 @@ impl BrowserEngine {
             .ok_or_else(|| "element has no outer_html".to_string())
     }
 
+    pub async fn screenshot_bytes(&self, page_id: &str) -> Result<Vec<u8>, String> {
+        let page = self.page_ref(page_id).await?;
+        page.screenshot(
+            ScreenshotParams::builder()
+                .format(CaptureScreenshotFormat::Png)
+                .full_page(true)
+                .build(),
+        )
+        .await
+        .map_err(Self::map_page_err)
+    }
+
     pub async fn screenshot(&self, page_id: &str, path: &str) -> Result<String, String> {
         let page = self.page_ref(page_id).await?;
         let p = Path::new(path);
@@ -246,6 +258,114 @@ impl BrowserEngine {
             Ok(format!("{}…", &stripped[..max_chars]))
         }
     }
+
+    /// Extract the full Accessibility Tree (AXTree) for hybrid VLM analysis.
+    pub async fn ax_tree(&self, page_id: &str) -> Result<serde_json::Value, String> {
+        let page = self.page_ref(page_id).await?;
+        let res = page
+            .execute(chromiumoxide_cdp::cdp::browser_protocol::accessibility::GetFullAxTreeParams::default())
+            .await
+            .map_err(|e| format!("AXTree CDP failed: {e}"))?;
+        
+        Ok(serde_json::to_value(res.nodes.clone()).map_err(|e: serde_json::Error| e.to_string())?)
+    }
+
+    /// Layer 1: Deterministic Overlap Detector.
+    /// Checks if any interactive elements (buttons, links, inputs) overlap visually.
+    pub async fn check_overlaps(&self, page_id: &str) -> Result<Vec<OverlapFinding>, String> {
+        let page = self.page_ref(page_id).await?;
+        let interactive_selectors = "button, a, input, [role='button'], [role='link']";
+        let elements = page.find_elements(interactive_selectors).await.map_err(Self::map_page_err)?;
+        
+        let mut rects = Vec::with_capacity(elements.len());
+        for el in elements {
+            let box_model_res = page
+                .execute(
+                    chromiumoxide_cdp::cdp::browser_protocol::dom::GetBoxModelParams::builder()
+                        .node_id(el.node_id)
+                        .build(),
+                )
+                .await;
+
+            if let Ok(res) = box_model_res {
+                let box_model = &res.model;
+                let points_json = serde_json::to_value(&box_model.content)
+                    .map_err(|e| e.to_string())?;
+                let pts = points_json.as_array().ok_or("Quad is not an array")?;
+
+                if pts.len() >= 8 {
+                    let get_val = |idx: usize| pts[idx].as_f64().unwrap_or(0.0);
+                    // chromiumoxide points are [x1, y1, x2, y2, x3, y3, x4, y4]
+                    let x = get_val(0).min(get_val(2)).min(get_val(4)).min(get_val(6));
+                    let y = get_val(1).min(get_val(3)).min(get_val(5)).min(get_val(7));
+                    let x2 = get_val(0).max(get_val(2)).max(get_val(4)).max(get_val(6));
+                    let y2 = get_val(1).max(get_val(3)).max(get_val(5)).max(get_val(7));
+
+                    let node = el.description().await.map_err(Self::map_page_err)?;
+                    let selector = node.node_name.clone();
+                    rects.push(ElementRect {
+                        selector,
+                        x,
+                        y,
+                        w: x2 - x,
+                        h: y2 - y,
+                    });
+                }
+            }
+        }
+
+        let mut findings = Vec::new();
+        for i in 0..rects.len() {
+            for j in (i + 1)..rects.len() {
+                let r1 = &rects[i];
+                let r2 = &rects[j];
+                
+                if r1.overlaps(r2) {
+                    findings.push(OverlapFinding {
+                        element_1: r1.selector.clone(),
+                        element_2: r2.selector.clone(),
+                        overlap_area: r1.intersection_area(r2),
+                    });
+                }
+            }
+        }
+        
+        Ok(findings)
+    }
+}
+
+pub struct ElementRect {
+    pub selector: String,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+impl ElementRect {
+    pub fn overlaps(&self, other: &Self) -> bool {
+        self.x < other.x + other.w &&
+        self.x + self.w > other.x &&
+        self.y < other.y + other.h &&
+        self.y + self.h > other.y
+    }
+
+    pub fn intersection_area(&self, other: &Self) -> f64 {
+        let x_overlap = (self.x + self.w).min(other.x + other.w) - self.x.max(other.x);
+        let y_overlap = (self.y + self.h).min(other.y + other.h) - self.y.max(other.y);
+        if x_overlap > 0.0 && y_overlap > 0.0 {
+            x_overlap * y_overlap
+        } else {
+            0.0
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct OverlapFinding {
+    pub element_1: String,
+    pub element_2: String,
+    pub overlap_area: f64,
 }
 
 async fn resolve_element(

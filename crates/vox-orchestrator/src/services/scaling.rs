@@ -162,6 +162,7 @@ mod tests {
             reserved_agents: 0,
             dynamic_agents: 0,
             context_entries: std::collections::HashMap::new(),
+            max_handoff_count: 0,
             agents: vec![AgentSummary {
                 id: AgentId(1),
                 name: "a1".to_string(),
@@ -177,6 +178,7 @@ mod tests {
                 dynamic: false,
                 weighted_load: total_weighted_load,
                 agent_session_id: None,
+                max_handoff_count: 0,
             }],
         }
     }

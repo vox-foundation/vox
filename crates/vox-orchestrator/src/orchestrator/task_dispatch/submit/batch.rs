@@ -435,6 +435,14 @@ impl Orchestrator {
             None
         };
 
+        let mut effective_requirements = task_capability_requirements.cloned().unwrap_or_default();
+        if let Some(desc) = task_description {
+            if desc.contains("[[category:visus]]") || desc.contains("[[visus]]") {
+                effective_requirements.visus_eligible = true;
+                effective_requirements.multi_modal = true;
+            }
+        }
+
         let attention_trust_scores = if crate::sync_lock::rw_read(&*self.config).attention_enabled {
             Some(crate::sync_lock::rw_read(&*self.budget_manager).trust_snapshot())
         } else {
@@ -463,7 +471,7 @@ impl Orchestrator {
                 &config,
                 local_tokens,
                 reliability_map.as_ref(),
-                task_capability_requirements,
+                Some(&effective_requirements),
                 task_description,
                 remote,
                 task_completion_trust_scores.as_ref(),
@@ -479,6 +487,7 @@ impl Orchestrator {
                 None,
                 Some("route_spawn"),
                 source_task_id,
+                Some(effective_requirements),
             ),
         }
     }

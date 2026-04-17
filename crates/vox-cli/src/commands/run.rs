@@ -80,6 +80,18 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
 
     if mode == RunMode::Interp {
         let source = std::fs::read_to_string(file).context("Failed to read file")?;
+        
+        let mut caps = std::collections::HashSet::new();
+        let mut has_caps_directive = false;
+        if let Some(first_line) = source.lines().next() {
+            if first_line.starts_with("// vox:caps ") {
+                has_caps_directive = true;
+                for cap in first_line.trim_start_matches("// vox:caps ").split_whitespace() {
+                    caps.insert(cap.to_string());
+                }
+            }
+        }
+        
         let tokens = vox_compiler::lexer::lex(&source);
         let module = vox_compiler::parser::descent::parse(tokens)
             .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
@@ -87,6 +99,10 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
 
         // Use default high step limit for non-looping scripts typically used as A2A
         let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
+        if has_caps_directive {
+            interpreter.caps = Some(caps);
+        }
+        
         interpreter
             .run_module(&lowered)
             .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
@@ -144,7 +160,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     let out_dir = PathBuf::from("dist");
 
     println!("Building {}...", file.display());
-    build::run(file, &out_dir, None, false, false).await?;
+    build::run(file, &out_dir, None, false, false, crate::cli_args::BuildMode::App).await?;
 
     // 2. Check if we have frontend components to bundle
     let has_frontend = fs::read_dir(&out_dir)

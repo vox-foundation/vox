@@ -1,4 +1,4 @@
-use crate::hir::{HirActivity, HirActor, HirFn, HirModule, HirStmt, HirType, HirWorkflow};
+use crate::hir::{HirActivity, HirActor, HirFn, HirForall, HirModule, HirStmt, HirType, HirWorkflow};
 
 use super::stmt_expr::{emit_expr, emit_stmt};
 use super::tables::{collect_table_select_projections, emit_table_struct};
@@ -119,6 +119,33 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str(&emit_fn(test));
     }
 
+    // Property-based Tests (@forall)
+    for forall in &module.foralls {
+        out.push_str(&emit_forall(forall));
+    }
+
+    out
+}
+
+fn emit_forall(forall: &HirForall) -> String {
+    let mut out = String::new();
+    out.push_str("proptest::proptest! {\n");
+    if forall.iterations > 0 {
+        out.push_str(&format!("    #![proptest_config(proptest::prelude::ProptestConfig::with_cases({}))]\n", forall.iterations));
+    }
+    out.push_str("    #[test]\n");
+    // Indent the function emit to map inside the macro bounds cleanly
+    let func_code = emit_fn(&forall.func);
+    for line in func_code.lines() {
+        if line.trim().is_empty() {
+            out.push('\n');
+        } else {
+            out.push_str("    ");
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out.push_str("}\n\n");
     out
 }
 
