@@ -5,8 +5,18 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 18 Apr 2026 11:19:11 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 18 Apr 2026 12:01:36 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Agent Planning Prompts</title>
+    <link>https://vox-lang.org/contributors/agent-planning-prompts.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/agent-planning-prompts.html</guid>
+    <description>Prompt-engineered system directives for chunked file writing to avoid LLM token exhaustion.</description>
+    <pubDate>Sat, 18 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>Compiler diagnostics and Rust codegen ergonomics</title>
@@ -236,16 +246,6 @@
     <link>https://vox-lang.org/architecture/network-neuroscience-theory-research-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/network-neuroscience-theory-research-2026.html</guid>
     <description>Research findings on applying Network Neuroscience Theory to Vox&apos;s multi-agent orchestrator architecture.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Network Neuroscience Theory Orchestration Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/nnt-orchestration-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/nnt-orchestration-implementation-plan-2026.html</guid>
-    <description>Implementation roadmap for integrating small-world topologies and affinity routing into the vox-dei orchestrator.</description>
     <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

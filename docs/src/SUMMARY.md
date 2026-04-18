@@ -404,6 +404,7 @@
 
 - [Contributor hub](contributors/contributor-hub.md)
 - [Documentation governance](contributors/documentation-governance.md)
+- [Agent Planning Prompts](contributors/agent-planning-prompts.md)
 - [Agent instruction architecture](contributors/agent-instruction-architecture.md)
 - [Coding Agent Instructions](contributors/coding-agents.md)
 - [Continuation Prompt Engineering](contributors/continuation-prompt-engineering.md)
