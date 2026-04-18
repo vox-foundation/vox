@@ -2,9 +2,11 @@
 
 use std::path::Path;
 
+#[allow(unused_imports)]
 use anyhow::{Context, Result};
 
 use vox_publisher::publication::PublicationManifest;
+#[allow(unused_imports)]
 use vox_publisher::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE;
 
 #[cfg(any(feature = "mens-base", feature = "gpu"))]
@@ -48,6 +50,8 @@ fn merge_eval_gate_from_run_dir(
         return Ok(manifest);
     }
 
+    use clap::Parser;
+    use std::process::Command;
     let results = crate::commands::mens::eval_gate::check_run(&run_dir, &policy_path)?;
     let gates_total = results.len();
     let gates_failed = results.iter().filter(|r| !r.passed).count();

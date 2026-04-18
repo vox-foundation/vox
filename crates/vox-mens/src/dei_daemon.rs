@@ -1,0 +1,90 @@
+//! Simplified DeI JSON-line RPC integration boundary for vox-mens.
+//! Used primarily for AI-assisted corpus curation via vox-orchestrator-d.
+
+use serde_json::Value;
+
+pub const BINARY: &str = "vox-orchestrator-d";
+
+pub mod method {
+    pub const AI_CHECK: &str = "ai.check";
+    pub const AI_FIX: &str = "ai.fix";
+    pub const AI_REVIEW: &str = "ai.review";
+    pub const AI_GENERATE: &str = "ai.generate";
+    pub const CONFIG_GET: &str = "config.get";
+    pub const AI_PLAN_NEW: &str = "ai.plan.new";
+    pub const AI_PLAN_REPLAN: &str = "ai.plan.replan";
+    pub const AI_PLAN_STATUS: &str = "ai.plan.status";
+    pub const AI_PLAN_EXECUTE: &str = "ai.plan.execute";
+}
+
+#[derive(serde::Serialize)]
+struct DispatchRequest {
+    id: String,
+    method: String,
+    params: Value,
+}
+
+#[derive(serde::Deserialize)]
+struct DispatchResponse {
+    payload: DispatchPayload,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum DispatchPayload {
+    Log { level: String, msg: String },
+    Done { result: Value },
+    Error { code: i32, message: String },
+    #[serde(other)]
+    Unknown,
+}
+
+pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Result<Value> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use tokio::process::Command;
+    use std::process::Stdio;
+
+    let mut child = Command::new(BINARY)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("Failed to spawn daemon '{}': {}", BINARY, e))?;
+
+    let mut stdin = child.stdin.take().expect("stdin was piped");
+    let stdout = child.stdout.take().expect("stdout was piped");
+
+    let req = DispatchRequest {
+        id: uuid::Uuid::new_v4().to_string(),
+        method: method.into(),
+        params,
+    };
+    
+    let json = serde_json::to_string(&req)? + "\n";
+    stdin.write_all(json.as_bytes()).await?;
+    stdin.flush().await?;
+    drop(stdin);
+
+    let mut reader = BufReader::new(stdout).lines();
+    let mut final_result = Value::Null;
+
+    while let Ok(Some(line)) = reader.next_line().await {
+        if let Ok(resp) = serde_json::from_str::<DispatchResponse>(&line) {
+            match resp.payload {
+                DispatchPayload::Log { level, msg } => {
+                    eprintln!("[{}] {}", level.to_uppercase(), msg);
+                }
+                DispatchPayload::Done { result } => {
+                    final_result = result;
+                    break;
+                }
+                DispatchPayload::Error { code, message } => {
+                    anyhow::bail!("Daemon error (code {}): {}", code, message);
+                }
+                DispatchPayload::Unknown => {}
+            }
+        }
+    }
+
+    Ok(final_result)
+}

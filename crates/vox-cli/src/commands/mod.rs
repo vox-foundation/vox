@@ -5,9 +5,7 @@
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
 pub mod add;
-/// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
-#[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
-pub mod ai;
+
 #[cfg(feature = "dei")]
 pub mod attention;
 /// Identity and master key generation.
@@ -29,7 +27,6 @@ pub mod clavis;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
 /// Training data extraction / mixing pipelines (`vox corpus`).
-pub mod corpus;
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
 pub mod remove;
@@ -89,12 +86,7 @@ pub mod migrate;
 pub mod openclaw;
 pub mod pm;
 pub mod pm_lifecycle;
-/// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
-#[cfg(feature = "populi")]
-pub mod populi_cli;
-/// One-command populi lifecycle helpers (`vox populi up|down|status`; requires `populi`).
-#[cfg(feature = "populi")]
-pub mod populi_lifecycle;
+
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;
 pub mod repo_init;
@@ -109,7 +101,7 @@ pub mod upgrade;
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
 /// AI-powered CodeRabbit review adapter (`vox review`).
-#[cfg(any(feature = "mens-dei", feature = "coderabbit"))]
+#[cfg(any(feature = "dei", feature = "coderabbit"))]
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;
@@ -124,20 +116,9 @@ pub mod telemetry;
 pub mod test;
 pub mod update;
 
-/// Speech-to-text and transcript refinement (`vox oratio`).
-#[cfg(feature = "oratio")]
-pub mod oratio_cmd;
-#[cfg(feature = "oratio-mic")]
-pub mod oratio_mic;
 
-/// ML tooling specific commands (`vox mens`).
-#[cfg(any(feature = "mens-base", feature = "gpu"))]
-pub mod mens;
 
 pub mod grammar;
-/// Training tools (`vox schola`).
-#[cfg(feature = "gpu")]
-pub mod schola;
 
 /// Unified research operations: infrastructure and evaluation.
 pub mod research;

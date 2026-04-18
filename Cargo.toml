@@ -64,7 +64,8 @@ vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
-vox-populi                  = { path = "crates/vox-populi" }
+vox-populi                = { path = "crates/vox-populi" }
+vox-mens                  = { path = "crates/vox-mens" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
@@ -189,7 +190,7 @@ flate2             = "1"
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = "0.5.4"
-sherpa-rs          = "0.6"
+sherpa-onnx        = "1.12"
 syn                = "2"
 proc-macro2        = "1"
 semver             = "1"
@@ -202,6 +203,7 @@ quote              = "1"
 similar            = "2"
 globset            = "0.4"
 which              = "7"
+wgpu               = "26"
 
 
 [patch.crates-io]

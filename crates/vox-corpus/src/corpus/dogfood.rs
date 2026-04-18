@@ -1,9 +1,10 @@
 use std::io::Write;
 use anyhow::Result;
+use serde_json::json;
+
 #[cfg(feature = "database")]
 use vox_db::VoxDb;
 
-use serde_json::json;
 
 #[cfg(feature = "database")]
 pub struct DogfoodExporter<'a> {

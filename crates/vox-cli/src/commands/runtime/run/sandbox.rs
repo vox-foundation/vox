@@ -223,6 +223,7 @@ mod tests {
             no_cache: false,
             isolation: None,
             trust_class: None,
+            target_triple: None,
             #[cfg(feature = "script-execution")]
             wasi_dirs: vec![],
         }

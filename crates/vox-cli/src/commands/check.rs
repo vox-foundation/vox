@@ -22,10 +22,7 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
     let error_count = result.error_count();
     let warning_count = result.warning_count();
 
-    if let Some(output_path) = &args.emit_training_jsonl {
-        crate::training::append_jsonl(output_path, file, &result)?;
-        println!("Appended training record to {}", output_path.display());
-    }
+
 
     if result.has_errors() {
         anyhow::bail!("Check failed with {error_count} error(s) and {warning_count} warning(s)");

@@ -44,9 +44,34 @@
 //! End-user docs: repository file `docs/src/reference/cli.md`. `@v0` integration during `build`: module `v0`.
 
 use clap::Parser;
+use std::process::Command;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Intercept ML commands and delegate to vox-mens
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        let cmd = args[1].as_str();
+        if matches!(cmd, "mens" | "schola" | "oratio" | "speech" | "populi" | "train") {
+            let mut command = Command::new("vox-mens");
+            command.args(&args[1..]);
+            
+            // Wait for completion and exit with same status
+            match command.status() {
+                Ok(status) => {
+                    std::process::exit(status.code().unwrap_or(1));
+                }
+                Err(e) => {
+                    eprintln!("Error: vox-mens is not installed or not in PATH.");
+                    eprintln!("The '{}' subsystem has been extracted to a separate crate.", cmd);
+                    eprintln!("Please run: cargo install --path crates/vox-mens");
+                    eprintln!("Underlying error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
     let root = vox_cli::VoxCliRoot::parse();
     vox_cli::run_vox_cli_from_parsed(root).await
 }

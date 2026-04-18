@@ -212,7 +212,6 @@ async fn handle_check(req: &DispatchRequest) -> anyhow::Result<()> {
     let args = crate::cli_args::CheckArgs {
         file: p.file,
         emit_ir: false,
-        emit_training_jsonl: None,
         output_format: "text".to_string(), // Human-readable log interleaving is preferred for daemon
     };
     crate::commands::check::run(&args)
@@ -297,7 +296,6 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
     let args = crate::cli_args::CheckArgs {
         file: p.file.clone(),
         emit_ir: false,
-        emit_training_jsonl: None,
         output_format: "text".to_string(),
     };
     crate::commands::check::run(&args)

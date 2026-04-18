@@ -271,9 +271,8 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                 eprintln!("Feature 'dei' is not enabled.");
             }
         }
-        #[cfg(any(feature = "mens-base", feature = "gpu"))]
-        Cli::Mens { action } => {
-            crate::commands::mens::run(action, global.json, global.verbose).await?;
+        Cli::Mens { .. } | Cli::Schola { .. } | Cli::Oratio { .. } | Cli::Populi { .. } | Cli::Train { .. } => {
+            unreachable!("ML commands are intercepted by main.rs and delegated to vox-mens")
         }
         Cli::Plan { cmd } => {
             crate::commands::plan::dispatch(cmd).await?;
@@ -283,16 +282,6 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             crate::commands::visus::dispatch(cmd).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
         }
         Cli::Research { cmd } => crate::commands::research::run(cmd).await?,
-        #[cfg(feature = "oratio")]
-        Cli::Oratio { action } => {
-            crate::commands::oratio_cmd::run(action, global.json)?;
-        }
-        #[cfg(not(feature = "oratio"))]
-        Cli::OratioStub { .. } => {
-            vox_build_meta::require("oratio", "cargo build -p vox-cli --features oratio")
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            unreachable!()
-        }
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
             run_review_subcommand(cmd).await?;
@@ -300,26 +289,6 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         #[cfg(feature = "island")]
         Cli::Island { cmd } => {
             crate::commands::island::run(cmd).await?;
-        }
-        #[cfg(all(feature = "gpu", feature = "mens-dei"))]
-        Cli::Train { args } => {
-            crate::commands::ai::train::run(
-                args.data_dir.clone(),
-                args.output_dir.clone(),
-                args.provider.clone(),
-                args.native,
-            )
-            .await?;
-        }
-        #[cfg(not(all(feature = "gpu", feature = "mens-dei")))]
-        Cli::TrainStub { .. } => {
-            vox_build_meta::require("gpu", "cargo build -p vox-cli --features gpu")
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            unreachable!()
-        }
-        #[cfg(feature = "populi")]
-        Cli::Populi { cmd } => {
-            crate::commands::populi_cli::run(cmd, global.json).await?;
         }
         Cli::Telemetry { cmd } => {
             crate::commands::telemetry::run(cmd).await?;

@@ -10,6 +10,7 @@ use vox_orchestrator::{
 pub async fn status() -> Result<()> {
     let config = load_config();
     let orch = build_repo_scoped_orchestrator_cli(config);
+    orch.clone().spawn_background_tasks();
     let status = orch.status();
 
     println!("{}", "╔══════════════════════════════════════╗".cyan());
@@ -143,6 +144,10 @@ pub async fn assistant(session_id: String, files: &[String], priority: Option<&s
     if sid.is_empty() {
         anyhow::bail!("session_id must be non-empty");
     }
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    orch.clone().spawn_background_tasks();
+
     let file_list: Vec<String> = if files.is_empty() {
         vec![".".to_string()]
     } else {
@@ -867,6 +872,6 @@ fn load_config() -> OrchestratorConfig {
     config
 }
 
-fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> Orchestrator {
-    build_repo_scoped_orchestrator(config, None).orchestrator
+fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> std::sync::Arc<Orchestrator> {
+    std::sync::Arc::new(build_repo_scoped_orchestrator(config, None).orchestrator)
 }

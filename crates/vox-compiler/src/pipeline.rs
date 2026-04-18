@@ -33,6 +33,13 @@ impl FrontendResult {
             .count()
     }
 
+    pub fn warning_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == TypeckSeverity::Warning)
+            .count()
+    }
+
     pub fn has_errors(&self) -> bool {
         self.error_count() > 0
     }

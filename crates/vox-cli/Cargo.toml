@@ -14,46 +14,21 @@ path = "src/main.rs"
 name = "vox-compilerd"
 path = "src/bin/vox-compilerd.rs"
 
-# Thin entrypoint: `vox-mens …` ≡ `vox mens …` (inserts the `mens` subcommand).
-[[bin]]
-name = "vox-mens"
-path = "src/bin/vox-mens.rs"
-required-features = ["mens-base"]
+
 
 [features]
-default = ["mens-base"]
+default = []
 # Corpus paths, `train-uv`, plan (daemon), status, eval-gate, bench-completion, system-prompt-template.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
-mens-base = []
+# Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
 mcp-server = ["dep:vox-orchestrator", "vox-orchestrator/mcp-native", "dep:axum"]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
-# Speech-to-text (`vox oratio`, `vox speech`); pulls heavy `vox-oratio` / Candle deps.
-oratio = ["mens-base", "dep:vox-oratio"]
-# Microphone capture for `vox oratio record-transcribe` (`cpal` + `hound`).
-oratio-mic = ["oratio", "dep:cpal", "dep:hound"]
-# Native Burn LoRA training + HF metadata (`vox mens train`, probe, merge-weights, eval-local).
-gpu = [
-    "mens-base",
-    "dep:vox-populi",
-    "vox-populi/mens",
-    "vox-populi/mens-train",
-    "vox-populi/mens-hf-hub",
-    "dep:vox-tensor",
-    "vox-tensor/train",
-    "vox-build-meta/gpu",
-]
-# Back-compat alias: `gpu` already enables Candle QLoRA (native `--backend qlora`).
-mens-qlora = ["gpu"]
-# Candle qlora on NVIDIA CUDA (requires CUDA toolkit when compiling `candle-core`).
-mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda", "vox-build-meta/mens-candle-cuda"]
-# Candle qlora on Apple Metal (macOS only).
 
-# Cloud GPU training/serving dispatch (Vast.ai, RunPod).
-cloud = ["gpu", "vox-populi/mens-cloud", "vox-build-meta/cloud"]
-# Populi join/heartbeat: fill `NodeRecord` GPU inventory from NVML when the driver is present.
-mesh-nvml-probe = ["dep:vox-populi", "vox-populi/nvml-gpu-probe"]
+
+
+
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
@@ -65,7 +40,7 @@ script-execution = [
     "vox-build-meta/script-execution",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "gpu", "dep:axum", "dep:tokio-stream", "vox-build-meta/execution-api"]
+execution-api = ["script-execution", "dep:axum", "dep:tokio-stream", "vox-build-meta/execution-api"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
@@ -92,9 +67,7 @@ dei = ["dep:vox-orchestrator"]
 codex = [
     "dep:dirs",
 ]
-# Extended DeI surfaces: generate, review, workflow, check, fix (`vox mens …`).
-# Pulls `vox-tensor` for the legacy in-process dogfood trainer (`crate::training::native`).
-mens-dei = ["dep:vox-tensor", "vox-tensor/train"]
+
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
 coderabbit = [
     "dep:vox-forge",
@@ -104,10 +77,7 @@ coderabbit = [
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
 island = ["dep:comfy-table", "dep:dirs"]
-# Local populi registry + `vox populi status|serve` (`vox-populi` / optional HTTP control plane).
-populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3"]
-# Interpreted `vox mens workflow run` (journal + mens activities); implies mens hooks.
-workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
+
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [
@@ -139,6 +109,7 @@ serde_yaml = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["io-std"] }
 base64 = { workspace = true }
+futures = { workspace = true }
 vox-pm = { workspace = true }
 vox-container = { workspace = true }
 vox-skills = { workspace = true, optional = true }
@@ -155,8 +126,7 @@ vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true }
 vox-build-meta = { workspace = true }
 vox-orchestrator = { workspace = true, optional = true }
-vox-populi = { workspace = true, optional = true }
-vox-workflow-runtime = { workspace = true, optional = true }
+
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }
 vox-checksum-manifest = { workspace = true }
@@ -169,7 +139,7 @@ regex = { workspace = true }
 glob = { workspace = true }
 # `external_review_replay::extract_external_review_rows` is behind `database`; CLI `corpus review-export` needs it.
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
-vox-tensor = { workspace = true, optional = true }
+
 vox-runtime = { workspace = true }
 vox-primitives = { workspace = true }
 vox-scaling-policy = { workspace = true }
@@ -177,9 +147,7 @@ vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
 vox-protocol = { workspace = true }
 vox-constrained-gen = { workspace = true }
-vox-oratio = { workspace = true, optional = true }
-cpal = { version = "0.15", optional = true }
-hound = { version = "3.5", optional = true }
+
 uuid = { version = "1.22.0", features = ["v4"] }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }

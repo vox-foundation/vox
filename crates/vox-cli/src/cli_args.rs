@@ -44,9 +44,7 @@ pub struct BuildArgs {
 pub struct CheckArgs {
     #[arg(required = true)]
     pub file: PathBuf,
-    /// Append successful check output as a training JSONL record
-    #[arg(long, value_name = "PATH")]
-    pub emit_training_jsonl: Option<PathBuf>,
+
     /// Set individual output format (overrides global --json)
     #[arg(long, value_name = "FORMAT", default_value = "text")]
     pub output_format: String,

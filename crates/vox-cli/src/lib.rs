@@ -10,7 +10,7 @@ pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
 mod build_service;
-mod cli_actions;
+pub mod cli_actions;
 pub mod cli_args;
 mod cli_dispatch;
 mod codex_cmd;
@@ -52,13 +52,11 @@ pub(crate) mod render;
 mod table;
 mod telemetry_spool;
 pub mod templates;
-mod training;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
 mod wasi_dir_mode;
 mod watcher;
-#[cfg(feature = "workflow-runtime")]
-mod workflow_journal_codex;
+pub mod workflow_journal_codex;
 /// Workspace journey VoxDb connect for repo-scoped CLI subcommands.
 pub mod workspace_db;
 
@@ -457,12 +455,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::ci::CiCmd,
     },
-    /// Mens: train, serve, corpus, eval (`mens-base` default; native train needs `gpu`)
-    #[cfg(any(feature = "mens-base", feature = "gpu"))]
+    /// Mens: train, serve, corpus, eval (delegated to vox-mens)
+    #[command(name = "mens")]
     Mens {
-        /// Action.
-        #[command(subcommand)]
-        action: commands::mens::PopuliAction,
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
     },
     /// Unified research operations: infrastructure (up/down/status) and eval.
     Research {
@@ -470,19 +467,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::research::ResearchCmd,
     },
-    /// Oratio: speech-to-text / transcripts (`--features oratio`).
-    #[cfg(feature = "oratio")]
-    #[command(visible_alias = "speech")]
-    Oratio {
-        /// Action.
-        #[command(subcommand)]
-        action: commands::oratio_cmd::OratioAction,
-    },
-    #[cfg(not(feature = "oratio"))]
+    /// Oratio: speech-to-text / transcripts (delegated to vox-mens).
     #[command(name = "oratio", visible_alias = "speech")]
-    OratioStub {
+    Oratio {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        _args: Vec<String>,
+        args: Vec<String>,
     },
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
@@ -498,25 +487,23 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: cli_actions::IslandCli,
     },
-    /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox mens train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `mens-dei`). **Canonical native QLoRA:** `vox mens train`.
-    #[cfg(all(feature = "gpu", feature = "mens-dei"))]
-    Train {
-        /// Arguments.
-        #[command(flatten)]
-        args: cli_args::TrainLegacyArgs,
-    },
-    #[cfg(not(all(feature = "gpu", feature = "mens-dei")))]
+    /// Fine-tune: legacy entry (delegated to vox-mens)
     #[command(name = "train")]
-    TrainStub {
+    Train {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        _args: Vec<String>,
+        args: Vec<String>,
     },
-    /// Populi registry + HTTP control plane (`--features populi`).
-    #[cfg(feature = "populi")]
+    /// Populi registry + HTTP control plane (delegated to vox-mens)
+    #[command(name = "populi")]
     Populi {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::populi_cli::PopuliCli,
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Training tools (delegated to vox-mens)
+    #[command(name = "schola")]
+    Schola {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
     },
     /// Emergency stop the orchestrator (MCP/daemon local stop request)
     Stop {
@@ -570,17 +557,4 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
     cli_dispatch::dispatch_cli(root.cmd, &root.global).await
 }
 
-/// Run as `vox mens …` while the process argv is `vox-mens …` (inserts the `mens` subcommand).
-///
-/// Used by the **`vox-mens`** binary (`required-features = ["mens-base"]`).
-pub async fn run_vox_cli_mens_prefixed() -> anyhow::Result<()> {
-    let mut args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        anyhow::bail!(
-            "usage: vox-mens <subcommand> …\n  Equivalent to: vox mens <subcommand> …\n  Speech / STT: use vox oratio (or vox speech), not vox-mens.\n  Native training needs: cargo build -p vox-cli --features gpu"
-        );
-    }
-    args.insert(1, "mens".into());
-    let root = VoxCliRoot::try_parse_from(&args).map_err(|e| anyhow::anyhow!("{e}"))?;
-    run_vox_cli_from_parsed(root).await
-}
+

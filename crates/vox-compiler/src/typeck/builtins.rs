@@ -484,6 +484,10 @@ impl BuiltinTypes {
                 Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
             ),
         );
+        list_methods.insert(
+            "contains".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Bool)),
+        );
         methods.insert("List".into(), list_methods);
 
         // Fs module methods

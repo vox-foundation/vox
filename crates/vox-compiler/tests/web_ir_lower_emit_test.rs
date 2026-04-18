@@ -452,6 +452,7 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
     });
 
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("red".into()))],
         span: None,
@@ -869,6 +870,7 @@ fn web_ir_diagnostic_codes_use_dotted_validate_prefixes() {
 fn web_ir_validate_style_rejects_empty_declarations() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![],
         span: None,
@@ -885,6 +887,7 @@ fn web_ir_validate_style_rejects_empty_declarations() {
 fn web_ir_validate_style_rejects_empty_property_name() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![(String::new(), StyleDeclarationValue::Raw("x".into()))],
         span: None,
@@ -950,6 +953,7 @@ component A() {
 fn web_ir_validate_failure_format_matches_vox_webir_validate_gate() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![],
         span: None,
@@ -1110,6 +1114,7 @@ fn op_s056_interop_policy_gate_empty_escape_reason() {
 fn op_s058_style_todo_fixture_empty_rule_body_diagnosed() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("x".into()),
         declarations: vec![],
         span: None,
@@ -1178,6 +1183,7 @@ fn op_s086_s088_route_detail_gate_duplicate_ids() {
 fn op_s106_style_node_contract_fixture_non_empty_rule() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("red".into()))],
         span: None,
@@ -1191,6 +1197,7 @@ fn op_s108_style_node_contract_gate_roundtrip() {
     op_s106_style_node_contract_fixture_non_empty_rule();
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("margin".into(), StyleDeclarationValue::Raw("0".into()))],
         span: None,
@@ -1205,6 +1212,7 @@ fn op_s108_style_node_contract_gate_roundtrip() {
 fn op_s110_style_node_validation_fixture_empty_prop_name() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("".into(), StyleDeclarationValue::Raw("x".into()))],
         span: None,
@@ -1314,6 +1322,7 @@ fn op_s186_s188_interop_schema_gate_empty_specifier() {
 fn op_s190_style_route_integration_fixture() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
         selector: StyleSelector::Class("r".into()),
         declarations: vec![(
             "padding".into(),
