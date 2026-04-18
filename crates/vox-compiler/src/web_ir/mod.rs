@@ -232,6 +232,34 @@ pub enum StyleDeclarationValue {
     Raw(String),
     /// Design-token or variable reference name.
     TokenRef(String),
+    /// Parsed color value.
+    Color(CssColor),
+    /// Numeric length with unit.
+    Length(f64, LengthUnit),
+    /// Valid keyword (e.g., "flex", "none", "auto").
+    Keyword(String),
+    /// Unitless number.
+    Number(f64),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CssColor {
+    Hex(String),
+    Rgb(u8, u8, u8),
+    Rgba(u8, u8, u8, f32),
+    Named(String),
+    Hsl(f32, f32, f32),
+    Var(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum LengthUnit {
+    Px,
+    Rem,
+    Em,
+    Percent,
+    Vw,
+    Vh,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -239,6 +267,8 @@ pub enum StyleNode {
     Rule {
         selector: StyleSelector,
         declarations: Vec<(String, StyleDeclarationValue)>,
+        /// Specificity score (A, B, C) where A=ID, B=Class/Pseudo-class, C=Element/Pseudo-element.
+        specificity: (u8, u8, u8),
         span: Option<SourceSpanId>,
     },
     Selector(StyleSelector),
@@ -264,6 +294,7 @@ pub enum StyleNode {
 pub enum StyleSelector {
     Class(String),
     Id(String),
+    Element(String),
     /// Full selector text as authored in a `style { }` block (e.g. `.btn`, `h1`, `.a > .b`).
     Unparsed(String),
     Compound(Vec<StyleSelector>),

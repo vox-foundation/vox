@@ -5,14 +5,34 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 17 Apr 2026 06:40:28 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 18 Apr 2026 12:01:36 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Agent Planning Prompts</title>
+    <link>https://vox-lang.org/contributors/agent-planning-prompts.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/agent-planning-prompts.html</guid>
+    <description>Prompt-engineered system directives for chunked file writing to avoid LLM token exhaustion.</description>
+    <pubDate>Sat, 18 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>Compiler diagnostics and Rust codegen ergonomics</title>
     <link>https://vox-lang.org/architecture/compiler-diagnostics-ergonomics.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/compiler-diagnostics-ergonomics.html</guid>
     <description>Policy for miette vs custom diagnostics, error layers, and how contributors should read and troubleshoot vox check output.</description>
+    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Comprehensive Vox audit findings (April 2026)</title>
+    <link>https://vox-lang.org/architecture/comprehensive-audit-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/comprehensive-audit-findings-2026.html</guid>
+    <description>Full-spectrum audit of the Vox codebase, docs, and roadmap; identifies the biggest gaps blocking the &apos;premier LLM destination for web app code&apos; thesis and lists ~100 prioritized improvements.</description>
     <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
@@ -226,26 +246,6 @@
     <link>https://vox-lang.org/architecture/network-neuroscience-theory-research-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/network-neuroscience-theory-research-2026.html</guid>
     <description>Research findings on applying Network Neuroscience Theory to Vox&apos;s multi-agent orchestrator architecture.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Network Neuroscience Theory Orchestration Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/nnt-orchestration-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/nnt-orchestration-implementation-plan-2026.html</guid>
-    <description>Implementation roadmap for integrating small-world topologies and affinity routing into the vox-dei orchestrator.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Version Tracking SSOT Research 2026</title>
-    <link>https://vox-lang.org/architecture/version-tracking-ssot-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/version-tracking-ssot-research-2026.html</guid>
-    <description>Research and best practices on establishing a single source of truth for versioning across Cargo crates, standard documentation, and compiler IR for the Vox 0.4 language.</description>
     <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

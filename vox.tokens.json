@@ -1,0 +1,18 @@
+{
+  "color": {
+    "primary": "#3a86ff",
+    "secondary": "#ff006e",
+    "background": "#ffffff",
+    "text": "#1d3557"
+  },
+  "spacing": {
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px",
+    "xl": "32px"
+  },
+  "font": {
+    "base": "16px",
+    "large": "20px"
+  }
+}

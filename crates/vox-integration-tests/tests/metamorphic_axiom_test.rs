@@ -34,6 +34,8 @@ fn prop_sort_idempotent(list: list[int]) {
             is_pub: false,
             is_mobile_native: false,
             is_pure: true,
+            is_llm: false,
+            llm_model: None,
             is_deprecated: false,
             schedule_interval: None,
             span: vox_compiler::ast::Span::new(0,0),

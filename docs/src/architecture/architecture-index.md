@@ -111,6 +111,7 @@ Use these when the question is exploratory, comparative, or evidence-gathering:
 - [Terminal execution policy research findings 2026](terminal-exec-policy-research-findings-2026.md)
 - [Telemetry unification research findings 2026](telemetry-unification-research-findings-2026.md)
 - [Context management research findings 2026](context-management-research-findings-2026.md)
+- [Semantic Proximity, Split-Brain Detection, and Safe Symbol Surfacing (research 2026)](research-semantic-proximity-split-brain-2026.md) — detecting near-duplicate / divergently-named symbols, KCH hallucination prevention, `ProximityCandidate` model, `vox ci proximity-drift` gate
 - [Protocol convergence research 2026](protocol-convergence-research-2026.md)
 - [ASR speech-to-code scouting 2026](asr-speech-to-code-findings-2026.md) — model WER comparison, Canary/Qwen/Whisper/Moonshine/Parakeet overview
 - [ASR speech-to-code full architecture 2026](asr-speech-to-code-architecture-2026.md) — preprocessing stack, Rust crate design, WER estimates by adaptation tier, MENS integration, training pathway

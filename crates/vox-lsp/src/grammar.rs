@@ -35,7 +35,6 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
         | Token::To
         | Token::With
         | Token::Pub
-        | Token::Ret
         | Token::Http
         | Token::Async
         | Token::In
@@ -51,14 +50,26 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
 
         // ── Decorators (index 7) ─────────────────────────────────────────────
         Token::AtComponent
-        | Token::AtMcpTool
-        | Token::AtMcpResource
+        | Token::AtTool
+        | Token::AtResource
         | Token::AtTest
         | Token::AtServer
+        | Token::AtQuery
+        | Token::AtMutation
         | Token::AtTable
         | Token::AtIndex
-        | Token::AtV0
-        | Token::AtIsland => Some(7), // DECORATOR
+        | Token::AtNative
+        | Token::AtIsland
+        | Token::AtLoading
+        | Token::AtRequire
+        | Token::AtEnsure
+        | Token::AtInvariant
+        | Token::AtForall
+        | Token::AtFuzz
+        | Token::AtPure
+        | Token::AtScheduled
+        | Token::AtDeprecated
+        | Token::AtAi => Some(7), // DECORATOR
 
         // ── Identifiers ───────────────────────────────────────────────────────
         Token::Ident(_) => Some(1),     // VARIABLE

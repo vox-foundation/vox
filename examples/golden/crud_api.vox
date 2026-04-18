@@ -17,17 +17,17 @@
 }
 
 @query
-fn user_count() -> int {
+fn user_count() to int {
     return len(db.User.all())
 }
 
 @query
-fn active_user_count() -> int {
+fn active_user_count() to int {
     return len(db.User.filter({ active: true }))
 }
 
 @mutation
-fn seed_user(name: str) -> Unit {
+fn seed_user(name: str) to Unit {
     db.User.insert({ name: name, active: true })
 }
 

@@ -20,7 +20,7 @@ use std::collections::HashSet;
 
 use super::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract, RouteNode,
-    StyleNode, WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
+    StyleNode, StyleSelector, WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
 };
 
 fn walk_route_contract_ids(
@@ -261,9 +261,20 @@ fn validate_styles(
     out: &mut Vec<WebIrDiagnostic>,
     metrics: &mut WebIrValidateMetrics,
 ) {
+    let mut seen_selectors: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+
     for node in &module.style_nodes {
         metrics.style_nodes_checked += 1;
-        if let StyleNode::Rule { declarations, .. } = node {
+        if let StyleNode::Rule { selector, declarations, .. } = node {
+            let sel_key = match selector {
+                StyleSelector::Class(c) => format!(".{}", c),
+                StyleSelector::Id(i) => format!("#{}", i),
+                StyleSelector::Element(e) => e.clone(),
+                StyleSelector::Unparsed(u) => u.clone(),
+                StyleSelector::Compound(_) => "compound".to_string(), // Simplified for now
+                StyleSelector::Pseudo { pseudo, .. } => format!("pseudo:{}", pseudo),
+            };
+
             if declarations.is_empty() {
                 out.push(WebIrDiagnostic {
                     code: "web_ir_validate.style.empty_declarations".to_string(),
@@ -272,6 +283,8 @@ fn validate_styles(
                     category: Some("style".to_string()),
                 });
             }
+            
+            let mut props_in_rule = std::collections::HashSet::new();
             for (prop, _) in declarations {
                 if prop.is_empty() {
                     out.push(WebIrDiagnostic {
@@ -290,6 +303,16 @@ fn validate_styles(
                         }
                         acc
                     });
+                    
+                    if !props_in_rule.insert(css_prop.clone()) {
+                         out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.style.duplicate_property_in_rule".to_string(),
+                            message: format!("Duplicate property '{}' in the same rule", prop),
+                            span: None,
+                            category: Some("style".to_string()),
+                        });
+                    }
+
                     if !crate::codegen_shared::css_property_allowlist::is_allowed_css_property(&css_prop) {
                         out.push(WebIrDiagnostic {
                             code: "web_ir_validate.style.unknown_property".to_string(),
@@ -298,8 +321,33 @@ fn validate_styles(
                             category: Some("style".to_string()),
                         });
                     }
+
+                    if let Some(existing_props) = seen_selectors.get(&sel_key) {
+                        if existing_props.contains(&css_prop) {
+                            out.push(WebIrDiagnostic {
+                                code: "web_ir_validate.style.specificity_conflict".to_string(),
+                                message: format!("Property '{}' redefined for selector '{}' at same specificity level", prop, sel_key),
+                                span: None,
+                                category: Some("style".to_string()),
+                            });
+                        }
+                    }
                 }
             }
+            
+            let normalized_props: Vec<String> = declarations.iter().map(|(p, _)| {
+                 p.chars().fold(String::new(), |mut acc, c| {
+                    if c.is_uppercase() {
+                        acc.push('-');
+                        acc.push(c.to_ascii_lowercase());
+                    } else {
+                        acc.push(c);
+                    }
+                    acc
+                })
+            }).collect();
+            
+            seen_selectors.entry(sel_key).or_default().extend(normalized_props);
         }
     }
 }

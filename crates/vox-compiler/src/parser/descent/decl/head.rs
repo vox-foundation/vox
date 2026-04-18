@@ -37,6 +37,14 @@ impl Parser {
                 self.advance();
                 name
             }
+            Token::Env => {
+                self.advance();
+                "env".to_string()
+            }
+            Token::Http => {
+                self.advance();
+                "http".to_string()
+            }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
@@ -177,6 +185,10 @@ impl Parser {
                 Token::Ident(name) | Token::TypeIdent(name) => {
                     segments.push(name);
                     self.advance();
+                }
+                Token::Env => {
+                    self.advance();
+                    segments.push("env".to_string());
                 }
                 // `http` is a dedicated keyword for route headers, but it must still parse as a
                 // path segment after `.` (e.g. `import std.http`, `std.http.get_text(...)`).
@@ -747,6 +759,18 @@ impl Parser {
             Token::Http => {
                 self.advance();
                 Ok("http".to_string())
+            }
+            Token::Env => {
+                self.advance();
+                Ok("env".to_string())
+            }
+            Token::To => {
+                self.advance();
+                Ok("to".to_string())
+            }
+            Token::In => {
+                self.advance();
+                Ok("in".to_string())
             }
             _ => {
                 self.errors.push(ParseError::classified(

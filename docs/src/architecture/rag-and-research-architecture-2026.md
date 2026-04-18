@@ -34,7 +34,7 @@ All corpora are searched in parallel per query. Results are RRF-merged.
 | Corpus | Backend | Feature Gate | Source Crate |
 |---|---|---|---|
 | `Memory` | BM25 (in-process) + SQLite vector | Always | `vox-search/memory_hybrid.rs` |
-| `KnowledgeGraph` | SQLite FTS5 node queries | Always | `vox-search/execution.rs` |
+| `KnowledgeGraph` | SQLite FTS5 node queries (Lexical graph traversal, NOT semantic) | Always | `vox-search/execution.rs` |
 | `DocumentChunks` | Hybrid FTS5 + vector embeddings | Always | `vox-search/execution.rs` |
 | `RepoInventory` | Token-overlap WalkDir path scan | Always | `vox-search/execution.rs` |
 | `TantivyDocs` | On-disk Tantivy index | `tantivy-lexical` feature | `vox-search/lexical_tantivy.rs` |

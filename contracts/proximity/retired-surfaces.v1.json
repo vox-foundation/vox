@@ -55,6 +55,16 @@
     {
       "retired_symbol": "persist_fact()",
       "canonical_replacement": "sync_to_db()"
+    },
+    {
+      "retired_symbol": "-> (return type)",
+      "canonical_replacement": "to",
+      "notes": "Hyphen-arrow is retired for return type boundaries to reduce K-complexity."
+    },
+    {
+      "retired_symbol": "-> (match arm)",
+      "canonical_replacement": "=>",
+      "notes": "Hyphen-arrow is retired for match arms in favor of the fat-arrow => pattern."
     }
   ]
 }

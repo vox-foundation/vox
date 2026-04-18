@@ -72,6 +72,8 @@ pub struct SyntheticGenConfig {
     pub emit_script_rows: bool,
     /// Whether to emit organic Vox code generation pairs.
     pub emit_organic_vox: bool,
+    /// Whether to emit Chain-of-Thought (CoT) organic Vox code generation pairs (Reasoning-First).
+    pub emit_cot_organic_vox: bool,
     /// Whether to run the augmentation engine (typos, synonyms, case) after generation.
     /// This 3× multiplies effective corpus size with robust variants.
     pub augment_after_generate: bool,
@@ -104,6 +106,7 @@ impl Default for SyntheticGenConfig {
             emit_cli_rows: true,
             emit_script_rows: true,
             emit_organic_vox: true,
+            emit_cot_organic_vox: true,
             augment_after_generate: true,
             emit_routing_decisions: true,
             emit_negative_expanded: true,

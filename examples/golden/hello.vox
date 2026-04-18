@@ -11,7 +11,7 @@
 // ---
 // @training_prompt: Write a minimal Vox hello-world function
 // ANCHOR: display
-fn hello(name: str) -> str {
+fn hello(name: str) to str {
     return "Hello " + name + "!"
 }
 // ANCHOR_END: display

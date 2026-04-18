@@ -4,7 +4,7 @@ description: "Guide to the research, findings, and roadmap-heavy documentation i
 category: "architecture"
 status: "research"
 sort_order: 5
-last_updated: 2026-04-13
+last_updated: 2026-04-17
 training_eligible: true
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -136,6 +136,7 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 - **[Multi-repo context isolation: research findings 2026](multi-repo-context-isolation-research-2026.md)** — `.voxignore` SSOT policy, scope guard architecture, agent instruction file hierarchy, IDE workspace isolation, Git worktree patterns, security threats (IDPI, slopsquatting, scope escalation), context engineering guidelines, monorepo/polyrepo AI-readiness analysis, and `vox repo init` scaffold specification. Directly actionable: gaps table, implementation priorities, and cross-references to `cross-repo-query-observability.md` and `context-management-research-findings-2026.md`.
 
 #### Independent Deep Research Tracks
+- **[Semantic Proximity, Split-Brain Detection, and Safe Symbol Surfacing (research 2026)](research-semantic-proximity-split-brain-2026.md)** — Programmatic detection of conceptually related but divergently named code (Type-2 through Type-4 clones). Defines the Knowledge Conflating Hallucination (KCH) risk, the `[0.65, 0.95]` proximity zone, identifier-morpheme distance, doc-comment mining, the `ProximityCandidate` data model, Socrates disambiguation annotation design, the `SymbolProximity` corpus extension to `vox-search`, the anti-conflation MENS DPO lane, a `vox ci proximity-drift` ratchet gate, 6 identified Vox-specific gaps, and a 5-wave implementation roadmap. Cross-references: `rag-and-research-architecture-2026.md`, `nomenclature-migration-map.md`, `research-language-alias-canonicalization-2026.md`, `mens-synthetic-corpus-limitations-research-2026.md`.
 - [Agent Trust Reliability Evaluation](research-trust-reliability-signals-2026.md)
 - [AI Plan Adequacy Heuristics](research-plan-adequacy-heuristics-2026.md)
 - [AI-Augmented Testing & Hourglass Architecture Research](ai-augmented-testing-hourglass-research-2026.md)

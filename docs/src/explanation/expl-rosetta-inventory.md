@@ -170,6 +170,7 @@ We will solve the same inventory problem, watching the Vox file grow.
 Vox prevents Python's default-argument sharing by enforcing static types and copy-by-value on assignment. C++'s dangling iterator is avoided because we use an explicit exhaustive `match` that cannot hold a mutable container reference across an allocation.
 
 ```vox
+// vox:skip
 type MergeError =
     | WrongKind(left: str, right: str)
     | InvalidCap(cap: int)
@@ -197,6 +198,7 @@ fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int
 Wrong-kind and invalid-capacity errors are not exceptions or integer codes; they are first-class algebraic values. The compiler enforces that every caller handles both `Applied` and `Rejected`.
 
 ```vox
+// vox:skip
 // In Rust this is an `enum`, in C++ `std::variant`, in Python `Union`.
 // Vox enforces exhaustive handling across all variants via `match`.
 fn format_error(err: MergeError) -> str {
@@ -210,6 +212,7 @@ fn format_error(err: MergeError) -> str {
 What about missing items? There is no `nullptr`, `null`, or unchecked `None`. 
 
 ```vox
+// vox:skip
 // No null, no None, no nullptr — the missing case is a compile error.
 fn get_stack_safe(id: int) -> Option[InventoryStack] {
     let stack = db.InventoryStack.get(id)
@@ -227,6 +230,7 @@ Once the logic works, the inventory must persist. Most architectures demand an O
 In Vox, the struct *is* the schema.
 
 ```vox
+// vox:skip
 @table type InventoryStack {
     kind: str
     qty: int
@@ -258,6 +262,7 @@ When multiple players merge into the central chest concurrently, Rust requires t
 Vox draws on the Actor Model, popular in Erlang and Elixir precisely for this reason. The actor isolates the state. Callers interact by sending messages to a mailbox linearly, sidestepping deadlocks and lock poisoning natively.
 
 ```vox
+// vox:skip
 // The actor model protects shared state via a mailbox, eliminating mutex
 // negotiation. The syntax and primitive are directly inspired by Erlang/Akka.
 actor InventoryActor {
@@ -278,6 +283,7 @@ Distributed systems present the double-charge problem: if the process crashes af
 Vox embeds execution durability into the language itself via the `workflow` and `activity` primitives.
 
 ```vox
+// vox:skip
 // Workflows provide "at-least-once" execution by journaling activities.
 // Double-charging is prevented via idempotency and step-skipping on restart
 // (implemented in the interpreted runtime via ADR-019).
@@ -304,6 +310,7 @@ If a local AI Agent model wants to propose a stash merge, you would typically wr
 In Vox, the compiler parses the function's strict type signature and generates the Model Context Protocol (MCP) tool dynamically.
 
 ```vox
+// vox:skip
 @mcp.tool "propose_merge: Propose a stack merge and return primary+overflow"
 fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) -> str {
     let total = current + incoming
@@ -319,6 +326,7 @@ fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) -> str 
 When the inventory requires a display, a React Island can be served directly from backend server. The compiler guarantees the backend types exist in the DOM layer.
 
 ```vox
+// vox:skip
 @island StashMeter {
     values: list[int]
 }
@@ -341,6 +349,7 @@ Finally, attempting to bulk-import loot requires reading the host file system. I
 
 ```vox
 // vox:skip
+// vox:skip
 // Import requires a named platform capability, not just ambient OS access.
 // See docs/src/architecture/capability-grants-ssot.md for the runtime model.
 fn import_loot_csv(import_cap: cap, path: str) -> Result[str] {
@@ -356,6 +365,7 @@ fn import_loot_csv(import_cap: cap, path: str) -> Result[str] {
 Finally, some logic is too complex or fuzzy to write by hand. Vox allows you to delegate function bodies to an LLM while maintaining strict type contracts and telemetry.
 
 ```vox
+// vox:skip
 @llm(model = "claude-3-opus")
 fn generate_loot_flavor_text(kind: str, qty: int) -> str
 

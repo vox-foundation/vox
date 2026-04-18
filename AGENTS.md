@@ -140,7 +140,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
-| `recall()` (synchronous memory read) | `recall_async()` |
+| `recall()` (synchronous memory read) | `recall_async(query_spec)` |
 | `persist_fact()` | `sync_to_db()` |
 
 ## Structural Limits & Code Quality

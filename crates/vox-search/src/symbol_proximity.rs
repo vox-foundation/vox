@@ -62,20 +62,18 @@ pub async fn scan_symbol_proximity(
             continue;
         }
 
-        // Calculate morpheme-level distance between query and the retired symbol using similar
-        let mut max_ratio = 0.0;
         let query_lower = query.to_lowercase();
         let retired_lower = retired.to_lowercase();
         
         // Exact substring match gives high confidence
-        if query_lower.contains(&retired_lower) || retired_lower.contains(&query_lower) {
-            max_ratio = 1.0;
+        let mut max_ratio = if query_lower.contains(&retired_lower) || retired_lower.contains(&query_lower) {
+            1.0
         } else {
             // Levenshtein approximation for partial matches
             // let diff = similar::TextDiff::from_chars(&query_lower, &retired_lower);
-            // max_ratio = diff.ratio() as f64;
-            max_ratio = 0.5; // Stub
-        }
+            // diff.ratio() as f64
+            0.5 // Stub
+        };
 
         // Fuse with Qdrant score if available
         for (id, sc, _) in &qdrant_results {
