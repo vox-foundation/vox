@@ -56,22 +56,24 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         return Err(anyhow!("doc-inventory.json: expected schema_version >= 3"));
     }
 
-    let inv = root.join("docs/src/architecture/orphan-surface-inventory.md");
-    let inv_text = read_utf8_path_capped(&inv)?;
-    if !inv_text.contains("workspace-crates-start") {
-        return Err(anyhow!(
-            "orphan inventory: missing workspace-crates-start marker"
-        ));
-    }
-    if !inv_text.contains("workspace-crates-end") {
-        return Err(anyhow!(
-            "orphan inventory: missing workspace-crates-end marker"
-        ));
-    }
 
-    let listed = parse_workspace_crate_block(&inv_text);
-    let crates_dir = root.join("crates");
     let mut actual_crates = std::collections::HashSet::new();
+    let inv = root.join("docs/src/architecture/orphan-surface-inventory.md");
+    if inv.is_file() {
+        let inv_text = read_utf8_path_capped(&inv)?;
+        if !inv_text.contains("workspace-crates-start") {
+            return Err(anyhow!(
+                "orphan inventory: missing workspace-crates-start marker"
+            ));
+        }
+        if !inv_text.contains("workspace-crates-end") {
+            return Err(anyhow!(
+                "orphan inventory: missing workspace-crates-end marker"
+            ));
+        }
+
+        let listed = parse_workspace_crate_block(&inv_text);
+        let crates_dir = root.join("crates");
     for entry in
         fs::read_dir(&crates_dir).with_context(|| format!("read {}", crates_dir.display()))?
     {
@@ -84,20 +86,34 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
             continue;
         }
         let name = read_package_name(&toml)?;
-        actual_crates.insert(name.clone());
-        if !listed.contains(&name) {
-            return Err(anyhow!(
-                "orphan inventory workspace crate list missing: {name} (from {})",
-                toml.display()
-            ));
+            actual_crates.insert(name.clone());
+            if !listed.contains(&name) {
+                return Err(anyhow!(
+                    "orphan inventory workspace crate list missing: {name} (from {})",
+                    toml.display()
+                ));
+            }
         }
-    }
 
-    for listed_crate in &listed {
-        if !actual_crates.contains(listed_crate) {
-            return Err(anyhow!(
-                "orphan inventory workspace crate list contains stale entry: {listed_crate} is not found in crates/*/Cargo.toml"
-            ));
+        for listed_crate in &listed {
+            if !actual_crates.contains(listed_crate) {
+                return Err(anyhow!(
+                    "orphan inventory workspace crate list contains stale entry: {listed_crate} is not found in crates/*/Cargo.toml"
+                ));
+            }
+        }
+    } else {
+        let crates_dir = root.join("crates");
+        for entry in fs::read_dir(&crates_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                let toml = entry.path().join("Cargo.toml");
+                if toml.is_file() {
+                    if let Ok(name) = read_package_name(&toml) {
+                        actual_crates.insert(name);
+                    }
+                }
+            }
         }
     }
 

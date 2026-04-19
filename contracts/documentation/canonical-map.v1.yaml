@@ -11,10 +11,7 @@ domains:
     canon_doc: docs/src/reference/mens-training.md
     generated_docs:
       - docs/src/reference/mens-train-defaults.generated.md
-    aliases:
-      - docs/src/architecture/mens-training-ssot.md
-      - docs/src/architecture/vox-source-to-mens-pipeline-ssot.md
-      - docs/src/architecture/populi-data-pipeline.md
+    aliases: []
     owning_crate_globs:
       - crates/vox-populi/src/mens/**/*.rs
       - crates/vox-cli/src/commands/mens/**/*.rs
@@ -109,8 +106,7 @@ domains:
     spec_paths:
       - docs/src/reference/vox-ir.schema.json
     canon_doc: docs/src/reference/vox-ir-specification.md
-    aliases:
-      - docs/src/architecture/compiler-ir-pipeline.md
+    aliases: []
     owning_crate_globs:
       - crates/vox-compiler/**
 
@@ -161,7 +157,6 @@ domains:
     spec_paths:
       - docs/agents/ai-ide-feature-matrix-2026.json
     canon_doc: docs/src/architecture/ai-ide-feature-research-findings-2026.md
-
     aliases: []
 
   - id: toestub-quality

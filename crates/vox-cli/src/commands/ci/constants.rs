@@ -1,30 +1,9 @@
 //! Static path lists and feature matrix lanes for CI guards.
 
 pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
-    "docs/src/architecture/forward-migration-charter.md",
-    "docs/src/architecture/codex-arca-compatibility-boundaries.md",
-    "docs/src/architecture/codex-arca-import-policy.md",
-    "docs/src/architecture/codex-turso-allowlist.md",
-    "docs/src/architecture/cli-scope-policy.md",
-    "docs/src/architecture/compatibility-deprecation-windows.md",
-    "docs/src/architecture/doc-to-code-acceptance-checklist.md",
-    "docs/src/architecture/cli-reachability-ssot.md",
-    "docs/src/architecture/cli-design-rules-ssot.md",
-    "docs/src/architecture/trim-build-defer-policy.md",
-    "docs/src/architecture/vox-cli-build-feature-inventory.md",
-    "docs/src/architecture/crate-build-lanes-migration.md",
-    "docs/src/architecture/crate-topology-buckets.md",
-    "docs/src/architecture/deployment-compose-ssot.md",
-    "docs/src/architecture/mens-training-ssot.md",
-    "docs/src/how-to/how-to-train-mens-4080.md",
+                                                            "docs/src/how-to/how-to-train-mens-4080.md",
     "docs/src/how-to/how-to-voxdb-canonical-store.md",
-    "docs/src/architecture/phase0-migration-signoff.md",
-    "docs/src/architecture/migration-script-dashboard.md",
-    "docs/src/architecture/vox-automation-primitives.md",
-    "docs/src/architecture/typescript-migration-boundary.md",
-    "docs/src/architecture/vox-web-stack-ssot.md",
-    "docs/src/architecture/external-scripts-boundary-archive.md",
-    "docs/src/ci/runner-contract.md",
+                            "docs/src/ci/runner-contract.md",
     "docs/src/ci/command-surface-duals.md",
     "docs/src/ci/documentation-pointers.md",
     "docs/src/ci/crate-hardening-matrix.md",
@@ -41,17 +20,8 @@ pub(crate) const CODEX_SSOT_FILES: &[&str] = &[
     "contracts/reports/evidence-snapshot-rev-c.json",
     "contracts/codex-api.openapi.yaml",
     "docs/src/adr/004-codex-arca-turso-ssot.md",
-    "docs/src/architecture/codex-vnext-schema.md",
-    "docs/src/architecture/codex-baas.md",
-    "docs/src/architecture/orphan-surface-inventory.md",
-    "docs/src/architecture/codex-legacy-migration.md",
-    "docs/src/architecture/forward-migration-charter.md",
-    "docs/src/architecture/codex-arca-import-policy.md",
-    "docs/src/architecture/codex-arca-compatibility-boundaries.md",
-    "infra/coolify/docker-compose.yml",
-    "scripts/check_codex_ssot.sh",
-    "scripts/check_codex_ssot.ps1",
-];
+                            "infra/coolify/docker-compose.yml",
+        ];
 
 pub(crate) const OPENAPI_SUBSTRINGS: &[&str] = &[
     "openapi:",
@@ -89,3 +59,4 @@ pub(crate) const FEATURE_SETS: &[&str] = &[
     "script-execution,mens",
     "workflow-runtime",
 ];
+

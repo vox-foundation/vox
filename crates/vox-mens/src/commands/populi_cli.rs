@@ -1012,7 +1012,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 Ok(())
             }
             PopuliCorpusCmd::IngestWorkflows { repository, output } => {
-                #[cfg(feature = "dei")]
+                #[cfg(feature = "mens-dei")]
                 {
                     use std::io::BufWriter;
                     println!("Ingesting workflow traces from repository '{}' to {} ...", repository, output.display());
@@ -1029,7 +1029,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     println!("✓ Ingested {} workflow traces", count);
                     Ok(())
                 }
-                #[cfg(not(feature = "dei"))]
+                #[cfg(not(feature = "mens-dei"))]
                 {
                     anyhow::bail!("IngestWorkflows requires `dei` feature (vox-orchestrator)")
                 }

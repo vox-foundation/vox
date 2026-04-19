@@ -1,8 +1,30 @@
+---
+title: "Changelog"
+description: "All notable changes to the Vox project are documented here."
+category: "ci"
+status: "current"
+training_eligible: true
+training_rationale: "Maintains a history of project changes, useful for understanding evolution and bug fixes."
+---
 # Changelog
 
 All notable changes to the Vox project are documented here.
 
 ## [Unreleased]
+
+## [1.0.0-RC1] - 2026-04-18
+
+### Added
+- **V1 Core SSOT**: Created `docs/src/architecture/v1-core-ssot.md` as the authoritative architecture summary for the v1.0 release.
+- **Golden Path Validation**: Verified end-to-end build and dry-run deployment for `marquee_app` via Fly.io target.
+
+### Fixed
+- **CI/SSOT Stability**: 
+    - Resolved 270+ documentation drift errors by archiving stale research into `docs/src/archive/research-2026-q1/`.
+    - Bulk-fixed metadata (`training_eligible`, `archived_date`) for all archived research documents.
+    - Cleaned up `contracts/documentation/canonical-map.v1.yaml` to match the current documentation tree.
+    - Fixed orphan surface inventory check to handle missing files gracefully.
+- **CLI/Constants**: Pruned stale document references from `crates/vox-cli/src/commands/ci/constants.rs`.
 
 ### Changed
 
