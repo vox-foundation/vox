@@ -18,12 +18,6 @@ pub enum MensSubcommand {
         #[command(subcommand)]
         action: vox_mens::commands::mens::PopuliAction,
     },
-    #[cfg(feature = "gpu")]
-    #[command(name = "schola")]
-    Schola {
-        #[command(subcommand)]
-        cmd: vox_mens::commands::schola::ScholaCmd,
-    },
     #[cfg(feature = "oratio")]
     #[command(name = "oratio", visible_alias = "speech")]
     Oratio {
@@ -36,13 +30,6 @@ pub enum MensSubcommand {
         #[command(subcommand)]
         cmd: vox_mens::commands::populi_cli::PopuliCli,
     },
-    /// Fine-tune legacy entry (canonical is vox mens train)
-    #[cfg(all(feature = "gpu", feature = "mens-dei"))]
-    #[command(name = "train")]
-    Train {
-        #[command(flatten)]
-        args: vox_cli::cli_args::TrainLegacyArgs,
-    },
 }
 
 #[tokio::main]
@@ -54,13 +41,9 @@ async fn main() -> anyhow::Result<()> {
     match root.command {
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         MensSubcommand::Mens { action } => vox_mens::commands::mens::run(action, root.global.json, root.global.verbose).await,
-        #[cfg(feature = "gpu")]
-        MensSubcommand::Schola { cmd } => vox_mens::commands::schola::run_schola_cmd(cmd).await,
         #[cfg(feature = "oratio")]
-        MensSubcommand::Oratio { action } => vox_mens::commands::oratio_cmd::run_oratio_action(action).await,
+        MensSubcommand::Oratio { action } => vox_mens::commands::oratio_cmd::run(action, root.global.json),
         #[cfg(feature = "populi")]
-        MensSubcommand::Populi { cmd } => vox_mens::commands::populi_cli::run_populi_cli(cmd).await,
-        #[cfg(all(feature = "gpu", feature = "mens-dei"))]
-        MensSubcommand::Train { args } => vox_mens::commands::ai::train::run_legacy_train(args).await,
+        MensSubcommand::Populi { cmd } => vox_mens::commands::populi_cli::run(cmd, root.global.json).await,
     }
 }

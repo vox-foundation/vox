@@ -52,19 +52,44 @@ async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         let cmd = args[1].as_str();
-        if matches!(cmd, "mens" | "schola" | "oratio" | "speech" | "populi" | "train") {
-            let mut command = Command::new("vox-mens");
-            command.args(&args[1..]);
+        let is_ml = matches!(
+            cmd,
+            "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
+        );
+        let is_ext_ml = cmd == "ext" && args.len() > 2 && matches!(
+            args[2].as_str(),
+            "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
+        );
+
+        if is_ml || is_ext_ml {
+            let primary_cmd = if is_ext_ml { args[2].as_str() } else { cmd };
+            let binary = if primary_cmd == "schola" {
+                "vox-schola"
+            } else {
+                "vox-mens"
+            };
+
+            let mut command = Command::new(binary);
+            if primary_cmd == "train" {
+                // `vox train` -> `vox-mens mens train`
+                command.arg("mens");
+            }
             
+            let forward_args = if is_ext_ml { &args[2..] } else { &args[1..] };
+            command.args(forward_args);
+
             // Wait for completion and exit with same status
             match command.status() {
                 Ok(status) => {
                     std::process::exit(status.code().unwrap_or(1));
                 }
                 Err(e) => {
-                    eprintln!("Error: vox-mens is not installed or not in PATH.");
-                    eprintln!("The '{}' subsystem has been extracted to a separate crate.", cmd);
-                    eprintln!("Please run: cargo install --path crates/vox-mens");
+                    eprintln!("Error: {} is not installed or not in PATH.", binary);
+                    eprintln!(
+                        "The '{}' subsystem has been extracted to a separate crate.",
+                        primary_cmd
+                    );
+                    eprintln!("Please run: cargo install --path crates/{}", binary);
                     eprintln!("Underlying error: {}", e);
                     std::process::exit(1);
                 }

@@ -4,19 +4,18 @@ mod lanes;
 
 use crate::codex_cmd::CodexCmd;
 use crate::command_catalog;
-use crate::latin_cmd;
+// use crate::latin_cmd; // Unused after alias retirement
 use crate::{Cli, GlobalOpts, VoxCliRoot};
 
 #[cfg(feature = "ars")]
-use lanes::run_openclaw_subcommand;
+pub(crate) use lanes::run_openclaw_subcommand;
 #[cfg(feature = "coderabbit")]
-use lanes::run_review_subcommand;
+pub(crate) use lanes::run_review_subcommand;
 #[cfg(feature = "script-execution")]
-use lanes::run_script_subcommand;
-use lanes::{cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd};
+pub(crate) use lanes::run_script_subcommand;
+pub(crate) use lanes::{cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd};
 
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
-    #[cfg(not(any(feature = "mens-base", feature = "gpu")))]
     {
         let _ = global;
     }
@@ -66,6 +65,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Diag { cmd } => {
             run_diag_cmd(cmd).await?;
+        }
+        Cli::Ext { cmd } => {
+            crate::commands::ext::run(cmd).await?;
         }
         Cli::Ars { cmd } => {
             run_ars_cmd(cmd).await?;
@@ -136,20 +138,14 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             crate::commands::init::run(name.as_deref(), kind.as_deref(), template.as_deref())
                 .await?;
         }
-        Cli::Login {
-            registry,
-            token,
-            username,
-        } => {
-            eprintln!(
-                "warning: `vox login` is deprecated; use `vox clavis set <registry> <token>`."
-            );
-            crate::commands::login::run(token.as_deref(), registry.as_deref(), username.as_deref())
-                .await?;
+        Cli::New { cmd } => {
+            crate::commands::new::run(cmd).await?;
         }
-        Cli::Logout { registry } => {
-            eprintln!("warning: `vox logout` is deprecated; use `vox clavis` management commands.");
-            crate::commands::logout::run(registry.as_deref()).await?;
+        Cli::Play { args } => {
+            crate::commands::play::run(args).await?;
+        }
+        Cli::Repair { args } => {
+            crate::commands::repair::run(args).await?;
         }
         Cli::Lsp => {
             crate::commands::lsp::run()?;
@@ -159,19 +155,6 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Mcp => {
             crate::commands::mcp::run()?;
-        }
-        Cli::Doctor { args } => {
-            run_diag_cmd(latin_cmd::DiagCmd::Doctor(args)).await?;
-        }
-        #[cfg(any(feature = "codex", feature = "stub-check"))]
-        Cli::Architect { cmd } => {
-            run_diag_cmd(latin_cmd::DiagCmd::Architect { cmd }).await?;
-        }
-        Cli::Snippet { cmd } => {
-            run_ars_cmd(latin_cmd::ArsCmd::Snippet { cmd }).await?;
-        }
-        Cli::Share { cmd } => {
-            run_ars_cmd(latin_cmd::ArsCmd::Share { cmd }).await?;
         }
         Cli::Shell { cmd } => {
             crate::commands::runtime::shell::run(cmd).await?;
@@ -250,18 +233,6 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Openclaw { action } => {
             run_openclaw_subcommand(action).await?;
         }
-        #[cfg(feature = "ars")]
-        Cli::Skill { cmd } => {
-            run_ars_cmd(latin_cmd::ArsCmd::Skill { cmd }).await?;
-        }
-        #[cfg(feature = "extras-ludus")]
-        Cli::Ludus { cmd } => {
-            run_ars_cmd(latin_cmd::ArsCmd::Ludus { cmd }).await?;
-        }
-        #[cfg(feature = "stub-check")]
-        Cli::StubCheck { args } => {
-            run_diag_cmd(latin_cmd::DiagCmd::StubCheck(args)).await?;
-        }
         Cli::Stop { reason } => {
             #[cfg(feature = "dei")]
             crate::commands::dei::stop(reason).await?;
@@ -271,15 +242,18 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                 eprintln!("Feature 'dei' is not enabled.");
             }
         }
-        Cli::Mens { .. } | Cli::Schola { .. } | Cli::Oratio { .. } | Cli::Populi { .. } | Cli::Train { .. } => {
-            unreachable!("ML commands are intercepted by main.rs and delegated to vox-mens")
-        }
+
         Cli::Plan { cmd } => {
             crate::commands::plan::dispatch(cmd).await?;
         }
+        Cli::Llm { cmd } => {
+            crate::commands::llm::run(cmd).await?;
+        }
         #[cfg(feature = "dei")]
         Cli::Visus { cmd } => {
-            crate::commands::visus::dispatch(cmd).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+            crate::commands::visus::dispatch(cmd)
+                .await
+                .map_err(|e| anyhow::anyhow!("{:?}", e))?;
         }
         Cli::Research { cmd } => crate::commands::research::run(cmd).await?,
         #[cfg(feature = "coderabbit")]

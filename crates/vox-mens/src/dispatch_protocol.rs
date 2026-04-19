@@ -84,13 +84,9 @@ mod tests {
             method::AI_REVIEW,
             method::AI_GENERATE,
             method::CONFIG_GET,
-            method::AI_PLAN_NEW,
-            method::AI_PLAN_REPLAN,
-            method::AI_PLAN_STATUS,
-            method::AI_PLAN_EXECUTE,
         ] {
             assert!(as_set.contains(m), "schema missing method {m}");
         }
-        assert_eq!(as_set.len(), 9, "schema vs daemon method count drift");
+        assert_eq!(as_set.len(), 5, "schema vs daemon method count drift");
     }
 }

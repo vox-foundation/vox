@@ -2,7 +2,7 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::pin::Pin;
+
 use std::sync::Arc;
 
 use crate::commands::populi_lifecycle::{
@@ -944,12 +944,12 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                         
                         #[cfg(feature = "extras-ludus")]
                         {
-                            use crate::commands::extras::ludus::record_cli_event_fire_and_forget;
+                            use vox_cli::commands::extras::ludus::record_cli_event_fire_and_forget;
                             record_cli_event_fire_and_forget(
                                 "mens_flywheel_triggered",
                                 true,
                                 Some("mens-corpus"),
-                                Some(&format!("populi corpus flywheel-check --domain {}", domain.as_deref().unwrap_or("vox-lang")))
+                                Some("populi corpus flywheel-check")
                             );
                         }
                     }
@@ -1011,19 +1011,19 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 println!("✓ Snapshot created: {}", version);
                 Ok(())
             }
-            PopuliCorpusCmd::IngestWorkflows { repository, output } => {
+            PopuliCorpusCmd::IngestWorkflows { repository: _repository, output: _output } => {
                 #[cfg(feature = "mens-dei")]
                 {
                     use std::io::BufWriter;
-                    println!("Ingesting workflow traces from repository '{}' to {} ...", repository, output.display());
-                    if let Some(parent) = output.parent() {
+                    println!("Ingesting workflow traces from repository '{}' to {} ...", _repository, _output.display());
+                    if let Some(parent) = _output.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
                     let db = vox_db::VoxDb::connect(vox_db::resolve_canonical_config().map_err(|e| anyhow::anyhow!(e))?).await?;
-                    let mut f = BufWriter::new(std::fs::File::create(&output)?);
+                    let mut f = BufWriter::new(std::fs::File::create(&_output)?);
                     let count = vox_orchestrator::services::topology_ingest::ingest_workflow_traces_to_jsonl(
                         &db,
-                        &repository,
+                        &_repository,
                         &mut f
                     ).await?;
                     println!("✓ Ingested {} workflow traces", count);

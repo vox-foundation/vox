@@ -43,8 +43,6 @@ mod latin_cmd;
 ))]
 mod lock_telemetry;
 pub mod pipeline;
-#[cfg(feature = "populi")]
-mod populi_codex_telemetry;
 mod process_supervision;
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
@@ -160,8 +158,15 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: latin_cmd::DiagCmd,
     },
+    /// Extensions lane — unified entry for legacy and ML subcommands (`ext`).
+    #[command(name = "ext")]
+    Ext {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: crate::commands::ext::ExtCmd,
+    },
     /// Craft / skills lane — snippet, share, skill, … (`ars`).
-    #[command(name = "ars")]
+    #[command(name = "ars", hide = true)]
     Ars {
         /// Subcommand.
         #[command(subcommand)]
@@ -290,6 +295,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::plan::PlanCmd,
     },
+    /// LLM-native context and prompt generation tools (`vox llm prompt`)
+    Llm {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::llm::LlmCmd,
+    },
     /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
     #[cfg(feature = "dei")]
     Visus {
@@ -312,25 +323,22 @@ pub enum Cli {
         #[arg(long)]
         template: Option<String>,
     },
-    /// Deprecated compatibility command; use `vox clavis set` instead.
-    Login {
-        /// Registry name (for example `google`, `openrouter`, `voxpm`).
-        #[arg(long)]
-        registry: Option<String>,
-        /// Token to store (omit for interactive prompt).
-        token: Option<String>,
-        /// Optional username for registry flows.
-        #[arg(long)]
-        username: Option<String>,
+    /// Scaffold a new Vox application from opinionated presets (`vox new web`)
+    New {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::new::NewCmd,
     },
-    /// Deprecated compatibility command; use `vox clavis` instead.
-    Logout {
-        /// Registry to remove (default `voxpm`).
-        #[arg(long)]
-        registry: Option<String>,
+    /// Scaffold and immediately run a temporary Vox project (`vox play`)
+    Play {
+        #[command(flatten)]
+        args: cli_args::PlayArgs,
     },
-    /// Start the Vox Language Server
-    Lsp,
+    /// Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`)
+    Repair {
+        #[command(flatten)]
+        args: cli_args::RepairArgs,
+    },
     /// Source migrations for React interop / retired web syntax (`migrate web`, …).
     Migrate {
         #[command(subcommand)]
@@ -344,31 +352,8 @@ pub enum Cli {
         #[command(flatten)]
         args: commands::grammar::GrammarParams,
     },
-    /// Check toolchain and local environment readiness (`--build-perf` / `--json` need `--features codex`)
-    Doctor {
-        /// Arguments.
-        #[command(flatten)]
-        args: cli_args::DoctorArgs,
-    },
-    /// Workspace layout validation + god-object scan (needs `--features codex` or `stub-check`)
-    #[cfg(any(feature = "codex", feature = "stub-check"))]
-    Architect {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: cli_actions::ArchitectAction,
-    },
-    /// Snippet helpers (local Arca `VoxDb`; `VOX_DB_*` / Turso aliases or project `.vox/store.db`)
-    Snippet {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::snippet_cli::SnippetCli,
-    },
-    /// Share / search packages via local Arca index
-    Share {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::share_cli::ShareCli,
-    },
+    /// Start the Vox Language Server
+    Lsp,
     /// Interactive shell or PowerShell AST exec-policy check (`shell check`, `shell repl`).
     Shell {
         /// Subcommand (default: `repl`).
@@ -422,32 +407,11 @@ pub enum Cli {
     },
     /// OpenClaw / ClawHub gateway (skill import, approvals); requires `--features ars`
     #[cfg(feature = "ars")]
-    #[command(visible_alias = "oc")]
+    #[command(visible_alias = "oc", hide = true)]
     Openclaw {
         /// Action.
         #[command(subcommand)]
         action: commands::openclaw::OpenClawAction,
-    },
-    /// ARS skill registry + promote / context (`--features ars`)
-    #[cfg(feature = "ars")]
-    Skill {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::skill_cmd::SkillCmd,
-    },
-    /// Ludus gamification (`--features extras-ludus`)
-    #[cfg(feature = "extras-ludus")]
-    Ludus {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::ludus_cli::LudusCli,
-    },
-    /// TOESTUB scan + Codex baselines / Ludus rewards (`--features stub-check`)
-    #[cfg(feature = "stub-check")]
-    StubCheck {
-        /// Arguments.
-        #[command(flatten)]
-        args: cli_args::StubCheckArgs,
     },
     /// CI guards: manifest, SSOT checks, feature matrix, doc inventory (no shell/Python required).
     Ci {
@@ -455,24 +419,14 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::ci::CiCmd,
     },
-    /// Mens: train, serve, corpus, eval (delegated to vox-mens)
-    #[command(name = "mens")]
-    Mens {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
+
     /// Unified research operations: infrastructure (up/down/status) and eval.
     Research {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::research::ResearchCmd,
     },
-    /// Oratio: speech-to-text / transcripts (delegated to vox-mens).
-    #[command(name = "oratio", visible_alias = "speech")]
-    Oratio {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
+
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
     Review {
@@ -487,24 +441,7 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: cli_actions::IslandCli,
     },
-    /// Fine-tune: legacy entry (delegated to vox-mens)
-    #[command(name = "train")]
-    Train {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
-    /// Populi registry + HTTP control plane (delegated to vox-mens)
-    #[command(name = "populi")]
-    Populi {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
-    /// Training tools (delegated to vox-mens)
-    #[command(name = "schola")]
-    Schola {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
+
     /// Emergency stop the orchestrator (MCP/daemon local stop request)
     Stop {
         /// Reason for stopping
@@ -556,5 +493,3 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
     apply_global_opts(&root.global);
     cli_dispatch::dispatch_cli(root.cmd, &root.global).await
 }
-
-

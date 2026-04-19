@@ -1,10 +1,10 @@
-//! Tail `vox mens` subcommands (eval-gate, bench, plan, system prompt) — separate module for TOESTUB line budget.
+//! Tail `vox mens` subcommands (eval-gate, bench, system prompt) — separate module for TOESTUB line budget.
 
 use std::path::PathBuf;
 
 use clap::Subcommand;
 
-/// Eval-gate, completion bench, plan, and system-prompt-template (flattened under [`PopuliAction`](super::PopuliAction)).
+/// Eval-gate, completion bench, and system-prompt-template (flattened under [`PopuliAction`](super::PopuliAction)).
 #[derive(Subcommand)]
 pub enum PopuliMensTail {
     /// Check training/eval run against eval-gate policy thresholds.

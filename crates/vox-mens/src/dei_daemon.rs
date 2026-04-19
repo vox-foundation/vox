@@ -11,10 +11,6 @@ pub mod method {
     pub const AI_REVIEW: &str = "ai.review";
     pub const AI_GENERATE: &str = "ai.generate";
     pub const CONFIG_GET: &str = "config.get";
-    pub const AI_PLAN_NEW: &str = "ai.plan.new";
-    pub const AI_PLAN_REPLAN: &str = "ai.plan.replan";
-    pub const AI_PLAN_STATUS: &str = "ai.plan.status";
-    pub const AI_PLAN_EXECUTE: &str = "ai.plan.execute";
 }
 
 #[derive(serde::Serialize)]
