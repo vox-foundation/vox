@@ -104,8 +104,12 @@ pub enum Token {
     AtComponent,
     #[token("@tool")]
     AtTool,
+    #[token("@mcp.tool")]
+    AtMcpTool,
     #[token("@resource")]
     AtResource,
+    #[token("@mcp.resource")]
+    AtMcpResource,
     #[token("@test")]
     AtTest,
     #[token("@server")]
@@ -140,6 +144,8 @@ pub enum Token {
     AtScheduled,
     #[token("@deprecated")]
     AtDeprecated,
+    #[token("@v0")]
+    AtV0,
     #[token("@ai")]
     AtAi,
 
@@ -168,6 +174,10 @@ pub enum Token {
     Dot,
     #[token("=")]
     Eq,
+    #[token("==")]
+    EqEq,
+    #[token("!=")]
+    NotEq,
     #[token("+=")]
     PlusEq,
     #[token("-=")]
@@ -352,7 +362,9 @@ impl std::fmt::Display for Token {
             Token::False => write!(f, "false"),
             Token::AtComponent => write!(f, "@component"),
             Token::AtTool => write!(f, "@tool"),
+            Token::AtMcpTool => write!(f, "@mcp.tool"),
             Token::AtResource => write!(f, "@resource"),
+            Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
             Token::AtServer => write!(f, "@server"),
             Token::AtQuery => write!(f, "@query"),
@@ -370,6 +382,7 @@ impl std::fmt::Display for Token {
             Token::AtPure => write!(f, "@pure"),
             Token::AtScheduled => write!(f, "@scheduled"),
             Token::AtDeprecated => write!(f, "@deprecated"),
+            Token::AtV0 => write!(f, "@v0"),
             Token::AtAi => write!(f, "@ai"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
@@ -382,6 +395,8 @@ impl std::fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::Eq => write!(f, "="),
+            Token::EqEq => write!(f, "=="),
+            Token::NotEq => write!(f, "!="),
             Token::PlusEq => write!(f, "+="),
             Token::MinusEq => write!(f, "-="),
             Token::StarEq => write!(f, "*="),

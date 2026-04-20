@@ -109,7 +109,7 @@ pub fn maybe_write_root_pnpm_workspace(app_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Spawns **`pnpm run dev:ssr-upstream`** when **`VOX_ORCHESTRATE_VITE=1`** so Axum can proxy HTML to Vite (see **`VOX_SSR_DEV_URL`**).
+/// Spawns **`pnpm run dev:ssr-upstream`** by default (unless **`VOX_ORCHESTRATE_VITE=0`**) so Axum can proxy HTML to Vite (see **`VOX_SSR_DEV_URL`**).
 pub struct OrchestratedViteGuard(Option<std::process::Child>);
 
 impl OrchestratedViteGuard {
@@ -119,17 +119,17 @@ impl OrchestratedViteGuard {
         Self(None)
     }
 
-    /// If **`VOX_ORCHESTRATE_VITE=1`**, start Vite on port **3001**.
+    /// Unless **`VOX_ORCHESTRATE_VITE=0`**, start Vite on port **3001**.
     ///
     /// Returns an optional **`VOX_SSR_DEV_URL`** pair for the **`cargo run`** child when unset
     /// (Rust 2024 avoids mutating process environment via `set_var` here).
     pub fn maybe_spawn(app_dir: &Path) -> Result<(Self, Option<(String, String)>)> {
-        if std::env::var("VOX_ORCHESTRATE_VITE").ok().as_deref() != Some("1") {
+        if std::env::var("VOX_ORCHESTRATE_VITE").ok().as_deref() == Some("0") {
             return Ok((Self(None), None));
         }
         let pnpm = pnpm_executable();
         println!(
-            "  VOX_ORCHESTRATE_VITE=1: spawning pnpm run dev:ssr-upstream in {}...",
+            "  Spawning Vite SSR upstream (pnpm run dev:ssr-upstream) in {} (opt-out via VOX_ORCHESTRATE_VITE=0)...",
             app_dir.display()
         );
         let child = std::process::Command::new(pnpm)

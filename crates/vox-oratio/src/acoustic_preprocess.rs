@@ -82,10 +82,11 @@ pub fn preprocess_audio_pcm_f32_reported(
     let mut rms_after = 0.0;
 
     let out: Vec<f32> = if mode == "rms_normalize" {
-        let target_rms_dbfs: f32 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRmsTargetDbfs)
-            .expose()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(-18.0_f32);
+        let target_rms_dbfs: f32 =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRmsTargetDbfs)
+                .expose()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(-18.0_f32);
         let target_rms_linear = 10.0_f32.powf(target_rms_dbfs / 20.0);
         rms_before = (samples.iter().map(|x| x * x).sum::<f32>() / samples.len() as f32).sqrt();
         let gain = if rms_before > 1e-6 {

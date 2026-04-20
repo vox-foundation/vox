@@ -1,7 +1,0 @@
-fn test_cast(c: int) -> str {
-    ret to_string(c)
-}
-
-fn test_cast2(c: int) -> str {
-    ret str(c)
-}

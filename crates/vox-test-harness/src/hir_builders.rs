@@ -35,7 +35,10 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_mobile_native: false,
         is_pure: false,
         is_deprecated: false,
+        is_llm: false,
+        llm_model: None,
         schedule_interval: None,
+        postconditions: vec![],
         span: dummy_span(),
     }
 }

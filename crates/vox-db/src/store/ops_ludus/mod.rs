@@ -9,3 +9,4 @@ mod gamify_periodic_conditions;
 mod gamify_rewards_collegium;
 mod gamify_world;
 mod gamify_world_battles;
+mod gamify_disputes;

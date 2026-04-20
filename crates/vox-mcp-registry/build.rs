@@ -20,6 +20,12 @@ struct ToolEntry {
     product_lane: String,
     #[serde(default)]
     http_read_role_eligible: bool,
+    #[serde(default = "default_tier")]
+    tier: String,
+}
+
+fn default_tier() -> String {
+    "core".to_string()
 }
 
 const PRODUCT_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
@@ -74,8 +80,9 @@ fn main() {
         let ed = escape_rust_string(&t.description);
         let el = escape_rust_string(&t.product_lane);
         let read_eligible = t.http_read_role_eligible;
+        let tier = escape_rust_string(&t.tier);
         lines.push_str(&format!(
-            "    McpToolRegistryEntry {{ name: \"{en}\", description: \"{ed}\", product_lane: \"{el}\", http_read_role_eligible: {read_eligible} }},\n"
+            "    McpToolRegistryEntry {{ name: \"{en}\", description: \"{ed}\", product_lane: \"{el}\", http_read_role_eligible: {read_eligible}, tier: \"{tier}\" }},\n"
         ));
     }
     lines.push_str("];\n");

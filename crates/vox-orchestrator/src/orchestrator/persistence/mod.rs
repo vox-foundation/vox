@@ -8,8 +8,8 @@ pub(crate) mod replay;
 
 use crate::types::AgentId;
 pub(crate) use lifecycle::{
-    ack_persistence_outbox_lane, run_persistence_outbox_lifecycle_pass,
     PERSISTENCE_OUTBOX_KEY, PERSISTENCE_OUTBOX_LIFECYCLE_KEY, PersistenceOutboxLifecycleParams,
+    ack_persistence_outbox_lane, run_persistence_outbox_lifecycle_pass,
 };
 
 impl crate::orchestrator::Orchestrator {
@@ -81,7 +81,8 @@ impl crate::orchestrator::Orchestrator {
 
         let mut replayed = 0u64;
         let mut replay_failed = 0u64;
-        let mut replay_failed_by_op: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+        let mut replay_failed_by_op: std::collections::BTreeMap<String, u64> =
+            std::collections::BTreeMap::new();
         let mut kept = Vec::with_capacity(queue.len());
         for entry in queue.drain(..) {
             if replayed as usize >= replay::MAX_REPLAY_PER_TICK {

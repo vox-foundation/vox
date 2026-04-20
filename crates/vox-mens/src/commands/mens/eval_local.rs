@@ -139,7 +139,13 @@ pub fn run_eval_local(
                             let seed_opt = if temperature > 0.0 { Some(seed) } else { None };
                             // InferenceEngine currently accepts `top_p` rather than seed.
                             // Keep seed in eval metadata for reproducibility bookkeeping.
-                            match eng.generate(&prompt, max_tokens, temperature as f64, None, &vox_constrained_gen::GrammarMode::None) {
+                            match eng.generate(
+                                &prompt,
+                                max_tokens,
+                                temperature as f64,
+                                None,
+                                &vox_constrained_gen::GrammarMode::None,
+                            ) {
                                 Ok(output) => {
                                     let verify = verify_completion(
                                         &output,
@@ -412,7 +418,7 @@ pub fn run_eval_local(
     }
 
     #[cfg(feature = "gpu")]
-    vox_cli::benchmark_telemetry::record_opt_blocking(
+    vox_cli_core::benchmark_telemetry::record_opt_blocking(
         "eval_local",
         Some(pass_rate_at_k),
         Some(serde_json::json!({

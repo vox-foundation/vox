@@ -96,7 +96,11 @@ async fn legacy_post(
     item: &UnifiedNewsItem,
 ) -> Result<String> {
     let client = Client::new();
-    let base = publisher_cfg.bluesky_pds_url.as_deref().unwrap_or(DEFAULT_PDS).trim_end_matches('/');
+    let base = publisher_cfg
+        .bluesky_pds_url
+        .as_deref()
+        .unwrap_or(DEFAULT_PDS)
+        .trim_end_matches('/');
     let cache_key = format!("{}::{}", base, handle);
     let mut cache_guard = session_cache().lock().await;
 
@@ -125,7 +129,7 @@ async fn legacy_post(
         }
 
         let parsed: CreateSessionResponse = session_resp.json().await?;
-        
+
         let entry = SessionCacheEntry {
             session: parsed.clone(),
             // AT Protocol accessJwt usually lasts 2 hours, be conservative with 1 hr 50 mins
@@ -134,7 +138,7 @@ async fn legacy_post(
         cache_guard.insert(cache_key, entry);
         parsed
     };
-    
+
     // We can confidently drop the lock now
     drop(cache_guard);
 
@@ -160,7 +164,7 @@ async fn legacy_post(
     } else {
         raw_text.to_string()
     };
-        
+
     if text.is_empty() {
         return Err(anyhow!("Bluesky post text cannot be empty"));
     }
@@ -208,16 +212,23 @@ async fn sdk_post(
         .to_string();
 
     let agent: BskyAgent<_> = BskyAgent::builder()
-        .config(Config { endpoint: pds_url, ..Default::default() })
+        .config(Config {
+            endpoint: pds_url,
+            ..Default::default()
+        })
         .build()
         .await
         .map_err(|e| anyhow!("bsky-sdk agent build failed: {}", e))?;
 
-    agent.login(handle, password).await
+    agent
+        .login(handle, password)
+        .await
         .map_err(|e| anyhow!("Bluesky login failed: {}", e))?;
 
     // Select text source (short_summary → title → never raw markdown)
-    let raw_text = item.syndication.short_summary
+    let raw_text = item
+        .syndication
+        .short_summary
         .as_deref()
         .unwrap_or(item.title.as_str());
 
@@ -228,19 +239,20 @@ async fn sdk_post(
         .await
         .map_err(|e| anyhow!("RichText facet detection failed: {}", e))?;
 
-    let output = agent.create_record(RecordData {
-        created_at: Datetime::now(),
-        text: rt.text,
-        facets: rt.facets,
-        embed: None,
-        entities: None,
-        labels: None,
-        langs: None,
-        reply: None,
-        tags: None,
-    })
-    .await
-    .map_err(|e| anyhow!("Bluesky create_record failed: {}", e))?;
+    let output = agent
+        .create_record(RecordData {
+            created_at: Datetime::now(),
+            text: rt.text,
+            facets: rt.facets,
+            embed: None,
+            entities: None,
+            labels: None,
+            langs: None,
+            reply: None,
+            tags: None,
+        })
+        .await
+        .map_err(|e| anyhow!("Bluesky create_record failed: {}", e))?;
 
     Ok(output.uri.to_string())
 }

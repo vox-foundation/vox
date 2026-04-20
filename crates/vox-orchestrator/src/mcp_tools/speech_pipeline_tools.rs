@@ -1,13 +1,13 @@
-﻿//! End-to-end speech-to-code orchestration: transcribe (optional) then `vox_generate_code` with shared session/correlation metadata.
+//! End-to-end speech-to-code orchestration: transcribe (optional) then `vox_generate_code` with shared session/correlation metadata.
 
 use std::io::Write;
 use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::compiler_tools;
 use crate::mcp_tools::oratio_tools::{parse_profile, parse_route_mode};
+use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::workspace_path;
 
 fn resolve_audio_path(state: &ServerState, path: &str) -> PathBuf {
@@ -102,6 +102,7 @@ pub async fn speech_to_code(state: &ServerState, args: Value) -> anyhow::Result<
             refined_text.as_str(),
             confidence,
             &rtc,
+            &vox_oratio::routing::IdeContext::default(),
         ))
     } else {
         None

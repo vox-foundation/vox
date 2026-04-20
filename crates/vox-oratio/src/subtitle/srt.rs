@@ -173,10 +173,11 @@ pub fn generate_srt_file(
         }
     };
 
-    let budget_ms = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
-        .expose()
-        .and_then(|s: &str| s.parse().ok())
-        .unwrap_or(25u64);
+    let budget_ms =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+            .expose()
+            .and_then(|s: &str| s.parse().ok())
+            .unwrap_or(25u64);
     pcm = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms).0;
 
     let (_diag, whisper_lang) = crate::language::prepare_language_hint(language.as_deref());

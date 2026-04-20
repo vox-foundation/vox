@@ -1,13 +1,13 @@
-use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
 use anyhow::Context;
 use serde_json::json;
+use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 
 pub fn ingest_training_logs(log_path: &Path, out: &mut impl Write) -> anyhow::Result<usize> {
     let file = std::fs::File::open(log_path).context("open log")?;
     let reader = BufReader::new(file);
     let mut actual = 0;
-    
+
     let mut current_error = String::new();
     let mut snippet = String::new();
     let mut collecting = false;
@@ -24,7 +24,7 @@ pub fn ingest_training_logs(log_path: &Path, out: &mut impl Write) -> anyhow::Re
             snippet.clear();
         } else if collecting {
             if let Some(pos) = line.find('|') {
-                let content = line[pos+1..].trim();
+                let content = line[pos + 1..].trim();
                 if !content.is_empty() && !content.contains("^^") && !content.contains("expected") {
                     snippet.push_str(content);
                     snippet.push('\n');
@@ -40,8 +40,17 @@ pub fn ingest_training_logs(log_path: &Path, out: &mut impl Write) -> anyhow::Re
     Ok(actual)
 }
 
-fn emit_error(out: &mut impl Write, error: &str, snippet: &str, count: &mut usize) -> anyhow::Result<()> {
-    let prompt = format!("Fix the following Vox compiler error:\n\n```vox\n{}\n```\n\nError: {}", snippet.trim(), error);
+fn emit_error(
+    out: &mut impl Write,
+    error: &str,
+    snippet: &str,
+    count: &mut usize,
+) -> anyhow::Result<()> {
+    let prompt = format!(
+        "Fix the following Vox compiler error:\n\n```vox\n{}\n```\n\nError: {}",
+        snippet.trim(),
+        error
+    );
     let response = format!("// Suggested Fix: {}\n{}", error, snippet.trim());
     let record = json!({
         "prompt": prompt,

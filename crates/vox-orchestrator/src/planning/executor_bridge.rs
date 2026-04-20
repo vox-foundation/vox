@@ -39,12 +39,19 @@ pub async fn enqueue_plan_node(
     // 1. Compute the deterministic planning tracking hash (session_id:step_id)
     let deterministic_identifier = {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        std::hash::Hash::hash(&format!("{}:{}", plan_session_id, node.node_id), &mut hasher);
+        std::hash::Hash::hash(
+            &format!("{}:{}", plan_session_id, node.node_id),
+            &mut hasher,
+        );
         std::hash::Hasher::finish(&hasher)
     };
 
-    let mut hints = node.execution_policy.enqueue_hints.clone().unwrap_or_default();
-    
+    let mut hints = node
+        .execution_policy
+        .enqueue_hints
+        .clone()
+        .unwrap_or_default();
+
     // 2. Wire the deterministic signature into the thread_id/campaign trace for dispatch tracking
     if hints.thread_id.is_none() {
         hints.thread_id = Some(format!("plan-{}", deterministic_identifier));

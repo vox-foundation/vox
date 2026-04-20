@@ -274,7 +274,8 @@ impl VoxConfig {
         if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey).expose() {
             self.gemini_key = Some(v.to_string());
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey).expose() {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey).expose()
+        {
             self.anthropic_key = Some(v.to_string());
         }
     }

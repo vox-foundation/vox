@@ -1,0 +1,8 @@
+// vox:caps fs
+import fs;
+
+fn main() {
+    print("Caps test: fs exists?");
+    let exists = fs.exists("Cargo.toml");
+    print("Cargo.toml exists: " + exists);
+}

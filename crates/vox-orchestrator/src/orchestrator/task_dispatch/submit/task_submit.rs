@@ -466,7 +466,7 @@ impl Orchestrator {
 
         #[cfg(feature = "populi-transport")]
         if lease_gated && remote_params.is_some() && !agent_busy {
-            let (base, recv_s, timeout_ms, scope, send_opt, claimer_node_id) =
+            let (mut base, recv_s, timeout_ms, scope, send_opt, claimer_node_id) =
                 remote_params.clone().expect("checked is_some");
             if let Ok(recv_id) = recv_s.parse::<u64>() {
                 let send_s = send_opt.unwrap_or_default();
@@ -489,7 +489,7 @@ impl Orchestrator {
                 let lease_node =
                     vox_populi::node_record_for_current_process(claimer_node_id.clone(), None);
                 let _ = client.join(&lease_node).await;
-                let lease_id = match client
+                let mut lease_id = match client
                     .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
                         claimer_node_id: claimer_node_id.clone(),
                         scope_key: scope_key.clone(),
@@ -509,6 +509,35 @@ impl Orchestrator {
                         None
                     }
                 };
+                if lease_id.is_none() {
+                    // Phase 1 Federation Proxy: Try to find a peer mesh if local denies
+                    if let Ok(dir) = client.federation_directory().await {
+                        let mut candidates: Vec<_> = dir.entries.into_iter().filter(|e| e.public).collect();
+                        candidates.sort_by_key(|e| e.current_queue_depth.unwrap_or(usize::MAX));
+                        for peer in candidates {
+                            let peer_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                                &peer.control_url,
+                                std::time::Duration::from_millis(timeout_ms.max(1000)),
+                            ).with_env_deliver_token();
+                            
+                            if let Ok(grant) = peer_client.exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+                                claimer_node_id: claimer_node_id.clone(),
+                                scope_key: scope_key.clone(),
+                            }).await {
+                                tracing::info!(
+                                    task_id = task_id.0,
+                                    peer_scope = %peer.scope_id,
+                                    peer_url = %peer.control_url,
+                                    "Federation routing successful; proxying task to remote mesh"
+                                );
+                                lease_id = Some(grant.lease_id);
+                                base = peer.control_url;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
                 if lease_id.is_none() {
                     // Fall through to local enqueue only.
                 } else {
@@ -615,8 +644,14 @@ impl Orchestrator {
                         context_envelope_json: context_envelope_json.clone(),
                         harness_spec_json: held_harness_spec_json,
                     };
+                    let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                        &base,
+                        std::time::Duration::from_millis(timeout_ms.max(1000)),
+                    )
+                    .with_env_deliver_token();
+
                     if let Err(err) = crate::a2a::relay_remote_task_envelope(
-                        &client,
+                        &relay_client,
                         crate::types::AgentId(send_id),
                         crate::types::AgentId(recv_id),
                         &envelope,
@@ -624,7 +659,7 @@ impl Orchestrator {
                     .await
                     {
                         if let Some(active_lease_id) = lease_id.clone() {
-                            let _ = client
+                            let _ = relay_client
                                 .exec_lease_release(
                                     &vox_populi::transport::RemoteExecLeaseReleaseRequest {
                                         lease_id: active_lease_id,

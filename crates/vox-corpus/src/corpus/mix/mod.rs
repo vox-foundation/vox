@@ -287,8 +287,9 @@ pub fn normalize_training_jsonl_line(
             serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
         }
         Some("workflow_trace") => {
-            let rec: crate::tool_workflow_corpus::WorkflowTraceRecord = serde_json::from_str(trimmed)
-                .map_err(|e| format!("workflow_trace: invalid json: {e}"))?;
+            let rec: crate::tool_workflow_corpus::WorkflowTraceRecord =
+                serde_json::from_str(trimmed)
+                    .map_err(|e| format!("workflow_trace: invalid json: {e}"))?;
             let prompt = format!(
                 "[vox_workflow_supervision]\nIntent: {}\n\nExecution Log Excerpt:\n{}\n\nEmit a JSON object with routing_efficiency (0.0-1.0).\n",
                 rec.intent.trim(),
@@ -299,7 +300,10 @@ pub fn normalize_training_jsonl_line(
             let response = serde_json::json!({
                 "routing_efficiency": rec.routing_efficiency.unwrap_or(1.0),
             });
-            row.insert("response".to_string(), serde_json::Value::String(response.to_string()));
+            row.insert(
+                "response".to_string(),
+                serde_json::Value::String(response.to_string()),
+            );
             row.insert(
                 "category".to_string(),
                 serde_json::Value::String("workflow_trace".into()),
@@ -423,8 +427,14 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
                 if let Some(resp) = resp_val.and_then(|v| v.as_str()) {
                     let mut msgs = msgs.clone();
                     let mut turn = serde_json::Map::new();
-                    turn.insert("role".to_string(), serde_json::Value::String("assistant".into()));
-                    turn.insert("content".to_string(), serde_json::Value::String(resp.into()));
+                    turn.insert(
+                        "role".to_string(),
+                        serde_json::Value::String("assistant".into()),
+                    );
+                    turn.insert(
+                        "content".to_string(),
+                        serde_json::Value::String(resp.into()),
+                    );
                     msgs.push(serde_json::Value::Object(turn));
                     obj.insert("messages".to_string(), serde_json::Value::Array(msgs));
                 } else {
@@ -435,7 +445,11 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
             return Err("messages array is empty".into());
         }
     } else {
-        let has_resp = obj.get("response").or_else(|| obj.get("output")).and_then(|v| v.as_str()).is_some();
+        let has_resp = obj
+            .get("response")
+            .or_else(|| obj.get("output"))
+            .and_then(|v| v.as_str())
+            .is_some();
         if !has_resp {
             return Err("neither messages nor response/output field present".into());
         }
@@ -458,20 +472,31 @@ fn calculate_file_fingerprint(p: &Path) -> String {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let size = meta.len();
-    format!("{:x}", xxh3_64(format!("{}:{mtime}:{size}", p.display()).as_bytes()))
+    format!(
+        "{:x}",
+        xxh3_64(format!("{}:{mtime}:{size}", p.display()).as_bytes())
+    )
 }
 
 /// Calculate a composite fingerprint for the mix configuration variables.
 fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
     let mut s = String::new();
     s.push_str(&cfg.output);
-    for lane in &cfg.include_lanes { s.push_str(lane); }
-    for lane in &cfg.exclude_lanes { s.push_str(lane); }
+    for lane in &cfg.include_lanes {
+        s.push_str(lane);
+    }
+    for lane in &cfg.exclude_lanes {
+        s.push_str(lane);
+    }
     for src in &cfg.sources {
         s.push_str(&src.path);
         s.push_str(&src.weight.to_string());
-        if let Some(f) = &src.record_format { s.push_str(f); }
-        if let Some(sr) = &src.sample_rate { s.push_str(&sr.to_string()); }
+        if let Some(f) = &src.record_format {
+            s.push_str(f);
+        }
+        if let Some(sr) = &src.sample_rate {
+            s.push_str(&sr.to_string());
+        }
         s.push_str(&src.optional.to_string());
     }
     format!("{:x}", xxh3_64(s.as_bytes()))
@@ -499,14 +524,14 @@ pub fn run_mix_with_options(
     });
     let cwd = base_buf.as_path();
     let out_path = cwd.join(&cfg.output);
-    
+
     let MixRunOptions {
         strict,
         write_report,
     } = options;
 
     let config_fp = calculate_config_fingerprint(&cfg);
-    
+
     // Incremental skip check
     if write_report {
         let report_name = out_path
@@ -527,7 +552,10 @@ pub fn run_mix_with_options(
                             }
                         }
                         if all_match {
-                            tracing::info!("  [mix] Incremental skip: {} is fresh", out_path.display());
+                            tracing::info!(
+                                "  [mix] Incremental skip: {} is fresh",
+                                out_path.display()
+                            );
                             return Ok(());
                         }
                     }
@@ -547,18 +575,20 @@ pub fn run_mix_with_options(
         cfg.include_lanes.iter().cloned().collect()
     });
     let exclude_lanes: Arc<HashSet<String>> = Arc::new(cfg.exclude_lanes.iter().cloned().collect());
-    let lane_counts = Arc::new(Mutex::new(std::collections::BTreeMap::<String, usize>::new()));
+    let lane_counts = Arc::new(Mutex::new(
+        std::collections::BTreeMap::<String, usize>::new(),
+    ));
 
     let out_file = File::create(&out_path)
         .with_context(|| format!("create mix output {}", out_path.display()))?;
     let out_file = Arc::new(Mutex::new(std::io::BufWriter::new(out_file)));
-    
+
     let mut report_rows: Vec<MixSourceReportRow> = Vec::with_capacity(cfg.sources.len());
 
     for src in &cfg.sources {
         let p = cwd.join(&src.path);
         let src_fp = calculate_file_fingerprint(&p);
-        
+
         if !p.is_file() || src.weight <= 0.0 {
             let mut row = MixSourceReportRow {
                 path: src.path.clone(),
@@ -593,18 +623,18 @@ pub fn run_mix_with_options(
 
         let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
         let sample_rate = src.sample_rate.unwrap_or(1.0).clamp(0.0, 1.0);
-        
+
         // Use a persistent reader for the source
         let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
         let reader = BufReader::new(file);
-        
+
         let mut emitted_this_src = 0usize;
         let mut input_lines_count = 0usize;
 
         // Process in chunks to balance parallelism vs memory
         let chunk_size = 10_000;
         let mut lines_iter = reader.lines();
-        
+
         loop {
             let mut chunk = Vec::with_capacity(chunk_size);
             for _ in 0..chunk_size {
@@ -614,50 +644,60 @@ pub fn run_mix_with_options(
                     break;
                 }
             }
-            if chunk.is_empty() { break; }
-            
+            if chunk.is_empty() {
+                break;
+            }
+
             input_lines_count += chunk.len();
-            
+
             // Parallel normalization and filtering
             let record_format = src.record_format.clone();
             let include_lanes = Arc::clone(&include_lanes);
             let exclude_lanes = Arc::clone(&exclude_lanes);
             let lane_counts = Arc::clone(&lane_counts);
-            
-            let processed_chunk: Vec<String> = chunk.into_par_iter().filter_map(|line| {
-                let trimmed = line.trim();
-                if trimmed.is_empty() { return None; }
-                
-                // Sampling logic
-                if sample_rate < 1.0 {
-                    let mut rng = rand::thread_rng();
-                    use rand::Rng;
-                    if !rng.gen_bool(sample_rate) { return None; }
-                }
 
-                let normalized = match normalize_training_jsonl_line(trimmed, record_format.as_deref()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        eprintln!("  [mix] skip line error: {e}");
+            let processed_chunk: Vec<String> = chunk
+                .into_par_iter()
+                .filter_map(|line| {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
                         return None;
                     }
-                };
-                let (normalized, lane) = match enrich_lane_metadata(&normalized) {
-                    Ok(pair) => pair,
-                    Err(e) => {
-                        eprintln!("  [mix] skip line meta error: {e}");
+
+                    // Sampling logic
+                    if sample_rate < 1.0 {
+                        let mut rng = rand::thread_rng();
+                        use rand::Rng;
+                        if !rng.gen_bool(sample_rate) {
+                            return None;
+                        }
+                    }
+
+                    let normalized =
+                        match normalize_training_jsonl_line(trimmed, record_format.as_deref()) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("  [mix] skip line error: {e}");
+                                return None;
+                            }
+                        };
+                    let (normalized, lane) = match enrich_lane_metadata(&normalized) {
+                        Ok(pair) => pair,
+                        Err(e) => {
+                            eprintln!("  [mix] skip line meta error: {e}");
+                            return None;
+                        }
+                    };
+                    if !include_lanes.contains(&lane) || exclude_lanes.contains(&lane) {
                         return None;
                     }
-                };
-                if !include_lanes.contains(&lane) || exclude_lanes.contains(&lane) {
-                    return None;
-                }
-                
-                let mut counts = lane_counts.lock().unwrap();
-                *counts.entry(lane).or_insert(0) += 1;
-                
-                Some(normalized)
-            }).collect();
+
+                    let mut counts = lane_counts.lock().unwrap();
+                    *counts.entry(lane).or_insert(0) += 1;
+
+                    Some(normalized)
+                })
+                .collect();
 
             if !processed_chunk.is_empty() {
                 let mut out = out_file.lock().unwrap();
@@ -703,7 +743,10 @@ pub fn run_mix_with_options(
             anyhow::bail!("[mix] strict: mixed output would be empty (check sources and weights)");
         }
         for row in &report_rows {
-            if row.optional || row.skipped_reason.as_deref() == Some("weight_zero") || row.skipped_reason.as_deref() == Some("missing_file_optional") {
+            if row.optional
+                || row.skipped_reason.as_deref() == Some("weight_zero")
+                || row.skipped_reason.as_deref() == Some("missing_file_optional")
+            {
                 continue;
             }
             if row.emitted_lines == 0 {

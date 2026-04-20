@@ -19,6 +19,13 @@ unsafe_code = "warn"
 [workspace.lints.clippy]
 all = "warn"
 
+[profile.dev]
+incremental = true
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+opt-level = 1
+
 [workspace.dependencies]
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
@@ -30,7 +37,6 @@ vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
 vox-browser               = { path = "crates/vox-browser" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
-vox-dei                   = { path = "crates/vox-dei" }
 vox-container             = { path = "crates/vox-container" }
 vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
 vox-install-policy        = { path = "crates/vox-install-policy" }
@@ -43,7 +49,6 @@ vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
 vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
-vox-bootstrap             = { path = "crates/vox-bootstrap" }
 vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
@@ -66,6 +71,7 @@ vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-mens                  = { path = "crates/vox-mens" }
+vox-mesh-types            = { path = "crates/vox-mesh-types" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
@@ -73,6 +79,7 @@ vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
+vox-cli-core              = { path = "crates/vox-cli-core" }
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
@@ -99,7 +106,7 @@ serde_yaml         = "0.9"
 toml               = "0.8"
 miette             = { version = "7.6", features = ["fancy"] }
 aho-corasick       = "1"
-tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread"] }
+tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread", "signal"] }
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
@@ -171,7 +178,6 @@ axum               = { version = "0.8", default-features = false }
 axum-extra         = "0.12.5"
 tower-http         = "0.6.2"
 subtle             = "2.6"
-ctrlc              = "3.4"
 futures            = "0.3"
 chacha20poly1305   = "0.10"
 aead               = { version = "0.5", features = ["std"] }
@@ -204,6 +210,7 @@ similar            = "2"
 globset            = "0.4"
 which              = "7"
 wgpu               = "26"
+ctrlc              = "3.4"
 
 
 [patch.crates-io]

@@ -496,7 +496,7 @@ mod tests {
         let json = r#"{"category":"import","difficulty":1,"instruction":"Write Vox code demonstrating example","lane":"vox_codegen","origin":"human","output":"// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.\n\nimport std.mobile\n\ncomponent App() {\n    view:\n        <button onclick={fn() {\n            mobile.notify(\"Hello\", \"From Vox!\")\n        }}>\"Notify Me\"</button>\n}\n","prompt":"Write Vox code demonstrating example","rating":5,"response":"// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.\n\nimport std.mobile\n\ncomponent App() {\n    view:\n        <button onclick={fn() {\n            mobile.notify(\"Hello\", \"From Vox!\")\n        }}>\"Notify Me\"</button>\n}\n","response_mode":"code_only","schema_version":"vox_dogfood_v1","source":"examples\\golden\\mobile_test.vox","task_family":"vox_codegen"}"#;
         let parsed: Result<TrainingPair, _> = serde_json::from_str(json);
         match parsed {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => panic!("Parse error on real data: {}", e),
         }
     }

@@ -59,7 +59,10 @@ mod tests {
         let mut out = item;
         vox_publisher::switching::apply_channel_allowlist(&mut out, allowed.as_slice());
         assert!(!out.syndication.rss);
-        assert!(out.syndication.is_active(vox_publisher::types::SocialChannel::Twitter));
+        assert!(
+            out.syndication
+                .is_active(vox_publisher::types::SocialChannel::Twitter)
+        );
     }
 
     #[test]
@@ -90,7 +93,11 @@ mod tests {
         };
         let item = publication_item_from_manifest(&row).expect("item");
         assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
-        assert!(!item.syndication.is_active(vox_publisher::types::SocialChannel::Twitter));
+        assert!(
+            !item
+                .syndication
+                .is_active(vox_publisher::types::SocialChannel::Twitter)
+        );
     }
 
     #[test]

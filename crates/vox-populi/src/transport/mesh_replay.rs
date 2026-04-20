@@ -88,7 +88,9 @@ pub(super) fn mesh_replay_persist_path(a2a_store: Option<&PathBuf>) -> Option<Pa
     {
         return None;
     }
-    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayStatePath).expose() {
+    if let Some(v) =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayStatePath).expose()
+    {
         let t = v.trim();
         if !t.is_empty() {
             return Some(PathBuf::from(t.to_string()));

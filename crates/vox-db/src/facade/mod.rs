@@ -7,3 +7,4 @@ pub mod schema;
 pub mod scientia;
 pub mod workflow;
 pub mod writer_raw;
+pub mod vox_mesh;

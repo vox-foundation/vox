@@ -34,11 +34,13 @@ pub mod grammar_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
+pub mod llm_bridge;
 /// Unified News Publishing System tools
 pub mod news_tools;
 /// OpenClaw native gateway and skill tools.
 pub mod openclaw_tools;
 /// Oratio speech-to-text (Candle Whisper).
+#[cfg(feature = "oratio-rerank")]
 pub mod oratio_tools;
 /// Orchestrator persistence outbox inspection helpers.
 pub mod persistence_tools;
@@ -46,10 +48,10 @@ pub mod persistence_tools;
 pub mod populi_tools;
 /// `vox init` parity scaffold (`vox_project_init`).
 pub mod project_init_tools;
-/// Multi-modal Visual Retrieval-Augmented Generation RAG handler.
-pub mod rag_tools;
 /// Socrates questioning / clarification answer persistence (`VoxDb`).
 pub mod questioning_tools;
+/// Multi-modal Visual Retrieval-Augmented Generation RAG handler.
+pub mod rag_tools;
 pub mod registry;
 /// Explicit repo catalog + read-only polyrepo query tools.
 pub mod repo_catalog_tools;
@@ -60,25 +62,25 @@ pub mod scientia_tools;
 pub mod scope_guard;
 pub mod session_identity;
 /// Speech → codegen orchestration (`vox_speech_to_code`).
+#[cfg(feature = "oratio-rerank")]
 pub mod speech_pipeline_tools;
+pub mod sync_poison;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
 pub(crate) mod text_normalization;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
 pub mod toestub_tools;
 pub mod tool_aliases;
-/// Trust rollup inspection tools (`trust_rollups` over VoxDb).
-pub mod trust_tools;
-pub mod sync_poison;
-pub mod llm_bridge;
-/// Workspace-relative path resolution (repo root joining, in-repo canonical checks).
-pub(crate) mod workspace_path;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
 pub mod training_tools;
+/// Trust rollup inspection tools (`trust_rollups` over VoxDb).
+pub mod trust_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
 /// GUI Visual Intelligence tools.
 pub mod visus_tools;
+/// Workspace-relative path resolution (repo root joining, in-repo canonical checks).
+pub(crate) mod workspace_path;
 
 pub mod a2a_tools;
 pub use a2a_tools as a2a;
@@ -114,10 +116,10 @@ pub use vox_mcp_registry::TOOL_REGISTRY;
 pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
-pub mod server;
 pub mod lifecycle;
+pub mod server;
 
-pub use server::VoxMcpServer;
-pub use server_state::{ServerState, CachedCatalog};
-pub use lifecycle::{run_stdio_server_blocking, load_config, mcp_agent_fleet_env_enabled};
+pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};
 pub use params::ToolResult;
+pub use server::VoxMcpServer;
+pub use server_state::{CachedCatalog, ServerState};

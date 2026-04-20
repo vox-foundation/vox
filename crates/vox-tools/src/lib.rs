@@ -177,6 +177,7 @@ impl DirectToolExecutor {
                     &session.text,
                     session.confidence,
                     &rtc,
+                    &vox_oratio::routing::IdeContext::default(),
                 );
                 if let Some(out_path) = args.get("emit_asr_refine_path").and_then(|v| v.as_str()) {
                     let out = self.resolve_path(out_path);

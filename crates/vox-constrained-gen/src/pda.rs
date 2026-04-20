@@ -202,12 +202,7 @@ impl TokenCache {
         }
     }
 
-    fn compute_nt_validity(
-        &self,
-        top: &StackEntry,
-        token_text: &str,
-        grammar: &Grammar,
-    ) -> bool {
+    fn compute_nt_validity(&self, top: &StackEntry, token_text: &str, grammar: &Grammar) -> bool {
         // For NT entries, we fall through to the full PDA simulation.
         // Returning true here means "don't mask via cache — let full PDA decide".
         let _ = (
@@ -230,7 +225,8 @@ pub struct PdaSampler {
 impl PdaSampler {
     /// Build from an explicit EBNF string.
     pub fn from_ebnf(ebnf: &str) -> Result<Self> {
-        let grammar = Grammar::from_ebnf(ebnf).map_err(|e| ConstrainedGenError::GrammarError { reason: e })?;
+        let grammar = Grammar::from_ebnf(ebnf)
+            .map_err(|e| ConstrainedGenError::GrammarError { reason: e })?;
         debug!(
             productions = grammar.productions.len(),
             start = %grammar.start,

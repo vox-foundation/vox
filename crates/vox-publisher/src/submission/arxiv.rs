@@ -1,9 +1,9 @@
-use std::fs;
-use std::path::Path;
+use super::StagingExportError;
+use crate::publication::PublicationManifest;
 use flate2::Compression;
 use flate2::write::GzEncoder;
-use crate::publication::PublicationManifest;
-use super::StagingExportError;
+use std::fs;
+use std::path::Path;
 
 #[must_use]
 pub fn arxiv_operator_handoff_value(manifest: &PublicationManifest) -> serde_json::Value {
@@ -62,7 +62,10 @@ fn latex_escape_minimal(s: &str) -> String {
     out
 }
 
-pub fn pack_arxiv_staging_tar_gz(staging_dir: &Path, dest: &Path) -> Result<(), StagingExportError> {
+pub fn pack_arxiv_staging_tar_gz(
+    staging_dir: &Path,
+    dest: &Path,
+) -> Result<(), StagingExportError> {
     let _ = fs::remove_file(dest);
     let out = fs::File::create(dest)?;
     let enc = GzEncoder::new(out, Compression::default());

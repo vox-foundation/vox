@@ -6,8 +6,6 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-
-
 use vox_compiler::ast::decl::{Decl, ThemeDecl};
 use vox_compiler::ast::span::Span;
 use vox_compiler::codegen_ts::hir_emit::emit_hir_expr;
@@ -212,8 +210,6 @@ fn web_ir_validate_duplicate_route_contract_id() {
     );
 }
 
-
-
 /// Nested `routes { }`, loaders, pending, and block-level `not_found` / `error` surface in `routes.manifest.ts`.
 #[test]
 fn codegen_nested_route_manifest_includes_children_loader_pending_and_boundary_exports() {
@@ -305,8 +301,6 @@ fn emitter_source_orders_validate_gate_before_route_manifest() {
         "validate gate must precede route manifest emit (validate={validate}, route_manifest={route_manifest})"
     );
 }
-
-
 
 /// WS08 / T074–T075: legacy TanStack router + `createServerFn` bundles must never ship from codegen.
 #[test]

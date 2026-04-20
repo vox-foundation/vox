@@ -181,12 +181,7 @@ mod tests {
     #[test]
     fn detects_victory_comment() {
         let d = VictoryClaimDetector::new();
-        let snippet = concat!(
-            "// ",
-            "D",
-            "one!",
-            " Implementation complete\nfn foo() {}"
-        );
+        let snippet = concat!("// ", "D", "one!", " Implementation complete\nfn foo() {}");
         let f = source("rs", &snippet);
         let findings = d.detect(&f, None);
         assert!(

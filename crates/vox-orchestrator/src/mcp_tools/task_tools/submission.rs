@@ -1,7 +1,7 @@
 use super::*;
-use crate::{TaskCategory, TaskEnqueueHints, TaskPriority};
 use crate::mcp_tools::params::{SubmitTaskParams, SubmitTaskResponse, ToolResult};
 use crate::mcp_tools::session_identity::normalize_optional_session_id;
+use crate::{TaskCategory, TaskEnqueueHints, TaskPriority};
 
 pub(super) const REM_CONTEXT_ENVELOPE_JSON: &str =
     "Pass valid serialized ContextEnvelope JSON, or omit `context_envelope_json`.";
@@ -35,10 +35,7 @@ pub fn task_category_from_mcp_str(raw: &str) -> Option<TaskCategory> {
 
 pub fn parse_campaign_from_description(
     description: &str,
-) -> (
-    Option<String>,
-    Option<crate::ReconstructionBenchmarkTier>,
-) {
+) -> (Option<String>, Option<crate::ReconstructionBenchmarkTier>) {
     let mut campaign_id = None;
     let mut tier = None;
     for token in description.split_whitespace() {
@@ -62,9 +59,7 @@ pub fn parse_campaign_from_description(
             }
             tier = match v.trim() {
                 "issue_repair" => Some(crate::ReconstructionBenchmarkTier::IssueRepair),
-                "subsystem_regen" => {
-                    Some(crate::ReconstructionBenchmarkTier::SubsystemRegen)
-                }
+                "subsystem_regen" => Some(crate::ReconstructionBenchmarkTier::SubsystemRegen),
                 "crate_regen" => Some(crate::ReconstructionBenchmarkTier::CrateRegen),
                 "repo_regen" => Some(crate::ReconstructionBenchmarkTier::RepoRegen),
                 other => {
@@ -211,7 +206,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             "session_id omitted; submitting with unscoped session context"
         );
     }
-    
+
     // Session-scoped envelopes are attached inside `submit_task_with_agent`. MCP only overrides
     // when the client passes an explicit `retrieval` payload (may differ from the store).
     let explicit_retrieval = params.retrieval.as_ref();
@@ -272,9 +267,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                     thread_id: expected_thread_id,
                 };
                 crate::apply_harness_subject_defaults(&mut harness, expectations);
-                if let Err(errs) =
-                    crate::validate_agent_harness_ingest(&harness, expectations)
-                {
+                if let Err(errs) = crate::validate_agent_harness_ingest(&harness, expectations) {
                     return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                         format!("invalid harness_spec_json: {}", errs.join("; ")),
                         REM_HARNESS_SPEC_JSON,
@@ -315,11 +308,13 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
 
     // Phase 7.3: Scope enforcement
     if let Some(agent_name) = &params.agent_name {
-        if let Some(scopes) = vox_repository::load_agent_scopes(&state.repository.root, agent_name) {
+        if let Some(scopes) = vox_repository::load_agent_scopes(&state.repository.root, agent_name)
+        {
             if !scopes.is_empty() && !scopes.iter().any(|s| s == "**" || s == "**/*") {
                 for f in &params.files {
                     let mut ok = false;
-                    let path_str = vox_repository::normalize_task_path(&state.repository.root, &f.path);
+                    let path_str =
+                        vox_repository::normalize_task_path(&state.repository.root, &f.path);
                     for s in &scopes {
                         if s.ends_with("/**") {
                             let prefix = s.trim_end_matches("/**");
@@ -347,9 +342,11 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         }
     }
 
-    let bypass_questioning_gate = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSubmitTaskBypassQuestioningGate).expose()
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
+    let bypass_questioning_gate =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSubmitTaskBypassQuestioningGate)
+            .expose()
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
     if !bypass_questioning_gate {
         if let (Some(db), Some(sid)) = (&state.db, normalized_session_id.as_deref()) {
             match db
@@ -377,10 +374,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             g.attention_snapshot()
         };
         if let crate::GateResult::AttentionExhausted { message, .. } =
-            crate::BudgetGate::check_attention_snapshot(
-                &att_snap,
-                &state.orchestrator_config,
-            )
+            crate::BudgetGate::check_attention_snapshot(&att_snap, &state.orchestrator_config)
         {
             return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                 message,
@@ -399,8 +393,14 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             Some("background") => TaskPriority::Background,
             _ => TaskPriority::Normal,
         };
-        let backlog = crate::mcp_tools::attention_policy::pending_backlog_for_session(state, normalized_session_id.as_deref());
-        let trust = crate::mcp_tools::attention_policy::trust_for_session(state, normalized_session_id.as_deref());
+        let backlog = crate::mcp_tools::attention_policy::pending_backlog_for_session(
+            state,
+            normalized_session_id.as_deref(),
+        );
+        let trust = crate::mcp_tools::attention_policy::trust_for_session(
+            state,
+            normalized_session_id.as_deref(),
+        );
         let signals = crate::mcp_tools::attention_policy::task_submit_signals(
             &params.description,
             write_file_count,
@@ -409,12 +409,13 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             trust,
             state.orchestrator_config.attention_interrupt_cost_ms,
         );
-        let decision = crate::mcp_tools::attention_policy::evaluate_with_state(state, &signals, &att_snap);
+        let decision =
+            crate::mcp_tools::attention_policy::evaluate_with_state(state, &signals, &att_snap);
         match decision {
-            crate::InterruptionDecision::RequireHumanBeforeContinue {
-                reason, ..
-            } => {
-                if !crate::mcp_tools::attention_policy::has_explicit_human_confirmation(&params.description) {
+            crate::InterruptionDecision::RequireHumanBeforeContinue { reason, .. } => {
+                if !crate::mcp_tools::attention_policy::has_explicit_human_confirmation(
+                    &params.description,
+                ) {
                     return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                         format!(
                             "Task submit requires explicit human confirmation: {reason}. Add one of [approval:confirm], [approval:reviewed], [human-approved] to the description once reviewed."
@@ -519,9 +520,10 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             (c.text, Some((true, warnings, Some(c.original_hash))))
         }
         Err(e) => {
-            orch.event_bus().emit(crate::AgentEventKind::InjectionDetected {
-                detail: e.to_string(),
-            });
+            orch.event_bus()
+                .emit(crate::AgentEventKind::InjectionDetected {
+                    detail: e.to_string(),
+                });
             return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                 format!("Prompt safety: {e}"),
                 REM_PROMPT_SAFETY,
@@ -551,11 +553,10 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 params.trace_id.as_deref(),
                 params.correlation_id.as_deref(),
             );
-            let ingest_expectations =
-                crate::context_lifecycle::ContextIngestExpectations {
-                    repository_id: repo_id,
-                    session_id: Some(sid),
-                };
+            let ingest_expectations = crate::context_lifecycle::ContextIngestExpectations {
+                repository_id: repo_id,
+                session_id: Some(sid),
+            };
             if let Err(e) = crate::context_lifecycle::apply_context_lifecycle_policy(
                 &state.orchestrator_config,
                 &base,
@@ -570,18 +571,19 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             }
             let context_key = crate::session_context_envelope_key(sid);
             let ctx_handle = orch.context_handle();
-            let existing_json =
-                match crate::mcp_tools::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context")
-                {
-                    Ok(g) => g.get(&context_key),
-                    Err(e) => {
-                        tracing::warn!(
-                            error = %e,
-                            "submit_task: could not read context store for merge; treating as empty"
-                        );
-                        None
-                    }
-                };
+            let existing_json = match crate::mcp_tools::sync_poison::poison_rw_read(
+                ctx_handle.read(),
+                "orchestrator context",
+            ) {
+                Ok(g) => g.get(&context_key),
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "submit_task: could not read context store for merge; treating as empty"
+                    );
+                    None
+                }
+            };
             let mut merged =
                 match crate::context_lifecycle::merge_context_envelope_for_session_store(
                     existing_json.as_deref(),
@@ -597,9 +599,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         .to_json();
                     }
                 };
-            crate::context_lifecycle::clamp_context_envelope_injection_budget(
-                &mut merged,
-            );
+            crate::context_lifecycle::clamp_context_envelope_injection_budget(&mut merged);
             if let Err(e) = crate::context_lifecycle::apply_context_lifecycle_policy(
                 &state.orchestrator_config,
                 &merged,
@@ -634,7 +634,8 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         .map_err(|e| e.to_string())
     } else {
         state
-            .orchestrator.submit_task_with_agent(
+            .orchestrator
+            .submit_task_with_agent(
                 description.clone(),
                 manifest,
                 priority,
@@ -671,9 +672,8 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                     );
                 }
             } else if let Some((context_envelope, _)) = &explicit_context_envelope
-                && let Some(env) = crate::SessionRetrievalEnvelope::from_context_envelope(
-                    context_envelope,
-                )
+                && let Some(env) =
+                    crate::SessionRetrievalEnvelope::from_context_envelope(context_envelope)
             {
                 let soc = env.to_task_context();
                 if let Err(e) = orch.attach_socrates_context(task_id, soc) {

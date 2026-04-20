@@ -1,6 +1,6 @@
 use std::fmt;
 
-use vox_crypto::{generate_signing_keypair, sign, SigningKey, VerifyingKey, secure_hash};
+use vox_crypto::{SigningKey, VerifyingKey, generate_signing_keypair, secure_hash, sign};
 
 pub struct NodeIdentity {
     node_id: String,
@@ -45,7 +45,7 @@ impl NodeIdentity {
     pub fn node_id(&self) -> &str {
         &self.node_id
     }
-    
+
     pub fn signing_key(&self) -> &SigningKey {
         &self.signing_key
     }

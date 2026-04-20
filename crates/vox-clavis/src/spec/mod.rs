@@ -1,4 +1,3 @@
-
 mod types;
 pub use types::*;
 mod ids;
@@ -176,7 +175,9 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::VoxMeshSubmitterToken
         | SecretId::VoxMeshAdminToken
         | SecretId::VoxMeshJwtHmacSecret
-        | SecretId::VoxMeshWorkerResultVerifyKey => &[Capability::Mesh],
+        | SecretId::VoxMeshWorkerResultVerifyKey
+        | SecretId::VoxMeshFederationSigningKey
+        | SecretId::VoxRoutingPreferMesh => &[Capability::Mesh],
         SecretId::VoxApiKey | SecretId::VoxBearerToken => &[Capability::RuntimeIngress],
         SecretId::V0ApiKey
         | SecretId::OpenClawToken
@@ -200,7 +201,10 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::VoxSocialBlueskyPdsUrl
         | SecretId::VoxNewsOpenCollectiveSlug
         | SecretId::VoxSocialDiscordWebhook
-        | SecretId::VoxOpenRouterClassifierEnabled => &[Capability::ScientiaSyndication, Capability::AutonomousResearch],
+        | SecretId::VoxOpenRouterClassifierEnabled => &[
+            Capability::ScientiaSyndication,
+            Capability::AutonomousResearch,
+        ],
         SecretId::VoxZenodoAccessToken
         | SecretId::VoxOpenReviewEmail
         | SecretId::VoxOpenReviewAccessToken

@@ -117,12 +117,14 @@ pub fn load_effective() -> VoxConfig {
         c.gamify_enabled = false;
         return c;
     }
-    let session_enabled_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionEnabled);
+    let session_enabled_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionEnabled);
     if let Some(v) = session_enabled_resolved.expose() {
         let low = v.to_lowercase();
         c.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
     }
-    let session_mode_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionMode);
+    let session_mode_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionMode);
     if let Some(v) = session_mode_resolved.expose() {
         match v.to_lowercase().as_str() {
             "serious" => c.gamify_mode = GamifyMode::Serious,

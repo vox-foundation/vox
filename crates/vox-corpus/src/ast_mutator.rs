@@ -1,7 +1,7 @@
-use vox_compiler::ast::decl::Module;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use std::io::Write;
+use vox_compiler::ast::decl::Module;
 
 #[derive(Debug, Clone)]
 pub struct Mutation {
@@ -11,16 +11,17 @@ pub struct Mutation {
 }
 
 const MUTATION_NAMES: &[&str] = &[
-    "delta", "epsilon", "omega", "flux", "core", "node", "shard", "pulse",
-    "buffer", "cache", "stream", "handler", "proxy", "bridge", "nexus", "vertex",
+    "delta", "epsilon", "omega", "flux", "core", "node", "shard", "pulse", "buffer", "cache",
+    "stream", "handler", "proxy", "bridge", "nexus", "vertex",
 ];
 
 pub fn generate_mutations(source: &str, _module: &Module) -> Vec<Mutation> {
     let mut rng = rand::thread_rng();
     let mut mutations = Vec::new();
-    
+
     // Identifier renaming (greedy camelCase or PascalCase)
-    let id_re = regex::Regex::new(r"\b([a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*|[A-Z][a-zA-Z0-9]+)\b").unwrap();
+    let id_re =
+        regex::Regex::new(r"\b([a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*|[A-Z][a-zA-Z0-9]+)\b").unwrap();
     for cap in id_re.captures_iter(source) {
         if rng.gen_bool(0.2) {
             if let Some(m) = cap.get(1) {
@@ -50,7 +51,7 @@ pub fn generate_mutations(source: &str, _module: &Module) -> Vec<Mutation> {
             }
         }
     }
-    
+
     mutations
 }
 
@@ -58,7 +59,7 @@ pub fn apply_mutations(source: &str, mut mutations: Vec<Mutation>) -> String {
     mutations.sort_by_key(|m| m.start);
     let mut result = String::with_capacity(source.len());
     let mut last_end = 0;
-    
+
     for m in mutations {
         if m.start >= last_end && m.end <= source.len() {
             result.push_str(&source[last_end..m.start]);
@@ -70,13 +71,18 @@ pub fn apply_mutations(source: &str, mut mutations: Vec<Mutation>) -> String {
     result
 }
 
-pub fn mutate_corpus(input_path: &std::path::Path, out: &mut impl Write, factor: usize) -> anyhow::Result<usize> {
+pub fn mutate_corpus(
+    input_path: &std::path::Path,
+    out: &mut impl Write,
+    factor: usize,
+) -> anyhow::Result<usize> {
     use std::io::BufRead;
     let file = std::fs::File::open(input_path)?;
     let reader = std::io::BufReader::new(file);
     let mut actual = 0;
 
-    let dummy_result = vox_compiler::pipeline::run_frontend_str("", "<mutant>").map_err(|e| anyhow::anyhow!("Pipeline failure: {:?}", e))?;
+    let dummy_result = vox_compiler::pipeline::run_frontend_str("", "<mutant>")
+        .map_err(|e| anyhow::anyhow!("Pipeline failure: {:?}", e))?;
     let dummy_module = dummy_result.module;
 
     for line in reader.lines() {

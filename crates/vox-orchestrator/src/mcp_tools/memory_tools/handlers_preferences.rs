@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 const REM_PREF_VOXDB: &str = "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for preference and learner tools.";
 const REM_PREF_KEY: &str =
@@ -79,9 +79,10 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
                             cfg.attention_budget_ms = v;
                         }
                         let bm = state.orchestrator.budget_manager_handle();
-                        if let Ok(g) =
-                            crate::mcp_tools::sync_poison::poison_rw_write(bm.write(), "budget manager")
-                        {
+                        if let Ok(g) = crate::mcp_tools::sync_poison::poison_rw_write(
+                            bm.write(),
+                            "budget manager",
+                        ) {
                             g.init_attention(v);
                         }
                     }
@@ -286,4 +287,3 @@ pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams)
         },
     }
 }
-

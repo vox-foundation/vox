@@ -15,11 +15,11 @@
     title: str
 }
 
-@query fn list_posts() -> List[Post] {
+@query fn list_posts() to List[Post] {
     return db.Post.all()
 }
 
-@mutation fn publish_post(title: str) -> Result[Id[Post]] {
+@mutation fn publish_post(title: str) to Result[Id[Post]] {
     let id = db.Post.insert({ title: title })?
     return Ok(id)
 }

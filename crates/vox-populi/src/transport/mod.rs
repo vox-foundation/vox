@@ -76,6 +76,15 @@ pub struct A2ADeliverRequest {
     /// JWE (JSON Web Encryption) block containing forwarded Clavis secrets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jwe_payload: Option<String>,
+    /// Task priority (0=lowest, 255=highest).
+    #[serde(default = "default_priority")]
+    pub priority: u8,
+    /// Task kind for donation policy filtering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_kind: Option<String>,
+    /// Optional target model id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
 }
 
 /// Persisted A2A delivery envelope in the control plane.
@@ -116,7 +125,24 @@ pub struct A2AStoredMessage {
     /// Copied from deliver: JWE block containing forwarded Clavis secrets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jwe_payload: Option<String>,
+    /// Task priority (0=lowest, 255=highest).
+    #[serde(default = "default_priority")]
+    pub priority: u8,
+    /// Task kind for donation policy filtering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_kind: Option<String>,
+    /// Optional target model id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    /// Node id that sent this message (if authenticated via node signature).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_node_id: Option<String>,
 }
+
+fn default_priority() -> u8 {
+    128
+}
+
 
 /// Reply from the control plane after an A2A deliver attempt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,6 +151,13 @@ pub struct A2ADeliverResponse {
     pub accepted: bool,
     /// Assigned [`A2AStoredMessage::id`] when accepted.
     pub message_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MeshQueueStats {
+    pub pending_count: usize,
+    pub pending_by_kind: std::collections::HashMap<String, usize>,
+    pub pending_by_priority: std::collections::HashMap<u8, usize>,
 }
 
 /// Inbox poll: identify the receiving agent.
@@ -301,6 +334,18 @@ pub struct DispatchRequest {
     /// When true, dispatch returns immediately and results are stored in the mesh state (Wave 5).
     #[serde(default)]
     pub is_detached: bool,
+    /// Task priority (0=lowest, 255=highest).
+    #[serde(default = "default_priority")]
+    pub priority: u8,
+    /// Task kind (e.g. "text_infer").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_kind: Option<String>,
+    /// Target model id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    /// Minimum VRAM required in MB.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_vram_mb: Option<u32>,
 }
 
 fn default_dispatch_timeout() -> u64 {
@@ -342,6 +387,18 @@ pub struct BootstrapExchangeResponse {
     pub scope_id: Option<String>,
 }
 
+/// Request to announce a federated mesh network directory entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FederationAnnounceRequest {
+    pub entry: vox_mesh_types::federation::MeshDirectoryEntry,
+}
+
+/// Response containing the known federated mesh directory.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FederationDirectoryResponse {
+    pub entries: Vec<vox_mesh_types::federation::MeshDirectoryEntry>,
+}
+
 /// Shared registry state for the HTTP server (in-memory; optionally persisted by callers).
 #[derive(Clone)]
 pub struct PopuliTransportState {
@@ -354,6 +411,7 @@ pub struct PopuliTransportState {
     pub(crate) mesh_replay: Arc<mesh_replay::MeshReplayState>,
     a2a_store_path: Option<PathBuf>,
     exec_lease_store_path: Option<PathBuf>,
+    pub(crate) federated_meshes: Arc<RwLock<Vec<vox_mesh_types::federation::MeshDirectoryEntry>>>,
     bootstrap_token: Option<Arc<str>>,
     bootstrap_expires_unix_ms: Option<u64>,
     bootstrap_used: Arc<AtomicBool>,
@@ -368,7 +426,17 @@ pub struct PopuliTransportState {
     pub(crate) dispatch_results_store_path: Option<PathBuf>,
     /// Optional callback to verify if a given node_id is trusted.
     #[allow(clippy::type_complexity)]
-    pub node_trust_verifier: Option<Arc<dyn Fn(String) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>> + Send + Sync>>,
+    pub node_trust_verifier: Option<
+        Arc<
+            dyn Fn(String) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
+                + Send
+                + Sync,
+        >,
+    >,
+    /// Optional VoxDb handle for kudos ledger and reputation tracking.
+    pub db: Option<vox_db::VoxDb>,
+    /// Federated mesh networks to announce ourselves to on startup.
+    pub bootstrap_peers: Vec<String>,
 }
 
 impl PopuliTransportState {
@@ -385,6 +453,13 @@ impl PopuliTransportState {
         self
     }
 
+    /// Set the database handle for kudos and reputation.
+    #[must_use]
+    pub fn with_db(mut self, db: Option<vox_db::VoxDb>) -> Self {
+        self.db = db;
+        self
+    }
+
     /// New empty registry and optional required scope (trimmed; empty string becomes `None`).
     #[must_use]
     pub fn with_required_scope(scope: Option<String>) -> Self {
@@ -396,6 +471,7 @@ impl PopuliTransportState {
             inner: Arc::new(RwLock::new(PopuliRegistryFile {
                 schema_version: 1,
                 nodes: Vec::new(),
+                queue_depth: None,
             })),
             a2a_messages: Arc::new(RwLock::new(Vec::new())),
             a2a_id_gen: Arc::new(AtomicU64::new(1)),
@@ -404,6 +480,7 @@ impl PopuliTransportState {
             mesh_replay: mesh_replay::MeshReplayState::in_memory(),
             a2a_store_path: None,
             exec_lease_store_path: None,
+            federated_meshes: Arc::new(RwLock::new(Vec::new())),
             bootstrap_token: None,
             bootstrap_expires_unix_ms: None,
             bootstrap_used: Arc::new(AtomicBool::new(false)),
@@ -414,6 +491,8 @@ impl PopuliTransportState {
             #[cfg(feature = "transport")]
             dispatch_results_store_path: None,
             node_trust_verifier: None,
+            db: None,
+            bootstrap_peers: Vec::new(),
         }
     }
 
@@ -486,6 +565,7 @@ impl PopuliTransportState {
             PopuliRegistryFile {
                 schema_version: 1,
                 nodes: Vec::new(),
+                queue_depth: None,
             }
         };
         let store_path = store::a2a_store_path_from_env();
@@ -525,6 +605,7 @@ impl PopuliTransportState {
             mesh_replay: mesh_replay::MeshReplayState::load(replay_path),
             a2a_store_path: store_path,
             exec_lease_store_path,
+            federated_meshes: Arc::new(RwLock::new(Vec::new())),
             bootstrap_token: None,
             bootstrap_expires_unix_ms: None,
             bootstrap_used: Arc::new(AtomicBool::new(false)),
@@ -542,7 +623,118 @@ impl PopuliTransportState {
             #[cfg(feature = "transport")]
             dispatch_results_store_path,
             node_trust_verifier: None,
+            db: None,
+            bootstrap_peers: Vec::new(),
         })
+    }
+
+    /// Spawns a background task that periodically announces this mesh to federated peers.
+    pub fn start_federation_gossip(&self) {
+        let state = self.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+            let env = crate::populi_env();
+            
+            let scope_id = env.scope_id.clone().unwrap_or_else(|| "unknown".to_string());
+            let control_url = env.control_addr.clone().unwrap_or_else(|| "http://127.0.0.1:9847".to_string());
+            let public = env.visibility.as_deref() == Some("public");
+            
+            // Resolve signing key from Clavis
+            let signing_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                .expose()
+                .and_then(|s| {
+                    let bytes = data_encoding::BASE64.decode(s.trim().as_bytes()).ok()?;
+                    if bytes.len() != 32 { return None; }
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&bytes);
+                    Some(vox_crypto::facades::signing_key_from_bytes(&arr))
+                });
+
+            let public_key = signing_key.as_ref().map(|k| vox_crypto::facades::verifying_key_to_bytes(&vox_crypto::facades::to_verifying_key(k)));
+
+            // Derive task kinds from donation policy if present
+            let task_kinds = env.donation_policy.as_ref()
+                .map(|p| p.slots.iter().map(|s| s.task_kind.clone()).collect::<Vec<_>>())
+                .unwrap_or_default();
+
+            tracing::info!(
+                scope_id = %scope_id,
+                control_url = %control_url,
+                bootstrap_peers = state.bootstrap_peers.len(),
+                signed = signing_key.is_some(),
+                "Starting federation gossip loop"
+            );
+
+            loop {
+                interval.tick().await;
+
+                // Simple metric for load: count of pending A2A messages
+                let queue_depth = state.a2a_messages.read().await.len();
+                
+                let mut entry = vox_mesh_types::federation::MeshDirectoryEntry {
+                    scope_id: scope_id.clone(),
+                    control_url: control_url.clone(),
+                    region_label: None, 
+                    task_kinds: task_kinds.clone(),
+                    public,
+                    current_queue_depth: Some(queue_depth),
+                    supported_priorities: None,
+                    signature: None,
+                    public_key,
+                };
+                
+                if let Some(ref key) = signing_key {
+                    let msg = entry.canonical_bytes();
+                    entry.signature = Some(vox_crypto::facades::sign(key, &msg).to_vec());
+                }
+
+                let announce = FederationAnnounceRequest { entry };
+
+                // Collect target peers: bootstrap + already known federated meshes
+                let mut targets = state.bootstrap_peers.clone();
+                {
+                    let federated = state.federated_meshes.read().await;
+                    for peer in federated.iter() {
+                        if !targets.contains(&peer.control_url) {
+                            targets.push(peer.control_url.clone());
+                        }
+                    }
+                }
+
+                for peer_url in targets {
+                    // Don't announce to ourselves
+                    if peer_url == control_url {
+                        continue;
+                    }
+
+                    let client = crate::http_client::PopuliHttpClient::new(&peer_url).with_env_token();
+                    match client.federation_announce(&announce).await {
+                        Ok(resp) => {
+                            // Infectious discovery: merge entries learned from this peer
+                            let mut federated = state.federated_meshes.write().await;
+                            for peer_entry in resp.entries {
+                                // Don't add ourselves or nodes we already know with newer info? 
+                                // For now, simple upsert by scope_id
+                                if peer_entry.scope_id != scope_id {
+                                    if let Some(pos) = federated.iter().position(|e| e.scope_id == peer_entry.scope_id) {
+                                        federated[pos] = peer_entry;
+                                    } else {
+                                        federated.push(peer_entry);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::debug!(
+                                peer_url = %peer_url,
+                                error = %e,
+                                "Failed to announce to federated peer"
+                            );
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 

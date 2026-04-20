@@ -700,7 +700,7 @@ impl crate::VoxDb {
             .conn
             .query(
                 "SELECT event_type, base_xp, base_crystals, mode_label, effective_multiplier,
-                    awarded_xp, awarded_crystals, grind_capped, lumens, created_at
+                    awarded_xp, awarded_crystals, grind_capped, lumens, created_at, metadata
              FROM gamify_policy_snapshots
              WHERE user_id = ?1
              ORDER BY id DESC
@@ -721,6 +721,7 @@ impl crate::VoxDb {
                 grind_capped: row.get(7)?,
                 lumens: row.get(8)?,
                 created_at: row.get(9)?,
+                metadata: row.get(10).unwrap_or(None),
             });
         }
         Ok(out)
@@ -736,7 +737,7 @@ impl crate::VoxDb {
             .conn
             .query(
                 "SELECT event_type, base_xp, base_crystals, mode_label, effective_multiplier,
-                    awarded_xp, awarded_crystals, grind_capped, lumens, created_at
+                    awarded_xp, awarded_crystals, grind_capped, lumens, created_at, metadata
              FROM gamify_policy_snapshots
              WHERE user_id = ?1
                AND datetime(created_at) >= datetime('now', ?2)
@@ -758,6 +759,7 @@ impl crate::VoxDb {
                 grind_capped: row.get(7)?,
                 lumens: row.get(8)?,
                 created_at: row.get(9)?,
+                metadata: row.get(10).unwrap_or(None),
             });
         }
         Ok(out)

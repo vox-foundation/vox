@@ -1,4 +1,4 @@
-﻿use crate::models::{ModelSpec, ProviderType};
+use crate::models::{ModelSpec, ProviderType};
 
 use super::error::HttpInferError;
 
@@ -23,12 +23,18 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         ProviderType::OpenRouter => {
             Ok(vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL.to_string())
         }
-        ProviderType::Groq => Ok(env_or_default(vox_clavis::SecretId::VoxGroqChatCompletionsUrl, GROQ_URL)),
+        ProviderType::Groq => Ok(env_or_default(
+            vox_clavis::SecretId::VoxGroqChatCompletionsUrl,
+            GROQ_URL,
+        )),
         ProviderType::Cerebras => Ok(env_or_default(
             vox_clavis::SecretId::VoxCerebrasChatCompletionsUrl,
             CEREBRAS_URL,
         )),
-        ProviderType::Mistral => Ok(env_or_default(vox_clavis::SecretId::VoxMistralChatCompletionsUrl, MISTRAL_URL)),
+        ProviderType::Mistral => Ok(env_or_default(
+            vox_clavis::SecretId::VoxMistralChatCompletionsUrl,
+            MISTRAL_URL,
+        )),
         ProviderType::DeepSeek => Ok(env_or_default(
             vox_clavis::SecretId::VoxDeepseekChatCompletionsUrl,
             DEEPSEEK_URL,
@@ -39,7 +45,11 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         )),
         ProviderType::Anthropic => Ok(env_or_default(
             vox_clavis::SecretId::VoxAnthropicChatCompletionsUrl,
-            if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect).expose().unwrap_or("") == "1" {
+            if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect)
+                .expose()
+                .unwrap_or("")
+                == "1"
+            {
                 ANTHROPIC_MESSAGES_URL
             } else {
                 ANTHROPIC_PROXY_URL

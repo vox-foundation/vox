@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -448,4 +448,3 @@ pub async fn vox_news_simulate_publish_gate(
     })
     .to_json()
 }
-

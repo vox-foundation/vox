@@ -176,10 +176,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
 }
 
 /// Ordered canonical journey steps from Codex (`developer_journey_steps`).
-pub async fn vox_journey_canonical_steps(
-    state: &ServerState,
-    args: serde_json::Value,
-) -> String {
+pub async fn vox_journey_canonical_steps(state: &ServerState, args: serde_json::Value) -> String {
     let journey_id = args
         .get("journey_id")
         .and_then(|v| v.as_str())

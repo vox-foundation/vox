@@ -211,6 +211,9 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
         jwe_payload: None,
+        task_kind: None,
+        model_id: None,
+        priority: 128,
     })
     .await
     .expect("relay result row");
@@ -480,6 +483,9 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
         jwe_payload: None,
+        task_kind: None,
+        model_id: None,
+        priority: 128,
     })
     .await
     .expect("deliver remote envelope");
@@ -593,6 +599,9 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
         jwe_payload: None,
+        task_kind: None,
+        model_id: None,
+        priority: 128,
     })
     .await
     .expect("deliver remote envelope");
@@ -838,6 +847,9 @@ async fn remote_result_poll_respects_max_messages_per_poll() {
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
             jwe_payload: None,
+            task_kind: None,
+            model_id: None,
+            priority: 128,
         })
         .await
         .expect("relay result");

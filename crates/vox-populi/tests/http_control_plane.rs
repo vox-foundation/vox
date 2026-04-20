@@ -190,7 +190,9 @@ async fn join_ok_when_scope_matches() {
 #[allow(unsafe_code)]
 async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshServerStalePruneMs).expose();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshServerStalePruneMs)
+        .expose()
+        .map(|s| s.to_string());
     unsafe {
         std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5");
     }
@@ -233,7 +235,9 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
 #[allow(unsafe_code)]
 async fn a2a_deliver_respects_in_memory_cap() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aMaxMessages).expose();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aMaxMessages)
+        .expose()
+        .map(|s| s.to_string());
     unsafe {
         std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3");
     }
@@ -361,10 +365,19 @@ async fn oversized_json_body_returns_413() {
 #[allow(unsafe_code)]
 async fn bootstrap_exchange_works_once() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev_bootstrap = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapToken).expose();
-    let prev_expires = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapExpiresUnixMs).expose();
-    let prev_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose();
-    let prev_scope = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId).expose();
+    let prev_bootstrap = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapToken)
+        .expose()
+        .map(|s| s.to_string());
+    let prev_expires =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapExpiresUnixMs)
+            .expose()
+            .map(|s| s.to_string());
+    let prev_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        .expose()
+        .map(|s| s.to_string());
+    let prev_scope = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
+        .map(|s| s.to_string());
 
     let bootstrap = "bootstrap-unit-test-token";
     // SAFETY: serialized by `ENV_MUTEX`, restored at test end.
@@ -374,7 +387,10 @@ async fn bootstrap_exchange_works_once() {
             "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
             (vox_populi::wall_clock_unix_ms() + 120_000).to_string(),
         );
-        std::env::set_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env, "mesh-unit-token");
+        std::env::set_var(
+            vox_clavis::SecretId::VoxMeshToken.spec().canonical_env,
+            "mesh-unit-token",
+        );
         std::env::set_var("VOX_MESH_SCOPE_ID", "scope-unit");
     }
 
@@ -420,7 +436,9 @@ async fn bootstrap_exchange_works_once() {
             None => std::env::remove_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS"),
         }
         match prev_token {
-            Some(v) => std::env::set_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env, v),
+            Some(v) => {
+                std::env::set_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env, v)
+            }
             None => std::env::remove_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env),
         }
         match prev_scope {
@@ -1234,7 +1252,9 @@ async fn a2a_inbox_pager_next_page_walks_until_empty() {
 #[allow(unsafe_code)]
 async fn exec_lease_store_survives_restart_when_path_configured() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecLeaseStorePath).expose().ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecLeaseStorePath)
+        .expose()
+        .map(|s| s.to_string());
     let dir = tempfile::tempdir().expect("tempdir");
     let lease_path = dir.path().join("exec-leases.json");
     unsafe {

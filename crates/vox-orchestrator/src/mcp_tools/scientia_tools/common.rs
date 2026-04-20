@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::types::UnifiedNewsItem;
 
@@ -68,7 +68,8 @@ pub fn worthiness_score_for_row(row: &vox_db::PublicationManifestRow) -> Option<
 
 pub fn mcp_social_worthiness_enforce(state: &ServerState) -> bool {
     state.orchestrator_config.news.worthiness_enforce
-        || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessEnforce).expose()
+        || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessEnforce)
+            .expose()
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false)
 }
@@ -79,7 +80,8 @@ pub fn mcp_social_worthiness_score_min(state: &ServerState) -> f64 {
         .news
         .worthiness_score_min
         .or_else(|| {
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessScoreMin).expose()
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessScoreMin)
+                .expose()
                 .and_then(|v| v.parse().ok())
         })
         .unwrap_or(0.85)
@@ -183,4 +185,3 @@ pub fn unified_news_item_from_manifest_row(
 pub fn default_one_u32() -> u32 {
     1
 }
-

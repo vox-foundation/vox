@@ -172,7 +172,9 @@ pub async fn run_search_with_verification(
                                     .notes
                                     .push(format!("tavily_credits_remaining={rem}"));
                                 if rem <= 20 {
-                                    execution.warnings.push("Tavily session budget >=80% exhausted".to_string());
+                                    execution
+                                        .warnings
+                                        .push("Tavily session budget >=80% exhausted".to_string());
                                 }
                             }
                             let mut t_lines = Vec::new();
@@ -183,7 +185,7 @@ pub async fn run_search_with_verification(
                                     h.content.replace('\n', " "),
                                     h.score
                                 ));
-                                
+
                                 if let Some(db) = &ctx.db {
                                     let url = h.url.clone();
                                     let content = h.content.clone();
@@ -194,8 +196,22 @@ pub async fn run_search_with_verification(
                                         let mut hasher = blake3::Hasher::new();
                                         hasher.update(content.as_bytes());
                                         let hash = hasher.finalize().to_string();
-                                        if let Ok(doc_id) = db_arc.upsert_search_document(&source_uri, &title, "text/plain", &hash).await {
-                                            let _ = db_arc.replace_search_document_chunks_with_refs(doc_id, &[content], &[None]).await;
+                                        if let Ok(doc_id) = db_arc
+                                            .upsert_search_document(
+                                                &source_uri,
+                                                &title,
+                                                "text/plain",
+                                                &hash,
+                                            )
+                                            .await
+                                        {
+                                            let _ = db_arc
+                                                .replace_search_document_chunks_with_refs(
+                                                    doc_id,
+                                                    &[content],
+                                                    &[None],
+                                                )
+                                                .await;
                                         }
                                     });
                                 }
@@ -206,20 +222,22 @@ pub async fn run_search_with_verification(
                             diagnostics
                                 .notes
                                 .push(format!("tavily_results_count={}", t_lines.len()));
-                            
+
                             for h in &hits {
                                 let mut hasher = blake3::Hasher::new();
                                 hasher.update(b"a2a-search-token");
                                 hasher.update(h.url.as_bytes());
                                 let token = format!("a2a_{}", hasher.finalize().to_hex());
-                                execution.durable_artifacts.push(crate::execution::DurableArtifact {
-                                    uri: format!("tavily:{}", h.url),
-                                    token: Some(token),
-                                    expires_at_unix_ms: None,
-                                    chunk_count: 1,
-                                });
+                                execution.durable_artifacts.push(
+                                    crate::execution::DurableArtifact {
+                                        uri: format!("tavily:{}", h.url),
+                                        token: Some(token),
+                                        expires_at_unix_ms: None,
+                                        chunk_count: 1,
+                                    },
+                                );
                             }
-                            
+
                             execution.web_lines.extend(t_lines.iter().cloned());
                             if policy.prefer_rrf_merge {
                                 execution.rrf_fused_lines.extend(t_lines);

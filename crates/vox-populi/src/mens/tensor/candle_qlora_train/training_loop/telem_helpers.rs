@@ -28,7 +28,7 @@ pub fn build_train_step_payload(
         (total_valid_tokens as f64 / total_theoretical_tokens as f64) * 100.0
     };
     let token_throughput_proxy = ema_steps_per_sec.map(|s| s * batch_size as f64 * seq_len as f64);
-    serde_json::json!({
+    let mut payload = serde_json::json!({
         telemetry_schema::keys::EPOCH: epoch,
         telemetry_schema::keys::STEP: global_step,
         "optimizer_step": optimizer_step_count,
@@ -50,5 +50,28 @@ pub fn build_train_step_payload(
         "trajectory_weighted_pairs": trajectory_weighted_pairs,
         "trajectory_clamped_pairs": trajectory_clamped_pairs,
         "syntax_weight_sum": syntax_weight_sum,
-    })
+    });
+
+    if let Some(gpu) = crate::mens::hardware::HardwareRegistry::monitor() {
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert(
+                "gpu_temp_c".to_string(),
+                serde_json::json!(gpu.temperature_c),
+            );
+            obj.insert(
+                "gpu_power_w".to_string(),
+                serde_json::json!(gpu.power_usage_w),
+            );
+            obj.insert(
+                "gpu_mem_used_mb".to_string(),
+                serde_json::json!(gpu.memory_used_mb),
+            );
+            obj.insert(
+                "gpu_utilization_pct".to_string(),
+                serde_json::json!(gpu.utilization_pct),
+            );
+        }
+    }
+
+    payload
 }

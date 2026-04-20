@@ -345,4 +345,30 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = 50)]
         limit: u32,
     },
+    /// Show dynamic build health for a repository (slowest crates, cache hits, fingerprint drift).
+    #[command(name = "build-health")]
+    BuildHealth {
+        /// Specific repository ID (defaults to current discovery).
+        #[arg(long)]
+        repo: Option<String>,
+        /// Output raw JSON for scripting.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Show build-time regressions vs historical averages for a repository.
+    #[command(name = "build-regressions")]
+    BuildRegressions {
+        /// Specific repository ID (defaults to current discovery).
+        #[arg(long)]
+        repo: Option<String>,
+        /// Run ID to audit (defaults to latest).
+        #[arg(long)]
+        run_id: Option<i64>,
+        /// Regression ratio threshold (e.g. 1.25 for 25% slower).
+        #[arg(long, default_value_t = 1.5)]
+        threshold: f64,
+        /// Output raw JSON for scripting.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
 }

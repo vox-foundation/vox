@@ -1027,7 +1027,7 @@ checksum = "534d4398fd6aaec32f8caeb3f20ddffcd8a059bdefc01cc2794b91b4e984e8ea"
 dependencies = [
  "csv",
  "derive-new",
- "dirs 6.0.0",
+ "dirs",
  "rand 0.9.3",
  "rmp-serde",
  "sanitize-filename",
@@ -1753,15 +1753,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmake"
-version = "0.1.58"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "cobs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2448,7 +2439,7 @@ dependencies = [
  "cfg_aliases",
  "derive-new",
  "derive_more 2.1.1",
- "dirs 6.0.0",
+ "dirs",
  "embassy-futures",
  "embassy-time",
  "float4",
@@ -2747,7 +2738,7 @@ dependencies = [
  "cubecl-common",
  "cubecl-ir",
  "derive-new",
- "dirs 6.0.0",
+ "dirs",
  "enumset",
  "foldhash 0.1.5",
  "hashbrown 0.15.5",
@@ -3168,6 +3159,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
 
 [[package]]
+name = "dialoguer"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25f104b501bf2364e78d0d3974cbc774f738f5865306ed128e1e0d7499c0ad96"
+dependencies = [
+ "console 0.16.3",
+ "shell-words",
+ "tempfile",
+ "zeroize",
+]
+
+[[package]]
 name = "diesel"
 version = "2.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3231,32 +3234,11 @@ dependencies = [
 
 [[package]]
 name = "dirs"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
-dependencies = [
- "dirs-sys 0.4.1",
-]
-
-[[package]]
-name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
 dependencies = [
- "dirs-sys 0.5.0",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
-dependencies = [
- "libc",
- "option-ext",
- "redox_users 0.4.6",
- "windows-sys 0.48.0",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -3648,16 +3630,6 @@ name = "extended"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af9673d8203fcb076b19dfd17e38b3d4ae9f44959416ea532ce72415a6020365"
-
-[[package]]
-name = "eyre"
-version = "0.6.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
-dependencies = [
- "indenter",
- "once_cell",
-]
 
 [[package]]
 name = "fallible-iterator"
@@ -5496,7 +5468,7 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "629d8f3bbeda9d148036d6b0de0a3ab947abd08ce90626327fc3547a49d59d97"
 dependencies = [
- "dirs 6.0.0",
+ "dirs",
  "futures",
  "http",
  "indicatif 0.17.11",
@@ -5863,12 +5835,6 @@ dependencies = [
  "typenum",
  "version_check",
 ]
-
-[[package]]
-name = "indenter"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "964de6e86d545b246d84badc0fef527924ace5134f30641c203ef52ba83f58d5"
 
 [[package]]
 name = "indexmap"
@@ -9551,33 +9517,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
-name = "sherpa-rs"
-version = "0.6.8"
+name = "sherpa-onnx"
+version = "1.12.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81835d89a3fc44482a6829e3e2483ac83f7b4d1623c76f196c77c9ecf5c18203"
+checksum = "a96f6c644f26121dc79820712a1b6a2c975631a4baf8f82d3452a779fa2f45b1"
 dependencies = [
- "eyre",
- "hound",
- "sherpa-rs-sys",
- "tracing",
+ "serde",
+ "serde_json",
+ "sherpa-onnx-sys",
 ]
 
 [[package]]
-name = "sherpa-rs-sys"
-version = "0.6.8"
+name = "sherpa-onnx-sys"
+version = "1.12.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "591c9432b20f41d47f622a73c2888b188c321e313d820824df7d9fa51dbada43"
+checksum = "7f1bb46c350789f54aed657204bf0185e57d5ccf552ba1d67e5d23fbf19bb2f6"
 dependencies = [
- "bindgen 0.69.5",
  "bzip2 0.4.4",
- "cmake",
- "dirs 5.0.1",
- "flate2",
- "glob",
- "lazy_static",
- "serde",
- "serde_json",
- "sha2",
  "tar",
  "ureq 2.12.1",
 ]
@@ -10917,7 +10873,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "constcat",
- "dirs 6.0.0",
+ "dirs",
  "liblzma",
  "regex",
  "reqwest 0.12.28",
@@ -11034,6 +10990,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-serde"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
+dependencies = [
+ "serde",
+ "tracing-core",
+]
+
+[[package]]
 name = "tracing-subscriber"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11043,12 +11009,15 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex-automata",
+ "serde",
+ "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log",
+ "tracing-serde",
 ]
 
 [[package]]
@@ -11689,24 +11658,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-bootstrap"
-version = "0.4.0"
-dependencies = [
- "clap",
- "flate2",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "tar",
- "vox-build-meta",
- "vox-checksum-manifest",
- "vox-install-policy",
- "workspace-hack",
- "zip 8.5.1",
-]
-
-[[package]]
 name = "vox-bounded-fs"
 version = "0.4.0"
 dependencies = [
@@ -11794,19 +11745,19 @@ dependencies = [
  "clap",
  "clap_complete",
  "comfy-table",
- "cpal",
- "dirs 6.0.0",
+ "dirs",
  "flate2",
+ "futures",
  "glob",
  "governor",
  "hex",
- "hound",
  "keyring",
  "landlock",
  "libc",
  "miette",
  "notify",
  "owo-colors",
+ "rand 0.8.5",
  "regex",
  "reqwest 0.12.28",
  "rmcp",
@@ -11834,6 +11785,7 @@ dependencies = [
  "vox-capability-registry",
  "vox-checksum-manifest",
  "vox-clavis",
+ "vox-cli-core",
  "vox-compiler",
  "vox-config",
  "vox-constrained-gen",
@@ -11851,10 +11803,8 @@ dependencies = [
  "vox-jsonschema-util",
  "vox-ludus",
  "vox-mcp-registry",
- "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
- "vox-populi",
  "vox-primitives",
  "vox-project-scaffold",
  "vox-protocol",
@@ -11867,9 +11817,7 @@ dependencies = [
  "vox-search",
  "vox-skills",
  "vox-ssg",
- "vox-tensor",
  "vox-toestub",
- "vox-workflow-runtime",
  "walkdir",
  "wasmtime",
  "wasmtime-wasi",
@@ -11880,6 +11828,25 @@ dependencies = [
  "workspace-hack",
  "xxhash-rust",
  "zip 8.5.1",
+]
+
+[[package]]
+name = "vox-cli-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "owo-colors",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "vox-clavis",
+ "vox-config",
+ "vox-db",
+ "vox-ludus",
+ "vox-repository",
 ]
 
 [[package]]
@@ -11910,6 +11877,7 @@ dependencies = [
  "serial_test",
  "sha3",
  "thiserror 1.0.69",
+ "tokio",
  "vox-clavis",
  "vox-container",
  "vox-eval",
@@ -12022,27 +11990,10 @@ dependencies = [
  "vox-clavis",
  "vox-compiler",
  "vox-config",
+ "vox-mesh-types",
  "vox-repository",
  "vox-socrates-policy",
  "vox-test-harness",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-dei"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "vox-config",
- "vox-ludus",
- "vox-orchestrator",
- "vox-populi",
- "vox-repository",
  "workspace-hack",
 ]
 
@@ -12138,7 +12089,7 @@ dependencies = [
  "anyhow",
  "argon2",
  "chrono",
- "dirs 6.0.0",
+ "dirs",
  "hex",
  "rand 0.8.5",
  "serde",
@@ -12265,6 +12216,70 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-mens"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.22.1",
+ "blake3",
+ "clap",
+ "cpal",
+ "dialoguer",
+ "hex",
+ "hound",
+ "owo-colors",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sysinfo 0.38.4",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "uuid",
+ "vox-bounded-fs",
+ "vox-build-meta",
+ "vox-clavis",
+ "vox-cli-core",
+ "vox-compiler",
+ "vox-config",
+ "vox-constrained-gen",
+ "vox-corpus",
+ "vox-crypto",
+ "vox-db",
+ "vox-eval",
+ "vox-identity",
+ "vox-jsonschema-util",
+ "vox-mesh-types",
+ "vox-oratio",
+ "vox-orchestrator",
+ "vox-populi",
+ "vox-primitives",
+ "vox-protocol",
+ "vox-publisher",
+ "vox-repository",
+ "vox-reqwest-defaults",
+ "vox-runtime",
+ "vox-scaling-policy",
+ "vox-search",
+ "vox-tensor",
+ "vox-workflow-runtime",
+ "walkdir",
+ "which 7.0.3",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "vox-mesh-types"
+version = "0.2.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "vox-openai-sse"
 version = "0.4.0"
 dependencies = [
@@ -12286,24 +12301,30 @@ name = "vox-oratio"
 version = "0.4.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "axum",
  "byteorder",
  "candle-core",
  "candle-nn",
  "candle-transformers",
  "hf-hub",
  "rand 0.9.3",
+ "reqwest 0.12.28",
  "rubato",
  "serde",
  "serde_json",
- "sherpa-rs",
+ "sherpa-onnx",
  "symphonia",
  "tempfile",
  "tokenizers",
+ "tokio",
  "toml 0.8.23",
  "tracing",
  "uuid",
  "vox-clavis",
  "vox-compiler",
+ "vox-populi",
+ "vox-reqwest-defaults",
  "workspace-hack",
 ]
 
@@ -12423,7 +12444,7 @@ dependencies = [
  "ctrlc",
  "dashmap 6.1.0",
  "data-encoding",
- "dirs 6.0.0",
+ "dirs",
  "ed25519-dalek",
  "futures",
  "hex",
@@ -12431,6 +12452,7 @@ dependencies = [
  "jsonschema",
  "jsonwebtoken",
  "memmap2",
+ "nvml-wrapper",
  "openapiv3",
  "owo-colors",
  "peft-rs",
@@ -12452,16 +12474,20 @@ dependencies = [
  "tracing",
  "vox-bounded-fs",
  "vox-clavis",
+ "vox-compiler",
  "vox-constrained-gen",
  "vox-corpus",
  "vox-crypto",
  "vox-db",
  "vox-eval",
  "vox-grammar-export",
+ "vox-mesh-types",
  "vox-primitives",
  "vox-repository",
  "vox-reqwest-defaults",
  "vox-tensor",
+ "wgpu",
+ "windows 0.58.0",
  "workspace-hack",
 ]
 
@@ -12576,6 +12602,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-subscriber",
  "vox-browser",
  "vox-clavis",
  "vox-config",
@@ -12607,28 +12634,13 @@ name = "vox-schola"
 version = "0.4.0"
 dependencies = [
  "anyhow",
- "axum",
- "bytes",
- "chrono",
  "clap",
- "ctrlc",
- "futures-util",
- "reqwest 0.12.28",
  "serde",
- "serde_json",
  "tokio",
- "tokio-stream",
  "tracing",
  "tracing-subscriber",
- "uuid",
- "vox-build-meta",
- "vox-clavis",
- "vox-constrained-gen",
- "vox-corpus",
- "vox-db",
- "vox-populi",
+ "vox-cli-core",
  "which 8.0.2",
- "workspace-hack",
 ]
 
 [[package]]
@@ -12710,7 +12722,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "similar",
  "tantivy",
  "tavily",
  "tempfile",

@@ -46,6 +46,8 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-oratio",       // grandfathered — being migrated to vox-speech
     "vox-populi",       // grandfathered — being migrated to vox-ml
     "vox-schola",       // grandfathered — being migrated to vox-tutorial
+    "vox-codex-api",    // grandfathered — database abstraction layer (Phase 2)
+    "vox-mens",         // grandfathered — ML subsystem (Phase 2)
 ];
 
 #[derive(Serialize)]

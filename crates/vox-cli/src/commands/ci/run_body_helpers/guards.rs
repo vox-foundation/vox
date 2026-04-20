@@ -865,7 +865,9 @@ fn guard_no_open_code_refs(root: &Path) -> Result<()> {
             return Ok(());
         }
         for (idx, line) in text.lines().enumerate() {
-            if !line.contains(&format!("{}{}", "open", "code")) || line.contains("vox_map_opencode_session") {
+            if !line.contains(&format!("{}{}", "open", "code"))
+                || line.contains("vox_map_opencode_session")
+            {
                 continue;
             }
             if line.contains("tests_agent_session")
@@ -1151,7 +1153,3 @@ mod sql_surface_tests {
         );
     }
 }
-
-
-
-

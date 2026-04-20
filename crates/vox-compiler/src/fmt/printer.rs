@@ -242,7 +242,140 @@ impl Printer {
                 self.write_indent();
                 self.out.push('}');
             }
+            Decl::ReactiveComponent(r) => self.print_reactive_component(r),
+            Decl::V0Component(v) => self.print_v0_component(v),
             _ => {}
+        }
+    }
+
+    fn print_v0_component(&mut self, v: &V0ComponentDecl) {
+        self.write_indent();
+        self.out.push_str("@v0 ");
+        if let Some(ref path) = v.image_path {
+            self.out.push_str("from ");
+            self.out.push_str(&format!("\"{}\" ", path));
+        } else {
+            self.out.push_str(&format!("\"{}\" ", v.v0_id));
+        }
+        self.out.push_str(&v.name);
+        self.out.push_str(" {\n");
+        if !v.props.is_empty() {
+            self.indent();
+            for p in &v.props {
+                self.write_indent();
+                self.out.push_str(&p.name);
+                if p.is_optional {
+                    self.out.push('?');
+                }
+                self.out.push_str(": ");
+                self.print_type(&p.ty);
+                self.out.push('\n');
+            }
+            self.dedent();
+        }
+        self.write_indent();
+        self.out.push('}');
+    }
+
+    fn print_reactive_component(&mut self, r: &ReactiveComponentDecl) {
+        self.write_indent();
+        self.out.push_str("component ");
+        self.out.push_str(&r.name);
+        self.out.push('(');
+        for (i, p) in r.params.iter().enumerate() {
+            if i > 0 {
+                self.out.push_str(", ");
+            }
+            self.out.push_str(&p.name);
+            if let Some(ty) = p.type_ann.as_ref() {
+                self.out.push_str(": ");
+                self.print_type(ty);
+            }
+        }
+        self.out.push_str(") {\n");
+        self.indent();
+
+        for m in &r.members {
+            self.write_indent();
+            match m {
+                ReactiveMemberDecl::State(s) => {
+                    self.out.push_str("state ");
+                    self.out.push_str(&s.name);
+                    if let Some(ty) = &s.ty {
+                        self.out.push_str(": ");
+                        self.print_type(ty);
+                    }
+                    self.out.push_str(" = ");
+                    self.print_expr(&s.init);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::Derived(d) => {
+                    self.out.push_str("derived ");
+                    self.out.push_str(&d.name);
+                    if let Some(ty) = &d.ty {
+                        self.out.push_str(": ");
+                        self.print_type(ty);
+                    }
+                    self.out.push_str(" = ");
+                    self.print_expr(&d.expr);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::Effect(e) => {
+                    self.out.push_str("effect: ");
+                    self.print_expr(&e.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::OnMount(m) => {
+                    self.out.push_str("mount: ");
+                    self.print_expr(&m.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::OnCleanup(c) => {
+                    self.out.push_str("cleanup: ");
+                    self.print_expr(&c.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::Stmt(s) => {
+                    self.print_stmt(s);
+                }
+            }
+        }
+
+        if let Some(view) = &r.view {
+            self.write_indent();
+            self.out.push_str("view: ");
+            self.print_expr(view);
+            self.out.push('\n');
+        }
+
+        self.dedent();
+        self.write_indent();
+        self.out.push('}');
+
+        if !r.styles.is_empty() {
+            self.out.push_str("\n\n");
+            self.write_indent();
+            self.out.push_str("style {\n");
+            self.indent();
+            for style in &r.styles {
+                self.write_indent();
+                self.out.push_str(&style.selector);
+                self.out.push_str(" {\n");
+                self.indent();
+                for (k, v) in &style.properties {
+                    self.write_indent();
+                    self.out.push_str(k);
+                    self.out.push_str(": ");
+                    self.out.push_str(v);
+                    self.out.push_str(";\n");
+                }
+                self.dedent();
+                self.write_indent();
+                self.out.push_str("}\n");
+            }
+            self.dedent();
+            self.write_indent();
+            self.out.push('}');
         }
     }
 
@@ -404,10 +537,7 @@ impl Printer {
         self.write_indent();
         self.out.push_str("@environment ");
         self.out.push_str(&env.name);
-        self.out.push_str(
-            " {
-",
-        );
+        self.out.push_str(":\n");
         self.indent();
 
         if let Some(ref base) = env.base_image {
@@ -510,7 +640,5 @@ impl Printer {
         }
 
         self.dedent();
-        self.write_indent();
-        self.out.push('}');
     }
 }

@@ -1,6 +1,6 @@
-use crate::spec::types::*;
-use crate::spec::ids::SecretId;
 use crate::policy::SecretPolicy;
+use crate::spec::ids::SecretId;
+use crate::spec::types::*;
 
 pub const SPECS_MISSING: &[SecretSpec] = &[
     SecretSpec {
@@ -1535,83 +1535,6 @@ pub const SPECS_MISSING: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict,
         canonical_env: "VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorRpcReads,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_RPC_READS",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorRpcWrites,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorTaskStatusRpc,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorStartRpc,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_START_RPC",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorStatusToolRpc,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorTaskWritesRpc,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_TASK_WRITES_RPC",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
-        id: SecretId::VoxMcpOrchestratorAgentWritesRpc,
-        canonical_env: "VOX_MCP_ORCHESTRATOR_AGENT_WRITES_RPC",
         aliases: &[],
         deprecated_aliases: &[],
         backend_key: None,

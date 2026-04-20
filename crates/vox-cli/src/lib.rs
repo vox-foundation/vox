@@ -65,7 +65,7 @@ pub(crate) mod v0_tsx_normalize;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 
 /// Build version string: `0.x.y+build.N (githash)`
@@ -78,32 +78,9 @@ pub const VOX_VERSION: &str = concat!(
     ")",
 );
 
-/// Initialize [`tracing`] for `vox` / `vox-compilerd`: respects `RUST_LOG`, defaults to `info`.
-///
-/// Uses `tracing_subscriber::fmt` with [`tracing_subscriber::EnvFilter`]. Safe to call once per
-/// process; repeated calls are ignored (`try_init`).
-pub fn init_tracing_for_cli() {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
-}
-
-/// Global flags available before every subcommand (`vox --color never build …`).
-#[derive(Args, Clone, Debug, Default)]
-pub struct GlobalOpts {
-    /// When to emit ANSI colors (`NO_COLOR` still disables).
-    #[arg(long, global = true, value_name = "WHEN", value_enum)]
-    pub color: Option<crate::diagnostics::ColorChoice>,
-    /// Hint subcommands to prefer machine JSON where supported (`VOX_CLI_GLOBAL_JSON=1`).
-    #[arg(long, global = true)]
-    pub json: bool,
-    /// More verbose logs (sets `RUST_LOG=debug` when unset — see [`run_vox_cli_from_parsed`] before tracing init).
-    #[arg(long, global = true, short = 'v')]
-    pub verbose: bool,
-    /// Quieter stderr for supported subcommands (`VOX_CLI_QUIET=1`).
-    #[arg(long, global = true, short = 'q')]
-    pub quiet: bool,
-}
+pub use vox_cli_core::GlobalOpts;
+pub use vox_cli_core::apply_global_opts;
+pub use vox_cli_core::init_tracing_for_cli;
 
 /// Full `vox` invocation: global options + subcommand.
 #[derive(Parser)]
@@ -279,6 +256,14 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::SyncArgs,
     },
+    /// Ludus gamification: profile, companions, quests, and battle simulations.
+    #[cfg(feature = "extras-ludus")]
+    #[command(name = "ludus")]
+    Ludus {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: crate::commands::extras::ludus_cli::LudusCli,
+    },
     /// Deploy from `Vox.toml` `[deploy]` (OCI build/push, compose, Kubernetes, or bare-metal SSH).
     Deploy {
         #[command(flatten)]
@@ -447,31 +432,36 @@ pub enum Cli {
         /// Reason for stopping
         reason: Option<String>,
     },
+    /// ML/AI domain: train, serve, probe (Delegated to `vox-mens`).
+    #[command(name = "mens")]
+    Mens {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Mesh coordination: join, status, admin (Delegated to `vox-mens`).
+    #[command(name = "populi")]
+    Populi {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-mens`).
+    #[command(name = "oratio", visible_alias = "speech")]
+    Oratio {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Scholarship/Scientia domain (Delegated to `vox-schola`).
+    #[command(name = "schola")]
+    Schola {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
     /// Optional telemetry upload queue (local spool + explicit upload; ADR 023).
     Telemetry {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::telemetry::TelemetryCmd,
     },
-}
-
-/// Apply [`GlobalOpts`] (color, JSON hint, quiet) before dispatching a subcommand.
-#[allow(unsafe_code)]
-pub fn apply_global_opts(g: &GlobalOpts) {
-    if let Some(c) = g.color {
-        crate::diagnostics::set_color_choice(c);
-    }
-    if g.json {
-        // SAFETY: CLI startup is single-threaded before Tokio worker threads spawn env readers.
-        unsafe {
-            crate::config::set_process_env("VOX_CLI_GLOBAL_JSON", "1");
-        }
-    }
-    if g.quiet {
-        unsafe {
-            crate::config::set_process_env("VOX_CLI_QUIET", "1");
-        }
-    }
 }
 
 /// Run the `vox` CLI (parsed from `std::env::args`).
@@ -483,7 +473,7 @@ pub async fn run_vox_cli() -> anyhow::Result<()> {
 /// Run after parsing a [`VoxCliRoot`]: optional `RUST_LOG=debug` for `--verbose`, [`init_tracing_for_cli`], then dispatch.
 #[allow(unsafe_code)]
 pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
-    if root.global.verbose && std::env::var_os("RUST_LOG").is_none() {
+    if root.global.verbose > 0 && std::env::var_os("RUST_LOG").is_none() {
         // SAFETY: CLI startup is single-threaded before Tokio workers read `RUST_LOG`.
         unsafe {
             crate::config::set_process_env("RUST_LOG", "debug");

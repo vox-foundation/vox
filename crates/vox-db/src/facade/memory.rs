@@ -1,4 +1,5 @@
 use crate::{EmbeddingEntry, StoreError, learning, memory::MemoryParams};
+use turso::params;
 
 impl crate::VoxDb {
     // ── Memory Convenience Methods ──────────────────────
@@ -58,5 +59,32 @@ impl crate::VoxDb {
             rows.push(row);
         }
         Ok(rows)
+    }
+
+    /// Search for symbols across the project by label.
+    pub async fn search_project_symbols(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<(String, String, String)>, StoreError> {
+        let pat = format!("%{query}%");
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, label, COALESCE(metadata, '')
+                 FROM knowledge_nodes
+                 WHERE node_type = 'symbol' AND (label LIKE ?1 OR id LIKE ?1)
+                 ORDER BY created_at DESC LIMIT ?2",
+                params![pat, limit],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let label: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let meta: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((id, label, meta));
+        }
+        Ok(out)
     }
 }

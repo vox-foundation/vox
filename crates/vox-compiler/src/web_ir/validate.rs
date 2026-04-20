@@ -261,11 +261,17 @@ fn validate_styles(
     out: &mut Vec<WebIrDiagnostic>,
     metrics: &mut WebIrValidateMetrics,
 ) {
-    let mut seen_selectors: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    let mut seen_selectors: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
 
     for node in &module.style_nodes {
         metrics.style_nodes_checked += 1;
-        if let StyleNode::Rule { selector, declarations, .. } = node {
+        if let StyleNode::Rule {
+            selector,
+            declarations,
+            ..
+        } = node
+        {
             let sel_key = match selector {
                 StyleSelector::Class(c) => format!(".{}", c),
                 StyleSelector::Id(i) => format!("#{}", i),
@@ -283,7 +289,7 @@ fn validate_styles(
                     category: Some("style".to_string()),
                 });
             }
-            
+
             let mut props_in_rule = std::collections::HashSet::new();
             for (prop, _) in declarations {
                 if prop.is_empty() {
@@ -303,9 +309,9 @@ fn validate_styles(
                         }
                         acc
                     });
-                    
+
                     if !props_in_rule.insert(css_prop.clone()) {
-                         out.push(WebIrDiagnostic {
+                        out.push(WebIrDiagnostic {
                             code: "web_ir_validate.style.duplicate_property_in_rule".to_string(),
                             message: format!("Duplicate property '{}' in the same rule", prop),
                             span: None,
@@ -313,10 +319,15 @@ fn validate_styles(
                         });
                     }
 
-                    if !crate::codegen_shared::css_property_allowlist::is_allowed_css_property(&css_prop) {
+                    if !crate::codegen_shared::css_property_allowlist::is_allowed_css_property(
+                        &css_prop,
+                    ) {
                         out.push(WebIrDiagnostic {
                             code: "web_ir_validate.style.unknown_property".to_string(),
-                            message: format!("Unknown CSS property '{}' (normalized to '{}')", prop, css_prop),
+                            message: format!(
+                                "Unknown CSS property '{}' (normalized to '{}')",
+                                prop, css_prop
+                            ),
                             span: None,
                             category: Some("style".to_string()),
                         });
@@ -334,20 +345,26 @@ fn validate_styles(
                     }
                 }
             }
-            
-            let normalized_props: Vec<String> = declarations.iter().map(|(p, _)| {
-                 p.chars().fold(String::new(), |mut acc, c| {
-                    if c.is_uppercase() {
-                        acc.push('-');
-                        acc.push(c.to_ascii_lowercase());
-                    } else {
-                        acc.push(c);
-                    }
-                    acc
+
+            let normalized_props: Vec<String> = declarations
+                .iter()
+                .map(|(p, _)| {
+                    p.chars().fold(String::new(), |mut acc, c| {
+                        if c.is_uppercase() {
+                            acc.push('-');
+                            acc.push(c.to_ascii_lowercase());
+                        } else {
+                            acc.push(c);
+                        }
+                        acc
+                    })
                 })
-            }).collect();
-            
-            seen_selectors.entry(sel_key).or_default().extend(normalized_props);
+                .collect();
+
+            seen_selectors
+                .entry(sel_key)
+                .or_default()
+                .extend(normalized_props);
         }
     }
 }

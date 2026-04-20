@@ -57,8 +57,17 @@ pub(crate) fn walk_dir(
 
                 let content =
                     vox_bounded_fs::read_utf8_path_capped(&path).unwrap_or_else(|_| String::new());
-                let (title, category, sort_order, description, last_updated, status, schema_type) =
-                    parse_frontmatter(&content, &path)?;
+                let (
+                    title,
+                    category,
+                    sort_order,
+                    description,
+                    _manual_last_updated,
+                    status,
+                    schema_type,
+                ) = parse_frontmatter(&content, &path)?;
+
+                let last_updated = get_git_last_updated(&path);
 
                 let page = Page {
                     title: title.clone(),
@@ -181,6 +190,22 @@ fn parse_frontmatter(
         status,
         schema_type,
     ))
+}
+
+fn get_git_last_updated(path: &Path) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(["log", "-1", "--format=%as", "--"])
+        .arg(path)
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let date = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !date.is_empty() {
+            return Some(date);
+        }
+    }
+    None
 }
 
 fn normalize_category(cat: &str) -> anyhow::Result<String> {

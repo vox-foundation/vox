@@ -17,8 +17,8 @@ impl crate::VoxDb {
     ///
     /// Returns columns in the order:
     /// level, xp, crystals, energy, max_energy, last_energy_regen, last_active,
-    /// streak_days, longest_streak, streak_last_ts, grace_available, grace_used,
-    /// total_xp_earned, prestige_level, lumens, generosity_lumens, streak_shields.
+    /// total_xp_earned, prestige_level, lumens, generosity_lumens, streak_shields, trust_tier,
+    /// reward_suppressed, suppressed_until_ts.
     pub async fn get_gamify_profile_raw(
         &self,
         user_id: &str,
@@ -30,12 +30,13 @@ impl crate::VoxDb {
                     COALESCE(streak_days, 0), COALESCE(longest_streak, 0),
                     COALESCE(streak_last_ts, 0), COALESCE(grace_available, 1), COALESCE(grace_used, 0),
                     COALESCE(total_xp_earned, 0), COALESCE(prestige_level, 0),
-                    COALESCE(lumens, 0), COALESCE(generosity_lumens, 0), COALESCE(streak_shields, 0)
+                    COALESCE(lumens, 0), COALESCE(generosity_lumens, 0), COALESCE(streak_shields, 0),
+                    COALESCE(trust_tier, 0), COALESCE(reward_suppressed, 0), COALESCE(suppressed_until_ts, 0)
              FROM gamify_profiles WHERE user_id = ?1",
             params![user_id],
         ).await?;
         if let Some(row) = rows.next().await? {
-            let vals: Vec<i64> = (0..17).map(|i| row.get::<i64>(i).unwrap_or(0)).collect();
+            let vals: Vec<i64> = (0..20).map(|i| row.get::<i64>(i).unwrap_or(0)).collect();
             Ok(Some(vals))
         } else {
             Ok(None)
@@ -64,6 +65,9 @@ impl crate::VoxDb {
         lumens: i64,
         generosity_lumens: i64,
         streak_shields: i64,
+        trust_tier: i64,
+        reward_suppressed: i64,
+        suppressed_until_ts: i64,
     ) -> Result<(), StoreError> {
         let user_id = user_id.to_string();
         let breaker = self.breaker.clone();
@@ -74,8 +78,9 @@ impl crate::VoxDb {
                     "INSERT INTO gamify_profiles
              (user_id, level, xp, crystals, energy, max_energy, last_energy_regen, last_active,
               streak_days, longest_streak, streak_last_ts, grace_available, grace_used,
-              total_xp_earned, prestige_level, lumens, generosity_lumens, streak_shields)
-          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+              total_xp_earned, prestige_level, lumens, generosity_lumens, streak_shields, trust_tier,
+              reward_suppressed, suppressed_until_ts)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
           ON CONFLICT(user_id) DO UPDATE SET
             level = excluded.level, xp = excluded.xp, crystals = excluded.crystals,
             energy = excluded.energy, max_energy = excluded.max_energy,
@@ -84,7 +89,9 @@ impl crate::VoxDb {
             streak_last_ts = excluded.streak_last_ts, grace_available = excluded.grace_available,
             grace_used = excluded.grace_used, total_xp_earned = excluded.total_xp_earned,
             prestige_level = excluded.prestige_level, lumens = excluded.lumens,
-            generosity_lumens = excluded.generosity_lumens, streak_shields = excluded.streak_shields",
+            generosity_lumens = excluded.generosity_lumens, streak_shields = excluded.streak_shields,
+            trust_tier = excluded.trust_tier, reward_suppressed = excluded.reward_suppressed,
+            suppressed_until_ts = excluded.suppressed_until_ts",
                     params![
                         user_id.as_str(),
                         level,
@@ -103,7 +110,10 @@ impl crate::VoxDb {
                         prestige_level,
                         lumens,
                         generosity_lumens,
-                        streak_shields
+                        streak_shields,
+                        trust_tier,
+                        reward_suppressed,
+                        suppressed_until_ts
                     ],
                 )
                 .await?;
@@ -565,6 +575,71 @@ impl crate::VoxDb {
                 .map(|i| row.get::<Option<String>>(i).unwrap_or(None))
                 .collect();
             out.push(cols);
+        }
+        Ok(out)
+    }
+
+    // ── Identities (vox_identities) ───────────────────────────────────────────
+
+    /// Upsert an identity federation link (e.g. GitHub device flow).
+    pub async fn upsert_vox_identity(
+        &self,
+        vox_user_id: &str,
+        provider: &str,
+        provider_id: &str,
+        provider_login: Option<&str>,
+        access_token_ref: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let vox_user_id = vox_user_id.to_string();
+        let provider = provider.to_string();
+        let provider_id = provider_id.to_string();
+        let provider_login = provider_login.map(|s| s.to_string());
+        let access_token_ref = access_token_ref.map(|s| s.to_string());
+        let linked_at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO vox_identities
+             (vox_user_id, provider, provider_id, provider_login, access_token_ref, linked_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(vox_user_id, provider) DO UPDATE SET
+               provider_id=excluded.provider_id,
+               provider_login=excluded.provider_login,
+               access_token_ref=excluded.access_token_ref,
+               linked_at=excluded.linked_at",
+                    params![
+                        vox_user_id.as_str(),
+                        provider.as_str(),
+                        provider_id.as_str(),
+                        provider_login,
+                        access_token_ref,
+                        linked_at,
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// List all linked identities for a given local user.
+    pub async fn get_vox_identities(&self, vox_user_id: &str) -> Result<Vec<(String, String, Option<String>)>, StoreError> {
+        let vox_user_id = vox_user_id.to_string();
+        let rows = self.conn.query(
+            "SELECT provider, provider_id, provider_login FROM vox_identities WHERE vox_user_id = ?1",
+            params![vox_user_id.as_str()],
+        ).await?;
+        
+        let mut out = Vec::new();
+        let mut rows = rows;
+        while let Some(row) = rows.next().await? {
+            out.push((
+                row.get::<String>(0)?,
+                row.get::<String>(1)?,
+                row.get::<Option<String>>(2)?,
+            ));
         }
         Ok(out)
     }

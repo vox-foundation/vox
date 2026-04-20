@@ -20,7 +20,7 @@ type DashboardStatus =
 }
 
 component DashboardView() {
-    view: <div className="dashboard">
+    view: <div class="dashboard">
         <h1>"Dashboard"</h1>
         <DataChart data=[1, 2, 3] />
     </div>

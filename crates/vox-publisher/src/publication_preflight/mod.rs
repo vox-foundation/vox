@@ -7,40 +7,14 @@ pub use models::*;
 mod derivation;
 use derivation::*;
 mod worthiness_extraction;
-pub use worthiness_extraction::*;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
+pub use worthiness_extraction::*;
 
 use regex::Regex;
 
 use crate::publication::PublicationManifest;
 use crate::scientific_metadata::{METADATA_KEY_SCIENTIFIC, ScientificPublicationMetadata};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /// Run checks; `ok` is false when any finding has severity [`PreflightSeverity::Error`].
 #[must_use]
@@ -73,7 +47,14 @@ pub fn run_preflight_with_attention(
         });
     }
 
-    if profile == PreflightProfile::NewsInbound && manifest.source_ref.as_deref().unwrap_or("").trim().is_empty() {
+    if profile == PreflightProfile::NewsInbound
+        && manifest
+            .source_ref
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
+    {
         findings.push(PreflightFinding {
             code: "source_url_missing",
             severity: PreflightSeverity::Error,
@@ -191,11 +172,15 @@ pub fn run_preflight_with_attention(
     }
 
     if profile == PreflightProfile::NewsInbound {
-        let has_tags = manifest.metadata_json.as_deref().and_then(|raw| {
-            let v: serde_json::Value = serde_json::from_str(raw).ok()?;
-            let tags = v.get("tags")?.as_array()?;
-            Some(!tags.is_empty())
-        }).unwrap_or(false);
+        let has_tags = manifest
+            .metadata_json
+            .as_deref()
+            .and_then(|raw| {
+                let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+                let tags = v.get("tags")?.as_array()?;
+                Some(!tags.is_empty())
+            })
+            .unwrap_or(false);
 
         if !has_tags {
             findings.push(PreflightFinding {
@@ -213,7 +198,9 @@ pub fn run_preflight_with_attention(
     {
         if matches!(
             profile,
-            PreflightProfile::MetadataComplete | PreflightProfile::ArxivAssist | PreflightProfile::NewsInbound
+            PreflightProfile::MetadataComplete
+                | PreflightProfile::ArxivAssist
+                | PreflightProfile::NewsInbound
         ) {
             findings.push(PreflightFinding {
                 code: "abstract_required",
@@ -259,7 +246,10 @@ pub fn run_preflight_with_attention(
                 findings.push(PreflightFinding {
                     code: "arxiv_abstract_too_long",
                     severity: PreflightSeverity::Error,
-                    message: format!("arXiv abstract exceeds 1,920 chars ({} chars). ArXiv moderation boundary.", abs.chars().count()),
+                    message: format!(
+                        "arXiv abstract exceeds 1,920 chars ({} chars). ArXiv moderation boundary.",
+                        abs.chars().count()
+                    ),
                 });
             }
         }
@@ -340,8 +330,6 @@ pub fn run_preflight_with_attention(
         worthiness: None,
     }
 }
-
-
 
 /// Same as [`run_preflight`], then attaches [`PreflightReport::worthiness`] using `contract`.
 #[must_use]
@@ -429,6 +417,5 @@ pub fn run_preflight_with_worthiness_attention_heuristics(
 }
 
 #[cfg(test)]
-
 #[cfg(test)]
 mod tests;

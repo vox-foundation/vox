@@ -4,9 +4,9 @@
 //! [`persist_mesh_snapshot_codex_opt`] records a **`populi_control`-class** row only when **`VOX_MESH_CODEX_TELEMETRY=1`** and
 //! Codex is attached — **off by default** so federation snapshots are not written unless explicitly opted in.
 
-use crate::mcp_tools::sync_poison::poison_rw_read;
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::{AgentInfo, StatusResponse, ToolResult};
+use crate::mcp_tools::server_state::ServerState;
+use crate::mcp_tools::sync_poison::poison_rw_read;
 
 use vox_ludus::companion::Companion;
 use vox_ludus::db::list_companions;
@@ -35,8 +35,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
             "read orchestrator config for vox_orchestrator_status",
         )?;
         let effective = cfg.scaling_threshold as f64 * cfg.scaling_profile.threshold_multiplier();
-        let registered_worker_processes =
-            crate::sync_lock::rw_read(&*orch.agent_handles).len();
+        let registered_worker_processes = crate::sync_lock::rw_read(&*orch.agent_handles).len();
         let worker_runtime_attached = registered_worker_processes > 0;
         let execution_mode = if worker_runtime_attached {
             "workers_attached"
@@ -106,10 +105,11 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     )
     .ok();
 
-    let max_stale_ms: Option<u64> = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshMaxStaleMs)
-        .expose()
-        .and_then(|s| s.trim().parse().ok())
-        .filter(|n| *n > 0);
+    let max_stale_ms: Option<u64> =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshMaxStaleMs)
+            .expose()
+            .and_then(|s| s.trim().parse().ok())
+            .filter(|n| *n > 0);
 
     let mesh_snapshot = if let Some(url) = populi_control_url
         .as_ref()
@@ -178,7 +178,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         ),
         _ => String::new(),
     };
-    
+
     let bounce_line = if status.max_handoff_count > 0 {
         format!("**Peak Bounce Depth:** `{}`\n\n", status.max_handoff_count)
     } else {
@@ -252,7 +252,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
 
     let attention_budget = if state.orchestrator_config.attention_enabled {
         let bm = state.orchestrator.budget_manager_handle();
-        let snap = crate::sync_lock::rw_read::<crate::budget::BudgetManager>(&*bm).attention_snapshot();
+        let snap =
+            crate::sync_lock::rw_read::<crate::budget::BudgetManager>(&*bm).attention_snapshot();
         Some(serde_json::to_value(snap).unwrap_or(serde_json::Value::Null))
     } else {
         None
@@ -292,7 +293,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
 }
 
 fn mesh_codex_telemetry_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry).expose()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")

@@ -1,8 +1,8 @@
 //! Optional `metadata_json.scientia_evidence` — ties publication manifests to Socrates, eval-gate, and benchmark artifacts.
 
-use std::path::Path;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 pub mod signals;
 pub use signals::*;

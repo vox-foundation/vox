@@ -63,7 +63,12 @@
       "required": ["name"],
       "properties": {
         "name": { "type": "string" },
-        "http_read_role_eligible": { "type": "boolean", "default": false }
+        "http_read_role_eligible": { "type": "boolean", "default": false },
+        "tier": {
+          "type": "string",
+          "enum": ["core", "dev", "advanced"],
+          "default": "core"
+        }
       },
       "additionalProperties": false
     },

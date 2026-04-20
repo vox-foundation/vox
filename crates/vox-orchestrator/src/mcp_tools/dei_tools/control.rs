@@ -3,9 +3,9 @@ use super::params::{
     QueueStatusParams,
 };
 
-use crate::mcp_tools::sync_poison::{poison_rw_read, poison_rw_write};
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
+use crate::mcp_tools::sync_poison::{poison_rw_read, poison_rw_write};
 use crate::{AgentId, TaskId};
 
 const REM_AGENT_ID: &str =
@@ -77,7 +77,10 @@ pub async fn budget_status(state: &ServerState) -> String {
 }
 
 /// Cancel a task by numeric id (wrapper around orchestrator APIs).
-pub async fn cancel_task(state: &ServerState, params: crate::mcp_tools::params::CancelTaskParams) -> String {
+pub async fn cancel_task(
+    state: &ServerState,
+    params: crate::mcp_tools::params::CancelTaskParams,
+) -> String {
     let orch = &state.orchestrator;
 
     if let Err(e) = orch.cancel_task(TaskId(params.task_id)) {
@@ -88,7 +91,10 @@ pub async fn cancel_task(state: &ServerState, params: crate::mcp_tools::params::
 }
 
 /// Change the priority of a queued task.
-pub async fn reorder_task(state: &ServerState, params: crate::mcp_tools::params::ReorderTaskParams) -> String {
+pub async fn reorder_task(
+    state: &ServerState,
+    params: crate::mcp_tools::params::ReorderTaskParams,
+) -> String {
     let orch = &state.orchestrator;
 
     let priority = match params.priority.as_str() {
@@ -109,16 +115,23 @@ pub async fn reorder_task(state: &ServerState, params: crate::mcp_tools::params:
 }
 
 /// Drop all queued (not running) tasks for an agent.
-pub async fn drain_agent(state: &ServerState, params: crate::mcp_tools::params::DrainAgentParams) -> String {
+pub async fn drain_agent(
+    state: &ServerState,
+    params: crate::mcp_tools::params::DrainAgentParams,
+) -> String {
     match state
-        .orchestrator.drain_agent(crate::AgentId(params.agent_id))
+        .orchestrator
+        .drain_agent(crate::AgentId(params.agent_id))
     {
         Ok(tasks) => ToolResult::ok(format!(
             "Drained {} tasks from agent {}",
-            tasks.len(), params.agent_id
+            tasks.len(),
+            params.agent_id
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_TASK).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_TASK).to_json()
+        }
     }
 }
 
@@ -155,10 +168,7 @@ pub async fn map_agent_session(
 ) -> String {
     let orch = &state.orchestrator;
 
-    match orch.map_agent_session(
-        crate::AgentId(params.agent_id),
-        params.session_id.clone(),
-    ) {
+    match orch.map_agent_session(crate::AgentId(params.agent_id), params.session_id.clone()) {
         Ok(_) => ToolResult::ok(format!(
             "Mapped agent session {} to agent {}",
             params.session_id, params.agent_id
@@ -360,8 +370,7 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
 
     let orch = &state.orchestrator;
     let agent_count = orch.agent_ids().len();
-    let registered_worker_processes =
-        crate::sync_lock::rw_read(&*orch.agent_handles).len();
+    let registered_worker_processes = crate::sync_lock::rw_read(&*orch.agent_handles).len();
     let execution_mode = if registered_worker_processes > 0 {
         "workers_attached"
     } else {
@@ -432,7 +441,10 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
 }
 
 /// Spawn a new orchestrator agent (optionally marked dynamic / auto-retire when idle).
-pub async fn spawn_agent(state: &ServerState, params: crate::mcp_tools::params::SpawnAgentParams) -> String {
+pub async fn spawn_agent(
+    state: &ServerState,
+    params: crate::mcp_tools::params::SpawnAgentParams,
+) -> String {
     let out_name = params.name.clone();
     let out_dynamic = params.dynamic.unwrap_or(false);
     let out_parent = params.parent_agent_id;
@@ -457,51 +469,63 @@ pub async fn spawn_agent(state: &ServerState, params: crate::mcp_tools::params::
             "source_task_id": out_source,
         }))
         .to_json(),
-        Err(e) => {
-            ToolResult::<serde_json::Value>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
-                .to_json()
-        }
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("{}", e),
+            REM_ORCH_AGENT_OP,
+        )
+        .to_json(),
     }
 }
 
 /// Retire an agent (releases locks/affinity, drains queue metadata).
-pub async fn retire_agent(state: &ServerState, params: crate::mcp_tools::params::AgentIdToolParams) -> String {
+pub async fn retire_agent(
+    state: &ServerState,
+    params: crate::mcp_tools::params::AgentIdToolParams,
+) -> String {
     match state
-        .orchestrator.retire_agent(crate::AgentId(params.agent_id)).await
+        .orchestrator
+        .retire_agent(crate::AgentId(params.agent_id))
+        .await
     {
         Ok(remaining_tasks) => ToolResult::ok(serde_json::json!({
             "agent_id": params.agent_id,
             "remaining_tasks": remaining_tasks,
         }))
         .to_json(),
-        Err(e) => {
-            ToolResult::<serde_json::Value>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
-                .to_json()
-        }
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("{}", e),
+            REM_ORCH_AGENT_OP,
+        )
+        .to_json(),
     }
 }
 
 /// Pause an agent's task queue.
-pub async fn pause_agent(state: &ServerState, params: crate::mcp_tools::params::AgentIdToolParams) -> String {
+pub async fn pause_agent(
+    state: &ServerState,
+    params: crate::mcp_tools::params::AgentIdToolParams,
+) -> String {
     match state
-        .orchestrator.pause_agent(crate::AgentId(params.agent_id))
+        .orchestrator
+        .pause_agent(crate::AgentId(params.agent_id))
     {
         Ok(()) => ToolResult::ok(format!("Agent {} paused", params.agent_id)).to_json(),
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
+            .to_json(),
     }
 }
 
 /// Resume a paused agent queue.
-pub async fn resume_agent(state: &ServerState, params: crate::mcp_tools::params::AgentIdToolParams) -> String {
+pub async fn resume_agent(
+    state: &ServerState,
+    params: crate::mcp_tools::params::AgentIdToolParams,
+) -> String {
     match state
-        .orchestrator.resume_agent(crate::AgentId(params.agent_id))
+        .orchestrator
+        .resume_agent(crate::AgentId(params.agent_id))
     {
         Ok(()) => ToolResult::ok(format!("Agent {} resumed", params.agent_id)).to_json(),
-        Err(e) => {
-            ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP).to_json()
-        }
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
+            .to_json(),
     }
 }
-

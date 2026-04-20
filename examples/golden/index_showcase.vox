@@ -13,7 +13,7 @@
     done: bool
 }
 
-@server fn complete_task(id: Id[Task]) -> Result[Unit] {
+@server fn complete_task(id: Id[Task]) to Result[Unit] {
     db.Task.update(id, { done: true })
     return Ok(Unit)
 }
@@ -38,7 +38,7 @@ component TaskList(tasks: List[Task]) {
 
 // ANCHOR: mcp
 @mcp.tool "search_docs: Search documentation for a query"
-fn search_docs(query: str) -> List[str] {
+fn search_docs(query: str) to List[str] {
     return db.query("SELECT context FROM Docs WHERE context LIKE ?", ["%" + query + "%"])
 }
 // ANCHOR_END: mcp

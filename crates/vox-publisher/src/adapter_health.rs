@@ -1,5 +1,7 @@
-use serde::Serialize;
 use crate::PublisherConfig;
+#[cfg(feature = "live-api-canary")]
+use crate::adapters::canary;
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct AdapterHealthReport {
@@ -27,7 +29,10 @@ pub enum HeartbeatStatus {
     NetworkError { message: String },
 }
 
-pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<AdapterHealthReport> {
+pub async fn report_health(
+    cfg: &PublisherConfig,
+    live: bool,
+) -> anyhow::Result<AdapterHealthReport> {
     let mut adapters = Vec::new();
 
     // Mastodon
@@ -37,9 +42,13 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
         credentials_present: cfg.mastodon_access_token.is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-mastodon") {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_mastodon(cfg).await) }
+            {
+                Some(canary::probe_mastodon(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { None }
+            {
+                None
+            }
         } else {
             None
         },
@@ -53,9 +62,13 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
         credentials_present: cfg.bluesky_handle.is_some() && cfg.bluesky_password.is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-bluesky") {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_bluesky(cfg).await) }
+            {
+                Some(canary::probe_bluesky(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { None }
+            {
+                None
+            }
         } else {
             None
         },
@@ -66,12 +79,20 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "discord",
         feature_enabled: cfg!(feature = "scientia-discord"),
-        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialDiscordWebhook).expose().is_some(),
+        credentials_present: vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxSocialDiscordWebhook,
+        )
+        .expose()
+        .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-discord") {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_discord(cfg).await) }
+            {
+                Some(canary::probe_discord(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { None }
+            {
+                None
+            }
         } else {
             None
         },
@@ -82,12 +103,21 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "twitter",
         feature_enabled: cfg!(feature = "scientia-twitter"),
-        credentials_present: cfg.twitter_bearer_token.is_some() || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsTwitterBearer).expose().is_some(),
+        credentials_present: cfg.twitter_bearer_token.is_some()
+            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsTwitterBearer)
+                .expose()
+                .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-twitter") {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_twitter(cfg).await) }
+            {
+                Some(canary::probe_twitter(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { Some(HeartbeatStatus::Skipped { reason: "live-api-canary feature inactive".to_string() }) }
+            {
+                Some(HeartbeatStatus::Skipped {
+                    reason: "live-api-canary feature inactive".to_string(),
+                })
+            }
         } else {
             None
         },
@@ -98,12 +128,21 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "linkedin",
         feature_enabled: cfg!(feature = "scientia-linkedin"),
-        credentials_present: cfg.linkedin_access_token.is_some() || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialLinkedinAccessToken).expose().is_some(),
+        credentials_present: cfg.linkedin_access_token.is_some()
+            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialLinkedinAccessToken)
+                .expose()
+                .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-linkedin") {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_linkedin(cfg).await) }
+            {
+                Some(canary::probe_linkedin(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { Some(HeartbeatStatus::Skipped { reason: "live-api-canary feature inactive".to_string() }) }
+            {
+                Some(HeartbeatStatus::Skipped {
+                    reason: "live-api-canary feature inactive".to_string(),
+                })
+            }
         } else {
             None
         },
@@ -114,12 +153,21 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "opencollective",
         feature_enabled: cfg!(feature = "scientia-opencollective"),
-        credentials_present: cfg.open_collective_token.is_some() || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsOpenCollectiveToken).expose().is_some(),
+        credentials_present: cfg.open_collective_token.is_some()
+            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsOpenCollectiveToken)
+                .expose()
+                .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-opencollective") {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_opencollective(cfg).await) }
+            {
+                Some(canary::probe_opencollective(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { Some(HeartbeatStatus::Skipped { reason: "live-api-canary feature inactive".to_string() }) }
+            {
+                Some(HeartbeatStatus::Skipped {
+                    reason: "live-api-canary feature inactive".to_string(),
+                })
+            }
         } else {
             None
         },
@@ -130,8 +178,13 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "reddit",
         feature_enabled: cfg!(feature = "scientia-reddit"),
-        credentials_present: cfg.reddit_refresh_token.is_some() || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditRefreshToken).expose().is_some(),
-        heartbeat_status: Some(HeartbeatStatus::Skipped { reason: "unimplemented".to_string() }),
+        credentials_present: cfg.reddit_refresh_token.is_some()
+            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditRefreshToken)
+                .expose()
+                .is_some(),
+        heartbeat_status: Some(HeartbeatStatus::Skipped {
+            reason: "unimplemented".to_string(),
+        }),
         diagnostic_message: None,
     });
 
@@ -139,12 +192,20 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "zenodo",
         feature_enabled: true, // usually enabled if scholarly
-        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken).expose().is_some(),
+        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken)
+            .expose()
+            .is_some(),
         heartbeat_status: if live {
             #[cfg(feature = "live-api-canary")]
-            { Some(canary::probe_zenodo(cfg).await) }
+            {
+                Some(canary::probe_zenodo(cfg).await)
+            }
             #[cfg(not(feature = "live-api-canary"))]
-            { Some(HeartbeatStatus::Skipped { reason: "live-api-canary feature inactive".to_string() }) }
+            {
+                Some(HeartbeatStatus::Skipped {
+                    reason: "live-api-canary feature inactive".to_string(),
+                })
+            }
         } else {
             None
         },
@@ -155,8 +216,12 @@ pub async fn report_health(cfg: &PublisherConfig, live: bool) -> anyhow::Result<
     adapters.push(AdapterHealthEntry {
         name: "openreview",
         feature_enabled: true,
-        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail).expose().is_some() && 
-                             vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword).expose().is_some(),
+        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
+            .expose()
+            .is_some()
+            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword)
+                .expose()
+                .is_some(),
         heartbeat_status: None, // No probe yet
         diagnostic_message: None,
     });

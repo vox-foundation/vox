@@ -3,7 +3,7 @@ use vox_grammar_export::gbnf::emit_gbnf;
 use vox_grammar_export::json_schema::emit_json_schema;
 use vox_grammar_export::lark::emit_lark;
 use vox_grammar_export::versioning::{get_compiler_version, get_version, verify_grammar_alignment};
-use vox_grammar_export::{export, GrammarExportConfig, GrammarFormat};
+use vox_grammar_export::{GrammarExportConfig, GrammarFormat, export};
 
 // ── EBNF tests (Tasks 42-44) ─────────────────────────────────────────────────
 
@@ -299,13 +299,26 @@ fn test_export_dispatch_all_formats() {
             ..GrammarExportConfig::default()
         };
         let result = export(&config);
-        if matches!(format, GrammarFormat::Gbnf | GrammarFormat::TreeSitterGrammar) {
-            assert!(result.is_err(), "export({}) should be an error", format.as_str());
+        if matches!(
+            format,
+            GrammarFormat::Gbnf | GrammarFormat::TreeSitterGrammar
+        ) {
+            assert!(
+                result.is_err(),
+                "export({}) should be an error",
+                format.as_str()
+            );
             let err = result.err().unwrap().to_string();
             if matches!(format, GrammarFormat::Gbnf) {
-                assert!(err.contains("CVE-2026-2069"), "GBNF error missing CVE reference");
+                assert!(
+                    err.contains("CVE-2026-2069"),
+                    "GBNF error missing CVE reference"
+                );
             } else {
-                assert!(err.contains("not yet implemented"), "Tree-sitter error missing 'not yet implemented'");
+                assert!(
+                    err.contains("not yet implemented"),
+                    "Tree-sitter error missing 'not yet implemented'"
+                );
             }
         } else {
             assert!(

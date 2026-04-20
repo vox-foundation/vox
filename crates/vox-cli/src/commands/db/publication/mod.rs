@@ -33,44 +33,6 @@ use helpers::{
     source_ref_string,
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /// Simulate per-channel routing/policy outcomes for one prepared publication id.
 ///
 /// When `json` is true, prints one line of compact JSON (stable key order from `serde_json`).
@@ -84,5 +46,3 @@ pub async fn publication_route_simulate(publication_id: &str, json: bool) -> Res
     }
     Ok(())
 }
-
-

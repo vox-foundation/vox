@@ -184,6 +184,9 @@ pub struct TrainingManifest {
     /// Multiplier for rows that meet `trajectory_quality_floor`.
     #[serde(default = "default_trajectory_quality_boost")]
     pub trajectory_quality_boost: f32,
+    /// Overall dataset JSX/React contamination score (populated when vox_pure filter is active).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contamination_score: Option<f32>,
 }
 
 /// Snapshot of run settings for [`initial_training_manifest`].
@@ -219,6 +222,7 @@ pub struct InitialManifestRun {
     pub trajectory_failure_category_boost: f32,
     pub trajectory_quality_floor: Option<u8>,
     pub trajectory_quality_boost: f32,
+    pub contamination_score: Option<f32>,
 }
 
 #[cfg(feature = "mens-train")]
@@ -258,6 +262,7 @@ impl InitialManifestRun {
             trajectory_failure_category_boost: c.trajectory_failure_category_boost,
             trajectory_quality_floor: c.trajectory_quality_floor,
             trajectory_quality_boost: c.trajectory_quality_boost,
+            contamination_score: None, // Filled during preflight/training if vox_pure used
         }
     }
 }

@@ -1,0 +1,19 @@
+// vox:caps subprocess
+fn main() {
+    print("Testing process primitives...")
+    
+    // Test spawn_background
+    // We'll spawn a simple 'ping' or 'echo' in the background (Windows)
+    let res = process.spawn_background("cmd", ["/c", "echo background-alive"])
+    match res {
+        Ok(id) => print("Spawned background process with ID:", id)
+        Err(e) => print("Failed to spawn background process:", e)
+    }
+
+    // Test register_exit_command
+    // This should run when the script finishes or is interrupted
+    process.register_exit_command("cmd", ["/c", "echo exit-command-executed"])
+    print("Registered exit command.")
+
+    print("Finishing script. Exit command should run now.")
+}

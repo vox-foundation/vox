@@ -1,11 +1,11 @@
-﻿//! Agent Q&A and bulletin-board MCP tools built on the orchestrator QA router.
+//! Agent Q&A and bulletin-board MCP tools built on the orchestrator QA router.
 //!
 //! Questions carry correlation ids; answers and broadcasts are published for other agents to observe.
 
 use serde::{Deserialize, Serialize};
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use crate::{AgentId, MessageGateway};
 use vox_runtime::prompt_canonical;
 
@@ -66,13 +66,14 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
 
     let question = prompt_canonical::canonicalize_simple(&params.question);
     let q_router = orch.qa_router_handle();
-    let q_guard = match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
-        Ok(g) => g,
-        Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
-                .to_json();
-        }
-    };
+    let q_guard =
+        match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
+            Ok(g) => g,
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
+                    .to_json();
+            }
+        };
     let corr_id = q_guard.ask(
         AgentId(params.from_agent),
         AgentId(params.to_agent),
@@ -102,13 +103,14 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
     let answer = params.answer.clone();
     let corr_id = crate::types::CorrelationId(params.correlation_id);
     let q_router = orch.qa_router_handle();
-    let q_guard = match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
-        Ok(g) => g,
-        Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
-                .to_json();
-        }
-    };
+    let q_guard =
+        match crate::mcp_tools::sync_poison::poison_rw_write(q_router.write(), "qa router") {
+            Ok(g) => g,
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
+                    .to_json();
+            }
+        };
     match q_guard.answer(corr_id, &answer) {
         Some(original_asker) => {
             let answerer = AgentId(params.from_agent);
@@ -142,13 +144,14 @@ pub async fn pending_questions(state: &ServerState, params: PendingQuestionsPara
     let orch = &state.orchestrator;
 
     let q_router = orch.qa_router_handle();
-    let read_guard = match crate::mcp_tools::sync_poison::poison_rw_read(q_router.read(), "qa router") {
-        Ok(g) => g,
-        Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
-                .to_json();
-        }
-    };
+    let read_guard =
+        match crate::mcp_tools::sync_poison::poison_rw_read(q_router.read(), "qa router") {
+            Ok(g) => g,
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
+                    .to_json();
+            }
+        };
     let questions = read_guard.pending_questions(AgentId(params.agent_id));
 
     let result: Vec<PendingQuestionResponse> = questions
@@ -180,4 +183,3 @@ pub async fn broadcast(state: &ServerState, params: BroadcastParams) -> String {
     ))
     .to_json()
 }
-

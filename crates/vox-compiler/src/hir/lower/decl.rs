@@ -30,6 +30,14 @@ impl LowerCtx {
             llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
+            postconditions: f
+                .postconditions
+                .iter()
+                .map(|p| HirPostCondition {
+                    condition: self.lower_expr(&p.condition),
+                    fallback: p.fallback.clone(),
+                })
+                .collect(),
             span: f.span,
         }
     }

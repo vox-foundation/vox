@@ -1,6 +1,6 @@
-use crate::spec::types::*;
-use crate::spec::ids::SecretId;
 use crate::policy::SecretPolicy;
+use crate::spec::ids::SecretId;
+use crate::spec::types::*;
 
 pub const SPECS_MESH: &[SecretSpec] = &[
     SecretSpec {
@@ -90,5 +90,49 @@ pub const SPECS_MESH: &[SecretSpec] = &[
         policy: SecretPolicy::optional_skip(),
         remediation: "Heartbeat interval for HTTP mesh.",
         scope_description: "Mesh HTTP heartbeat interval.",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshVisibility,
+        canonical_env: "VOX_MESH_VISIBILITY",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: Some("mesh_visibility"),
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set node visibility (private|public|hybrid).",
+        scope_description: "Visibility level for the populi node.",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshDonationPolicyJson,
+        canonical_env: "VOX_MESH_DONATION_POLICY_JSON",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: Some("mesh_donation_policy"),
+        policy: SecretPolicy::optional_skip(),
+        remediation: "JSON-serialized WorkerDonationPolicy.",
+        scope_description: "Policy governing GPU resource donation.",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshFederationSigningKey,
+        canonical_env: "VOX_MESH_FEDERATION_SIGNING_KEY",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Ed25519 private key (base64) for signing mesh announcements.",
+        scope_description: "Private key used to sign federated mesh directory entries.",
+    },
+    SecretSpec {
+        id: SecretId::VoxRoutingPreferMesh,
+        canonical_env: "VOX_ROUTING_PREFER_MESH",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: Some("routing_prefer_mesh"),
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set to 'true' to prefer routing tasks to the local/federated mesh over paid APIs.",
+        scope_description: "Routing preference for local/federated mesh GPUs over cloud APIs.",
     },
 ];

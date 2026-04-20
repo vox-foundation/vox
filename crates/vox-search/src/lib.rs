@@ -21,10 +21,10 @@ pub mod memory_hybrid;
 pub mod policy;
 mod rrf;
 pub mod scraper;
-mod searxng_defaults;
 pub mod searxng;
-pub mod web_dispatcher;
+mod searxng_defaults;
 pub mod symbol_proximity;
+pub mod web_dispatcher;
 
 #[cfg(feature = "tantivy-lexical")]
 pub mod lexical_tantivy;

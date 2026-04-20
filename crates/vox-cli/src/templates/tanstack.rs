@@ -44,6 +44,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       <body>
         {children}
         <Scripts />
+        {/* Vox: load island hydration script (V1) if present */}
+        <script type="module" src="/islands/island-mount.js" suppressHydrationWarning />
       </body>
     </html>
   );

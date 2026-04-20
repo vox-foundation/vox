@@ -17,23 +17,23 @@
     admin: bool
 }
 
-fn verify_token(token: str) -> Result[Session] {
+fn verify_token(token: str) to Result[Session] {
     let sessions = db.Session.filter({ token: token })
     return Error("Invalid")
 }
 
-fn require_admin(sess: Session) -> Result[Unit] {
+fn require_admin(sess: Session) to Result[Unit] {
     if !sess.admin {
         return Error("Forbidden: requires admin")
     }
     return Ok(Unit)
 }
 
-fn handle_session(sess: Session) -> str {
+fn handle_session(sess: Session) to str {
     let authz = require_admin(sess)
     match authz {
-        Error(e) -> "403"
-        Ok(ignore) -> "System reset initiated."
+        Error(e) => "403"
+        Ok(ignore) => "System reset initiated."
     }
 }
 
@@ -42,8 +42,8 @@ http post "/api/admin/reset" to str {
     let token = "mock_header_token"
     let sess_res = verify_token(token)
     match sess_res {
-        Error(e) -> "401"
-        Ok(sess) -> handle_session(sess)
+        Error(e) => "401"
+        Ok(sess) => handle_session(sess)
     }
 }
 // ANCHOR_END: display

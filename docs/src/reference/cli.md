@@ -21,9 +21,20 @@ training_eligible: true
 ---
 # Reference: `vox` CLI (minimal compiler binary)
 
-The **`vox`** executable is built from `crates/vox-cli` (repository root). This page documents the **commands that exist in that crate today**. Other markdown pages may describe a **broader future or workspace-wide toolchain** (Mens, review, MCP, etc.) — those are not necessarily linked into this binary yet.
+The **`vox`** executable is built from `crates/vox-cli` (repository root). This binary serves as the primary compiler driver and orchestrator. Starting in v0.5, specialized domains like **ML/AI training (`vox mens`)**, **scholarship/publication (`vox schola`)**, **mesh coordination (`vox populi`)**, and **speech-to-code (`vox oratio`)** are decoupled into separate binaries (`vox-mens`, `vox-schola`) but remain accessible through the main `vox` CLI via transparent delegation.
 
-## Global flags, completions, Latin groupings
+## Toolchain Binary Split
+
+To minimize binary bloat and dependency sprawl, the Vox toolchain is split into the following authoritative binaries:
+
+| Binary | Subcommands | Role |
+|--------|-------------|------|
+| `vox` | `build`, `check`, `run`, `pm`, `ci`, `dei`, `db` | Compiler core, package manager, and local orchestration. |
+| `vox-mens` | `mens`, `train`, `populi`, `oratio` | Native ML training (QLoRA), inference serving, and mesh coordination. |
+| `vox-schola` | `schola`, `scientia` | Scientific publication, finding candidates, and novelty ledger management. |
+
+If a delegated binary is missing from your `PATH`, the `vox` CLI will provide installation instructions (e.g., `cargo install --path crates/vox-mens`).
+
 
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).

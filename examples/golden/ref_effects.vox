@@ -13,7 +13,7 @@
 @deprecated
 @pure
 @require(true)
-fn noop_effect() -> Unit {
+fn noop_effect() to Unit {
     return Unit
 }
 // ANCHOR_END: pure_region

@@ -8,6 +8,8 @@
 
 #![allow(missing_docs)]
 
+pub mod hardware;
+pub mod kernels;
 pub mod tensor;
 
 #[cfg(feature = "mens")]

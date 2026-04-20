@@ -11,9 +11,9 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use super::speech_constraints;
 use crate::mcp_tools::params::{RunTestsParams, ToolResult};
 use crate::mcp_tools::server_state::ServerState;
-use super::speech_constraints;
 
 const REM_CARGO_DISABLED: &str = "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
 const REM_CARGO_TEST: &str = "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
@@ -472,116 +472,116 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
     let repair_stalled = false;
     let mut routing_recorded = false;
 
-    let grammar_addon =
-        speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
+    let grammar_addon = speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
     let decode_policy = speech_constraints::ConstrainedDecodePolicy::from_env();
 
     loop {
-        let (model, system_prompt, free_only, pref) = if decode_policy == speech_constraints::ConstrainedDecodePolicy::Rigid {
-            let hint_stub = speech_constraints::TypeHintStub;
-            let output_surface_instruction = match output_surface_mode {
-                speech_constraints::OutputSurfaceMode::RawCodeOnly => {
-                    "- Return ONLY raw .vox code (no markdown fences, no prose).\n"
-                }
-                speech_constraints::OutputSurfaceMode::FencedTransport => {
-                    "- Wrap output in a ```vox fenced code block.\n"
-                }
-            };
-            let sys = format!(
-                "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
+        let (model, system_prompt, free_only, pref) =
+            if decode_policy == speech_constraints::ConstrainedDecodePolicy::Rigid {
+                let hint_stub = speech_constraints::TypeHintStub;
+                let output_surface_instruction = match output_surface_mode {
+                    speech_constraints::OutputSurfaceMode::RawCodeOnly => {
+                        "- Return ONLY raw .vox code (no markdown fences, no prose).\n"
+                    }
+                    speech_constraints::OutputSurfaceMode::FencedTransport => {
+                        "- Wrap output in a ```vox fenced code block.\n"
+                    }
+                };
+                let sys = format!(
+                    "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
                  Rules:\n\
                  - Only output the code, no explanation.\n\
                  {}\n\
                  {}\n\
                  {}\n\
                  {}\n",
-                output_surface_instruction,
-                grammar_addon,
-                hint_stub.system_prompt_addon(),
-                crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
-            );
+                    output_surface_instruction,
+                    grammar_addon,
+                    hint_stub.system_prompt_addon(),
+                    crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
+                );
 
-            let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
-                complexity: 2,
-                ..Default::default()
-            };
+                let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
+                    complexity: 2,
+                    ..Default::default()
+                };
 
-            let p: Option<String> = match crate::mcp_tools::sync_poison::poison_rw_read(
-                state.mcp_chat_model_override.read(),
-                "mcp_chat_model_override",
-            ) {
-                Ok(g) => (*g).clone(),
-                Err(e) => {
-                    return ToolResult::<String>::err_with_remediation(
-                        e.to_string(),
-                        REM_MCP_MODEL_LOCK,
-                    )
-                    .to_json();
-                }
-            };
-            let (m, f) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
-                state,
-                &current_prompt,
-                resolution_template.clone(),
-                session_id.as_deref(),
-            )
-            .await
-            {
-                Ok(pair) => pair,
-                Err(e) => {
-                    return ToolResult::<String>::err_with_remediation(
-                        format!("No model: {e}"),
-                        REM_MCP_MODEL_RESOLVE,
-                    )
-                    .to_json();
-                }
-            };
-            (m, sys, f, p)
-        } else {
-            // Fallback for None/Soft policy
-            let sys = format!(
-                "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
+                let p: Option<String> = match crate::mcp_tools::sync_poison::poison_rw_read(
+                    state.mcp_chat_model_override.read(),
+                    "mcp_chat_model_override",
+                ) {
+                    Ok(g) => (*g).clone(),
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            e.to_string(),
+                            REM_MCP_MODEL_LOCK,
+                        )
+                        .to_json();
+                    }
+                };
+                let (m, f) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
+                    state,
+                    &current_prompt,
+                    resolution_template.clone(),
+                    session_id.as_deref(),
+                )
+                .await
+                {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            format!("No model: {e}"),
+                            REM_MCP_MODEL_RESOLVE,
+                        )
+                        .to_json();
+                    }
+                };
+                (m, sys, f, p)
+            } else {
+                // Fallback for None/Soft policy
+                let sys = format!(
+                    "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
                  Rules:\n\
                  - Only output the code, no explanation.\n\
                  {}\n",
-                crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
-            );
-            let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
-                complexity: 2,
-                ..Default::default()
+                    crate::mcp_tools::chat_tools::ANTI_LAZINESS_RIDER
+                );
+                let resolution_template = crate::mcp_tools::llm_bridge::McpChatModelResolution {
+                    complexity: 2,
+                    ..Default::default()
+                };
+                let p: Option<String> = match crate::mcp_tools::sync_poison::poison_rw_read(
+                    state.mcp_chat_model_override.read(),
+                    "mcp_chat_model_override",
+                ) {
+                    Ok(g) => (*g).clone(),
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            e.to_string(),
+                            REM_MCP_MODEL_LOCK,
+                        )
+                        .to_json();
+                    }
+                };
+                let (m, f) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
+                    state,
+                    &current_prompt,
+                    resolution_template.clone(),
+                    session_id.as_deref(),
+                )
+                .await
+                {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            format!("No model: {e}"),
+                            REM_MCP_MODEL_RESOLVE,
+                        )
+                        .to_json();
+                    }
+                };
+                (m, sys, f, p)
             };
-            let p: Option<String> = match crate::mcp_tools::sync_poison::poison_rw_read(
-                state.mcp_chat_model_override.read(),
-                "mcp_chat_model_override",
-            ) {
-                Ok(g) => (*g).clone(),
-                Err(e) => {
-                    return ToolResult::<String>::err_with_remediation(
-                        e.to_string(),
-                        REM_MCP_MODEL_LOCK,
-                    )
-                    .to_json();
-                }
-            };
-            let (m, f) = match crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
-                state,
-                &current_prompt,
-                resolution_template.clone(),
-                session_id.as_deref(),
-            )
-            .await
-            {
-                Ok(pair) => pair,
-                Err(e) => {
-                    return ToolResult::<String>::err_with_remediation(
-                        format!("No model: {e}"),
-                        REM_MCP_MODEL_RESOLVE,
-                    )
-                    .to_json();
-                }
-            };
-            (m, sys, f, p)
-        };
 
         if !routing_recorded {
             if let Some(db) = &state.db {
@@ -1050,13 +1050,14 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
             ..Default::default()
         };
 
-        if let Ok((model, free_only)) = crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
-            state,
-            &feedback,
-            resolution_template.clone(),
-            session_id,
-        )
-        .await
+        if let Ok((model, free_only)) =
+            crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model(
+                state,
+                &feedback,
+                resolution_template.clone(),
+                session_id,
+            )
+            .await
         {
             let routing = crate::mcp_tools::llm_bridge::McpInferRouting {
                 user_prompt: &feedback,

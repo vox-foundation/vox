@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "http_routes": [],
+  "server_fns": [],
+  "query_fns": [
+    {
+      "name": "list_items",
+      "route_path": "/api/query/list_items",
+      "signature": "fn() -> List[Item]"
+    }
+  ],
+  "mutation_fns": [
+    {
+      "name": "add_item",
+      "route_path": "/api/mutation/add_item",
+      "signature": "fn(name: str, value: int) -> Result[str]",
+      "wraps_db_transaction": true
+    }
+  ],
+  "client_routes": [
+    {
+      "path": "/",
+      "component_name": "Dashboard",
+      "redirect": null,
+      "is_wildcard": false
+    },
+    {
+      "path": "/items/:id",
+      "component_name": "ItemDetail",
+      "redirect": null,
+      "is_wildcard": false
+    }
+  ],
+  "islands": [],
+  "mcp_tools": [],
+  "mcp_resources": [],
+  "server_config": {
+    "bind_host": "127.0.0.1",
+    "default_port": 3000,
+    "port_env_var": "VOX_PORT",
+    "dev_proxy_env_var": "VOX_SSR_DEV_URL",
+    "static_assets_embed_dir": "public/"
+  }
+}

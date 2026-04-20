@@ -1,5 +1,8 @@
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, AtomicUsize}};
+use std::sync::{
+    Arc, RwLock,
+    atomic::{AtomicBool, AtomicU64, AtomicUsize},
+};
 
 use crate::affinity::FileAffinityMap;
 use crate::bulletin::BulletinBoard;
@@ -16,9 +19,7 @@ impl crate::orchestrator::Orchestrator {
             config: Arc::new(RwLock::new(config.clone())),
             affinity_map: FileAffinityMap::new(),
             lock_manager: FileLockManager::new(),
-            context_store: Arc::new(RwLock::new(
-                crate::context::ContextStore::new(),
-            )),
+            context_store: Arc::new(RwLock::new(crate::context::ContextStore::new())),
             budget_manager: Arc::new(RwLock::new({
                 let bm = crate::budget::BudgetManager::new(None);
                 bm.init_holistic_budgets(
@@ -28,12 +29,8 @@ impl crate::orchestrator::Orchestrator {
                 );
                 bm
             })),
-            summary_manager: Arc::new(RwLock::new(
-                crate::summary::SummaryManager::new(),
-            )),
-            models: Arc::new(
-                RwLock::new(crate::models::ModelRegistry::new()),
-            ),
+            summary_manager: Arc::new(RwLock::new(crate::summary::SummaryManager::new())),
+            models: Arc::new(RwLock::new(crate::models::ModelRegistry::new())),
             bulletin,
             agents: Arc::new(RwLock::new(HashMap::new())),
             groups: Arc::new(RwLock::new(AffinityGroupRegistry::defaults())),
@@ -48,34 +45,24 @@ impl crate::orchestrator::Orchestrator {
             ))),
             event_bus: crate::events::EventBus::new(1024),
             message_bus: crate::a2a::MessageBus::new(100),
-            dynamic_agents: Arc::new(RwLock::new(
-                std::collections::HashSet::new(),
-            )),
+            dynamic_agents: Arc::new(RwLock::new(std::collections::HashSet::new())),
             agent_delegations: Arc::new(RwLock::new(HashMap::new())),
             dynamic_spawn_context: Arc::new(RwLock::new(HashMap::new())),
             agent_handles: Arc::new(RwLock::new(HashMap::new())),
-            heartbeat_monitor: Arc::new(RwLock::new(
-                crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms),
-            )),
+            heartbeat_monitor: Arc::new(RwLock::new(crate::heartbeat::HeartbeatMonitor::new(
+                config.stale_threshold_ms,
+            ))),
             #[cfg(feature = "system-metrics")]
             sys: Arc::new(RwLock::new(sysinfo::System::new_all())),
-            load_history: Arc::new(RwLock::new(
-                VecDeque::with_capacity(config.scaling_lookback_ticks),
-            )),
-            scope_guard: Arc::new(RwLock::new(ScopeGuard::new(
-                config.scope_enforcement,
+            load_history: Arc::new(RwLock::new(VecDeque::with_capacity(
+                config.scaling_lookback_ticks,
             ))),
+            scope_guard: Arc::new(RwLock::new(ScopeGuard::new(config.scope_enforcement))),
             task_traces: Arc::new(RwLock::new(HashMap::new())),
-            snapshot_store: Arc::new(RwLock::new(
-                crate::snapshot::SnapshotStore::default(),
-            )),
+            snapshot_store: Arc::new(RwLock::new(crate::snapshot::SnapshotStore::default())),
             oplog: Arc::new(RwLock::new(crate::oplog::OpLog::default())),
-            conflict_manager: Arc::new(RwLock::new(
-                crate::conflicts::ConflictManager::new(),
-            )),
-            workspace_manager: Arc::new(RwLock::new(
-                crate::workspace::WorkspaceManager::new(),
-            )),
+            conflict_manager: Arc::new(RwLock::new(crate::conflicts::ConflictManager::new())),
+            workspace_manager: Arc::new(RwLock::new(crate::workspace::WorkspaceManager::new())),
             db: Arc::new(RwLock::new(None)),
             last_rebalance_at: Arc::new(RwLock::new(None)),
             last_activity_ms: AtomicU64::new(crate::types::now_unix_ms()),
@@ -91,9 +78,7 @@ impl crate::orchestrator::Orchestrator {
             config: Arc::new(RwLock::new(config.clone())),
             affinity_map: FileAffinityMap::new(),
             lock_manager: FileLockManager::new(),
-            context_store: Arc::new(RwLock::new(
-                crate::context::ContextStore::new(),
-            )),
+            context_store: Arc::new(RwLock::new(crate::context::ContextStore::new())),
             budget_manager: Arc::new(RwLock::new({
                 let bm = crate::budget::BudgetManager::new(None);
                 bm.init_holistic_budgets(
@@ -103,12 +88,8 @@ impl crate::orchestrator::Orchestrator {
                 );
                 bm
             })),
-            summary_manager: Arc::new(RwLock::new(
-                crate::summary::SummaryManager::new(),
-            )),
-            models: Arc::new(
-                RwLock::new(crate::models::ModelRegistry::new()),
-            ),
+            summary_manager: Arc::new(RwLock::new(crate::summary::SummaryManager::new())),
+            models: Arc::new(RwLock::new(crate::models::ModelRegistry::new())),
             bulletin,
             agents: Arc::new(RwLock::new(HashMap::new())),
             groups: Arc::new(RwLock::new(groups)),
@@ -123,34 +104,24 @@ impl crate::orchestrator::Orchestrator {
             ))),
             event_bus: crate::events::EventBus::new(1024),
             message_bus: crate::a2a::MessageBus::new(100),
-            dynamic_agents: Arc::new(RwLock::new(
-                std::collections::HashSet::new(),
-            )),
+            dynamic_agents: Arc::new(RwLock::new(std::collections::HashSet::new())),
             agent_delegations: Arc::new(RwLock::new(HashMap::new())),
             dynamic_spawn_context: Arc::new(RwLock::new(HashMap::new())),
             agent_handles: Arc::new(RwLock::new(HashMap::new())),
-            heartbeat_monitor: Arc::new(RwLock::new(
-                crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms),
-            )),
+            heartbeat_monitor: Arc::new(RwLock::new(crate::heartbeat::HeartbeatMonitor::new(
+                config.stale_threshold_ms,
+            ))),
             #[cfg(feature = "system-metrics")]
             sys: Arc::new(RwLock::new(sysinfo::System::new_all())),
-            load_history: Arc::new(RwLock::new(
-                VecDeque::with_capacity(config.scaling_lookback_ticks),
-            )),
-            scope_guard: Arc::new(RwLock::new(ScopeGuard::new(
-                config.scope_enforcement,
+            load_history: Arc::new(RwLock::new(VecDeque::with_capacity(
+                config.scaling_lookback_ticks,
             ))),
+            scope_guard: Arc::new(RwLock::new(ScopeGuard::new(config.scope_enforcement))),
             task_traces: Arc::new(RwLock::new(HashMap::new())),
-            snapshot_store: Arc::new(RwLock::new(
-                crate::snapshot::SnapshotStore::default(),
-            )),
+            snapshot_store: Arc::new(RwLock::new(crate::snapshot::SnapshotStore::default())),
             oplog: Arc::new(RwLock::new(crate::oplog::OpLog::default())),
-            conflict_manager: Arc::new(RwLock::new(
-                crate::conflicts::ConflictManager::new(),
-            )),
-            workspace_manager: Arc::new(RwLock::new(
-                crate::workspace::WorkspaceManager::new(),
-            )),
+            conflict_manager: Arc::new(RwLock::new(crate::conflicts::ConflictManager::new())),
+            workspace_manager: Arc::new(RwLock::new(crate::workspace::WorkspaceManager::new())),
             db: Arc::new(RwLock::new(None)),
             last_rebalance_at: Arc::new(RwLock::new(None)),
             last_activity_ms: AtomicU64::new(crate::types::now_unix_ms()),
@@ -159,11 +130,19 @@ impl crate::orchestrator::Orchestrator {
             stop_flag: Arc::new(AtomicBool::new(false)),
         }
     }
+
+    /// Spawns background tasks (observer loop, telemetry, etc.) into the current Tokio runtime.
+    pub fn spawn_background_tasks(self: Arc<Self>) {
+        let orch = self.clone();
+        tokio::spawn(async move {
+            crate::orchestrator::observer_loop::run_observer_loop(orch).await;
+        });
+    }
 }
 
-mod init;
 mod accessors;
+mod init;
 mod lineage;
-mod usage;
 mod telemetry;
 mod temporal;
+mod usage;

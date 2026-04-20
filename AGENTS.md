@@ -22,7 +22,7 @@ Primary navigation:
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
-- Research index: [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+- Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
 - Agent discovery index: [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt)
 
 ## Research and Documentation Storage (IDE Agent Directive)
@@ -95,7 +95,7 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 | File I/O, subprocess | `vox run scripts/foo.vox` | Native tier; content-hash cached |
 | Untrusted / sandboxed | `vox run --isolation wasm scripts/foo.vox` | Wasmtime WASI; explicit `--wasi-dir` |
 
-**Bootstrap exception:** `scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **retained as thin launchers only** (≤10 lines, no logic). They forward to `cargo run -p vox-cli -- run <args>` to solve the chicken-and-egg problem of needing `vox` to run `.vox` before `vox` is built.
+**Bootstrap exception:** `scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **retained as thin launchers only** (≤10 lines of primary logic where possible). They forward to `cargo run -p vox-cli -- run <args>` to solve the chicken-and-egg problem of needing `vox` to run `.vox` before `vox` is built.
 
 **Security invariants:**
 - Scripts that modify the Vox repository MUST be committed to VCS before an agent executes them

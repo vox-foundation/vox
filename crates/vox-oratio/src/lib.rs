@@ -39,6 +39,9 @@ pub mod traits;
 pub mod transcript_rerank;
 pub mod vad;
 
+#[cfg(feature = "serve")]
+pub mod serve;
+
 pub use backend_dispatch::create_backend;
 pub use backends::asr_backend::{AsrBackend, AsrOutput};
 

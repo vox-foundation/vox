@@ -1,4 +1,4 @@
-﻿use crate::{AgentId, ConflictId, ConflictResolution, SnapshotId};
+use crate::{AgentId, ConflictId, ConflictResolution, SnapshotId};
 
 use super::parse::parse_conflict_id_value;
 use crate::mcp_tools::params::ToolResult;
@@ -254,10 +254,7 @@ mod conflict_diff_contract_tests {
             cm.write().unwrap().record_conflict(
                 "shared.rs",
                 Some(snap_id),
-                vec![
-                    (crate::AgentId(1), snap_id),
-                    (crate::AgentId(2), snap_id),
-                ],
+                vec![(crate::AgentId(1), snap_id), (crate::AgentId(2), snap_id)],
             )
         };
 

@@ -66,14 +66,14 @@ pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {
 
         // Try with breakaway first (allows child to survive parent death)
         cmd.creation_flags(CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB);
-        
-        // Check if we can actually spawn with these flags. 
+
+        // Check if we can actually spawn with these flags.
         // We use a dummy command to probe, or we just rely on the fallback logic.
         // Actually, we'll just try to spawn and catch the error.
     }
 
     let child_res = cmd.spawn();
-    
+
     #[cfg(windows)]
     let child = match child_res {
         Ok(c) => Ok(c),
@@ -82,7 +82,13 @@ pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {
             use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
-            cmd.spawn().map_err(|e2| anyhow::anyhow!("spawn training process (fallback): {} (original error: {})", e2, e))
+            cmd.spawn().map_err(|e2| {
+                anyhow::anyhow!(
+                    "spawn training process (fallback): {} (original error: {})",
+                    e2,
+                    e
+                )
+            })
         }
         Err(e) => Err(anyhow::anyhow!("spawn training process: {}", e)),
     }?;

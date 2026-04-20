@@ -174,6 +174,7 @@ mod a2a_pairs;
 mod agent_pairs;
 mod cli_pairs;
 mod error_recovery_pairs;
+pub mod kch_anticonflation;
 mod multi_agent_pairs;
 mod negative_pairs;
 mod orchestrator_pairs;
@@ -185,7 +186,6 @@ mod tool_pairs;
 pub mod transplant_pairs;
 mod web_pairs;
 mod workflow_pairs;
-pub mod kch_anticonflation;
 
 pub use agent_pairs::generate_agent_lifecycle_pairs;
 pub use error_recovery_pairs::generate_error_recovery_pairs;

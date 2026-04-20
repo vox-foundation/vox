@@ -24,18 +24,23 @@ pub fn run(root: &Path) -> Result<()> {
     let git_dir = root.join(".git");
     if !git_dir.is_dir() {
         // Just print a warning, no need to fail the CI step if someone isn't inside a git clone.
-        println!("Skipping hook installation: {} is not a valid .git directory", git_dir.display());
+        println!(
+            "Skipping hook installation: {} is not a valid .git directory",
+            git_dir.display()
+        );
         return Ok(());
     }
 
     let hooks_dir = git_dir.join("hooks");
     if !hooks_dir.exists() {
-        fs::create_dir_all(&hooks_dir).with_context(|| format!("create {}", hooks_dir.display()))?;
+        fs::create_dir_all(&hooks_dir)
+            .with_context(|| format!("create {}", hooks_dir.display()))?;
     }
 
     let pre_commit_path = hooks_dir.join("pre-commit");
-    
-    fs::write(&pre_commit_path, PRE_COMMIT_HOOK).with_context(|| format!("write {}", pre_commit_path.display()))?;
+
+    fs::write(&pre_commit_path, PRE_COMMIT_HOOK)
+        .with_context(|| format!("write {}", pre_commit_path.display()))?;
 
     // Make the hook executable on Unix systems
     #[cfg(unix)]
@@ -47,6 +52,9 @@ pub fn run(root: &Path) -> Result<()> {
         }
     }
 
-    println!("✅ Installed Git pre-commit line-endings hook to {}", pre_commit_path.display());
+    println!(
+        "✅ Installed Git pre-commit line-endings hook to {}",
+        pre_commit_path.display()
+    );
     Ok(())
 }

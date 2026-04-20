@@ -65,6 +65,7 @@ pub async fn run_train(
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
+    persistent: bool,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
@@ -82,6 +83,7 @@ pub async fn run_train(
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
             spec.num_samples = 5000;
+            spec.persistent = persistent;
 
             let resolver = CloudResolver::new_from_env().await?;
             return resolver.dispatch(spec, &cloud).await;

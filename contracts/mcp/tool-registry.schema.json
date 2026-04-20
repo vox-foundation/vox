@@ -25,6 +25,11 @@
           "http_read_role_eligible": {
             "type": "boolean",
             "description": "Optional flag for MCP HTTP read-role eligibility. When true, this tool can be included in read-token visibility/invocation after gateway allowlist/env intersections."
+          },
+          "tier": {
+            "type": "string",
+            "enum": ["core", "dev", "advanced"],
+            "description": "MCP tool tier indicating its typical load context."
           }
         }
       }

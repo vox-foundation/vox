@@ -1,0 +1,3 @@
+fn main() {
+    process.exec("invalid_command", [])
+}

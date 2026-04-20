@@ -1,0 +1,5 @@
+// vox:caps env
+fn main() {
+    let sidecar = env.get("VOX_MESH_MESH_SIDECAR")
+    print("Sidecar:", sidecar)
+}

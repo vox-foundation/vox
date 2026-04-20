@@ -43,7 +43,6 @@ impl<B: Backend> vox_runtime::gc::GcDrop for Tensor<B> {
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum ElementType {
     Float,

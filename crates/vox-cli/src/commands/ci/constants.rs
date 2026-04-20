@@ -1,9 +1,9 @@
 //! Static path lists and feature matrix lanes for CI guards.
 
 pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
-                                                            "docs/src/how-to/how-to-train-mens-4080.md",
+    "docs/src/how-to/how-to-train-mens-4080.md",
     "docs/src/how-to/how-to-voxdb-canonical-store.md",
-                            "docs/src/ci/runner-contract.md",
+    "docs/src/ci/runner-contract.md",
     "docs/src/ci/command-surface-duals.md",
     "docs/src/ci/documentation-pointers.md",
     "docs/src/ci/crate-hardening-matrix.md",
@@ -20,8 +20,8 @@ pub(crate) const CODEX_SSOT_FILES: &[&str] = &[
     "contracts/reports/evidence-snapshot-rev-c.json",
     "contracts/codex-api.openapi.yaml",
     "docs/src/adr/004-codex-arca-turso-ssot.md",
-                            "infra/coolify/docker-compose.yml",
-        ];
+    "infra/coolify/docker-compose.yml",
+];
 
 pub(crate) const OPENAPI_SUBSTRINGS: &[&str] = &[
     "openapi:",
@@ -44,19 +44,12 @@ pub(crate) const FEATURE_SETS: &[&str] = &[
     "stub-check",
     "codex,stub-check",
     "live",
-    "mens-dei",
-    "oratio",
-    "dashboard",
+    "dei",
     "ars",
     "extras-ludus",
     "ludus-hud",
-    "gpu,mens-qlora,stub-check",
     "island",
-    "island,mens-base",
     "script-execution",
     "script-execution,stub-check",
-    "mens",
-    "script-execution,mens",
-    "workflow-runtime",
+    "mcp-server",
 ];
-

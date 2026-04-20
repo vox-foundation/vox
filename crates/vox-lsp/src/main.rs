@@ -11,8 +11,6 @@ use tracing::info;
 
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::diagnostics::TypeckSeverity;
-use vox_compiler::typeck::typecheck_module;
 
 static LUDUS_PROJECT_DB: OnceLock<Mutex<Option<Arc<vox_db::VoxDb>>>> = OnceLock::new();
 
@@ -93,6 +91,7 @@ impl LanguageServer for Backend {
                 code_lens_provider: Some(CodeLensOptions {
                     resolve_provider: Some(false),
                 }),
+                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -108,6 +107,60 @@ impl LanguageServer for Backend {
     async fn shutdown(&self) -> Result<()> {
         let _ = std::hint::black_box(self as *const _ as usize);
         Ok(())
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let mut actions = Vec::new();
+        let uri = params.text_document.uri;
+
+        for diagnostic in params.context.diagnostics {
+            if let Some(ref data) = diagnostic.data {
+                if let Ok(data) = serde_json::from_value::<serde_json::Value>(data.clone()) {
+                    if let Some(fixes) = data.get("fixes").and_then(|f| f.as_array()) {
+                        for fix in fixes {
+                            let label = fix.get("label").and_then(|l| l.as_str()).unwrap_or("Fix");
+                            let replacement = fix
+                                .get("replacement")
+                                .and_then(|r| r.as_str())
+                                .unwrap_or("");
+                            let range = fix
+                                .get("range")
+                                .and_then(|r| serde_json::from_value::<Range>(r.clone()).ok());
+
+                            if let Some(range) = range {
+                                let mut changes = HashMap::new();
+                                changes.insert(
+                                    uri.clone(),
+                                    vec![TextEdit {
+                                        range,
+                                        new_text: replacement.to_string(),
+                                    }],
+                                );
+
+                                let action = CodeAction {
+                                    title: label.to_string(),
+                                    kind: Some(CodeActionKind::QUICKFIX),
+                                    diagnostics: Some(vec![diagnostic.clone()]),
+                                    edit: Some(WorkspaceEdit {
+                                        changes: Some(changes),
+                                        ..Default::default()
+                                    }),
+                                    is_preferred: Some(true),
+                                    ..Default::default()
+                                };
+                                actions.push(CodeActionOrCommand::CodeAction(action));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if actions.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(actions))
+        }
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
@@ -137,11 +190,13 @@ impl LanguageServer for Backend {
                 range: None,
             }));
         }
-        
+
         // Wave 5: Semantic Proximity Hover
         // Surface proximity hints from search execution directly in the editor.
         if word == "resolveArenaRound" || word == "combatRoundResolver" {
-            let md = format!("**Proximity Alert:** `{word}` shares semantic overlap with a similar symbol. Ensure you are using the canonical function to prevent Knowledge Conflating Hallucinations (KCH).");
+            let md = format!(
+                "**Proximity Alert:** `{word}` shares semantic overlap with a similar symbol. Ensure you are using the canonical function to prevent Knowledge Conflating Hallucinations (KCH)."
+            );
             return Ok(Some(Hover {
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
@@ -315,70 +370,7 @@ impl Backend {
             guard.insert(uri.clone(), text.clone());
         }
 
-        let mut diagnostics = Vec::new();
-
-        // 1. Lex
-        let tokens = lex(&text);
-
-        // 2. Parse errors are now handled to position them properly
-        match parse(tokens) {
-            Ok(module) => {
-                // 3. Type Check
-                let type_errors = typecheck_module(&module, &text);
-
-                for err in type_errors {
-                    let (sl, sc) = vox_lsp::byte_index_to_line_col(&text, err.span.start);
-                    let (el, ec) = vox_lsp::byte_index_to_line_col(&text, err.span.end);
-                    let start = Position {
-                        line: sl,
-                        character: sc,
-                    };
-                    let end = Position {
-                        line: el,
-                        character: ec,
-                    };
-
-                    diagnostics.push(Diagnostic {
-                        range: Range { start, end },
-                        severity: Some(match err.severity {
-                            TypeckSeverity::Error => DiagnosticSeverity::ERROR,
-                            TypeckSeverity::Warning => DiagnosticSeverity::WARNING,
-                        }),
-                        code: None,
-                        code_description: None,
-                        source: Some("vox-lsp".to_string()),
-                        message: err.message,
-                        related_information: None,
-                        tags: None,
-                        data: None,
-                    });
-                }
-            }
-            Err(parse_errors) => {
-                // Convert ParseError to Diagnostic
-                for err in parse_errors {
-                    let (sl, sc) = vox_lsp::byte_index_to_line_col(&text, err.span.start);
-                    let (el, ec) = vox_lsp::byte_index_to_line_col(&text, err.span.end);
-                    let start = Position {
-                        line: sl,
-                        character: sc,
-                    };
-                    let end = Position {
-                        line: el,
-                        character: ec,
-                    };
-                    diagnostics.push(Diagnostic {
-                        range: Range { start, end },
-                        severity: Some(DiagnosticSeverity::ERROR),
-                        code: None,
-                        code_description: None,
-                        message: err.to_string(),
-                        source: Some("vox-lsp".to_string()),
-                        ..Default::default()
-                    });
-                }
-            }
-        }
+        let diagnostics = vox_lsp::validate_document_with_hir(&text);
 
         let err_n = diagnostics
             .iter()

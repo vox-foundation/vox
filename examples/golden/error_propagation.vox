@@ -12,14 +12,14 @@
 // @training_prompt: Show Vox error propagation: chained Result operations, early return on Error, and workflow-level error handling.
 // ANCHOR: display
 fn parse_int(s: str) to Result[int] {
-    if len(s) == 0 {
+    if len(s) is 0 {
         return Error("empty string")
     }
     return Ok(42)
 }
 
 fn divide(a: int, b: int) to Result[int] {
-    if b == 0 {
+    if b is 0 {
         return Error("division by zero")
     }
     return Ok(a / b)

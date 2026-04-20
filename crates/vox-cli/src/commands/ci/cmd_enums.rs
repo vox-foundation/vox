@@ -11,9 +11,15 @@ use super::release_build;
 pub enum CiCmd {
     /// `cargo metadata --locked --format-version 1 --no-deps` (workspace manifest resolves).
     Manifest,
+    /// Extract domain matrix from README.md to generate shipped-v0.4.md
+    #[command(name = "capability-snapshot")]
+    CapabilitySnapshot,
     /// Documentation SSOT guard (required pages, doc-inventory schema, orphan inventory crate list).
     #[command(name = "check-docs-ssot")]
     CheckDocsSsot,
+    /// Enforces that no new crates are added outside of the 10 Frozen Core crates in `crates/_frozen.md`.
+    #[command(name = "check-frozen")]
+    CheckFrozen,
     /// Codex / Arca SSOT file and OpenAPI substring guard.
     #[command(name = "check-codex-ssot")]
     CheckCodexSsot,
@@ -422,11 +428,20 @@ pub enum CiCmd {
     #[command(name = "install-hooks")]
     InstallHooks,
     /// Check VoxScript hygiene: run `vox check` on all `.vox` files in `scripts/`.
-    #[command(name = "script-hygiene")]
     ScriptHygiene {
         /// Scan for retired patterns in script bodies.
         #[arg(long)]
         retired_check: bool,
+    },
+    /// Determinism audit: run `vox build` twice on each golden, assert byte-identical output (C.39).
+    #[command(name = "determinism-audit")]
+    DeterminismAudit,
+    /// Dependency sprawl guard: fail if any core crate exceeds the direct dependency cap (H.82).
+    #[command(name = "dep-sprawl")]
+    DepSprawl {
+        /// Per-crate direct dependency cap.
+        #[arg(long, default_value_t = 25)]
+        cap: usize,
     },
 }
 
@@ -573,4 +588,3 @@ pub enum MensScorecardCmd {
         summary: PathBuf,
     },
 }
-

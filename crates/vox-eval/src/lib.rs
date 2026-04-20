@@ -488,15 +488,12 @@ pub struct SemanticEntropyReport {
     pub collapse_warning: bool,
 }
 
-/// Sample `n` outputs from the model for the same prompt, extract code, 
+/// Sample `n` outputs from the model for the same prompt, extract code,
 /// and measure structural diversity based on a pseudo-AST hash.
 ///
 /// This avoids a circular dependency on the full vox-compiler by using
 /// a regex-based structural "shape" extraction.
-pub fn eval_semantic_entropy(
-    outputs: &[String],
-    collapse_threshold: f64,
-) -> SemanticEntropyReport {
+pub fn eval_semantic_entropy(outputs: &[String], collapse_threshold: f64) -> SemanticEntropyReport {
     if outputs.is_empty() {
         return SemanticEntropyReport {
             ast_diversity: 0.0,
@@ -516,7 +513,7 @@ pub fn eval_semantic_entropy(
     for out in outputs {
         // Extract code if wrapped in triple-backticks, otherwise treat as raw code
         let code = extract_vox_code(out).unwrap_or_else(|| out.clone());
-        
+
         // Pseudo-AST: strip literals and normalize whitespace to get the "shape"
         let stripped_str = re_str.replace_all(&code, "\"\"");
         let stripped_num = re_num.replace_all(&stripped_str, "0");
@@ -535,10 +532,14 @@ pub fn eval_semantic_entropy(
     }
 
     let ast_diversity = unique_hashes.len() as f64 / outputs.len() as f64;
-    
+
     // Variance of construct counts
     let mean = construct_counts.iter().sum::<f64>() / construct_counts.len() as f64;
-    let variance = construct_counts.iter().map(|&c| (c - mean).powi(2)).sum::<f64>() / construct_counts.len() as f64;
+    let variance = construct_counts
+        .iter()
+        .map(|&c| (c - mean).powi(2))
+        .sum::<f64>()
+        / construct_counts.len() as f64;
 
     SemanticEntropyReport {
         ast_diversity,
@@ -548,7 +549,7 @@ pub fn eval_semantic_entropy(
 }
 
 /// Heuristic code extractor for triple-backticked blocks.
-pub(crate) fn extract_vox_code(response: &str) -> Option<String> {
+pub fn extract_vox_code(response: &str) -> Option<String> {
     if let Some(start) = response.find("```vox") {
         if let Some(end) = response[start + 6..].find("```") {
             return Some(response[start + 6..start + 6 + end].trim().to_string());

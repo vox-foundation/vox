@@ -53,7 +53,6 @@ pub async fn run_bench(url: &str, count: usize, warmups: usize) -> Result<()> {
         println!("\nSUCCESS: P95 latency ({} ms) within 50 ms target.", p95);
     }
 
-
     // crate::benchmark_telemetry::record_opt(
     //     "populi_bench_completion",
     //     Some(p95 as f64),

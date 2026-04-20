@@ -51,8 +51,15 @@ Stability is stratified by **model predictability**. Core surfaces (data, logic,
 * 🟡 **Preview** — functionally complete; execution pipelines still optimizing.
 * 🚧 **Experimental** — under active design; not deployable.
 
+#### v1.0 Release Criteria
+We will officially cut Vox v1.0 ("Stable" across the core) when the following are met:
+1. **Production Proven:** 3 external solo-dev web apps deployed in production for 30 consecutive days.
+2. **Velocity:** `vox new web` successfully deploys to a public URL in under 10 minutes.
+3. **Correctness:** Zero P0 bugs open on `vox-compiler` or `vox-runtime`.
+
 #### Domain Matrix
 
+<!-- ANCHOR: tier_table -->
 | Domain & Purpose | What It Manages | Tier Status & Impact | Verification Pipeline |
 |:-----------------|:----------------|:---------------------|:----------------------|
 | **Core Syntax & Engine**<br>Language foundation. | AST, type safety, compiler directives, LSP. | 🟢 **Stable**<br>Syntax rules are locked; generation is highly predictable. | Golden parsing suite, typed AST validations. |
@@ -65,6 +72,7 @@ Stability is stratified by **model predictability**. Core surfaces (data, logic,
 | **Distributed Node Mesh**<br>Cross-machine coordination. | Cross-machine inference routing, agent task distribution. | 🚧 **Experimental**<br>Still under active design; not ready for deployment. | Pending standardizations. |
 
 *(v0.4, April 2026)*
+<!-- ANCHOR_END: tier_table -->
 
 <br>
 
@@ -218,15 +226,19 @@ More: [`examples/golden/`](examples/golden/) · [Rosetta comparison (C++, Rust, 
 
 ## Quick Start
 
-**macOS / Linux:**
+**macOS:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash
+brew install vox-foundation/vox/vox
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps1 | iex
+**Linux (Debian/Ubuntu):**
+```bash
+curl -fsSLO https://github.com/vox-foundation/vox/releases/latest/download/vox-cli-amd64.deb
+sudo dpkg -i vox-cli-amd64.deb
 ```
+
+**Windows:**
+Download and run the latest `.msi` installer from the [Releases page](https://github.com/vox-foundation/vox/releases).
 
 ```bash
 # Create your first project
@@ -248,9 +260,21 @@ vox bundle <file>        Full production build → pnpm → single binary
 vox doctor               Verify toolchain, environment, and secret health
 ```
 
-Full command reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
+### Pillar 6: VoxScript-First Glue Code
+Project automation shouldn't be a fragmented mess of `.ps1`, `.sh`, and `.py` scripts. Vox enforces a **VoxScript-first** policy: all CI preparation, corpus transforms, training pipelines, and install helpers are written as `.vox` files and executed via `vox run`.
 
-> `vox commands --recommended` gives a curated first-time subcommand map. `vox ci gui-smoke` runs deterministic WebIR routing tests; opt into Vite (`VOX_WEB_VITE_SMOKE=1`) or Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.
+*   **Type-checked:** Scripts are verified by the compiler before execution (`vox check scripts/foo.vox`).
+*   **Cross-platform:** The same file runs on Windows, Linux, and macOS without modification.
+*   **Auditable:** Every script execution is observable via `vox.script.*` telemetry events.
+*   **Sandboxed:** Optional WASM isolation (`vox run --isolation wasm`) for untrusted scripts.
+
+```bash
+# Run a project automation script natively
+vox run scripts/clean-cache.vox
+
+# Run with WASM isolation for security
+vox run --isolation wasm scripts/process-untrusted-data.vox
+```
 
 ---
 

@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 use super::params::{SessionCompactParams, SessionCreateParams, SessionIdParams, SessionInfo};
 
@@ -98,4 +98,3 @@ pub async fn session_cleanup(state: &ServerState) -> String {
         }
     }
 }
-

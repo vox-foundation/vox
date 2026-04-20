@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use std::collections::{HashMap, VecDeque};
 use crate::attention::{AgentTrustScore, ApprovalOutcome, AttentionBudget, AttentionEvent};
 use crate::fatigue_monitor::{FatigueEvent, FatigueMonitor};
 use crate::sync_lock;
 use crate::types::AgentId;
+use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
 /// Per-agent budget allocation cap.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -119,7 +119,9 @@ impl ContextBudget {
 /// Unified budget signal for behavioral gating (tokens, cost, and attention).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BudgetSignal {
-    Normal { usage_ratio: f64 },
+    Normal {
+        usage_ratio: f64,
+    },
     HighLoad {
         usage_ratio: f64,
         tokens_remaining: usize,
@@ -128,7 +130,10 @@ pub enum BudgetSignal {
         usage_ratio: f64,
         tokens_remaining: usize,
     },
-    CostExceeded { cost_usd: f64, limit_usd: f64 },
+    CostExceeded {
+        cost_usd: f64,
+        limit_usd: f64,
+    },
     AttentionHigh {
         spent_ratio: f64,
         attention_remaining_ms: u64,
@@ -459,4 +464,3 @@ impl BudgetManager {
 }
 
 mod persistence;
-

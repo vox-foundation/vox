@@ -66,6 +66,7 @@ pub async fn insert_policy_snapshot(
     streak_days: u32,
     grind_capped: bool,
     lumens_awarded: i64,
+    metadata: Option<&str>,
 ) -> Result<()> {
     db.insert_gamify_policy_snapshot(
         user_id,
@@ -79,6 +80,7 @@ pub async fn insert_policy_snapshot(
         streak_days as i64,
         grind_capped,
         lumens_awarded,
+        metadata,
     )
     .await
     .map_err(|e| anyhow::anyhow!("{}", e))?;

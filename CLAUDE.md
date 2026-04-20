@@ -1,3 +1,11 @@
+---
+title: "Claude Code Overlay"
+description: "Claude Code-specific instructions and behavior narrowing."
+category: "contributor"
+status: "current"
+training_eligible: true
+training_rationale: "Defines Claude-specific rules for interacting with the Vox codebase."
+---
 # Claude Code Overlay
 
 This project uses `AGENTS.md` as the cross-tool policy surface (required reading first).

@@ -115,6 +115,8 @@ pub enum SecretId {
     VoxMeshBootstrapExpiresUnixMs,
     VoxIdentityKeyPath,
     VoxIdentityMasterPwd,
+    VoxGithubClientId,
+    VoxGithubOauthToken,
     VoxMeshEnabled,
     VoxMeshMode,
     VoxMeshNodeId,
@@ -127,6 +129,8 @@ pub enum SecretId {
     VoxMeshA2aMaxMessages,
     VoxMeshA2aLeaseMs,
     VoxMeshHttpRateLimit,
+    VoxMeshVisibility,
+    VoxMeshDonationPolicyJson,
     VoxOrchestratorEnabled,
     VoxOrchestratorMaxAgents,
     VoxOrchestratorLockTimeoutMs,
@@ -275,13 +279,7 @@ pub enum SecretId {
     VoxCandleDevice,
     VoxQuestioningMirrorGlobalAttention,
     VoxMcpOrchestratorDaemonRepositoryIdStrict,
-    VoxMcpOrchestratorRpcReads,
-    VoxMcpOrchestratorRpcWrites,
-    VoxMcpOrchestratorTaskStatusRpc,
-    VoxMcpOrchestratorStartRpc,
-    VoxMcpOrchestratorStatusToolRpc,
-    VoxMcpOrchestratorTaskWritesRpc,
-    VoxMcpOrchestratorAgentWritesRpc,
+
     VoxQuestioningMaxAttentionMs,
     VoxOratioLogitBiasStrength,
     VoxOratioLogitBiasMaxTokens,
@@ -425,6 +423,8 @@ pub enum SecretId {
     VoxLudusSessionMode,
     VoxLudusExperimentRewardMult,
     VoxSecretGuardGitRef,
+    VoxMeshFederationSigningKey,
+    VoxRoutingPreferMesh,
 }
 
 pub const ALL_CHAT_OPTIONALS: &[SecretId] = &[
@@ -496,6 +496,8 @@ impl SecretId {
             | SecretId::TavilyProject
             | SecretId::VoxDataCitePassword
             | SecretId::VoxIdentityKeyPath
+            | SecretId::VoxGithubClientId
+            | SecretId::VoxGithubOauthToken
             | SecretId::VoxIdentityMasterPwd => SecretMetadata {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::ApiKey,

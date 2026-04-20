@@ -1,0 +1,19 @@
+// vox:caps fs process env
+import fs;
+import path;
+import process;
+import env;
+import json;
+
+fn main() {
+    print("Testing DB call from inside vox run...");
+    let vox_bin = "target\\debug\\vox.exe";
+    let res = process.run("cmd", ["/c", vox_bin + " db build-regressions --json"]);
+    if res is null {
+        print("Result was null");
+    } else {
+        print("Code: " + res.code);
+        print("Stdout: " + res.stdout);
+        print("Stderr: " + res.stderr);
+    }
+}

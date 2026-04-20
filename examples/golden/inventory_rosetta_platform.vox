@@ -64,7 +64,7 @@ fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str 
 }
 
 component InventoryView() {
-    view: <div className="inventory-view">
+    view: <div class="inventory-view">
         <h1>{"inventory"}</h1>
         <StashMeter values=[7, 9, 2] />
     </div>

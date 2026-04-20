@@ -1,29 +1,31 @@
 use crate::VoxDb;
-use crate::store::types::{VisusAuditLogRow, VisusBaselineRow};
 use crate::store::StoreError;
+use crate::store::types::{VisusAuditLogRow, VisusBaselineRow};
 
 impl VoxDb {
     /// Save a visual baseline (golden state) for a target.
-    pub async fn upsert_visus_baseline(
-        &self,
-        row: VisusBaselineRow,
-    ) -> Result<(), StoreError> {
+    pub async fn upsert_visus_baseline(&self, row: VisusBaselineRow) -> Result<(), StoreError> {
         let sql = r#"
             INSERT OR REPLACE INTO visus_baselines (
                 id, target_url, viewport, theme, screenshot_cas, ax_tree_cas, metadata_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         "#;
-        
-        self.conn.execute(sql, (
-            row.id,
-            row.target_url,
-            row.viewport,
-            row.theme,
-            row.screenshot_cas,
-            row.ax_tree_cas,
-            row.metadata_json,
-        )).await?;
-        
+
+        self.conn
+            .execute(
+                sql,
+                (
+                    row.id,
+                    row.target_url,
+                    row.viewport,
+                    row.theme,
+                    row.screenshot_cas,
+                    row.ax_tree_cas,
+                    row.metadata_json,
+                ),
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -39,9 +41,9 @@ impl VoxDb {
             FROM visus_baselines
             WHERE target_url = ? AND viewport = ? AND theme = ?
         "#;
-        
+
         let mut rows = self.conn.query(sql, (target_url, viewport, theme)).await?;
-        
+
         if let Some(row) = rows.next().await? {
             Ok(Some(VisusBaselineRow {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
@@ -59,25 +61,27 @@ impl VoxDb {
     }
 
     /// Log a visual audit outcome.
-    pub async fn log_visus_audit(
-        &self,
-        row: VisusAuditLogRow,
-    ) -> Result<(), StoreError> {
+    pub async fn log_visus_audit(&self, row: VisusAuditLogRow) -> Result<(), StoreError> {
         let sql = r#"
             INSERT INTO visus_audit_log (
                 id, baseline_id, target_url, outcome, findings_json, screenshot_cas
             ) VALUES (?, ?, ?, ?, ?, ?)
         "#;
-        
-        self.conn.execute(sql, (
-            row.id,
-            row.baseline_id,
-            row.target_url,
-            row.outcome,
-            row.findings_json,
-            row.screenshot_cas,
-        )).await?;
-        
+
+        self.conn
+            .execute(
+                sql,
+                (
+                    row.id,
+                    row.baseline_id,
+                    row.target_url,
+                    row.outcome,
+                    row.findings_json,
+                    row.screenshot_cas,
+                ),
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -90,9 +94,9 @@ impl VoxDb {
         let sql = format!(
             "SELECT id, baseline_id, target_url, outcome, findings_json, screenshot_cas, created_at FROM visus_audit_log ORDER BY created_at DESC LIMIT {limit}"
         );
-        
+
         let mut rows = self.conn.query(&sql, ()).await?;
-        
+
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
             results.push(VisusAuditLogRow {
@@ -105,7 +109,7 @@ impl VoxDb {
                 created_at: row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
             });
         }
-        
+
         Ok(results)
     }
 }

@@ -15,6 +15,8 @@ pub fn run() -> Result<()> {
 
     #[cfg(not(feature = "mcp-server"))]
     {
-        anyhow::bail!("Vox MCP server is not enabled in this build. Recompile with --features mcp-server.")
+        anyhow::bail!(
+            "Vox MCP server is not enabled in this build. Recompile with --features mcp-server."
+        )
     }
 }

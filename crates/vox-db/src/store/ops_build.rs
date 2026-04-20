@@ -322,28 +322,26 @@ impl crate::VoxDb {
         &self,
         repository_id: &str,
         run_id: i64,
+        threshold: f64,
     ) -> Result<Vec<RegressionRow>, StoreError> {
         let mut rows = self
             .conn
             .query(
-                "WITH baseline AS (
+                "WITH crate_baselines AS (
                 SELECT cs.name, AVG(cs.elapsed_ms) AS avg_ms
                 FROM build_crate_sample cs
                 JOIN build_run br ON cs.run_id = br.id
                 WHERE br.repository_id = ?1 AND br.id < ?2 AND cs.fresh = 0
                 GROUP BY cs.name
             )
-            SELECT * FROM (
-                SELECT cs.name, cs.elapsed_ms, b.avg_ms,
-                       CAST(cs.elapsed_ms AS REAL) / b.avg_ms AS ratio
-                FROM build_crate_sample cs
-                JOIN build_run br ON cs.run_id = br.id
-                JOIN baseline b ON cs.name = b.name
-                WHERE br.id = ?2
-            )
-            WHERE ratio >= 1.5
+            SELECT cs.name, cs.elapsed_ms, b.avg_ms,
+                   CAST(cs.elapsed_ms AS REAL) / b.avg_ms AS ratio
+            FROM build_crate_sample cs
+            JOIN build_run br ON cs.run_id = br.id
+            JOIN crate_baselines b ON cs.name = b.name
+            WHERE br.id = ?2 AND (CAST(cs.elapsed_ms AS REAL) / b.avg_ms) >= ?3
             ORDER BY ratio DESC",
-                (repository_id, run_id),
+                (repository_id, run_id, threshold),
             )
             .await?;
 

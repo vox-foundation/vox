@@ -46,7 +46,7 @@ impl VoxDb {
         let source_kind = source_kind.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| async move {
             conn.execute(
                 "INSERT INTO scientia_feed_sources (id, url, source_kind, crawl_interval_ms, enabled, last_crawled_at_ms)
@@ -70,13 +70,14 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         let hash = blake3::hash(source_url.as_bytes());
         let id = hash.to_string();
-        
+
         let provenance = serde_json::json!({
             "source_url": source_url,
             "source_kind": source_kind,
             "ingested_via": "vox-scientia-ingest-tick"
-        }).to_string();
-        
+        })
+        .to_string();
+
         self.upsert_external_intelligence(
             &id,
             source_url,
@@ -84,7 +85,8 @@ impl VoxDb {
             title,
             abstract_text,
             &provenance,
-        ).await
+        )
+        .await
     }
 
     pub async fn upsert_external_intelligence(
@@ -102,15 +104,15 @@ impl VoxDb {
         let title = title.to_string();
         let abstract_text = abstract_text.map(str::to_string);
         let provenance_json = provenance_json.to_string();
-        
+
         let ingested_at_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-            
+
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| async move {
             conn.execute(
                 "INSERT INTO scientia_external_intelligence 
@@ -132,20 +134,21 @@ impl VoxDb {
         let event_type = event_type.to_string();
         let query = query.to_string();
         let reason = reason.to_string();
-        
+
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-            
+
         let metadata = serde_json::json!({
             "query": query,
             "reason": reason
-        }).to_string();
-        
+        })
+        .to_string();
+
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker.call(|| async move {
             conn.execute(
                 "INSERT INTO agent_events (agent_id, session_id, event_type, metadata_json, created_at_ms)
@@ -174,7 +177,10 @@ impl VoxDb {
         Ok(results)
     }
 
-    pub async fn list_pending_external_intelligence(&self, limit: i64) -> Result<Vec<ExternalIntelligenceRow>, StoreError> {
+    pub async fn list_pending_external_intelligence(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<ExternalIntelligenceRow>, StoreError> {
         let sql = "SELECT id, source_url, source_kind, title, abstract_text, embedding_id, provenance_json, ingest_status, preflight_score, ingested_at_ms, reviewed_at_ms,
                           socrates_risk_band, socrates_confidence, worthiness_score, claim_evidence_coverage
                    FROM scientia_external_intelligence 
@@ -214,22 +220,31 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         let id = id.to_string();
         let socrates_risk_band = socrates_risk_band.to_string();
-        
+
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
-        breaker.call(|| async move {
-            conn.execute(
-                "UPDATE scientia_external_intelligence SET
+
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE scientia_external_intelligence SET
                     socrates_risk_band = ?1,
                     socrates_confidence = ?2,
                     worthiness_score = ?3,
                     claim_evidence_coverage = ?4,
                     ingest_status = 'enriched'
                  WHERE id = ?5",
-                turso::params![socrates_risk_band, socrates_confidence, worthiness_score, claim_evidence_coverage, id],
-            ).await?;
-            Ok::<(), StoreError>(())
-        }).await
+                    turso::params![
+                        socrates_risk_band,
+                        socrates_confidence,
+                        worthiness_score,
+                        claim_evidence_coverage,
+                        id
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

@@ -19,20 +19,25 @@ pub async fn scan_symbol_proximity(
         if let Some(url) = policy.qdrant_url.as_deref().filter(|u| !u.is_empty()) {
             if let Some(qv) = query_vector.filter(|v| !v.is_empty()) {
                 let client = QdrantSemanticClient::new(url, policy.qdrant_collection.as_str());
-                let trace = _ctx.trace_id.as_deref().map(str::trim).filter(|s| !s.is_empty());
-                
-                match client.search_vectors(qv, 5, policy.qdrant_vector_name.as_deref(), trace).await {
+                let trace = _ctx
+                    .trace_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty());
+
+                match client
+                    .search_vectors(qv, 5, policy.qdrant_vector_name.as_deref(), trace)
+                    .await
+                {
                     Ok(results) => qdrant_results = results,
                     Err(e) => tracing::warn!(
-                        "Qdrant vector search failed during symbol proximity scan. Falling back to text stub. Error: {:?}", 
+                        "Qdrant vector search failed during symbol proximity scan. Falling back to text stub. Error: {:?}",
                         e
                     ),
                 }
             }
         }
     }
-
-
 
     // 1. Load retired surfaces schema (fallback if not found)
     let workspace_root = std::env::var("VOX_REPO_ROOT").unwrap_or_else(|_| ".".into());
@@ -51,33 +56,46 @@ pub async fn scan_symbol_proximity(
         Err(_) => return hits,
     };
 
-    let surfaces = schema.get("surfaces").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let surfaces = schema
+        .get("surfaces")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
 
     // 2. Iterate through canonical vs retired pairs
     for surface in surfaces {
-        let retired = surface.get("retired_symbol").and_then(|v| v.as_str()).unwrap_or("");
-        let canonical = surface.get("canonical_replacement").and_then(|v| v.as_str()).unwrap_or("");
-        
+        let retired = surface
+            .get("retired_symbol")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let canonical = surface
+            .get("canonical_replacement")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
         if retired.is_empty() || canonical.is_empty() {
             continue;
         }
 
         let query_lower = query.to_lowercase();
         let retired_lower = retired.to_lowercase();
-        
+
         // Exact substring match gives high confidence
-        let mut max_ratio = if query_lower.contains(&retired_lower) || retired_lower.contains(&query_lower) {
-            1.0
-        } else {
-            // Levenshtein approximation for partial matches
-            // let diff = similar::TextDiff::from_chars(&query_lower, &retired_lower);
-            // diff.ratio() as f64
-            0.5 // Stub
-        };
+        let mut max_ratio =
+            if query_lower.contains(&retired_lower) || retired_lower.contains(&query_lower) {
+                1.0
+            } else {
+                // Levenshtein approximation for partial matches
+                // let diff = similar::TextDiff::from_chars(&query_lower, &retired_lower);
+                // diff.ratio() as f64
+                0.5 // Stub
+            };
 
         // Fuse with Qdrant score if available
         for (id, sc, _) in &qdrant_results {
-            if id.to_lowercase().contains(&retired_lower) || retired_lower.contains(&id.to_lowercase()) {
+            if id.to_lowercase().contains(&retired_lower)
+                || retired_lower.contains(&id.to_lowercase())
+            {
                 max_ratio = (max_ratio + *sc as f64) / 2.0;
             }
         }
@@ -89,6 +107,6 @@ pub async fn scan_symbol_proximity(
             ));
         }
     }
-    
+
     hits
 }

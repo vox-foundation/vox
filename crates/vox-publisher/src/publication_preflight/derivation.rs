@@ -1,5 +1,7 @@
 use super::*;
-pub(super) fn collect_destination_readiness(manifest: &PublicationManifest) -> Vec<DestinationReadinessEntry> {
+pub(super) fn collect_destination_readiness(
+    manifest: &PublicationManifest,
+) -> Vec<DestinationReadinessEntry> {
     let mut out = Vec::new();
     let zenodo_tok = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken)
         .expose()
@@ -38,9 +40,10 @@ pub(super) fn collect_destination_readiness(manifest: &PublicationManifest) -> V
         credential_present: Some(openreview_ready),
     });
 
-    let scholarly_adapter_configured = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyAdapter)
-        .expose()
-        .is_some_and(|s| !s.trim().is_empty());
+    let scholarly_adapter_configured =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyAdapter)
+            .expose()
+            .is_some_and(|s| !s.trim().is_empty());
     out.push(DestinationReadinessEntry {
         destination: "scholarly_adapter",
         ready: scholarly_adapter_configured,
@@ -158,7 +161,12 @@ pub(super) fn collect_manual_required(
             });
         }
         let cred = operator_credential_presence();
-        if item.syndication.social.contains(&crate::types::SocialChannel::Twitter) && !cred.twitter {
+        if item
+            .syndication
+            .social
+            .contains(&crate::types::SocialChannel::Twitter)
+            && !cred.twitter
+        {
             out.push(ManualRequiredEntry {
                 code: "credential_twitter",
                 reason: "Twitter is enabled in syndication but no operator bearer token resolved."
@@ -353,10 +361,18 @@ pub(super) fn derive_next_actions(
         manifest.body_markdown.as_str(),
         manifest.metadata_json.as_deref(),
     ) {
-        let has_non_rss_social_targets = item.syndication.is_active(crate::types::SocialChannel::Twitter)
-            || item.syndication.is_active(crate::types::SocialChannel::Bluesky)
-            || item.syndication.is_active(crate::types::SocialChannel::Mastodon)
-            || item.syndication.is_active(crate::types::SocialChannel::Discord)
+        let has_non_rss_social_targets = item
+            .syndication
+            .is_active(crate::types::SocialChannel::Twitter)
+            || item
+                .syndication
+                .is_active(crate::types::SocialChannel::Bluesky)
+            || item
+                .syndication
+                .is_active(crate::types::SocialChannel::Mastodon)
+            || item
+                .syndication
+                .is_active(crate::types::SocialChannel::Discord)
             || item.syndication.forge.is_some()
             || item.syndication.open_collective.is_some()
             || item.syndication.reddit.is_some()

@@ -9,7 +9,7 @@
 sources:
   # PRIMARY: Validated mixed dataset — broadest, highest-quality vox source
   - path: target/dogfood/validated_mixed.jsonl
-    weight: 3.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
+    weight: 6.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
     optional: true
 
   - path: target/dogfood/vox_corpus_extract_pkg.jsonl

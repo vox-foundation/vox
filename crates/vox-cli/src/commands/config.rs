@@ -41,11 +41,13 @@ pub async fn run(cmd: ConfigCmd) -> Result<()> {
             println!("{}", val);
         }
         ConfigCmd::Set { key, value } => {
-            vox_config::toml_config::set_user_config_value(&key, &value).map_err(|e| anyhow::anyhow!(e))?;
+            vox_config::toml_config::set_user_config_value(&key, &value)
+                .map_err(|e| anyhow::anyhow!(e))?;
             crate::diagnostics::print_success(&format!("Set {} = {}", key, value));
         }
         ConfigCmd::Unset { key } => {
-            let removed = vox_config::toml_config::unset_user_config_value(&key).map_err(|e| anyhow::anyhow!(e))?;
+            let removed = vox_config::toml_config::unset_user_config_value(&key)
+                .map_err(|e| anyhow::anyhow!(e))?;
             if removed {
                 crate::diagnostics::print_success(&format!("Unset {}", key));
             } else {
@@ -78,12 +80,12 @@ pub async fn run(cmd: ConfigCmd) -> Result<()> {
 }
 
 async fn run_sync(push: bool, pull: bool) -> Result<()> {
-    use vox_db::VoxDb;
     use anyhow::Context;
+    use vox_db::VoxDb;
 
-    // Use current computer's local user context or specific account 
+    // Use current computer's local user context or specific account
     // Usually tied to Clavis Vault user identifier...
-    let account_id = "local_account_sync"; 
+    let account_id = "local_account_sync";
     let db = VoxDb::connect_default().await?;
 
     if push {
@@ -106,12 +108,15 @@ async fn run_sync(push: bool, pull: bool) -> Result<()> {
         let rows = db.list_account_configs(account_id, None).await?;
         let mut count = 0;
         for (k, v) in rows {
-            vox_config::toml_config::set_user_config_value(&k, &v).map_err(|e| anyhow::anyhow!(e))?;
+            vox_config::toml_config::set_user_config_value(&k, &v)
+                .map_err(|e| anyhow::anyhow!(e))?;
             count += 1;
         }
         crate::diagnostics::print_success(&format!("Sync pull completed. {} keys updated.", count));
     } else {
-        println!("Please specify either --push or --pull for sync operations.\nExample: vox config sync --pull");
+        println!(
+            "Please specify either --push or --pull for sync operations.\nExample: vox config sync --pull"
+        );
     }
 
     Ok(())

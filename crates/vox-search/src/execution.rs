@@ -531,7 +531,13 @@ pub async fn execute_search_plan(
     };
 
     let symbol_proximity_lines = if plan.corpora.contains(&SearchCorpus::SymbolProximity) {
-        let hits = crate::symbol_proximity::scan_symbol_proximity(ctx, query, policy, query_vector.as_deref()).await;
+        let hits = crate::symbol_proximity::scan_symbol_proximity(
+            ctx,
+            query,
+            policy,
+            query_vector.as_deref(),
+        )
+        .await;
         if !hits.is_empty() {
             backend_mix.push(SearchBackend::SymbolProximity);
         }

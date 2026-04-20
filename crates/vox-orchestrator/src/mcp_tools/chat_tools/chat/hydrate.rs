@@ -1,4 +1,4 @@
-﻿use super::super::now_ts;
+use super::super::now_ts;
 use super::super::params::ChatTranscriptEntry;
 use crate::mcp_tools::server_state::ServerState;
 
@@ -35,17 +35,19 @@ pub(crate) async fn context_history_or_hydrate(
     session_id: &str,
 ) -> Vec<ChatTranscriptEntry> {
     let ctx_handle = state.orchestrator.context_handle();
-    let mut history: Vec<ChatTranscriptEntry> =
-        match crate::mcp_tools::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
-            Ok(guard) => guard
-                .get(history_key)
-                .and_then(|s: String| serde_json::from_str(&s).ok())
-                .unwrap_or_default(),
-            Err(e) => {
-                tracing::warn!(error = %e, "chat transcript: context read poisoned");
-                Vec::new()
-            }
-        };
+    let mut history: Vec<ChatTranscriptEntry> = match crate::mcp_tools::sync_poison::poison_rw_read(
+        ctx_handle.read(),
+        "orchestrator context",
+    ) {
+        Ok(guard) => guard
+            .get(history_key)
+            .and_then(|s: String| serde_json::from_str(&s).ok())
+            .unwrap_or_default(),
+        Err(e) => {
+            tracing::warn!(error = %e, "chat transcript: context read poisoned");
+            Vec::new()
+        }
+    };
 
     if history.is_empty() {
         if let Some(db) = &state.db {

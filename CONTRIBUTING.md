@@ -1,3 +1,11 @@
+---
+title: "Contributing"
+description: "The short golden path for contributors. Deeper policy lives in AGENTS.md and governance.md."
+category: "contributor"
+status: "current"
+training_eligible: true
+training_rationale: "Provides the entry point for human and agent contributors."
+---
 # Contributing to Vox
 
 Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.md](AGENTS.md) (required for all contributors and agents) and [docs/agents/governance.md](docs/agents/governance.md) (TOESTUB, architecture rules).

@@ -1,4 +1,4 @@
-﻿use schemars::JsonSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vox_search::{
@@ -233,8 +233,7 @@ struct McpMemoryFallback {
 
 impl LexicalMemoryFallback for McpMemoryFallback {
     fn substring_search_lines(&self, query: &str) -> Result<Vec<String>, String> {
-        let mgr =
-            crate::MemoryManager::new(self.cfg.clone()).map_err(|e| e.to_string())?;
+        let mgr = crate::MemoryManager::new(self.cfg.clone()).map_err(|e| e.to_string())?;
         let hits = mgr.search(query).map_err(|e| e.to_string())?;
         Ok(hits
             .into_iter()

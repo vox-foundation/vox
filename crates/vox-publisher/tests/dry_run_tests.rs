@@ -1,7 +1,5 @@
 use chrono::Utc;
-use vox_publisher::types::{
-    ForgeConfig, ForgePostType, OpenCollectiveConfig, UnifiedNewsItem,
-};
+use vox_publisher::types::{ForgeConfig, ForgePostType, OpenCollectiveConfig, UnifiedNewsItem};
 use vox_publisher::{Publisher, PublisherConfig};
 
 #[tokio::test]
@@ -24,7 +22,7 @@ async fn test_dry_run_zero_web_leakage() {
             }),
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                
+
                 scheduled_publish_at: None,
             }),
             crates_io: None,

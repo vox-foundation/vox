@@ -53,6 +53,12 @@ pub enum PopuliAdminCmd {
 /// Populi mesh subcommands.
 #[derive(Subcommand)]
 pub enum PopuliCli {
+    /// Initialize a new mesh environment (generate scope ID and mesh tokens).
+    Init {
+        /// Force overwrite existing env vars in .env or clavis.
+        #[arg(long, default_value_t = false)]
+        force: bool,
+    },
     /// Start a private populi network with secure defaults.
     Up {
         /// Connectivity strategy.
@@ -73,6 +79,30 @@ pub enum PopuliCli {
         /// Allow local insecure mode (disables required mesh token).
         #[arg(long, default_value_t = false)]
         insecure_local: bool,
+        /// Node visibility for task scheduling (`private`, `public`, `hybrid`).
+        #[arg(long, default_value = "private")]
+        visibility: String,
+        /// Opt-in to processing public mesh tasks when idle.
+        #[arg(long, default_value_t = false)]
+        public_mesh: bool,
+        /// Minimum priority for public mesh tasks (0-255).
+        #[arg(long, default_value_t = 128)]
+        donate_min_priority: u8,
+        /// Task kinds allowed for donation (comma-separated, e.g. "text_infer,image_gen").
+        #[arg(long, value_delimiter = ',')]
+        donate_kinds: Vec<String>,
+        /// Explicit whitelist of user IDs allowed to run tasks.
+        #[arg(long, value_delimiter = ',')]
+        allow_users: Vec<String>,
+        /// Explicit blacklist of user IDs denied from running tasks.
+        #[arg(long, value_delimiter = ',')]
+        deny_users: Vec<String>,
+        /// Explicit whitelist of federated mesh networks (scope IDs) to accept tasks from.
+        #[arg(long, value_delimiter = ',')]
+        allow_meshes: Vec<String>,
+        /// Known peer mesh URLs to gossip federation status with (comma-separated).
+        #[arg(long, value_delimiter = ',')]
+        bootstrap_peers: Vec<String>,
     },
     /// Stop the populi process started by `vox populi up`.
     Down,
@@ -100,6 +130,9 @@ pub enum PopuliCli {
         /// Seed in-memory state from this registry file on startup (optional).
         #[arg(long)]
         registry: Option<PathBuf>,
+        /// Known peer mesh URLs to gossip federation status with (comma-separated).
+        #[arg(long, value_delimiter = ',')]
+        bootstrap_peers: Vec<String>,
     },
     /// Maintenance and quarantine toggles on a running control plane.
     Admin {
@@ -136,6 +169,18 @@ pub enum PopuliCli {
         /// Return immediately and poll for results later.
         #[arg(long)]
         detach: bool,
+        /// Task priority (0-255).
+        #[arg(long, default_value_t = 128)]
+        priority: u8,
+        /// Task kind for filtering.
+        #[arg(long)]
+        task_kind: Option<String>,
+        /// Target model id.
+        #[arg(long)]
+        model_id: Option<String>,
+        /// Minimum VRAM in MB.
+        #[arg(long)]
+        min_vram: Option<u32>,
     },
     /// Retrieve the result of a detached dispatch by its unique id.
     Result {
@@ -145,10 +190,70 @@ pub enum PopuliCli {
         #[arg(long)]
         control_url: Option<String>,
     },
+    /// Show mesh queue stats (depth, priority, task kinds).
+    Stats {
+        /// Control plane base URL.
+        #[arg(long)]
+        control_url: Option<String>,
+        /// Emit JSON (also implied by global `--json`).
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Mesh federation queries.
+    Federation {
+        #[command(subcommand)]
+        cmd: PopuliFederationCmd,
+    },
     /// Corpus management (extract, filter, stats).
     Corpus {
         #[command(subcommand)]
         cmd: PopuliCorpusCmd,
+    },
+    /// Manage mesh federation identity (Ed25519 keys).
+    Identity {
+        #[command(subcommand)]
+        cmd: PopuliIdentityCmd,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PopuliIdentityCmd {
+    /// Show the public Mesh Identity (Public Key).
+    Show,
+    /// Securely display the private key (base64) for backup.
+    Export,
+    /// Set the node visibility (public, private, hybrid).
+    SetVisibility {
+        /// Visibility mode (public, private, hybrid)
+        mode: String,
+    },
+    /// Set whether the orchestrator should prefer routing to the local mesh over cloud APIs.
+    PreferMesh {
+        /// Preference (true or false)
+        #[arg(action = clap::ArgAction::Set)]
+        enabled: bool,
+    },
+    /// Set the mesh worker donation policy via JSON.
+    SetPolicy {
+        /// The JSON payload representing the DonationPolicy
+        json_payload: String,
+    },
+    /// Show the current reputation metrics for this node (success/fail/timeout).
+    Reputation,
+    /// Rotate the identity key pair. A new key pair will be generated and saved, overriding the old one.
+    Rotate,
+}
+
+#[derive(Subcommand)]
+pub enum PopuliFederationCmd {
+    /// List known federated mesh networks from the control plane directory.
+    List {
+        /// Control plane base URL.
+        #[arg(long)]
+        control_url: Option<String>,
+        /// Emit JSON (also implied by global `--json`).
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 }
 
@@ -329,6 +434,202 @@ fn resolve_populi_control_base(url_override: Option<String>) -> anyhow::Result<S
 /// Run a `vox populi` subcommand.
 pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
     match cmd {
+        PopuliCli::Init { force: _ } => {
+            let scope_id = format!("scope-{}", vox_runtime::simple_id::simple_hex_id());
+            let mesh_token = vox_runtime::simple_id::simple_hex_id();
+
+            println!("Initializing Populi Mesh Environment...");
+            println!("  VOX_MESH_SCOPE_ID={}", scope_id);
+            println!("  VOX_MESH_TOKEN={}", mesh_token);
+
+            println!("\nRun the following to apply to your current session:");
+            #[cfg(windows)]
+            {
+                println!("  $env:VOX_MESH_SCOPE_ID=\"{}\"", scope_id);
+                println!("  $env:VOX_MESH_TOKEN=\"{}\"", mesh_token);
+            }
+            #[cfg(not(windows))]
+            {
+                println!("  export VOX_MESH_SCOPE_ID=\"{}\"", scope_id);
+                println!("  export VOX_MESH_TOKEN=\"{}\"", mesh_token);
+            }
+            Ok(())
+        }
+        PopuliCli::Identity { cmd } => match cmd {
+            PopuliIdentityCmd::Show => {
+                let sk_b64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey).expose().map(|s| s.to_string());
+                if let Some(s) = sk_b64 {
+                    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s.trim()).map_err(|e| anyhow::anyhow!("Invalid private key base64: {}", e))?;
+                    let sk = vox_crypto::facades::signing_key_from_bytes(&bytes.try_into().map_err(|_| anyhow::anyhow!("Invalid private key length"))?);
+                    let vk = vox_crypto::facades::to_verifying_key(&sk);
+                    let vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&vk);
+                    println!("Mesh Federation Identity (Public Key):");
+                    println!("  {}", hex::encode(vk_bytes));
+                } else {
+                    println!("No Mesh Federation Identity found. Run 'vox populi up' to generate one.");
+                }
+                Ok(())
+            }
+            PopuliIdentityCmd::Export => {
+                let sk_b64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey).expose().map(|s| s.to_string());
+                if let Some(s) = sk_b64 {
+                    println!("!!! SECURE BACKUP - DO NOT SHARE THIS KEY !!!");
+                    println!("Mesh Federation Private Key (base64):");
+                    println!("  {}", s.trim());
+                } else {
+                    println!("No Mesh Federation Identity found.");
+                }
+                Ok(())
+            }
+            PopuliIdentityCmd::SetVisibility { mode } => {
+                let valid_modes = ["public", "private", "hybrid"];
+                if !valid_modes.contains(&mode.as_str()) {
+                    anyhow::bail!("Invalid visibility mode: {}. Must be one of {:?}", mode, valid_modes);
+                }
+                let auth_path = vox_clavis::set_registry_token("mesh_visibility", &mode, None)?;
+                println!("Updated mesh visibility to '{}'", mode);
+                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                Ok(())
+            }
+            PopuliIdentityCmd::PreferMesh { enabled } => {
+                let val = if enabled { "true" } else { "false" };
+                let auth_path = vox_clavis::set_registry_token("routing_prefer_mesh", val, None)?;
+                println!("Updated mesh routing preference to '{}'", val);
+                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                Ok(())
+            }
+            PopuliIdentityCmd::SetPolicy { json_payload } => {
+                // Try parsing it first to validate
+                let _parsed: vox_mesh_types::WorkerDonationPolicy = serde_json::from_str(&json_payload)
+                    .map_err(|e| anyhow::anyhow!("Invalid WorkerDonationPolicy JSON: {}", e))?;
+                
+                let auth_path = vox_clavis::set_registry_token("mesh_donation_policy", &json_payload, None)?;
+                println!("Updated mesh donation policy (valid JSON).");
+                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                Ok(())
+            }
+            PopuliIdentityCmd::Reputation => {
+                let db = vox_db::VoxDb::open_default().await?;
+                let env = vox_populi::populi_env_resolved(None);
+                if let Some(node_id) = env.node_id {
+                    if let Some((s, f, t, i)) = db.get_peer_reputation(&node_id).await? {
+                        println!("Local Node Reputation ({}):", node_id);
+                        println!("  Successes:        {}", s);
+                        println!("  Failures:         {}", f);
+                        println!("  Timeouts:         {}", t);
+                        println!("  Invalid Outputs:  {}", i);
+                        
+                        let total_bad = f + t + i;
+                        if total_bad > 3 && total_bad > s {
+                            println!("  Status:           BLACKLISTED (too many failures)");
+                        } else {
+                            println!("  Status:           HEALTHY");
+                        }
+                    } else {
+                        println!("No reputation data found for node '{}'", node_id);
+                    }
+                } else {
+                    println!("No local node_id found. Run 'vox populi up' first.");
+                }
+                Ok(())
+            }
+            PopuliIdentityCmd::Rotate => {
+                let db = vox_db::VoxDb::open_default().await?;
+                let env = vox_populi::populi_env_resolved(None);
+                
+                // Generate new key pair
+                let new_sk = vox_crypto::facades::generate_signing_key();
+                let new_sk_bytes = vox_crypto::facades::signing_key_to_bytes(&new_sk);
+                let new_sk_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, new_sk_bytes);
+                
+                let new_vk = vox_crypto::facades::to_verifying_key(&new_sk);
+                let new_vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&new_vk);
+                let new_node_id = hex::encode(&vox_crypto::secure_hash(&new_vk_bytes)[0..16]);
+
+                if let Some(old_node_id) = env.node_id {
+                    // Migrate reputation
+                    db.migrate_peer_reputation(&old_node_id, &new_node_id).await?;
+                    println!("Migrated reputation from node '{}' to '{}'", old_node_id, new_node_id);
+                }
+
+                let auth_path = vox_clavis::set_registry_token("mesh_federation_signing_key", &new_sk_b64, None)?;
+                println!("Rotated Mesh Federation Identity.");
+                println!("New Public Key:");
+                println!("  {}", hex::encode(new_vk_bytes));
+                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                Ok(())
+            }
+        },
+        PopuliCli::Federation { cmd } => match cmd {
+            PopuliFederationCmd::List { control_url, json } => {
+                let base = resolve_populi_control_base(control_url)?;
+                let client = vox_populi::http_client::PopuliHttpClient::new(&base).with_env_token();
+                let dir = client.federation_directory().await.map_err(|e| {
+                    anyhow::anyhow!("Failed to fetch federation directory from {}: {}", base, e)
+                })?;
+
+                if json || global_json {
+                    println!("{}", serde_json::to_string_pretty(&dir)?);
+                } else {
+                    println!("Mesh Federation Directory");
+                    println!("  Control Plane: {}", base);
+                    println!("  Known Peers:   {}", dir.entries.len());
+                    println!();
+                    if dir.entries.is_empty() {
+                        println!("  (No federated peers registered)");
+                    } else {
+                        for peer in dir.entries {
+                            let pub_str = if peer.public { "Public" } else { "Private" };
+                            let q_depth = peer.current_queue_depth.map_or("?".to_string(), |v| v.to_string());
+                            let region = peer.region_label.as_deref().unwrap_or("unknown");
+                            println!("  - [{}] {} ({})", pub_str, peer.scope_id, region);
+                            println!("      URL:   {}", peer.control_url);
+                            println!("      Queue: {}", q_depth);
+                            let kinds: Vec<_> = peer.task_kinds.iter().map(|k| k.to_string()).collect();
+                            println!("      Kinds: {}", kinds.join(", "));
+                        }
+                    }
+                }
+                Ok(())
+            }
+        },
+        PopuliCli::Stats {
+            control_url,
+            json,
+        } => {
+            let base = resolve_populi_control_base(control_url)?;
+            let client = vox_populi::http_client::PopuliHttpClient::new(&base).with_env_token();
+            let stats = client.queue_stats().await.map_err(|e| {
+                anyhow::anyhow!("Failed to fetch mesh stats from {}: {}", base, e)
+            })?;
+
+            if json || global_json {
+                println!("{}", serde_json::to_string_pretty(&stats)?);
+            } else {
+                println!("Mesh Queue Statistics");
+                println!("  Control Plane: {}", base);
+                println!("  Pending Tasks: {}", stats.pending_count);
+                println!();
+                if !stats.pending_by_kind.is_empty() {
+                    println!("By Task Kind:");
+                    let mut kinds: Vec<_> = stats.pending_by_kind.iter().collect();
+                    kinds.sort_by_key(|(k, _)| *k);
+                    for (kind, count) in kinds {
+                        println!("  {: <15} : {}", kind, count);
+                    }
+                    println!();
+                }
+                if !stats.pending_by_priority.is_empty() {
+                    println!("By Priority:");
+                    let mut prios: Vec<_> = stats.pending_by_priority.iter().collect();
+                    prios.sort_by_key(|(p, _)| *p);
+                    for (prio, count) in prios {
+                        println!("  Priority {: >3}     : {}", prio, count);
+                    }
+                }
+            }
+            Ok(())
+        }
         PopuliCli::Up {
             mode,
             scope,
@@ -336,6 +637,14 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             bind,
             overlay_provider,
             insecure_local,
+            visibility,
+            public_mesh,
+            donate_min_priority,
+            donate_kinds,
+            allow_users,
+            deny_users,
+            allow_meshes,
+            bootstrap_peers,
         } => {
             crate::commands::populi_lifecycle::run(
                 PopuliLifecycleCmd::Up {
@@ -345,6 +654,14 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     bind,
                     overlay_provider,
                     insecure_local,
+                    visibility,
+                    public_mesh,
+                    donate_min_priority,
+                    donate_kinds,
+                    allow_users,
+                    deny_users,
+                    allow_meshes,
+                    bootstrap_peers,
                 },
                 global_json,
             )
@@ -409,7 +726,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             }
             Ok(())
         }
-        PopuliCli::Serve { bind, registry } => {
+        PopuliCli::Serve {
+            bind,
+            registry,
+            bootstrap_peers,
+        } => {
             let addr: SocketAddr = bind
                 .parse()
                 .with_context(|| format!("invalid --bind address: {bind}"))?;
@@ -421,6 +742,12 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 vox_populi::transport::PopuliTransportState::new_for_serve()
             };
 
+            if !bootstrap_peers.is_empty() {
+                state.bootstrap_peers = bootstrap_peers;
+            } else if let Ok(peers) = std::env::var("VOX_MESH_FEDERATION_BOOTSTRAP_PEERS") {
+                state.bootstrap_peers = peers.split(',').map(|s| s.to_string()).collect();
+            }
+
             // Optional: DB-backed trust verifier and reputation decay (hardens mesh from Sybil/poisoning)
             if let Ok(db) = vox_db::VoxDb::connect_canonical().await {
                 if let Some(self_id) = vox_populi::populi_env().node_id {
@@ -428,24 +755,33 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let db_for_decay = Arc::clone(&db_for_verifier);
                     let grantor_verifier = self_id.clone();
                     let grantor_decay = self_id.clone();
-                    
+
                     state.node_trust_verifier = Some(Arc::new(move |trusted_id| {
                         let db = Arc::clone(&db_for_verifier);
                         let grantor = grantor_verifier.clone();
                         Box::pin(async move {
-                            db.is_node_trusted(&grantor, &trusted_id).await.unwrap_or(false)
+                            db.is_node_trusted(&grantor, &trusted_id)
+                                .await
+                                .unwrap_or(false)
                         })
                     }));
-                    
+
                     // Spawn reputation decay worker
                     tokio::spawn(async move {
-                        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+                        let mut interval =
+                            tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
                         loop {
                             interval.tick().await;
                             // Threshold 10 severity sum within 24h
-                            if let Ok(affected) = db_for_decay.process_reputation_decay(&grantor_decay, 10).await {
+                            if let Ok(affected) = db_for_decay
+                                .process_reputation_decay(&grantor_decay, 10)
+                                .await
+                            {
                                 if affected > 0 {
-                                    tracing::warn!("Reputation decay: removed {} trust grants", affected);
+                                    tracing::warn!(
+                                        "Reputation decay: removed {} trust grants",
+                                        affected
+                                    );
                                 }
                             }
                         }
@@ -567,24 +903,33 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let db_for_decay = Arc::clone(&db_for_verifier);
                     let grantor_verifier = updated.id.clone();
                     let grantor_decay = updated.id.clone();
-                    
+
                     state.node_trust_verifier = Some(Arc::new(move |trusted_id| {
                         let db = Arc::clone(&db_for_verifier);
                         let grantor = grantor_verifier.clone();
                         Box::pin(async move {
-                            db.is_node_trusted(&grantor, &trusted_id).await.unwrap_or(false)
+                            db.is_node_trusted(&grantor, &trusted_id)
+                                .await
+                                .unwrap_or(false)
                         })
                     }));
-                    
+
                     // Spawn reputation decay worker
                     tokio::spawn(async move {
-                        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+                        let mut interval =
+                            tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
                         loop {
                             interval.tick().await;
                             // Threshold 10 severity sum within 24h
-                            if let Ok(affected) = db_for_decay.process_reputation_decay(&grantor_decay, 10).await {
+                            if let Ok(affected) = db_for_decay
+                                .process_reputation_decay(&grantor_decay, 10)
+                                .await
+                            {
                                 if affected > 0 {
-                                    tracing::warn!("Reputation decay: removed {} trust grants", affected);
+                                    tracing::warn!(
+                                        "Reputation decay: removed {} trust grants",
+                                        affected
+                                    );
                                 }
                             }
                         }
@@ -684,6 +1029,10 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             bundle,
             routing_labels,
             detach,
+            priority,
+            task_kind,
+            model_id,
+            min_vram,
         } => {
             let base = resolve_populi_control_base(control_url)?;
             let client = vox_populi::http_client::PopuliHttpClient::new(&base).with_env_token();
@@ -706,14 +1055,22 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let _ = std::fs::remove_dir_all(&tmp_bundle_dir);
 
                     // Use resolved triple if found, otherwise let it be None (host native)
-                    vox_cli::commands::bundle::run(
-                        &script,
-                        &tmp_bundle_dir,
-                        target_triple.as_deref(),
-                        true,
-                        vox_cli::cli_args::BundleMode::Script,
-                    )
-                    .await?;
+                    // Use vox binary via subprocess to break library dependency cycle
+                    let mut cmd = tokio::process::Command::new("vox");
+                    cmd.arg("bundle")
+                        .arg(&script)
+                        .arg("--out-dir")
+                        .arg(&tmp_bundle_dir)
+                        .arg("--mode")
+                        .arg("script")
+                        .arg("--release");
+                    if let Some(t) = target_triple.as_deref() {
+                        cmd.arg("--target").arg(t);
+                    }
+                    let status = cmd.status().await?;
+                    if !status.success() {
+                        anyhow::bail!("vox bundle via subprocess failed");
+                    }
 
                     // Find the binary in the temp dir
                     let mut entries = std::fs::read_dir(&tmp_bundle_dir)?;
@@ -770,6 +1127,10 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     Some(routing_labels)
                 },
                 is_detached: detach,
+                priority,
+                task_kind,
+                model_id,
+                min_vram_mb: min_vram,
             };
 
             let resp = client
@@ -913,7 +1274,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 println!("✓ Generated {} pairs", actual);
                 Ok(())
             }
-            PopuliCorpusCmd::BenchmarkGen { input, output, count } => {
+            PopuliCorpusCmd::BenchmarkGen {
+                input,
+                output,
+                count,
+            } => {
                 println!(
                     "Producing frozen benchmark from {} to {} ...",
                     input.display(),
@@ -927,7 +1292,10 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 let resolved_corpus = if let Some(c) = corpus {
                     c
                 } else if let Some(d) = &domain {
-                    PathBuf::from(format!("mens/data/train_mixed_{}.jsonl", d.replace("-", "_")))
+                    PathBuf::from(format!(
+                        "mens/data/train_mixed_{}.jsonl",
+                        d.replace("-", "_")
+                    ))
                 } else {
                     PathBuf::from("mens/data/train_mixed_vox_lang.jsonl")
                 };
@@ -937,19 +1305,19 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     resolved_corpus.display(),
                     domain.as_deref().unwrap_or("vox-lang")
                 );
-                let result = vox_corpus::flywheel::evaluate_readiness(&resolved_corpus, domain.as_deref())?;
+                let result =
+                    vox_corpus::flywheel::evaluate_readiness(&resolved_corpus, domain.as_deref())?;
                 match result {
                     vox_corpus::flywheel::FlywheelSignal::Ready { ast_diversity } => {
                         println!("🚀 FLYWHEEL READY (Diversity: {:.2})", ast_diversity);
-                        
+
                         #[cfg(feature = "extras-ludus")]
                         {
-                            use vox_cli::commands::extras::ludus::record_cli_event_fire_and_forget;
-                            record_cli_event_fire_and_forget(
+                            vox_cli_core::ludus_shim::record_cli_event_fire_and_forget(
                                 "mens_flywheel_triggered",
                                 true,
                                 Some("mens-corpus"),
-                                Some("populi corpus flywheel-check")
+                                Some("populi corpus flywheel-check"),
                             );
                         }
                     }
@@ -965,7 +1333,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 }
                 Ok(())
             }
-            PopuliCorpusCmd::Transplant { input, output, count } => {
+            PopuliCorpusCmd::Transplant {
+                input,
+                output,
+                count,
+            } => {
                 println!(
                     "Generating {} transplant pairs from {} to {} ...",
                     count,
@@ -976,11 +1348,18 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     std::fs::create_dir_all(parent)?;
                 }
                 let mut f = std::fs::File::create(&output)?;
-                let actual = vox_corpus::synthetic_gen::transplant_pairs::generate_transplant_pairs(&input, &mut f, count)?;
+                let actual =
+                    vox_corpus::synthetic_gen::transplant_pairs::generate_transplant_pairs(
+                        &input, &mut f, count,
+                    )?;
                 println!("✓ Generated {} transplant pairs", actual);
                 Ok(())
             }
-            PopuliCorpusCmd::Mutate { input, output, factor } => {
+            PopuliCorpusCmd::Mutate {
+                input,
+                output,
+                factor,
+            } => {
                 println!(
                     "Mutating {} with factor {} to {} ...",
                     input.display(),
@@ -996,7 +1375,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 Ok(())
             }
             PopuliCorpusCmd::IngestLogs { log, output } => {
-                println!("Ingesting logs from {} to {} ...", log.display(), output.display());
+                println!(
+                    "Ingesting logs from {} to {} ...",
+                    log.display(),
+                    output.display()
+                );
                 if let Some(parent) = output.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
@@ -1006,20 +1389,34 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 Ok(())
             }
             PopuliCorpusCmd::Snapshot { src, dest } => {
-                println!("Creating dataset snapshot from {} to {} ...", src.display(), dest.display());
+                println!(
+                    "Creating dataset snapshot from {} to {} ...",
+                    src.display(),
+                    dest.display()
+                );
                 let version = vox_corpus::dataset_snapshot::create_snapshot(&src, &dest)?;
                 println!("✓ Snapshot created: {}", version);
                 Ok(())
             }
-            PopuliCorpusCmd::IngestWorkflows { repository: _repository, output: _output } => {
+            PopuliCorpusCmd::IngestWorkflows {
+                repository: _repository,
+                output: _output,
+            } => {
                 #[cfg(feature = "mens-dei")]
                 {
                     use std::io::BufWriter;
-                    println!("Ingesting workflow traces from repository '{}' to {} ...", _repository, _output.display());
+                    println!(
+                        "Ingesting workflow traces from repository '{}' to {} ...",
+                        _repository,
+                        _output.display()
+                    );
                     if let Some(parent) = _output.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
-                    let db = vox_db::VoxDb::connect(vox_db::resolve_canonical_config().map_err(|e| anyhow::anyhow!(e))?).await?;
+                    let db = vox_db::VoxDb::connect(
+                        vox_db::resolve_canonical_config().map_err(|e| anyhow::anyhow!(e))?,
+                    )
+                    .await?;
                     let mut f = BufWriter::new(std::fs::File::create(&_output)?);
                     let count = vox_orchestrator::services::topology_ingest::ingest_workflow_traces_to_jsonl(
                         &db,

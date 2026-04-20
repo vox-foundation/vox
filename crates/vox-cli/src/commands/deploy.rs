@@ -144,6 +144,33 @@ pub async fn run(args: DeployArgs) -> Result<()> {
                 service_file_content,
             })
         }
+        "fly" => {
+            let cfg = deploy.fly.as_ref().cloned().unwrap_or_default();
+            let app_name = cfg
+                .app_name
+                .clone()
+                .unwrap_or_else(|| manifest.package.name.clone());
+
+            vox_container::DeployTarget::Fly(vox_container::deploy_target::FlyTarget {
+                app_name,
+                org: cfg.org.clone(),
+                region: cfg.region.clone(),
+                project_root: project_root.clone(),
+            })
+        }
+        "coolify" => {
+            let cfg = deploy
+                .coolify
+                .as_ref()
+                .context("deploy target is coolify but [deploy.coolify] is missing")?;
+
+            vox_container::DeployTarget::Coolify(vox_container::deploy_target::CoolifyTarget {
+                base_url: cfg.base_url.clone().unwrap_or_default(),
+                token: std::env::var(&cfg.token_env).unwrap_or_default(),
+                app_uuid: cfg.app_uuid.clone().unwrap_or_default(),
+                force_rebuild: cfg.force_rebuild,
+            })
+        }
         _ => anyhow::bail!("unsupported deploy target kind: {target_kind}"),
     };
 

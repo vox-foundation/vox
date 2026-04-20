@@ -50,12 +50,13 @@ pub(crate) async fn http_anthropic_direct(
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let user_text = match user {
         vox_openai_wire::ChatMessageContent::Text(t) => t,
-        vox_openai_wire::ChatMessageContent::Parts(ref p) => {
-            p.iter().find_map(|part| match part {
+        vox_openai_wire::ChatMessageContent::Parts(ref p) => p
+            .iter()
+            .find_map(|part| match part {
                 vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
                 _ => None,
-            }).unwrap_or("")
-        }
+            })
+            .unwrap_or(""),
     };
 
     let body = AnthropicRequest {

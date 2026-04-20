@@ -9,19 +9,19 @@ pub fn main() {
     let sum = a + b
     
     // In float, 0.1 + 0.2 is not 0.3. In dec, it is exactly 0.3.
-    assert(sum == 0.3dec)
+    assert(sum is 0.3dec)
     
     // Division and precision
     let total = 100.00dec
     let tax_rate = 0.0825dec
     let tax = total * tax_rate
-    assert(tax == 8.25dec)
+    assert(tax is 8.25dec)
     
     // Large values
     let large = 1000000000.00dec
     let small = 0.00000001dec
     let result = large + small
-    assert(result == 1000000000.00000001dec)
+    assert(result is 1000000000.00000001dec)
     
     print("Decimal verification successful")
 }

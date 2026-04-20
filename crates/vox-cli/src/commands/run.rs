@@ -34,66 +34,30 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
     }
 }
 
-/// When **`VOX_MESH_ENABLED`** is set and this binary was built with **`populi`** (`vox-populi`),
-/// publish this process to the local mens registry once (covers app and script `vox run` paths,
-/// including `vox-compilerd` `run`).
-async fn mesh_publish_best_effort_for_run() {
-    #[cfg(feature = "populi")]
-    {
-        if vox_populi::populi_enabled_from_env() {
-            let node_id = vox_populi::populi_env().node_id.clone();
-            let path = vox_populi::local_registry_path();
-            match vox_populi::publish_local_registry_best_effort() {
-                Ok(()) => {
-                    tracing::info!(
-                        target: "vox.populi",
-                        path = %path.display(),
-                        node_id = node_id.as_deref().unwrap_or("(generated)"),
-                        "mens registry publish (vox run)"
-                    );
-                    crate::populi_codex_telemetry::record_local_registry_publish_opt(
-                        &path,
-                        node_id.as_deref(),
-                    )
-                    .await;
-                }
-                Err(e) => {
-                    tracing::debug!(
-                        target: "vox.populi",
-                        error = %e,
-                        "mens registry publish failed (best-effort)"
-                    );
-                }
-            }
-            let _ = vox_populi::http_lifecycle::populi_http_join_best_effort(
-                vox_populi::populi_registration_record_for_process(),
-                "vox run",
-            )
-            .await;
-        }
-    }
-}
-
 /// Execute the `vox run` command (dispatch to App or Script mode).
 pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
-    mesh_publish_best_effort_for_run().await;
-
     if mode == RunMode::Interp {
         let source = std::fs::read_to_string(file).context("Failed to read file")?;
-        
+
         let mut caps = std::collections::HashSet::new();
         let mut has_caps_directive = false;
         if let Some(first_line) = source.lines().next() {
             if first_line.starts_with("// vox:caps ") {
                 has_caps_directive = true;
-                for cap in first_line.trim_start_matches("// vox:caps ").split_whitespace() {
+                for cap in first_line
+                    .trim_start_matches("// vox:caps ")
+                    .split_whitespace()
+                {
                     caps.insert(cap.to_string());
                 }
             }
         }
-        
+
         let tokens = vox_compiler::lexer::lex(&source);
-        let module = vox_compiler::parser::descent::parse(tokens)
+        // Use parse_script so top-level statements are wrapped in a synthetic
+        // fn main() — this is what makes `vox run --interp scripts/foo.vox`
+        // work without requiring a hand-written fn main (audit item A.1).
+        let module = vox_compiler::parser::parse_script(tokens)
             .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
         let lowered = vox_compiler::hir::lower::lower_module(&module);
 
@@ -102,7 +66,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
         if has_caps_directive {
             interpreter.caps = Some(caps);
         }
-        
+
         interpreter
             .run_module(&lowered)
             .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
@@ -112,6 +76,9 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
             .call("main", vec![])
             .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
         println!("{:?}", res);
+
+        vox_compiler::eval::builtins::vox_flush_exit_commands();
+
         return Ok(());
     }
 
@@ -160,7 +127,15 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     let out_dir = PathBuf::from("dist");
 
     println!("Building {}...", file.display());
-    build::run(file, &out_dir, None, false, false, crate::cli_args::BuildMode::App).await?;
+    build::run(
+        file,
+        &out_dir,
+        None,
+        false,
+        false,
+        crate::cli_args::BuildMode::App,
+    )
+    .await?;
 
     // 2. Check if we have frontend components to bundle
     let has_frontend = fs::read_dir(&out_dir)

@@ -99,6 +99,7 @@ pub struct VoxCompilerDiagnosticPayload {
     pub missing_cases: Vec<String>,
     pub expected_type: Option<String>,
     pub found_type: Option<String>,
+    pub correction_hints: Vec<String>,
     pub suggested_fixes: Vec<SuggestedFix>,
     pub related_spans: Vec<SpanPayload>,
 }
@@ -152,6 +153,7 @@ impl VoxCompilerDiagnosticPayload {
             missing_cases: diag.missing_cases.clone(),
             expected_type: diag.expected_type.clone(),
             found_type: diag.found_type.clone(),
+            correction_hints: diag.suggestions.clone(),
             suggested_fixes: diag
                 .fixes
                 .iter()
@@ -226,6 +228,13 @@ impl Diagnostic {
             line_end,
             col_end,
         });
+        self
+    }
+
+    /// Add a machine-applicable suggestion / correction hint.
+    #[must_use]
+    pub fn with_suggestion(mut self, hint: impl Into<String>) -> Self {
+        self.suggestions.push(hint.into());
         self
     }
     /// Build a simple error diagnostic (no type diff).

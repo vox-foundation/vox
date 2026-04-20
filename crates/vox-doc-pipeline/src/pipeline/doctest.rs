@@ -22,13 +22,16 @@ pub(crate) fn check_doctests(path: &Path, content: &str, errors: &mut Vec<LintEr
             } else {
                 in_fence = true;
                 has_skip = false;
-                
+
                 let count = trimmed.chars().take_while(|&c| c == '`').count();
                 let lang = trimmed[count..].trim();
                 is_vox = lang == "vox" || lang == "tsx";
             }
         } else if in_fence && is_vox {
-            if trimmed.contains("vox:skip") || trimmed.contains("Skip-Test") || trimmed.contains("{{#include") {
+            if trimmed.contains("vox:skip")
+                || trimmed.contains("Skip-Test")
+                || trimmed.contains("{{#include")
+            {
                 has_skip = true;
             }
             if !has_skip {
@@ -47,7 +50,10 @@ pub(crate) fn check_doctests(path: &Path, content: &str, errors: &mut Vec<LintEr
         if !diagnostics.is_empty() {
             let mut err_msg = format!("DocTest error in {}:\n", path.display());
             for diag in diagnostics {
-                err_msg.push_str(&format!("  - [{:?}] {} at line {}\n", diag.severity, diag.message, diag.span.start_line));
+                err_msg.push_str(&format!(
+                    "  - [{:?}] {} at line {}\n",
+                    diag.severity, diag.message, diag.span.start_line
+                ));
             }
             errors.push(LintError {
                 file: path.to_owned(),

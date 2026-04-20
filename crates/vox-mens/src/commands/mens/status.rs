@@ -600,23 +600,33 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
         }
 
         if !telemetry.is_empty() {
-            println!("\n  {}", "Recent Mesh Health (Hardware Telemetry)".bold().cyan());
+            println!(
+                "\n  {}",
+                "Recent Mesh Health (Hardware Telemetry)".bold().cyan()
+            );
             println!(
                 "  {:<12} {:>6} {:>8} {:>10} {:>12}",
                 "Node ID", "Util", "Temp", "Power", "VRAM (Used)"
             );
             for (sid, _mtype, _mval, meta) in telemetry {
                 let short_id = if sid.len() > 10 { &sid[..10] } else { &sid };
-                if let Some(m) = meta.and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()) {
+                if let Some(m) =
+                    meta.and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                {
                     let util = m.get("gpu_util").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let temp = m.get("gpu_temp_c").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let power = m.get("gpu_power_w").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let vram_used = m.get("vram_used_mb").and_then(|v| v.as_u64()).unwrap_or(0);
                     let vram_total = m.get("vram_total_mb").and_then(|v| v.as_u64()).unwrap_or(1);
-                    
+
                     println!(
                         "  {:<12} {:>5.1}% {:>7.1}°C {:>9.1}W {:>8}MB/{:>2}MB",
-                        short_id, util, temp, power, vram_used, vram_total / 1024
+                        short_id,
+                        util,
+                        temp,
+                        power,
+                        vram_used,
+                        vram_total / 1024
                     );
                 }
             }

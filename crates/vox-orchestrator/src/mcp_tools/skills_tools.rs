@@ -1,10 +1,10 @@
-﻿//! MCP tools for the vox-skills marketplace.
+//! MCP tools for the vox-skills marketplace.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 const REM_SKILL_BUNDLE: &str =
     "Validate `bundle_json` against the vox-skills bundle schema (id, manifest, files).";
@@ -159,4 +159,3 @@ pub fn skill_info(state: &ServerState, params: SkillIdParams) -> String {
         .to_json(),
     }
 }
-

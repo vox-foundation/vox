@@ -4,8 +4,8 @@ use super::super::Parser;
 use crate::ast::decl::{
     Decl, EffectDecl, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
     IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
-    OnMountDecl, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport,
-    ScheduledDecl, ServerFnDecl, TestDecl,
+    OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
+    RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -213,6 +213,7 @@ impl Parser {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn parse_component(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @component
@@ -346,6 +347,11 @@ impl Parser {
         let start = self.span();
         self.advance(); // @island
         self.maybe_parser_trace("island.after_kw");
+        self.skip_newlines();
+        if let Token::StringLit(_) = self.peek().clone() {
+            self.advance();
+        }
+        self.skip_newlines();
         let name = self.parse_ident_name()?;
         self.expect(&Token::LBrace)?;
         self.skip_newlines();
@@ -615,7 +621,21 @@ impl Parser {
                 Token::AtEnsure => {
                     self.advance();
                     self.expect(&Token::LParen)?;
-                    postconditions.push(self.parse_expr()?);
+                    let condition = self.parse_expr()?;
+                    let mut fallback = None;
+                    if self.eat(&Token::Comma) {
+                        if let Token::Ident(k) = self.peek().clone() {
+                            if k == "fallback" {
+                                self.advance();
+                                self.expect(&Token::Colon)?;
+                                fallback = Some(self.parse_ident_name()?);
+                            }
+                        }
+                    }
+                    postconditions.push(PostCondition {
+                        condition,
+                        fallback,
+                    });
                     self.expect(&Token::RParen)?;
                 }
                 Token::AtInvariant => {

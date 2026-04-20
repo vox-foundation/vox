@@ -78,9 +78,15 @@ pub fn check_approval_gate(
             let mut task_clone = task.clone();
             task_clone.debug_iterations += 1;
             let requirement = match tier {
-                ApprovalTier::Confirm => "completion attestation with non-empty checks_passed[] (or declared_non_placeholder=true)",
-                ApprovalTier::Review => "checks_passed[] containing one of: human_review_approved, peer_review_approved, approval_reviewed",
-                ApprovalTier::Blocked => "task is approval-blocked and cannot be completed without policy override",
+                ApprovalTier::Confirm => {
+                    "completion attestation with non-empty checks_passed[] (or declared_non_placeholder=true)"
+                }
+                ApprovalTier::Review => {
+                    "checks_passed[] containing one of: human_review_approved, peer_review_approved, approval_reviewed"
+                }
+                ApprovalTier::Blocked => {
+                    "task is approval-blocked and cannot be completed without policy override"
+                }
                 ApprovalTier::AutoApprove => "no extra attestation required",
             };
             task_clone.description.push_str(&format!(
@@ -96,7 +102,10 @@ pub fn check_approval_gate(
                 )),
             })
         } else {
-            Err(format!("task {} failed approval attestation for tier {tier:?}", task.id))
+            Err(format!(
+                "task {} failed approval attestation for tier {tier:?}",
+                task.id
+            ))
         }
     } else {
         Ok(GateOutcome { requeue: None })
@@ -111,8 +120,13 @@ pub fn check_trust_gate(
     max_toestub_debug_iterations: u8,
     phase_label: &str,
 ) -> GateOutcome {
-    let has_checks = attestation.map(|a| !a.checks_passed.is_empty()).unwrap_or(false);
-    if trust_score < trust_floor && !has_checks && task.toestub_iterations < max_toestub_debug_iterations {
+    let has_checks = attestation
+        .map(|a| !a.checks_passed.is_empty())
+        .unwrap_or(false);
+    if trust_score < trust_floor
+        && !has_checks
+        && task.toestub_iterations < max_toestub_debug_iterations
+    {
         let mut task_clone = task.clone();
         task_clone.toestub_iterations += 1;
         task_clone.description.push_str(&format!(
@@ -151,7 +165,10 @@ pub fn check_harness_gate(
         Ok((harness_id, issues)) if !issues.is_empty() => {
             let detail = format!(
                 "{}{}",
-                harness_id.as_deref().map(|h| format!("harness_id={h}; ")).unwrap_or_default(),
+                harness_id
+                    .as_deref()
+                    .map(|h| format!("harness_id={h}; "))
+                    .unwrap_or_default(),
                 issues.join("; ")
             );
             tracing::warn!(task_id = task.id.0, mode = ?guard_mode, "{}", detail);
@@ -168,7 +185,10 @@ pub fn check_harness_gate(
                         requeue: Some((task_clone, detail.clone(), 1, 0)),
                     })
                 } else {
-                    Err(format!("harness completion gate rejected completion for task {}: {detail}", task.id))
+                    Err(format!(
+                        "harness completion gate rejected completion for task {}: {detail}",
+                        task.id
+                    ))
                 }
             } else {
                 Ok(GateOutcome { requeue: None })
@@ -178,7 +198,10 @@ pub fn check_harness_gate(
         Err(err) => {
             tracing::warn!(task_id = task.id.0, mode = ?guard_mode, error = %err, "harness completion gate evaluation failed");
             if guard_mode == HarnessCompletionGuardMode::Enforce {
-                Err(format!("harness completion gate failed to evaluate task {}: {err}", task.id))
+                Err(format!(
+                    "harness completion gate failed to evaluate task {}: {err}",
+                    task.id
+                ))
             } else {
                 Ok(GateOutcome { requeue: None })
             }
@@ -192,10 +215,7 @@ pub fn check_toestub_gate(
     attestation: Option<&CompletionAttestation>,
     max_toestub_debug_iterations: u8,
 ) -> Result<GateOutcome, String> {
-    match crate::services::PolicyEngine::check_completion_before_complete(
-        Some(task),
-        attestation,
-    ) {
+    match crate::services::PolicyEngine::check_completion_before_complete(Some(task), attestation) {
         crate::services::PolicyCheckResult::Allowed => {}
         crate::services::PolicyCheckResult::ScopeDenied(reason) => {
             if task.debug_iterations < max_toestub_debug_iterations {
@@ -221,7 +241,8 @@ pub fn check_toestub_gate(
     }
 
     let vr = crate::validation::post_task_validate(task, attestation);
-    if !crate::validation::quality_gate(&vr) && task.debug_iterations < max_toestub_debug_iterations {
+    if !crate::validation::quality_gate(&vr) && task.debug_iterations < max_toestub_debug_iterations
+    {
         let mut task_clone = task.clone();
         task_clone.debug_iterations += 1;
         task_clone.description.push_str(&format!(
@@ -256,7 +277,9 @@ pub fn check_doc_integrity_gate(
         if task.debug_iterations < max_debug_iterations {
             let mut task_clone = task.clone();
             task_clone.debug_iterations += 1;
-            task_clone.description.push_str(&format!("\n\n[DOC INTEGRITY GATE]\n{}", detail));
+            task_clone
+                .description
+                .push_str(&format!("\n\n[DOC INTEGRITY GATE]\n{}", detail));
             task_clone.status = TaskStatus::Queued;
             return GateOutcome {
                 requeue: Some((task_clone, detail, 1, 0)),

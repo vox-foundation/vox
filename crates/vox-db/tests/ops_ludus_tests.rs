@@ -16,15 +16,29 @@ use vox_db::VoxDb;
 /// manually in tests targeting `vox-pm` CRUD methods.
 const GAMIFY_DDL: &str = "
 CREATE TABLE IF NOT EXISTS gamify_profiles (
-    user_id TEXT PRIMARY KEY, level INTEGER NOT NULL DEFAULT 1, xp INTEGER NOT NULL DEFAULT 0,
-    crystals INTEGER NOT NULL DEFAULT 100, energy INTEGER NOT NULL DEFAULT 100,
-    max_energy INTEGER NOT NULL DEFAULT 100, last_energy_regen TEXT NOT NULL DEFAULT (datetime('now')),
-    last_active TEXT NOT NULL DEFAULT (datetime('now')), created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    total_xp_earned INTEGER NOT NULL DEFAULT 0, prestige_level INTEGER NOT NULL DEFAULT 0,
-    lumens INTEGER NOT NULL DEFAULT 0, generosity_lumens INTEGER NOT NULL DEFAULT 0,
-    streak_days INTEGER NOT NULL DEFAULT 0, longest_streak INTEGER NOT NULL DEFAULT 0,
-    streak_last_ts INTEGER NOT NULL DEFAULT 0, grace_available INTEGER NOT NULL DEFAULT 1,
-    grace_used INTEGER NOT NULL DEFAULT 0, streak_shields INTEGER NOT NULL DEFAULT 0
+    user_id TEXT PRIMARY KEY,
+    level INTEGER NOT NULL DEFAULT 1,
+    xp INTEGER NOT NULL DEFAULT 0,
+    crystals INTEGER NOT NULL DEFAULT 100,
+    energy INTEGER NOT NULL DEFAULT 100,
+    max_energy INTEGER NOT NULL DEFAULT 100,
+    last_energy_regen INTEGER NOT NULL DEFAULT 0,
+    last_active INTEGER NOT NULL DEFAULT 0,
+    streak_days INTEGER NOT NULL DEFAULT 0,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    streak_last_ts INTEGER NOT NULL DEFAULT 0,
+    grace_available INTEGER NOT NULL DEFAULT 0,
+    grace_used INTEGER NOT NULL DEFAULT 0,
+    total_xp_earned INTEGER NOT NULL DEFAULT 0,
+    prestige_level INTEGER NOT NULL DEFAULT 0,
+    lumens INTEGER NOT NULL DEFAULT 0,
+    generosity_lumens INTEGER NOT NULL DEFAULT 0,
+    streak_shields INTEGER NOT NULL DEFAULT 0,
+    trust_tier INTEGER DEFAULT 0,
+    reward_suppressed INTEGER NOT NULL DEFAULT 0,
+    suppressed_until_ts INTEGER NOT NULL DEFAULT 0,
+    suppression_reason TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS gamify_achievements (
     id TEXT NOT NULL, user_id TEXT NOT NULL, unlocked_at INTEGER NOT NULL,
@@ -36,14 +50,13 @@ CREATE TABLE IF NOT EXISTS gamify_level_history (
     title TEXT NOT NULL, xp_at_level INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS gamify_companions (
-    id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, species TEXT DEFAULT '',
-    mood INTEGER NOT NULL DEFAULT 50, energy INTEGER NOT NULL DEFAULT 100, xp INTEGER NOT NULL DEFAULT 0,
-    level INTEGER NOT NULL DEFAULT 1, happiness INTEGER NOT NULL DEFAULT 80, charisma INTEGER NOT NULL DEFAULT 50,
-    wisdom INTEGER NOT NULL DEFAULT 50, power INTEGER NOT NULL DEFAULT 50,
-    memory_json TEXT NOT NULL DEFAULT '{}', abilities_json TEXT NOT NULL DEFAULT '[]',
-    last_interaction INTEGER NOT NULL DEFAULT 0, bond_level INTEGER NOT NULL DEFAULT 0,
-    prestige INTEGER NOT NULL DEFAULT 0, streak_bonus INTEGER NOT NULL DEFAULT 0,
-    evolution_stage INTEGER NOT NULL DEFAULT 0
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT,
+    code_hash TEXT, language TEXT NOT NULL DEFAULT 'vox', ascii_sprite TEXT, mood TEXT NOT NULL DEFAULT 'neutral',
+    health INTEGER NOT NULL DEFAULT 100, max_health INTEGER NOT NULL DEFAULT 100,
+    energy INTEGER NOT NULL DEFAULT 100, max_energy INTEGER NOT NULL DEFAULT 100,
+    code_quality INTEGER NOT NULL DEFAULT 50, last_active INTEGER NOT NULL DEFAULT 0,
+    personality TEXT NOT NULL DEFAULT 'focused',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS gamify_quests (
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL, quest_type TEXT NOT NULL,
@@ -64,6 +77,20 @@ CREATE TABLE IF NOT EXISTS gamify_battles (
 CREATE TABLE IF NOT EXISTS agent_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id TEXT NOT NULL, event_type TEXT NOT NULL,
     payload_json TEXT, cli_version TEXT, timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS gamify_hint_telemetry (
+    user_id TEXT NOT NULL, kind TEXT NOT NULL, action TEXT NOT NULL, reason TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS gamify_processed_events (
+    user_id TEXT NOT NULL, dedupe_key TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, dedupe_key)
+);
+CREATE TABLE IF NOT EXISTS gamify_notifications (
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL, notification_type TEXT NOT NULL,
+    title TEXT NOT NULL, message TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id TEXT NOT NULL, session_id TEXT,
@@ -106,7 +133,7 @@ CREATE TABLE IF NOT EXISTS gamify_policy_snapshots (
     mode_label TEXT NOT NULL DEFAULT 'balanced', effective_multiplier REAL NOT NULL DEFAULT 1.0,
     awarded_xp INTEGER NOT NULL DEFAULT 0, awarded_crystals INTEGER NOT NULL DEFAULT 0,
     streak_days INTEGER NOT NULL DEFAULT 0, grind_capped INTEGER NOT NULL DEFAULT 0,
-    lumens INTEGER NOT NULL DEFAULT 0,
+    lumens INTEGER NOT NULL DEFAULT 0, metadata TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS agent_locks (
@@ -162,7 +189,7 @@ async fn profile_upsert_and_load() {
     let store: VoxDb = open().await;
     store
         .upsert_gamify_profile(
-            "user-1", 3, 250, 10, 100, 100, 0, 0, 5, 5, 0, 2, 0, 250, 0, 50, 0, 0,
+            "user-1", 3, 250, 10, 100, 100, 0, 0, 5, 5, 0, 2, 0, 250, 0, 50, 0, 0, 0, 0, 0,
         )
         .await
         .expect("upsert profile");
@@ -549,6 +576,9 @@ async fn gamify_periodic_condition_queries() {
             0,
             0,
             0,
+            0,
+            0,
+            0,
         )
         .await
         .unwrap();
@@ -618,6 +648,7 @@ async fn gamify_periodic_condition_queries() {
             0,
             false,
             0,
+            None,
         )
         .await
         .unwrap();

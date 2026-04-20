@@ -13,6 +13,8 @@ use super::command_sync;
 use super::completion_quality;
 use super::contracts_index;
 use super::coverage_gates;
+use super::dep_sprawl;
+use super::determinism_audit;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
@@ -28,7 +30,7 @@ use super::{cargo_bin, repo_root};
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
 #[path = "run_body_helpers/mod.rs"]
-mod run_body_helpers;
+pub(crate) mod run_body_helpers;
 
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
@@ -50,6 +52,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     match cmd {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
+        CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
         CiCmd::ExecPolicyContract => exec_policy_contract::run(&root),
@@ -235,6 +238,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),
         CiCmd::ClavisCutoverAudit { all } => run_clavis_cutover_audit(&root, all),
         CiCmd::CapabilitySync { write } => super::capability_sync::run(&root, write),
+        CiCmd::CapabilitySnapshot => super::capability_snapshot::run(&root),
         CiCmd::AttentionConfigParity => super::attention_parity::run(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
         CiCmd::CompletionAudit { scan_extra } => completion_quality::run_audit(&root, &scan_extra),
@@ -328,5 +332,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
         CiCmd::InstallHooks => super::install_hooks::run(&root),
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
+        CiCmd::DeterminismAudit => determinism_audit::run(&root),
+        CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
     }
 }

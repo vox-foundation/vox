@@ -1,12 +1,14 @@
-use std::fs;
-use std::path::Path;
-use sha3::{Digest, Sha3_256};
-use crate::publication::PublicationManifest;
+use super::arxiv::{
+    arxiv_assist_main_tex, arxiv_operator_handoff_value, pack_arxiv_staging_tar_gz,
+};
+use super::{ScholarlyVenue, StagingExportError};
 use crate::citation_cff::render_citation_cff;
 use crate::crossref_metadata::crossref_work_export_json;
+use crate::publication::PublicationManifest;
 use crate::zenodo_metadata;
-use super::{ScholarlyVenue, StagingExportError};
-use super::arxiv::{arxiv_assist_main_tex, arxiv_operator_handoff_value, pack_arxiv_staging_tar_gz};
+use sha3::{Digest, Sha3_256};
+use std::fs;
+use std::path::Path;
 
 pub fn write_scholarly_staging(
     manifest: &PublicationManifest,

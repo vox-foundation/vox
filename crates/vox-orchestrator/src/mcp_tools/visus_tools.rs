@@ -1,8 +1,8 @@
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
-use vox_browser::global_engine;
+use crate::mcp_tools::server_state::ServerState;
 use serde::Deserialize;
 use serde_json::json;
+use vox_browser::global_engine;
 
 #[derive(Deserialize)]
 struct AuditParams {
@@ -18,15 +18,19 @@ pub async fn vox_visus_audit(_state: &ServerState, args: serde_json::Value) -> S
     let params: AuditParams = match serde_json::from_value(args.clone()) {
         Ok(p) => p,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("Invalid arguments: {e}")).to_json_compact();
+            return ToolResult::<serde_json::Value>::err(format!("Invalid arguments: {e}"))
+                .to_json_compact();
         }
     };
 
     let engine = global_engine();
-    
+
     let page_id = match engine.open(&params.url, true).await {
         Ok(id) => id,
-        Err(e) => return ToolResult::<serde_json::Value>::err(format!("Failed to open browser: {e}")).to_json_compact(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("Failed to open browser: {e}"))
+                .to_json_compact();
+        }
     };
 
     // Wait for JS hydration
@@ -46,7 +50,7 @@ pub async fn vox_visus_audit(_state: &ServerState, args: serde_json::Value) -> S
         Ok(bytes) => {
             use base64::Engine;
             base64::engine::general_purpose::STANDARD.encode(&bytes)
-        },
+        }
         Err(e) => format!("Error capturing screenshot: {}", e),
     };
 
@@ -60,7 +64,7 @@ pub async fn vox_visus_audit(_state: &ServerState, args: serde_json::Value) -> S
         "screenshot_base64_length": screenshot_b64.len(),
         "screenshot_base64": screenshot_b64,
     });
-    
+
     ToolResult::<serde_json::Value>::ok(out).to_json_compact()
 }
 
@@ -68,13 +72,17 @@ pub async fn vox_visus_baseline(state: &ServerState, args: serde_json::Value) ->
     let params: BaselineParams = match serde_json::from_value(args.clone()) {
         Ok(p) => p,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("Invalid arguments: {e}")).to_json_compact();
+            return ToolResult::<serde_json::Value>::err(format!("Invalid arguments: {e}"))
+                .to_json_compact();
         }
     };
-    
+
     let db = match state.db.as_ref() {
         Some(db) => db,
-        None => return ToolResult::<serde_json::Value>::err("No VoxDb connected".to_string()).to_json_compact(),
+        None => {
+            return ToolResult::<serde_json::Value>::err("No VoxDb connected".to_string())
+                .to_json_compact();
+        }
     };
 
     tracing::info!("Visus baseline triggered for URL: {}", params.url);
@@ -82,7 +90,10 @@ pub async fn vox_visus_baseline(state: &ServerState, args: serde_json::Value) ->
     let engine = global_engine();
     let page_id = match engine.open(&params.url, true).await {
         Ok(id) => id,
-        Err(e) => return ToolResult::<serde_json::Value>::err(format!("Failed to open browser: {e}")).to_json_compact(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("Failed to open browser: {e}"))
+                .to_json_compact();
+        }
     };
 
     // Wait for JS hydration
@@ -97,7 +108,7 @@ pub async fn vox_visus_baseline(state: &ServerState, args: serde_json::Value) ->
     let ax_tree_cas = blake3::hash(ax_tree_str.as_bytes()).to_string();
 
     let id = format!("visus_base_{}", uuid::Uuid::new_v4());
-    
+
     let row = vox_db::store::types::VisusBaselineRow {
         id: id.clone(),
         target_url: params.url.clone(),

@@ -1,13 +1,13 @@
-﻿use super::config::memory_config_for_state;
+use super::config::memory_config_for_state;
 use super::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::mcp_tools::server_state::ServerState;
+use crate::{
+    AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::{
-    AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
-};
 use vox_repository::{RepoCapabilities, RepositoryContext};
 use vox_skills::new_registry_arc;
 

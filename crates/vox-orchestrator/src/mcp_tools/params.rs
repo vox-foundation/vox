@@ -668,7 +668,7 @@ pub struct OrchestratorRuntimeProbe {
     pub agent_fleet_loop_running: bool,
     /// Static note for clients that assumed a separate fleet process.
     pub note: &'static str,
-    /// When **`VOX_MCP_ORCHESTRATOR_START_RPC`** or **`VOX_MCP_ORCHESTRATOR_RPC_READS`** is on and the daemon probe aligned repo ids, **`orch.status`** `agent_count` (may differ from embedded `agent_count` until IPC-first).
+    /// When the daemon probe aligned repo ids, **`orch.status`** `agent_count` (may differ from embedded `agent_count` until IPC-first).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub daemon_reported_agent_count: Option<u64>,
     /// Populated when daemon **`orch.status`** could not be fetched.
@@ -768,7 +768,7 @@ pub struct StatusResponse {
     pub db_configured: bool,
     /// `codex_and_transient` when DB is set; otherwise `transient_only` for poll_events.
     pub event_feed_mode: String,
-    /// When **`VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC`** or **`VOX_MCP_ORCHESTRATOR_RPC_READS`** is on and repo ids align, JSON from daemon **`orch.status`** (compare with embedded fields until IPC-first).
+    /// When repo ids align, JSON from daemon **`orch.status`** (compare with embedded fields until IPC-first).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub daemon_orch_status: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

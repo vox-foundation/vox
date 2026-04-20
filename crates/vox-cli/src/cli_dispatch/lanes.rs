@@ -5,7 +5,7 @@ use crate::cli_args;
 use crate::commands;
 use crate::latin_cmd;
 
-pub(super) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::Result<()> {
+pub(crate) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::Result<()> {
     commands::diagnostics::doctor::run(
         args.auto_heal,
         args.test_health,
@@ -19,7 +19,7 @@ pub(super) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::R
 }
 
 #[cfg(feature = "stub-check")]
-pub(super) async fn run_stub_check_command(args: &cli_args::StubCheckArgs) -> anyhow::Result<()> {
+pub(crate) async fn run_stub_check_command(args: &cli_args::StubCheckArgs) -> anyhow::Result<()> {
     let scan_root = args
         .path
         .clone()
@@ -50,7 +50,7 @@ pub(super) async fn run_stub_check_command(args: &cli_args::StubCheckArgs) -> an
 }
 
 #[cfg(feature = "script-execution")]
-pub(super) fn script_opts_for_cli(
+pub(crate) fn script_opts_for_cli(
     args: &cli_args::ScriptArgs,
 ) -> commands::runtime::run::script::ScriptOpts {
     commands::runtime::run::script::ScriptOpts {
@@ -65,7 +65,7 @@ pub(super) fn script_opts_for_cli(
 }
 
 #[cfg(feature = "script-execution")]
-pub(super) async fn run_script_subcommand(
+pub(crate) async fn run_script_subcommand(
     args: &cli_args::ScriptArgs,
     lane: &'static str,
 ) -> anyhow::Result<()> {
@@ -80,14 +80,14 @@ pub(super) async fn run_script_subcommand(
 }
 
 #[cfg(feature = "ars")]
-pub(super) async fn run_openclaw_subcommand(
+pub(crate) async fn run_openclaw_subcommand(
     action: commands::openclaw::OpenClawAction,
 ) -> anyhow::Result<()> {
     commands::openclaw::run(action, false).await
 }
 
 #[cfg(feature = "coderabbit")]
-pub(super) async fn run_review_subcommand(cmd: commands::review::ReviewCli) -> anyhow::Result<()> {
+pub(crate) async fn run_review_subcommand(cmd: commands::review::ReviewCli) -> anyhow::Result<()> {
     commands::review::run_coderabbit(cmd).await
 }
 
@@ -95,7 +95,7 @@ pub(super) async fn run_review_subcommand(cmd: commands::review::ReviewCli) -> a
 ///
 /// `Script` is not included: top-level `vox script` uses [`run_script_subcommand`] instead of `fabrica script`.
 #[allow(clippy::result_large_err)]
-pub(super) fn cli_top_level_into_fabrica_or_self(
+pub(crate) fn cli_top_level_into_fabrica_or_self(
     cli: Cli,
 ) -> std::result::Result<latin_cmd::FabricaCmd, Cli> {
     use latin_cmd::FabricaCmd;
@@ -111,12 +111,19 @@ pub(super) fn cli_top_level_into_fabrica_or_self(
     }
 }
 
-pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()> {
+pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()> {
     use latin_cmd::FabricaCmd;
     match cmd {
         FabricaCmd::Build(a) => {
-            commands::build::run(&a.file, &a.out_dir, a.target.clone(), a.scaffold, a.emit_ir, a.mode)
-                .await?;
+            commands::build::run(
+                &a.file,
+                &a.out_dir,
+                a.target.clone(),
+                a.scaffold,
+                a.emit_ir,
+                a.mode,
+            )
+            .await?;
         }
         FabricaCmd::Check(a) => {
             commands::check::run(&a).await?;
@@ -148,7 +155,7 @@ pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
     Ok(())
 }
 
-pub(super) async fn run_diag_cmd(cmd: latin_cmd::DiagCmd) -> anyhow::Result<()> {
+pub(crate) async fn run_diag_cmd(cmd: latin_cmd::DiagCmd) -> anyhow::Result<()> {
     use latin_cmd::DiagCmd;
     match cmd {
         DiagCmd::Doctor(a) => {
@@ -166,7 +173,7 @@ pub(super) async fn run_diag_cmd(cmd: latin_cmd::DiagCmd) -> anyhow::Result<()> 
     Ok(())
 }
 
-pub(super) async fn run_ars_cmd(cmd: latin_cmd::ArsCmd) -> anyhow::Result<()> {
+pub(crate) async fn run_ars_cmd(cmd: latin_cmd::ArsCmd) -> anyhow::Result<()> {
     use latin_cmd::ArsCmd;
     match cmd {
         ArsCmd::Snippet { cmd } => {

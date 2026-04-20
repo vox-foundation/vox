@@ -354,12 +354,13 @@ impl crate::VoxDb {
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
-                let affected = conn.execute(
-                    "UPDATE plan_nodes SET status = 'pending', updated_at = datetime('now')
+                let affected = conn
+                    .execute(
+                        "UPDATE plan_nodes SET status = 'pending', updated_at = datetime('now')
                  WHERE plan_session_id = ?1 AND status = 'blocked_on_approval'",
-                    params![plan_session_id.as_str()],
-                )
-                .await?;
+                        params![plan_session_id.as_str()],
+                    )
+                    .await?;
                 Ok::<u64, StoreError>(affected as u64)
             })
             .await

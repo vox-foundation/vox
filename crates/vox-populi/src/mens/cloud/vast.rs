@@ -123,6 +123,9 @@ impl VastClient {
         if spec.job_kind != JobKind::Train {
             env.insert("VOX_SERVE_PORT".into(), spec.serve_port.to_string().into());
         }
+        if spec.persistent {
+            env.insert("VOX_PERSISTENT_NODE".into(), "1".into());
+        }
         for (k, v) in &spec.extra_env {
             env.insert(k.clone(), v.clone().into());
         }
@@ -293,6 +296,7 @@ impl CloudProvider for VastClient {
             started_at: std::time::SystemTime::now(),
             estimated_seconds: 0.0,
             price_per_hour_usd: bid,
+            is_persistent: spec.persistent,
         })
     }
 
@@ -348,5 +352,36 @@ impl CloudProvider for VastClient {
         raw.error_for_status().context("Vast.ai terminate error")?;
         tracing::info!("Vast.ai instance {} terminated.", handle.job_id);
         Ok(())
+    }
+
+    async fn get_serve_url(&self, handle: &JobHandle, serve_port: u16) -> anyhow::Result<Option<String>> {
+        let raw = self
+            .http
+            .get(format!("{BASE_URL}/instances/{}/", handle.job_id))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await
+            .context("Vast.ai GET /instances/ poll")?;
+        let resp: serde_json::Value = raw.error_for_status()?.json().await?;
+
+        // Format is often {"public_ipaddr": "x.x.x.x", "ports": {"8080/tcp": [{"HostIp": "...", "HostPort": "12345"}]}}
+        let public_ip = match resp.get("public_ipaddr").or_else(|| resp.pointer("/instances/0/public_ipaddr")).and_then(|v| v.as_str()) {
+            Some(ip) => ip,
+            None => return Ok(None),
+        };
+
+        let ports_map = resp.get("ports").or_else(|| resp.pointer("/instances/0/ports"));
+        let external_port = if let Some(map) = ports_map {
+            map.pointer(&format!("/{}/tcp/0/HostPort", serve_port))
+                .and_then(|v| v.as_str())
+        } else {
+            None
+        };
+
+        if let (Some(ip), Some(ext_port)) = (Some(public_ip), external_port) {
+            Ok(Some(format!("http://{}:{}", ip, ext_port)))
+        } else {
+            Ok(None)
+        }
     }
 }

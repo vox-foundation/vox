@@ -1,5 +1,3 @@
-
-
 impl crate::orchestrator::Orchestrator {
     /// Check if the orchestrator is in an emergency stop state.
     pub fn is_stopped(&self) -> bool {

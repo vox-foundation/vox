@@ -11,6 +11,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::runtime_config::OratioRuntimeConfig;
 
+/// IDE context for grounding speech commands in the current workspace state.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct IdeContext {
+    /// Path to the currently active file in the editor.
+    pub active_file: Option<String>,
+    /// Line number where the cursor is currently located (1-indexed).
+    pub cursor_line: Option<usize>,
+    /// Recent build or lint errors relevant to the current session.
+    pub recent_errors: Vec<String>,
+    /// Hierarchical symbol stack (e.g. ["fn_name", "struct_name", "mod_name"]).
+    pub symbol_stack: Vec<String>,
+}
+
 /// Classified intent for tool routing (deterministic scaffold; LLM disambiguation is out-of-crate).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IntentKind {
@@ -123,13 +136,38 @@ fn classify_speech_code_intent(lower: &str, compact: &str) -> Option<(IntentKind
     None
 }
 
-fn classify_intent(transcript: &str) -> (IntentKind, f32) {
+fn classify_intent(transcript: &str, context: &IdeContext) -> (IntentKind, f32) {
     let t = transcript.trim();
     if t.is_empty() {
         return (IntentKind::None, 0.0);
     }
     let lower = t.to_ascii_lowercase();
     let compact: String = lower.chars().filter(|c| !c.is_whitespace()).collect();
+
+    let tokens = word_tokens(&lower);
+
+    // Contextual bias for "edit this" / "fix this"
+    if context.active_file.is_some() {
+        if lower.contains("edit this") || lower.contains("change this") {
+            return (IntentKind::CodeEdit, 0.85);
+        }
+        if lower.contains("fix this") || !context.recent_errors.is_empty() && lower.contains("fix")
+        {
+            return (IntentKind::CodeEdit, 0.82);
+        }
+
+        // Error keyword bias: if user mentions a word from a recent error
+        for err in &context.recent_errors {
+            let err_lower = err.to_lowercase();
+            let err_tokens = word_tokens(&err_lower);
+            // Ignore very common short words
+            for et in err_tokens {
+                if et.len() > 3 && tokens.contains(&et) {
+                    return (IntentKind::CodeEdit, 0.88);
+                }
+            }
+        }
+    }
 
     let status_needles = [
         "voxoratiostatus",
@@ -148,7 +186,6 @@ fn classify_intent(transcript: &str) -> (IntentKind, f32) {
     }
 
     // Token-density hint: "status" near "oratio" / "vox"
-    let tokens: Vec<&str> = lower.split_whitespace().collect();
     let has_status = tokens.contains(&"status");
     let has_oratio = tokens.iter().any(|w| w.contains("oratio"));
     let has_vox = tokens.contains(&"vox");
@@ -244,6 +281,8 @@ pub enum RouteMode {
     Chat,
     /// Orchestrator envelope route.
     Orchestrator,
+    /// Clarification requested from user.
+    Clarify,
 }
 
 /// Route response envelope shared by CLI and MCP.
@@ -267,6 +306,7 @@ pub fn route_transcript_with_options(
     transcript: &str,
     transcript_confidence: f32,
     runtime: &OratioRuntimeConfig,
+    context: &IdeContext,
 ) -> RouteResponse {
     let empty = transcript.trim().is_empty();
     if empty && !matches!(mode, RouteMode::None) {
@@ -321,7 +361,7 @@ pub fn route_transcript_with_options(
                     }),
                 };
             }
-            let (intent, route_conf) = classify_intent(transcript);
+            let (intent, route_conf) = classify_intent(transcript, context);
             if matches!(
                 intent,
                 IntentKind::OratioStatus
@@ -330,6 +370,22 @@ pub fn route_transcript_with_options(
                     | IntentKind::ExplainCode
                     | IntentKind::RunCheck
             ) {
+                // Multi-turn ambiguity detection for "fix"
+                if matches!(intent, IntentKind::CodeEdit)
+                    && transcript.to_lowercase().contains("fix")
+                    && context.recent_errors.len() > 1
+                {
+                    return RouteResponse {
+                        mode: RouteMode::Clarify,
+                        action: "oratio.clarify.multiple_errors".to_string(),
+                        status: "ambiguous_target".to_string(),
+                        payload: serde_json::json!({
+                            "message": "Multiple errors found. Which one should I fix?",
+                            "options": context.recent_errors,
+                        }),
+                    };
+                }
+
                 let blended = (transcript_confidence * 0.5 + route_conf * 0.5).clamp(0.0, 1.0);
                 if blended < min_c {
                     return RouteResponse {
@@ -459,6 +515,15 @@ pub fn route_transcript_with_options(
                 }),
             }
         }
+        RouteMode::Clarify => RouteResponse {
+            mode,
+            action: "oratio.clarify".to_string(),
+            status: "clarification_required".to_string(),
+            payload: serde_json::json!({
+                "note": "User clarification needed for ambiguous intent",
+                "session_id": session_id,
+            }),
+        },
     }
 }
 
@@ -473,6 +538,7 @@ pub fn route_transcript(mode: RouteMode, session_id: &str, transcript: &str) -> 
         transcript,
         1.0,
         crate::runtime_config::resolved_runtime_config(),
+        &IdeContext::default(),
     )
 }
 
@@ -483,10 +549,12 @@ mod tests {
     #[test]
     fn tool_mode_matches_status_with_confidence() {
         let rt = OratioRuntimeConfig::default();
-        let out = route_transcript_with_options(RouteMode::Tool, "s1", "oratio status", 0.9, &rt);
+        let ctx = IdeContext::default();
+        let out =
+            route_transcript_with_options(RouteMode::Tool, "s1", "oratio status", 0.9, &rt, &ctx);
         assert_eq!(out.action, "oratio.status");
         let out_low =
-            route_transcript_with_options(RouteMode::Tool, "s2", "oratio status", 0.1, &rt);
+            route_transcript_with_options(RouteMode::Tool, "s2", "oratio status", 0.1, &rt, &ctx);
         assert_eq!(out_low.status, "below_tool_confidence");
     }
 
@@ -499,6 +567,7 @@ mod tests {
             "please create a function called main",
             0.9,
             &rt,
+            &IdeContext::default(),
         );
         assert_eq!(out.action, "speech.intent.code_create");
         assert_eq!(out.status, "intent_matched");
@@ -518,6 +587,7 @@ mod tests {
             "exchange rate helper in the module",
             0.95,
             &rt,
+            &IdeContext::default(),
         );
         assert_ne!(out.action, "speech.intent.code_edit");
     }
@@ -531,6 +601,7 @@ mod tests {
             "change the return type to int",
             0.95,
             &rt,
+            &IdeContext::default(),
         );
         assert_eq!(out.action, "speech.intent.code_edit");
     }
@@ -538,8 +609,9 @@ mod tests {
     #[test]
     fn repetition_breaker_triggers() {
         let rt = OratioRuntimeConfig::default();
-        let _ = route_transcript_with_options(RouteMode::Chat, "rpt", "hello", 1.0, &rt);
-        let out2 = route_transcript_with_options(RouteMode::Chat, "rpt", "hello", 1.0, &rt);
+        let ctx = IdeContext::default();
+        let _ = route_transcript_with_options(RouteMode::Chat, "rpt", "hello", 1.0, &rt, &ctx);
+        let out2 = route_transcript_with_options(RouteMode::Chat, "rpt", "hello", 1.0, &rt, &ctx);
         assert_eq!(out2.status, "repetition_breaker");
     }
 
@@ -548,9 +620,57 @@ mod tests {
         let mut rt = OratioRuntimeConfig::default();
         rt.routing.route_max_user_turns = 2;
         let sid = "max-turn-unit-test";
-        let _ = route_transcript_with_options(RouteMode::Chat, sid, "a", 1.0, &rt);
-        let _ = route_transcript_with_options(RouteMode::Chat, sid, "b", 1.0, &rt);
-        let out = route_transcript_with_options(RouteMode::Chat, sid, "c", 1.0, &rt);
+        let ctx = IdeContext::default();
+        let _ = route_transcript_with_options(RouteMode::Chat, sid, "a", 1.0, &rt, &ctx);
+        let _ = route_transcript_with_options(RouteMode::Chat, sid, "b", 1.0, &rt, &ctx);
+        let out = route_transcript_with_options(RouteMode::Chat, sid, "c", 1.0, &rt, &ctx);
         assert_eq!(out.status, "guard_max_user_turns");
+    }
+
+    #[test]
+    fn test_contextual_edit_this() {
+        let rt = OratioRuntimeConfig::default();
+        let mut ctx = IdeContext::default();
+        ctx.active_file = Some("src/main.rs".to_string());
+
+        let out = route_transcript_with_options(
+            RouteMode::Tool,
+            "ctx1",
+            "edit this function",
+            0.9,
+            &rt,
+            &ctx,
+        );
+        assert_eq!(out.action, "speech.intent.code_edit");
+        assert_eq!(out.status, "intent_matched");
+    }
+
+    #[test]
+    fn test_error_keyword_bias() {
+        let rt = OratioRuntimeConfig::default();
+        let mut ctx = IdeContext::default();
+        ctx.active_file = Some("src/lib.rs".to_string());
+        ctx.recent_errors
+            .push("unresolved import 'vox_core'".to_string());
+
+        // "vox_core" is in the error, user says "fix vox_core"
+        let out =
+            route_transcript_with_options(RouteMode::Tool, "ctx2", "fix vox_core", 0.9, &rt, &ctx);
+        assert_eq!(out.action, "speech.intent.code_edit");
+        assert!(out.payload["intent_confidence"].as_f64().unwrap() >= 0.85);
+    }
+
+    #[test]
+    fn test_clarify_multiple_errors() {
+        let rt = OratioRuntimeConfig::default();
+        let mut ctx = IdeContext::default();
+        ctx.active_file = Some("src/lib.rs".to_string());
+        ctx.recent_errors.push("Error 1".to_string());
+        ctx.recent_errors.push("Error 2".to_string());
+
+        let out =
+            route_transcript_with_options(RouteMode::Tool, "sid", "fix the error", 0.9, &rt, &ctx);
+        assert_eq!(out.mode, RouteMode::Clarify);
+        assert_eq!(out.action, "oratio.clarify.multiple_errors");
     }
 }

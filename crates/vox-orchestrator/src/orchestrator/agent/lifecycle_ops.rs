@@ -1,6 +1,6 @@
 use crate::orchestrator::OrchestratorError;
 use crate::services::MessageGateway;
-use crate::types::{AgentId, AgentTask, TaskId, TaskStatus, TaskPriority};
+use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
 
 impl crate::orchestrator::Orchestrator {
     /// Retire an agent: release all locks/affinity/scope, drain its queue, and return remaining tasks.
@@ -279,10 +279,8 @@ impl crate::orchestrator::Orchestrator {
     /// Update the heartbeat for an agent and emit an event.
     pub fn heartbeat(&self, agent_id: AgentId, activity: crate::events::AgentActivity) {
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).heartbeat(agent_id, activity);
-        self.event_bus.emit(crate::events::AgentEventKind::AgentHeartbeat {
-            agent_id,
-            activity,
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::AgentHeartbeat { agent_id, activity });
         if activity != crate::events::AgentActivity::Idle {
             self.record_activity();
         }

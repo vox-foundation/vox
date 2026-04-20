@@ -233,6 +233,24 @@ impl CombatState {
         Ok(log.join("\n"))
     }
 
+    /// Skip a turn to recharge energy and tick cooldowns.
+    pub fn skip_turn(&mut self) -> String {
+        self.turn += 1;
+        self.companion_energy = (self.companion_energy + 10).min(self.companion_max_energy);
+        for cd in self.cooldowns.values_mut() {
+            *cd = cd.saturating_sub(1);
+        }
+
+        // Bug attacks even on skipped turns
+        let dmg = self.bug.counter_attack();
+        self.companion_hp -= dmg;
+        if self.companion_hp <= 0 {
+            self.companion_hp = 0;
+            self.result = CombatResult::Defeat;
+        }
+        format!("Skipped turn. Recharged energy. {} attacked for {} damage.", self.bug.name, dmg)
+    }
+
     /// Submit a code fix to instantly resolve the bug.
     /// Returns victory if fix is non-empty, defeat otherwise.
     pub fn submit_fix(&mut self, fix: &str) -> CombatResult {
@@ -256,6 +274,7 @@ impl CombatState {
         &self,
         mode_mult: f64,
         streak_days: u32,
+        trust_tier: crate::profile::TrustTier,
         session: &mut SessionState,
     ) -> (u64, u64) {
         if self.result != CombatResult::Victory {
@@ -271,7 +290,7 @@ impl CombatState {
         // Apply bug-type bonus on top of base
         let type_bonus_xp = self.bug.bug_type.xp_reward();
         let type_bonus_crystals = self.bug.bug_type.crystal_reward();
-        let r = apply_policy(&base, mode_mult, streak_days, event, session);
+        let r = apply_policy(&base, mode_mult, streak_days, trust_tier, event, session);
         (r.xp + type_bonus_xp, r.crystals + type_bonus_crystals)
     }
 
@@ -347,7 +366,7 @@ mod tests {
         let mut state = make_combat();
         state.flee();
         let mut session = SessionState::default();
-        let (xp, crystals) = state.rewards(1.0, 0, &mut session);
+        let (xp, crystals) = state.rewards(1.0, 0, crate::profile::TrustTier::Linked, &mut session);
         assert_eq!(xp, 0);
         assert_eq!(crystals, 0);
     }

@@ -56,7 +56,6 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         return Err(anyhow!("doc-inventory.json: expected schema_version >= 3"));
     }
 
-
     let mut actual_crates = std::collections::HashSet::new();
     let inv = root.join("docs/src/architecture/orphan-surface-inventory.md");
     if inv.is_file() {
@@ -74,18 +73,18 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
 
         let listed = parse_workspace_crate_block(&inv_text);
         let crates_dir = root.join("crates");
-    for entry in
-        fs::read_dir(&crates_dir).with_context(|| format!("read {}", crates_dir.display()))?
-    {
-        let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-        let toml = entry.path().join("Cargo.toml");
-        if !toml.is_file() {
-            continue;
-        }
-        let name = read_package_name(&toml)?;
+        for entry in
+            fs::read_dir(&crates_dir).with_context(|| format!("read {}", crates_dir.display()))?
+        {
+            let entry = entry?;
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+            let toml = entry.path().join("Cargo.toml");
+            if !toml.is_file() {
+                continue;
+            }
+            let name = read_package_name(&toml)?;
             actual_crates.insert(name.clone());
             if !listed.contains(&name) {
                 return Err(anyhow!(
@@ -192,13 +191,15 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
                     if (md.contains("status: archived") || md.contains("status: \"archived\""))
                         && !p.to_string_lossy().contains("archive")
                     {
-                         return Err(anyhow!("File {} has 'status: archived' but is not in /archive/ or /docs/src/archive/", p.display()));
+                        return Err(anyhow!(
+                            "File {} has 'status: archived' but is not in /archive/ or /docs/src/archive/",
+                            p.display()
+                        ));
                     }
 
                     if md.contains("\ntraining_eligible: true")
                         || md.contains("\ntraining_eligible: \"true\"")
                     {
-
                         if let Some(pos) = md.find("\nlast_updated: ") {
                             let start = pos + 15;
                             let end = start + 10;
@@ -250,34 +251,47 @@ fn check_archival_pipeline(root: &Path) -> Result<()> {
     for p in &archive_files {
         total_count += 1;
         let md = read_utf8_path_capped(p).unwrap_or_default();
-        
+
         // Enforcement 2: Metadata Compliance
         if p.extension().map_or(false, |e| e == "md") {
-            if !md.contains("training_eligible: false") && !md.contains("training_eligible: \"false\"") {
-                 return Err(anyhow!("Archived file {} must have 'training_eligible: false'", p.display()));
+            if !md.contains("training_eligible: false")
+                && !md.contains("training_eligible: \"false\"")
+            {
+                return Err(anyhow!(
+                    "Archived file {} must have 'training_eligible: false'",
+                    p.display()
+                ));
             }
-            
+
             if let Some(pos) = md.find("archived_date: ") {
-                 let start = pos + 15;
-                 let end = start + 10;
-                 if end <= md.len() {
-                     let date_str = &md[start..end];
-                     if let Ok(dt) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                         if oldest_date.map_or(true, |old| dt < old) {
-                             oldest_date = Some(dt);
-                         }
-                     } else {
-                         return Err(anyhow!("Archived file {} has invalid archived_date format (expected YYYY-MM-DD)", p.display()));
-                     }
-                 }
+                let start = pos + 15;
+                let end = start + 10;
+                if end <= md.len() {
+                    let date_str = &md[start..end];
+                    if let Ok(dt) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                        if oldest_date.map_or(true, |old| dt < old) {
+                            oldest_date = Some(dt);
+                        }
+                    } else {
+                        return Err(anyhow!(
+                            "Archived file {} has invalid archived_date format (expected YYYY-MM-DD)",
+                            p.display()
+                        ));
+                    }
+                }
             } else {
-                 return Err(anyhow!("Archived markdown file {} missing 'archived_date: YYYY-MM-DD'", p.display()));
+                return Err(anyhow!(
+                    "Archived markdown file {} missing 'archived_date: YYYY-MM-DD'",
+                    p.display()
+                ));
             }
         }
     }
 
     if total_count > 0 {
-        let oldest_str = oldest_date.map(|d| d.format("%Y-%m-%d").to_string()).unwrap_or_else(|| "unknown".to_string());
+        let oldest_str = oldest_date
+            .map(|d| d.format("%Y-%m-%d").to_string())
+            .unwrap_or_else(|| "unknown".to_string());
         println!("Archive Status: {total_count} files, oldest is {oldest_str}");
     }
 

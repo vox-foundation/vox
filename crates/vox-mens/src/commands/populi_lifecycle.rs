@@ -7,8 +7,8 @@ use std::process::Stdio;
 
 use anyhow::{Context, bail};
 
-use vox_bounded_fs::read_utf8_path_capped;
 use uuid::Uuid;
+use vox_bounded_fs::read_utf8_path_capped;
 
 #[path = "populi_lifecycle_cmd.rs"]
 mod populi_lifecycle_cmd;
@@ -27,6 +27,14 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
             bind,
             overlay_provider,
             insecure_local,
+            visibility,
+            public_mesh,
+            donate_min_priority,
+            donate_kinds,
+            allow_users,
+            deny_users,
+            allow_meshes,
+            bootstrap_peers,
         } => {
             let root = workspace_root()?;
             let state_dir = root.join(".vox").join("populi");
@@ -57,6 +65,40 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 .or_else(|| env_map.get("VOX_MESH_SCOPE_ID").cloned())
                 .unwrap_or_else(default_scope_id);
             env_map.insert("VOX_MESH_SCOPE_ID".to_string(), scope_id.clone());
+            env_map.insert("VOX_MESH_VISIBILITY".to_string(), visibility);
+
+            let donation_policy = vox_mesh_types::WorkerDonationPolicy {
+                slots: donate_kinds
+                    .into_iter()
+                    .map(|k| {
+                        let kind = match k.to_lowercase().as_str() {
+                            "text_infer" => vox_mesh_types::TaskKind::TextInfer,
+                            "image_gen" => vox_mesh_types::TaskKind::ImageGen,
+                            "speech_transcribe" => vox_mesh_types::TaskKind::SpeechTranscribe,
+                            "train_qlora" => vox_mesh_types::TaskKind::TrainQLoRA,
+                            "embed" => vox_mesh_types::TaskKind::Embed,
+                            "vox_script" => vox_mesh_types::TaskKind::VoxScript,
+                            _ => vox_mesh_types::TaskKind::TextInfer,
+                        };
+                        vox_mesh_types::DonationSlot {
+                            task_kind: kind,
+                            max_concurrent: 1,
+                            weight_pct: 100,
+                        }
+                    })
+                    .collect(),
+                nsfw_allowed: false,
+                max_job_duration_secs: 300,
+                public_mesh_opt_in: public_mesh,
+                min_priority: donate_min_priority,
+                allowed_scopes: if allow_meshes.is_empty() { None } else { Some(allow_meshes) },
+                allowed_users: if allow_users.is_empty() { None } else { Some(allow_users) },
+                denied_users: if deny_users.is_empty() { None } else { Some(deny_users) },
+                allowed_mesh_networks: None, // Used in routing, populated from allowed_scopes currently
+            };
+            if let Ok(json) = serde_json::to_string(&donation_policy) {
+                env_map.insert("VOX_MESH_DONATION_POLICY_JSON".to_string(), json);
+            }
 
             let token = if insecure_local && matches!(mode, PopuliConnectivityMode::Lan) {
                 String::new()
@@ -96,6 +138,27 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 "VOX_ORCHESTRATOR_MESH_CONTROL_URL".to_string(),
                 control_url.clone(),
             );
+            if !bootstrap_peers.is_empty() {
+                env_map.insert(
+                    "VOX_MESH_FEDERATION_BOOTSTRAP_PEERS".to_string(),
+                    bootstrap_peers.join(","),
+                );
+            }
+
+            // Federation signing key generation (Identity-by-default)
+            if !env_map.contains_key("VOX_MESH_FEDERATION_SIGNING_KEY") {
+                let (sk, vk) = vox_crypto::facades::generate_signing_keypair();
+                let sk_bytes = sk.inner.to_bytes();
+                let sk_b64 = base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &sk_bytes,
+                );
+                env_map.insert("VOX_MESH_FEDERATION_SIGNING_KEY".to_string(), sk_b64);
+
+                let vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&vk);
+                println!("Generated new Mesh Federation Identity:");
+                println!("  Public Key: {}", hex::encode(vk_bytes));
+            }
 
             save_env_file(&env_file, &env_map)?;
 

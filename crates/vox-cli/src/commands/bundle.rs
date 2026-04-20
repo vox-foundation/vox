@@ -91,7 +91,15 @@ async fn run_app_bundle(
 ) -> Result<()> {
     // Step 1: Run the standard build pipeline
     println!("=== Step 1/5: Compiling Vox source ===");
-    build::run(file, out_dir, target.map(|s| s.to_string()), false, false, crate::cli_args::BuildMode::App).await?;
+    build::run(
+        file,
+        out_dir,
+        target.map(|s| s.to_string()),
+        false,
+        false,
+        crate::cli_args::BuildMode::App,
+    )
+    .await?;
 
     // Check if we have any frontend components
     let chat_tsx = out_dir.join("Chat.tsx");

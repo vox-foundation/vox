@@ -191,7 +191,7 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
                 status.code()
             );
         }
-        vox_cli::benchmark_telemetry::record_opt(
+        vox_cli_core::benchmark_telemetry::record_opt(
             "train_benchmark_gate",
             None,
             Some(serde_json::json!({

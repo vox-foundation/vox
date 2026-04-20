@@ -326,9 +326,8 @@ pub fn try_emit_route_manifest_json_from_web_ir(
         return Ok(None);
     }
     validate_manifest_symbols(web, hir)?;
-    let content = emit_route_manifest_json(web, hir).ok_or_else(|| {
-        "internal: routes.manifest.json emit failed after validation".to_string()
-    })?;
+    let content = emit_route_manifest_json(web, hir)
+        .ok_or_else(|| "internal: routes.manifest.json emit failed after validation".to_string())?;
     Ok(Some(content))
 }
 
@@ -384,7 +383,11 @@ fn get_contract_route_json(e: &RouteContract) -> serde_json::Value {
         obj.insert("index".to_string(), serde_json::json!(true));
     }
     if !e.children.is_empty() {
-        let children: Vec<_> = e.children.iter().map(|c| get_contract_route_json(c)).collect();
+        let children: Vec<_> = e
+            .children
+            .iter()
+            .map(|c| get_contract_route_json(c))
+            .collect();
         obj.insert("children".to_string(), serde_json::json!(children));
     }
     serde_json::Value::Object(obj)

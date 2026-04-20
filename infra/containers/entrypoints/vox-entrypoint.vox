@@ -1,0 +1,73 @@
+// vox:caps subprocess env
+fn main() {
+    let sidecar_opt = env.get("VOX_MESH_MESH_SIDECAR")
+    
+    let mut sidecar = ""
+    match sidecar_opt {
+        Some(s) => {
+            sidecar = s
+        }
+        None => {}
+    }
+
+    if sidecar is "1" or sidecar is "true" {
+        let bind_opt = env.get("VOX_MESH_SIDECAR_BIND")
+        let mut bind = "0.0.0.0:9847"
+        match bind_opt {
+            Some(b) => {
+                if b isnt "" {
+                    bind = b
+                }
+            }
+            None => {}
+        }
+        
+        print("Starting mesh sidecar on " + bind)
+        process.spawn_background("vox", ["populi", "serve", "--bind", bind])
+        
+        env.set("VOX_MESH_ENABLED", "1")
+        env.set("VOX_MESH_CONTROL_ADDR", "http://127.0.0.1:9847")
+    }
+
+    let args = env.args()
+    let mut script_idx = -1
+    let mut i = 0
+    while i < args.len() {
+        match args.get(i) {
+            Some(arg_str) => {
+                if arg_str.contains("vox-entrypoint.vox") {
+                    script_idx = i
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+
+    if script_idx >= 0 and script_idx + 1 < args.len() {
+        let mut cmd = ""
+        match args.get(script_idx + 1) {
+            Some(c) => { cmd = c }
+            None => {}
+        }
+        
+        if cmd isnt "" {
+            let mut cmd_args = []
+            let mut j = script_idx + 2
+            while j < args.len() {
+                match args.get(j) {
+                    Some(arg_j) => {
+                        cmd_args = cmd_args.push(arg_j)
+                    }
+                    None => {}
+                }
+                j = j + 1
+            }
+            process.exec(cmd, cmd_args)
+        } else {
+            print("No command provided to entrypoint.")
+        }
+    } else {
+        print("No command provided to entrypoint.")
+    }
+}

@@ -8,9 +8,9 @@ use serde::Deserialize;
 use super::build_system_prompt;
 use super::params::{PlanDepth, PlanLoopMode, PlanParams, PlanTask};
 use super::plan_gap;
+use crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::mcp_tools::server_state::ServerState;
-use crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model;
 
 use crate::planning::PlanRefinementReport;
 

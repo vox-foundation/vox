@@ -252,8 +252,9 @@ pub fn heuristic_search_plan(
             SearchBackend::KnowledgeFts,
             SearchBackend::MemoryBm25,
         ];
-        plan.notes
-            .push("code-navigation query prioritizes proximity, repo path and lexical search".to_string());
+        plan.notes.push(
+            "code-navigation query prioritizes proximity, repo path and lexical search".to_string(),
+        );
         return plan;
     }
     if looks_like_repo_structure(query_text) {

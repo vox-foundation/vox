@@ -13,8 +13,8 @@ mod validate;
 
 use anyhow::{Context, Result};
 
-use vox_bounded_fs::read_utf8_path_capped_async;
 use clap::Parser;
+use vox_bounded_fs::read_utf8_path_capped_async;
 
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) use stats::{eval_metrics, run_benchmark_gate};
@@ -417,11 +417,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 .await
                 .context("dogfood-export requires DB connection")?;
             let exporter = vox_corpus::corpus::dogfood::DogfoodExporter::new(&db);
-            
+
             if let Some(p) = output.parent() {
                 tokio::fs::create_dir_all(p).await?;
             }
-            
+
             let mut file = std::fs::File::create(&output)?;
             let count = exporter.export_agent_traces(limit, &mut file).await?;
             println!(
@@ -435,11 +435,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             let db = vox_db::VoxDb::connect_default()
                 .await
                 .context("dpo-dogfood-export requires DB connection")?;
-            
+
             if let Some(p) = output.parent() {
                 tokio::fs::create_dir_all(p).await?;
             }
-            
+
             let count = vox_corpus::corpus::dpo::export_dogfood_dpo(&db, limit, &output).await?;
             println!(
                 "✓ Exported {} agent DPO preference pairs → {}",
@@ -600,8 +600,6 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             output,
             min_score,
             quarantine,
-        } => {
-            generate::run_curate_prose(&input, &output, min_score, quarantine.as_deref()).await
-        }
+        } => generate::run_curate_prose(&input, &output, min_score, quarantine.as_deref()).await,
     }
 }

@@ -6,8 +6,9 @@ use crate::commands::extras::ludus::{db_util, render_progress_bar};
 
 /// Show current arena event status.
 pub async fn arena_show() -> Result<()> {
-    let codex = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let ctx = crate::commands::extras::ludus::LudusContext::load().await?;
+    let codex = &ctx.db;
+    let user_id = &ctx.user_id;
 
     let event = ludus_db::get_active_arena_event(&codex).await?;
 
@@ -48,8 +49,9 @@ pub async fn arena_show() -> Result<()> {
 
 /// Join the current arena event.
 pub async fn arena_join() -> Result<()> {
-    let codex = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let ctx = crate::commands::extras::ludus::LudusContext::load().await?;
+    let codex = &ctx.db;
+    let user_id = &ctx.user_id;
 
     if let Some(ev) = ludus_db::get_active_arena_event(&codex).await? {
         ludus_db::join_arena_event(&codex, &ev.id, &user_id).await?;

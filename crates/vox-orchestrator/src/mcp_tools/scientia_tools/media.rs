@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -114,4 +114,3 @@ pub async fn vox_scientia_publication_media_delete(
     }))
     .to_json()
 }
-

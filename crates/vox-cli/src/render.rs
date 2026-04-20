@@ -1,4 +1,5 @@
 //! Terminal Markdown renderer for `vox-cli`.
+#![allow(dead_code)]
 //!
 //! Converts a Markdown string into human-readable terminal output that respects
 //! `NO_COLOR` and the global [`crate::diagnostics::ColorChoice`]. The stdout

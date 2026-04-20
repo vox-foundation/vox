@@ -1,4 +1,4 @@
-﻿//! RMCP tool descriptors built from the static MCP registry.
+//! RMCP tool descriptors built from the static MCP registry.
 
 use super::TOOL_REGISTRY;
 use super::input_schemas;
@@ -20,6 +20,7 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
                 "vox_http_read_role_eligible".to_string(),
                 Value::Bool(e.http_read_role_eligible),
             );
+            meta_map.insert("vox_tier".to_string(), Value::String(e.tier.to_string()));
             rmcp::model::Tool {
                 name: std::borrow::Cow::Owned(n.to_string()),
                 description: Some(std::borrow::Cow::Owned(e.description.to_string())),

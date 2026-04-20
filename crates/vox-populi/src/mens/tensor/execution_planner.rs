@@ -282,6 +282,7 @@ mod tests {
                 config_json: None,
                 tokenizer_json: None,
             },
+            collateral_damage_verified: false,
             provenance: ModelProvenanceSpec {
                 base_family: None,
                 upstream_model_id: None,

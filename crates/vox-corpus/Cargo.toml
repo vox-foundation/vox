@@ -13,14 +13,14 @@ parser-verify = ["ast-extract"]
 ast-extract = []
 
 [dependencies]
-vox-db = { path = "../vox-db", optional = true }
+vox-db = { workspace = true, optional = true }
 turso = { workspace = true, optional = true }
-vox-compiler = { path = "../vox-compiler" }
+vox-compiler.workspace = true
 anyhow = { workspace = true }
-vox-repository = { path = "../vox-repository" }
+vox-repository.workspace = true
 vox-bounded-fs = { workspace = true }
-vox-mcp-meta = { path = "../vox-mcp-meta" }
-vox-mcp-registry = { path = "../vox-mcp-registry" }
+vox-mcp-meta.workspace = true
+vox-mcp-registry.workspace = true
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

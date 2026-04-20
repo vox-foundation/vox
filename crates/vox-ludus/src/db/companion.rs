@@ -85,7 +85,7 @@ pub async fn upsert_companion(db: &Codex, c: &Companion) -> Result<()> {
 pub async fn get_companion(db: &Codex, id: &str) -> Result<Option<Companion>> {
     let row = db.get_gamify_companion(id).await?;
     if let Some(row) = row {
-        let personality_str = row[13].as_deref().unwrap_or("focused");
+        let personality_str = row[14].as_deref().unwrap_or("focused");
         let personality = personality_str.parse::<Personality>().unwrap_or_default();
 
         Ok(Some(Companion {

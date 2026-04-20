@@ -46,20 +46,21 @@ pub fn load_user_config() -> VoxUserConfig {
 pub fn set_user_config_value(key: &str, value: &str) -> Result<(), String> {
     let cache = CONFIG_CACHE.get_or_init(initialize_cache);
     let mut guard = cache.lock().expect("config cache mutex poisoned");
-    
-    guard.values.insert(key.to_string(), toml::Value::String(value.to_string()));
-    
-    let toml_str = toml::to_string(&*guard)
-        .map_err(|e| format!("Failed to serialize config: {e}"))?;
-        
+
+    guard
+        .values
+        .insert(key.to_string(), toml::Value::String(value.to_string()));
+
+    let toml_str =
+        toml::to_string(&*guard).map_err(|e| format!("Failed to serialize config: {e}"))?;
+
     let path = get_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create config dir: {e}"))?;
     }
-    
-    fs::write(&path, toml_str)
-        .map_err(|e| format!("Failed to write config file: {e}"))?;
-        
+
+    fs::write(&path, toml_str).map_err(|e| format!("Failed to write config file: {e}"))?;
+
     Ok(())
 }
 
@@ -67,19 +68,18 @@ pub fn set_user_config_value(key: &str, value: &str) -> Result<(), String> {
 pub fn unset_user_config_value(key: &str) -> Result<bool, String> {
     let cache = CONFIG_CACHE.get_or_init(initialize_cache);
     let mut guard = cache.lock().expect("config cache mutex poisoned");
-    
+
     if guard.values.remove(key).is_some() {
-        let toml_str = toml::to_string(&*guard)
-            .map_err(|e| format!("Failed to serialize config: {e}"))?;
-            
+        let toml_str =
+            toml::to_string(&*guard).map_err(|e| format!("Failed to serialize config: {e}"))?;
+
         let path = get_config_path();
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("Failed to create config dir: {e}"))?;
         }
-        
-        fs::write(&path, toml_str)
-            .map_err(|e| format!("Failed to write config file: {e}"))?;
-            
+
+        fs::write(&path, toml_str).map_err(|e| format!("Failed to write config file: {e}"))?;
+
         Ok(true)
     } else {
         Ok(false)

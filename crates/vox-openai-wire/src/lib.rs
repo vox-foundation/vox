@@ -6,6 +6,6 @@ mod chat_completion;
 
 pub use chat_completion::{
     ChatCompletionAssistantMessage, ChatCompletionChoice, ChatCompletionFunctionCall,
-    ChatCompletionRequest, ChatCompletionResponse, ChatCompletionToolCall,
-    ChatCompletionUsage, ChatMessageContent, ChatMessagePart, ChatMessageTurn, ImageUrl,
+    ChatCompletionRequest, ChatCompletionResponse, ChatCompletionToolCall, ChatCompletionUsage,
+    ChatMessageContent, ChatMessagePart, ChatMessageTurn, ImageUrl,
 };

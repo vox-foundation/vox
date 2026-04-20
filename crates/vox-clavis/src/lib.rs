@@ -259,7 +259,8 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
             let profile = options.profile;
             let phase = CutoverPhase::from_env();
             let legacy_allowed = phase.legacy_sources_allowed(profile);
-            let legacy_turso_fallback = legacy_allowed && (std::env::var("VOX_TURSO_URL").is_ok() || std::env::var("TURSO_URL").is_ok());
+            let legacy_turso_fallback = legacy_allowed
+                && (std::env::var("VOX_TURSO_URL").is_ok() || std::env::var("TURSO_URL").is_ok());
 
             if legacy_turso_fallback {
                 return resolve_vox_cloud(id, options);
@@ -270,7 +271,9 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
             {
                 return resolve_infisical(id, profile, &options.caller_context);
             }
-            if std::env::var(crate::OPERATOR_VAULT_ADDR).is_ok() && std::env::var(crate::OPERATOR_VAULT_TOKEN).is_ok() {
+            if std::env::var(crate::OPERATOR_VAULT_ADDR).is_ok()
+                && std::env::var(crate::OPERATOR_VAULT_TOKEN).is_ok()
+            {
                 return resolve_vault(id, profile, &options.caller_context);
             }
             if let Ok(entry) = keyring::Entry::new("vox-clavis-vault", "master") {

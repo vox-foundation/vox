@@ -37,23 +37,37 @@ impl AffinityMatrix {
             return 0;
         }
         match (a, b) {
-            (AgentRole::Executor, AgentRole::Verifier) | (AgentRole::Verifier, AgentRole::Executor) => 1,
-            (AgentRole::Synthesizer, AgentRole::Verifier) | (AgentRole::Verifier, AgentRole::Synthesizer) => 1,
-            (AgentRole::Planner, AgentRole::Generalist) | (AgentRole::Generalist, AgentRole::Planner) => 2,
-            (AgentRole::Researcher, AgentRole::Planner) | (AgentRole::Planner, AgentRole::Researcher) => 2,
+            (AgentRole::Executor, AgentRole::Verifier)
+            | (AgentRole::Verifier, AgentRole::Executor) => 1,
+            (AgentRole::Synthesizer, AgentRole::Verifier)
+            | (AgentRole::Verifier, AgentRole::Synthesizer) => 1,
+            (AgentRole::Planner, AgentRole::Generalist)
+            | (AgentRole::Generalist, AgentRole::Planner) => 2,
+            (AgentRole::Researcher, AgentRole::Planner)
+            | (AgentRole::Planner, AgentRole::Researcher) => 2,
             (AgentRole::Observer, _) | (_, AgentRole::Observer) => 2,
             _ => 3, // Default to a long-range hub hop.
         }
     }
-    
+
     /// Evaluate the current `AgentTopologySnapshot` for routing efficiency.
     /// Calculates the sum of all distances in the current delegation edges.
     #[must_use]
     pub fn routing_efficiency_penalty(snapshot: &AgentTopologySnapshot) -> u32 {
         let mut penalty = 0;
         for edge in &snapshot.delegation_edges {
-            let parent_role = snapshot.nodes.iter().find(|n| n.agent_id == edge.parent_agent_id).map(|n| n.role).unwrap_or(AgentRole::Generalist);
-            let child_role = snapshot.nodes.iter().find(|n| n.agent_id == edge.child_agent_id).map(|n| n.role).unwrap_or(AgentRole::Generalist);
+            let parent_role = snapshot
+                .nodes
+                .iter()
+                .find(|n| n.agent_id == edge.parent_agent_id)
+                .map(|n| n.role)
+                .unwrap_or(AgentRole::Generalist);
+            let child_role = snapshot
+                .nodes
+                .iter()
+                .find(|n| n.agent_id == edge.child_agent_id)
+                .map(|n| n.role)
+                .unwrap_or(AgentRole::Generalist);
             penalty += Self::distance(parent_role, child_role) as u32;
         }
         penalty

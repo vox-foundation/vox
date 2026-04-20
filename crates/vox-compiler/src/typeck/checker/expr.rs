@@ -896,7 +896,7 @@ impl<'a> Checker<'a> {
                                         "Cannot use `?` operator on Result in a function that does not return a Result".into(),
                                         hir_try.span,
                                         self.source,
-                                    ));
+                                    ).with_suggestion("Change the function's return type to Result[T] or handle the error using pattern matching / `unwrap()`."));
                                 }
                             }
                         }
@@ -913,7 +913,7 @@ impl<'a> Checker<'a> {
                                         "Cannot use `?` operator on Option in a function that does not return an Option".into(),
                                         hir_try.span,
                                         self.source,
-                                    ));
+                                    ).with_suggestion("Change the function's return type to Option[T] or handle the None case using pattern matching / `unwrap()`."));
                                 }
                             }
                         }

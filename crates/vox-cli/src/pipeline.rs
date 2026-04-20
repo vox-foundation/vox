@@ -11,6 +11,7 @@ use owo_colors::OwoColorize;
 use std::path::Path;
 use vox_compiler::ast::decl::Module;
 use vox_compiler::hir::HirModule;
+use vox_compiler::pipeline::PipelineOptions;
 use vox_compiler::typeck::Diagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 
@@ -72,16 +73,33 @@ impl FrontendResult {
 /// Type/HIR diagnostics are stored in [`FrontendResult::diagnostics`]; it is
 /// the caller's responsibility to decide whether to treat them as fatal.
 pub async fn run_frontend(file: &Path, json: bool) -> Result<FrontendResult> {
+    run_frontend_with_options(file, json, &PipelineOptions::default()).await
+}
+
+pub async fn run_frontend_with_options(
+    file: &Path,
+    json: bool,
+    options: &PipelineOptions,
+) -> Result<FrontendResult> {
     let source = read_utf8_path_capped(file)
         .with_context(|| format!("Failed to read source file: {}", file.display()))?;
 
-    run_frontend_str(&source, file, json)
+    run_frontend_str_with_options(&source, file, json, options)
 }
 
 /// Same as [`run_frontend`] but takes an already-loaded source string.
 pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<FrontendResult> {
+    run_frontend_str_with_options(source, file, json, &PipelineOptions::default())
+}
+
+pub fn run_frontend_str_with_options(
+    source: &str,
+    file: &Path,
+    json: bool,
+    options: &PipelineOptions,
+) -> Result<FrontendResult> {
     let file_path = file.to_string_lossy();
-    match vox_compiler::pipeline::run_frontend_str(source, &file_path) {
+    match vox_compiler::pipeline::run_frontend_str_with_options(source, &file_path, options) {
         Ok(res) => Ok(FrontendResult {
             module: res.module,
             hir: res.hir,

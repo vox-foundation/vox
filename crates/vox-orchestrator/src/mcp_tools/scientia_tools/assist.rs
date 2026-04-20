@@ -1,13 +1,13 @@
 //! Bounded LLM assist for SCIENTIA — JSON-only suggestions, [`TaskCategory::Research`] routing.
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
+use crate::types::TaskCategory;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use crate::types::TaskCategory;
 
-use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model;
+use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::mcp_tools::text_normalization::strip_json_codeblock_fence;
 
 use super::common::{
@@ -186,4 +186,3 @@ pub async fn vox_scientia_assist_suggestions(
     }))
     .to_json()
 }
-

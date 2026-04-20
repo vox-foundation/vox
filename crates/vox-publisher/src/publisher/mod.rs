@@ -3,18 +3,18 @@ pub use config::*;
 pub mod heuristics;
 pub use heuristics::*;
 
-use anyhow::Result;
-use tracing::{info, warn};
-use crate::types::{HackerNewsMode, UnifiedNewsItem};
-use crate::SyndicationResult;
 use crate::ChannelOutcome;
+use crate::SyndicationResult;
 use crate::adapters;
 use crate::social_retry;
+use crate::types::{HackerNewsMode, UnifiedNewsItem};
+use anyhow::Result;
+use tracing::{info, warn};
 
-#[cfg(feature = "scientia-reddit")]
-use crate::types::{RedditConfig, RedditPostKind};
 #[cfg(feature = "scientia-youtube")]
 use crate::types::YouTubeConfig;
+#[cfg(feature = "scientia-reddit")]
+use crate::types::{RedditConfig, RedditPostKind};
 
 pub struct Publisher {
     config: PublisherConfig,
@@ -121,27 +121,37 @@ impl Publisher {
                 }
                 cfg
             });
-        let derived_hn: Option<crate::types::HackerNewsConfig> = if item.syndication.hacker_news { Some(crate::types::HackerNewsConfig { mode: crate::types::HackerNewsMode::ManualAssist, comment_draft: None, title_override: None, url_override: None }) } else { None }.map(|mut cfg| {
-                if cfg
-                    .title_override
-                    .as_deref()
-                    .map(str::trim)
-                    .unwrap_or("")
-                    .is_empty()
-                    && item.syndication.youtube.is_some()
-                {
-                    cfg.title_override = Some(crate::contract::clamp_text(
-                        format!("{} (video)", item.title).as_str(),
-                        crate::adapters::hacker_news::TITLE_MAX,
-                    ));
-                }
-                if let Some(mode) = self.config.hacker_news_mode.as_deref()
-                    && mode.trim().eq_ignore_ascii_case("manual_assist")
-                {
-                    cfg.mode = HackerNewsMode::ManualAssist;
-                }
-                cfg
-            });
+        let derived_hn: Option<crate::types::HackerNewsConfig> = if item.syndication.hacker_news {
+            Some(crate::types::HackerNewsConfig {
+                mode: crate::types::HackerNewsMode::ManualAssist,
+                comment_draft: None,
+                title_override: None,
+                url_override: None,
+            })
+        } else {
+            None
+        }
+        .map(|mut cfg| {
+            if cfg
+                .title_override
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+                && item.syndication.youtube.is_some()
+            {
+                cfg.title_override = Some(crate::contract::clamp_text(
+                    format!("{} (video)", item.title).as_str(),
+                    crate::adapters::hacker_news::TITLE_MAX,
+                ));
+            }
+            if let Some(mode) = self.config.hacker_news_mode.as_deref()
+                && mode.trim().eq_ignore_ascii_case("manual_assist")
+            {
+                cfg.mode = HackerNewsMode::ManualAssist;
+            }
+            cfg
+        });
         #[cfg(feature = "scientia-youtube")]
         let derived_youtube: Option<YouTubeConfig> =
             item.syndication.youtube.clone().map(|mut cfg| {
@@ -220,7 +230,10 @@ impl Publisher {
             }
         }
 
-        if item.syndication.is_active(crate::types::SocialChannel::Twitter) {
+        if item
+            .syndication
+            .is_active(crate::types::SocialChannel::Twitter)
+        {
             if let Some(reason) = policy_block_reason(item, "twitter", &self.config) {
                 result.twitter = ChannelOutcome::Disabled;
                 result
@@ -234,7 +247,13 @@ impl Publisher {
             } else if let Some(token) = &self.config.twitter_bearer_token {
                 let tw_ovr = item.syndication.twitter_override();
                 match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::twitter::post(&self.config, token.as_str(), item, tw_ovr.as_ref(), is_dry_run)
+                    adapters::twitter::post(
+                        &self.config,
+                        token.as_str(),
+                        item,
+                        tw_ovr.as_ref(),
+                        is_dry_run,
+                    )
                 })
                 .await
                 {
@@ -317,7 +336,10 @@ impl Publisher {
             } else if is_dry_run {
                 info!(
                     "[DRY RUN] Would post to Open Collective slug {}",
-                    self.config.open_collective_slug.as_deref().unwrap_or("vox-foundation")
+                    self.config
+                        .open_collective_slug
+                        .as_deref()
+                        .unwrap_or("vox-foundation")
                 );
                 result.open_collective = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-oc-{}", item.id)),
@@ -592,21 +614,32 @@ impl Publisher {
             }
         }
 
-        if item.syndication.is_active(crate::types::SocialChannel::Bluesky) {
+        if item
+            .syndication
+            .is_active(crate::types::SocialChannel::Bluesky)
+        {
             if let Some(reason) = policy_block_reason(item, "bluesky", &self.config) {
                 result.bluesky = ChannelOutcome::Disabled;
-                result.decision_reasons.insert("bluesky".to_string(), reason);
+                result
+                    .decision_reasons
+                    .insert("bluesky".to_string(), reason);
             } else if is_dry_run {
                 info!("[DRY RUN] Would post to Bluesky");
                 result.bluesky = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-bluesky-{}", item.id)),
                 };
-            } else if let (Some(handle), Some(password)) = (&self.config.bluesky_handle, &self.config.bluesky_password) {
+            } else if let (Some(handle), Some(password)) =
+                (&self.config.bluesky_handle, &self.config.bluesky_password)
+            {
                 match social_retry::run_with_retries(social_retry_budget, || {
                     adapters::bluesky::post(&self.config, handle, password, item, is_dry_run)
-                }).await {
+                })
+                .await
+                {
                     Ok(id) => {
-                        result.bluesky = ChannelOutcome::Success { external_id: Some(id) };
+                        result.bluesky = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
                         info!("Posted to Bluesky.");
                     }
                     Err(e) => {
@@ -629,10 +662,15 @@ impl Publisher {
             }
         }
 
-        if item.syndication.is_active(crate::types::SocialChannel::Mastodon) {
+        if item
+            .syndication
+            .is_active(crate::types::SocialChannel::Mastodon)
+        {
             if let Some(reason) = policy_block_reason(item, "mastodon", &self.config) {
                 result.mastodon = ChannelOutcome::Disabled;
-                result.decision_reasons.insert("mastodon".to_string(), reason);
+                result
+                    .decision_reasons
+                    .insert("mastodon".to_string(), reason);
             } else if is_dry_run {
                 info!("[DRY RUN] Would post to Mastodon");
                 result.mastodon = ChannelOutcome::DryRun {
@@ -641,7 +679,11 @@ impl Publisher {
             } else {
                 let masto_ovr = item.syndication.mastodon_override();
                 match social_retry::run_with_retries(social_retry_budget, || {
-                    let short_summary = item.syndication.short_summary.as_deref().unwrap_or(&item.title);
+                    let short_summary = item
+                        .syndication
+                        .short_summary
+                        .as_deref()
+                        .unwrap_or(&item.title);
                     adapters::mastodon::post(
                         &self.config,
                         item,
@@ -649,9 +691,13 @@ impl Publisher {
                         short_summary,
                         is_dry_run,
                     )
-                }).await {
+                })
+                .await
+                {
                     Ok(id) => {
-                        result.mastodon = ChannelOutcome::Success { external_id: Some(id) };
+                        result.mastodon = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
                         info!("Posted to Mastodon.");
                     }
                     Err(e) => {
@@ -669,7 +715,9 @@ impl Publisher {
         if item.syndication.linkedin {
             if let Some(reason) = policy_block_reason(item, "linkedin", &self.config) {
                 result.linkedin = ChannelOutcome::Disabled;
-                result.decision_reasons.insert("linkedin".to_string(), reason);
+                result
+                    .decision_reasons
+                    .insert("linkedin".to_string(), reason);
             } else if is_dry_run {
                 info!("[DRY RUN] Would post to LinkedIn");
                 result.linkedin = ChannelOutcome::DryRun {
@@ -678,9 +726,13 @@ impl Publisher {
             } else {
                 match social_retry::run_with_retries(social_retry_budget, || {
                     adapters::linkedin::post(&self.config, item, is_dry_run)
-                }).await {
+                })
+                .await
+                {
                     Ok(id) => {
-                        result.linkedin = ChannelOutcome::Success { external_id: Some(id) };
+                        result.linkedin = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
                         info!("Posted to LinkedIn.");
                     }
                     Err(e) => {
@@ -695,10 +747,15 @@ impl Publisher {
             }
         }
 
-        if item.syndication.is_active(crate::types::SocialChannel::Discord) {
+        if item
+            .syndication
+            .is_active(crate::types::SocialChannel::Discord)
+        {
             if let Some(reason) = policy_block_reason(item, "discord", &self.config) {
                 result.discord = ChannelOutcome::Disabled;
-                result.decision_reasons.insert("discord".to_string(), reason);
+                result
+                    .decision_reasons
+                    .insert("discord".to_string(), reason);
             } else if is_dry_run {
                 info!("[DRY RUN] Would post to Discord");
                 result.discord = ChannelOutcome::DryRun {
@@ -708,9 +765,13 @@ impl Publisher {
                 let discord_ovr = item.syndication.discord_override();
                 match social_retry::run_with_retries(social_retry_budget, || {
                     adapters::discord::post(&self.config, item, discord_ovr.as_ref(), is_dry_run)
-                }).await {
+                })
+                .await
+                {
                     Ok(id) => {
-                        result.discord = ChannelOutcome::Success { external_id: Some(id) };
+                        result.discord = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
                         info!("Posted to Discord.");
                     }
                     Err(e) => {
@@ -728,12 +789,22 @@ impl Publisher {
         if item.syndication.researchgate {
             if let Some(reason) = policy_block_reason(item, "researchgate", &self.config) {
                 result.researchgate = ChannelOutcome::Disabled;
-                result.decision_reasons.insert("researchgate".to_string(), reason);
+                result
+                    .decision_reasons
+                    .insert("researchgate".to_string(), reason);
             } else {
                 match adapters::researchgate::post(item, is_dry_run).await {
                     Ok(outcome) => {
                         result.researchgate = outcome;
-                        if matches!(result.researchgate, ChannelOutcome::Failed { failure_class: Some(crate::syndication_outcome::FailureClass::ManualActionRequired), .. }) {
+                        if matches!(
+                            result.researchgate,
+                            ChannelOutcome::Failed {
+                                failure_class: Some(
+                                    crate::syndication_outcome::FailureClass::ManualActionRequired
+                                ),
+                                ..
+                            }
+                        ) {
                             info!("ResearchGate post requires manual action (no public API).");
                         }
                     }

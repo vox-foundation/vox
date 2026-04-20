@@ -82,8 +82,8 @@ impl DetectionRule for WorkspaceDriftDetector {
 
                 // 2. Detect version = "..." sprawl
                 // This catches `uuid = { version = "1.0" }` or `version = "0.1.0"` (if not .workspace)
-                if trimmed.contains("version = \"") || (trimmed.contains("version = '") ) {
-                    // Allow [package] version if it's not marked .workspace? 
+                if trimmed.contains("version = \"") || (trimmed.contains("version = '")) {
+                    // Allow [package] version if it's not marked .workspace?
                     // No, AGENTS.md implies we use version.workspace = true everywhere.
                     findings.push(Finding {
                         rule_id: self.id().to_string(),
@@ -99,7 +99,7 @@ impl DetectionRule for WorkspaceDriftDetector {
                         evidence: None,
                     });
                 }
-                
+
                 // 3. Detect edition drift: enforce Rust 2024
                 if trimmed.starts_with("edition =") {
                     findings.push(Finding {
@@ -155,9 +155,12 @@ impl DetectionRule for WorkspaceDriftDetector {
                     }
                 }
             }
-            
+
             // Enforce Rust 2024 in the root workspace
-            if file.content.contains("edition = \"2021\"") || file.content.contains("edition = '2021'") || !file.content.contains("edition = \"2024\"") {
+            if file.content.contains("edition = \"2021\"")
+                || file.content.contains("edition = '2021'")
+                || !file.content.contains("edition = \"2024\"")
+            {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
                     rule_name: self.name().to_string(),
@@ -166,7 +169,10 @@ impl DetectionRule for WorkspaceDriftDetector {
                     line: 1,
                     column: 0,
                     message: "Root Cargo.toml must specify `edition = \"2024\"`.".to_string(),
-                    suggestion: Some("Change edition to \"2024\" in the `[workspace.package]` section.".to_string()),
+                    suggestion: Some(
+                        "Change edition to \"2024\" in the `[workspace.package]` section."
+                            .to_string(),
+                    ),
                     context: String::new(),
                     confidence: None,
                     evidence: None,

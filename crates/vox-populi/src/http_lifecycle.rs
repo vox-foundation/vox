@@ -45,7 +45,9 @@ pub fn populi_http_join_disabled_from_env() -> bool {
 /// First non-empty URL from **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** then **`VOX_MESH_CONTROL_ADDR`**, normalized for clients.
 #[must_use]
 pub fn populi_http_control_base_from_env() -> Option<String> {
-    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose() {
+    if let Some(v) =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose()
+    {
         let t = v.trim();
         if !t.is_empty() {
             if let Some(b) = crate::normalize_http_control_base(t) {

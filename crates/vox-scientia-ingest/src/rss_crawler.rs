@@ -21,7 +21,7 @@ impl FeedCrawler {
             .default_headers(headers)
             .build()
             .context("Failed to build HTTP client")?;
-            
+
         Ok(Self { client })
     }
 
@@ -44,13 +44,21 @@ impl FeedCrawler {
         let resp = self.client.get(url).send().await?;
         let bytes = resp.bytes().await?;
         let feed = parser::parse(&bytes[..])?;
-        
+
         let mut items = Vec::new();
         for entry in feed.entries {
-            let title = entry.title.map(|t| t.content).unwrap_or_else(|| "Untitled".to_string());
+            let title = entry
+                .title
+                .map(|t| t.content)
+                .unwrap_or_else(|| "Untitled".to_string());
             let abstract_text = entry.summary.map(|s| s.content);
-            let link = entry.links.into_iter().next().map(|l| l.href).unwrap_or_default();
-            
+            let link = entry
+                .links
+                .into_iter()
+                .next()
+                .map(|l| l.href)
+                .unwrap_or_default();
+
             if !link.is_empty() {
                 items.push(InboundItem {
                     source_url: link,
@@ -60,7 +68,7 @@ impl FeedCrawler {
                 });
             }
         }
-        
+
         Ok(items)
     }
 }

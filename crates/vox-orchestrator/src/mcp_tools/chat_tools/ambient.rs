@@ -1,4 +1,4 @@
-﻿use serde_json::Value;
+use serde_json::Value;
 
 use super::params::AmbientStateParams;
 use crate::mcp_tools::params::ToolResult;
@@ -100,7 +100,8 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
         let Some(queue) = orch.agent_queue(agent_id) else {
             continue;
         };
-        let guard = match crate::mcp_tools::sync_poison::poison_rw_read(queue.read(), "agent queue") {
+        let guard = match crate::mcp_tools::sync_poison::poison_rw_read(queue.read(), "agent queue")
+        {
             Ok(g) => g,
             Err(e) => {
                 tracing::warn!(error = %e, ?agent_id, "ambient_state: agent queue poisoned");

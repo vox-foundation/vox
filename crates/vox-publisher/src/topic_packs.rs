@@ -54,7 +54,8 @@ pub fn merge_topic_pack_into_syndication(
             syn.rss = false;
         }
         if !allow.contains("twitter") {
-            syn.social.retain(|c| c != &crate::types::SocialChannel::Twitter);
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Twitter);
         }
         if !allow.contains("github") {
             syn.forge = None;
@@ -75,16 +76,19 @@ pub fn merge_topic_pack_into_syndication(
             syn.crates_io = None;
         }
         if !allow.contains("discord") {
-            syn.social.retain(|c| c != &crate::types::SocialChannel::Discord);
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Discord);
         }
         if !allow.contains("bluesky") {
-            syn.social.retain(|c| c != &crate::types::SocialChannel::Bluesky);
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Bluesky);
         }
         if !allow.contains("linkedin") {
             syn.linkedin = false;
         }
         if !allow.contains("mastodon") {
-            syn.social.retain(|c| c != &crate::types::SocialChannel::Mastodon);
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Mastodon);
         }
     }
     for (ch, score) in &pack.min_worthiness_score {

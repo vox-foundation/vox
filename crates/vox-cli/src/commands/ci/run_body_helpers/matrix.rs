@@ -54,13 +54,13 @@ pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()
     visit_vox_files(&scripts_dir, &mut |p: &Path| {
         total_scripts += 1;
         let rel_p = p.strip_prefix(root).unwrap_or(p);
-        
+
         let st = Command::new(&vox_exe)
             .arg("check")
             .arg(p)
             .status()
             .with_context(|| format!("failed to run vox check on {}", p.display()))?;
-        
+
         if !st.success() {
             violations.push(rel_p.display().to_string());
         }
@@ -507,7 +507,10 @@ pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiM
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
     }
-    if repo.join("contracts/toestub/suppressions.v1.json").is_file() {
+    if repo
+        .join("contracts/toestub/suppressions.v1.json")
+        .is_file()
+    {
         c.args(["--suppressions", "contracts/toestub/suppressions.v1.json"]);
     }
     c.arg(root.to_string_lossy().as_ref());

@@ -1,4 +1,4 @@
-﻿//! Repository-relative path resolution for MCP tools (deterministic workspace root joining).
+//! Repository-relative path resolution for MCP tools (deterministic workspace root joining).
 
 use std::path::{Path, PathBuf};
 
@@ -86,12 +86,12 @@ pub(crate) fn resolve_existing_path_in_repository(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
     use crate::{
         AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
     };
+    use std::fs;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
     use vox_repository::{RepoCapabilities, RepositoryContext};
     use vox_skills::new_registry_arc;
 

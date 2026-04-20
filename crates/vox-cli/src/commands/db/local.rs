@@ -610,21 +610,23 @@ pub async fn mens_runs(limit: u32) -> Result<()> {
         println!("No training runs found in populi_training_run.");
         return Ok(());
     }
-    println!("{:<24} {:<12} {:<10} {:<8} {:<8} {:<16}", "Run ID", "Status", "Step", "Loss", "Epoch", "Updated");
+    println!(
+        "{:<24} {:<12} {:<10} {:<8} {:<8} {:<16}",
+        "Run ID", "Status", "Step", "Loss", "Epoch", "Updated"
+    );
     println!("{}", "-".repeat(84));
     for run in runs {
-        let loss = run.last_loss.map(|f| format!("{:.4}", f)).unwrap_or_else(|| "N/A".to_string());
+        let loss = run
+            .last_loss
+            .map(|f| format!("{:.4}", f))
+            .unwrap_or_else(|| "N/A".to_string());
         let updated = chrono::DateTime::from_timestamp(run.updated_at, 0)
             .map(|t| t.format("%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "N/A".to_string());
-            
-        println!("{:<24} {:<12} {:<10} {:<8} {:<8} {}", 
-            run.run_id, 
-            run.status, 
-            run.global_step, 
-            loss, 
-            run.epoch, 
-            updated
+
+        println!(
+            "{:<24} {:<12} {:<10} {:<8} {:<8} {}",
+            run.run_id, run.status, run.global_step, loss, run.epoch, updated
         );
     }
     Ok(())
@@ -638,20 +640,25 @@ pub async fn mens_metrics(domain: Option<&str>, limit: u32) -> Result<()> {
     } else {
         "mens:".to_string()
     };
-    
+
     let conn = db.connection();
     // Wave 4-02: Direct MENS telemetry query
-    let mut rows = conn.query(
-        "SELECT session_id, metric_type, numeric_value, metadata_json, created_at_ms 
+    let mut rows = conn
+        .query(
+            "SELECT session_id, metric_type, numeric_value, metadata_json, created_at_ms 
          FROM research_metrics 
          WHERE session_id LIKE ?1 || '%' 
          ORDER BY id DESC LIMIT ?2",
-        turso::params![session_prefix.clone(), limit as i64],
-    ).await?;
+            turso::params![session_prefix.clone(), limit as i64],
+        )
+        .await?;
 
-    println!("{:<28} {:<24} {:<10} {:<20}", "Session", "Metric", "Value", "Time / Metadata");
+    println!(
+        "{:<28} {:<24} {:<10} {:<20}",
+        "Session", "Metric", "Value", "Time / Metadata"
+    );
     println!("{}", "-".repeat(95));
-    
+
     let mut count = 0;
     while let Some(row) = rows.next().await? {
         count += 1;
@@ -660,24 +667,132 @@ pub async fn mens_metrics(domain: Option<&str>, limit: u32) -> Result<()> {
         let val: Option<f64> = row.get(2)?;
         let meta: Option<String> = row.get(3)?;
         let ms: i64 = row.get(4)?;
-        
-        let val_str = val.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "-".to_string());
+
+        let val_str = val
+            .map(|v| format!("{:.4}", v))
+            .unwrap_or_else(|| "-".to_string());
         let time = chrono::DateTime::from_timestamp(ms / 1000, 0)
             .map(|t| t.format("%H:%M:%S").to_string())
             .unwrap_or_else(|| "??:??:??".to_string());
-            
-        println!("{:<28} {:<24} {:<10} [{}] {}", 
-            session, 
-            mtype, 
-            val_str, 
+
+        println!(
+            "{:<28} {:<24} {:<10} [{}] {}",
+            session,
+            mtype,
+            val_str,
             time,
             meta.as_deref().unwrap_or("")
         );
     }
-    
+
     if count == 0 {
-        println!("(No MENS metrics found matching prefix '{}')", session_prefix);
+        println!(
+            "(No MENS metrics found matching prefix '{}')",
+            session_prefix
+        );
     }
-    
+
+    Ok(())
+}
+
+/// Show dynamic build health for the current repository.
+pub async fn build_health(repo: Option<String>, json: bool) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let repo_id = if let Some(r) = repo {
+        r
+    } else {
+        let repo =
+            vox_repository::discover_repository(&std::env::current_dir().unwrap_or_default());
+        repo.as_ref()
+            .map(|r| r.repository_id.clone())
+            .unwrap_or_else(|_| "local".into())
+    };
+
+    let health = db
+        .query_build_health(&repo_id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("No build telemetry found for repository '{}'", repo_id))?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&health)?);
+    } else {
+        println!("Vox Build Health: {}", repo_id);
+        println!("  Latest Run Time: {:.2}s", health.total_ms as f64 / 1000.0);
+        println!(
+            "  Crate Throughput: {} compiled, {} cached",
+            health.compiled, health.cached
+        );
+        println!("  Warnings       : {}", health.warning_count);
+        println!(
+            "  Graph Changed  : {}",
+            if health.dep_changed { "YES" } else { "no" }
+        );
+
+        if !health.slowest.is_empty() {
+            println!("\nSlowest Crates:");
+            for c in health.slowest {
+                println!(
+                    "  {:40} {:>6}ms  {}",
+                    c.name,
+                    c.elapsed_ms.unwrap_or(0),
+                    c.hint.as_deref().unwrap_or("")
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Show build-time regressions for the current repository.
+pub async fn build_regressions(
+    repo: Option<String>,
+    run_id: Option<i64>,
+    threshold: f64,
+    json: bool,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let repo_id = if let Some(r) = repo {
+        r
+    } else {
+        let repo =
+            vox_repository::discover_repository(&std::env::current_dir().unwrap_or_default());
+        repo.as_ref()
+            .map(|r| r.repository_id.clone())
+            .unwrap_or_else(|_| "local".into())
+    };
+
+    let target_run_id = if let Some(id) = run_id {
+        id
+    } else {
+        db.query_latest_build_run_id(&repo_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("No build runs found for repository '{}'", repo_id))?
+    };
+
+    let regressions = db.query_build_regressions(&repo_id, target_run_id, threshold).await?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&regressions)?);
+    } else {
+        println!(
+            "Vox Build Regressions (Run #{}): {}",
+            target_run_id, repo_id
+        );
+        if regressions.is_empty() {
+            println!("  ✅ No regressions detected (>1.5x avg).");
+        } else {
+            println!("  ❌ {} regressions detected:", regressions.len());
+            for r in regressions {
+                println!(
+                    "  {:40} {:>6}ms (avg {:>6.0}ms) [{:>4.1}x]  {}",
+                    r.name,
+                    r.elapsed_ms,
+                    r.avg_ms,
+                    r.ratio,
+                    r.hint.as_deref().unwrap_or("")
+                );
+            }
+        }
+    }
     Ok(())
 }

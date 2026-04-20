@@ -1,0 +1,28 @@
+{
+  "description": "Workspace health and dependency governance policy (2026-04-20)",
+  "tiers": {
+    "foundational": {
+      "limit_direct_deps": 20,
+      "allow_ml": false,
+      "description": "Primitives, config, and core language logic. Must remain extremely lightweight.",
+      "patterns": ["core", "primitive", "config", "clavis", "bounded-fs"]
+    },
+    "runtime": {
+      "limit_direct_deps": 40,
+      "allow_ml": false,
+      "description": "Middle-layer frameworks and execution engines.",
+      "patterns": ["runtime", "orchestrator", "populi"]
+    },
+    "leaf": {
+      "limit_direct_deps": 100,
+      "allow_ml": true,
+      "description": "End-user binaries and CLI entry points.",
+      "patterns": ["vox-cli", "vox-mens", "vox-oratio"]
+    }
+  },
+  "regressions": {
+    "threshold_ratio": 1.25,
+    "min_elapsed_ms": 100,
+    "description": "Threshold for flagging build-time regressions relative to the historical mean."
+  }
+}

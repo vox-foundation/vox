@@ -11,7 +11,7 @@ use super::hf_load::{HfArchitecture, HfTransformerLayout};
 pub fn middle_block_projection_key(arch: HfArchitecture, layer: usize) -> String {
     match arch {
         HfArchitecture::Gpt2 => format!("h.{layer}.attn.c_proj.weight"),
-        HfArchitecture::Qwen2 => format!("model.layers.{layer}.self_attn.o_proj.weight"),
+
         HfArchitecture::Qwen35 => {
             format!("model.language_model.layers.{layer}.self_attn.o_proj.weight")
         }
@@ -26,12 +26,7 @@ pub fn layer_attention_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<St
             format!("h.{layer}.attn.c_attn.weight"),
             middle_block_projection_key(arch, layer),
         ],
-        HfArchitecture::Qwen2 => vec![
-            format!("model.layers.{layer}.self_attn.q_proj.weight"),
-            format!("model.layers.{layer}.self_attn.k_proj.weight"),
-            format!("model.layers.{layer}.self_attn.v_proj.weight"),
-            middle_block_projection_key(arch, layer),
-        ],
+
         HfArchitecture::Qwen35 => vec![
             format!("model.language_model.layers.{layer}.self_attn.q_proj.weight"),
             format!("model.language_model.layers.{layer}.self_attn.k_proj.weight"),
@@ -58,11 +53,7 @@ pub fn layer_mlp_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> 
             format!("h.{layer}.mlp.c_fc.weight"),
             format!("h.{layer}.mlp.c_proj.weight"),
         ],
-        HfArchitecture::Qwen2 => vec![
-            format!("model.layers.{layer}.mlp.gate_proj.weight"),
-            format!("model.layers.{layer}.mlp.up_proj.weight"),
-            format!("model.layers.{layer}.mlp.down_proj.weight"),
-        ],
+
         HfArchitecture::Qwen35 => vec![
             format!("model.language_model.layers.{layer}.mlp.gate_proj.weight"),
             format!("model.language_model.layers.{layer}.mlp.up_proj.weight"),
@@ -76,9 +67,7 @@ pub fn layer_mlp_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> 
 pub fn layer_rope_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> {
     match arch {
         HfArchitecture::Gpt2 => vec![],
-        HfArchitecture::Qwen2 => vec![format!(
-            "model.layers.{layer}.self_attn.rotary_emb.inv_freq"
-        )],
+
         HfArchitecture::Qwen35 => vec![
             format!("model.language_model.layers.{layer}.self_attn.rotary_emb.inv_freq"),
             format!("model.language_model.layers.{layer}.linear_attn.rotary_emb.inv_freq"),
@@ -96,10 +85,7 @@ pub fn layer_norm_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>
             format!("h.{layer}.ln_2.weight"),
             format!("h.{layer}.ln_2.bias"),
         ],
-        HfArchitecture::Qwen2 => vec![
-            format!("model.layers.{layer}.input_layernorm.weight"),
-            format!("model.layers.{layer}.post_attention_layernorm.weight"),
-        ],
+
         HfArchitecture::Qwen35 => vec![
             format!("model.language_model.layers.{layer}.input_layernorm.weight"),
             format!("model.language_model.layers.{layer}.post_attention_layernorm.weight"),

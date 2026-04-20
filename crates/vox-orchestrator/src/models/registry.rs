@@ -31,10 +31,12 @@ impl ModelRegistry {
     }
 
     fn min_refresh_interval() -> Duration {
-        let secs = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenRouterCatalogMinRefreshIntervalSecs)
-            .expose()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(3600);
+        let secs = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxOpenRouterCatalogMinRefreshIntervalSecs,
+        )
+        .expose()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(3600);
         Duration::from_secs(secs.max(30))
     }
 
@@ -46,7 +48,7 @@ impl ModelRegistry {
             .min(60_000)
     }
     #[cfg_attr(test, allow(dead_code))]
-    fn maybe_refresh_openrouter_models(&mut self) {
+    fn maybe_refresh_catalogs(&mut self) {
         let now_secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -85,12 +87,58 @@ impl ModelRegistry {
                     tokio::time::sleep(Duration::from_millis(offset)).await;
                 }
 
-                let mut models = OpenRouterCatalog::new().refresh().await?;
+                let mut models = OpenRouterCatalog::new().refresh().await.unwrap_or_default();
                 crate::catalog_classifier::classify_models(&mut models).await;
+
+                #[cfg(feature = "populi-transport")]
+                {
+                    let mut control_url_opt = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose().map(|s| s.to_string());
+                    if control_url_opt.is_none() {
+                        control_url_opt = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshControlAddr).expose().map(|s| s.to_string());
+                    }
+                    if let Some(control_url) = control_url_opt {
+                        let client = vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
+                        if let Ok(dir) = client.federation_directory().await {
+                            for peer in dir.entries {
+                                // Sybil/Reliability check: query peer reputation from db
+                                if let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer.scope_id).await {
+                                    let total_bad = fail + timeout + invalid;
+                                    // Blacklist condition: more than 3 failures, and bad events exceed successful tasks.
+                                    if total_bad > 3 && total_bad > success {
+                                        tracing::warn!(target: "vox.orchestrator.models", peer=%peer.scope_id, success, total_bad, "mesh peer blacklisted due to poor reputation");
+                                        continue;
+                                    }
+                                }
+
+                                for kind in peer.task_kinds {
+                                let kind_str = serde_json::to_value(&kind).unwrap().as_str().unwrap().to_string();
+                                    models.push(ModelSpec {
+                                        id: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                                        canonical_slug: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                                        provider: "mens".to_string(),
+                                        provider_type: ProviderType::PopuliMesh,
+                                        max_tokens: 128_000,
+                                        cost_per_1k: 0.0,
+                                        cost_per_1k_input: 0.0,
+                                        cost_per_1k_output: 0.0,
+                                        is_free: true,
+                                        strengths: vec![kind_str, "generalist".to_string()],
+                                        capabilities: crate::models::spec::ModelCapabilities {
+                                            tier: crate::models::spec::ModelTier::Local,
+                                            ..Default::default()
+                                        },
+                                        supported_parameters: vec![],
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let _ = db
                     .set_user_preference(
                         "global",
-                        "openrouter_catalog_refresh",
+                        "catalog_refresh",
                         &now_secs.to_string(),
                     )
                     .await;
@@ -121,9 +169,9 @@ impl ModelRegistry {
             for m in models {
                 self.register(m);
             }
-            tracing::info!(target: "vox.orchestrator.models", count, "openrouter catalog refresh merged into model registry");
+            tracing::info!(target: "vox.orchestrator.models", count, "catalog refresh merged into model registry");
         } else {
-            tracing::debug!(target: "vox.orchestrator.models", "openrouter catalog refresh skipped (within min refresh interval)");
+            tracing::debug!(target: "vox.orchestrator.models", "catalog refresh skipped (within min refresh interval)");
         }
     }
 
@@ -171,7 +219,7 @@ impl ModelRegistry {
         // Live catalog merge hits the network and shifts `best_for` rankings; keep unit tests on the
         // static TOML/default model list unless integration coverage opts in elsewhere.
         #[cfg(not(test))]
-        registry.maybe_refresh_openrouter_models();
+        registry.maybe_refresh_catalogs();
 
         registry
     }
@@ -245,7 +293,21 @@ impl ModelRegistry {
                 .models
                 .values()
                 .filter(|m| Self::matches_strength(m, strength))
-                .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+                .min_by(|a, b| {
+                    a.cost_per_1k.total_cmp(&b.cost_per_1k).then_with(|| {
+                        let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
+                            .expose()
+                            .map(|s: &str| s.trim() == "true")
+                            .unwrap_or(false);
+                        if prefer_mesh {
+                            let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
+                            let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
+                            b_is_mesh.cmp(&a_is_mesh)
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    })
+                })
                 .cloned()
                 .or_else(|| self.cheapest());
         }
@@ -263,13 +325,41 @@ impl ModelRegistry {
         self.models
             .values()
             .filter(|m| !m.is_free && Self::matches_strength(m, strength))
-            .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+            .min_by(|a, b| {
+                a.cost_per_1k.total_cmp(&b.cost_per_1k).then_with(|| {
+                    let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
+                        .expose()
+                        .map(|s: &str| s.trim() == "true")
+                        .unwrap_or(false);
+                    if prefer_mesh {
+                        let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
+                        let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
+                        b_is_mesh.cmp(&a_is_mesh)
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                })
+            })
             .cloned()
             .or_else(|| {
                 self.models
                     .values()
                     .filter(|m| !m.is_free)
-                    .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+                    .min_by(|a, b| {
+                        a.cost_per_1k.total_cmp(&b.cost_per_1k).then_with(|| {
+                            let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
+                                .expose()
+                                .map(|s: &str| s.trim() == "true")
+                                .unwrap_or(false);
+                            if prefer_mesh {
+                                let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
+                                let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
+                                b_is_mesh.cmp(&a_is_mesh)
+                            } else {
+                                std::cmp::Ordering::Equal
+                            }
+                        })
+                    })
                     .cloned()
             })
             .or_else(|| self.cheapest())
@@ -297,7 +387,21 @@ impl ModelRegistry {
                 .models
                 .values()
                 .filter(|m| Self::matches_strength(m, strength) && pred(m))
-                .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+                .min_by(|a, b| {
+                    a.cost_per_1k.total_cmp(&b.cost_per_1k).then_with(|| {
+                        let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
+                            .expose()
+                            .map(|s: &str| s.trim() == "true")
+                            .unwrap_or(false);
+                        if prefer_mesh {
+                            let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
+                            let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
+                            b_is_mesh.cmp(&a_is_mesh)
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    })
+                })
                 .cloned()
                 .or_else(|| self.cheapest_with_filter(&mut pred));
         }
@@ -466,7 +570,9 @@ impl ModelRegistry {
                         base_url: vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaUrl)
                             .expose()
                             .filter(|s: &&str| !s.trim().is_empty())
-                            .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
+                            .map(|u: &str| {
+                                format!("{}/v1/chat/completions", u.trim_end_matches('/'))
+                            }),
                         api_key: None,
                         temperature: None,
                         max_tokens: None,

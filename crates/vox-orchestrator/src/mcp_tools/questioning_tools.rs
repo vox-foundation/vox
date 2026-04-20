@@ -1,4 +1,4 @@
-﻿//! Record user answers to pending Socrates clarification rows in `question_events` / related questioning tables.
+//! Record user answers to pending Socrates clarification rows in `question_events` / related questioning tables.
 //!
 //! After a successful answer, this module also posts an [`AttentionEvent`](crate::AttentionEvent) via
 //! [`ServerState::record_attention_event`](crate::mcp_tools::server_state::ServerState::record_attention_event) so **pilot attention budgeting**
@@ -173,9 +173,7 @@ pub async fn questioning_submit_answer(
         .await;
 
     {
-        use crate::{
-            AgentId, ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType,
-        };
+        use crate::{AgentId, ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType};
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)

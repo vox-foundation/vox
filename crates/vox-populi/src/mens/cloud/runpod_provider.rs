@@ -153,6 +153,9 @@ impl RunPodClient {
                 serde_json::json!({"key": "VOX_SERVE_PORT", "value": spec.serve_port.to_string()}),
             );
         }
+        if spec.persistent {
+            env.push(serde_json::json!({"key": "VOX_PERSISTENT_NODE", "value": "1"}));
+        }
         for (k, v) in &spec.extra_env {
             env.push(serde_json::json!({"key": k, "value": v}));
         }
@@ -272,6 +275,7 @@ impl CloudProvider for RunPodClient {
             started_at: std::time::SystemTime::now(),
             estimated_seconds: 0.0,
             price_per_hour_usd: offer.price_per_hour_usd,
+            is_persistent: spec.persistent,
         })
     }
 
@@ -323,5 +327,15 @@ impl CloudProvider for RunPodClient {
         raw.error_for_status().context("RunPod terminate error")?;
         tracing::info!("RunPod pod {} terminated.", handle.job_id);
         Ok(())
+    }
+
+    async fn get_serve_url(&self, handle: &JobHandle, serve_port: u16) -> anyhow::Result<Option<String>> {
+        // RunPod exposes ports via proxy. The URL is deterministic once the pod is running.
+        let status = self.poll_status(handle).await?;
+        if matches!(status, JobStatus::Running { .. }) {
+            Ok(Some(format!("https://{}-{}.proxy.runpod.net", handle.job_id, serve_port)))
+        } else {
+            Ok(None)
+        }
     }
 }

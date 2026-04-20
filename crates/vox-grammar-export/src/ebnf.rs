@@ -131,7 +131,9 @@ pub fn emit_ebnf() -> String {
     g.push_str("let_stmt = \"let\", [ \"mut\" ], ident, [ \":\", type_expr ], \"=\", expr ;\n");
     g.push_str("assign_stmt = ident, assign_op, expr ;\n");
     g.push_str("assign_op = \"=\" | \"+=\" | \"-=\" | \"*=\" | \"/=\" ;\n");
-    g.push_str("return_stmt = ( \"ret\" (* DEPRECATED: use \"return\" *) | \"return\" ), [ expr ] ;\n");
+    g.push_str(
+        "return_stmt = ( \"ret\" (* DEPRECATED: use \"return\" *) | \"return\" ), [ expr ] ;\n",
+    );
     g.push_str("while_stmt = \"while\", expr, block ;\n");
     g.push_str("loop_stmt = \"loop\", block ;\n");
     g.push_str("break_stmt = \"break\" ;\n");

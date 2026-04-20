@@ -32,9 +32,16 @@ async fn full_stack_minimal_vite_production_build() {
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let ts_out = tmp.path().join("ts");
-    build::run(&vox_file, &ts_out, None, false, false, vox_cli::cli_args::BuildMode::App)
-        .await
-        .expect("vox build");
+    build::run(
+        &vox_file,
+        &ts_out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    .expect("vox build");
 
     let app = ts_out.join("app");
     frontend::scaffold_react_app(&app, &ts_out, false).expect("scaffold");

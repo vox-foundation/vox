@@ -42,7 +42,9 @@ pub async fn run(
         target: target.clone(),
         mode: match mode {
             crate::cli_args::BuildMode::App => vox_compiler::codegen_ts::emitter::BuildMode::App,
-            crate::cli_args::BuildMode::Library => vox_compiler::codegen_ts::emitter::BuildMode::Library,
+            crate::cli_args::BuildMode::Library => {
+                vox_compiler::codegen_ts::emitter::BuildMode::Library
+            }
         },
     };
     let ts_output = vox_compiler::codegen_ts::generate_with_options(&hir, ts_opts)

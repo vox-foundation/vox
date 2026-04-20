@@ -1,7 +1,7 @@
 use blake3;
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
     ChaCha20Poly1305, Nonce,
+    aead::{Aead, AeadCore, KeyInit, OsRng},
 };
 use sha3::{Digest, Sha3_256};
 use xxhash_rust::xxh3::xxh3_64;
@@ -41,10 +41,11 @@ pub fn generate_sym_key() -> SymKey {
 pub fn encrypt(key: &SymKey, plaintext: &[u8]) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new(&key.0.into());
     let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
-    
-    let ciphertext = cipher.encrypt(&nonce, plaintext)
+
+    let ciphertext = cipher
+        .encrypt(&nonce, plaintext)
         .map_err(|e| format!("Encryption failed: {}", e))?;
-        
+
     let mut output = nonce.to_vec();
     output.extend(ciphertext);
     Ok(output)
@@ -61,16 +62,22 @@ pub fn decrypt(key: &SymKey, ciphertext: &[u8]) -> Result<Vec<u8>, String> {
 pub fn encrypt_with_nonce(key: &SymKey, nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new(&key.0.into());
     let nonce = Nonce::from_slice(nonce);
-    
-    cipher.encrypt(nonce, plaintext)
+
+    cipher
+        .encrypt(nonce, plaintext)
         .map_err(|e| format!("Encryption failed: {}", e))
 }
 
-pub fn decrypt_with_nonce(key: &SymKey, nonce: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+pub fn decrypt_with_nonce(
+    key: &SymKey,
+    nonce: &[u8],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new(&key.0.into());
     let nonce = Nonce::from_slice(nonce);
-    
-    cipher.decrypt(nonce, ciphertext)
+
+    cipher
+        .decrypt(nonce, ciphertext)
         .map_err(|e| format!("Decryption failed: {}", e))
 }
 
@@ -103,7 +110,9 @@ pub fn generate_signing_keypair() -> (SigningKey, VerifyingKey) {
     let verifying_key = signing_key.verifying_key();
     (
         SigningKey { inner: signing_key },
-        VerifyingKey { inner: verifying_key },
+        VerifyingKey {
+            inner: verifying_key,
+        },
     )
 }
 
@@ -165,5 +174,3 @@ pub fn verify_signature_hex(
 
     Ok(verify(&pk, message, &sig_arr))
 }
-
-

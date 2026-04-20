@@ -9,7 +9,6 @@ use crate::mcp_tools::params::{
 };
 use crate::mcp_tools::server_state::ServerState;
 
-
 /// Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
 pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> String {
     let path = match super::workspace_path::resolve_existing_path_in_repository(state, &params.path)

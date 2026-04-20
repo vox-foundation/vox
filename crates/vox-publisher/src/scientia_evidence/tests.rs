@@ -61,7 +61,11 @@ fn evidence_bumps_epistemic_when_socrates_clean() {
         metadata_policy: 0.75,
         meaningful_advance: false,
     };
-    let merged = worthiness::apply_scientia_evidence(base, &evidence, &crate::scientia_heuristics::ScientiaHeuristics::default());
+    let merged = worthiness::apply_scientia_evidence(
+        base,
+        &evidence,
+        &crate::scientia_heuristics::ScientiaHeuristics::default(),
+    );
     assert!(merged.meaningful_advance);
     assert_eq!(merged.ai_disclosure_compliance, 1.0);
     assert!(merged.epistemic > 0.65);
@@ -140,8 +144,7 @@ fn file_hydration_inlines_eval_gate_from_repo_relative_path() {
 #[test]
 fn file_hydration_skips_when_sidecar_missing() {
     let dir = tempfile::tempdir().unwrap();
-    let meta =
-        r#"{"scientia_evidence":{"eval_gate_report_repo_relative":"nope/missing.json"}}"#;
+    let meta = r#"{"scientia_evidence":{"eval_gate_report_repo_relative":"nope/missing.json"}}"#;
     assert!(
         enrich_metadata_json_with_repo_files(Some(meta), dir.path())
             .unwrap()

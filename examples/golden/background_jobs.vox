@@ -11,26 +11,26 @@
 // ---
 // @training_prompt: Implement a webhook handler that triggers a durable background workflow.
 // ANCHOR: display
-activity process_batch(batch_id: str) -> Result[int] {
+activity process_batch(batch_id: str) to Result[int] {
     // Heavy compute task
     return Ok(100)
 }
 
-activity notify_completion(batch_id: str, count: int) -> Result[Unit] {
+activity notify_completion(batch_id: str, count: int) to Result[Unit] {
     // External API call mock
     return Ok(Unit)
 }
 
-fn handle_batch(batch_id: str, count: int) -> Result[Unit] {
+fn handle_batch(batch_id: str, count: int) to Result[Unit] {
     let ignore = notify_completion(batch_id, count)
     return Ok(Unit)
 }
 
-workflow async_batch_job(batch_id: str) -> Result[Unit] {
+workflow async_batch_job(batch_id: str) to Result[Unit] {
     let process_res = process_batch(batch_id)
     match process_res {
-        Error(e) -> Error("fail")
-        Ok(count) -> handle_batch(batch_id, count)
+        Error(e) => Error("fail")
+        Ok(count) => handle_batch(batch_id, count)
     }
 }
 

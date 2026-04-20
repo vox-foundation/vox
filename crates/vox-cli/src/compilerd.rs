@@ -200,23 +200,62 @@ async fn dispatch_one(req: &DispatchRequest) -> anyhow::Result<()> {
 async fn handle_build(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: BuildParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\": \"...\", \"out_dir\": \"...\" }}")?;
-    crate::commands::build::run(&p.file, &p.out_dir, None, false, false, crate::cli_args::BuildMode::App)
-        .await
-        .context("build failed")?;
+    crate::commands::build::run(
+        &p.file,
+        &p.out_dir,
+        None,
+        false,
+        false,
+        crate::cli_args::BuildMode::App,
+    )
+    .await
+    .context("build failed")?;
     finish_ok(&req.id, Value::Null).await
 }
 
 async fn handle_check(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: CheckParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\": \"...\" }}")?;
-    let args = crate::cli_args::CheckArgs {
-        file: p.file,
-        emit_ir: false,
-        output_format: "text".to_string(), // Human-readable log interleaving is preferred for daemon
-    };
-    crate::commands::check::run(&args)
-        .await
-        .context("check failed")?;
+
+    let source = crate::commands::ci::bounded_read::read_utf8_path_capped(&p.file)
+        .with_context(|| format!("Failed to read source file: {}", p.file.display()))?;
+
+    let file_path = p.file.to_string_lossy();
+    let diagnostics = vox_compiler::pipeline::check_file(&source, &file_path);
+
+    let mut error_count = 0;
+
+    for diag in diagnostics {
+        let is_error = diag.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error;
+        if is_error {
+            error_count += 1;
+        }
+
+        let sev = match diag.severity {
+            vox_compiler::typeck::diagnostics::TypeckSeverity::Error => "error",
+            vox_compiler::typeck::diagnostics::TypeckSeverity::Warning => "warning",
+        };
+
+        write_resp(
+            &req.id,
+            DispatchPayload::Diag {
+                severity: sev.to_string(),
+                message: diag.message,
+                file: diag.file_path,
+                line: diag.span.start_line as u32,
+                col: diag.span.start_col as u32,
+            },
+        )
+        .await?;
+    }
+
+    if error_count > 0 {
+        return Err(anyhow::anyhow!(
+            "Check failed with {} error(s)",
+            error_count
+        ));
+    }
+
     finish_ok(&req.id, Value::Null).await
 }
 
@@ -303,9 +342,16 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
         .context("check (profile) failed")?;
     let t_check = t0.elapsed();
     let t1 = Instant::now();
-    crate::commands::build::run(&p.file, &out_dir, None, false, false, crate::cli_args::BuildMode::App)
-        .await
-        .context("build (profile) failed")?;
+    crate::commands::build::run(
+        &p.file,
+        &out_dir,
+        None,
+        false,
+        false,
+        crate::cli_args::BuildMode::App,
+    )
+    .await
+    .context("build (profile) failed")?;
     let t_build = t1.elapsed();
     let total = t0.elapsed();
 
@@ -342,9 +388,16 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     let out_dir = PathBuf::from(p.out_dir);
     config::set_process_vox_port(p.port);
 
-    crate::commands::build::run(&file, &out_dir, None, false, false, crate::cli_args::BuildMode::App)
-        .await
-        .context("initial dev build failed")?;
+    crate::commands::build::run(
+        &file,
+        &out_dir,
+        None,
+        false,
+        false,
+        crate::cli_args::BuildMode::App,
+    )
+    .await
+    .context("initial dev build failed")?;
 
     let gen_dir = std::path::PathBuf::from("target").join("generated");
     match tokio::task::spawn_blocking(move || {
@@ -391,7 +444,16 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
         let out_dir = out_dir.clone();
         let req_id = req_id.clone();
         async move {
-            if let Err(e) = crate::commands::build::run(&file, &out_dir, None, false, false, crate::cli_args::BuildMode::App).await {
+            if let Err(e) = crate::commands::build::run(
+                &file,
+                &out_dir,
+                None,
+                false,
+                false,
+                crate::cli_args::BuildMode::App,
+            )
+            .await
+            {
                 if write_resp(
                     &req_id,
                     DispatchPayload::Log {

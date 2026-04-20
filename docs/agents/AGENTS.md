@@ -1,3 +1,11 @@
+---
+title: "Agent Support Index"
+description: "Entry point for automation and agent-oriented support files in docs/agents/."
+category: "agents"
+status: "current"
+training_eligible: true
+training_rationale: "Provides context for the agents directory."
+---
 # Agent Support Directory (docs/agents/)
 
 This directory contains automation- and agent-oriented support files. Most

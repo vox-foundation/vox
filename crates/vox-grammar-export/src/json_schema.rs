@@ -3,7 +3,7 @@
 //! Recursively defines all core Vox AST node types as a JSON Schema draft-2020-12 document.
 //! Used by constrained inference tools and MCP clients for structured output generation.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Emit the Vox AST as a JSON Schema (draft-2020-12) document.
 ///

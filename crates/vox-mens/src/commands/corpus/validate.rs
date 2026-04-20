@@ -199,14 +199,17 @@ pub(super) async fn run_validate(
         if let Some(hook) = reward_hook {
             if let Some(src) = vox_source_for_compiler_recheck(&record).or_else(|| {
                 // fallback to extract raw code if not standard vox format
-                record.get("code").and_then(|v| v.as_str()).map(|s| s.to_string())
+                record
+                    .get("code")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
             }) {
                 let reward = match hook {
                     "cargo_build" => vox_eval::cargo_build_reward(&src),
                     "cargo_test" => vox_eval::cargo_test_reward(&src),
                     _ => 1.0, // unknown hook
                 };
-                
+
                 if reward <= 0.0 {
                     rejected_reward += 1;
                     if quarantine.is_some() {

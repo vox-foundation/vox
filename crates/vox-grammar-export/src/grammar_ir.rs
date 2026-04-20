@@ -3,8 +3,8 @@
 //! This module provides the core data structures used by constrained inference
 //! backends (Earley, PDA) and grammar exporters (XGrammar-2).
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A single production rule: `name = symbols ;`
 #[derive(Debug, Clone, Serialize, Deserialize)]

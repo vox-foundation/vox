@@ -11,38 +11,38 @@
 // ---
 // @training_prompt: Show a saga pattern implementation in Vox using workflows for compensation handling on failure.
 // ANCHOR: display
-activity reserve_inventory(item_id: str) -> Result[str] {
+activity reserve_inventory(item_id: str) to Result[str] {
     return Ok("reservation_999")
 }
 
-activity cancel_reservation(reservation_id: str) -> Result[Unit] {
+activity cancel_reservation(reservation_id: str) to Result[Unit] {
     return Ok(Unit)
 }
 
-activity charge_payment(amount: int) -> Result[str] {
+activity charge_payment(amount: int) to Result[str] {
     if amount > 5000 {
         return Error("Insufficient funds")
     }
     return Ok("txn_abc123")
 }
 
-fn trigger_cancel(res_id: str) -> Result[str] {
+fn trigger_cancel(res_id: str) to Result[str] {
     let ignore = cancel_reservation(res_id)
     return Error("Payment failed.")
 }
 
-fn handle_payment(res_id: str, pay_res: Result[str]) -> Result[str] {
+fn handle_payment(res_id: str, pay_res: Result[str]) to Result[str] {
     match pay_res {
-        Error(e) -> trigger_cancel(res_id)
-        Ok(txn_id) -> Ok("Order complete.")
+        Error(e) => trigger_cancel(res_id)
+        Ok(txn_id) => Ok("Order complete.")
     }
 }
 
-workflow order_saga(item_id: str, amount: int) -> Result[str] {
+workflow order_saga(item_id: str, amount: int) to Result[str] {
     let inv_res = reserve_inventory(item_id)
     match inv_res {
-        Error(e) -> Error("Inventory failed")
-        Ok(res_id) -> handle_payment(res_id, charge_payment(amount))
+        Error(e) => Error("Inventory failed")
+        Ok(res_id) => handle_payment(res_id, charge_payment(amount))
     }
 }
 // ANCHOR_END: display

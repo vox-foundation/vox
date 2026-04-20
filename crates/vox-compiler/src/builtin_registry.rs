@@ -507,6 +507,18 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
                 ("stderr".into(), Ty::Str),
             ])))),
         ),
+        ("process", "spawn_background") => Ty::Fn(
+            vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+            Box::new(Ty::Result(Box::new(Ty::Int))),
+        ),
+        ("process", "exec") => Ty::Fn(
+            vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+            Box::new(Ty::Result(Box::new(Ty::Unit))),
+        ),
+        ("process", "register_exit_command") => Ty::Fn(
+            vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+            Box::new(Ty::Result(Box::new(Ty::Unit))),
+        ),
         ("process", "exit") => Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
         ("json", "read_str") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
@@ -640,6 +652,18 @@ pub fn std_namespace_runtime_call(
         ("process", "run_capture_ex") if args.len() >= 4 => Some(format!(
             "(match vox_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
             args[0], args[1], args[2], args[3]
+        )),
+        ("process", "spawn_background") if args.len() >= 2 => Some(format!(
+            "(match vox_runtime::builtins::vox_process_spawn_background(({}).as_str(), {}.as_slice()) {{ Ok(id) => Ok(id), Err(m) => Error(m) }})",
+            args[0], args[1]
+        )),
+        ("process", "exec") if args.len() >= 2 => Some(format!(
+            "(match vox_runtime::builtins::vox_process_exec(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            args[0], args[1]
+        )),
+        ("process", "register_exit_command") if args.len() >= 2 => Some(format!(
+            "(match vox_runtime::builtins::vox_process_register_exit_command(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            args[0], args[1]
         )),
         ("process", "exit") if !args.is_empty() => {
             Some(format!("{{ std::process::exit({} as i32) }}", args[0]))

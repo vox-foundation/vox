@@ -393,7 +393,10 @@ impl ReviewClient {
 
 fn resolve_key(stored: &str, secret_id: vox_clavis::SecretId) -> String {
     if stored.is_empty() {
-        vox_clavis::resolve_secret(secret_id).expose().map(|s| s.to_string()).unwrap_or_default()
+        vox_clavis::resolve_secret(secret_id)
+            .expose()
+            .map(|s| s.to_string())
+            .unwrap_or_default()
     } else {
         stored.to_string()
     }

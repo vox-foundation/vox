@@ -6,10 +6,10 @@
 //! [`crate::usage::UsageTracker`] / budget paths). **Unset + no DB** ⇒ **emit** so operators still see cost signals.
 //! Truthy `1`/`true` forces emits even with DB; `0`/`false` disables. Full semantics: `docs/src/reference/env-vars.md`.
 
-use vox_config::inference_profile_allows_local_ollama_http;
 use crate::models::{ModelSpec, ProviderType};
 use crate::usage::UsageTracker;
 use crate::{AgentEventKind, BudgetGate, GateResult};
+use vox_config::inference_profile_allows_local_ollama_http;
 
 use crate::mcp_tools::server_state::ServerState;
 
@@ -259,7 +259,12 @@ pub async fn mcp_infer_tool_completion(
                 &state.orchestrator_config,
             );
             match gate
-                .allow_with_pilot_attention(MCP_GLOBAL_LLM_AGENT, &usage, Some(orch_attention), estimated_vision_tokens)
+                .allow_with_pilot_attention(
+                    MCP_GLOBAL_LLM_AGENT,
+                    &usage,
+                    Some(orch_attention),
+                    estimated_vision_tokens,
+                )
                 .await
             {
                 GateResult::Allowed => {}
@@ -343,7 +348,9 @@ pub async fn mcp_infer_tool_completion(
                                 let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
                                 let url = format!("data:{};base64,{}", attachment.mime_type, b64);
                                 user_parts.push(vox_openai_wire::ChatMessagePart::ImageUrl {
-                                    image_url: vox_openai_wire::ImageUrl { url: Box::leak(url.into_boxed_str()) },
+                                    image_url: vox_openai_wire::ImageUrl {
+                                        url: Box::leak(url.into_boxed_str()),
+                                    },
                                 });
                             }
                             Err(e) => {
@@ -440,9 +447,34 @@ pub async fn mcp_infer_tool_completion(
                     });
                 }
 
+                if matches!(model.provider_type, ProviderType::PopuliMesh) {
+                    if let Some(db) = state.db.as_ref() {
+                        let parts: Vec<&str> = model.id.split('/').collect();
+                        if parts.len() >= 2 {
+                            let node_id = parts[1];
+                            let _ = db.record_peer_reputation(node_id, "success").await;
+                        }
+                    }
+                }
+
                 return Ok((text, model.id, total_tok));
             }
             Err(e) => {
+                if matches!(model.provider_type, ProviderType::PopuliMesh) {
+                    if let Some(db) = state.db.as_ref() {
+                        let parts: Vec<&str> = model.id.split('/').collect();
+                        if parts.len() >= 2 {
+                            let node_id = parts[1];
+                            let event_type = if e.status == 408 || e.status == 504 || e.message.to_ascii_lowercase().contains("timeout") {
+                                "timeout"
+                            } else {
+                                "fail"
+                            };
+                            let _ = db.record_peer_reputation(node_id, event_type).await;
+                        }
+                    }
+                }
+
                 if e.status == 429 {
                     if let Some(db) = state.db.as_ref() {
                         let tracker = if let Some(user_id) = routing.user_id {

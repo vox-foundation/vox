@@ -18,6 +18,7 @@ pub struct PolicySnapshotRow {
     pub awarded_crystals: i64,
     pub grind_capped: i64,
     pub lumens: i64,
+    pub metadata: Option<String>,
     pub created_at: String,
 }
 
@@ -33,6 +34,7 @@ impl From<vox_db::GamifyPolicySnapshotListRow> for PolicySnapshotRow {
             awarded_crystals: r.awarded_crystals,
             grind_capped: r.grind_capped,
             lumens: r.lumens,
+            metadata: r.metadata,
             created_at: r.created_at,
         }
     }

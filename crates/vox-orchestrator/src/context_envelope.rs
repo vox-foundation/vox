@@ -520,7 +520,7 @@ impl ContextEnvelope {
                 retrieval_cost_class: Some(ContextRetrievalCostClass::Moderate),
                 must_refresh_before_use: Some(false),
             },
-             safety: Some(ContextSafety {
+            safety: Some(ContextSafety {
                 risk_budget: Some("normal".to_string()),
                 factual_mode: Some(true),
                 required_citations: Some(if hit_count == 0 { 1 } else { 0 }),

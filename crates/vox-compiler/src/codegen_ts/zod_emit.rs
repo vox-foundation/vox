@@ -34,9 +34,15 @@ fn generate_zod_schema(typedef: &HirTypeDef) -> String {
         }
         out.push_str("});\n");
     } else {
-        out.push_str(&format!("export const {}Schema = z.discriminatedUnion(\"_tag\", [\n", name));
+        out.push_str(&format!(
+            "export const {}Schema = z.discriminatedUnion(\"_tag\", [\n",
+            name
+        ));
         for variant in &typedef.variants {
-            out.push_str(&format!("  z.object({{\n    _tag: z.literal(\"{}\"),\n", variant.name));
+            out.push_str(&format!(
+                "  z.object({{\n    _tag: z.literal(\"{}\"),\n",
+                variant.name
+            ));
             for (fname, ftype) in &variant.fields {
                 out.push_str(&format!("    {}: {},\n", fname, map_type_to_zod(ftype)));
             }

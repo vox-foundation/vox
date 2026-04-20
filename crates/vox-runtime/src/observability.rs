@@ -1,5 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
+use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::prelude::*;
 
 static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(1);
 
@@ -40,6 +42,24 @@ fn generate_request_id() -> String {
         .map(|d| d.as_millis())
         .unwrap_or(0);
     format!("vox-{ts}-{counter}")
+}
+
+/// Initializes structured JSON telemetry for the vox-runtime daemon.
+/// Safe to call multiple times (returns false if already initialized).
+pub fn init_structured_telemetry() -> bool {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info,vox_runtime=debug"));
+
+    let subscriber = tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt::layer().json().with_current_span(true));
+
+    if tracing::subscriber::set_global_default(subscriber).is_ok() {
+        tracing::info!("Structured JSON telemetry initialized");
+        true
+    } else {
+        false
+    }
 }
 
 #[cfg(test)]

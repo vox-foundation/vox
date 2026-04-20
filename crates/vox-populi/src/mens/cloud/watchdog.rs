@@ -95,7 +95,7 @@ impl CloudWatchdog {
             }
 
             // ── Kill: time estimate × factor exceeded ─────────────────────────
-            if now >= time_deadline {
+            if !self.handle.is_persistent && now >= time_deadline {
                 tracing::warn!(
                     "[watchdog:{}] Time limit {time_limit_secs:.0}s exceeded. Terminating.",
                     self.handle.job_id
@@ -151,7 +151,10 @@ impl CloudWatchdog {
                         JobStatus::Running {
                             gpu_util_pct: Some(util),
                             ..
-                        } if now >= startup_grace_end && util < self.config.watchdog_idle_pct => {
+                        } if !self.handle.is_persistent
+                            && now >= startup_grace_end
+                            && util < self.config.watchdog_idle_pct =>
+                        {
                             let since = idle_since.get_or_insert(now);
                             if since.elapsed().as_secs() >= self.config.watchdog_idle_grace_secs {
                                 tracing::warn!(

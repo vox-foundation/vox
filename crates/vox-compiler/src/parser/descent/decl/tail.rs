@@ -7,48 +7,6 @@ use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
-    /// Parse `@table type Name { field: Type }` — brace-delimited field block.
-    pub(crate) fn parse_table(&mut self, is_pub: bool) -> Result<Decl, ()> {
-        let start = self.span();
-        self.advance(); // eat @table
-        self.expect(&Token::TypeKw)?; // eat 'type'
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
-        let mut fields = Vec::new();
-        loop {
-            self.skip_newlines();
-            match self.peek().clone() {
-                Token::Ident(_) => {
-                    let fstart = self.span();
-                    let fname = self.parse_ident_name()?;
-                    self.expect(&Token::Colon)?;
-                    let ftype = self.parse_type_expr()?;
-                    fields.push(TableField {
-                        name: fname,
-                        type_ann: ftype,
-                        description: None,
-                        span: fstart.merge(self.span()),
-                    });
-                }
-                _ => break,
-            }
-        }
-        self.eat(&Token::RBrace);
-        Ok(Decl::Table(TableDecl {
-            name,
-            fields,
-            description: None,
-            json_layout: None,
-            auth_provider: None,
-            roles: vec![],
-            cors: None,
-            is_pub,
-            is_deprecated: false,
-            span: start.merge(self.span()),
-        }))
-    }
-
     /// Parse `@index Table.index_name on (col1, col2, ...)`
     pub(crate) fn parse_index(&mut self) -> Result<Decl, ()> {
         let start = self.span();

@@ -113,16 +113,19 @@ pub(super) async fn call_tool_response_value(
 pub(super) async fn call_tool_json(state: &ServerState, name: &str, args: Value) -> Value {
     match handle_tool_call(state, name, args).await {
         Ok(json) => Value::String(json),
-        Err(e) => serde_json::to_value(ToolResult::<Value>::err_with_remediation(
-            e.to_string(),
-            "Verify tool args against /v1/tools schema and retry.",
-        ))
-        .unwrap_or_else(|_| {
-            serde_json::json!({
-                "success": false,
-                "error": "failed to serialize tool error envelope"
+        Err(e) => {
+            let msg = format!("{e}");
+            serde_json::to_value(ToolResult::<Value>::err_with_remediation(
+                msg,
+                "Verify tool args against /v1/tools schema and retry.",
+            ))
+            .unwrap_or_else(|_| {
+                serde_json::json!({
+                    "success": false,
+                    "error": "failed to serialize tool error envelope"
+                })
             })
-        }),
+        }
     }
 }
 pub(super) async fn enforce_request_guards(

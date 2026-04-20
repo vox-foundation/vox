@@ -128,6 +128,12 @@ pub struct McpProjection {
     pub name: String,
     #[serde(default)]
     pub http_read_role_eligible: bool,
+    #[serde(default = "default_mcp_tier")]
+    pub tier: String,
+}
+
+fn default_mcp_tier() -> String {
+    "core".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -161,6 +167,8 @@ struct McpCanonicalTool {
     product_lane: String,
     #[serde(default)]
     http_read_role_eligible: bool,
+    #[serde(default = "default_mcp_tier")]
+    tier: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -295,6 +303,7 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
         row.mcp = Some(McpProjection {
             name: t.name,
             http_read_role_eligible: t.http_read_role_eligible,
+            tier: t.tier,
         });
     }
 
@@ -690,6 +699,7 @@ fn project_mcp_registry(catalog: &OperationsCatalog) -> McpCanonicalRegistry {
                 description: row.description.clone(),
                 product_lane: row.product_lane.clone(),
                 http_read_role_eligible: m.http_read_role_eligible,
+                tier: m.tier.clone(),
             })
         })
         .collect();

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use vox_orchestrator::mcp_tools::{ServerState, handle_tool_call as tools};
 use vox_orchestrator::OrchestratorConfig;
+use vox_orchestrator::mcp_tools::{ServerState, handle_tool_call as tools};
 
 #[tokio::test]
 async fn test_skill_install_tool_availability() {
@@ -42,9 +42,7 @@ Instructions inside.
 
     // 2. Verify it appears in vox_skill_list
     let list_req = serde_json::json!({});
-    let list_resp: String = tools(&state, "vox_skill_list", list_req)
-        .await
-        .unwrap();
+    let list_resp: String = tools(&state, "vox_skill_list", list_req).await.unwrap();
     assert!(list_resp.contains("test.macro"));
     assert!(list_resp.contains("Test Macro"));
 }

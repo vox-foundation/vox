@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -63,6 +67,18 @@ jobs:
       - name: Data / telemetry SSOT guards
         run: cargo run -p vox-cli --quiet -- ci data-ssot-guards
 
+      - name: Determinism Audit
+        run: cargo run -p vox-cli --quiet -- ci determinism-audit
+
+      - name: Dependency Sprawl Check
+        run: cargo run -p vox-cli --quiet -- ci dep-sprawl --cap 25
+
+      - name: Dynamic Workspace Health Audit
+        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
+
+      - name: Telemetry-Driven Architectural Audit
+        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-telemetry.vox
+
       - name: Completion quality audit + gates (LLM premature-completion SSOT)
         run: |
           cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
@@ -118,6 +134,29 @@ jobs:
             echo "docs must not reference removed tanstack_start.rs; use route_manifest / vox_client / scaffold"
             exit 1
           fi
+
+      - name: Docs — no ghost references to retired HTMX / Pico / TanStack-virtual-routes (G.73)
+        # Audit item G.73: retired surfaces must not appear in normative docs.
+        # Allowlist: the audit-findings doc and archive/ may reference them for historical context.
+        shell: bash
+        run: |
+          set -euo pipefail
+          RETIRED_HITS=$(rg -in \
+            "\bhtmx\b|picocss|pico\.css|tanstack.*virtual.route" \
+            docs/src \
+            --glob "*.md" \
+            --ignore-file .voxignore \
+            -l \
+            | grep -v 'docs/src/archive/' \
+            | grep -v 'comprehensive-audit-findings' \
+            || true)
+          if [ -n "$RETIRED_HITS" ]; then
+            echo "Retired surface references found in normative docs:"
+            echo "$RETIRED_HITS"
+            echo "Move HTMX/Pico/TanStack-virtual-routes content to docs/src/archive/ or remove."
+            exit 1
+          fi
+          echo "No ghost retired-surface references in normative docs."
 
       - name: Web TS codegen — forbidden legacy RPC shims in sources
         shell: bash
@@ -186,16 +225,29 @@ jobs:
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
         env:
           VOX_BENCHMARK_TELEMETRY: "1"
+          # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
+          VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
         run: cargo run -p vox-cli --quiet -- ci build-timings --crates
 
       - name: vox-cli feature matrix + no vox_orchestrator imports
         run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
+
+      - name: Workspace-wide all-features check (A.4)
+        run: cargo check --workspace --all-features
 
       - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
         run: cargo run -p vox-cli --quiet -- ci grammar-export-check
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
         run: cargo run -p vox-cli --quiet -- ci cuda-features
+
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
+      - name: Verify Hakari (Workspace Dependency Determinism)
+        run: cargo hakari generate --diff
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
@@ -243,6 +295,27 @@ jobs:
 
       - name: Doc tests (not run by nextest)
         run: cargo test --workspace --doc
+
+      - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
+        # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
+        # Uses the vox-compiler test suite which already has a strict-parse integration test.
+        env:
+          VOX_EXAMPLES_STRICT_PARSE: "1"
+        run: cargo test -p vox-compiler --test golden_examples_strict_parse -- --nocapture 2>&1
+        # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
+
+      - name: Golden examples fmt idempotency gate (A.12)
+        shell: bash
+        run: |
+          set -euo pipefail
+          find examples/golden -name "*.vox" -type f -print0 | while IFS= read -r -d '' f; do
+            cargo run -p vox-cli --quiet -- fmt "$f"
+          done
+          if ! git diff --exit-code examples/golden/; then
+            echo "vox fmt is not idempotent or examples have unformatted changes."
+            exit 1
+          fi
+
 
       - name: Mens corpus mix (strict required sources)
         run: |
@@ -409,3 +482,45 @@ jobs:
         env:
           VOX_GUI_PLAYWRIGHT: "1"
         run: cargo test -p vox-integration-tests --test playwright_golden_route -- --ignored --nocapture
+
+  all-features-matrix:
+    name: All-Features Check (${{ matrix.crate }})
+    runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - vox-compiler
+          - vox-cli
+          - vox-runtime
+          - vox-db
+          - vox-clavis
+          - vox-orchestrator
+          - vox-populi
+          - vox-mens
+          - vox-ludus
+          - vox-oratio
+          - vox-schola
+          - vox-skills
+          - vox-scientia-ingest
+          - vox-doc-pipeline
+          - vox-mcp-registry
+          - vox-pm
+          - vox-primitives
+          - vox-config
+          - vox-crypto
+          - vox-toestub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Check with all features
+        run: cargo check -p ${{ matrix.crate }} --all-features

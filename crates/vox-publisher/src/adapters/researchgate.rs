@@ -1,11 +1,8 @@
-use crate::types::UnifiedNewsItem;
 use crate::syndication_outcome::ChannelOutcome;
+use crate::types::UnifiedNewsItem;
 use anyhow::Result;
 
-pub async fn post(
-    _item: &UnifiedNewsItem,
-    dry_run: bool,
-) -> Result<ChannelOutcome> {
+pub async fn post(_item: &UnifiedNewsItem, dry_run: bool) -> Result<ChannelOutcome> {
     if dry_run {
         return Ok(ChannelOutcome::DryRun { external_id: None });
     }
@@ -14,7 +11,7 @@ pub async fn post(
     // this adapter serves as a "Manual Action Required" bridge.
     // It captures the intent and returns a failure class that tells the orchestrator
     // to flag this for human intervention or to display instructions.
-    
+
     Ok(ChannelOutcome::Failed {
         code: "manual_action_required".to_string(),
         message: "ResearchGate requires manual upload via their web interface. Use the DOI to import metadata.".to_string(),

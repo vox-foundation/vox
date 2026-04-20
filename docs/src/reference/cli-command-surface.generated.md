@@ -10,7 +10,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 232
+**schema_version:** `1` · **vox-cli operations:** 234
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -246,3 +246,5 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox train` | deprecated | gpu+mens-dei | mens | ai | — |
 | `vox update` | active | — | pm | platform | — |
 | `vox upgrade` | active | — | pm | platform | — |
+| `vox visus audit` | active | dei | dei | ai | — |
+| `vox visus baseline` | active | dei | dei | ai | — |

@@ -19,8 +19,10 @@ fn reactive_smoke_assert_derived_harness_in_d_tsx() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
-    let m = vox_compiler::parser::parse(vox_compiler::lexer::lex(REACTIVE_SMOKE_DERIVED_HARNESS_FIXTURE))
-        .expect("parse");
+    let m = vox_compiler::parser::parse(vox_compiler::lexer::lex(
+        REACTIVE_SMOKE_DERIVED_HARNESS_FIXTURE,
+    ))
+    .expect("parse");
     let hir = vox_compiler::hir::lower_module(&m);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
     let body = out
@@ -264,9 +266,7 @@ fn op_s045_extra_parity_fixture_island_mount_in_classic_route_page() {
 #[test]
 fn op_s038_behavior_adapter_fixture_increments_legacy_pathway_without_webir_env() {
     use std::ffi::OsString;
-    use vox_compiler::codegen_ts::reactive::{
-        ReactiveViewBridgeStats,
-    };
+    use vox_compiler::codegen_ts::reactive::ReactiveViewBridgeStats;
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
@@ -613,7 +613,6 @@ fn reactive_view_bridge_stats_legacy_when_web_ir_env_off() {
         std::env::set_var(KEY, "0");
     }
 
-
     let source = r#"
 component C() {
     state n: int = 0
@@ -645,7 +644,6 @@ fn reactive_view_bridge_stats_env_on_uses_non_legacy_pathways() {
     const KEY: &str = "VOX_WEBIR_EMIT_REACTIVE_VIEWS";
     let prev = std::env::var_os(KEY);
     unsafe { std::env::set_var(KEY, "1") };
-
 
     let source = r#"
 component Counter(initial: int) {

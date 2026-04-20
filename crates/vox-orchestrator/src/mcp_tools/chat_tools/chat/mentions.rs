@@ -1,7 +1,7 @@
 use regex::Regex;
-use std::sync::LazyLock;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::LazyLock;
 
 use super::super::params::ChatMessageParams;
 
@@ -99,7 +99,14 @@ fn pick_mention_path(
 pub(super) fn resolve_mentions(
     prompt: &str,
     workspace_root: &std::path::Path,
-    cache: &Arc<parking_lot::Mutex<Option<(std::path::PathBuf, Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>>)>>>,
+    cache: &Arc<
+        parking_lot::Mutex<
+            Option<(
+                std::path::PathBuf,
+                Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>>,
+            )>,
+        >,
+    >,
 ) -> (String, Vec<String>) {
     let mut expanded = prompt.to_string();
     let mut resolved_files = Vec::new();

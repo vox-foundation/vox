@@ -19,27 +19,27 @@
 }
 
 @query
-fn available_products() -> List[Product] {
+fn available_products() to List[Product] {
     return db.Product.filter({ in_stock: true })
 }
 
 @query
-fn category_preview(cat: str, max_items: int) -> List[Product] {
+fn category_preview(cat: str, max_items: int) to List[Product] {
     let all_in_cat = db.Product.filter({ category: cat })
     // In actual implementation, .limit() is supported, demonstrating query chaining conceptual logic
     return all_in_cat
 }
 
 @query
-fn is_in_stock(name: str) -> bool {
+fn is_in_stock(name: str) to bool {
     let items = db.Product.filter({ name: name, in_stock: true })
     return len(items) > 0
 }
 
 @mutation
-fn restock(name: str, price: int) -> Result[Unit] {
+fn restock(name: str, price: int) to Result[Unit] {
     let items = db.Product.filter({ name: name })
-    if len(items) == 0 {
+    if len(items) is 0 {
         db.Product.insert({ name: name, category: "general", price: price, in_stock: true })?
     } else {
         // Mock update 

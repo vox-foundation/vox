@@ -238,8 +238,9 @@ pub fn rank_candidate_heuristics(
 
     let novelty_overlap_assumed_default = novelty_overlap.is_none();
     let novelty_overlap_effective = novelty_overlap.unwrap_or(0.5_f32).clamp(0.0, 1.0);
-    let overlap_penalty = ((f64::from(novelty_overlap_effective)) * f64::from(h.rank_novelty_overlap_penalty_max))
-        .round() as u32;
+    let overlap_penalty = ((f64::from(novelty_overlap_effective))
+        * f64::from(h.rank_novelty_overlap_penalty_max))
+    .round() as u32;
     score = score.saturating_sub(overlap_penalty);
 
     let unresolved_conflicts = !conflicts.is_empty();

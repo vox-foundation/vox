@@ -1,10 +1,10 @@
 //! SUMMARY generation, RSS feed, and markdown lint.
 
+mod doctest;
 mod feed;
 mod lint;
 mod summary;
 mod types;
-mod doctest;
 
 use std::collections::BTreeMap;
 use std::fs;

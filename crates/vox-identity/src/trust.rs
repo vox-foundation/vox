@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use std::fs;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrustedNode {
@@ -46,12 +46,15 @@ impl TrustedNodeRegistry {
     pub fn add(&self, node_id: String, pubkey_hex: String, label: Option<String>) -> Result<()> {
         let mut nodes = self.load()?;
         let now = chrono::Utc::now().to_rfc3339();
-        nodes.insert(node_id.clone(), TrustedNode {
-            node_id,
-            pubkey_hex,
-            label,
-            added_at: now,
-        });
+        nodes.insert(
+            node_id.clone(),
+            TrustedNode {
+                node_id,
+                pubkey_hex,
+                label,
+                added_at: now,
+            },
+        );
         self.save(&nodes)
     }
 

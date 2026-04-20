@@ -58,7 +58,7 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
             println!("    2. vox build src/main.vox -o dist");
             println!("    3. POST to http://localhost:3001/api/chat");
         }
-        (_, Some("dashboard")) => {
+        (_, Some("dashboard")) | (_, Some("web")) => {
             println!("  Next steps:");
             println!("    1. vox build src/main.vox -o dist");
             println!("    2. Open http://localhost:3000");

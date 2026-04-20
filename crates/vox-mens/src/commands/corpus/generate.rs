@@ -145,7 +145,7 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
                                 .unwrap_or("")
                                 .to_string();
                             if !hash.is_empty() && known.contains(&hash) {
-                                return (path, Some(record), true, true); 
+                                return (path, Some(record), true, true);
                             }
                             (path, Some(record), true, false)
                         }
@@ -509,10 +509,7 @@ pub(super) async fn run_prompt(output: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_heal_to_dpo(
-    input: Option<std::path::PathBuf>,
-    output: &Path,
-) -> Result<()> {
+pub async fn run_heal_to_dpo(input: Option<std::path::PathBuf>, output: &Path) -> Result<()> {
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .map(std::path::PathBuf::from)
@@ -525,8 +522,7 @@ pub async fn run_heal_to_dpo(
         return Ok(());
     }
 
-    let content =
-        vox_bounded_fs::read_utf8_path_capped_async(&input_path).await?;
+    let content = vox_bounded_fs::read_utf8_path_capped_async(&input_path).await?;
     let mut pairs = Vec::new();
 
     for line in content.lines() {
@@ -644,7 +640,7 @@ pub(super) async fn run_mutate(source_dir: &Path, count: usize, output: &Path) -
                 }
             }
         }
-        
+
         if !progress {
             break; // Avoid infinite loop if no more mutations possible
         }
@@ -824,9 +820,9 @@ pub(super) async fn run_curate_prose(
     min_score: f64,
     quarantine: Option<&Path>,
 ) -> Result<()> {
+    use std::sync::Arc;
     use tokio::fs::{File, OpenOptions};
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-    use std::sync::Arc;
 
     println!(
         "{} Curating prose from {}...",
@@ -840,13 +836,7 @@ pub(super) async fn run_curate_prose(
 
     let mut output_file = File::create(output).await?;
     let mut quarantine_file = if let Some(q) = quarantine {
-        Some(
-            OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(q)
-                .await?,
-        )
+        Some(OpenOptions::new().create(true).append(true).open(q).await?)
     } else {
         None
     };
@@ -867,11 +857,16 @@ pub(super) async fn run_curate_prose(
         }
 
         let record: serde_json::Value = serde_json::from_str(trimmed)?;
-        let content = record.get("response").or_else(|| record.get("output")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-        
+        let content = record
+            .get("response")
+            .or_else(|| record.get("output"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
         if content.is_empty() {
-             line.clear();
-             continue;
+            line.clear();
+            continue;
         }
 
         total += 1;
@@ -899,13 +894,13 @@ pub(super) async fn run_curate_prose(
             accepted += 1;
         } else {
             if let Some(ref mut q) = quarantine_file {
-                 let mut out_rec = record;
-                 if let Some(obj) = out_rec.as_object_mut() {
+                let mut out_rec = record;
+                if let Some(obj) = out_rec.as_object_mut() {
                     obj.insert("rejection_score".to_string(), serde_json::json!(score));
                     obj.insert("rejection_reason".to_string(), serde_json::json!(reason));
-                 }
-                 let row = serde_json::to_string(&out_rec)? + "\n";
-                 q.write_all(row.as_bytes()).await?;
+                }
+                let row = serde_json::to_string(&out_rec)? + "\n";
+                q.write_all(row.as_bytes()).await?;
             }
             rejected += 1;
         }
@@ -923,7 +918,10 @@ pub(super) async fn run_curate_prose(
     Ok(())
 }
 
-async fn curate_record_via_ai(record: serde_json::Value, content: String) -> Result<(serde_json::Value, f64, String)> {
+async fn curate_record_via_ai(
+    record: serde_json::Value,
+    content: String,
+) -> Result<(serde_json::Value, f64, String)> {
     let prompt = format!(
         "You are a high-fidelity data curator for an AI training pipeline.\n\
          Assess the following research/prose record for semantic integrity, logical consistency, and structural quality.\n\n\
@@ -944,10 +942,15 @@ async fn curate_record_via_ai(record: serde_json::Value, content: String) -> Res
         crate::dei_daemon::method::AI_GENERATE,
         serde_json::json!({ "prompt": prompt }),
         false,
-    ).await?;
+    )
+    .await?;
 
-    let text = result.get("text").or_else(|| result.get("output")).and_then(|v| v.as_str()).unwrap_or("");
-    
+    let text = result
+        .get("text")
+        .or_else(|| result.get("output"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
     // Find JSON block in text (best effort)
     let json_str = if let (Some(s), Some(e)) = (text.find('{'), text.rfind('}')) {
         &text[s..=e]
@@ -955,10 +958,15 @@ async fn curate_record_via_ai(record: serde_json::Value, content: String) -> Res
         text
     };
 
-    let parsed: serde_json::Value = serde_json::from_str(json_str).map_err(|e| anyhow::anyhow!("AI returned invalid JSON: {}\nError: {}", text, e))?;
-    
+    let parsed: serde_json::Value = serde_json::from_str(json_str)
+        .map_err(|e| anyhow::anyhow!("AI returned invalid JSON: {}\nError: {}", text, e))?;
+
     let score = parsed.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    let reason = parsed.get("reason").and_then(|v| v.as_str()).unwrap_or("no reason provided").to_string();
+    let reason = parsed
+        .get("reason")
+        .and_then(|v| v.as_str())
+        .unwrap_or("no reason provided")
+        .to_string();
 
     Ok((record, score, reason))
 }

@@ -17,7 +17,7 @@ pub async fn run_probe(verbose: bool) -> Result<()> {
     println!("VRAM:       {} MB", summary.vram_mb.yellow());
     println!("GPU Count:  {}", summary.gpu_count.yellow());
     println!("Backend:    {:?}", summary.backend);
-    
+
     if let Some(t) = telemetry {
         println!("{}", "--- Real-time Telemetry ---".bold().blue());
         println!("Util:       {}%", t.utilization_pct);
@@ -26,18 +26,20 @@ pub async fn run_probe(verbose: bool) -> Result<()> {
         println!("Used VRAM:  {} MB", t.memory_used_mb);
 
         // Record to DB if telemetry is enabled
-        let repository_id = vox_repository::discover_repository_or_fallback(std::path::Path::new("."))
-            .repository_id;
+        let repository_id =
+            vox_repository::discover_repository_or_fallback(std::path::Path::new("."))
+                .repository_id;
         let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
             .expose()
             .map(|s| s.trim().to_string());
         let tel_json = serde_json::to_value(&t).unwrap();
-        
+
         vox_db::populi_registry_telemetry::record_hardware_telemetry_opt(
             &repository_id,
             node_id.as_deref(),
             &tel_json,
-        ).await;
+        )
+        .await;
     }
 
     if verbose {
@@ -45,14 +47,16 @@ pub async fn run_probe(verbose: bool) -> Result<()> {
         println!();
         println!(
             "{}",
-            format!("Recommended config for this hardware ({} profile):", profile.label)
-                .bold()
-                .magenta()
+            format!(
+                "Recommended config for this hardware ({} profile):",
+                profile.label
+            )
+            .bold()
+            .magenta()
         );
-        println!("  --rank {} --batch-size {} --seq-len {}", 
-            profile.suggested_rank, 
-            profile.suggested_batch, 
-            profile.max_seq_len
+        println!(
+            "  --rank {} --batch-size {} --seq-len {}",
+            profile.suggested_rank, profile.suggested_batch, profile.max_seq_len
         );
         println!();
         println!("  Example training command:");
@@ -65,6 +69,6 @@ pub async fn run_probe(verbose: bool) -> Result<()> {
             profile.max_seq_len,
         );
     }
-    
+
     Ok(())
 }

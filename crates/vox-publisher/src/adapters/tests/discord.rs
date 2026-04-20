@@ -1,16 +1,16 @@
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path};
 use crate::adapters::discord;
-use crate::adapters::tests::{item_fixture, config_fixture};
+use crate::adapters::tests::{config_fixture, item_fixture};
 use crate::types::DiscordOverride;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
-async fn discord_contract_success()  {
+async fn discord_contract_success() {
     let mock_server = MockServer::start().await;
     let item = item_fixture();
     let mut publisher_cfg = config_fixture(None);
     publisher_cfg.discord_webhook_url = Some(format!("{}/webhook/123", mock_server.uri()));
-    
+
     let cfg = DiscordOverride {
         message: Some("hello".to_string()),
     };
@@ -21,12 +21,14 @@ async fn discord_contract_success()  {
         .mount(&mock_server)
         .await;
 
-    let res = discord::post(&publisher_cfg, &item, Some(&cfg), false).await.unwrap();
+    let res = discord::post(&publisher_cfg, &item, Some(&cfg), false)
+        .await
+        .unwrap();
     assert!(res.starts_with("discord-"));
 }
 
 #[tokio::test]
-async fn discord_auto_truncation_check()  {
+async fn discord_auto_truncation_check() {
     let item = item_fixture();
     let mut publisher_cfg = config_fixture(None);
     publisher_cfg.discord_webhook_url = Some("http://localhost/dummy".to_string());

@@ -107,8 +107,9 @@ impl crate::orchestrator::Orchestrator {
             });
         }
 
-        let hints = if let Some(ref manifest) = payload.attachment_manifest 
-            && manifest.has_vision_vitals() {
+        let hints = if let Some(ref manifest) = payload.attachment_manifest
+            && manifest.has_vision_vitals()
+        {
             Some(crate::contract::TaskCapabilityHints {
                 visus_eligible: true,
                 multi_modal: true,
@@ -189,9 +190,9 @@ impl crate::orchestrator::Orchestrator {
         for path in &payload.owned_files {
             self.affinity_map.assign(path, target_id);
             crate::sync_lock::rw_write(&self.scope_guard).assign_file(target_id, path.clone());
-            let _ = self
-                .lock_manager
-                .try_acquire(path, target_id, crate::locks::LockKind::Exclusive);
+            let _ =
+                self.lock_manager
+                    .try_acquire(path, target_id, crate::locks::LockKind::Exclusive);
         }
 
         let resumed_ids: Vec<crate::types::TaskId> = payload.pending_tasks.clone();

@@ -31,11 +31,13 @@ __pycache__/
 .cargo-targets/
 crates/*/pkg/
 islands/
+.vox_modules/
 
 # === VCS INTERNALS ===
 # .jj/ MUST be excluded: corruption causes irreversible history loss (JUNIE-597)
 .jj/
 .git/
+.agents/
 
 # === SECRETS AND CREDENTIALS ===
 .env
@@ -92,6 +94,7 @@ tmp/
 *.orig
 *.log
 *.log.*
+scratch*.txt
 /artifacts/
 .opencode/
 .coderabbit/

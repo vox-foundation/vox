@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 
 use crate::models::{ModelSpec, ProviderType};
 
@@ -60,12 +60,16 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
 pub(crate) fn extra_headers_for(model: &ModelSpec) -> HashMap<String, String> {
     let mut headers = HashMap::new();
     if matches!(model.provider_type, ProviderType::OpenRouter) {
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterHttpReferer).expose() {
+        if let Some(v) =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterHttpReferer).expose()
+        {
             if !v.trim().is_empty() {
                 headers.insert("HTTP-Referer".to_string(), v.to_string());
             }
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterAppTitle).expose() {
+        if let Some(v) =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterAppTitle).expose()
+        {
             if !v.trim().is_empty() {
                 headers.insert("X-Title".to_string(), v.to_string());
             }

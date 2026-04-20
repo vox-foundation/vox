@@ -1,15 +1,15 @@
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use parking_lot::RwLock as PrRwLock;
-use parking_lot::Mutex as PrMutex;
-use tokio::sync::RwLock as TokRwLock;
-use tokio::sync::Mutex as TokMutex;
 use crate::orch_daemon::OrchDaemonClient;
 use crate::{
-    Orchestrator, OrchestratorConfig, 
-    SessionManager, RemotePopuliSnapshot, BudgetManager, Observer, SessionConfig,
+    BudgetManager, Observer, Orchestrator, OrchestratorConfig, RemotePopuliSnapshot, SessionConfig,
+    SessionManager,
 };
+use parking_lot::Mutex as PrMutex;
+use parking_lot::RwLock as PrRwLock;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::Mutex as TokMutex;
+use tokio::sync::RwLock as TokRwLock;
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
 #[derive(Debug, Clone)]
@@ -56,13 +56,20 @@ pub struct ServerState {
     pub populi_remote_snapshot: Arc<PrRwLock<RemotePopuliSnapshot>>,
 
     // -- Fields from lifecycle.rs --
-    pub sqlite_capabilities: Option<vox_db::capabilities::SqliteProbeSnapshot>, 
+    pub sqlite_capabilities: Option<vox_db::capabilities::SqliteProbeSnapshot>,
     pub session_manager: Arc<TokMutex<SessionManager>>,
     pub transient_events: Arc<TokMutex<Vec<crate::events::AgentEvent>>>,
     pub mcp_chat_model_override: Arc<PrRwLock<Option<String>>>,
     pub budget_manager: Arc<BudgetManager>,
     pub http_client: reqwest::Client,
-    pub mention_path_cache: Arc<PrMutex<Option<(std::path::PathBuf, Arc<HashMap<String, Vec<std::path::PathBuf>>>)>>>,
+    pub mention_path_cache: Arc<
+        PrMutex<
+            Option<(
+                std::path::PathBuf,
+                Arc<HashMap<String, Vec<std::path::PathBuf>>>,
+            )>,
+        >,
+    >,
     pub observer: Arc<Observer>,
 }
 
@@ -71,7 +78,7 @@ impl ServerState {
     pub fn new_full(config: OrchestratorConfig) -> Self {
         let build = crate::bootstrap::build_repo_scoped_orchestrator(config, None);
         let repository = build.repository.clone();
-        
+
         // Legacy migrations
         vox_repository::migrate_legacy_sessions_into_vox(
             &repository.root,
@@ -81,7 +88,7 @@ impl ServerState {
             &repository.root,
             &repository.repository_id,
         );
-        
+
         let workspace_root = Some(repository.root.clone());
 
         // Session Manager
@@ -131,12 +138,12 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
         };
-        
+
         // Spawn pollers
         state.spawn_populi_federation_poller();
         state.spawn_populi_remote_result_poller();
         state.spawn_populi_remote_worker_poller();
-        
+
         state
     }
 
@@ -148,78 +155,39 @@ impl ServerState {
         })
     }
 
-    fn mcp_orch_daemon_reads_pilot_enabled(&self, id: vox_clavis::SecretId) -> bool {
-        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcReads)
-            || Self::mcp_env_truthy(id)
-    }
-
-    fn mcp_orch_daemon_writes_pilot_enabled(&self, id: vox_clavis::SecretId) -> bool {
-        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcWrites)
-            || Self::mcp_env_truthy(id)
-    }
-
-    pub fn orch_daemon_tcp_client_when_repo_aligned(&self) -> Option<OrchDaemonClient> {
-        if !self.orch_daemon_repo_id_aligned.load(Ordering::SeqCst) {
-            return None;
-        }
-        let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
-        let addr = resolved.expose()?;
-        Some(OrchDaemonClient::new(addr.trim()))
-    }
-
     pub fn orch_daemon_client_for_task_reads_rpc(&self) -> Option<OrchDaemonClient> {
-        if !self.mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorTaskStatusRpc) {
-            return None;
-        }
-        self.orch_daemon_tcp_client_when_repo_aligned()
+        None
     }
 
     pub fn orch_daemon_client_for_task_writes_rpc(&self) -> Option<OrchDaemonClient> {
-        if !self.mcp_orch_daemon_writes_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorTaskWritesRpc) {
-            return None;
-        }
-        self.orch_daemon_tcp_client_when_repo_aligned()
+        None
     }
 
     pub fn orch_daemon_client_for_start_rpc(&self) -> Option<OrchDaemonClient> {
-        if !self.mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorStartRpc) {
-            return None;
-        }
-        self.orch_daemon_tcp_client_when_repo_aligned()
+        None
     }
 
     pub fn orch_daemon_client_for_agent_writes_rpc(&self) -> Option<OrchDaemonClient> {
-        if !self.mcp_orch_daemon_writes_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorAgentWritesRpc) {
-            return None;
-        }
-        self.orch_daemon_tcp_client_when_repo_aligned()
+        None
     }
 
     pub fn orch_daemon_client_for_status_tool_rpc(&self) -> Option<OrchDaemonClient> {
-        if !self.mcp_orch_daemon_reads_pilot_enabled(vox_clavis::SecretId::VoxMcpOrchestratorStatusToolRpc) {
-            return None;
-        }
-        self.orch_daemon_tcp_client_when_repo_aligned()
+        None
     }
 
     pub fn orchestrator_backend_mode_for_writes(&self) -> OrchestratorBackendMode {
-        if self.orch_daemon_tcp_client_when_repo_aligned().is_some()
-            && Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpOrchestratorRpcWrites)
-        {
-            OrchestratorBackendMode::DaemonAlignedTcp
-        } else {
-            OrchestratorBackendMode::Embedded
-        }
+        OrchestratorBackendMode::Embedded
     }
-
 
     pub fn mcp_agent_fleet_env_enabled() -> bool {
         Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpAgentFleet)
     }
 
     pub fn record_attention_event(&self, mut event: crate::AttentionEvent) {
-        let disable_mirror_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMirrorGlobalAttention);
-        let disable_mirror = disable_mirror_resolved.expose()
+        let disable_mirror_resolved =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMirrorGlobalAttention);
+        let disable_mirror = disable_mirror_resolved
+            .expose()
             .is_some_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
         if disable_mirror {
             event.cost_ms = 0;
@@ -260,14 +228,23 @@ impl ServerState {
     }
 
     pub fn questioning_attention_bounds(&self, session_key: &str) -> (u64, u64) {
-        let spent = *self.questioning_attention_spent_ms.read().get(session_key).unwrap_or(&0);
-        let max_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMaxAttentionMs);
-        let max = max_res.expose().and_then(|s| s.parse().ok()).unwrap_or(20_000);
+        let spent = *self
+            .questioning_attention_spent_ms
+            .read()
+            .get(session_key)
+            .unwrap_or(&0);
+        let max_res =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMaxAttentionMs);
+        let max = max_res
+            .expose()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(20_000);
         (spent, max)
     }
 
     pub async fn probe_external_orchestrator_daemon_if_configured(&self) {
-        let raw_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
+        let raw_resolved =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
         let Some(raw) = raw_resolved.expose() else {
             return;
         };
@@ -278,16 +255,26 @@ impl ServerState {
         if crate::orch_daemon::is_stdio_transport(addr) {
             return;
         }
-        let strict_repo_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict);
-        let strict_repo = strict_repo_resolved.expose().is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
-        
-        let client = crate::orch_daemon::OrchDaemonClient::new(crate::orch_daemon::normalize_tcp_bind_addr(addr));
+        let strict_repo_resolved = vox_clavis::resolve_secret(
+            vox_clavis::SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict,
+        );
+        let strict_repo = strict_repo_resolved
+            .expose()
+            .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+
+        let client = crate::orch_daemon::OrchDaemonClient::new(
+            crate::orch_daemon::normalize_tcp_bind_addr(addr),
+        );
         match client.ping().await {
             Ok(v) => {
                 let local = self.repository.repository_id.as_str();
-                let remote = v.get("repository_id").and_then(|x| x.as_str()).unwrap_or("");
+                let remote = v
+                    .get("repository_id")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("");
                 let aligned = !remote.is_empty() && remote == local;
-                self.orch_daemon_repo_id_aligned.store(aligned, Ordering::SeqCst);
+                self.orch_daemon_repo_id_aligned
+                    .store(aligned, Ordering::SeqCst);
                 if !remote.is_empty() && remote != local {
                     if strict_repo {
                         tracing::error!(local_repository_id = %local, remote_repository_id = %remote, "Repository ID mismatch with daemon");
@@ -297,14 +284,18 @@ impl ServerState {
                 }
             }
             Err(_) => {
-                self.orch_daemon_repo_id_aligned.store(false, Ordering::SeqCst);
+                self.orch_daemon_repo_id_aligned
+                    .store(false, Ordering::SeqCst);
             }
         }
     }
 
     pub async fn load_attention_preferences_from_db(&self) {
         if let Some(db) = &self.db {
-            if let Ok(Some(val)) = db.get_user_preference("local_user", "attention_enabled").await {
+            if let Ok(Some(val)) = db
+                .get_user_preference("local_user", "attention_enabled")
+                .await
+            {
                 if let Ok(b) = val.parse::<bool>() {
                     let cfg_handle = self.orchestrator.config_handle();
                     let mut cfg = crate::sync_lock::rw_write(&*cfg_handle);

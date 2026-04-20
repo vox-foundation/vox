@@ -35,9 +35,13 @@ impl crate::orchestrator::Orchestrator {
             let env_opt = crate::sync_lock::rw_read(&*self.context_store).get(&key);
             if let Some(env_json) = env_opt {
                 if let Ok(mut env) = serde_json::from_str::<crate::ContextEnvelope>(&env_json) {
-                    env.operating_mode = Some(crate::context_envelope::OperatingMode::Verification { reason: reason.clone() });
+                    env.operating_mode =
+                        Some(crate::context_envelope::OperatingMode::Verification {
+                            reason: reason.clone(),
+                        });
                     if let Ok(new_json) = serde_json::to_string(&env) {
-                        crate::sync_lock::rw_write(&*self.context_store).set(agent_id, key, new_json, 3600);
+                        crate::sync_lock::rw_write(&*self.context_store)
+                            .set(agent_id, key, new_json, 3600);
                     }
                 }
             }
@@ -62,12 +66,13 @@ impl crate::orchestrator::Orchestrator {
                 agent_id,
                 reason: reason.clone(),
             });
-            
-        self.bulletin.publish(crate::types::AgentMessage::TaskDoubted {
-            task_id,
-            agent_id,
-            reason: reason.clone(),
-        });
+
+        self.bulletin
+            .publish(crate::types::AgentMessage::TaskDoubted {
+                task_id,
+                agent_id,
+                reason: reason.clone(),
+            });
 
         // The Implementation Plan requires that we re-enqueue it and let explicitly-enforced
         // terminal checks clear the Verification mode before it can be marked complete.

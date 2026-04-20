@@ -78,10 +78,11 @@ title: "Page title"
 description: "One specific sentence about what this page covers."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-06
 training_eligible: true
 ---
 ```
+
+**Note on temporal metadata:** The `last_updated` field is automatically derived from the file's Git commit history by the documentation pipeline and AI search engine. You do *not* need to manually update dates in frontmatter. Manual dates are considered legacy and will be superseded by Git metadata.
 
 Fast local lint loop:
 

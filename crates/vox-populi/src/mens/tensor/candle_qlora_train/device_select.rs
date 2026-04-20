@@ -8,14 +8,13 @@ use candle_core::Device;
 use crate::mens::tensor::device::{DeviceKind, probe_gpu};
 use crate::mens::tensor::train_log;
 
-
-
 pub(super) fn select_candle_device(
     kind: DeviceKind,
     allow_cpu_fallback: bool,
 ) -> Result<(Device, String)> {
     let device_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCandleDevice);
-    if device_resolved.expose()
+    if device_resolved
+        .expose()
         .is_some_and(|v| v.trim().to_lowercase() == "cpu")
     {
         return Ok((Device::Cpu, "cpu(forced)".into()));
@@ -68,16 +67,48 @@ pub(super) fn select_candle_device(
             {
                 match g.vendor.as_str() {
                     "nvidia" => {
-                        train_log::warn(
-                            "NVIDIA GPU detected but this binary was built without CUDA support; \
-                             rebuild vox-schola with `--features cuda` (or Populi `mens-candle-qlora-cuda`).",
-                        );
-                        if allow_cpu_fallback {
-                            (Device::Cpu, "cpu(no-cuda-build)".into())
-                        } else {
-                            anyhow::bail!(
-                                "NVIDIA GPU detected but CUDA is not available in this build"
+                        let has_nvcc = std::process::Command::new("nvcc")
+                            .arg("--version")
+                            .output()
+                            .is_ok();
+                        if !has_nvcc {
+                            train_log::warn(
+                                "NVIDIA GPU detected, but Vox was built without CUDA support.",
                             );
+                            if allow_cpu_fallback {
+                                train_log::warn(
+                                    "Falling back to CPU because CUDA Toolkit (nvcc) is missing.",
+                                );
+                                (Device::Cpu, "cpu(no-cuda-build)".into())
+                            } else {
+                                anyhow::bail!(
+                                    "NVIDIA GPU detected, but CUDA Toolkit is missing. Please install it, or bypass via `--allow-cpu-fallback`."
+                                );
+                            }
+                        } else {
+                            train_log::warn(
+                                "NVIDIA GPU detected and CUDA Toolkit (nvcc) is present.",
+                            );
+                            train_log::warn(
+                                "JIT-orchestrating recompilation of vox-cli with CUDA features...",
+                            );
+
+                            let mut cmd = std::process::Command::new("cargo");
+                            cmd.args([
+                                "run",
+                                "--release",
+                                "-p",
+                                "vox-cli",
+                                "--features",
+                                "gpu,mens-candle-cuda",
+                                "--",
+                            ]);
+                            let args: Vec<String> = std::env::args().skip(1).collect();
+                            cmd.args(args);
+
+                            let mut child = cmd.spawn().expect("failed to spawn JIT recompilation");
+                            let status = child.wait().expect("failed to wait on JIT recompilation");
+                            std::process::exit(status.code().unwrap_or(1));
                         }
                     }
                     "apple" => {

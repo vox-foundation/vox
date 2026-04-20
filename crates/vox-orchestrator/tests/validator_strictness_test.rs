@@ -5,9 +5,12 @@ use vox_orchestrator::mcp_tools::server_state::ServerState;
 #[tokio::test]
 async fn test_orchestrator_rejects_syntactic_configurability() {
     let config_opts = vox_orchestrator::OrchestratorConfig::default();
-    let state = ServerState::new_full(config_opts); 
+    let state = ServerState::new_full(config_opts);
     // Create a temporary file
-    let test_dir = std::env::current_dir().unwrap().join("target").join("vox_tests");
+    let test_dir = std::env::current_dir()
+        .unwrap()
+        .join("target")
+        .join("vox_tests");
     std::fs::create_dir_all(&test_dir).unwrap();
     let file_path = test_dir.join("macro_test.vox");
     let source = "macro_rules! hello_world { () => {} }";
@@ -22,9 +25,17 @@ async fn test_orchestrator_rejects_syntactic_configurability() {
     // Let's just make sure it parses the response string.
     let response = vox_check(&state, check_params).await;
     // We expect "E091" inside the json
-    assert!(response.contains("E091"), "Expected E091 in response: {}", response);
-    
+    assert!(
+        response.contains("E091"),
+        "Expected E091 in response: {}",
+        response
+    );
+
     let val_params = ValidateFileParams { path: path_str };
     let val_response = validate_file(&state, val_params).await;
-    assert!(val_response.contains("UNSUPPORTED_SYNTAX"), "Expected UNSUPPORTED_SYNTAX in response: {}", val_response);
+    assert!(
+        val_response.contains("UNSUPPORTED_SYNTAX"),
+        "Expected UNSUPPORTED_SYNTAX in response: {}",
+        val_response
+    );
 }

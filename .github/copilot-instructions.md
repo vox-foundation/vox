@@ -1,3 +1,11 @@
+---
+title: "GitHub Copilot Instructions"
+description: "Instructions for GitHub Copilot when working in the Vox repository."
+category: "contributor"
+status: "current"
+training_eligible: true
+training_rationale: "Defines instructions for Copilot, including critical invariants and secret management."
+---
 # GitHub Copilot Instructions for Vox
 
 Vox uses `AGENTS.md` in the repository root as its single source of truth for cross-tool policy. Ensure you review it.

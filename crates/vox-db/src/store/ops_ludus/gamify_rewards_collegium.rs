@@ -20,10 +20,12 @@ impl crate::VoxDb {
         streak_days: i64,
         grind_capped: bool,
         lumens: i64,
+        metadata: Option<&str>,
     ) -> Result<(), StoreError> {
         let user_id = user_id.to_string();
         let event_type = event_type.to_string();
         let mode_label = mode_label.to_string();
+        let metadata = metadata.map(|s| s.to_string());
         let grind = if grind_capped { 1i64 } else { 0i64 };
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -32,8 +34,8 @@ impl crate::VoxDb {
                 conn.execute(
                     "INSERT INTO gamify_policy_snapshots
              (user_id, event_type, base_xp, base_crystals, mode_label, effective_multiplier,
-              awarded_xp, awarded_crystals, streak_days, grind_capped, lumens)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+              awarded_xp, awarded_crystals, streak_days, grind_capped, lumens, metadata)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                     params![
                         user_id.as_str(),
                         event_type.as_str(),
@@ -45,7 +47,8 @@ impl crate::VoxDb {
                         awarded_crystals,
                         streak_days,
                         grind,
-                        lumens
+                        lumens,
+                        metadata
                     ],
                 )
                 .await?;

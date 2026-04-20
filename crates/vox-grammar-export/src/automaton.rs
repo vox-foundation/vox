@@ -1,4 +1,3 @@
-
 /// A simple brace-depth tracker for JSON generation.
 ///
 /// This is used to track the depth of nested objects and arrays to ensure

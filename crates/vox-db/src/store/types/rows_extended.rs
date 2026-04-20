@@ -537,6 +537,8 @@ pub struct GamifyPolicySnapshotListRow {
     pub grind_capped: i64,
     /// Lumens component if present.
     pub lumens: i64,
+    /// Optional metadata / recognition context.
+    pub metadata: Option<String>,
     /// `created_at` column as stored (string timestamp).
     pub created_at: String,
 }

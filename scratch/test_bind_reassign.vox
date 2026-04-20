@@ -1,0 +1,11 @@
+// vox:caps subprocess env
+fn main() {
+    let sidecar = env.get("VOX_MESH_MESH_SIDECAR")
+    if sidecar == "1" or sidecar == "true" {
+        let bind = env.get("VOX_MESH_SIDECAR_BIND")
+        if bind == "" {
+            bind = "0.0.0.0:9847"
+        }
+        print("Starting mesh sidecar on", bind)
+    }
+}

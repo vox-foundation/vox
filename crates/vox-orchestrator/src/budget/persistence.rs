@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use super::{AgentBudgetAllocation, BudgetManager};
 use crate::types::AgentId;
-use super::{BudgetManager, AgentBudgetAllocation};
+use std::sync::Arc;
 
 impl BudgetManager {
     /// Load the custom dollar caps or budgets powered by VoxDB.

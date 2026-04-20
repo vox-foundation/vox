@@ -140,9 +140,7 @@ pub fn append_jsonl(
     Ok(())
 }
 
-pub async fn run_frontend(
-    file: &Path,
-) -> Result<vox_compiler::pipeline::FrontendResult> {
+pub async fn run_frontend(file: &Path) -> Result<vox_compiler::pipeline::FrontendResult> {
     let source = tokio::fs::read_to_string(file).await?;
     let res = vox_compiler::pipeline::run_frontend_str(&source, &file.to_string_lossy())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -150,6 +148,7 @@ pub async fn run_frontend(
 }
 
 pub fn has_errors(res: &vox_compiler::pipeline::FrontendResult) -> bool {
-    res.diagnostics.iter().any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
+    res.diagnostics
+        .iter()
+        .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
 }
-

@@ -16,3 +16,6 @@ pub mod candle_whisper;
 pub mod logit_processors;
 #[cfg(feature = "stt-candle")]
 mod multilingual;
+
+#[cfg(feature = "cloud")]
+pub mod cloud_offload;

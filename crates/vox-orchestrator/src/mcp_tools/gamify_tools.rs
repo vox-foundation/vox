@@ -1,12 +1,12 @@
-﻿//! Gamify companion MCP tools: mood, status markdown, continuation tick, assessment, handoff payload.
+//! Gamify companion MCP tools: mood, status markdown, continuation tick, assessment, handoff payload.
 //!
 //! When [`ServerState::db`] is present, companion rows are read/written via Codex; otherwise
 //! in-memory companions are synthesized per agent id.
 
 use std::path::PathBuf;
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use vox_ludus::companion::Companion;
@@ -93,7 +93,10 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
     if let Some(queue_arc) = orch.agent_queue(crate::AgentId(params.agent_id)) {
         let hp_bar = companion.render_status_bar(10);
         let (q_len, q_done, q_empty) = {
-            let q = match crate::mcp_tools::sync_poison::poison_rw_read(queue_arc.read(), "agent queue") {
+            let q = match crate::mcp_tools::sync_poison::poison_rw_read(
+                queue_arc.read(),
+                "agent queue",
+            ) {
                 Ok(g) => g,
                 Err(e) => {
                     tracing::warn!(error = %e, "gamify status: queue poisoned");
@@ -166,7 +169,10 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
 
     if let Some(queue_arc) = orch.agent_queue(crate::AgentId(params.agent_id)) {
         let (active, completed) = {
-            let q = match crate::mcp_tools::sync_poison::poison_rw_read(queue_arc.read(), "agent queue") {
+            let q = match crate::mcp_tools::sync_poison::poison_rw_read(
+                queue_arc.read(),
+                "agent queue",
+            ) {
                 Ok(g) => g,
                 Err(e) => {
                     tracing::warn!(error = %e, "gamify assess: queue poisoned");
@@ -272,34 +278,29 @@ pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> S
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        let mut harness =
-            match serde_json::from_str::<crate::AgentHarnessSpec>(harness_json) {
-                Ok(h) => h,
-                Err(err) => {
-                    return ToolResult::<String>::err_with_remediation(
-                        format!("invalid harness_spec_json: {err}"),
-                        REM_HANDOFF,
-                    )
-                    .to_json();
-                }
-            };
+        let mut harness = match serde_json::from_str::<crate::AgentHarnessSpec>(harness_json) {
+            Ok(h) => h,
+            Err(err) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("invalid harness_spec_json: {err}"),
+                    REM_HANDOFF,
+                )
+                .to_json();
+            }
+        };
         let expected_session_id = payload
             .metadata
             .iter()
             .rev()
             .find(|(k, _)| k == crate::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
-            .and_then(|(_, raw)| {
-                serde_json::from_str::<crate::ContextEnvelope>(raw).ok()
-            })
+            .and_then(|(_, raw)| serde_json::from_str::<crate::ContextEnvelope>(raw).ok())
             .and_then(|env| env.subject.session_id);
         let expected_thread_id = payload
             .metadata
             .iter()
             .rev()
             .find(|(k, _)| k == crate::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
-            .and_then(|(_, raw)| {
-                serde_json::from_str::<crate::ContextEnvelope>(raw).ok()
-            })
+            .and_then(|(_, raw)| serde_json::from_str::<crate::ContextEnvelope>(raw).ok())
             .and_then(|env| env.subject.thread_id);
         let expectations = crate::HarnessIngestExpectations {
             repository_id: state.repository.repository_id.as_str(),
@@ -801,4 +802,3 @@ pub async fn ludus_battle_submit(state: &ServerState, params: LudusBattleSubmitP
         }
     }
 }
-

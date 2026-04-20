@@ -1,4 +1,4 @@
 // Minimal script worker for mesh/compose examples (`vox run --mode script`).
-fn main() -> int {
+fn main() to int {
     return 0
 }

@@ -619,10 +619,11 @@ impl Decoder {
                 self.decode_with_fallback(&mel_segment, None)?
             };
             seek += segment_size;
-            let no_speech_threshold = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioNoSpeechThreshold)
-                .expose()
-                .and_then(|s: &str| s.parse::<f64>().ok())
-                .unwrap_or(0.6);
+            let no_speech_threshold =
+                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioNoSpeechThreshold)
+                    .expose()
+                    .and_then(|s: &str| s.parse::<f64>().ok())
+                    .unwrap_or(0.6);
             if dr.no_speech_prob > no_speech_threshold {
                 debug!(seek, ?dr, "whisper: no speech segment skipped");
                 segment_index = segment_index.saturating_add(1);

@@ -45,13 +45,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
     let name = super::tool_aliases::canonical_tool_name(name);
     match name {
         // ── Oratio (already strict) ─────────────────────────────────────────
+        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_transcribe" => parse_obj(
             r#"{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative or absolute path to an audio or transcript file"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"}},"required":["path"],"additionalProperties":false}"#,
         ),
+        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_listen" => parse_obj(
             r#"{"type":"object","properties":{"path":{"type":"string"},"session_id":{"type":"string"},"timeout_ms":{"type":"integer","minimum":1},"max_duration_ms":{"type":"integer","minimum":1},"inference_deadline_ms":{"type":"integer","minimum":1},"heartbeat_ms":{"type":"integer","minimum":1},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"debug_parser_payload":{"type":"boolean"},"emit_asr_refine_path":{"type":"string"},"llm_refinement":{"type":"boolean"},"llm_min_det_confidence":{"type":"number"},"llm_max_output_tokens":{"type":"integer","minimum":1}},"required":["path"],"additionalProperties":false}"#,
         ),
+        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        #[cfg(feature = "oratio-rerank")]
         "vox_speech_to_code" => parse_obj(
             r#"{"type":"object","description":"Exactly one of `path` (audio/transcript file under workspace) or `prompt` (text only). Chains Oratio STT when path is set, then vox_generate_code.","properties":{"path":{"type":"string","description":"Workspace-relative audio file for Candle Whisper + refine"},"prompt":{"type":"string","description":"Skip STT; use as codegen prompt"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"include_route":{"type":"boolean","description":"When true (default), run deterministic intent routing on refined transcript (path mode only)"},"validate":{"type":"boolean"},"max_retries":{"type":"integer","minimum":0,"maximum":5},"session_id":{"type":"string","description":"Shared with generate; defaults to new correlation if omitted"},"output_surface_mode":{"type":"string"},"emit_trace_path":{"type":"string","description":"Append one JSON line (speech_trace.schema.json fields) under this workspace-relative path"}},"additionalProperties":false}"#,
         ),
@@ -64,7 +68,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_complete_task" => derived_tool_schema!(crate::mcp_tools::params::CompleteTaskParams),
         "vox_fail_task" => derived_tool_schema!(crate::mcp_tools::params::FailTaskParams),
         "vox_doubt_task" => derived_tool_schema!(crate::mcp_tools::params::DoubtTaskParams),
-        "vox_publish_message" => derived_tool_schema!(crate::mcp_tools::params::PublishMessageParams),
+        "vox_publish_message" => {
+            derived_tool_schema!(crate::mcp_tools::params::PublishMessageParams)
+        }
         "vox_reorder_task" => derived_tool_schema!(crate::mcp_tools::params::ReorderTaskParams),
         "vox_drain_agent" => derived_tool_schema!(crate::mcp_tools::params::DrainAgentParams),
         "vox_spawn_agent" => derived_tool_schema!(crate::mcp_tools::params::SpawnAgentParams),
@@ -98,14 +104,16 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_workspace_modules"
         | "vox_export_grammar_ebnf"
         | "vox_a2a_tasks" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_clavis_doctor" => parse_obj(r#"{
+        "vox_clavis_doctor" => parse_obj(
+            r#"{
             "type": "object",
             "properties": {
                 "workflow": { "type": "string", "enum": ["Chat", "Mcp", "Publish", "Review", "DbRemote", "MensMesh"] },
                 "profile": { "type": "string", "enum": ["Dev", "Ci", "Prod", "Mobile"] }
             },
             "additionalProperties": false
-        }"#),
+        }"#,
+        ),
 
         // Handler ignores args today; keep the schema strict so clients send `{}` only.
         "vox_orchestrator_start" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
@@ -116,12 +124,18 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_openclaw_gateway_call" => parse_obj(
             r#"{"type":"object","properties":{"method":{"type":"string","minLength":1},"params":{"description":"OpenClaw gateway params JSON object"}},"required":["method"],"additionalProperties":false}"#,
         ),
-        "vox_openclaw_search_remote" => derived_tool_schema!(crate::mcp_tools::params::OpenClawSearchParams),
-        "vox_openclaw_import_skill" => derived_tool_schema!(crate::mcp_tools::params::OpenClawImportParams),
+        "vox_openclaw_search_remote" => {
+            derived_tool_schema!(crate::mcp_tools::params::OpenClawSearchParams)
+        }
+        "vox_openclaw_import_skill" => {
+            derived_tool_schema!(crate::mcp_tools::params::OpenClawImportParams)
+        }
         "vox_openclaw_subscribe" | "vox_openclaw_unsubscribe" => {
             derived_tool_schema!(crate::mcp_tools::params::OpenClawDomainParams)
         }
-        "vox_openclaw_notify" => derived_tool_schema!(crate::mcp_tools::params::OpenClawNotifyParams),
+        "vox_openclaw_notify" => {
+            derived_tool_schema!(crate::mcp_tools::params::OpenClawNotifyParams)
+        }
 
         // ── Browser (CDP / chromiumoxide) ───────────────────────────────────
         "vox_browser_open" => derived_tool_schema!(crate::mcp_tools::params::BrowserOpenParams),
@@ -133,9 +147,15 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_browser_fill" => derived_tool_schema!(crate::mcp_tools::params::BrowserFillParams),
         "vox_browser_wait_for" => derived_tool_schema!(crate::mcp_tools::params::BrowserWaitParams),
         "vox_browser_html" => derived_tool_schema!(crate::mcp_tools::params::BrowserHtmlParams),
-        "vox_browser_screenshot" => derived_tool_schema!(crate::mcp_tools::params::BrowserScreenshotParams),
-        "vox_browser_extract" => derived_tool_schema!(crate::mcp_tools::params::BrowserExtractParams),
-        "vox_browser_extract_json" => derived_tool_schema!(crate::mcp_tools::params::BrowserExtractJsonParams),
+        "vox_browser_screenshot" => {
+            derived_tool_schema!(crate::mcp_tools::params::BrowserScreenshotParams)
+        }
+        "vox_browser_extract" => {
+            derived_tool_schema!(crate::mcp_tools::params::BrowserExtractParams)
+        }
+        "vox_browser_extract_json" => {
+            derived_tool_schema!(crate::mcp_tools::params::BrowserExtractJsonParams)
+        }
         "vox_browser_act" => derived_tool_schema!(crate::mcp_tools::params::BrowserActParams),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
@@ -182,8 +202,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_context_budget" => parse_obj(
             r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
         ),
-        "vox_set_agent_budget" => derived_tool_schema!(crate::mcp_tools::mcp_context::SetAgentBudgetParams),
-        "vox_emergency_stop" => derived_tool_schema!(crate::mcp_tools::mcp_context::EmergencyStopParams),
+        "vox_set_agent_budget" => {
+            derived_tool_schema!(crate::mcp_tools::mcp_context::SetAgentBudgetParams)
+        }
+        "vox_emergency_stop" => {
+            derived_tool_schema!(crate::mcp_tools::mcp_context::EmergencyStopParams)
+        }
         "vox_handoff_context" => parse_obj(
             r#"{"type":"object","properties":{"from_agent":{"type":"integer","minimum":0},"to_agent":{"type":"integer","minimum":0}},"required":["from_agent","to_agent"],"additionalProperties":false}"#,
         ),
@@ -420,7 +444,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_config_set" => parse_obj(
             r#"{"type":"object","additionalProperties":true,"description":"Partial orchestrator config updates."}"#,
         ),
-        "vox_map_agent_session" => derived_tool_schema!(crate::mcp_tools::params::MapAgentSessionParams),
+        "vox_map_agent_session" => {
+            derived_tool_schema!(crate::mcp_tools::params::MapAgentSessionParams)
+        }
         "vox_heartbeat" | "vox_record_cost" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }

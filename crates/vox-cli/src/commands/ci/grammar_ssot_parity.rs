@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use vox_grammar_export::ssot_markdown;
 
 pub async fn run() -> Result<()> {
@@ -6,7 +6,10 @@ pub async fn run() -> Result<()> {
     let ssot_path = repo_root.join("tree-sitter-vox").join("GRAMMAR_SSOT.md");
 
     if !ssot_path.exists() {
-        return Err(anyhow!("GRAMMAR_SSOT.md not found at {}", ssot_path.display()));
+        return Err(anyhow!(
+            "GRAMMAR_SSOT.md not found at {}",
+            ssot_path.display()
+        ));
     }
 
     let current_ssot = std::fs::read_to_string(&ssot_path)?;
@@ -14,7 +17,9 @@ pub async fn run() -> Result<()> {
 
     if current_ssot.trim() != expected_ssot.trim() {
         eprintln!("Error: GRAMMAR_SSOT.md is out of sync with language_surface.rs.");
-        eprintln!("Run `vox grammar --format ssot-markdown --output tree-sitter-vox/GRAMMAR_SSOT.md` to update.");
+        eprintln!(
+            "Run `vox grammar --format ssot-markdown --output tree-sitter-vox/GRAMMAR_SSOT.md` to update."
+        );
         return Err(anyhow::anyhow!("Grammar SSOT parity check failed"));
     }
 

@@ -26,7 +26,9 @@ async fn vox_project_init_writes_nested_application() {
     let t = TempDir::new().expect("temp workspace");
     std::env::set_current_dir(t.path()).expect("chdir temp");
 
-    let state = vox_orchestrator::mcp_tools::ServerState::new_full(vox_orchestrator::OrchestratorConfig::default());
+    let state = vox_orchestrator::mcp_tools::ServerState::new_full(
+        vox_orchestrator::OrchestratorConfig::default(),
+    );
     let raw = tools(
         &state,
         "vox_project_init",

@@ -118,7 +118,7 @@ fn test_rewrap_rotation_across_secret_material_kinds() {
             auth_registry: None,
             policy: vox_clavis::policy::SecretPolicy::required_fail(),
             remediation: "",
-        scope_description: "",
+            scope_description: "",
         };
         let resolved = backend
             .resolve(id, spec, None, "test")

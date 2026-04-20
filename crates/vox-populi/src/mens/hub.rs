@@ -134,7 +134,9 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken).expose().expect("hub token"),
+            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken)
+                .expose()
+                .expect("hub token"),
             "from-hf-only"
         );
         unsafe {
@@ -153,7 +155,9 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken).expose().expect("hf token"),
+            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken)
+                .expose()
+                .expect("hf token"),
             "from-hub-only"
         );
         unsafe {

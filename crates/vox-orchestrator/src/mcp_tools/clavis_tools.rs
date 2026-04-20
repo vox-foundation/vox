@@ -1,9 +1,15 @@
-﻿use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
 
 pub async fn clavis_doctor(_state: &ServerState, args: serde_json::Value) -> String {
-    let workflow_str = args.get("workflow").and_then(|v| v.as_str()).unwrap_or("Chat");
-    let profile_str = args.get("profile").and_then(|v| v.as_str()).unwrap_or("Dev");
+    let workflow_str = args
+        .get("workflow")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Chat");
+    let profile_str = args
+        .get("profile")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Dev");
 
     let wf = match workflow_str {
         "Mcp" => vox_clavis::Workflow::Mcp,
@@ -21,7 +27,7 @@ pub async fn clavis_doctor(_state: &ServerState, args: serde_json::Value) -> Str
     };
 
     let mut secrets = Vec::new();
-    
+
     // Membership mapping
     let mut ms: std::collections::BTreeMap<vox_clavis::SecretId, Vec<&'static str>> =
         std::collections::BTreeMap::new();
@@ -35,21 +41,28 @@ pub async fn clavis_doctor(_state: &ServerState, args: serde_json::Value) -> Str
         let mut ids = std::collections::BTreeSet::new();
         for r in &reqs.blocking {
             match r {
-                vox_clavis::RequirementSet::AllOf(list) | vox_clavis::RequirementSet::AnyOf(list) => {
-                    for &id in *list { ids.insert(id); }
+                vox_clavis::RequirementSet::AllOf(list)
+                | vox_clavis::RequirementSet::AnyOf(list) => {
+                    for &id in *list {
+                        ids.insert(id);
+                    }
                 }
             }
         }
-        for &id in &reqs.optional { ids.insert(id); }
+        for &id in &reqs.optional {
+            ids.insert(id);
+        }
         for id in ids {
-            if let Some(list) = ms.get_mut(&id) { list.push(b_name); }
+            if let Some(list) = ms.get_mut(&id) {
+                list.push(b_name);
+            }
         }
     }
 
     for spec in vox_clavis::all_specs() {
         let resolved = vox_clavis::resolve_secret(spec.id);
         let meta = spec.id.metadata();
-        
+
         secrets.push(serde_json::json!({
             "id": format!("{:?}", spec.id),
             "canonical_env": spec.canonical_env,

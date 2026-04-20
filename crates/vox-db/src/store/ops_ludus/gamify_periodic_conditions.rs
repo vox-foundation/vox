@@ -22,11 +22,13 @@ impl crate::VoxDb {
         let Some(row) = rows.next().await? else {
             return Ok(None);
         };
-        if let Ok(s) = row.get::<String>(0) {
-            return Ok(Some(s));
-        }
+        // Use a safer check: try i64 first since it's most common for timestamps,
+        // then try String. This avoids the internal turso panic on some type mismatches.
         if let Ok(n) = row.get::<i64>(0) {
             return Ok(Some(n.to_string()));
+        }
+        if let Ok(s) = row.get::<String>(0) {
+            return Ok(Some(s));
         }
         Ok(None)
     }

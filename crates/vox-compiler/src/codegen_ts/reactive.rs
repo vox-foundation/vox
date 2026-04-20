@@ -63,14 +63,19 @@ impl ReactiveViewBridgeStats {
     pub fn record_pathway(&mut self, p: ReactiveViewEmitPathway) {
         match p {
             ReactiveViewEmitPathway::LegacyEnvDisabled => self.legacy_env_disabled += 1,
-            ReactiveViewEmitPathway::LegacyFallbackValidateFailed => self.legacy_fallback_validate_failed += 1,
-            ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => self.legacy_fallback_no_component_tsx += 1,
-            ReactiveViewEmitPathway::LegacyFallbackParityMismatch => self.legacy_fallback_parity_mismatch += 1,
+            ReactiveViewEmitPathway::LegacyFallbackValidateFailed => {
+                self.legacy_fallback_validate_failed += 1
+            }
+            ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => {
+                self.legacy_fallback_no_component_tsx += 1
+            }
+            ReactiveViewEmitPathway::LegacyFallbackParityMismatch => {
+                self.legacy_fallback_parity_mismatch += 1
+            }
             ReactiveViewEmitPathway::WebIrViewEmitted => self.web_ir_view_emitted += 1,
         }
     }
 }
-
 
 /// Whitespace normalization for the reactive view parity guard (OP-0261 / OP-0179).
 #[doc(hidden)]
@@ -729,8 +734,15 @@ pub fn generate_reactive_component(
     }
 
     if rc.view.is_some() {
-        let view_js =
-            emit_reactive_view_body(name, hir, rc, &state_names, island_names, web_projection, stats);
+        let view_js = emit_reactive_view_body(
+            name,
+            hir,
+            rc,
+            &state_names,
+            island_names,
+            web_projection,
+            stats,
+        );
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 

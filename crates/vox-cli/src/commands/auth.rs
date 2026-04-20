@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::io::{self, Write};
-use vox_identity::{NodeIdentity, TrustedNodeRegistry};
-use vox_identity::storage::{save_identity, load_identity};
 use std::sync::{Arc, Mutex, OnceLock};
+use vox_identity::storage::{load_identity, save_identity};
+use vox_identity::{NodeIdentity, TrustedNodeRegistry};
 
 #[derive(Subcommand, Debug)]
 pub enum AuthCmd {
@@ -48,38 +48,40 @@ pub async fn run(cmd: AuthCmd) -> Result<()> {
 
 async fn run_init() -> Result<()> {
     println!("Initializing new Vox Node Identity...");
-    
+
     print!("Choose a strong master password: ");
     io::stdout().flush()?;
     let mut pwd1 = String::new();
     io::stdin().read_line(&mut pwd1)?;
     let pwd1 = pwd1.trim();
-    
+
     print!("Confirm master password: ");
     io::stdout().flush()?;
     let mut pwd2 = String::new();
     io::stdin().read_line(&mut pwd2)?;
     let pwd2 = pwd2.trim();
-    
+
     if pwd1 != pwd2 {
         anyhow::bail!("Passwords do not match. Aborting initialization.");
     }
     if pwd1.is_empty() {
         anyhow::bail!("Password cannot be empty.");
     }
-    
+
     let identity = NodeIdentity::generate();
     save_identity(&identity, pwd1)?;
-    
+
     println!("\nSuccess! Node identity generated and encrypted at ~/.vox/identity.key.enc");
     println!("Node ID: {}", identity.node_id());
-    
+
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);
     println!("Public Key: {}", hex::encode(&pubkey_bytes));
-    
+
     // Cache it for the session
-    ACTIVE_IDENTITY.set(Arc::new(Mutex::new(identity))).map_err(|_| anyhow::anyhow!("Failed to set active identity"))?;
-    
+    ACTIVE_IDENTITY
+        .set(Arc::new(Mutex::new(identity)))
+        .map_err(|_| anyhow::anyhow!("Failed to set active identity"))?;
+
     Ok(())
 }
 
@@ -89,10 +91,10 @@ async fn run_unlock() -> Result<()> {
     let mut pwd = String::new();
     io::stdin().read_line(&mut pwd)?;
     let pwd = pwd.trim();
-    
+
     let identity = load_identity(pwd)?;
     println!("Vault successfully unlocked via Argon2-derived master key.");
-    
+
     // Cache it
     let _ = ACTIVE_IDENTITY.set(Arc::new(Mutex::new(identity)));
     Ok(())
@@ -106,11 +108,11 @@ async fn run_whoami() -> Result<()> {
             anyhow::bail!("Node identity is locked. Run `vox auth unlock` first.");
         }
     };
-    
+
     println!("Node ID: {}", identity.node_id());
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);
     println!("Public Key: {}", hex::encode(&pubkey_bytes));
-    
+
     Ok(())
 }
 
@@ -118,38 +120,41 @@ async fn run_trust(pubkey_hex: String, label: Option<String>) -> Result<()> {
     if pubkey_hex.len() != 64 {
         anyhow::bail!("Public key must be exactly 64 hex characters.");
     }
-    
+
     let pubkey_bytes = hex::decode(&pubkey_hex).context("Invalid hex encoding")?;
     let hash = vox_crypto::secure_hash(&pubkey_bytes);
     let node_id = hex::encode(&hash[0..16]);
-    
+
     let registry = TrustedNodeRegistry::new();
     registry.add(node_id.clone(), pubkey_hex, label.clone())?;
-    
+
     println!("Successfully trusted node: {}", node_id);
     if let Some(l) = label {
         println!("Label: {}", l);
     }
-    
+
     Ok(())
 }
 
 async fn run_trust_list() -> Result<()> {
     let registry = TrustedNodeRegistry::new();
     let nodes = registry.list()?;
-    
+
     if nodes.is_empty() {
         println!("No trusted nodes found.");
         return Ok(());
     }
-    
+
     println!("{:<32} | {:<20} | {:<32}", "Node ID", "Label", "Added At");
     println!("{:-<32}-+-{:-<20}-+-{:-<32}", "", "", "");
     for node in nodes {
         let label = node.label.unwrap_or_else(|| "<none>".to_string());
-        println!("{:<32} | {:<20} | {:<32}", node.node_id, label, node.added_at);
+        println!(
+            "{:<32} | {:<20} | {:<32}",
+            node.node_id, label, node.added_at
+        );
     }
-    
+
     Ok(())
 }
 
@@ -179,11 +184,15 @@ async fn run_connect() -> Result<()> {
 
     let keyring = keyring::Entry::new("vox-clavis-env", "turso-url")
         .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
-    keyring.set_password(url).context("Failed to set turso-url in keyring.")?;
+    keyring
+        .set_password(url)
+        .context("Failed to set turso-url in keyring.")?;
 
     let keyring_token = keyring::Entry::new("vox-clavis-env", "turso-token")
         .context("Failed to instantiate keyring for turso-token.")?;
-    keyring_token.set_password(token).context("Failed to set turso-token in keyring.")?;
+    keyring_token
+        .set_password(token)
+        .context("Failed to set turso-token in keyring.")?;
 
     println!("Vault configuration complete.");
     println!("Run `vox config sync --pull` to synchronize configurations from the vault.");

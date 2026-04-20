@@ -179,9 +179,13 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("                }\n");
     out.push_str("            };\n");
     out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
-    out.push_str("                Ok(()) => return,\n");
+    out.push_str("                Ok(()) => {\n");
+    out.push_str("                    vox_runtime::builtins::vox_flush_exit_commands();\n");
+    out.push_str("                    return;\n");
+    out.push_str("                }\n");
     out.push_str("                Err(e) => {\n");
     out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+    out.push_str("                    vox_runtime::builtins::vox_flush_exit_commands();\n");
     out.push_str("                    std::process::exit(2);\n");
     out.push_str("                }\n");
     out.push_str("            }\n");
@@ -254,6 +258,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         out.push_str(
             "    axum::serve(listener, app).await.expect(\"Server exited with error\");\n",
         );
+        out.push_str("    vox_runtime::builtins::vox_flush_exit_commands();\n");
     } else {
         out.push_str("    println!(\"No routes defined. Exiting.\");\n");
     }

@@ -9,7 +9,7 @@ use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
 /// Latest unified schema baseline version for new and existing databases.
-pub const BASELINE_VERSION: i64 = 54;
+pub const BASELINE_VERSION: i64 = 55;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -114,6 +114,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "visus",
         sql: domains::visus::SCHEMA_VISUS,
+    },
+    SchemaFragment {
+        name: "vox_mesh",
+        sql: domains::vox_mesh::SCHEMA_VOX_MESH,
     },
 ];
 

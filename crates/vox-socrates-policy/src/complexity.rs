@@ -11,9 +11,10 @@ impl SocratesComplexityJudge {
     /// Classify the query into a discrete routing band.
     pub fn estimate_complexity(goal: &str, router_hint: Option<u8>) -> ComplexityBand {
         let score = router_hint.unwrap_or(5).clamp(1, 10);
-        
-        let is_multi_hop = goal.contains("compare") || goal.contains("synthesize") || goal.contains("across");
-        
+
+        let is_multi_hop =
+            goal.contains("compare") || goal.contains("synthesize") || goal.contains("across");
+
         if score >= 8 || is_multi_hop {
             ComplexityBand::MultiHop
         } else if score >= 6 {

@@ -45,6 +45,13 @@ impl Parser {
         if self.eat(&Token::Dec) {
             return Ok(TypeExpr::Decimal { span: start });
         }
+        if let Token::IntLit(v) = self.peek().clone() {
+            self.advance();
+            return Ok(TypeExpr::Named {
+                name: v.to_string(),
+                span: start.merge(self.span()),
+            });
+        }
         if self.eat(&Token::Fn) {
             self.expect(&Token::LParen)?;
             let mut params = Vec::new();

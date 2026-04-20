@@ -18,7 +18,7 @@
 }
 
 @query
-fn hot_sessions() -> int {
+fn hot_sessions() to int {
     let rows = db.SessionEvent.where({ ok: { eq: true }, latencyms: { gt: 50 } }).using("hybrid").live("session.events").scope("populi").sync().order_by("latencyms", "desc").limit(20).select("sessionid", "latencyms")
     return len(rows)
 }

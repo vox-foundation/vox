@@ -2,8 +2,8 @@
 //! `contracts/operations/completion-policy.v1.yaml` (`vox ci completion-audit|gates`); this module
 //! enforces runtime harness expectations and [`crate::types::CompletionAttestation`] adequacy.
 
+pub mod audit_reporter;
 mod fail;
 mod harness;
 mod impl_support;
 mod success;
-pub mod audit_reporter;

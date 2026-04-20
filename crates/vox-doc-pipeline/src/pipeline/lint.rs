@@ -85,7 +85,7 @@ pub(crate) fn collect_lint_errors_target(target: &Path, errors: &mut Vec<LintErr
 }
 
 /// Run all lint checks on a single file's content.
-fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
+pub(crate) fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
     let mut fence_open = false;
     let mut fence_start_line = 0_usize;
     let mut fence_is_vox = false;

@@ -4,7 +4,6 @@ use super::types::{
 };
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
 
-
 pub(crate) async fn http_ollama_with_metadata(
     client: &reqwest::Client,
     model: &str,
@@ -20,12 +19,13 @@ pub(crate) async fn http_ollama_with_metadata(
     let mut messages = Vec::new();
     let user_text = match user {
         vox_openai_wire::ChatMessageContent::Text(t) => t,
-        vox_openai_wire::ChatMessageContent::Parts(ref p) => {
-            p.iter().find_map(|part| match part {
+        vox_openai_wire::ChatMessageContent::Parts(ref p) => p
+            .iter()
+            .find_map(|part| match part {
                 vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
                 _ => None,
-            }).unwrap_or("")
-        }
+            })
+            .unwrap_or(""),
     };
 
     if !system.is_empty() {

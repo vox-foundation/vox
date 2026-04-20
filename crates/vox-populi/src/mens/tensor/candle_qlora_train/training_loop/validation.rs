@@ -3,10 +3,10 @@ use candle_core::Device;
 use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
-use crate::mens::tensor::{
-    train_log, qlora_preflight::QloraEmbedBundle, training_config::LoraTrainingConfig,
-};
 use super::types::{MaskedCeForward, TryEncodeOutcome};
+use crate::mens::tensor::{
+    qlora_preflight::QloraEmbedBundle, train_log, training_config::LoraTrainingConfig,
+};
 
 pub fn qlora_forward_logits_smoke(
     model: &crate::mens::tensor::candle_qlora_train::TrainGraphModel,
@@ -52,8 +52,13 @@ pub fn preflight_masked_ce_finite(
     let max_diff = super::curriculum::max_difficulty_for_epoch(start_epoch, config);
     let vocab = bundle.vocab;
     for (pair_idx, pair) in pairs.iter().enumerate() {
-        let enc = match super::encoding::try_encode_training_step(pair, system_prompt, tokenizer, config, max_diff)?
-        {
+        let enc = match super::encoding::try_encode_training_step(
+            pair,
+            system_prompt,
+            tokenizer,
+            config,
+            max_diff,
+        )? {
             TryEncodeOutcome::SkipCurriculum => {
                 continue;
             }

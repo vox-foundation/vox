@@ -38,16 +38,83 @@ impl LudusContext {
     /// so that time-based regeneration is always current.
     pub async fn load() -> Result<Self> {
         let db = db_util::get_db().await?;
-        let user_id = vox_ludus::db::canonical_user_id();
-        let mut profile = db::get_profile(&db, &user_id)
-            .await
-            .unwrap_or_default()
-            .unwrap_or_else(|| LudusProfile::new_default(&user_id));
+        let local_user_id = vox_ludus::db::canonical_user_id();
+
+        // 1. Resolve effective user ID (prefer GitHub identity for global sync)
+        let effective_user_id = if let Ok(identities) = db.get_vox_identities(&local_user_id).await
+        {
+            if let Some((_, gh_id, _)) = identities.iter().find(|(p, _, _)| p == "github") {
+                format!("gh:{}", gh_id)
+            } else {
+                local_user_id.clone()
+            }
+        } else {
+            local_user_id.clone()
+        };
+
+        // 2. Load profile with migration support
+        let mut profile = if let Some(p) = db::get_profile(&db, &effective_user_id).await? {
+            p
+        } else if effective_user_id != local_user_id {
+            // Migration: Check if local profile exists and move it to the global identity
+            if let Some(mut local_p) = db::get_profile(&db, &local_user_id).await? {
+                tracing::info!(
+                    "migrating local profile '{}' to global identity '{}'",
+                    local_user_id,
+                    effective_user_id
+                );
+                local_p.user_id = effective_user_id.clone();
+                db::upsert_profile(&db, &local_p).await?;
+                // Optionally delete old profile or keep as backup
+                local_p
+            } else {
+                LudusProfile::new_default(&effective_user_id)
+            }
+        } else {
+            LudusProfile::new_default(&effective_user_id)
+        };
+
         profile.regen_energy();
+
+        // 3. Automated Trust Tier Escalation
+        if effective_user_id.starts_with("gh:")
+            && profile.trust_tier < vox_ludus::profile::TrustTier::Linked
+        {
+            tracing::info!(
+                "escalating trust tier to Linked for user '{}'",
+                effective_user_id
+            );
+            profile.trust_tier = vox_ludus::profile::TrustTier::Linked;
+        }
+
+        if profile.trust_tier == vox_ludus::profile::TrustTier::Linked
+            && profile.total_xp_earned >= 10_000
+            && profile.lumens >= 100
+        {
+            tracing::info!(
+                "escalating trust tier to Proven for user '{}'",
+                effective_user_id
+            );
+            profile.trust_tier = vox_ludus::profile::TrustTier::Proven;
+        }
+
+        if profile.trust_tier == vox_ludus::profile::TrustTier::Proven
+            && profile.total_xp_earned >= 50_000
+            && profile.lumens >= 1_000
+            && !profile.reward_suppressed
+        {
+            tracing::info!(
+                "escalating trust tier to Master for user '{}'",
+                effective_user_id
+            );
+            profile.trust_tier = vox_ludus::profile::TrustTier::Master;
+        }
+
         let _ = db::upsert_profile(&db, &profile).await;
+
         Ok(Self {
             db,
-            user_id,
+            user_id: effective_user_id,
             profile,
         })
     }

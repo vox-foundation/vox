@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use vox_publisher::publication_preflight::PreflightProfile;
@@ -323,4 +323,3 @@ pub async fn vox_scientia_worthiness_evaluate(
 pub type ScientiaPublicationPreflightParams = VoxScientiaPublicationPreflightParams;
 /// Preferred Rust alias (same JSON shape as [`VoxScientiaWorthinessEvaluateParams`]).
 pub type ScientiaWorthinessEvaluateParams = VoxScientiaWorthinessEvaluateParams;
-

@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::db_cli::ScholarlyVenueExt;
 use anyhow::Result;
 
 pub async fn publication_zenodo_metadata(publication_id: &str) -> Result<()> {
@@ -63,17 +64,17 @@ pub async fn publication_scholarly_staging_export(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let written =
-        vox_publisher::submission::write_scholarly_staging(&manifest, venue, output_dir)?;
-    vox_publisher::submission::validate_scholarly_staging(output_dir, venue, &manifest)
-        .map_err(|findings: Vec<vox_publisher::submission::validation::ValidationFinding>| {
+    let written = vox_publisher::submission::write_scholarly_staging(&manifest, venue, output_dir)?;
+    vox_publisher::submission::validate_scholarly_staging(output_dir, venue, &manifest).map_err(
+        |findings: Vec<vox_publisher::submission::validation::ValidationFinding>| {
             let msg: String = findings
                 .iter()
                 .map(|f| format!("{}: {}", f.code, f.message))
                 .collect::<Vec<_>>()
                 .join("; ");
             anyhow::anyhow!("staging validation failed: {msg}")
-        })?;
+        },
+    )?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({

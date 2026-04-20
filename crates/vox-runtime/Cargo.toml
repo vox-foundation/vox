@@ -17,13 +17,13 @@ vox-openai-wire = { workspace = true }
 futures-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-vox-config = { path = "../vox-config" }
-vox-primitives = { path = "../vox-primitives" }
+vox-config.workspace = true
+vox-primitives.workspace = true
 vox-clavis = { workspace = true }
 vox-socrates-policy = { workspace = true }
-vox-browser = { path = "../vox-browser" }
-vox-skills = { path = "../vox-skills" }
-vox-db = { path = "../vox-db", optional = true }
+vox-browser.workspace = true
+vox-skills.workspace = true
+vox-db = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["stream"] }
 vox-reqwest-defaults = { workspace = true }
 serde = { workspace = true }
@@ -34,7 +34,7 @@ xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
 rust_decimal = { workspace = true }
 workspace-hack = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 [lints]
 workspace = true
-

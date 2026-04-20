@@ -21,6 +21,8 @@ pub struct JobHandle {
     pub estimated_seconds: f64,
     /// Hourly rate at dispatch time (used for cost accrual).
     pub price_per_hour_usd: f64,
+    /// Whether this job is a persistent mesh node (ignores idle/time limits).
+    pub is_persistent: bool,
 }
 
 impl JobHandle {
@@ -130,5 +132,9 @@ pub trait CloudProvider: Send + Sync {
 
     /// Terminate a job immediately and release the GPU.
     async fn terminate(&self, handle: &JobHandle) -> anyhow::Result<()>;
+
+    /// Retrieve the public endpoint URL for a serving job, if it is available.
+    /// Returns `None` if the pod is not yet fully provisioned with network info.
+    async fn get_serve_url(&self, handle: &JobHandle, serve_port: u16) -> anyhow::Result<Option<String>>;
 }
 

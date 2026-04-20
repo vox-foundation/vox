@@ -1,5 +1,5 @@
-use vox_tensor::data::TrainingPair;
 use crate::mens::tensor::training_config::LoraTrainingConfig;
+use vox_tensor::data::TrainingPair;
 
 pub fn trajectory_weight_for_pair(pair: &TrainingPair, config: &LoraTrainingConfig) -> (f64, bool) {
     if !config.trajectory_weighting_enabled {

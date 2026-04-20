@@ -252,9 +252,7 @@ impl PublisherConfig {
             linkedin_author_urn: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialLinkedinAuthorUrn,
             ),
-            bluesky_pds_url: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialBlueskyPdsUrl,
-            ),
+            bluesky_pds_url: Self::syndication_secret(vox_clavis::SecretId::VoxSocialBlueskyPdsUrl),
             open_collective_slug: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsOpenCollectiveSlug,
             ),

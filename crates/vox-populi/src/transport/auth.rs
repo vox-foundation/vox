@@ -25,10 +25,7 @@ pub enum PopuliAuthContext {
     /// Authenticated with a classified role.
     Role(PopuliBearerRole),
     /// Authenticated via Ed25519 node signature (Decentralized Identity).
-    NodeSignature {
-        node_id: String,
-        pubkey_hex: String,
-    },
+    NodeSignature { node_id: String, pubkey_hex: String },
 }
 
 /// Join / heartbeat / leave / list / inbox / ack (not deliver-only submitter tokens).

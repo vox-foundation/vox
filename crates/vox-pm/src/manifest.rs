@@ -185,6 +185,9 @@ pub struct DeploySection {
     /// [Coolify](https://coolify.io/) PaaS deployment configuration.
     #[serde(default)]
     pub coolify: Option<crate::deploy_coolify::CoolifyDeployConfig>,
+    /// Fly.io PaaS deployment configuration.
+    #[serde(default)]
+    pub fly: Option<FlyDeployConfig>,
 }
 
 impl DeploySection {
@@ -272,6 +275,20 @@ pub struct KubernetesDeployConfig {
     /// Path to a Kustomization directory or manifest directory.
     #[serde(default)]
     pub manifests_dir: Option<String>,
+}
+
+/// Fly.io deploy configuration (`[deploy.fly]`).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FlyDeployConfig {
+    /// App name. Defaults to the project name.
+    #[serde(default)]
+    pub app_name: Option<String>,
+    /// Organization to deploy to.
+    #[serde(default)]
+    pub org: Option<String>,
+    /// Region to deploy to.
+    #[serde(default)]
+    pub region: Option<String>,
 }
 
 impl VoxManifest {

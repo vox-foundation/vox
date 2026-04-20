@@ -34,7 +34,7 @@ pub mod watchdog;
 
 pub use budget::BudgetLedger;
 pub use estimator::TimeEstimator;
-pub use resolver::CloudResolver;
+pub use resolver::{CloudResolver, ResolveRequest};
 
 use std::time::{Duration, SystemTime};
 
@@ -308,6 +308,8 @@ pub struct CloudJobSpec {
     pub batch_size: usize,
     /// Port to expose for `Infer`/`Agent` jobs. Default 8080.
     pub serve_port: u16,
+    /// Keep the instance alive after task completion as a persistent mesh node.
+    pub persistent: bool,
 }
 
 impl CloudJobSpec {
@@ -329,6 +331,7 @@ impl CloudJobSpec {
             epochs: 3,
             batch_size: 4,
             serve_port: 8080,
+            persistent: false,
         }
     }
 
@@ -350,6 +353,7 @@ impl CloudJobSpec {
             epochs: 0,
             batch_size: 1,
             serve_port: 8080,
+            persistent: false,
         }
     }
 
@@ -367,6 +371,7 @@ impl CloudJobSpec {
 }
 include!("part_jobs.rs");
 include!("part_cli.rs");
+pub mod local_provider;
 
 #[cfg(test)]
 mod tests {

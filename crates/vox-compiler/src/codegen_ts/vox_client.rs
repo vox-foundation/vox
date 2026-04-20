@@ -18,13 +18,19 @@ pub fn emit_vox_client(hir: &HirModule) -> String {
     out.push_str("import { z } from \"zod\";\n");
     let type_names: Vec<String> = hir.types.iter().map(|t| t.name.clone()).collect();
     if !type_names.is_empty() {
-        out.push_str(&format!("import type {{ {} }} from \"./types\";\n", type_names.join(", ")));
+        out.push_str(&format!(
+            "import type {{ {} }} from \"./types\";\n",
+            type_names.join(", ")
+        ));
         let zod_imports: Vec<String> = type_names.iter().map(|t| format!("{}Schema", t)).collect();
-        out.push_str(&format!("import {{ {} }} from \"./schemas\";\n\n", zod_imports.join(", ")));
+        out.push_str(&format!(
+            "import {{ {} }} from \"./schemas\";\n\n",
+            zod_imports.join(", ")
+        ));
     }
-    
+
     out.push_str("export class VoxApiError extends Error {\n  constructor(public readonly status: number, public readonly path: string, public readonly responseText: string) {\n    super(`${path} failed: ${status}${responseText ? ` — ${responseText.slice(0, 200)}` : \"\"}`);\n    this.name = \"VoxApiError\";\n  }\n}\n\n");
-    
+
     out.push_str(
         "const BASE = ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? \"\");\n\n",
     );

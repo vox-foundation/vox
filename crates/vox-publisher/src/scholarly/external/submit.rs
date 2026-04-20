@@ -1,12 +1,11 @@
 #![cfg(feature = "scholarly-external-jobs")]
-use anyhow::{Result, anyhow};
-use vox_db::{
-    ExternalSubmissionAttemptParams, ExternalSubmissionJobUpsertParams,
-    VoxDb, StoreError,
-};
+use super::resolve_scholarly_adapter_kind;
 use crate::publication::PublicationManifest;
 use crate::scholarly::{self, ScholarlyError, ScholarlySubmissionReceipt};
-use super::resolve_scholarly_adapter_kind;
+use anyhow::{Result, anyhow};
+use vox_db::{
+    ExternalSubmissionAttemptParams, ExternalSubmissionJobUpsertParams, StoreError, VoxDb,
+};
 
 pub async fn publication_scholarly_submit_with_ledger(
     db: &VoxDb,

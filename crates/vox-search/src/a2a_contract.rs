@@ -65,12 +65,16 @@ impl A2ARetrievalResponse {
             chunk_excerpts,
             repo_paths: execution.repo_lines.clone(),
             rrf_fused_excerpts: execution.rrf_fused_lines.clone(),
-            durable_artifacts: execution.durable_artifacts.iter().map(|da| A2ADurableArtifact {
-                uri: da.uri.clone(),
-                token: da.token.clone(),
-                expires_at_unix_ms: da.expires_at_unix_ms,
-                chunk_count: da.chunk_count,
-            }).collect(),
+            durable_artifacts: execution
+                .durable_artifacts
+                .iter()
+                .map(|da| A2ADurableArtifact {
+                    uri: da.uri.clone(),
+                    token: da.token.clone(),
+                    expires_at_unix_ms: da.expires_at_unix_ms,
+                    chunk_count: da.chunk_count,
+                })
+                .collect(),
             diagnostics,
             from_node_id: from_node_id.map(|s| s.into()),
         }

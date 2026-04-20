@@ -139,7 +139,9 @@ mod tests {
             vec![
                 Token::AtComponent,
                 Token::AtTool,
+                Token::AtMcpTool,
                 Token::AtResource,
+                Token::AtMcpResource,
                 Token::AtNative,
                 Token::AtIsland,
                 Token::Eof

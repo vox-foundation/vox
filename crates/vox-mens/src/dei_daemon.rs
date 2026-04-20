@@ -28,17 +28,25 @@ struct DispatchResponse {
 #[derive(serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum DispatchPayload {
-    Log { level: String, msg: String },
-    Done { result: Value },
-    Error { code: i32, message: String },
+    Log {
+        level: String,
+        msg: String,
+    },
+    Done {
+        result: Value,
+    },
+    Error {
+        code: i32,
+        message: String,
+    },
     #[serde(other)]
     Unknown,
 }
 
 pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Result<Value> {
+    use std::process::Stdio;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::process::Command;
-    use std::process::Stdio;
 
     let mut child = Command::new(BINARY)
         .stdin(Stdio::piped())
@@ -55,7 +63,7 @@ pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Resu
         method: method.into(),
         params,
     };
-    
+
     let json = serde_json::to_string(&req)? + "\n";
     stdin.write_all(json.as_bytes()).await?;
     stdin.flush().await?;

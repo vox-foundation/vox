@@ -1,3 +1,11 @@
+---
+title: "Release Notes"
+description: "Release notes for the Vox compiler and related tools."
+category: "ci"
+status: "current"
+training_eligible: true
+training_rationale: "Documents key release milestones and features."
+---
 # Vox Compiler Release Notes - 2026-02-16
 
 ## New Features

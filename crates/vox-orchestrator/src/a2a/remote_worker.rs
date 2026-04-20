@@ -287,6 +287,9 @@ async fn run_remote_worker_tick(
                 payload_blake3_hex: None,
                 worker_ed25519_sig_b64: None,
                 jwe_payload: None,
+                task_kind: None,
+                model_id: None,
+                priority: 128,
             })
             .await;
         if deliver_res.is_err() {

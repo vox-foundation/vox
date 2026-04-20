@@ -118,9 +118,9 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
             &[
                 "check",
                 "-p",
-                "vox-cli",
+                "vox-mens",
                 "--features",
-                "gpu,mens-qlora,stub-check",
+                "gpu,mens-qlora",
             ],
         ),
     ];
@@ -164,7 +164,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 &[
                     "check",
                     "-p",
-                    "vox-cli",
+                    "vox-mens",
                     "--features",
                     "gpu,mens-candle-cuda",
                 ],

@@ -23,7 +23,11 @@ pub(crate) fn check_hir_match_exhaustiveness(
                 match &arm.pattern {
                     HirPattern::Literal(lit, _) => {
                         if let crate::hir::HirExpr::BoolLit(b, _) = lit.as_ref() {
-                            if *b { has_true = true; } else { has_false = true; }
+                            if *b {
+                                has_true = true;
+                            } else {
+                                has_false = true;
+                            }
                         }
                     }
                     HirPattern::Wildcard(_) | HirPattern::Ident(_, _) => has_wildcard = true,
@@ -33,11 +37,18 @@ pub(crate) fn check_hir_match_exhaustiveness(
 
             if !has_wildcard && (!has_true || !has_false) {
                 let mut missing = Vec::new();
-                if !has_true { missing.push("true".to_string()); }
-                if !has_false { missing.push("false".to_string()); }
+                if !has_true {
+                    missing.push("true".to_string());
+                }
+                if !has_false {
+                    missing.push("false".to_string());
+                }
 
                 let mut d = Diagnostic::error(
-                    format!("Non-exhaustive match on bool. Missing: {}", missing.join(", ")),
+                    format!(
+                        "Non-exhaustive match on bool. Missing: {}",
+                        missing.join(", ")
+                    ),
                     span,
                     source,
                 );

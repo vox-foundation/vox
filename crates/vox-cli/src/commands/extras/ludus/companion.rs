@@ -1,18 +1,18 @@
 //! Companion CRUD and interaction commands.
 
+use crate::commands::extras::ludus::LudusContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_ludus::{Companion, FreeAiClient, companion::Mood, db, quest, sprite};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
-use super::db_util;
-
 /// Show details for a single companion by name.
 pub async fn companion_show(name: &str) -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let companions = db::list_companions(&db, &user_id).await?;
+    let ctx = LudusContext::load().await?;
+    let db_conn = &ctx.db;
+    let user_id = &ctx.user_id;
+    let companions = db::list_companions(db_conn, user_id).await?;
     let companion = match companions.into_iter().find(|c| c.name == name) {
         Some(c) => c,
         None => {
@@ -52,9 +52,10 @@ pub async fn companion_show(name: &str) -> Result<()> {
 
 /// List all companions.
 pub async fn companion_list() -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let companions = db::list_companions(&db, &user_id).await?;
+    let ctx = LudusContext::load().await?;
+    let db_conn = &ctx.db;
+    let user_id = &ctx.user_id;
+    let companions = db::list_companions(db_conn, user_id).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_cyan());
     println!("{}", "║       🐱 Your Companions        ║".bright_cyan());
@@ -100,12 +101,14 @@ pub async fn companion_list() -> Result<()> {
 
 /// Create a new companion from a source file.
 pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result<()> {
+    let ctx = LudusContext::load().await?;
+    let db_conn = &ctx.db;
+    let user_id = &ctx.user_id;
     let code = read_utf8_path_capped(code_file)?;
 
     let id = vox_runtime::builtins::vox_uuid();
 
-    let user_id = vox_ludus::db::canonical_user_id();
-    let mut companion = Companion::new(&id, &user_id, name, "vox");
+    let mut companion = Companion::new(&id, user_id, name, "vox");
     companion.code_hash = Some(vox_runtime::builtins::vox_hash_fast(&code));
     companion.description = Some(format!("Created from {}", code_file.display()));
 
@@ -114,15 +117,14 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
     let sprite_text = sprite::generate_ai_sprite(&client, name, "vox", Mood::Neutral).await;
     companion.ascii_sprite = Some(sprite_text.clone());
 
-    let db_conn = db_util::get_db().await?;
-    db::upsert_companion(&db_conn, &companion).await?;
+    db::upsert_companion(db_conn, &companion).await?;
 
     // Increment Quests
-    let mut profile = match db::get_profile(&db_conn, &user_id).await? {
+    let mut profile = match db::get_profile(db_conn, user_id).await? {
         Some(p) => p,
-        None => vox_ludus::LudusProfile::new_default(&user_id),
+        None => vox_ludus::LudusProfile::new_default(user_id),
     };
-    let mut quests = db::list_quests(&db_conn, &user_id).await?;
+    let mut quests = db::list_quests(db_conn, user_id).await?;
     for q in &mut quests {
         if q.quest_type == quest::QuestType::Create && q.increment(1) {
             println!(
@@ -134,9 +136,9 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
             profile.add_crystals(q.crystal_reward);
         }
     }
-    db::upsert_profile(&db_conn, &profile).await?;
+    db::upsert_profile(db_conn, &profile).await?;
     for q in &quests {
-        db::upsert_quest(&db_conn, q).await?;
+        db::upsert_quest(db_conn, q).await?;
     }
 
     println!("{}", "✨ Companion created!".bright_green().bold());
@@ -183,9 +185,10 @@ pub async fn companion_interact_str(name: &str, interaction: &str) -> Result<()>
 
 /// Interact with a companion.
 pub async fn companion_interact(name: &str, interaction: vox_ludus::Interaction) -> Result<()> {
-    let db_conn = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let companions = db::list_companions(&db_conn, &user_id).await?;
+    let ctx = LudusContext::load().await?;
+    let db_conn = &ctx.db;
+    let user_id = &ctx.user_id;
+    let companions = db::list_companions(db_conn, user_id).await?;
 
     let mut companion = match companions.into_iter().find(|c| c.name == name) {
         Some(c) => c,
@@ -220,7 +223,7 @@ pub async fn companion_interact(name: &str, interaction: vox_ludus::Interaction)
     .await;
     companion.ascii_sprite = Some(sprite_text.clone());
 
-    db::upsert_companion(&db_conn, &companion).await?;
+    db::upsert_companion(db_conn, &companion).await?;
 
     match interaction {
         vox_ludus::Interaction::Feed => println!("  🍔 You fed {}!", companion.name),

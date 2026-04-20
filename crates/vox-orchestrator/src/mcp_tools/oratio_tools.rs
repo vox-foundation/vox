@@ -365,6 +365,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         &session.text,
         session.confidence,
         &rtc,
+        &vox_oratio::routing::IdeContext::default(),
     );
     if let Some(asr_path) = args.get("emit_asr_refine_path").and_then(|v| v.as_str()) {
         let out = resolve_audio_path(state, asr_path);
@@ -399,6 +400,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
                 &session.text,
                 intent_confidence,
                 session.confidence,
+                None,
             );
             let gaps = vox_oratio::missing_slot_ids(&env);
             let slot_hint = vox_oratio::clarification_prompt_for_slots(&env).map(str::to_string);
@@ -441,10 +443,12 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
 }
 
 fn stream_ws_url() -> String {
-    let host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashHost).expose()
+    let host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashHost)
+        .expose()
         .map(String::from)
         .unwrap_or_else(|| "127.0.0.1".into());
-    let port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashPort).expose()
+    let port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashPort)
+        .expose()
         .map(String::from)
         .unwrap_or_else(|| "3847".into());
     format!("ws://{host}:{port}/api/audio/transcribe/stream")

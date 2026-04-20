@@ -97,6 +97,10 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
                     source_blake3_hex: None,
                     required_labels: activity.required_labels.clone(),
                     is_detached: activity.is_detached,
+                    priority: 128,
+                    task_kind: Some("vox_script".to_string()),
+                    model_id: None,
+                    min_vram_mb: None,
                 };
                 match client.dispatch(&req).await {
                     Ok(res) => Ok(json!({

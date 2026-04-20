@@ -21,11 +21,12 @@ bzip2 = "0.6.1"
 zstd = "0.13.3"
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
-vox-clavis = { path = "../vox-clavis" }
+vox-clavis.workspace = true
 secrecy = { workspace = true }
 which = { workspace = true }
 glob = "0.3.1"
 workspace-hack = { workspace = true }
+tokio = { workspace = true }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }

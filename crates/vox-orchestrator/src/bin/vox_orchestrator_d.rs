@@ -51,7 +51,11 @@ async fn main() -> anyhow::Result<()> {
 
     let bind_raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket)
         .expose()
-        .ok_or_else(|| anyhow::anyhow!("VOX_ORCHESTRATOR_DAEMON_SOCKET is required (e.g. 127.0.0.1:9745 or stdio)"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "VOX_ORCHESTRATOR_DAEMON_SOCKET is required (e.g. 127.0.0.1:9745 or stdio)"
+            )
+        })?
         .to_string();
 
     let cfg = load_config();
@@ -98,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
         );
     }
     vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
-    
+
     // Flywheel automation: Monitor diversity and trigger training
     let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
     flywheel.spawn().await;

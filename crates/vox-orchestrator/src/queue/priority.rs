@@ -266,7 +266,10 @@ impl AgentQueue {
 
     /// Returns a mutable iterator over all pending and in-progress tasks.
     pub fn all_tasks_mut(&mut self) -> impl Iterator<Item = &mut AgentTask> {
-        self.in_progress.as_mut().into_iter().chain(self.tasks.iter_mut())
+        self.in_progress
+            .as_mut()
+            .into_iter()
+            .chain(self.tasks.iter_mut())
     }
 }
 
@@ -278,18 +281,21 @@ mod tests {
     #[test]
     fn test_loop_blocking_enforcement() {
         let mut queue = AgentQueue::new(AgentId(1), "TestAgent");
-        
+
         // Task within limits — uses TaskPriority::Normal and empty manifest
         let mut t1 = AgentTask::new(TaskId(101), "Normal Task", TaskPriority::Normal, vec![]);
         t1.handoff_count = crate::types::MAX_A2A_BOUNCE;
         queue.enqueue(t1);
-        assert!(matches!(queue.tasks().front().unwrap().status, TaskStatus::Queued));
+        assert!(matches!(
+            queue.tasks().front().unwrap().status,
+            TaskStatus::Queued
+        ));
 
         // Task exceeding limits
         let mut t2 = AgentTask::new(TaskId(102), "Looping Task", TaskPriority::Normal, vec![]);
         t2.handoff_count = crate::types::MAX_A2A_BOUNCE + 1;
         queue.enqueue(t2);
-        
+
         let queued_t2 = queue.tasks().iter().find(|t| t.id == TaskId(102)).unwrap();
         match &queued_t2.status {
             TaskStatus::Failed(msg) => {

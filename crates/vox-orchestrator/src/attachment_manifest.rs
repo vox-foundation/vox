@@ -31,6 +31,8 @@ pub struct VisualSegment {
 impl AttachmentManifest {
     /// Returns true if the manifest contains any vision-eligible attachments (images).
     pub fn has_vision_vitals(&self) -> bool {
-        self.attachments.iter().any(|a| a.mime_type.starts_with("image/"))
+        self.attachments
+            .iter()
+            .any(|a| a.mime_type.starts_with("image/"))
     }
 }

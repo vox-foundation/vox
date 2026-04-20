@@ -17,6 +17,8 @@ pub enum ParseErrorClass {
     Expression,
     Statement,
     TypeExpr,
+    /// Tombstoned / archived construct that is no longer supported.
+    Tombstoned,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -70,11 +72,7 @@ impl ParseError {
 
     /// Build a parse warning.
     #[must_use]
-    pub fn warning(
-        span: Span,
-        message: impl Into<String>,
-        class: ParseErrorClass,
-    ) -> Self {
+    pub fn warning(span: Span, message: impl Into<String>, class: ParseErrorClass) -> Self {
         Self {
             message: message.into(),
             span,

@@ -38,9 +38,9 @@ pub async fn post(
 
     let primary_text = truncate_chars(&item.content_markdown, chunk_max, truncation_suffix);
 
-    let should_thread = override_cfg.map(|c| c.thread).unwrap_or_else(|| {
-        item.content_markdown.chars().count() > chunk_max
-    });
+    let should_thread = override_cfg
+        .map(|c| c.thread)
+        .unwrap_or_else(|| item.content_markdown.chars().count() > chunk_max);
     let mut texts = if should_thread {
         let full = item.content_markdown.clone();
         chunk_chars(&full, chunk_max)

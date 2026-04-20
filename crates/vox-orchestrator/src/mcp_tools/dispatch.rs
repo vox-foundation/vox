@@ -9,13 +9,15 @@ use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
 
 use crate::mcp_tools::{
-    benchmark_tools, browser_tools, chat_tools, code_validator, codex_tools, compiler_tools,
-    db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, news_tools,
-    openclaw_tools, oratio_tools, persistence_tools, populi_tools, project_init_tools,
-    questioning_tools, rag_tools, repo_catalog_tools, repo_index, scientia_tools, speech_pipeline_tools,
-    task_tools, toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, clavis_tools,
-    visus_tools,
+    benchmark_tools, browser_tools, chat_tools, clavis_tools, code_validator, codex_tools,
+    compiler_tools, db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools,
+    news_tools, openclaw_tools, persistence_tools, populi_tools, project_init_tools,
+    questioning_tools, rag_tools, repo_catalog_tools, repo_index, scientia_tools, task_tools,
+    toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, visus_tools,
 };
+
+#[cfg(feature = "oratio-rerank")]
+use crate::mcp_tools::{oratio_tools, speech_pipeline_tools};
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
 pub async fn handle_tool_call(
@@ -47,8 +49,7 @@ pub async fn handle_tool_call(
     let b_signal = {
         let aid = agent_id.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
         let bm = state.orchestrator.budget_manager_handle();
-        crate::sync_lock::rw_read(&*bm)
-            .agent_budget_signal(crate::types::AgentId(aid))
+        crate::sync_lock::rw_read(&*bm).agent_budget_signal(crate::types::AgentId(aid))
     };
 
     if matches!(
@@ -81,6 +82,26 @@ pub async fn handle_tool_call(
         crate::mcp_tools::scope_guard::check_scope(state, name_canonical, agent_id, &args)
     {
         return Ok(crate::mcp_tools::params::ToolResult::<()>::err(rejection).to_json_compact());
+    }
+
+    // Trust-Tier RBAC for dangerous operations
+    if matches!(
+        name_canonical,
+        "vox_run_shell"
+            | "vox_deploy"
+            | "vox_multi_replace"
+            | "vox_multi_replace_file"
+            | "vox_write_file"
+            | "vox_delete_file"
+    ) {
+        // Enforce explicit UserApproval requirement
+        let approved = args
+            .get("user_approval")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if !approved {
+            return Ok(crate::mcp_tools::params::ToolResult::<()>::err("RBAC_VIOLATION: This operation requires explicit UserApproval mode. Please set `user_approval: true` or seek explicit confirmation.").to_json_compact());
+        }
     }
 
     let db_opt = state.db.as_ref().map(|db| (**db).clone());
@@ -179,19 +200,29 @@ async fn handle_tool_call_inner(
         "vox_orchestrator_persistence_outbox_queue" => {
             Ok(persistence_tools::persistence_outbox_queue(state, args).await)
         }
-        "vox_orchestrator_start" => Ok(crate::mcp_tools::dei_tools::orchestrator_start(state).await),
-        "vox_spawn_agent" => {
-            Ok(crate::mcp_tools::dei_tools::spawn_agent(state, serde_json::from_value(args)?).await)
+        "vox_orchestrator_start" => {
+            Ok(crate::mcp_tools::dei_tools::orchestrator_start(state).await)
         }
-        "vox_retire_agent" => {
-            Ok(crate::mcp_tools::dei_tools::retire_agent(state, serde_json::from_value(args)?).await)
-        }
-        "vox_pause_agent" => {
-            Ok(crate::mcp_tools::dei_tools::pause_agent(state, serde_json::from_value(args)?).await)
-        }
-        "vox_resume_agent" => {
-            Ok(crate::mcp_tools::dei_tools::resume_agent(state, serde_json::from_value(args)?).await)
-        }
+        "vox_spawn_agent" => Ok(crate::mcp_tools::dei_tools::spawn_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_retire_agent" => Ok(crate::mcp_tools::dei_tools::retire_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_pause_agent" => Ok(crate::mcp_tools::dei_tools::pause_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_resume_agent" => Ok(crate::mcp_tools::dei_tools::resume_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_complete_task" => {
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
         }
@@ -227,8 +258,10 @@ async fn handle_tool_call_inner(
                 } else {
                     state.observer.observe_file(s_id, t_id, &resolved)
                 };
-                state.orchestrator.event_bus().emit(
-                    crate::AgentEventKind::ObservationRecorded {
+                state
+                    .orchestrator
+                    .event_bus()
+                    .emit(crate::AgentEventKind::ObservationRecorded {
                         agent_id: crate::types::AgentId(t_id.parse().unwrap_or(0)),
                         task_id: crate::types::TaskId(t_id.parse().unwrap_or(0)),
                         file_path: resolved.clone(),
@@ -236,8 +269,7 @@ async fn handle_tool_call_inner(
                         parse_rate: report.parse_rate,
                         construct_coverage: report.construct_coverage,
                         recommended_action: format!("{:?}", report.recommended_action),
-                    },
-                );
+                    });
             }
 
             Ok(code_validator::validate_file(state, serde_json::from_value(args)?).await)
@@ -292,8 +324,12 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
-        "vox_visus_audit" => Ok(visus_tools::vox_visus_audit(state, serde_json::from_value(args)?).await),
-        "vox_visus_baseline" => Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await),
+        "vox_visus_audit" => {
+            Ok(visus_tools::vox_visus_audit(state, serde_json::from_value(args)?).await)
+        }
+        "vox_visus_baseline" => {
+            Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await)
+        }
         "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),
@@ -347,7 +383,9 @@ async fn handle_tool_call_inner(
         "vox_db_relationships" => Ok(db_tools::vox_db_relationships(args)),
         "vox_db_data_flow" => Ok(db_tools::vox_db_data_flow(args)),
         "vox_db_sample_data" => Ok(db_tools::vox_db_sample_data(state, args).await),
-        "vox_journey_canonical_steps" => Ok(db_tools::vox_journey_canonical_steps(state, args).await),
+        "vox_journey_canonical_steps" => {
+            Ok(db_tools::vox_journey_canonical_steps(state, args).await)
+        }
         "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(state, args).await),
         "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(state, args).await),
         "vox_clavis_doctor" => Ok(clavis_tools::clavis_doctor(state, args).await),
@@ -373,6 +411,7 @@ async fn handle_tool_call_inner(
         "vox_db_trust_propagate" => Ok(trust_tools::trust_propagate(state, args).await),
 
         "vox_generate_code" => Ok(compiler_tools::generate_vox_code(state, args).await),
+        #[cfg(feature = "oratio-rerank")]
         "vox_speech_to_code" => Ok(speech_pipeline_tools::speech_to_code(state, args).await?),
         "vox_list_models" => {
             Ok(crate::mcp_tools::models::list_models(state, serde_json::from_value(args)?).await)
@@ -380,13 +419,17 @@ async fn handle_tool_call_inner(
         "vox_suggest_model" => {
             Ok(crate::mcp_tools::models::suggest_model(state, serde_json::from_value(args)?).await)
         }
-        "vox_set_model" => Ok(crate::mcp_tools::models::set_model(state, serde_json::from_value(args)?).await),
+        "vox_set_model" => {
+            Ok(crate::mcp_tools::models::set_model(state, serde_json::from_value(args)?).await)
+        }
         "vox_set_active_model" => Ok(crate::mcp_tools::models::set_active_mcp_chat_model(
             state,
             serde_json::from_value(args)?,
         )
         .await),
-        "vox_get_active_model" => Ok(crate::mcp_tools::models::get_active_mcp_chat_model(state).await),
+        "vox_get_active_model" => {
+            Ok(crate::mcp_tools::models::get_active_mcp_chat_model(state).await)
+        }
         "vox_build_crate" => Ok(compiler_tools::build_crate(
             state,
             args.get("crate_name").and_then(|v| v.as_str()),
@@ -665,22 +708,30 @@ async fn handle_tool_call_inner(
         .await),
 
         // Delegate others to existing modules
-        "vox_my_files" => Ok(crate::mcp_tools::affinity::my_files(state, serde_json::from_value(args)?).await),
+        "vox_my_files" => {
+            Ok(crate::mcp_tools::affinity::my_files(state, serde_json::from_value(args)?).await)
+        }
         "vox_claim_file" => {
             Ok(crate::mcp_tools::affinity::claim_file(state, serde_json::from_value(args)?).await)
         }
-        "vox_transfer_file" => {
-            Ok(crate::mcp_tools::affinity::transfer_file(state, serde_json::from_value(args)?).await)
-        }
+        "vox_transfer_file" => Ok(crate::mcp_tools::affinity::transfer_file(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
-        "vox_ask_agent" => Ok(crate::mcp_tools::qa::ask_agent(state, serde_json::from_value(args)?).await),
+        "vox_ask_agent" => {
+            Ok(crate::mcp_tools::qa::ask_agent(state, serde_json::from_value(args)?).await)
+        }
         "vox_answer_question" => {
             Ok(crate::mcp_tools::qa::answer_question(state, serde_json::from_value(args)?).await)
         }
         "vox_pending_questions" => {
             Ok(crate::mcp_tools::qa::pending_questions(state, serde_json::from_value(args)?).await)
         }
-        "vox_broadcast" => Ok(crate::mcp_tools::qa::broadcast(state, serde_json::from_value(args)?).await),
+        "vox_broadcast" => {
+            Ok(crate::mcp_tools::qa::broadcast(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_memory_store" => {
             Ok(crate::mcp_tools::memory::memory_store(state, serde_json::from_value(args)?).await)
@@ -691,96 +742,140 @@ async fn handle_tool_call_inner(
         "vox_memory_search" => {
             Ok(crate::mcp_tools::memory::memory_search(state, serde_json::from_value(args)?).await)
         }
-        "vox_memory_log" => {
-            Ok(crate::mcp_tools::memory::memory_daily_log(state, serde_json::from_value(args)?).await)
-        }
+        "vox_memory_log" => Ok(crate::mcp_tools::memory::memory_daily_log(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_memory_list_keys" => Ok(crate::mcp_tools::memory::memory_list_keys(state).await),
-        "vox_knowledge_query" => {
-            Ok(crate::mcp_tools::memory::knowledge_query(state, serde_json::from_value(args)?).await)
-        }
-        "vox_memory_save_db" => {
-            Ok(crate::mcp_tools::memory::memory_save_db(state, serde_json::from_value(args)?).await)
-        }
-        "vox_memory_recall_db" => {
-            Ok(crate::mcp_tools::memory::memory_recall_db(state, serde_json::from_value(args)?).await)
-        }
+        "vox_knowledge_query" => Ok(crate::mcp_tools::memory::knowledge_query(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_memory_save_db" => Ok(crate::mcp_tools::memory::memory_save_db(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_memory_recall_db" => Ok(crate::mcp_tools::memory::memory_recall_db(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
-        "vox_compaction_status" => {
-            Ok(crate::mcp_tools::memory::compaction_status(state, serde_json::from_value(args)?).await)
-        }
-        "vox_session_create" => {
-            Ok(crate::mcp_tools::memory::session_create(state, serde_json::from_value(args)?).await)
-        }
+        "vox_compaction_status" => Ok(crate::mcp_tools::memory::compaction_status(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_session_create" => Ok(crate::mcp_tools::memory::session_create(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_session_list" => Ok(crate::mcp_tools::memory::session_list(state).await),
         "vox_session_reset" => {
             Ok(crate::mcp_tools::memory::session_reset(state, serde_json::from_value(args)?).await)
         }
-        "vox_session_compact" => {
-            Ok(crate::mcp_tools::memory::session_compact(state, serde_json::from_value(args)?).await)
-        }
+        "vox_session_compact" => Ok(crate::mcp_tools::memory::session_compact(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_session_info" => {
             Ok(crate::mcp_tools::memory::session_info(state, serde_json::from_value(args)?).await)
         }
         "vox_session_cleanup" => Ok(crate::mcp_tools::memory::session_cleanup(state).await),
 
-        "vox_preference_get" => {
-            Ok(crate::mcp_tools::memory::preference_get(state, serde_json::from_value(args)?).await)
-        }
-        "vox_preference_set" => {
-            Ok(crate::mcp_tools::memory::preference_set(state, serde_json::from_value(args)?).await)
-        }
-        "vox_preference_list" => {
-            Ok(crate::mcp_tools::memory::preference_list(state, serde_json::from_value(args)?).await)
-        }
+        "vox_preference_get" => Ok(crate::mcp_tools::memory::preference_get(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_preference_set" => Ok(crate::mcp_tools::memory::preference_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_preference_list" => Ok(crate::mcp_tools::memory::preference_list(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_learn_pattern" => {
             Ok(crate::mcp_tools::memory::learn_pattern(state, serde_json::from_value(args)?).await)
         }
-        "vox_behavior_record" => {
-            Ok(crate::mcp_tools::memory::behavior_record(state, serde_json::from_value(args)?).await)
-        }
-        "vox_behavior_summary" => {
-            Ok(crate::mcp_tools::memory::behavior_summary(state, serde_json::from_value(args)?).await)
-        }
+        "vox_behavior_record" => Ok(crate::mcp_tools::memory::behavior_record(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_behavior_summary" => Ok(crate::mcp_tools::memory::behavior_summary(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
         "vox_check_mood" => {
             Ok(crate::mcp_tools::gamify::check_mood(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notifications_list" => {
-            Ok(crate::mcp_tools::gamify::ludus_notifications_list(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_progress_snapshot" => {
-            Ok(crate::mcp_tools::gamify::ludus_progress_snapshot(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_notification_ack" => {
-            Ok(crate::mcp_tools::gamify::ludus_notification_ack(state, serde_json::from_value(args)?).await)
-        }
+        "vox_ludus_notifications_list" => Ok(crate::mcp_tools::gamify::ludus_notifications_list(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_progress_snapshot" => Ok(crate::mcp_tools::gamify::ludus_progress_snapshot(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_notification_ack" => Ok(crate::mcp_tools::gamify::ludus_notification_ack(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_ludus_notifications_ack_all" => {
             Ok(crate::mcp_tools::gamify::ludus_notifications_ack_all(state).await)
         }
-        "vox_ludus_quest_list" => {
-            Ok(crate::mcp_tools::gamify::ludus_quest_list(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_shop_catalog" => {
-            Ok(crate::mcp_tools::gamify::ludus_shop_catalog(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_shop_buy" => {
-            Ok(crate::mcp_tools::gamify::ludus_shop_buy(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_collegium_join" => {
-            Ok(crate::mcp_tools::gamify::ludus_collegium_join(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_battle_start" => {
-            Ok(crate::mcp_tools::gamify::ludus_battle_start(state, serde_json::from_value(args)?).await)
-        }
-        "vox_ludus_battle_submit" => {
-            Ok(crate::mcp_tools::gamify::ludus_battle_submit(state, serde_json::from_value(args)?).await)
-        }
+        "vox_ludus_quest_list" => Ok(crate::mcp_tools::gamify::ludus_quest_list(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_shop_catalog" => Ok(crate::mcp_tools::gamify::ludus_shop_catalog(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_shop_buy" => Ok(crate::mcp_tools::gamify::ludus_shop_buy(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_collegium_join" => Ok(crate::mcp_tools::gamify::ludus_collegium_join(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_battle_start" => Ok(crate::mcp_tools::gamify::ludus_battle_start(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_ludus_battle_submit" => Ok(crate::mcp_tools::gamify::ludus_battle_submit(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_agent_status" => {
             Ok(crate::mcp_tools::gamify::agent_status(state, serde_json::from_value(args)?).await)
         }
-        "vox_agent_continue" => {
-            Ok(crate::mcp_tools::gamify::agent_continue(state, serde_json::from_value(args)?).await)
-        }
+        "vox_agent_continue" => Ok(crate::mcp_tools::gamify::agent_continue(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_agent_assess" => {
             Ok(crate::mcp_tools::gamify::agent_assess(state, serde_json::from_value(args)?).await)
         }
@@ -788,19 +883,22 @@ async fn handle_tool_call_inner(
             Ok(crate::mcp_tools::gamify::agent_handoff(state, serde_json::from_value(args)?).await)
         }
 
-        "vox_queue_status" => {
-            Ok(crate::mcp_tools::dei_tools::queue_status(state, serde_json::from_value(args)?).await)
-        }
+        "vox_queue_status" => Ok(crate::mcp_tools::dei_tools::queue_status(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_lock_status" => Ok(crate::mcp_tools::dei_tools::lock_status(state).await),
         "vox_budget_status" => Ok(crate::mcp_tools::dei_tools::budget_status(state).await),
-        "vox_attention_summary" => {
-            Ok(crate::mcp_tools::dei_tools::attention_summary(state, serde_json::from_value(args)?).await)
-        }
+        "vox_attention_summary" => Ok(crate::mcp_tools::dei_tools::attention_summary(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_attention_history" => {
             let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
             let bm = state.orchestrator.budget_manager_handle();
-            let events =
-                crate::sync_lock::rw_read(&*bm).attention_events_snapshot(limit);
+            let events = crate::sync_lock::rw_read(&*bm).attention_events_snapshot(limit);
             Ok(crate::mcp_tools::params::ToolResult::ok(serde_json::to_value(&events)?).to_json())
         }
         "vox_attention_reset" => {
@@ -833,57 +931,87 @@ async fn handle_tool_call_inner(
             }))
             .to_json())
         }
-        "vox_handoff_lineage" => {
-            Ok(crate::mcp_tools::dei_tools::handoff_lineage(state, serde_json::from_value(args)?).await)
-        }
-        "vox_cancel_task" => {
-            Ok(crate::mcp_tools::dei_tools::cancel_task(state, serde_json::from_value(args)?).await)
-        }
-        "vox_reorder_task" => {
-            Ok(crate::mcp_tools::dei_tools::reorder_task(state, serde_json::from_value(args)?).await)
-        }
-        "vox_drain_agent" => {
-            Ok(crate::mcp_tools::dei_tools::drain_agent(state, serde_json::from_value(args)?).await)
-        }
-        "vox_cost_history" => {
-            Ok(crate::mcp_tools::dei_tools::cost_history(state, serde_json::from_value(args)?).await)
-        }
+        "vox_handoff_lineage" => Ok(crate::mcp_tools::dei_tools::handoff_lineage(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_cancel_task" => Ok(crate::mcp_tools::dei_tools::cancel_task(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_reorder_task" => Ok(crate::mcp_tools::dei_tools::reorder_task(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_drain_agent" => Ok(crate::mcp_tools::dei_tools::drain_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_cost_history" => Ok(crate::mcp_tools::dei_tools::cost_history(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_file_graph" => Ok(crate::mcp_tools::dei_tools::file_graph(state).await),
         "vox_config_get" => Ok(crate::mcp_tools::dei_tools::config_get(state).await),
         "vox_config_set" => Ok(crate::mcp_tools::dei_tools::config_set(state, args).await),
-        "vox_map_agent_session" => {
-            Ok(crate::mcp_tools::dei_tools::map_agent_session(state, serde_json::from_value(args)?).await)
-        }
-        "vox_poll_events" => {
-            Ok(crate::mcp_tools::dei_tools::poll_events(state, serde_json::from_value(args)?).await)
-        }
+        "vox_map_agent_session" => Ok(crate::mcp_tools::dei_tools::map_agent_session(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_poll_events" => Ok(crate::mcp_tools::dei_tools::poll_events(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_heartbeat" => {
             Ok(crate::mcp_tools::dei_tools::heartbeat(state, serde_json::from_value(args)?).await)
         }
-        "vox_record_cost" => {
-            Ok(crate::mcp_tools::dei_tools::record_cost(state, serde_json::from_value(args)?).await)
-        }
+        "vox_record_cost" => Ok(crate::mcp_tools::dei_tools::record_cost(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_rebalance" => Ok(crate::mcp_tools::dei_tools::rebalance(state).await),
-        "vox_agent_events" => {
-            Ok(crate::mcp_tools::dei_tools::agent_events(state, serde_json::from_value(args)?).await)
-        }
+        "vox_agent_events" => Ok(crate::mcp_tools::dei_tools::agent_events(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
-        "vox_a2a_send" => Ok(crate::mcp_tools::a2a_tools::a2a_send(state, serde_json::from_value(args)?).await),
-        "vox_a2a_inbox" => Ok(crate::mcp_tools::a2a_tools::a2a_inbox(state, serde_json::from_value(args)?).await),
-        "vox_a2a_ack" => Ok(crate::mcp_tools::a2a_tools::a2a_ack(state, serde_json::from_value(args)?).await),
-        "vox_a2a_broadcast" => {
-            Ok(crate::mcp_tools::a2a_tools::a2a_broadcast(state, serde_json::from_value(args)?).await)
+        "vox_a2a_send" => {
+            Ok(crate::mcp_tools::a2a_tools::a2a_send(state, serde_json::from_value(args)?).await)
         }
-        "vox_a2a_history" => {
-            Ok(crate::mcp_tools::a2a_tools::a2a_history(state, serde_json::from_value(args)?).await)
+        "vox_a2a_inbox" => {
+            Ok(crate::mcp_tools::a2a_tools::a2a_inbox(state, serde_json::from_value(args)?).await)
         }
+        "vox_a2a_ack" => {
+            Ok(crate::mcp_tools::a2a_tools::a2a_ack(state, serde_json::from_value(args)?).await)
+        }
+        "vox_a2a_broadcast" => Ok(crate::mcp_tools::a2a_tools::a2a_broadcast(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_a2a_history" => Ok(crate::mcp_tools::a2a_tools::a2a_history(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
         "vox_skill_install" => {
             Ok(crate::mcp_tools::skills::skill_install(state, serde_json::from_value(args)?).await)
         }
-        "vox_skill_uninstall" => {
-            Ok(crate::mcp_tools::skills::skill_uninstall(state, serde_json::from_value(args)?).await)
-        }
+        "vox_skill_uninstall" => Ok(crate::mcp_tools::skills::skill_uninstall(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_skill_list" => Ok(crate::mcp_tools::skills::skill_list(state)),
         "vox_skill_search" => Ok(crate::mcp_tools::skills::skill_search(
             state,
@@ -893,32 +1021,51 @@ async fn handle_tool_call_inner(
             state,
             serde_json::from_value(args)?,
         )),
-        "vox_skill_parse" => Ok(crate::mcp_tools::skills::skill_parse(serde_json::from_value(args)?)),
+        "vox_skill_parse" => Ok(crate::mcp_tools::skills::skill_parse(
+            serde_json::from_value(args)?,
+        )),
 
-        "vox_set_context" => {
-            Ok(crate::mcp_tools::mcp_context::set_context(state, serde_json::from_value(args)?).await)
-        }
-        "vox_get_context" => {
-            Ok(crate::mcp_tools::mcp_context::get_context(state, serde_json::from_value(args)?).await)
-        }
-        "vox_list_context" => {
-            Ok(crate::mcp_tools::mcp_context::list_context(state, serde_json::from_value(args)?).await)
-        }
-        "vox_context_budget" => {
-            Ok(crate::mcp_tools::mcp_context::context_budget(state, serde_json::from_value(args)?).await)
-        }
-        "vox_set_agent_budget" => {
-            Ok(crate::mcp_tools::mcp_context::set_agent_budget(state, serde_json::from_value(args)?).await)
-        }
-        "vox_emergency_stop" => {
-            Ok(crate::mcp_tools::mcp_context::emergency_stop(state, serde_json::from_value(args)?).await)
-        }
-        "vox_handoff_context" => {
-            Ok(crate::mcp_tools::mcp_context::handoff_context(state, serde_json::from_value(args)?).await)
-        }
+        "vox_set_context" => Ok(crate::mcp_tools::mcp_context::set_context(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_get_context" => Ok(crate::mcp_tools::mcp_context::get_context(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_list_context" => Ok(crate::mcp_tools::mcp_context::list_context(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_context_budget" => Ok(crate::mcp_tools::mcp_context::context_budget(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_set_agent_budget" => Ok(crate::mcp_tools::mcp_context::set_agent_budget(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_emergency_stop" => Ok(crate::mcp_tools::mcp_context::emergency_stop(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_handoff_context" => Ok(crate::mcp_tools::mcp_context::handoff_context(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
+        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_transcribe" => Ok(oratio_tools::transcribe(state, args)?),
+        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_listen" => Ok(oratio_tools::listen(state, args).await?),
+        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
         "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),

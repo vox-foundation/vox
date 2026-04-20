@@ -40,6 +40,7 @@ pub mod reward_policy; // toestub-ignore(unwired/module)
 pub mod run; // toestub-ignore(unwired/module)
 pub mod schema; // toestub-ignore(unwired/module)
 pub mod shop; // toestub-ignore(unwired/module)
+pub mod simulation; // toestub-ignore(unwired/module)
 pub mod sprite; // toestub-ignore(unwired/module)
 pub mod sprite_svg; // toestub-ignore(unwired/module)
 pub mod streak; // toestub-ignore(unwired/module)
@@ -86,6 +87,7 @@ pub use run::{
 };
 pub use schema::{
     ALL_MIGRATIONS, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11,
-    SCHEMA_V14, SCHEMA_V14B, SCHEMA_V15, SCHEMA_V16, SCHEMA_V17, SCHEMA_V18,
+    SCHEMA_V14, SCHEMA_V14B, SCHEMA_V15, SCHEMA_V16, SCHEMA_V17, SCHEMA_V18, SCHEMA_V19, SCHEMA_V20,
+    SCHEMA_V21, SCHEMA_V22, SCHEMA_V23, SCHEMA_V24, SCHEMA_V25,
 };
 pub use streak::{StreakResult, StreakTracker};

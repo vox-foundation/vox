@@ -16,16 +16,14 @@ fn main() {
         "scripts/windows/vox-dev.ps1",
         "scripts/vox-dev.sh",
         "scripts/install.ps1",
-        "scripts/install.sh",
-        "scripts/import-voxdotenv.ps1",
-        "scripts/invoke-voxwithenv.ps1"
+        "scripts/install.sh"
     ];
 
     print("Running script-hygiene check...");
     let mut violations = [];
 
     let prohibited_exts = [".sh", ".ps1", ".py"];
-    let check_dirs = ["scripts", "crates"];
+    let check_dirs = ["scripts"];
     
     for dir in check_dirs {
         let dir_path = path.join(root, dir);

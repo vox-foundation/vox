@@ -13,76 +13,90 @@ pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
 
     let interval = cfg.observer_poll_interval_ms;
     let mut ticker = tokio::time::interval(Duration::from_millis(interval));
+    let mut hardware_ticker = tokio::time::interval(Duration::from_secs(60));
+    let repository_id =
+        vox_repository::discover_repository_or_fallback(std::path::Path::new(".")).repository_id;
+
+    let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+        .expose()
+        .map(|s| s.trim().to_string());
 
     loop {
-        ticker.tick().await;
+        tokio::select! {
+            _ = ticker.tick() => {
+                let assignments = {
+                    let lock = orch.task_assignments.read().unwrap();
+                    lock.clone()
+                };
 
-        let assignments = {
-            let lock = orch.task_assignments.read().unwrap();
-            lock.clone()
-        };
+                for (_, agent_id) in assignments {
+                    if let Some(queue) = orch.agent_queue(agent_id) {
+                        let q = queue.read().unwrap();
+                        let queue_depth = q.tasks().len();
 
-        for (_, agent_id) in assignments {
-            if let Some(queue) = orch.agent_queue(agent_id) {
-                let q = queue.read().unwrap();
-                let queue_depth = q.tasks().len();
+                        if queue_depth > 10 {
+                            tracing::warn!(
+                                "MENS Observer: Agent {} is saturated with {} tasks.",
+                                agent_id,
+                                queue_depth
+                            );
 
-                // If the queue is saturated...
-                if queue_depth > 10 {
-                    tracing::warn!(
-                        "MENS Observer: Agent {} is saturated with {} tasks.",
-                        agent_id,
-                        queue_depth
-                    );
+                            let msg_payload = serde_json::json!({
+                                "observation_type": "QueueSaturation",
+                                "queue_depth": queue_depth
+                            });
 
-                    // Fire a Socrates validation request on the secondary channel
-                    let msg_payload = serde_json::json!({
-                        "observation_type": "QueueSaturation",
-                        "queue_depth": queue_depth
-                    });
+                            let system_id = AgentId(1);
+                            orch.message_bus.send(
+                                system_id,
+                                agent_id,
+                                crate::a2a::A2AMessageType::SocratesResearchRequest,
+                                msg_payload.to_string(),
+                            );
 
-                    // Fallback sender ID
-                    let system_id = AgentId(1);
+                            orch.event_bus()
+                                .emit(crate::events::AgentEventKind::MensObserverObservation {
+                                    agent_id,
+                                    observation_type: "QueueSaturation".to_string(),
+                                    queue_depth,
+                                });
+                        } else if queue_depth == 0 && agent_id.0 > 0 {
+                            tracing::info!(
+                                "MENS Observer: Agent {} is idle. Triggering scale-down evaluation.",
+                                agent_id
+                            );
 
-                    orch.message_bus.send(
-                        system_id,
-                        agent_id,
-                        crate::a2a::A2AMessageType::SocratesResearchRequest,
-                        msg_payload.to_string(),
-                    );
+                            let msg_payload = serde_json::json!({
+                                "observation_type": "IdleAgentDetected",
+                                "queue_depth": 0
+                            });
 
-                    // Stream to MCP for realtime VS Code dashboarding
-                    orch.event_bus()
-                        .emit(crate::events::AgentEventKind::MensObserverObservation {
-                            agent_id,
-                            observation_type: "QueueSaturation".to_string(),
-                            queue_depth,
-                        });
-                } else if queue_depth == 0 && agent_id.0 > 0 {
-                    // OAPV Auto-scale down: If the agent is idle and isn't the primary agent (ID 0)
-                    tracing::info!(
-                        "MENS Observer: Agent {} is idle. Triggering scale-down evaluation.",
-                        agent_id
-                    );
+                            orch.message_bus.send(
+                                AgentId(1),
+                                agent_id,
+                                crate::a2a::A2AMessageType::SocratesResearchRequest,
+                                msg_payload.to_string(),
+                            );
 
-                    let msg_payload = serde_json::json!({
-                        "observation_type": "IdleAgentDetected",
-                        "queue_depth": 0
-                    });
-
-                    orch.message_bus.send(
-                        AgentId(1), // System ID
-                        agent_id,
-                        crate::a2a::A2AMessageType::SocratesResearchRequest,
-                        msg_payload.to_string(),
-                    );
-
-                    orch.event_bus()
-                        .emit(crate::events::AgentEventKind::MensObserverObservation {
-                            agent_id,
-                            observation_type: "IdleScaleDown".to_string(),
-                            queue_depth: 0,
-                        });
+                            orch.event_bus()
+                                .emit(crate::events::AgentEventKind::MensObserverObservation {
+                                    agent_id,
+                                    observation_type: "IdleScaleDown".to_string(),
+                                    queue_depth: 0,
+                                });
+                        }
+                    }
+                }
+            }
+            _ = hardware_ticker.tick() => {
+                #[cfg(feature = "populi-transport")]
+                if let Some(telemetry) = vox_populi::mens::hardware::HardwareRegistry::monitor() {
+                    let tel_json = serde_json::to_value(telemetry).unwrap();
+                    vox_db::populi_registry_telemetry::record_hardware_telemetry_opt(
+                        &repository_id,
+                        node_id.as_deref(),
+                        &tel_json,
+                    ).await;
                 }
             }
         }

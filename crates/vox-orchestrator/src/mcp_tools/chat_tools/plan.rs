@@ -8,9 +8,6 @@ use super::params::{
 };
 use super::plan_gap;
 use super::plan_loop;
-use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
-use crate::mcp_tools::params::ToolResult;
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::attention_policy::{
     evaluate_with_state, pending_backlog_for_session, plan_review_signals, trust_for_session,
 };
@@ -19,6 +16,9 @@ use crate::mcp_tools::chat_socrates_meta::{
     clarification_turn_for_session, mcp_questioning_session_key, socrates_surface_tags,
     socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
 };
+use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
+use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use crate::planning::{ContentBlock, markdown_to_content_blocks};
 
 const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
@@ -738,7 +738,8 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                         user_id: Some(&params.session_id),
                     };
 
-                    let system_prompt = crate::mcp_tools::chat_tools::build_system_prompt(state, None).await;
+                    let system_prompt =
+                        crate::mcp_tools::chat_tools::build_system_prompt(state, None).await;
                     match mcp_infer_completion(
                         state,
                         model,
@@ -811,9 +812,9 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
 
             if let Some(tasks) = v.get("tasks").and_then(|t| t.as_array()) {
                 for t_val in tasks {
-                    if let Ok(node) = serde_json::from_value::<crate::planning::PlanNode>(
-                        t_val.clone(),
-                    ) {
+                    if let Ok(node) =
+                        serde_json::from_value::<crate::planning::PlanNode>(t_val.clone())
+                    {
                         let _ = db
                             .upsert_plan_node(
                                 &params.session_id,
@@ -825,19 +826,11 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                                 match node.status {
                                     crate::planning::PlanStatus::Pending => "pending",
                                     crate::planning::PlanStatus::Queued => "queued",
-                                    crate::planning::PlanStatus::InProgress => {
-                                        "in_progress"
-                                    }
-                                    crate::planning::PlanStatus::Completed => {
-                                        "completed"
-                                    }
+                                    crate::planning::PlanStatus::InProgress => "in_progress",
+                                    crate::planning::PlanStatus::Completed => "completed",
                                     crate::planning::PlanStatus::Failed => "failed",
-                                    crate::planning::PlanStatus::Cancelled => {
-                                        "cancelled"
-                                    }
-                                    crate::planning::PlanStatus::Superseded => {
-                                        "superseded"
-                                    }
+                                    crate::planning::PlanStatus::Cancelled => "cancelled",
+                                    crate::planning::PlanStatus::Superseded => "superseded",
                                 },
                                 node.workflow_invocation.as_deref(),
                             )
@@ -1043,8 +1036,8 @@ pub async fn plan_resume(state: &ServerState, params: PlanResumeParams) -> Strin
 mod adequacy_enforce_tests {
     use super::plan_gap;
     use super::plan_result_blocked_by_adequacy_enforce;
-    use crate::mcp_tools::chat_tools::params::{PlanDepth, PlanTask};
     use crate::OrchestratorConfig;
+    use crate::mcp_tools::chat_tools::params::{PlanDepth, PlanTask};
 
     fn thin_plan_tasks() -> Vec<PlanTask> {
         vec![PlanTask {

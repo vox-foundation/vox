@@ -103,13 +103,16 @@ fn resolve_ide_context() -> vox_oratio::routing::IdeContext {
     let state_file = repo.root.join(".vox").join("ide_state.json");
     if state_file.is_file() {
         let meta = state_file.metadata();
-        let is_fresh = meta.and_then(|m| m.modified()).map(|mt| {
-            mt.elapsed().map(|e| e.as_secs() < 300).unwrap_or(false)
-        }).unwrap_or(false);
+        let is_fresh = meta
+            .and_then(|m| m.modified())
+            .map(|mt| mt.elapsed().map(|e| e.as_secs() < 300).unwrap_or(false))
+            .unwrap_or(false);
 
         if is_fresh {
             if let Ok(content) = std::fs::read_to_string(&state_file) {
-                if let Ok(file_ctx) = serde_json::from_str::<vox_oratio::routing::IdeContext>(&content) {
+                if let Ok(file_ctx) =
+                    serde_json::from_str::<vox_oratio::routing::IdeContext>(&content)
+                {
                     ctx = file_ctx;
                 }
             }
@@ -131,12 +134,17 @@ fn resolve_ide_context() -> vox_oratio::routing::IdeContext {
 
     // Best-effort pull of build errors from vox-db
     if let Ok(rt) = tokio::runtime::Runtime::new() {
-        if let Ok(db) = rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await }) {
+        if let Ok(db) =
+            rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })
+        {
             // Use repository_id if available, otherwise "workspace"
-            let repo_id = std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "workspace".to_string());
-            if let Ok(warnings) = rt.block_on(async { db.query_build_warnings(&repo_id, 3).await }) {
+            let repo_id =
+                std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "workspace".to_string());
+            if let Ok(warnings) = rt.block_on(async { db.query_build_warnings(&repo_id, 3).await })
+            {
                 for w in warnings {
-                    ctx.recent_errors.push(format!("[{}] {}", w.crate_name, w.message));
+                    ctx.recent_errors
+                        .push(format!("[{}] {}", w.crate_name, w.message));
                 }
             }
         }
@@ -254,10 +262,16 @@ pub enum OratioAction {
         #[arg(long, default_value_t = false)]
         persist: bool,
     },
+    /// Start a local STT serve worker for cloud mesh offloading.
+    Serve {
+        /// Port to bind to (0 for OS-assigned)
+        #[arg(long)]
+        port: u16,
+    },
 }
 
 /// Run **`vox oratio …`**.
-pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
+pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
     let runtime = vox_oratio::resolved_runtime_config();
     match action {
         OratioAction::Transcribe {
@@ -382,15 +396,21 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
 
             // Best-effort global symbol matching based on transcript keywords
             if let Ok(rt) = tokio::runtime::Runtime::new() {
-                if let Ok(db) = rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await }) {
+                if let Ok(db) =
+                    rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })
+                {
                     // Extract potential symbol names from transcript
-                    let keywords: Vec<&str> = session.text.split_whitespace()
+                    let keywords: Vec<&str> = session
+                        .text
+                        .split_whitespace()
                         .filter(|w| w.len() > 3) // Ignore short words
                         .collect();
                     for k in keywords {
                         let clean = k.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
                         if !clean.is_empty() {
-                            if let Ok(symbols) = rt.block_on(async { db.search_project_symbols(clean, 3).await }) {
+                            if let Ok(symbols) =
+                                rt.block_on(async { db.search_project_symbols(clean, 3).await })
+                            {
                                 for (_, label, _) in symbols {
                                     if !ctx.symbol_stack.contains(&label) {
                                         ctx.symbol_stack.push(label);
@@ -689,6 +709,10 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
                     }
                 }
             }
+            Ok(())
+        }
+        OratioAction::Serve { port } => {
+            vox_oratio::serve::run_serve_worker(port).await?;
             Ok(())
         }
     }

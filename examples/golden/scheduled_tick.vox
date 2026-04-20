@@ -11,7 +11,7 @@
 // ---
 // ANCHOR: scheduled_region
 @scheduled("1h")
-fn scheduled_tick() -> Unit {
+fn scheduled_tick() to Unit {
     return Unit
 }
 // ANCHOR_END: scheduled_region

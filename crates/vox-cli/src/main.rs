@@ -54,16 +54,18 @@ async fn main() -> anyhow::Result<()> {
         let cmd = args[1].as_str();
         let is_ml = matches!(
             cmd,
-            "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
+            "mens" | "schola" | "oratio" | "speech" | "populi" | "train" | "scientia"
         );
-        let is_ext_ml = cmd == "ext" && args.len() > 2 && matches!(
-            args[2].as_str(),
-            "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
-        );
+        let is_ext_ml = cmd == "ext"
+            && args.len() > 2
+            && matches!(
+                args[2].as_str(),
+                "mens" | "schola" | "oratio" | "speech" | "populi" | "train" | "scientia"
+            );
 
         if is_ml || is_ext_ml {
             let primary_cmd = if is_ext_ml { args[2].as_str() } else { cmd };
-            let binary = if primary_cmd == "schola" {
+            let binary = if primary_cmd == "schola" || primary_cmd == "scientia" {
                 "vox-schola"
             } else {
                 "vox-mens"
@@ -74,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
                 // `vox train` -> `vox-mens mens train`
                 command.arg("mens");
             }
-            
+
             let forward_args = if is_ext_ml { &args[2..] } else { &args[1..] };
             command.args(forward_args);
 

@@ -1,10 +1,8 @@
-use std::io::Write;
-use anyhow::Result;
-use serde_json::json;
-
 #[cfg(feature = "database")]
 use vox_db::VoxDb;
-
+use std::io::Write;
+use serde_json::json;
+use anyhow::Result;
 
 #[cfg(feature = "database")]
 pub struct DogfoodExporter<'a> {
@@ -25,7 +23,11 @@ impl<'a> DogfoodExporter<'a> {
         for pair in pairs {
             // Priority 1: Use correction text if available (RLHF)
             // Priority 2: Use original response if rating is high (SFT)
-            let effective_response = if pair.correction.as_ref().map_or(false, |c: &String| !c.is_empty()) {
+            let effective_response = if pair
+                .correction
+                .as_ref()
+                .map_or(false, |c: &String| !c.is_empty())
+            {
                 pair.correction.clone()
             } else if pair.rating.unwrap_or(0) >= 4 {
                 Some(pair.response.clone())

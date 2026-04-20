@@ -14,6 +14,62 @@ use vox_skills::ars_shim::{
     DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
 };
 
+
+#[cfg(not(target_arch = "wasm32"))]
+fn exit_commands() -> &'static std::sync::Mutex<Vec<(String, Vec<String>)>> {
+    static CMDS: OnceLock<std::sync::Mutex<Vec<(String, Vec<String>)>>> = OnceLock::new();
+    CMDS.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ensure_signal_handler() {
+    static HANDLER_INIT: OnceLock<()> = OnceLock::new();
+    HANDLER_INIT.get_or_init(|| {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                #[cfg(unix)]
+                {
+                    use tokio::signal::unix::{signal, SignalKind};
+                    if let (Ok(mut sigint), Ok(mut sigterm)) = (signal(SignalKind::interrupt()), signal(SignalKind::terminate())) {
+                        tokio::select! {
+                            _ = sigint.recv() => {}
+                            _ = sigterm.recv() => {}
+                        }
+                    } else {
+                        let _ = tokio::signal::ctrl_c().await;
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = tokio::signal::ctrl_c().await;
+                }
+                
+                let _ = tokio::task::spawn_blocking(|| {
+                    execute_exit_commands();
+                }).await;
+
+                std::process::exit(1);
+            });
+        }
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn execute_exit_commands() {
+    if let Ok(mut cmds) = exit_commands().lock() {
+        for (cmd, args) in cmds.drain(..) {
+            let mut c = std::process::Command::new(&cmd);
+            c.args(args);
+            let _ = c.status();
+        }
+    }
+}
+
+pub fn vox_flush_exit_commands() {
+    #[cfg(not(target_arch = "wasm32"))]
+    execute_exit_commands();
+}
+
 /// Fast, non-cryptographic hash using XXH3-128 (128-bit output).
 ///
 /// Use for: HashMap keys, cache keys, dedup within a process, activity IDs
@@ -207,6 +263,76 @@ pub fn vox_process_run_ex(
         Err(format!("exit status {:?}", st.code()))
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn vox_process_spawn_background(cmd: &str, args: &[String]) -> Result<i64, String> {
+    let handle = match tokio::runtime::Handle::try_current() {
+        Ok(h) => h,
+        Err(_) => return Err("spawn_background must be run within a Tokio runtime".to_string()),
+    };
+
+    let mut c = tokio::process::Command::new(cmd);
+    c.args(args);
+    match c.spawn() {
+        Ok(mut child) => {
+            let id = child.id().unwrap_or(0);
+            handle.spawn(async move {
+                let _ = child.wait().await;
+            });
+            Ok(id as i64)
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn vox_process_spawn_background(_cmd: &str, _args: &[String]) -> Result<i64, String> {
+    Err("spawn_background is not supported in WASI scripts".to_string())
+}
+
+#[cfg(unix)]
+#[cfg(not(target_arch = "wasm32"))]
+pub fn vox_process_exec(cmd: &str, args: &[String]) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    let mut c = std::process::Command::new(cmd);
+    c.args(args);
+    let err = c.exec();
+    Err(err.to_string())
+}
+
+#[cfg(not(unix))]
+#[cfg(not(target_arch = "wasm32"))]
+pub fn vox_process_exec(cmd: &str, args: &[String]) -> Result<(), String> {
+    let mut c = std::process::Command::new(cmd);
+    c.args(args);
+    match c.status() {
+        Ok(st) => {
+            vox_flush_exit_commands();
+            std::process::exit(st.code().unwrap_or(1))
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn vox_process_exec(_cmd: &str, _args: &[String]) -> Result<(), String> {
+    Err("exec is not supported in WASI scripts".to_string())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn vox_process_register_exit_command(cmd: &str, args: &[String]) -> Result<(), String> {
+    ensure_signal_handler();
+    if let Ok(mut cmds) = exit_commands().lock() {
+        cmds.push((cmd.to_string(), args.to_vec()));
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn vox_process_register_exit_command(_cmd: &str, _args: &[String]) -> Result<(), String> {
+    Err("register_exit_command is not supported in WASI scripts".to_string())
+}
+
 
 /// Remove a directory tree (`std.fs.remove_dir_all`).
 pub fn vox_fs_remove_dir_all(path: &str) -> Result<(), String> {

@@ -266,8 +266,11 @@ impl BrowserEngine {
             .execute(chromiumoxide_cdp::cdp::browser_protocol::accessibility::GetFullAxTreeParams::default())
             .await
             .map_err(|e| format!("AXTree CDP failed: {e}"))?;
-        
-        Ok(serde_json::to_value(res.nodes.clone()).map_err(|e: serde_json::Error| e.to_string())?)
+
+        Ok(
+            serde_json::to_value(res.nodes.clone())
+                .map_err(|e: serde_json::Error| e.to_string())?,
+        )
     }
 
     /// Layer 1: Deterministic Overlap Detector.
@@ -275,8 +278,11 @@ impl BrowserEngine {
     pub async fn check_overlaps(&self, page_id: &str) -> Result<Vec<OverlapFinding>, String> {
         let page = self.page_ref(page_id).await?;
         let interactive_selectors = "button, a, input, [role='button'], [role='link']";
-        let elements = page.find_elements(interactive_selectors).await.map_err(Self::map_page_err)?;
-        
+        let elements = page
+            .find_elements(interactive_selectors)
+            .await
+            .map_err(Self::map_page_err)?;
+
         let mut rects = Vec::with_capacity(elements.len());
         for el in elements {
             let box_model_res = page
@@ -289,8 +295,8 @@ impl BrowserEngine {
 
             if let Ok(res) = box_model_res {
                 let box_model = &res.model;
-                let points_json = serde_json::to_value(&box_model.content)
-                    .map_err(|e| e.to_string())?;
+                let points_json =
+                    serde_json::to_value(&box_model.content).map_err(|e| e.to_string())?;
                 let pts = points_json.as_array().ok_or("Quad is not an array")?;
 
                 if pts.len() >= 8 {
@@ -319,7 +325,7 @@ impl BrowserEngine {
             for j in (i + 1)..rects.len() {
                 let r1 = &rects[i];
                 let r2 = &rects[j];
-                
+
                 if r1.overlaps(r2) {
                     findings.push(OverlapFinding {
                         element_1: r1.selector.clone(),
@@ -329,7 +335,7 @@ impl BrowserEngine {
                 }
             }
         }
-        
+
         Ok(findings)
     }
 }
@@ -344,10 +350,10 @@ pub struct ElementRect {
 
 impl ElementRect {
     pub fn overlaps(&self, other: &Self) -> bool {
-        self.x < other.x + other.w &&
-        self.x + self.w > other.x &&
-        self.y < other.y + other.h &&
-        self.y + self.h > other.y
+        self.x < other.x + other.w
+            && self.x + self.w > other.x
+            && self.y < other.y + other.h
+            && self.y + self.h > other.y
     }
 
     pub fn intersection_area(&self, other: &Self) -> f64 {

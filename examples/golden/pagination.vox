@@ -18,7 +18,7 @@
 }
 
 @query
-fn fetch_events(since_ts: int, evt_type: str, max_results: int) -> List[EventLog] {
+fn fetch_events(since_ts: int, evt_type: str, max_results: int) to List[EventLog] {
     // A mock representing a cursor query with filtering and limits
     let results = db.EventLog.filter({ event_type: evt_type })
     return results

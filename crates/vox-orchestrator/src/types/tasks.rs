@@ -71,6 +71,42 @@ pub enum TaskStatus {
     Doubted(Option<String>),
 }
 
+/// Execution phase of the agentic loop (OOPAV).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TaskPhase {
+    /// Initial environment and task inspection.
+    Inspect,
+    /// Localizing the problem to specific files or code blocks.
+    Localize,
+    /// Forming a hypothesis for the fix or implementation.
+    Hypothesize,
+    /// Performing the actual code modification or tool execution.
+    Act,
+    /// Verifying the results (e.g. running tests).
+    Verify,
+    /// Final decision and summary generation.
+    Decide,
+}
+
+impl TaskPhase {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Inspect => "inspect",
+            Self::Localize => "localize",
+            Self::Hypothesize => "hypothesize",
+            Self::Act => "act",
+            Self::Verify => "verify",
+            Self::Decide => "decide",
+        }
+    }
+}
+
+impl fmt::Display for TaskPhase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -404,6 +440,9 @@ pub struct AgentTask {
     /// Structured execution history for context injection (Surgical Injection).
     #[serde(default)]
     pub transcript: Vec<TaskTurn>,
+    /// Current execution phase (Wave 2 OOPAV).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_phase: Option<TaskPhase>,
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
@@ -470,6 +509,7 @@ impl AgentTask {
             observation_history: Vec::new(),
             handoff_count: 0,
             transcript: Vec::new(),
+            current_phase: None,
             attachment_manifest: None,
         }
     }
@@ -580,6 +620,44 @@ impl AgentTask {
         if self.transcript.len() > 10 {
             self.transcript.remove(0);
         }
+    }
+
+    /// Enforce state machine transitions for the task status.
+    pub fn transition_to(&mut self, new_status: TaskStatus) -> Result<(), String> {
+        // Allow self-transitions
+        if std::mem::discriminant(&self.status) == std::mem::discriminant(&new_status) {
+            self.status = new_status;
+            return Ok(());
+        }
+
+        match (&self.status, &new_status) {
+            (TaskStatus::Queued, TaskStatus::InProgress | TaskStatus::Cancelled) => {}
+            (
+                TaskStatus::InProgress,
+                TaskStatus::Completed
+                | TaskStatus::Failed(_)
+                | TaskStatus::Cancelled
+                | TaskStatus::Blocked(_)
+                | TaskStatus::BlockedOnApproval
+                | TaskStatus::Doubted(_)
+                | TaskStatus::Queued,
+            ) => {}
+            (TaskStatus::Blocked(_), TaskStatus::Queued | TaskStatus::Cancelled) => {}
+            (
+                TaskStatus::BlockedOnApproval,
+                TaskStatus::Queued | TaskStatus::Cancelled | TaskStatus::InProgress,
+            ) => {}
+            (TaskStatus::Failed(_), TaskStatus::Queued | TaskStatus::Cancelled) => {}
+            (TaskStatus::Doubted(_), TaskStatus::Queued | TaskStatus::Cancelled) => {}
+            _ => {
+                return Err(format!(
+                    "Invalid state transition from {} to {}",
+                    self.status, new_status
+                ));
+            }
+        }
+        self.status = new_status;
+        Ok(())
     }
 }
 

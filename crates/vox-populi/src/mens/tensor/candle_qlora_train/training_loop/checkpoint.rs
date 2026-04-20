@@ -1,7 +1,7 @@
-use std::path::Path;
 use anyhow::Result;
 use qlora_rs::training::QLoraTrainer;
 use rand::seq::SliceRandom;
+use std::path::Path;
 use vox_tensor::data::TrainingPair;
 
 use super::types::QloraTrainingResume;
@@ -32,9 +32,10 @@ pub fn apply_checkpoint_resume(
             ckpt.pair_offset
         ));
         if std::path::Path::new(&ckpt.adapter_path).exists() {
-            if let Err(err) =
-                super::super::load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path))
-            {
+            if let Err(err) = super::super::load_adapter_into_trainer(
+                trainer,
+                std::path::Path::new(&ckpt.adapter_path),
+            ) {
                 train_log::warn(&format!(
                     "Resume adapter load failed for {}: {err}",
                     ckpt.adapter_path

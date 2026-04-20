@@ -17,6 +17,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use base64::Engine as _;
 use tracing::{info, warn};
+use super::MeshQueueStats;
 
 use crate::{
     MAX_MAINTENANCE_FOR_MS, NodeRecord, node_maintenance_blocks_new_work,
@@ -72,6 +73,14 @@ pub(super) async fn list_nodes(
         g.nodes
             .retain(|n| now.saturating_sub(n.last_seen_unix_ms) <= window);
     }
+
+    let a2a = st.a2a_messages.read().await;
+    let pending = a2a
+        .iter()
+        .filter(|m| !m.acknowledged && m.lease_holder_node_id.is_none())
+        .count();
+    g.queue_depth = Some(pending);
+
     Ok(Json(g))
 }
 
@@ -151,6 +160,18 @@ fn merge_optional_node_fields(target: &mut NodeRecord, src: &NodeRecord) {
     }
     if src.provider.is_some() {
         target.provider = src.provider.clone();
+    }
+    if src.advertised_models.is_some() {
+        target.advertised_models = src.advertised_models.clone();
+    }
+    if src.donation_policy.is_some() {
+        target.donation_policy = src.donation_policy.clone();
+    }
+    if src.owner_vox_user_id.is_some() {
+        target.owner_vox_user_id = src.owner_vox_user_id.clone();
+    }
+    if src.ed25519_pub_key_b64.is_some() {
+        target.ed25519_pub_key_b64 = src.ed25519_pub_key_b64.clone();
     }
 }
 
@@ -563,28 +584,90 @@ pub(super) async fn admin_exec_lease_revoke(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn claim_policy_allows_worker(worker: &NodeRecord, msg: &A2AStoredMessage) -> bool {
+fn claim_policy_allows_worker(worker: &NodeRecord, msg: &A2AStoredMessage, sender_owner_id: Option<&str>) -> bool {
     let privacy = msg
         .privacy_class
         .as_deref()
         .unwrap_or("public")
         .trim()
         .to_ascii_lowercase();
-    if privacy.is_empty() || privacy == "public" {
-        return true;
-    }
+
+    let is_public = privacy.is_empty() || privacy == "public";
+
     let vis = worker
         .visibility
         .as_deref()
         .unwrap_or("private")
         .trim()
         .to_ascii_lowercase();
+
+    // 1. Mandatory Visibility Check: Private nodes never take public tasks.
+    if is_public && vis == "private" {
+        return false;
+    }
+
+    // 2. Donation Policy Check (for public mesh).
+    if is_public {
+        if let Some(policy) = &worker.donation_policy {
+            // Opt-out check.
+            if !policy.public_mesh_opt_in {
+                return false;
+            }
+
+            // Priority check.
+            if msg.priority < policy.min_priority {
+                return false;
+            }
+
+            // Task Kind check.
+            if let Some(msg_kind) = &msg.task_kind {
+                let allowed = policy.slots.iter().any(|s| {
+                    let s_kind = format!("{:?}", s.task_kind).to_lowercase();
+                    s_kind == msg_kind.to_lowercase()
+                });
+                if !allowed {
+                    return false;
+                }
+            }
+
+            // Identity checks.
+            if let Some(denied) = &policy.denied_users {
+                if let Some(owner) = sender_owner_id {
+                    if denied.contains(&owner.to_string()) {
+                        return false;
+                    }
+                }
+            }
+
+            if let Some(allowed) = &policy.allowed_users {
+                match sender_owner_id {
+                    Some(owner) => {
+                        if !allowed.contains(&owner.to_string()) {
+                            return false;
+                        }
+                    }
+                    None => return false, // If allowed_users is set, anonymous tasks are rejected.
+                }
+            }
+
+            // Allowed Scopes check.
+            if let Some(_allowed_scopes) = &policy.allowed_scopes {
+                // If we don't know the sender's scope, we can't verify, so we skip if policy is strict.
+                // (In a real federation, we'd have the sender's scope in the message envelope).
+                // For now, if sender_node_id is present, we check it.
+                // Since we don't have easy access to the whole registry here without passing it,
+                // we'll assume for Phase 1 that allowed_scopes: None means "all public".
+            }
+        }
+    }
+
     let trust = worker
         .trust_tier
         .as_deref()
         .unwrap_or("trusted")
         .trim()
         .to_ascii_lowercase();
+
     match privacy.as_str() {
         "private" | "trusted" => vis != "public",
         "trusted_only" => vis != "public" && trust != "new",
@@ -605,6 +688,11 @@ pub(super) async fn deliver_a2a(
     }
     let sender_agent_id = parse_a2a_mesh_agent_id("sender_agent_id", &req.sender_agent_id)?;
     let receiver_agent_id = parse_a2a_mesh_agent_id("receiver_agent_id", &req.receiver_agent_id)?;
+    let sender_node_id = if let PopuliAuthContext::NodeSignature { node_id, .. } = &ctx {
+        Some(node_id.clone())
+    } else {
+        None
+    };
     let dh = req
         .payload_blake3_hex
         .as_ref()
@@ -622,6 +710,19 @@ pub(super) async fn deliver_a2a(
         sb,
         st.worker_result_verify_key.as_ref(),
     ) {
+        // Punish node for failed attestation.
+        if let Some(node_id) = &sender_node_id {
+            let mut g = st.inner.write().await;
+            if let Some(i) = g.nodes.iter().position(|n| n.id == *node_id) {
+                g.nodes[i].trust_tier = Some("degraded".to_string());
+                tracing::warn!(
+                    node_id = node_id,
+                    error = %msg,
+                    "populi: node trust degraded due to attestation failure"
+                );
+            }
+        }
+
         let status = if msg.contains("not configured") {
             StatusCode::SERVICE_UNAVAILABLE
         } else {
@@ -662,6 +763,10 @@ pub(super) async fn deliver_a2a(
             payload_blake3_hex: req.payload_blake3_hex.clone(),
             worker_ed25519_sig_b64: req.worker_ed25519_sig_b64.clone(),
             jwe_payload: req.jwe_payload.clone(),
+            priority: req.priority,
+            task_kind: req.task_kind.clone(),
+            model_id: req.model_id.clone(),
+            sender_node_id: sender_node_id.clone(),
         };
         let mut g = st.a2a_messages.write().await;
         a2a_sweep_expired_leases(&mut g, crate::now_ms());
@@ -696,6 +801,10 @@ pub(super) async fn deliver_a2a(
         payload_blake3_hex: req.payload_blake3_hex.clone(),
         worker_ed25519_sig_b64: req.worker_ed25519_sig_b64.clone(),
         jwe_payload: req.jwe_payload.clone(),
+        priority: req.priority,
+        task_kind: req.task_kind.clone(),
+        model_id: req.model_id.clone(),
+        sender_node_id,
     };
     let mut g = st.a2a_messages.write().await;
     a2a_sweep_expired_leases(&mut g, crate::now_ms());
@@ -916,9 +1025,15 @@ pub(super) async fn a2a_inbox(
         return Ok(Json(A2AInboxResponse { messages: vec![] }));
     }
 
+    let nodes = {
+        let reg = st.inner.read().await;
+        reg.nodes.clone()
+    };
+
     let mut g = st.a2a_messages.write().await;
     a2a_sweep_expired_leases(&mut g, now);
     let mut picked_idx: Option<usize> = None;
+    let mut best_priority: u8 = 0;
     for (i, m) in g.iter_mut().enumerate() {
         if m.receiver_agent_id != req.receiver_agent_id || m.acknowledged {
             continue;
@@ -931,7 +1046,12 @@ pub(super) async fn a2a_inbox(
         if leased_other && lease_alive {
             continue;
         }
-        if !claim_policy_allows_worker(&worker, m) {
+        
+        let sender_owner_id = m.sender_node_id.as_ref().and_then(|id| {
+            nodes.iter().find(|n| n.id == *id).and_then(|n| n.owner_vox_user_id.as_deref())
+        });
+
+        if !claim_policy_allows_worker(&worker, m, sender_owner_id) {
             tracing::debug!(
                 message_id = m.id,
                 claimer,
@@ -939,8 +1059,10 @@ pub(super) async fn a2a_inbox(
             );
             continue;
         }
-        picked_idx = Some(i);
-        break;
+        if picked_idx.is_none() || m.priority > best_priority {
+            picked_idx = Some(i);
+            best_priority = m.priority;
+        }
     }
     let Some(i) = picked_idx else {
         return Ok(Json(A2AInboxResponse { messages: vec![] }));
@@ -975,6 +1097,43 @@ pub(super) async fn a2a_ack(
         msg.acknowledged = true;
         msg.lease_holder_node_id = None;
         msg.lease_expires_unix_ms = None;
+
+        // Wave 2: Kudos crediting for job results.
+        if msg.message_type == "job_result" {
+            if let (Ok(result), Some(db), Some(node_id)) = (
+                serde_json::from_str::<vox_mesh_types::TaskResult>(&msg.payload),
+                &st.db,
+                &msg.sender_node_id,
+            ) {
+                if result.success {
+                    let owner_id = {
+                        let reg = st.inner.read().await;
+                        reg.nodes
+                            .iter()
+                            .find(|n| n.id == *node_id)
+                            .and_then(|n| n.owner_vox_user_id.clone())
+                    };
+
+                    if let Some(vox_user_id) = owner_id {
+                        let credit = vox_mesh_types::kudos::CreditJobRequest {
+                            vox_user_id,
+                            node_id: node_id.clone(),
+                            primitive: vox_mesh_types::kudos::RewardPrimitive::GpuComputeMs,
+                            amount: result.duration_ms,
+                            task_id: Some(msg.id.to_string()),
+                            metadata_json: None,
+                        };
+                        let db = db.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = db.credit_kudos(&credit).await {
+                                tracing::error!("failed to credit kudos: {:?}", e);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
         if let Some(key) = msg.idempotency_dedupe_key.clone() {
             let mut maps = st.mesh_replay.maps().write().await;
             maps.idempotency.remove(&key);
@@ -1005,37 +1164,7 @@ pub(super) async fn dispatch_script(
     let target = if let Some(id) = &req.node_id {
         nodes.nodes.iter().find(|n| n.id == *id).cloned()
     } else {
-        // Wave 5: Filter by required_labels and pick least-busy (best-effort)
-        let mut candidates: Vec<_> = nodes
-            .nodes
-            .iter()
-            .filter(|n| {
-                n.quarantined != Some(true) && !node_maintenance_blocks_new_work(crate::now_ms(), n)
-            })
-            .filter(|n| {
-                let Some(required) = &req.required_labels else {
-                    return true;
-                };
-                if required.is_empty() {
-                    return true;
-                }
-                // Check if all required_labels are present in node capabilities
-                required
-                    .iter()
-                    .all(|req_lab| n.capabilities.labels.contains(req_lab))
-            })
-            .collect();
-
-        // Sort by CPU usage ascending (if available, treat None as 100% to prefer reporting nodes)
-        candidates.sort_by(|a, b| {
-            let a_usage = a.cpu_usage_pct.unwrap_or(100.0);
-            let b_usage = b.cpu_usage_pct.unwrap_or(100.0);
-            a_usage
-                .partial_cmp(&b_usage)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        candidates.first().map(|n| (*n).clone())
+        select_best_node(&nodes.nodes, &req).cloned()
     };
     drop(nodes);
 
@@ -1145,6 +1274,87 @@ pub(super) async fn dispatch_results_poll(
             ),
         ))
     }
+}
+
+fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Option<&'a NodeRecord> {
+    let mut candidates: Vec<_> = nodes
+        .iter()
+        .filter(|n| {
+            n.quarantined != Some(true) && !node_maintenance_blocks_new_work(crate::now_ms(), n)
+        })
+        .filter(|n| {
+            // Label matching
+            if let Some(required) = &req.required_labels {
+                if !required.is_empty()
+                    && !required
+                        .iter()
+                        .all(|req_lab| n.capabilities.labels.contains(req_lab))
+                {
+                    return false;
+                }
+            }
+            // VRAM matching
+            if let Some(min_vram) = req.min_vram_mb {
+                let node_vram = n.capabilities.min_vram_mb.unwrap_or(0);
+                if node_vram < min_vram {
+                    return false;
+                }
+            }
+            // Donation policy matching
+            if let (Some(task_kind_str), Some(policy)) = (&req.task_kind, &n.donation_policy) {
+                let allowed = policy.slots.iter().any(|slot| {
+                    format!("{:?}", slot.task_kind).to_lowercase() == task_kind_str.to_lowercase()
+                });
+                if !allowed {
+                    return false;
+                }
+            }
+            true
+        })
+        .collect();
+
+    // Load balancing: Sort by CPU usage ascending
+    candidates.sort_by(|a, b| {
+        let a_usage = a.cpu_usage_pct.unwrap_or(100.0);
+        let b_usage = b.cpu_usage_pct.unwrap_or(100.0);
+        a_usage
+            .partial_cmp(&b_usage)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    candidates.first().copied()
+}
+
+
+pub(super) async fn queue_stats(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+) -> Result<Json<MeshQueueStats>, ResponseErr> {
+    if !auth_allows_worker_plane(&ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: worker/mesh/admin token required for queue stats".into(),
+        ));
+    }
+    let msgs = st.a2a_messages.read().await;
+    let mut stats = MeshQueueStats {
+        pending_count: 0,
+        pending_by_kind: std::collections::HashMap::new(),
+        pending_by_priority: std::collections::HashMap::new(),
+    };
+
+    for m in msgs.iter() {
+        if m.acknowledged || m.lease_holder_node_id.is_some() {
+            continue;
+        }
+        stats.pending_count += 1;
+        if let Some(kind) = &m.task_kind {
+            *stats.pending_by_kind.entry(kind.clone()).or_insert(0) += 1;
+        }
+        *stats.pending_by_priority.entry(m.priority).or_insert(0) += 1;
+    }
+
+    Ok(Json(stats))
 }
 
 pub(super) async fn execute_on_worker(
@@ -1332,4 +1542,80 @@ pub(super) async fn execute_on_worker(
             expires_unix_ms: None,
         })),
     }
+}
+
+pub(super) async fn federation_directory(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+) -> Result<Json<super::FederationDirectoryResponse>, ResponseErr> {
+    if !auth_allows_worker_plane(&ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: token required for federation/directory".into(),
+        ));
+    }
+    
+    let entries = {
+        let g = st.federated_meshes.read().await;
+        g.clone()
+    };
+
+    Ok(Json(super::FederationDirectoryResponse { entries }))
+}
+
+pub(super) async fn federation_announce(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+    Json(req): Json<super::FederationAnnounceRequest>,
+) -> Result<Json<super::FederationDirectoryResponse>, ResponseErr> {
+    if !auth_allows_worker_plane(&ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: token required for federation/announce".into(),
+        ));
+    }
+
+    // Optional Security: Verify entry signature if provided
+    if let (Some(sig), Some(pk)) = (&req.entry.signature, &req.entry.public_key) {
+        let msg = req.entry.canonical_bytes();
+        let mut sig_arr = [0u8; 64];
+        if sig.len() == 64 {
+            sig_arr.copy_from_slice(sig);
+            if let Ok(vk) = vox_crypto::facades::verifying_key_from_bytes(pk) {
+                if !vox_crypto::facades::verify(&vk, &msg, &sig_arr) {
+                    return Err(ResponseErr(
+                        StatusCode::BAD_REQUEST,
+                        "populi: invalid federation announcement signature".into(),
+                    ));
+                }
+            } else {
+                return Err(ResponseErr(
+                    StatusCode::BAD_REQUEST,
+                    "populi: invalid federation public key".into(),
+                ));
+            }
+        } else {
+            return Err(ResponseErr(
+                StatusCode::BAD_REQUEST,
+                "populi: invalid signature length (expected 64 bytes)".into(),
+            ));
+        }
+    } else if req.entry.public {
+        // Policy: Public meshes MUST sign their announcements in production
+        // For now, we log a warning but allow it for backward compatibility or simple LAN use.
+        tracing::warn!(scope_id = %req.entry.scope_id, "Received unsigned public mesh announcement");
+    }
+
+    let entries = {
+        let mut g = st.federated_meshes.write().await;
+        
+        if let Some(i) = g.iter().position(|e| e.scope_id == req.entry.scope_id) {
+            g[i] = req.entry;
+        } else {
+            g.push(req.entry);
+        }
+        g.clone()
+    };
+
+    Ok(Json(super::FederationDirectoryResponse { entries }))
 }

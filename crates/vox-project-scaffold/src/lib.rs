@@ -39,10 +39,10 @@ workflow chat_pipeline(prompt: str) to Result[str]:
     let _ = log_message("conv-default", "assistant", "ok", request_id)
     ret response
 
-@component fn Chat() to Element:
-    let (messages, set_messages) = use_state([])
-    let (input, set_input) = use_state("")
-    <div class="chat-root">
+component Chat() {
+    state messages: list[str] = []
+    state input: str = ""
+    view: <div class="chat-root">
         <h1>"Chat"</h1>
         <div class="messages">
             for msg in messages:
@@ -53,54 +53,54 @@ workflow chat_pipeline(prompt: str) to Result[str]:
             let _ = chat(input, "req-1")
         }>"Send"</button>
     </div>
+}
 
-routes:
+routes {
     "/" to Chat
+}
 "#;
 
 const DASHBOARD_TEMPLATE: &str = r#"# Vox Dashboard — data table with route params
 #
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Item:
+@table type Item {
+    id: str
     name: str
     value: int
     created_at: str
+}
 
-@query fn list_items() to list[Item]:
-    ret []
+@query fn list_items() to list[Item] {
+    return []
+}
 
-@mutation fn add_item(name: str, value: int) to Result[str]:
-    ret Ok("Added: " + name)
+@mutation fn add_item(name: str, value: int) to Result[str] {
+    return Ok("Added: {name}")
+}
 
-@health fn check_db() to bool:
-    ret true
-
-@metric fn items_created(name: str) to str:
-    ret "ok"
-
-@component fn Dashboard() to Element:
-    let (items, set_items) = use_state([])
-    <div class="dashboard">
+component Dashboard() {
+    state items: list[str] = ["System active", "Data synchronized"]
+    view: <div class="dashboard">
         <h1>"Dashboard"</h1>
-        <table>
-            for item in items:
-                <tr>
-                    <td>{item.name}</td>
-                    <td>{item.value}</td>
-                </tr>
-        </table>
+        <ul>
+            for item in items {
+                <li>{item}</li>
+            }
+        </ul>
     </div>
+}
 
-@component fn ItemDetail() to Element:
-    let id = use_param("id")
-    <div>
-        <h2>"Item: " + id</h2>
+component ItemDetail(id: str) {
+    view: <div>
+        <h2>"Item: {id}"</h2>
     </div>
+}
 
-routes:
+routes {
     "/" to Dashboard
     "/items/:id" to ItemDetail
+}
 "#;
 
 const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metrics
@@ -128,33 +128,40 @@ const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metri
     ret Ok(true)
 "#;
 
-const DEFAULT_FULL_STACK: &str = "# My Vox App — a full-stack starter\n#\n# Run with: vox build src/main.vox -o dist && vox run src/main.vox\n\n@table type Note:\n    title: str\n    content: str\n    created_at: str\n\n@server fn add_note(title: str, content: str) to Result[str]:\n    ret Ok(\"Added: \" + title)\n\n@server fn list_notes() to Result[str]:\n    ret Ok(\"[]\")\n\n@component fn App() to Element:\n    let (notes, set_notes) = use_state([])\n    <div class=\"app\">\n        <h1>\"My Vox App\"</h1>\n        <p>\"Edit src/main.vox to get started\"</p>\n    </div>\n\nroutes:\n    \"/\" to App\n";
+const DEFAULT_FULL_STACK: &str = "# My Vox App — a full-stack starter\n#\n# Run with: vox build src/main.vox -o dist && vox run src/main.vox\n\n@table type Note {\n    title: str\n    content: str\n    created_at: str\n}\n\n@server fn add_note(title: str, content: str) -> Result[str] {\n    return Ok(\"Added: {title}\")\n}\n\n@server fn list_notes() -> Result[str] {\n    return Ok(\"[]\")\n}\n\ncomponent App() {\n    state notes: list[Note] = []\n    view: <div class=\"app\">\n        <h1>\"My Vox App\"</h1>\n        <p>\"Edit src/main.vox to get started\"</p>\n    </div>\n}\n\nroutes {\n    \"/\" to App\n}\n";
 
-const AGENT_KIND: &str = "# A Vox AI agent\n\n@agent_def fn MyAgent(query: str) to str:\n    \"Response to: \" + query\n";
+const AGENT_KIND: &str = "# A Vox AI agent\n\n@agent_def fn MyAgent(query: str) -> str {\n    return \"Response to: {query}\"\n}\n";
+const WORKFLOW_KIND: &str =
+    "# A Vox Workflow\n\n@workflow_def fn DataPipeline() {\n    return\n}\n";
 
-const WORKFLOW_KIND: &str = "# A Vox workflow\n\nactivity process_data(input: str) to Result[str]:\n    Ok(\"Processed: \" + input)\n\nworkflow my_workflow(input: str) to Result[str]:\n    let result = process_data(input) with { retries: 3, timeout: \"10s\" }\n    result\n";
+const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile PWA — local-first + sync
 
-const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile PWA App
-import std.mobile
+import vox.mobile
 
-@component fn App() to Element:
-    let (photo, set_photo) = use_state("")
+@table type Photo {
+    url: str
+    synced: bool
+}
+
+component App() {
+    state photo: str = ""
     let is_syncing = mobile.useWaitUntilSync()
-    <div class="app">
+    view: <div class="app">
         <h1>"Camera Test"</h1>
         if is_syncing:
             <div class="offline-badge">"Sync Pending..."</div>
-        <button on_click={fn():
-            let result = mobile.take_photo()
-            if result.is_ok():
-                set_photo(result.unwrap())
-        }>"Take Photo"</button>
-        if photo != "":
-            <img src={photo} alt="Captured" />
+        <button on_click={|_| mobile.takePhoto().then(set_photo)}>
+            "Take Photo"
+        </button>
+        if is_syncing {
+            <p>"Syncing to cloud..."</p>
+        }
     </div>
+}
 
-routes:
+routes {
     "/" to App
+}
 "#;
 
 /// Summary of files and directories created under the scaffold root.
@@ -183,11 +190,11 @@ fn main_vox_content(package_kind: &str, template: Option<&str>) -> Cow<'static, 
     if let Some(tmpl) = template {
         return match tmpl {
             "chatbot" => Cow::Borrowed(CHATBOT_TEMPLATE),
-            "dashboard" => Cow::Borrowed(DASHBOARD_TEMPLATE),
+            "web" | "dashboard" => Cow::Borrowed(DASHBOARD_TEMPLATE),
             "api" => Cow::Borrowed(API_TEMPLATE),
             "mobile-pwa" => Cow::Borrowed(MOBILE_PWA_TEMPLATE),
             other => Cow::Owned(format!(
-                "# My Vox App\n\n@component fn App() to Element:\n    <div><h1>\"My Vox App\"</h1></div>\n\nroutes:\n    \"/\" to App\n\n# Unknown template '{other}'; use chatbot, dashboard, api, or mobile-pwa.\n"
+                "# My Vox App\n\ncomponent App() {{\n    <div><h1>\"My Vox App\"</h1></div>\n}}\n\nroutes:\n    \"/\" to App\n\n# Unknown template '{other}'; use web, chatbot, dashboard, api, or mobile-pwa.\n"
             )),
         };
     }
@@ -235,9 +242,16 @@ pub fn scaffold_vox_project_at(
     }
 
     let manifest = vox_pm::VoxManifest::scaffold(project_name, package_kind);
-    let toml_content = manifest
+    let mut toml_content = manifest
         .to_toml_string()
         .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    if template == Some("web") {
+        toml_content.push_str("\n[deploy]\ntarget = \"fly\"   # \"fly\" | \"coolify\" | \"bare-metal\"\nruntime = \"auto\"\n");
+        toml_content.push_str("\n[deploy.fly]\n# app_name = \"my-app\"\n");
+        toml_content.push_str("\n# [deploy.coolify]\n# base_url = \"https://coolify.example.com\"\n# app_uuid = \"...\"\n");
+    }
+
     std::fs::write(&manifest_path, &toml_content).with_context(|| "Failed to write Vox.toml")?;
     created_relative_paths.push("Vox.toml".to_string());
 

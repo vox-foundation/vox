@@ -1,0 +1,180 @@
+// vox:caps subprocess env
+fn log(msg: str) {
+    let now = "00:00:00" // date -u +%H:%M:%S placeholder
+    print("[vox-populi][" + now + "] " + msg)
+}
+
+fn self_terminate() {
+    // Vast.ai
+    let vast_key_opt = env.get("VOX_VAST_API_KEY")
+    let container_id_opt = env.get("CONTAINER_ID")
+    
+    match (vast_key_opt, container_id_opt) {
+        (Some(vast_key), Some(container_id)) => {
+            if vast_key isnt "" and container_id isnt "" {
+                log("Self-terminating Vast.ai instance: " + container_id)
+                process.run("curl", [
+                    "-s", "-X", "DELETE",
+                    "https://cloud.vast.ai/api/v0/instances/" + container_id + "/",
+                    "-H", "Authorization: Bearer " + vast_key,
+                    "-o", "/dev/null"
+                ])
+            }
+        }
+        _ => {}
+    }
+
+    // RunPod
+    let runpod_id_opt = env.get("RUNPOD_POD_ID")
+    let runpod_term_opt = env.get("VOX_RUNPOD_SELF_TERMINATE")
+    let runpod_key_opt = env.get("RUNPOD_API_KEY")
+    
+    match (runpod_id_opt, runpod_term_opt) {
+        (Some(runpod_id), Some(runpod_term)) => {
+            let mut runpod_key = ""
+            match runpod_key_opt {
+                Some(k) => { runpod_key = k }
+                None => {}
+            }
+            
+            if runpod_term is "1" and runpod_id isnt "" {
+                log("Self-terminating RunPod pod: " + runpod_id)
+                process.run("curl", [
+                    "-s", "-X", "POST",
+                    "https://rest.runpod.io/v1/pods/" + runpod_id + "/stop",
+                    "-H", "Authorization: Bearer " + runpod_key,
+                    "-o", "/dev/null"
+                ])
+            }
+        }
+        _ => {}
+    }
+    log("Self-termination complete.")
+}
+
+fn main() {
+    let job_kind_opt = env.get("VOX_JOB_KIND")
+    let mut job_kind = "train"
+    match job_kind_opt {
+        Some(jk) => {
+            if jk isnt "" {
+                job_kind = jk
+            }
+        }
+        None => {}
+    }
+
+    let model_id_opt = env.get("VOX_MODEL_ID")
+    let mut model_id = "Qwen/Qwen3.5-4B"
+    match model_id_opt {
+        Some(mid) => {
+            if mid isnt "" {
+                model_id = mid
+            }
+        }
+        None => {}
+    }
+
+    let serve_port_opt = env.get("VOX_SERVE_PORT")
+    let mut serve_port = "8080"
+    match serve_port_opt {
+        Some(sp) => {
+            if sp isnt "" {
+                serve_port = sp
+            }
+        }
+        None => {}
+    }
+
+    log("=== Vox Mens Cloud — job_kind=" + job_kind + " model=" + model_id + " ===")
+
+    match job_kind {
+        "train" => {
+            log("Mode: TRAINING")
+            let train_data_hf_opt = env.get("VOX_TRAIN_DATA_HF")
+            match train_data_hf_opt {
+                Some(train_data_hf) => {
+                    if train_data_hf isnt "" {
+                        log("Downloading dataset: " + train_data_hf)
+                        process.run("huggingface-cli", [
+                            "download",
+                            "--repo-type", "dataset",
+                            train_data_hf,
+                            "--local-dir", "/workspace/data"
+                        ])
+                    }
+                }
+                None => {}
+            }
+            
+            log("Starting training...")
+            process.run("vox", [
+                "mens", "train",
+                "--backend", "qlora",
+                "--tokenizer", "hf",
+                "--model", model_id,
+                "--preset", "auto",
+                "--data-dir", "/workspace/data",
+                "--output-dir", "/workspace/output",
+                "--device", "cuda"
+            ])
+            log("Training complete — adapter at /workspace/output")
+            
+            let adapter_upload_hf_opt = env.get("VOX_ADAPTER_UPLOAD_HF")
+            match adapter_upload_hf_opt {
+                Some(adapter_upload_hf) => {
+                    if adapter_upload_hf isnt "" {
+                        log("Uploading adapter to: " + adapter_upload_hf)
+                        process.run("huggingface-cli", [
+                            "upload",
+                            adapter_upload_hf,
+                            "/workspace/output",
+                            "--repo-type", "model"
+                        ])
+                        log("Adapter uploaded.")
+                    }
+                }
+                None => {}
+            }
+        }
+        "serve" => {
+            log("Mode: SERVE (port=" + serve_port + ")")
+            let model_path_opt = env.get("VOX_SERVE_MODEL_PATH")
+            let mut model_path = "/workspace/output"
+            match model_path_opt {
+                Some(mp) => {
+                    if mp isnt "" {
+                        model_path = mp
+                    }
+                }
+                None => {}
+            }
+            process.run("vox", [
+                "mens", "serve",
+                "--host", "0.0.0.0",
+                "--port", serve_port,
+                "--model", model_path
+            ])
+        }
+        "agent" => {
+            log("Mode: AGENT — forwarding to vox run --mode script")
+            let agent_script_opt = env.get("VOX_AGENT_SCRIPT")
+            let mut agent_script = "/opt/vox/mesh-noop.vox"
+            match agent_script_opt {
+                Some(asc) => {
+                    if asc isnt "" {
+                        agent_script = asc
+                    }
+                }
+                None => {}
+            }
+            process.exec("vox", ["run", "--mode", "script", agent_script])
+        }
+        _ => {
+            log("ERROR: Unknown VOX_JOB_KIND='" + job_kind + "'. Expected: train, serve, agent.")
+        }
+    }
+
+    log("=== Done ===")
+    self_terminate()
+}

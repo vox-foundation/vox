@@ -1,0 +1,15 @@
+fn main() {
+    let args = env.args()
+    print("Args:", args)
+    let script_idx = 0
+    let i = 0
+    while i < args.len() {
+        print("Checking arg", i, args[i])
+        if args[i].contains("vox-entrypoint.vox") {
+            script_idx = i
+            print("Found script at", i)
+        }
+        i = i + 1
+    }
+    print("Script index:", script_idx)
+}

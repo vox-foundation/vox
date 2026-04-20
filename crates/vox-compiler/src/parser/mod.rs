@@ -45,6 +45,7 @@ pub mod descent;
 pub mod error;
 
 pub use descent::parse;
+pub use descent::parse_script;
 pub use error::{ParseError, ParseErrorClass};
 
 /// Brace-first web declaration forms the descent parser accepts (doc extraction / inventory; OP-0015).

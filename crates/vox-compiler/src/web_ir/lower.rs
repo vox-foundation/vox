@@ -390,12 +390,10 @@ fn compute_specificity(sel: &StyleSelector) -> (u8, u8, u8) {
                 (a, b + 1, c)
             }
         }
-        StyleSelector::Compound(parts) => {
-            parts.iter().fold((0, 0, 0), |(a1, b1, c1), p| {
-                let (a2, b2, c2) = compute_specificity(p);
-                (a1 + a2, b1 + b2, c1 + c2)
-            })
-        }
+        StyleSelector::Compound(parts) => parts.iter().fold((0, 0, 0), |(a1, b1, c1), p| {
+            let (a2, b2, c2) = compute_specificity(p);
+            (a1 + a2, b1 + b2, c1 + c2)
+        }),
         StyleSelector::Unparsed(_) => (0, 0, 0),
     }
 }
@@ -403,27 +401,33 @@ fn compute_specificity(sel: &StyleSelector) -> (u8, u8, u8) {
 fn parse_css_value(prop: &str, val: &str) -> StyleDeclarationValue {
     use crate::web_ir::{CssColor, LengthUnit};
     let val = val.trim();
-    
+
     if val.starts_with("tokens.") {
         let token_name = val.strip_prefix("tokens.").unwrap().replace('.', "-");
         return StyleDeclarationValue::TokenRef(format!("vox-{}", token_name));
     }
-    
+
     if prop.ends_with("color") || prop == "background" || prop == "fill" || prop == "stroke" {
         if val.starts_with('#') {
             return StyleDeclarationValue::Color(CssColor::Hex(val.to_string()));
         } else if val.starts_with("rgb(") || val.starts_with("rgba(") {
-            return StyleDeclarationValue::Color(CssColor::Rgba(0, 0, 0, 1.0)); 
+            return StyleDeclarationValue::Color(CssColor::Rgba(0, 0, 0, 1.0));
         } else if val.starts_with("hsl(") || val.starts_with("hsla(") {
-            return StyleDeclarationValue::Color(CssColor::Hsl(0.0, 0.0, 0.0)); 
+            return StyleDeclarationValue::Color(CssColor::Hsl(0.0, 0.0, 0.0));
         } else if val.starts_with("var(") {
             return StyleDeclarationValue::Color(CssColor::Var(val.to_string()));
         } else if val.chars().all(|c| c.is_ascii_alphabetic()) {
             return StyleDeclarationValue::Color(CssColor::Named(val.to_string()));
         }
     }
-    
-    if val.ends_with("px") || val.ends_with("rem") || val.ends_with("em") || val.ends_with("%") || val.ends_with("vw") || val.ends_with("vh") {
+
+    if val.ends_with("px")
+        || val.ends_with("rem")
+        || val.ends_with("em")
+        || val.ends_with("%")
+        || val.ends_with("vw")
+        || val.ends_with("vh")
+    {
         let (num_str, unit) = if let Some(stripped) = val.strip_suffix("px") {
             (stripped, LengthUnit::Px)
         } else if let Some(stripped) = val.strip_suffix("rem") {
@@ -437,18 +441,18 @@ fn parse_css_value(prop: &str, val: &str) -> StyleDeclarationValue {
         } else if let Some(stripped) = val.strip_suffix("vh") {
             (stripped, LengthUnit::Vh)
         } else {
-            (val, LengthUnit::Px) 
+            (val, LengthUnit::Px)
         };
-        
+
         if let Ok(num) = num_str.parse::<f64>() {
             return StyleDeclarationValue::Length(num, unit);
         }
     }
-    
+
     if let Ok(num) = val.parse::<f64>() {
         return StyleDeclarationValue::Number(num);
     }
-    
+
     StyleDeclarationValue::Raw(val.to_string())
 }
 

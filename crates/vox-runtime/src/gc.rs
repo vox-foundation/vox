@@ -47,13 +47,13 @@ impl Default for ActorHeap {
 }
 
 /// A garbage-collected pointer locked to a specific actor's local heap.
-/// 
+///
 /// The `!Send` and `!Sync` constraints guarantee that an LLM-generated actor
-/// cannot accidentally or maliciously leak this pointer through a mailbox, 
+/// cannot accidentally or maliciously leak this pointer through a mailbox,
 /// upholding the shared-nothing capability isolation.
 pub struct Gc<T> {
     // using a raw pointer makes the struct !Send and !Sync natively.
-    _marker: PhantomData<*mut T>, 
+    _marker: PhantomData<*mut T>,
 }
 
 /// Trait used to bound cross-actor message sends.
@@ -61,7 +61,7 @@ pub struct Gc<T> {
 /// to safely copy data into an un-owned buffer before entering the mailbox.
 pub trait DeepCloneToOwned {
     type Owned;
-    /// Creates a deep, fully owned copy of the underlying data, 
+    /// Creates a deep, fully owned copy of the underlying data,
     /// completely severing ties to the originating `ActorHeap`.
     fn deep_clone_to_owned(&self) -> Self::Owned;
 }

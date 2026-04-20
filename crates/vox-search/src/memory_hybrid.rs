@@ -54,6 +54,53 @@ struct IndexedDocument {
     content: String,
     term_freq: HashMap<String, usize>,
     length: usize,
+    status: String,
+    last_updated_unix: u64,
+}
+
+fn parse_frontmatter_meta(content: &str) -> (String, Option<String>) {
+    let mut status = "current".to_string();
+    let mut last_updated = None;
+    if let Some(after) = content.strip_prefix("---\n") {
+        if let Some(end) = after.find("\n---") {
+            let yaml = &after[..end];
+            for line in yaml.lines() {
+                let line = line.trim();
+                if let Some(st) = line.strip_prefix("status:") {
+                    status = st
+                        .trim()
+                        .trim_matches(|c| c == '"' || c == '\'')
+                        .to_string();
+                } else if let Some(lu) = line.strip_prefix("last_updated:") {
+                    let raw = lu
+                        .trim()
+                        .trim_matches(|c| c == '"' || c == '\'')
+                        .to_string();
+                    if !raw.is_empty() {
+                        last_updated = Some(raw);
+                    }
+                }
+            }
+        }
+    }
+    (status, last_updated)
+}
+
+fn get_git_last_updated_unix(path: &Path) -> u64 {
+    let output = std::process::Command::new("git")
+        .args(["log", "-1", "--format=%ct", "--"])
+        .arg(path)
+        .output();
+
+    if let Ok(out) = output {
+        if out.status.success() {
+            let date_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(unix) = date_str.parse::<u64>() {
+                return unix;
+            }
+        }
+    }
+    0
 }
 
 /// Search engine combining local file BM25 and DB vector search.
@@ -139,12 +186,17 @@ impl MemorySearchEngine {
             *self.df.entry(t).or_insert(0) += 1;
         }
 
+        let (status, _) = parse_frontmatter_meta(&content);
+        let last_updated_unix = get_git_last_updated_unix(path);
+
         self.docs.push(IndexedDocument {
             path: path.to_string_lossy().to_string(),
             title: file_name,
             content,
             term_freq,
             length,
+            status,
+            last_updated_unix,
         });
 
         self.total_docs += 1;
@@ -193,6 +245,25 @@ impl MemorySearchEngine {
                 }
             }
             if score > 0.0 {
+                // Apply status boost
+                let status_multiplier = match doc.status.as_str() {
+                    "current" => 1.2,
+                    "experimental" => 0.8,
+                    "research" | "roadmap" => 0.6,
+                    "legacy" | "deprecated" => 0.2,
+                    _ => 1.0,
+                };
+
+                // Apply temporal decay (half-life of ~180 days)
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let age_seconds = now.saturating_sub(doc.last_updated_unix);
+                let age_days = (age_seconds as f64) / 86400.0;
+                let decay = f64::exp(-age_days * std::f64::consts::LN_2 / 180.0).clamp(0.1, 1.0);
+
+                score = score * status_multiplier * decay;
                 scores.push((i, score));
             }
         }

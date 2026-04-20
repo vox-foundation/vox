@@ -1,4 +1,7 @@
-//! Candle Qwen2 transformer block implementation (training + inference).
+//! Candle Qwen3.5 transformer block implementation (production default).
+//!
+//! Unified stack supporting both full-attention and hybrid linear-attention blocks.
+//! Qwen2 and Qwen2.5 weights are supported via architectural compatibility but are DEPRECATED.
 //!
 //! Pairs with `qlora-rs` for LoRA-trainable NF4 projections.
 //!
@@ -254,115 +257,6 @@ impl Qwen2MLP {
 }
 
 // ── Transformer layer ─────────────────────────────────────────────────────────
-
-/// A single Qwen2 decoder layer: `x + attn(rms1(x)) + mlp(rms2(x + attn(rms1(x))))`.
-pub struct Qwen2Layer {
-    /// Pre-attention RMSNorm.
-    pub input_layernorm: RmsNorm,
-    /// Multi-head / grouped-query self-attention.
-    pub self_attn: Qwen2Attention,
-    /// Pre-MLP RMSNorm.
-    pub post_attention_layernorm: RmsNorm,
-    /// SwiGLU MLP.
-    pub mlp: Qwen2MLP,
-    /// Rotary frequency table loaded from the model shard (optional for models without it).
-    pub inv_freq: Option<Tensor>,
-}
-
-impl Qwen2Layer {
-    /// Full pre-norm decoder block forward with optional KV cache.
-    pub fn forward(
-        &self,
-        x: &Tensor,
-        pos: usize,
-        kv_cache: Option<&mut (Tensor, Tensor)>,
-    ) -> Result<Tensor> {
-        // Attention sub-layer with residual
-        let residual = x;
-        let h = self.input_layernorm.forward(x)?;
-        let h = self
-            .self_attn
-            .forward(&h, pos, self.inv_freq.as_ref(), kv_cache)?;
-        let x = (residual + h)?;
-
-        // MLP sub-layer with residual
-        let residual = &x;
-        let h = self.post_attention_layernorm.forward(&x)?;
-        let h = self.mlp.forward(&h)?;
-        residual + h
-    }
-}
-
-// ── Full Model ────────────────────────────────────────────────────────────────
-
-/// Full Qwen2 decoder model: embeddings → N layers → final norm → LM head.
-pub struct Qwen2Model {
-    /// Frozen mmap'd word embeddings (`model.embed_tokens.weight`).
-    pub embed_tokens: Tensor,
-    /// Decoder layers.
-    pub layers: Vec<Qwen2Layer>,
-    /// Final RMSNorm before LM head.
-    pub norm: RmsNorm,
-    /// Language model head — NF4 quantized + trainable LoRA.
-    pub lm_head: QuantizedLinear,
-}
-
-impl Qwen2Model {
-    /// Full causal language model forward (training).
-    ///
-    /// Returns logits of shape `[batch, seq_len, vocab_size]`.
-    pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
-        let (b, seq_len) = input_ids.dims2()?;
-        let d_model = self.embed_tokens.dim(1)?;
-
-        // Token embeddings
-        let ids = input_ids.flatten_all()?;
-        let mut x = self
-            .embed_tokens
-            .index_select(&ids, 0)?
-            .reshape((b, seq_len, d_model))?;
-
-        // Decoder layers (full-sequence training: pos=0)
-        for layer in &self.layers {
-            x = layer.forward(&x, 0, None)?;
-        }
-
-        // Final norm → LM head
-        let x = self.norm.forward(&x)?;
-        self.lm_head
-            .forward(&x)
-            .map_err(|e| candle_core::Error::Msg(e.to_string()))
-    }
-
-    /// Full causal language model forward with KV cache (inference).
-    pub fn forward_with_cache(
-        &self,
-        input_ids: &Tensor,
-        pos: usize,
-        cache: &mut ForwardCache,
-    ) -> Result<Tensor> {
-        let (b, seq_len) = input_ids.dims2()?;
-        let d_model = self.embed_tokens.dim(1)?;
-
-        // Token embeddings
-        let ids = input_ids.flatten_all()?;
-        let mut x = self
-            .embed_tokens
-            .index_select(&ids, 0)?
-            .reshape((b, seq_len, d_model))?;
-
-        // Decoder layers
-        for (i, layer) in self.layers.iter().enumerate() {
-            x = layer.forward(&x, pos, Some(&mut cache.kv[i]))?;
-        }
-
-        // Final norm → LM head
-        let x = self.norm.forward(&x)?;
-        self.lm_head
-            .forward(&x)
-            .map_err(|e| candle_core::Error::Msg(e.to_string()))
-    }
-}
 
 // ── Qwen3.5 Hybrid attention/model ───────────────────────────────────────────
 

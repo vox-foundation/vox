@@ -5,9 +5,9 @@ mod sync_poison;
 
 // Re-export from vox-orchestrator native MCP tools
 pub use vox_orchestrator::mcp_tools::{
-    client, context, dei_ipc, http_gateway, journey_envelope, llm_bridge, populi_startup,
-    speech_constraints, ServerState, ToolResult, VoxMcpServer, lifecycle,
-    run_stdio_server_blocking, load_config, mcp_agent_fleet_env_enabled,
+    ServerState, ToolResult, VoxMcpServer, client, context, dei_ipc, http_gateway,
+    journey_envelope, lifecycle, llm_bridge, load_config, mcp_agent_fleet_env_enabled,
+    populi_startup, run_stdio_server_blocking, speech_constraints,
 };
 
 pub mod sync_lock;

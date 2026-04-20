@@ -1,5 +1,62 @@
 use super::value::VoxValue;
 use secrecy::ExposeSecret;
+use std::sync::OnceLock;
+use std::sync::Mutex;
+
+
+
+static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+fn exit_commands() -> &'static Mutex<Vec<(String, Vec<String>)>> {
+    static CMDS: OnceLock<Mutex<Vec<(String, Vec<String>)>>> = OnceLock::new();
+    CMDS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn ensure_signal_handler() {
+    static HANDLER_INIT: OnceLock<()> = OnceLock::new();
+    HANDLER_INIT.get_or_init(|| {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                #[cfg(unix)]
+                {
+                    use tokio::signal::unix::{signal, SignalKind};
+                    if let (Ok(mut sigint), Ok(mut sigterm)) = (signal(SignalKind::interrupt()), signal(SignalKind::terminate())) {
+                        tokio::select! {
+                            _ = sigint.recv() => {}
+                            _ = sigterm.recv() => {}
+                        }
+                    } else {
+                        let _ = tokio::signal::ctrl_c().await;
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = tokio::signal::ctrl_c().await;
+                }
+                
+                let _ = tokio::task::spawn_blocking(|| {
+                    execute_exit_commands();
+                }).await;
+
+                std::process::exit(1);
+            });
+        }
+    });
+}
+
+fn execute_exit_commands() {
+    if let Ok(mut cmds) = exit_commands().lock() {
+        for (cmd, args) in cmds.drain(..) {
+            let mut c = std::process::Command::new(&cmd);
+            c.args(args);
+            let _ = c.status();
+        }
+    }
+}
+
+pub fn vox_flush_exit_commands() {
+    execute_exit_commands();
+}
 
 /// Dispatch a method call on a runtime value. Returns `None` if the method is
 /// not known — callers should surface a user-visible `MethodNotFound` error.
@@ -29,9 +86,10 @@ pub fn call_builtin_method(
             "get" => {
                 let idx = args.into_iter().next()?;
                 if let VoxValue::Int(i) = idx {
-                    v.get(i as usize).cloned().or(Some(VoxValue::Null))
+                    let val = v.get(i as usize).cloned().map(|v| Box::new(v));
+                    Some(VoxValue::Option(val))
                 } else {
-                    Some(VoxValue::Null)
+                    Some(VoxValue::Option(None))
                 }
             }
             "first" => Some(v.first().cloned().unwrap_or(VoxValue::Null)),
@@ -162,34 +220,52 @@ pub fn call_builtin_method(
         VoxValue::Option(opt) => match method {
             "is_some" => Some(VoxValue::Bool(opt.is_some())),
             "is_none" => Some(VoxValue::Bool(opt.is_none())),
-            "unwrap" => opt.as_ref().map(|v| *v.clone()),
+            "unwrap" => Some(opt.as_ref().map(|v| (**v).clone()).unwrap_or(VoxValue::Null)),
             _ => None,
         },
         // ── Result ───────────────────────────────────────────────────
         VoxValue::Result(res) => match method {
             "is_ok" => Some(VoxValue::Bool(res.is_ok())),
             "is_err" => Some(VoxValue::Bool(res.is_err())),
-            "unwrap" => res.as_ref().ok().map(|v| *v.clone()),
+            "unwrap" => Some(res.as_ref().ok().map(|v| (**v).clone()).unwrap_or(VoxValue::Null)),
             _ => None,
         },
 
         // ── Object (including Namespaces) ───────────────────────────
         VoxValue::Object(fields) => {
-            let ns = fields.iter().find(|(k, _)| k == "__namespace__").and_then(|(_, v)| {
-                if let VoxValue::Str(s) = v { Some(s.as_str()) } else { None }
-            });
+            let ns = fields
+                .iter()
+                .find(|(k, _)| k == "__namespace__")
+                .and_then(|(_, v)| {
+                    if let VoxValue::Str(s) = v {
+                        Some(s.as_str())
+                    } else {
+                        None
+                    }
+                });
 
             if ns.is_none() && method == "get" {
                 let key = match args.into_iter().next() {
                     Some(VoxValue::Str(s)) => s,
                     _ => return Some(VoxValue::Null),
                 };
-                return Some(fields.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone()).unwrap_or(VoxValue::Null));
+                return Some(
+                    fields
+                        .iter()
+                        .find(|(k, _)| k == &key)
+                        .map(|(_, v)| v.clone())
+                        .unwrap_or(VoxValue::Null),
+                );
             }
 
             if let Some(ns_str) = ns {
                 if let Some(c) = caps {
-                    if (ns_str == "fs" || ns_str == "process" || ns_str == "env" || ns_str == "clavis") && !c.contains(ns_str) {
+                    if (ns_str == "fs"
+                        || ns_str == "process"
+                        || ns_str == "env"
+                        || ns_str == "clavis")
+                        && !(c.contains(ns_str) || (ns_str == "process" && c.contains("subprocess")))
+                    {
                         println!("Capability denied: script missing capability '{}'", ns_str);
                         return Some(VoxValue::Null);
                     }
@@ -198,17 +274,18 @@ pub fn call_builtin_method(
 
             match ns {
                 Some("fs") => match method {
-                    "read_file" => {
+                    "read" | "read_file" => {
                         let path = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        match std::fs::read_to_string(path) {
-                            Ok(s) => Some(VoxValue::Str(s)),
-                            Err(_) => Some(VoxValue::Null),
-                        }
+                        let res = match std::fs::read_to_string(path) {
+                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
                     }
-                    "write_file" => {
+                    "write" | "write_file" => {
                         let mut it = args.into_iter();
                         let path = match it.next() {
                             Some(VoxValue::Str(s)) => s,
@@ -218,10 +295,18 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        match std::fs::write(path, content) {
-                            Ok(_) => Some(VoxValue::Bool(true)),
-                            Err(_) => Some(VoxValue::Bool(false)),
-                        }
+                        let res = match std::fs::write(path, content) {
+                            Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    "exists" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Bool(false)),
+                        };
+                        Some(VoxValue::Bool(std::path::Path::new(&path).exists()))
                     }
                     "list_dir" => {
                         let path = match args.into_iter().next() {
@@ -247,8 +332,15 @@ pub fn call_builtin_method(
                         let res = match glob::glob(&pattern) {
                             Ok(paths) => {
                                 let list: Vec<VoxValue> = paths
-                                    .filter_map(|p: std::result::Result<std::path::PathBuf, glob::GlobError>| p.ok())
-                                    .map(|p: std::path::PathBuf| VoxValue::Str(p.to_string_lossy().to_string()))
+                                    .filter_map(
+                                        |p: std::result::Result<
+                                            std::path::PathBuf,
+                                            glob::GlobError,
+                                        >| p.ok(),
+                                    )
+                                    .map(|p: std::path::PathBuf| {
+                                        VoxValue::Str(p.to_string_lossy().to_string())
+                                    })
                                     .collect();
                                 Ok(Box::new(VoxValue::List(list)))
                             }
@@ -266,6 +358,29 @@ pub fn call_builtin_method(
                         };
                         let val = std::env::var(name).ok().map(|s| Box::new(VoxValue::Str(s)));
                         Some(VoxValue::Option(val))
+                    }
+                    "args" => {
+                        let args: Vec<VoxValue> = std::env::args().map(VoxValue::Str).collect();
+                        Some(VoxValue::List(args))
+                    }
+                    "set" => {
+                        let mut it = args.into_iter();
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let val = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let _guard = ENV_MUTEX.lock().unwrap();
+                        #[allow(unsafe_code)]
+                        // SAFETY: Access to environment variables is synchronized via ENV_MUTEX
+                        // to avoid data races in multi-threaded contexts as required by Rust 1.81+.
+                        unsafe {
+                            std::env::set_var(key, val);
+                        }
+                        Some(VoxValue::Null)
                     }
                     _ => None,
                 },
@@ -291,12 +406,12 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        
+
                         let id = match std::str::FromStr::from_str(&name) {
                             Ok(id) => id,
                             Err(_) => return Some(VoxValue::Null),
                         };
-                        
+
                         let resolved = vox_clavis::resolve_secret_with_context(id, "script");
                         if let Some(val) = resolved.value {
                             Some(VoxValue::Str(val.expose_secret().to_string()))
@@ -314,32 +429,146 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Null),
                         };
                         let cmd_args = match it.next() {
-                            Some(VoxValue::List(ls)) => ls.into_iter().filter_map(|v| {
-                                if let VoxValue::Str(s) = v { Some(s) } else { None }
-                            }).collect::<Vec<_>>(),
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
                             _ => vec![],
                         };
-                        
-                        let output = std::process::Command::new(cmd_name)
-                            .args(cmd_args)
-                            .output();
-                            
+
+                        let output = std::process::Command::new(cmd_name).args(cmd_args).output();
+
                         match output {
                             Ok(out) => {
                                 let mut res = Vec::new();
-                                res.push(("stdout".to_string(), VoxValue::Str(String::from_utf8_lossy(&out.stdout).to_string())));
-                                res.push(("stderr".to_string(), VoxValue::Str(String::from_utf8_lossy(&out.stderr).to_string())));
-                                res.push(("code".to_string(), VoxValue::Int(out.status.code().unwrap_or(0) as i64)));
+                                res.push((
+                                    "stdout".to_string(),
+                                    VoxValue::Str(String::from_utf8_lossy(&out.stdout).to_string()),
+                                ));
+                                res.push((
+                                    "stderr".to_string(),
+                                    VoxValue::Str(String::from_utf8_lossy(&out.stderr).to_string()),
+                                ));
+                                res.push((
+                                    "code".to_string(),
+                                    VoxValue::Int(out.status.code().unwrap_or(0) as i64),
+                                ));
                                 Some(VoxValue::Object(res))
                             }
                             Err(_) => Some(VoxValue::Null),
                         }
+                    }
+                    "spawn_background" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+
+                        let handle = match tokio::runtime::Handle::try_current() {
+                            Ok(h) => h,
+                            Err(_) => return Some(VoxValue::Result(Err("spawn_background must be run within a Tokio runtime".to_string()))),
+                        };
+
+                        match tokio::process::Command::new(cmd_name).args(cmd_args).spawn() {
+                            Ok(mut child) => {
+                                let id = child.id().unwrap_or(0);
+                                handle.spawn(async move {
+                                    let _ = child.wait().await;
+                                });
+                                Some(VoxValue::Result(Ok(Box::new(VoxValue::Int(id as i64)))))
+                            }
+                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                        }
+                    }
+                    "exec" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::process::CommandExt;
+                            let err = std::process::Command::new(cmd_name).args(cmd_args).exec();
+                            Some(VoxValue::Result(Err(err.to_string())))
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            match std::process::Command::new(cmd_name).args(cmd_args).status() {
+                                Ok(st) => {
+                                    vox_flush_exit_commands();
+                                    std::process::exit(st.code().unwrap_or(1))
+                                }
+                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                            }
+                        }
+                    }
+                    "register_exit_command" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+
+                        ensure_signal_handler();
+                        if let Ok(mut cmds) = exit_commands().lock() {
+                            cmds.push((cmd_name, cmd_args));
+                        }
+                        Some(VoxValue::Result(Ok(Box::new(VoxValue::Null))))
                     }
                     "exit" => {
                         let code = match args.into_iter().next() {
                             Some(VoxValue::Int(c)) => c as i32,
                             _ => 0,
                         };
+                        vox_flush_exit_commands();
                         std::process::exit(code);
                     }
                     _ => None,
@@ -380,20 +609,18 @@ fn vox_to_json(v: VoxValue) -> serde_json::Value {
         VoxValue::Str(s) => serde_json::Value::String(s),
         VoxValue::Bool(b) => serde_json::Value::Bool(b),
         VoxValue::Null => serde_json::Value::Null,
-        VoxValue::List(ls) => {
-            serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect())
-        }
+        VoxValue::List(ls) => serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect()),
         VoxValue::Object(fields) => {
             let mut map = serde_json::Map::new();
             for (k, v) in fields {
-                if k == "__namespace__" { continue; }
+                if k == "__namespace__" {
+                    continue;
+                }
                 map.insert(k, vox_to_json(v));
             }
             serde_json::Value::Object(map)
         }
-        VoxValue::Tuple(ls) => {
-            serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect())
-        }
+        VoxValue::Tuple(ls) => serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect()),
         _ => serde_json::Value::Null,
     }
 }
@@ -410,9 +637,7 @@ fn json_to_vox(v: serde_json::Value) -> VoxValue {
             }
         }
         serde_json::Value::String(s) => VoxValue::Str(s),
-        serde_json::Value::Array(arr) => {
-            VoxValue::List(arr.into_iter().map(json_to_vox).collect())
-        }
+        serde_json::Value::Array(arr) => VoxValue::List(arr.into_iter().map(json_to_vox).collect()),
         serde_json::Value::Object(obj) => {
             let mut fields = Vec::new();
             for (k, v) in obj {
@@ -517,6 +742,8 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 VoxValue::Tuple(_) => "Tuple",
                 VoxValue::Null => "null",
                 VoxValue::Fn { .. } => "fn",
+                VoxValue::Option(_) => "Option",
+                VoxValue::Result(_) => "Result",
                 _ => "unknown",
             };
             Some(VoxValue::Str(t.to_string()))
@@ -525,7 +752,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
     }
 }
 
-fn vox_value_display(v: &VoxValue) -> String {
+pub fn vox_value_display(v: &VoxValue) -> String {
     match v {
         VoxValue::Int(n) => n.to_string(),
         VoxValue::Float(f) => f.to_string(),

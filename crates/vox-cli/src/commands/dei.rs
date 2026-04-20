@@ -638,8 +638,7 @@ pub async fn run(cli: DeiCli) -> Result<()> {
         DeiCli::Oplog { cmd } => run_dei_oplog(cmd).await,
         DeiCli::TakeoverStatus { agent_id, human } => {
             run_dei_takeover_status(agent_id, human).await
-        }
-        // DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
+        } // DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
     }
 }
 
@@ -834,7 +833,7 @@ async fn run_dei_analyze(path: &str, apply: bool) -> Result<()> {
         if let Some(hint) = &diag.correction_hint {
             println!("    {} {}", "Hint:".cyan().bold(), hint);
             fixable_count += 1;
-            
+
             if apply && fixable_count == 1 {
                 println!(
                     "    {} Automatically applying fix (dummy placeholder)...",

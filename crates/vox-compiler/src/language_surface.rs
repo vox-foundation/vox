@@ -209,7 +209,14 @@ pub const LEXER_DEPRECATED_KEYWORDS: &[&str] = &["ret", "isnt", "environment"];
 
 /// Decorators that are retired and produce hard compiler errors.
 /// LSP and introspection tools should avoid suggesting these.
-pub const LEXER_DEPRECATED_DECORATORS: &[&str] = &["@component", "@mcp.tool", "@mcp.resource", "@mobile.native", "@v0", "@llm"];
+pub const LEXER_DEPRECATED_DECORATORS: &[&str] = &[
+    "@component",
+    "@mcp.tool",
+    "@mcp.resource",
+    "@mobile.native",
+    "@v0",
+    "@llm",
+];
 
 /// Builtin names for LSP / MCP “surface” introspection (aligned with common runtime helpers).
 pub const SURFACE_BUILTIN_NAMES: &[&str] = &[

@@ -243,7 +243,7 @@ async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched
         if auto_open {
             let url = &line[pos + 22..];
             if let Some(end) = url.find(']') {
-                vox_cli::fs_utils::open_browser(url[..end].trim()).await;
+                vox_cli_core::fs_utils::open_browser(url[..end].trim()).await;
             }
         }
         println!("\n  ↳  Dashboard ready: {}", line.trim());
@@ -252,7 +252,7 @@ async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched
             if let Some(pos) = line.find("http://") {
                 let rest = &line[pos..];
                 let extracted_url = rest.split_whitespace().next().unwrap_or(rest);
-                vox_cli::fs_utils::open_browser(extracted_url.trim_end_matches(']')).await;
+                vox_cli_core::fs_utils::open_browser(extracted_url.trim_end_matches(']')).await;
             }
         }
         if app_launched_banner {

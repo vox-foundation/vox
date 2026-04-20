@@ -150,7 +150,12 @@ impl<B: SecretBackend> SecretResolver<B> {
             }
         }
 
-        match self.backend.resolve(spec.id, spec, Some(opts.profile.as_str()), &opts.caller_context) {
+        match self.backend.resolve(
+            spec.id,
+            spec,
+            Some(opts.profile.as_str()),
+            &opts.caller_context,
+        ) {
             Ok(Some(v)) => {
                 if !metadata.allows_source(SecretSource::ExternalBackend, strict_profile) {
                     return ResolvedSecret {

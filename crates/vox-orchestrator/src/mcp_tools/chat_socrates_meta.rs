@@ -1,4 +1,4 @@
-﻿//! Socrates grounding snippets and telemetry for chat / inline / ghost tools.
+//! Socrates grounding snippets and telemetry for chat / inline / ghost tools.
 //!
 //! Rows written via [`spawn_socrates_telemetry_with_meta`] → [`vox_db::VoxDb::record_socrates_surface_event`] are **operator /
 //! research diagnostics** (aggregated risk/confidence/contradiction — see `vox_db::socrates_telemetry` rustdoc), not end-user
@@ -11,8 +11,8 @@ use vox_socrates_policy::{
     RiskDecision,
 };
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::attention_policy::{channel_label, decision_label, evaluate_with_state};
+use crate::mcp_tools::server_state::ServerState;
 
 /// JSON shape of the `socrates` field returned to MCP clients (must match [`socrates_tool_meta`]).
 #[derive(Debug, Deserialize)]
@@ -578,9 +578,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
 #[must_use]
 fn interruption_channel_for_surface(surface: &str) -> crate::InterruptionChannel {
     match surface {
-        "vox_plan" | "vox_replan" | "vox_plan_status" => {
-            crate::InterruptionChannel::PlanReview
-        }
+        "vox_plan" | "vox_replan" | "vox_plan_status" => crate::InterruptionChannel::PlanReview,
         "vox_inline_edit" | "vox_ghost_text" => crate::InterruptionChannel::InlineAssist,
         _ => crate::InterruptionChannel::ChatClarification,
     }

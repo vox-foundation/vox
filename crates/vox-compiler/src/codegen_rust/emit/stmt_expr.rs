@@ -88,9 +88,13 @@ pub(super) fn emit_stmt(
             );
             if is_actor {
                 s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
-                s.push_str(&format!("{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"));
+                s.push_str(&format!(
+                    "{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"
+                ));
                 s.push_str(&format!("{pad}        ctx.reduction_count = 0;\n"));
-                s.push_str(&format!("{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"));
+                s.push_str(&format!(
+                    "{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"
+                ));
                 s.push_str(&format!("{pad}        tokio::task::yield_now().await;\n"));
                 s.push_str(&format!("{pad}    }}\n"));
             }
@@ -110,9 +114,13 @@ pub(super) fn emit_stmt(
             let mut s = format!("{pad}loop {{\n");
             if is_actor {
                 s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
-                s.push_str(&format!("{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"));
+                s.push_str(&format!(
+                    "{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"
+                ));
                 s.push_str(&format!("{pad}        ctx.reduction_count = 0;\n"));
-                s.push_str(&format!("{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"));
+                s.push_str(&format!(
+                    "{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"
+                ));
                 s.push_str(&format!("{pad}        tokio::task::yield_now().await;\n"));
                 s.push_str(&format!("{pad}    }}\n"));
             }

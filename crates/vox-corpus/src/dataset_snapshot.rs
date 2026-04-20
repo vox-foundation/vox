@@ -74,12 +74,15 @@ impl DatasetSnapshotManifest {
     }
 }
 
-pub fn create_snapshot(src_dir: &std::path::Path, dest_base: &std::path::Path) -> anyhow::Result<String> {
+pub fn create_snapshot(
+    src_dir: &std::path::Path,
+    dest_base: &std::path::Path,
+) -> anyhow::Result<String> {
     use std::fs;
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
     let version = format!("v_{}", timestamp);
     let dest_dir = dest_base.join(&version);
-    
+
     fs::create_dir_all(&dest_dir)?;
 
     let mut total_rows = 0;
@@ -90,11 +93,11 @@ pub fn create_snapshot(src_dir: &std::path::Path, dest_base: &std::path::Path) -
         if path.is_file() && path.extension().map_or(false, |ext| ext == "jsonl") {
             let file_name = path.file_name().unwrap();
             let dest_path = dest_dir.join(file_name);
-            
+
             // Count rows
             let content = fs::read_to_string(&path)?;
             total_rows += content.lines().filter(|l| !l.trim().is_empty()).count();
-            
+
             fs::copy(&path, &dest_path)?;
         }
     }

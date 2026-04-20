@@ -5,13 +5,15 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
+use vox_corpus::external_review_replay::{
+    extract_external_review_rows, validate_external_review_rows,
+};
 use vox_db::VoxDb;
 use vox_db::store::types::{
     ExternalReviewFindingParams, ExternalReviewFindingStateParams, ExternalReviewRunParams,
     ExternalReviewThreadParams,
 };
 use vox_git::GitBridge;
-use vox_corpus::external_review_replay::{extract_external_review_rows, validate_external_review_rows};
 
 use super::github::{forge_token, parse_github_owner_repo};
 
@@ -1010,18 +1012,20 @@ pub async fn run_learning_sync(path: &Path, repository_id: Option<&str>, limit: 
     };
     let output = std::path::PathBuf::from("mens/data/mix_sources/review_findings.jsonl");
     let db = VoxDb::connect_default().await.context("Connect to VoxDb")?;
-    let rows = extract_external_review_rows(&db, &repo_id, limit).await.context("Extract review rows")?;
-    
+    let rows = extract_external_review_rows(&db, &repo_id, limit)
+        .await
+        .context("Extract review rows")?;
+
     let parent = output.parent().unwrap_or(std::path::Path::new("."));
     std::fs::create_dir_all(parent).context("Create output directory")?;
-    
+
     let mut body = String::new();
     for row in &rows {
         body.push_str(&serde_json::to_string(row).context("Serialize row")?);
         body.push('\n');
     }
     std::fs::write(&output, body).context("Write output JSONL")?;
-    
+
     validate_external_review_rows(&rows).context("Validate extracted review rows")?;
     eprintln!(
         "learning-sync complete repository={} output={}",

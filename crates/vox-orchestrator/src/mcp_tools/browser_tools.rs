@@ -13,7 +13,8 @@ use serde::Deserialize;
 use vox_browser::global_engine;
 
 fn summary_max_chars() -> usize {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBrowserLlmContextChars).expose()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBrowserLlmContextChars)
+        .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(24_000)
 }

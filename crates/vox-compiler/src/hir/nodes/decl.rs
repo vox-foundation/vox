@@ -127,9 +127,6 @@ pub struct SemanticHirModule {
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
     pub routes: Vec<HirRoute>,
-    pub actors: Vec<HirActor>,
-    pub workflows: Vec<HirWorkflow>,
-    pub activities: Vec<HirActivity>,
     pub tests: Vec<HirFn>,
     pub server_fns: Vec<HirServerFn>,
     pub query_fns: Vec<HirServerFn>,
@@ -156,9 +153,9 @@ impl HirModule {
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
             ("routes", HirFieldOwnership::AppContract),
-            ("actors", HirFieldOwnership::SemanticCore),
-            ("workflows", HirFieldOwnership::SemanticCore),
-            ("activities", HirFieldOwnership::SemanticCore),
+            ("actors", HirFieldOwnership::MigrationOnly),
+            ("workflows", HirFieldOwnership::MigrationOnly),
+            ("activities", HirFieldOwnership::MigrationOnly),
             ("tests", HirFieldOwnership::SemanticCore),
             ("server_fns", HirFieldOwnership::AppContract),
             ("query_fns", HirFieldOwnership::AppContract),
@@ -198,9 +195,6 @@ impl HirModule {
             functions: self.functions.clone(),
             types: self.types.clone(),
             routes: self.routes.clone(),
-            actors: self.actors.clone(),
-            workflows: self.workflows.clone(),
-            activities: self.activities.clone(),
             tests: self.tests.clone(),
             server_fns: self.server_fns.clone(),
             query_fns: self.query_fns.clone(),
@@ -237,11 +231,17 @@ pub struct HirIsland(pub crate::ast::decl::IslandDecl);
 
 /// Route layout component lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirLayout(pub crate::ast::decl::LayoutDecl);
+pub struct HirLayout {
+    pub func: HirFn,
+}
 
 /// Route page component lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirPage(pub crate::ast::decl::PageDecl);
+pub struct HirPage {
+    pub path: String,
+    pub func: HirFn,
+    pub span: Span,
+}
 
 /// Context component lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -331,8 +331,20 @@ pub struct HirFn {
     /// `@scheduled("…")` interval/cron string when this item was lowered from [`crate::ast::decl::Decl::Scheduled`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schedule_interval: Option<String>,
+    /// Postconditions to check at runtime (used for @ai repair/fallback).
+    #[serde(default)]
+    pub postconditions: Vec<HirPostCondition>,
     /// Span covering the declaration.
     pub span: Span,
+}
+
+/// A lowered postcondition with optional fallback.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirPostCondition {
+    /// Condition expression.
+    pub condition: HirExpr,
+    /// Optional fallback function name.
+    pub fallback: Option<String>,
 }
 
 /// ADT / type definition in HIR.

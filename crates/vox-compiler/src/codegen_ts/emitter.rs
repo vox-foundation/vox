@@ -56,9 +56,11 @@ impl CodegenOptions {
     /// route output is always [`route_manifest`] + components).
     #[must_use]
     pub fn from_env() -> Self {
-        let tanstack_start_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebTanstackStart);
+        let tanstack_start_resolved =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebTanstackStart);
         Self {
-            tanstack_start: tanstack_start_resolved.expose()
+            tanstack_start: tanstack_start_resolved
+                .expose()
                 .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true")),
             target: None,
             mode: BuildMode::App,
@@ -126,8 +128,13 @@ pub fn generate_with_options(
         // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
         // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
         for rc in &hir.reactive_components {
-            let (filename, content) =
-                generate_reactive_component(hir, rc, &island_names, web_projection_ref, &mut reactive_stats);
+            let (filename, content) = generate_reactive_component(
+                hir,
+                rc,
+                &island_names,
+                web_projection_ref,
+                &mut reactive_stats,
+            );
             files.push((filename, content));
         }
 
@@ -161,9 +168,11 @@ pub fn generate_with_options(
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
     if options.mode != BuildMode::Library {
         let routes_content = generate_routes(hir);
-        let emit_express_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEmitExpressServer);
+        let emit_express_resolved =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEmitExpressServer);
         if !routes_content.is_empty()
-            && emit_express_resolved.expose()
+            && emit_express_resolved
+                .expose()
                 .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true"))
         {
             files.push(("server.ts".to_string(), routes_content));
@@ -230,9 +239,15 @@ pub fn generate_with_options(
                         }
                         acc
                     });
-                    
+
                     let css_val = if val.trim().starts_with("tokens.") {
-                        format!("var(--vox-{})", val.trim().strip_prefix("tokens.").unwrap().replace('.', "-"))
+                        format!(
+                            "var(--vox-{})",
+                            val.trim()
+                                .strip_prefix("tokens.")
+                                .unwrap()
+                                .replace('.', "-")
+                        )
                     } else {
                         val.clone()
                     };
@@ -266,7 +281,13 @@ pub fn generate_with_options(
                 });
 
                 let css_val = if val.trim().starts_with("tokens.") {
-                    format!("var(--vox-{})", val.trim().strip_prefix("tokens.").unwrap().replace('.', "-"))
+                    format!(
+                        "var(--vox-{})",
+                        val.trim()
+                            .strip_prefix("tokens.")
+                            .unwrap()
+                            .replace('.', "-")
+                    )
                 } else {
                     val.clone()
                 };
@@ -283,11 +304,15 @@ pub fn generate_with_options(
     if let Ok(tokens_content) = std::fs::read_to_string("vox.tokens.json") {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&tokens_content) {
             let mut tokens_css = String::from(":root {\n");
-            
+
             fn flatten_tokens(val: &serde_json::Value, prefix: &str, out: &mut String) {
                 if let Some(obj) = val.as_object() {
                     for (k, v) in obj {
-                        let new_prefix = if prefix.is_empty() { k.clone() } else { format!("{}-{}", prefix, k) };
+                        let new_prefix = if prefix.is_empty() {
+                            k.clone()
+                        } else {
+                            format!("{}-{}", prefix, k)
+                        };
                         flatten_tokens(v, &new_prefix, out);
                     }
                 } else if let Some(s) = val.as_str() {
@@ -296,7 +321,7 @@ pub fn generate_with_options(
                     out.push_str(&format!("  --vox-{}: {};\n", prefix, n));
                 }
             }
-            
+
             flatten_tokens(&json, "", &mut tokens_css);
             tokens_css.push_str("}\n");
             files.push(("vox-tokens.css".to_string(), tokens_css));
@@ -308,17 +333,35 @@ pub fn generate_with_options(
     let (manifest_filename, route_manifest) = match web_projection_ref {
         Some(w) => {
             if options.mode == BuildMode::Library {
-                ("routes.manifest.json", crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(w, hir)?)
+                (
+                    "routes.manifest.json",
+                    crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
+                        w, hir,
+                    )?,
+                )
             } else {
-                ("routes.manifest.ts", crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(w, hir)?)
+                (
+                    "routes.manifest.ts",
+                    crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(w, hir)?,
+                )
             }
         }
         None if !hir.client_routes.is_empty() => {
             let w = crate::web_ir::lower::project_web_from_core(hir);
             if options.mode == BuildMode::Library {
-                ("routes.manifest.json", crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(&w, hir)?)
+                (
+                    "routes.manifest.json",
+                    crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
+                        &w, hir,
+                    )?,
+                )
             } else {
-                ("routes.manifest.ts", crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(&w, hir)?)
+                (
+                    "routes.manifest.ts",
+                    crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(
+                        &w, hir,
+                    )?,
+                )
             }
         }
         _ => ("", None),
@@ -353,7 +396,8 @@ pub fn generate_with_options(
             .filter(|f| f.is_mobile_native)
             .collect();
         if !mobile_fns.is_empty() {
-            let mut mobile_bridge = String::from("// Mobile native bridge generated by Vox compiler\n");
+            let mut mobile_bridge =
+                String::from("// Mobile native bridge generated by Vox compiler\n");
             mobile_bridge.push_str("import { Capacitor } from \"@capacitor/core\";\n\n");
             for f in mobile_fns {
                 mobile_bridge.push_str(&crate::codegen_ts::hir_emit::emit_mobile_bridge_fn(f));
@@ -425,7 +469,10 @@ pub fn generate_with_options(
         files.push(("index.ts".to_string(), index_ts));
     }
 
-    Ok(CodegenOutput { files, reactive_stats })
+    Ok(CodegenOutput {
+        files,
+        reactive_stats,
+    })
 }
 
 /// WebIR lower + validate gate (OP-0113, OP-0124). **On by default;** set `VOX_WEBIR_VALIDATE=0` / `false` /

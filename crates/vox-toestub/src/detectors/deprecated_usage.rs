@@ -1,11 +1,11 @@
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use regex::Regex;
 
-/// Detects the presence of `@deprecated` annotations in Vox files.
-///
-/// Reminds the developer to remove obsolete code.
+/// Detects the presence of `@deprecated` annotations in Vox files,
+/// and warns against raw JSX leakage (e.g., `className=`, `onClick=`) per Item 16.
 pub struct DeprecatedUsageDetector {
     deprecated_re: Regex,
+    jsx_leak_re: Regex,
 }
 
 impl Default for DeprecatedUsageDetector {
@@ -19,6 +19,7 @@ impl DeprecatedUsageDetector {
     pub fn new() -> Self {
         Self {
             deprecated_re: Regex::new(r"^\s*@deprecated").expect("valid"),
+            jsx_leak_re: Regex::new(r"(className=|onClick=|onChange=|onSubmit=)").expect("valid"),
         }
     }
 }
@@ -70,6 +71,34 @@ impl DetectionRule for DeprecatedUsageDetector {
                     evidence: None,
                 });
             }
+
+            if let Some(mat) = self.jsx_leak_re.find(line) {
+                let attr = mat.as_str().trim_end_matches('=');
+                let mut vox_attr = attr.to_lowercase();
+                if vox_attr.starts_with("on") {
+                    vox_attr = format!("on:{}", &vox_attr[2..]);
+                }
+                if vox_attr == "classname" {
+                    vox_attr = "class".to_string();
+                }
+
+                findings.push(Finding {
+                    rule_id: "raw-jsx-leakage".to_string(),
+                    rule_name: "Raw JSX Leakage Detector".to_string(),
+                    severity: Severity::Warning,
+                    file: file.path.clone(),
+                    line: i + 1,
+                    column: 0,
+                    message: format!("Raw JSX '{}' leaks into Vox source (Item 16).", attr),
+                    suggestion: Some(format!(
+                        "Use Vox-native syntax: '{}=' instead of '{}='.",
+                        vox_attr, attr
+                    )),
+                    context: file.context_around(i + 1, 1),
+                    confidence: None,
+                    evidence: None,
+                });
+            }
         }
 
         findings
@@ -92,6 +121,19 @@ mod tests {
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, "deprecated-usage");
+    }
+
+    #[test]
+    fn detects_jsx_leakage() {
+        let d = DeprecatedUsageDetector::new();
+        let f = source("<div className=\"hello\" onClick={handler}>");
+        let findings = d.detect(&f, None);
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].rule_id, "raw-jsx-leakage");
+        assert_eq!(
+            findings[0].suggestion.as_deref(),
+            Some("Use Vox-native syntax: 'class=' instead of 'className='.".into())
+        );
     }
 
     #[test]

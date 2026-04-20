@@ -48,7 +48,9 @@ async fn verify_dispatch_results_persistence_across_restart() {
         let base_url = format!("http://127.0.0.1:{}", port);
 
         let server_task = tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            axum::serve(listener, app.into_make_service())
+                .await
+                .unwrap();
         });
 
         let client = PopuliHttpClient::new_with_timeout(&base_url, Duration::from_secs(2));

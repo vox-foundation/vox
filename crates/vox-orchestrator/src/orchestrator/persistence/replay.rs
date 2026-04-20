@@ -28,7 +28,10 @@ pub(crate) fn replay_op_label(entry: &serde_json::Value) -> String {
     op.unwrap_or("unknown").to_string()
 }
 
-pub(crate) async fn replay_one_entry(db: &std::sync::Arc<vox_db::VoxDb>, entry: &serde_json::Value) -> bool {
+pub(crate) async fn replay_one_entry(
+    db: &std::sync::Arc<vox_db::VoxDb>,
+    entry: &serde_json::Value,
+) -> bool {
     let Some(obj) = entry.as_object() else {
         return false;
     };
@@ -248,7 +251,9 @@ pub(crate) async fn replay_one_entry(db: &std::sync::Arc<vox_db::VoxDb>, entry: 
             // VictoryVerdict is in crates/vox-orchestrator/src/gate/victory.rs or similar
             // But we can use serde_json::from_value if it's available.
             // Wait! VictoryVerdict is used in success handler.
-            if let Ok(verdict) = serde_json::from_value::<crate::VictoryVerdict>(verdict_val.clone()) {
+            if let Ok(verdict) =
+                serde_json::from_value::<crate::VictoryVerdict>(verdict_val.clone())
+            {
                 db.insert_victory_verdict(task_id, &verdict).await.is_ok()
             } else {
                 false
@@ -265,7 +270,9 @@ pub(crate) async fn replay_one_entry(db: &std::sync::Arc<vox_db::VoxDb>, entry: 
             let Some(report_val) = replay.get("report") else {
                 return false;
             };
-            if let Ok(report) = serde_json::from_value::<crate::ObservationReport>(report_val.clone()) {
+            if let Ok(report) =
+                serde_json::from_value::<crate::ObservationReport>(report_val.clone())
+            {
                 db.insert_observer_event(session_id, task_id, &report)
                     .await
                     .is_ok()
@@ -295,11 +302,19 @@ pub(crate) async fn replay_one_entry(db: &std::sync::Arc<vox_db::VoxDb>, entry: 
                 replay.get("tool_name").and_then(serde_json::Value::as_str),
                 replay.get("model_id").and_then(serde_json::Value::as_str),
                 replay.get("provider").and_then(serde_json::Value::as_str),
-                replay.get("duration_ms").and_then(serde_json::Value::as_i64),
-                replay.get("input_tokens").and_then(serde_json::Value::as_i64),
-                replay.get("output_tokens").and_then(serde_json::Value::as_i64),
+                replay
+                    .get("duration_ms")
+                    .and_then(serde_json::Value::as_i64),
+                replay
+                    .get("input_tokens")
+                    .and_then(serde_json::Value::as_i64),
+                replay
+                    .get("output_tokens")
+                    .and_then(serde_json::Value::as_i64),
                 replay.get("cost_usd").and_then(serde_json::Value::as_f64),
-                replay.get("payload_json").and_then(serde_json::Value::as_str),
+                replay
+                    .get("payload_json")
+                    .and_then(serde_json::Value::as_str),
             )
             .await
             .is_ok()

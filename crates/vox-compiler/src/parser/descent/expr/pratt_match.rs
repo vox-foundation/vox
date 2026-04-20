@@ -23,7 +23,7 @@ impl Parser {
                     span: start,
                 }
             }
-            Token::StringLit(s) => {
+            Token::StringLit(s) | Token::SingleStringLit(s) => {
                 self.advance();
                 Expr::StringLit {
                     value: s,
@@ -333,7 +333,7 @@ impl Parser {
             });
         }
 
-        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_)) =
+        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_) | Token::StringLit(_) | Token::SingleStringLit(_)) =
             self.tokens.get(i).map(|t| &t.token)
         {
             let mut j = i + 1;
@@ -366,7 +366,26 @@ impl Parser {
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
                 break;
             }
-            let key = self.parse_ident_name()?;
+            let key = match self.peek().clone() {
+                Token::Ident(n) | Token::TypeIdent(n) => {
+                    self.advance();
+                    n
+                }
+                Token::StringLit(s) | Token::SingleStringLit(s) => {
+                    self.advance();
+                    s
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected identifier or string as object key",
+                        vec![],
+                        None,
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+            };
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
             fields.push((key, value));

@@ -1,14 +1,11 @@
 #![cfg(feature = "scholarly-external-jobs")]
-use anyhow::{Result, anyhow};
-use serde_json::Value;
-use vox_db::{
-    ExternalSubmissionJobUpsertParams,
-    ScholarlySubmissionRow, VoxDb, StoreError,
-};
 use crate::scholarly::{self, ScholarlyError};
 use crate::scholarly_remote_status::{
     ScholarlyRemoteStatusMap, map_scholarly_remote_to_job_status,
 };
+use anyhow::{Result, anyhow};
+use serde_json::Value;
+use vox_db::{ExternalSubmissionJobUpsertParams, ScholarlySubmissionRow, StoreError, VoxDb};
 
 pub async fn sync_external_job_after_remote_status(
     db: &VoxDb,

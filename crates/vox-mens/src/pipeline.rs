@@ -25,14 +25,21 @@ fn source_line_at(source: &str, line_1based: usize) -> Option<&str> {
 pub use vox_compiler::pipeline::FrontendResult;
 
 /// Run the frontend pipeline on a source file.
-pub async fn run_frontend(file: &Path, json: bool) -> Result<vox_compiler::pipeline::FrontendResult> {
+pub async fn run_frontend(
+    file: &Path,
+    json: bool,
+) -> Result<vox_compiler::pipeline::FrontendResult> {
     let source = read_utf8_path_capped(file)
         .with_context(|| format!("Failed to read source file: {}", file.display()))?;
     run_frontend_str(&source, file, json)
 }
 
 /// Same as [`run_frontend`] but takes an already-loaded source string.
-pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<vox_compiler::pipeline::FrontendResult> {
+pub fn run_frontend_str(
+    source: &str,
+    file: &Path,
+    json: bool,
+) -> Result<vox_compiler::pipeline::FrontendResult> {
     let file_path = file.to_string_lossy();
     match vox_compiler::pipeline::run_frontend_str(source, &file_path) {
         Ok(res) => Ok(res),
@@ -57,7 +64,10 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<vox_com
 }
 
 #[must_use]
-pub fn format_diagnostics_json_pretty(result: &vox_compiler::pipeline::FrontendResult, file: &Path) -> String {
+pub fn format_diagnostics_json_pretty(
+    result: &vox_compiler::pipeline::FrontendResult,
+    file: &Path,
+) -> String {
     use vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload;
     let file_path = file.to_string_lossy();
     let output: Vec<VoxCompilerDiagnosticPayload> = result

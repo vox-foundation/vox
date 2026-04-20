@@ -1,8 +1,8 @@
 #![cfg(feature = "scholarly-external-jobs")]
+use super::sync::poll_scholarly_remote_status_persist;
 use anyhow::{Result, anyhow};
 use serde_json::Value;
-use vox_db::{VoxDb, StoreError};
-use super::sync::poll_scholarly_remote_status_persist;
+use vox_db::{StoreError, VoxDb};
 
 pub async fn poll_scholarly_remote_status_all_submissions_for_publication(
     db: &VoxDb,

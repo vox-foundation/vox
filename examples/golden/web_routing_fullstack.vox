@@ -11,7 +11,7 @@
 // ---
 // @training_prompt: Model a small app with nested routes, a @query route loader, pending UI, and not_found/error boundaries.
 
-@query fn load_section() -> int {
+@query fn load_section() to int {
     return 1
 }
 

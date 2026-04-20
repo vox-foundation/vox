@@ -237,7 +237,7 @@ pub static ALLOWED_CSS_PROPERTIES: &[&str] = &[
     "word-spacing",
     "word-wrap",
     "writing-mode",
-    "z-index"
+    "z-index",
 ];
 
 pub fn is_allowed_css_property(prop: &str) -> bool {

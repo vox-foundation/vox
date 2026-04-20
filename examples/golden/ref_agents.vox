@@ -2,7 +2,7 @@
 agent Assistant {
     version "1.0.0"
 
-    on greet(name: str) -> str {
+    on greet(name: str) to str {
         return "Hello " + name + ", how can I assist you today?"
     }
 
@@ -20,7 +20,7 @@ agent MemoryBank {
         entries = entries.append(item)
     }
 
-    on recall() -> List[str] {
+    on recall() to List[str] {
         return entries
     }
 }

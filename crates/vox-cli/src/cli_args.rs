@@ -46,7 +46,12 @@ pub struct CheckArgs {
     pub file: PathBuf,
 
     /// Set individual output format (overrides global --json)
-    #[arg(long, value_name = "FORMAT", default_value = "text")]
+    #[arg(
+        long,
+        visible_alias = "format",
+        value_name = "FORMAT",
+        default_value = "text"
+    )]
     pub output_format: String,
     /// Emit the full **VoxIrModule** JSON next to the source file as `<stem>.vox-ir.json`
     /// (HIR module fields plus `module.web_ir` when present).
@@ -158,6 +163,23 @@ pub struct FmtArgs {
     pub check: bool,
 }
 
+/// `vox play` / `vox fabrica play`
+#[derive(Args, Clone, Debug)]
+pub struct PlayArgs {
+    /// Optional file to execute or project name to scaffold.
+    pub path: Option<PathBuf>,
+    /// Start an interactive REPL session.
+    #[arg(long)]
+    pub repl: bool,
+}
+
+/// `vox repair`
+#[derive(Args, Clone, Debug)]
+pub struct RepairArgs {
+    /// File to repair.
+    pub file: PathBuf,
+}
+
 /// `vox doctor` / `vox mens doctor`
 #[derive(Args, Clone, Debug)]
 pub struct DoctorArgs {
@@ -177,20 +199,6 @@ pub struct DoctorArgs {
     /// Prepend NVIDIA CUDA toolkit bin dirs to the User PATH and set User CUDA_PATH.
     #[arg(long, default_value_t = false)]
     pub fix_cuda_path: bool,
-}
-
-/// `vox train` (legacy; canonical: `vox mens train`)
-#[cfg(all(feature = "gpu", feature = "mens-dei"))]
-#[derive(Args, Clone, Debug)]
-pub struct TrainLegacyArgs {
-    #[arg(long)]
-    pub data_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub output_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub provider: Option<String>,
-    #[arg(long, default_value = "false")]
-    pub native: bool,
 }
 
 /// `vox stub-check` / `vox mens stub-check`

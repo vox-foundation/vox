@@ -1,5 +1,5 @@
-use crate::types::{MastodonOverride, UnifiedNewsItem};
 use crate::PublisherConfig;
+use crate::types::{MastodonOverride, UnifiedNewsItem};
 use anyhow::{Result, anyhow};
 
 pub const STATUS_MAX: usize = 500;
@@ -25,7 +25,9 @@ pub async fn post(
     let mut instance = publisher_cfg.mastodon_domain.clone().unwrap_or_default();
 
     if instance.trim().is_empty() {
-        return Err(anyhow!("Mastodon domain missing; set VoxSocialMastodonDomain or instance_url_override"));
+        return Err(anyhow!(
+            "Mastodon domain missing; set VoxSocialMastodonDomain or instance_url_override"
+        ));
     }
 
     if !instance.starts_with("http") {
@@ -44,8 +46,12 @@ pub async fn post(
         ));
     }
 
-    let visibility = cfg.and_then(|c| c.visibility.clone()).unwrap_or_else(|| DEFAULT_VISIBILITY.to_string());
-    let sensitive = cfg.and_then(|c| c.spoiler_text.as_ref().map(|_| true)).unwrap_or(false);
+    let visibility = cfg
+        .and_then(|c| c.visibility.clone())
+        .unwrap_or_else(|| DEFAULT_VISIBILITY.to_string());
+    let sensitive = cfg
+        .and_then(|c| c.spoiler_text.as_ref().map(|_| true))
+        .unwrap_or(false);
     let spoiler_text = cfg.and_then(|c| c.spoiler_text.clone());
     let language = cfg.and_then(|c| c.language.clone());
 
@@ -76,7 +82,8 @@ pub async fn post(
     }
 
     let body: serde_json::Value = res.json().await?;
-    let post_url = body.get("url")
+    let post_url = body
+        .get("url")
         .and_then(|u| u.as_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| format!("mastodon-{}", item.id));

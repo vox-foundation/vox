@@ -260,7 +260,10 @@ impl HandoffPayload {
         if let Some(manifest) = &self.attachment_manifest {
             md.push_str("## Attachments\n\n");
             for a in &manifest.attachments {
-                md.push_str(&format!("- **{}** (`{}`) [sha256: {}]\n", a.label, a.mime_type, a.sha256));
+                md.push_str(&format!(
+                    "- **{}** (`{}`) [sha256: {}]\n",
+                    a.label, a.mime_type, a.sha256
+                ));
             }
             md.push('\n');
         }
@@ -451,7 +454,9 @@ pub fn execute_handoff(
         .map(|a| a.to_string())
         .unwrap_or_else(|| "any".to_string());
 
-    let from_role = payload.metadata.iter()
+    let from_role = payload
+        .metadata
+        .iter()
         .find(|(k, _)| k == "execution_role")
         .and_then(|(_, v)| match v.to_lowercase().as_str() {
             "planner" => Some(crate::topology::AgentRole::Planner),

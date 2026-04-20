@@ -1,12 +1,12 @@
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-use crate::adapters::bluesky;
 use crate::PublisherConfig;
+use crate::adapters::bluesky;
 use crate::types::UnifiedNewsItem;
 use serde_json::json;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
-async fn test_bluesky_post_success()  {
+async fn test_bluesky_post_success() {
     let mock_server = MockServer::start().await;
     let handle = "test.bsky.social";
     let password = "test-password";

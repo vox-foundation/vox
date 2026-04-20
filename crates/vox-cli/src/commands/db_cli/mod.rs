@@ -7,17 +7,12 @@ mod types;
 
 pub use core_subcommands::DbCliCore;
 pub use publication_subcommands::DbCliPublication;
-pub(crate) use publication_subcommands::{
-    PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT, PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT,
-    PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LOCK_TTL_MS,
-    PUBLICATION_EXTERNAL_METRICS_DEFAULT_SINCE_HOURS, PUBLICATION_SYNC_BATCH_DEFAULT_LIMIT,
-    PUBLICATION_WORKER_DEFAULT_INTERVAL_SECS, PUBLICATION_WORKER_DEFAULT_ITERATIONS,
-    PUBLICATION_WORKER_DEFAULT_JITTER_SECS,
-};
+
 pub use subcommands::DbCli;
 pub use types::{
-    ArxivHandoffStageCli, DbPreflightProfileCli, DiscoveryIntakeGateCli, PublicationPrepareBodyCli,
-    ScholarlyVenueCli,
+    ArxivHandoffStageCli, ArxivHandoffStageExt, DbPreflightProfileCli, DbPreflightProfileExt,
+    DiscoveryIntakeGateCli, DiscoveryIntakeGateExt, PublicationPrepareBodyCli, ScholarlyVenueCli,
+    ScholarlyVenueExt,
 };
 
 /// Dispatch `vox db` subcommands to `commands::db` implementations.
@@ -165,6 +160,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliCore::MensMetrics { domain, limit } => {
                 db::mens_metrics(domain.as_deref(), limit).await
             }
+            DbCliCore::BuildHealth { repo, json } => db::build_health(repo, json).await,
+            DbCliCore::BuildRegressions { repo, run_id, threshold, json } => {
+                db::build_regressions(repo, run_id, threshold, json).await
+            }
         },
         DbCli::Publication(cmd) => match cmd {
             DbCliPublication::PublicationPrepare {
@@ -188,8 +187,8 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                     body.human_meaningful_advance,
                     body.human_ai_disclosure_complete,
                     preflight,
-                    preflight_profile.into(),
-                    discovery_intake_gate.into(),
+                    preflight_profile.to_profile(),
+                    discovery_intake_gate.to_gate(),
                 )
                 .await
             }
@@ -213,8 +212,8 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                     body.human_meaningful_advance,
                     body.human_ai_disclosure_complete,
                     true,
-                    preflight_profile.into(),
-                    discovery_intake_gate.into(),
+                    preflight_profile.to_profile(),
+                    discovery_intake_gate.to_gate(),
                 )
                 .await
             }
@@ -222,7 +221,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 publication_id,
                 profile,
                 with_worthiness,
-            } => db::publication_preflight(&publication_id, profile.into(), with_worthiness).await,
+            } => {
+                db::publication_preflight(&publication_id, profile.to_profile(), with_worthiness)
+                    .await
+            }
             DbCliPublication::PublicationZenodoMetadata { publication_id } => {
                 db::publication_zenodo_metadata(&publication_id).await
             }
@@ -373,7 +375,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             } => {
                 db::publication_scholarly_pipeline_run(
                     &publication_id,
-                    preflight_profile.into(),
+                    preflight_profile.to_profile(),
                     dry_run,
                     staging_output_dir.as_deref(),
                     venue,

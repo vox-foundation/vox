@@ -45,8 +45,6 @@ pub enum PopuliMensTail {
         warmup: usize,
     },
 
-
-
     /// Generate the canonical system prompt template for IDE integration (Cursor, Claude, etc.)
     #[command(name = "system-prompt-template")]
     SystemPromptTemplate {

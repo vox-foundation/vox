@@ -26,7 +26,8 @@ fn redacted_canonical_config_summary(config: &DbConfig) -> String {
         }
         DbConfig::Local { path } => format!("local(path={path})"),
         DbConfig::Memory => "memory".to_string(),
-        _ => "other".to_string(),
+        #[allow(unreachable_patterns)]
+        _ => "embedded_replica".to_string(),
     }
 }
 

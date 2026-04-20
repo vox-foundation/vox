@@ -1,11 +1,11 @@
-﻿use super::config::memory_config_for_state;
+use super::config::memory_config_for_state;
 use super::params::{
     KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
     MemoryStoreParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 const REM_MEMORY_VOXDB: &str =
     "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) to the MCP server for knowledge-graph queries.";
@@ -243,4 +243,3 @@ pub async fn knowledge_query(state: &ServerState, params: KnowledgeQueryParams) 
         .to_json()
     }
 }
-

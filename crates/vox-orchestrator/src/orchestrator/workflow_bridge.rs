@@ -94,18 +94,28 @@ impl Orchestrator {
                 "timestamp_ms": turn.timestamp_ms,
             });
             // Use "main" as the default workflow name for repo-scoped journals.
-            let _ = db.record_workflow_journal_entry(&repo_id, "main", &entry).await;
+            let _ = db
+                .record_workflow_journal_entry(&repo_id, "main", &entry)
+                .await;
         }
     }
 
     /// Hydrate a task's transcript from the durable workflow journal (replaying history).
-    pub async fn hydrate_task_from_journal(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
-        let db_arc = self.db().ok_or(OrchestratorError::DatabaseError("No database connected".to_string()))?;
+    pub async fn hydrate_task_from_journal(
+        &self,
+        task_id: TaskId,
+    ) -> Result<(), OrchestratorError> {
+        let db_arc = self.db().ok_or(OrchestratorError::DatabaseError(
+            "No database connected".to_string(),
+        ))?;
         let repo_id = crate::lineage::repository_id();
-        let entries = db_arc.load_workflow_journal(&repo_id, "main").await
+        let entries = db_arc
+            .load_workflow_journal(&repo_id, "main")
+            .await
             .map_err(|e| OrchestratorError::DatabaseError(e.to_string()))?;
 
-        let turns: Vec<crate::types::TaskTurn> = entries.into_iter()
+        let turns: Vec<crate::types::TaskTurn> = entries
+            .into_iter()
             .filter(|e| e["type"] == "task_turn" && e["task_id"] == task_id.0)
             .filter_map(|e| {
                 Some(crate::types::TaskTurn {
@@ -135,30 +145,38 @@ impl Orchestrator {
 
     /// Hydrate ALL tasks in the orchestrator from the durable workflow journal.
     pub async fn hydrate_all_tasks_from_journal(&self) -> Result<(), OrchestratorError> {
-        let db_arc = self.db().ok_or(OrchestratorError::DatabaseError("No database connected".to_string()))?;
+        let db_arc = self.db().ok_or(OrchestratorError::DatabaseError(
+            "No database connected".to_string(),
+        ))?;
         let repo_id = crate::lineage::repository_id();
-        let entries = db_arc.load_workflow_journal(&repo_id, "main").await
+        let entries = db_arc
+            .load_workflow_journal(&repo_id, "main")
+            .await
             .map_err(|e| OrchestratorError::DatabaseError(e.to_string()))?;
 
         // Group turns by task_id
-        let mut task_turns: std::collections::HashMap<u64, Vec<crate::types::TaskTurn>> = std::collections::HashMap::new();
+        let mut task_turns: std::collections::HashMap<u64, Vec<crate::types::TaskTurn>> =
+            std::collections::HashMap::new();
         for e in entries {
-             if e["type"] == "task_turn" {
-                 if let (Some(tid), Some(aid), Some(name), Some(msg), Some(ts)) = (
-                     e["task_id"].as_u64(),
-                     e["agent_id"].as_u64(),
-                     e["agent_name"].as_str(),
-                     e["message"].as_str(),
-                     e["timestamp_ms"].as_u64(),
-                 ) {
-                     task_turns.entry(tid).or_default().push(crate::types::TaskTurn {
-                         agent_id: crate::types::AgentId(aid),
-                         agent_name: name.to_string(),
-                         message: msg.to_string(),
-                         timestamp_ms: ts,
-                     });
-                 }
-             }
+            if e["type"] == "task_turn" {
+                if let (Some(tid), Some(aid), Some(name), Some(msg), Some(ts)) = (
+                    e["task_id"].as_u64(),
+                    e["agent_id"].as_u64(),
+                    e["agent_name"].as_str(),
+                    e["message"].as_str(),
+                    e["timestamp_ms"].as_u64(),
+                ) {
+                    task_turns
+                        .entry(tid)
+                        .or_default()
+                        .push(crate::types::TaskTurn {
+                            agent_id: crate::types::AgentId(aid),
+                            agent_name: name.to_string(),
+                            message: msg.to_string(),
+                            timestamp_ms: ts,
+                        });
+                }
+            }
         }
 
         if !task_turns.is_empty() {

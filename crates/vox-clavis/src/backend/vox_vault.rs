@@ -1,4 +1,4 @@
-﻿//! Cloudless Clavis vault (encrypted secret rows in SQLite / libSQL).
+//! Cloudless Clavis vault (encrypted secret rows in SQLite / libSQL).
 //!
 //! **Connection env (precedence):**
 //! 1. `VOX_CLAVIS_VAULT_PATH` — local store path; opened as a `file:` URL.
@@ -13,10 +13,10 @@
 use std::sync::Mutex;
 use std::{future::Future, panic};
 
-use vox_crypto::{SymKey, encrypt_with_nonce, decrypt_with_nonce, secure_hash};
 use rand::RngCore;
 use secrecy::SecretString;
 use turso::params;
+use vox_crypto::{SymKey, decrypt_with_nonce, encrypt_with_nonce, secure_hash};
 
 use crate::backend::SecretBackend;
 use crate::errors::SecretError;
@@ -124,7 +124,7 @@ impl VoxCloudBackend {
         rand::thread_rng().fill_bytes(&mut nonce);
         let ciphertext = encrypt_vault(&dek, &nonce, plaintext.as_bytes())?;
         let dek_wrapped = self.wrap_dek(&dek, &self.kek_ref, self.kek_version)?;
-        
+
         dek.fill(0);
 
         let account_id = self.account_id.clone();
@@ -145,7 +145,7 @@ impl VoxCloudBackend {
             1,
         );
         let version_checksum = checksum.clone();
-        
+
         let prof_str = profile.map(|s| s.to_string());
         let sec_id_str = secret_id.to_string();
         let op_str = operation.to_string();
@@ -154,7 +154,9 @@ impl VoxCloudBackend {
 
         let conn = self.conn.lock().expect("vox vault mutex");
         run_clavis_future(async {
-            let tx = conn.unchecked_transaction().await
+            let tx = conn
+                .unchecked_transaction()
+                .await
                 .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
 
             if let Some(prof) = prof_str {
@@ -171,8 +173,21 @@ impl VoxCloudBackend {
                         kek_version = excluded.kek_version,
                         updated_at_ms = excluded.updated_at_ms,
                         checksum_hash = excluded.checksum_hash",
-                    turso::params![account_id.clone(), sec_id_str.clone(), prof, ciphertext.clone(), nonce.clone(), dek_wrapped.clone(), kek_ref.clone(), kek_version, now, checksum.clone()],
-                ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+                    turso::params![
+                        account_id.clone(),
+                        sec_id_str.clone(),
+                        prof,
+                        ciphertext.clone(),
+                        nonce.clone(),
+                        dek_wrapped.clone(),
+                        kek_ref.clone(),
+                        kek_version,
+                        now,
+                        checksum.clone()
+                    ],
+                )
+                .await
+                .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
             } else {
                 tx.execute(
                     "INSERT INTO clavis_account_secrets (
@@ -197,8 +212,23 @@ impl VoxCloudBackend {
                     account_id, secret_id, ciphertext, nonce, dek_wrapped, kek_ref, kek_version,
                     operation, source_hint, created_at_ms, created_by, checksum_hash
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-                turso::params![account_id.clone(), sec_id_str.clone(), ciphertext, nonce, dek_wrapped, kek_ref.clone(), kek_version, op_str, hint_str, now, ctx_str, version_checksum.clone()],
-            ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+                turso::params![
+                    account_id.clone(),
+                    sec_id_str.clone(),
+                    ciphertext,
+                    nonce,
+                    dek_wrapped,
+                    kek_ref.clone(),
+                    kek_version,
+                    op_str,
+                    hint_str,
+                    now,
+                    ctx_str,
+                    version_checksum.clone()
+                ],
+            )
+            .await
+            .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
 
             if history_depth > 0 {
                 tx.execute(
@@ -211,10 +241,13 @@ impl VoxCloudBackend {
                            LIMIT ?3
                        )",
                     turso::params![account_id.clone(), sec_id_str.clone(), history_depth as i64],
-                ).await.map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
             }
 
-            tx.commit().await
+            tx.commit()
+                .await
                 .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))
         })
     }
@@ -476,16 +509,36 @@ impl VoxCloudBackend {
                 .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
             {
                 return Ok(Some(ProfileSecretRecord {
-                    account_id: row.get(0).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    secret_id: row.get(1).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    profile: row.get(2).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    ciphertext: row.get(3).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    nonce: row.get(4).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    dek_wrapped: row.get(5).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    kek_ref: row.get(6).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    kek_version: row.get(7).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    updated_at_ms: row.get(8).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    checksum_hash: row.get(9).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    account_id: row
+                        .get(0)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    secret_id: row
+                        .get(1)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    profile: row
+                        .get(2)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    ciphertext: row
+                        .get(3)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    nonce: row
+                        .get(4)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    dek_wrapped: row
+                        .get(5)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    kek_ref: row
+                        .get(6)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    kek_version: row
+                        .get(7)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    updated_at_ms: row
+                        .get(8)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    checksum_hash: row
+                        .get(9)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
                 }));
             }
             Ok(None)
@@ -521,14 +574,30 @@ impl VoxCloudBackend {
                 .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
             {
                 return Ok(Some(AgentDelegationRecord {
-                    delegation_id: row.get(0).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    account_id: row.get(1).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    secret_id: row.get(2).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    scope_bits: row.get(3).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    parent_context: row.get(4).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    child_context: row.get(5).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    issued_at_ms: row.get(6).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
-                    expires_at_ms: row.get(7).map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    delegation_id: row
+                        .get(0)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    account_id: row
+                        .get(1)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    secret_id: row
+                        .get(2)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    scope_bits: row
+                        .get(3)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    parent_context: row
+                        .get(4)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    child_context: row
+                        .get(5)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    issued_at_ms: row
+                        .get(6)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
+                    expires_at_ms: row
+                        .get(7)
+                        .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?,
                 }));
             }
             Ok(None)
@@ -545,10 +614,12 @@ impl SecretBackend for VoxCloudBackend {
         caller_context: &str,
     ) -> Result<Option<SecretString>, SecretError> {
         let key = spec.backend_key.unwrap_or(spec.canonical_env);
-        
+
         // If caller is an agent, check delegation first
         if caller_context.starts_with("agent:") {
-            if let Some(_delegation) = self.get_valid_delegation(&self.account_id, key, caller_context)? {
+            if let Some(_delegation) =
+                self.get_valid_delegation(&self.account_id, key, caller_context)?
+            {
                 // Delegation exists and is valid. Proceed to fetch actual material.
                 // For now, delegations just grant access to the canonical secret.
             } else {
@@ -606,7 +677,9 @@ impl SecretBackend for VoxCloudBackend {
         // it doesn't look like a known leak.
         if let Some(d) = detail {
             if crate::redact::contains_secret_material(d, &[]) {
-                return Err(SecretError::BackendQueryFailed("detail field contains suspected secret material".to_string()));
+                return Err(SecretError::BackendQueryFailed(
+                    "detail field contains suspected secret material".to_string(),
+                ));
             }
         }
 
@@ -627,7 +700,9 @@ impl SecretBackend for VoxCloudBackend {
                     resolution_source, resolve_profile, caller_context, detail
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![account_id, sec_id, now, stat, src, prof, ctx, det],
-            ).await.map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            )
+            .await
+            .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
             Ok(())
         })
     }
@@ -803,7 +878,8 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
 
 async fn ensure_schema(conn: &turso::Connection) -> Result<(), SecretError> {
     if resolve_cloudless_db_url().starts_with("file:") {
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;").await
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")
+            .await
             .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
     }
     conn.execute_batch(
@@ -1013,10 +1089,12 @@ fn compute_account_secret_checksum(
     data.extend_from_slice(&kek_version.to_le_bytes());
     data.extend_from_slice(&rotation_epoch.to_le_bytes());
     data.extend_from_slice(&consistency_version.to_le_bytes());
-    
+
     // secure_hash 32-byte hash to string using simple hex encoding
     let hash = secure_hash(&data);
-    hash.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+    hash.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
 }
 
 fn derive_master_key() -> Result<[u8; 32], SecretError> {

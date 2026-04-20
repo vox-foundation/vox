@@ -1,0 +1,4 @@
+fn main() {
+    let args = env.args()
+    print("Args:", args)
+}

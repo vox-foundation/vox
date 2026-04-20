@@ -227,6 +227,9 @@ pub enum PopuliAction {
         /// Absolute hard cap for runtime in seconds
         #[arg(long)]
         max_runtime_secs: Option<u64>,
+        /// Transition cloud deployments to long-lived mesh nodes after training.
+        #[arg(long, default_value_t = false)]
+        persistent: bool,
     },
 
     #[cfg(not(feature = "gpu"))]
@@ -317,6 +320,9 @@ pub enum PopuliAction {
         /// Absolute hard cap for runtime in seconds
         #[arg(long)]
         max_runtime_secs: Option<u64>,
+        /// Transition cloud deployments to long-lived mesh nodes.
+        #[arg(long, default_value_t = false)]
+        persistent: bool,
     },
 
     #[cfg(not(feature = "gpu"))]
@@ -479,7 +485,7 @@ pub enum PopuliAction {
     /// Inspect and run Vox workflow definitions
     #[cfg(feature = "mens-dei")]
     #[command(subcommand)]
-    Workflow(vox_cli::cli_actions::WorkflowAction),
+    Workflow(vox_cli_core::cli_actions::WorkflowAction),
 
     /// AI-powered code check for potential bugs or anti-patterns (alias: verify)
     #[cfg(feature = "mens-dei")]

@@ -1,16 +1,8 @@
 //! VRAM auto-detection and training preset selection.
 //!
-//! On Windows/Linux with NVIDIA, we try to query the GPU through available
-//! mechanisms (NVML env vars, sysfs, or compile-time hints). Falls back to
-//! a user-supplied override or safe defaults.
+//! Uses the HardwareRegistry SSOT to identify available video memory.
 
 /// Query available GPU VRAM in GiB.
-///
-/// Resolution order:
-/// 1. `VOX_VRAM_OVERRIDE_GB` environment variable (float)
-/// 2. Linux sysfs NVML-style `/sys/class/drm/card0/device/mem_info_vram_total`
-/// 3. Windows NVML via `nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits`
-/// 4. `None` — caller should fall back to user preset
 pub fn get_system_vram_gb() -> Option<f32> {
     // Priority 1: env override
     if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxVramOverrideGb).expose()
@@ -20,29 +12,10 @@ pub fn get_system_vram_gb() -> Option<f32> {
         return Some(gb);
     }
 
-    // Priority 2: Linux sysfs
-    if cfg!(target_os = "linux") {
-        let sysfs_path = "/sys/class/drm/card0/device/mem_info_vram_total";
-        if let Ok(raw) = std::fs::read_to_string(sysfs_path)
-            && let Ok(bytes) = raw.trim().parse::<u64>()
-        {
-            return Some(bytes as f32 / (1024.0 * 1024.0 * 1024.0));
-        }
-    }
-
-    // Priority 3: nvidia-smi (Windows + Linux fallback)
-    if let Ok(out) = std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
-        .output()
-        && out.status.success()
-    {
-        let raw = String::from_utf8_lossy(&out.stdout);
-        // May return multiple lines for multi-GPU; take the first.
-        if let Some(line) = raw.lines().next()
-            && let Ok(mib) = line.trim().parse::<f32>()
-        {
-            return Some(mib / 1024.0);
-        }
+    // Priority 2: hardware SSOT
+    let hardware = futures::executor::block_on(crate::mens::hardware::probe());
+    if hardware.vram_mb > 0 {
+        return Some(hardware.vram_mb as f32 / crate::mens::hardware::types::MB_PER_GB as f32);
     }
 
     None

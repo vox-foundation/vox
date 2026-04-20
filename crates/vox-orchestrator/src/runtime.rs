@@ -69,28 +69,7 @@ pub struct AiTaskProcessor {
     model: String,
 }
 
-#[derive(Debug, Clone, Copy)]
-enum ExecutorPhase {
-    Inspect,
-    Localize,
-    Hypothesize,
-    Act,
-    Verify,
-    Decide,
-}
-
-impl ExecutorPhase {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Inspect => "inspect",
-            Self::Localize => "localize",
-            Self::Hypothesize => "hypothesize",
-            Self::Act => "act",
-            Self::Verify => "verify",
-            Self::Decide => "decide",
-        }
-    }
-}
+// TaskPhase moved to types/tasks.rs
 
 impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
@@ -112,7 +91,7 @@ impl AiTaskProcessor {
         client: &vox_ludus::ai::FreeAiClient,
         agent_id: crate::types::AgentId,
         task: &crate::types::AgentTask,
-        phase: ExecutorPhase,
+        phase: crate::types::TaskPhase,
         usage_model: &str,
         prior_notes: &str,
         route: vox_ludus::StreamRoute<'_>,
@@ -284,15 +263,32 @@ impl TaskProcessor for AiTaskProcessor {
 
         let mut notes = String::new();
         let phases = [
-            ExecutorPhase::Inspect,
-            ExecutorPhase::Localize,
-            ExecutorPhase::Hypothesize,
-            ExecutorPhase::Act,
-            ExecutorPhase::Verify,
-            ExecutorPhase::Decide,
+            crate::types::TaskPhase::Inspect,
+            crate::types::TaskPhase::Localize,
+            crate::types::TaskPhase::Hypothesize,
+            crate::types::TaskPhase::Act,
+            crate::types::TaskPhase::Verify,
+            crate::types::TaskPhase::Decide,
         ];
         // Keep execution bounded: no infinite self-reflection or uncontrolled loops.
         for phase in phases {
+            // Update the task's current phase in the orchestrator state for observability.
+            if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
+                let mut queue = crate::sync_lock::rw_write(&*queue_lock);
+                if let Some(t) = queue.find_task_mut(task.id) {
+                    t.current_phase = Some(phase);
+                } else if let Some(t) = queue.current_task_mut() {
+                    if t.id == task.id {
+                        t.current_phase = Some(phase);
+                    }
+                }
+            }
+            self.event_bus.emit(AgentEventKind::TaskPhaseChanged {
+                task_id: task.id,
+                agent_id,
+                phase,
+            });
+
             let phase_out = self
                 .run_phase_stream(
                     &client,

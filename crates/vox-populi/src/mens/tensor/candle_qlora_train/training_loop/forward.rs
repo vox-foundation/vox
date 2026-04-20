@@ -1,7 +1,7 @@
+use super::types::MaskedCeForward;
+use crate::mens::tensor::training_config::LoraTrainingConfig;
 use anyhow::Result;
 use candle_core::Device;
-use crate::mens::tensor::training_config::LoraTrainingConfig;
-use super::types::MaskedCeForward;
 
 pub fn forward_masked_ce(
     model: &crate::mens::tensor::candle_qlora_train::TrainGraphModel,
@@ -49,16 +49,16 @@ pub fn forward_masked_ce(
             }
         })
         .collect();
-    
+
     if let Some(tw) = token_weights {
         for (i, &w) in tw.iter().enumerate() {
             let target_idx = i + 1;
             if target_idx < ids_len {
-                 // targets[i] corresponds to tw[target_idx]
-                 // mask_vec[i] is the weight for predicting target_idx
-                 if i < mask_vec.len() {
-                     mask_vec[i] *= w;
-                 }
+                // targets[i] corresponds to tw[target_idx]
+                // mask_vec[i] is the weight for predicting target_idx
+                if i < mask_vec.len() {
+                    mask_vec[i] *= w;
+                }
             }
         }
     }

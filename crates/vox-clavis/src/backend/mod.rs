@@ -5,7 +5,13 @@ use crate::spec::SecretId;
 use crate::spec::SecretSpec;
 
 pub trait SecretBackend: Send + Sync {
-    fn resolve(&self, id: SecretId, spec: SecretSpec, profile: Option<&str>, caller_context: &str) -> Result<Option<SecretString>, SecretError>;
+    fn resolve(
+        &self,
+        id: SecretId,
+        spec: SecretSpec,
+        profile: Option<&str>,
+        caller_context: &str,
+    ) -> Result<Option<SecretString>, SecretError>;
     fn write_audit_log(
         &self,
         secret_id: &str,

@@ -54,7 +54,7 @@ pub(super) fn align_syntax_spans_to_tokens(
 ) -> Vec<f32> {
     let mut weights = vec![1.0; encoding.len()];
     let offsets = encoding.get_offsets();
-    
+
     // Safety check: offsets must match encoding length
     if offsets.len() != weights.len() {
         return weights;

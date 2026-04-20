@@ -3,9 +3,9 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use std::sync::atomic::Ordering;
 use candle_core::Device;
 use owo_colors::OwoColorize;
+use std::sync::atomic::Ordering;
 use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
@@ -16,8 +16,8 @@ use super::{
     PAUSE_FLAG, QLORA_ETA_EMA_ALPHA, TrainingDbEvent, TrainingLoopStats, compute_cosine_lr,
 };
 use crate::mens::tensor::{
-    backend, manifest, qlora_preflight::QloraEmbedBundle,
-    telemetry, telemetry_schema, train_log, training_config::LoraTrainingConfig,
+    backend, manifest, qlora_preflight::QloraEmbedBundle, telemetry, telemetry_schema, train_log,
+    training_config::LoraTrainingConfig,
 };
 
 pub mod checkpoint;
@@ -56,6 +56,7 @@ pub fn run_training_loop(
     total_steps_planned: u32,
     total_optimizer_steps_planned: u32,
     warmup_steps: usize,
+    contamination_score: Option<f32>,
 ) -> Result<backend::TrainingSummary> {
     if !config.qlora_double_quant {
         train_log::info(
@@ -102,7 +103,11 @@ pub fn run_training_loop(
                 n_layers: bundle.layout.num_hidden_layers,
             },
             train_path.display().to_string(),
-            manifest::InitialManifestRun::from_lora_config(config),
+            {
+                let mut run = manifest::InitialManifestRun::from_lora_config(config);
+                run.contamination_score = contamination_score;
+                run
+            },
             Some(bundle.tokenizer_path.display().to_string()),
             manifest::InitialTrainingKernel::CandleQlora {
                 proxy_stack_complete,
@@ -110,7 +115,6 @@ pub fn run_training_loop(
                 ce_last_k: config.qlora_ce_last_k,
                 architecture: match bundle.layout.architecture {
                     crate::mens::tensor::hf_load::HfArchitecture::Qwen35 => "qwen3_5".to_string(),
-                    crate::mens::tensor::hf_load::HfArchitecture::Qwen2 => "qwen2".to_string(),
                     crate::mens::tensor::hf_load::HfArchitecture::Gpt2 => "gpt2".to_string(),
                 },
                 linear_layers: Some(
@@ -219,10 +223,12 @@ pub fn run_training_loop(
 
         let max_difficulty = curriculum::max_difficulty_for_epoch(epoch, config);
 
-        for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start) {
+        for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start)
+        {
             let pair = &pairs[pair_real_idx];
             let (sample_weight, was_clamped) = logic::trajectory_weight_for_pair(pair, config);
-            if config.trajectory_weighting_enabled && (sample_weight - 1.0_f64).abs() > f64::EPSILON {
+            if config.trajectory_weighting_enabled && (sample_weight - 1.0_f64).abs() > f64::EPSILON
+            {
                 trajectory_weighted_pairs += 1;
             }
             if was_clamped {
@@ -337,15 +343,32 @@ pub fn run_training_loop(
             let mut computed_reward = pair.rating.unwrap_or(0) as f32;
             match config.reward_hook.as_deref() {
                 Some("cargo_build") | Some("cargo_test") => {
-                    if let Some(resp) = &pair.response {
-                        if vox_eval::cargo_build_reward(resp) > 0.0 {
-                            computed_reward = computed_reward.max(4.0) + 1.0;
-                        }
-                    } else if let Some(turns) = &pair.messages {
-                        if let Some(last) = turns.last() {
-                            if vox_eval::cargo_build_reward(&last.content) > 0.0 {
-                                computed_reward = computed_reward.max(4.0) + 1.0;
+                    let mut snippet_opt = pair.response.as_deref();
+                    if snippet_opt.is_none() {
+                        if let Some(turns) = &pair.messages {
+                            if let Some(last) = turns.last() {
+                                snippet_opt = Some(last.content.as_str());
                             }
+                        }
+                    }
+                    if let Some(resp) = snippet_opt {
+                        let code =
+                            vox_eval::extract_vox_code(resp).unwrap_or_else(|| resp.to_string());
+                        let ast_report = vox_compiler::ast_eval(&code);
+                        let r_syntax = if ast_report.parse_success { 1.0 } else { 0.0 };
+                        let r_test = vox_eval::cargo_build_reward(resp); // Proxy for test reward
+                        let r_coverage = ast_report.coverage_score();
+                        let w1 = 1.0;
+                        let w2 = 1.0;
+
+                        // Multiplicative reward formula: R = r_syntax × (w1·r_test + w2·r_coverage)
+                        let r = r_syntax * (w1 * r_test + w2 * r_coverage);
+
+                        if r_syntax == 0.0 {
+                            // Negative sampling for parse failures
+                            computed_reward = -1.0;
+                        } else {
+                            computed_reward = r as f32;
                         }
                     }
                 }
@@ -364,7 +387,10 @@ pub fn run_training_loop(
             let elapsed_since_progress = last_progress.elapsed();
             if elapsed_since_progress >= progress_every {
                 let now = Instant::now();
-                let dt = now.duration_since(progress_anchor_time).as_secs_f64().max(1e-3);
+                let dt = now
+                    .duration_since(progress_anchor_time)
+                    .as_secs_f64()
+                    .max(1e-3);
                 let ds = (optimizer_step_count - progress_anchor_step) as f64;
                 let sps = ds / dt;
                 ema_steps_per_sec = Some(match ema_steps_per_sec {
@@ -379,12 +405,13 @@ pub fn run_training_loop(
                 // Require at least 8 optimizer steps before trusting the ETA — prevents
                 // misleading "eta ~00m 00s" during NF4 weight-loading warm-up.
                 const ETA_CALIBRATION_MIN_STEPS: u32 = 8;
-                let eta_s_telem: Option<u64> = if optimizer_step_count >= ETA_CALIBRATION_MIN_STEPS {
+                let eta_s_telem: Option<u64> = if optimizer_step_count >= ETA_CALIBRATION_MIN_STEPS
+                {
                     ema_steps_per_sec.and_then(|s| {
                         if s > 1e-6 {
                             Some(
-                                (total_optimizer_steps_planned
-                                    .saturating_sub(optimizer_step_count) as f64
+                                (total_optimizer_steps_planned.saturating_sub(optimizer_step_count)
+                                    as f64
                                     / s) as u64,
                             )
                         } else {
@@ -406,19 +433,47 @@ pub fn run_training_loop(
                     })
                 };
                 let eff_batch = config.batch_size.max(1) * config.grad_accum.max(1);
-                let ema_str = ema_loss_val.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "----".to_string());
+                let ema_str = ema_loss_val
+                    .map(|v| format!("{:.4}", v))
+                    .unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
                     "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={},oob={}) traj(weighted_pairs={},clamped_pairs={})",
-                    epoch, config.epochs, global_step, optimizer_step_count, loss_val, ema_str, lr_applied_this_step, eff_batch, pct, eta_str,
-                    skip_no_supervised_positions, skip_short_seq, skip_curriculum, skip_token_id_oob,
-                    trajectory_weighted_pairs, trajectory_clamped_pairs
+                    epoch,
+                    config.epochs,
+                    global_step,
+                    optimizer_step_count,
+                    loss_val,
+                    ema_str,
+                    lr_applied_this_step,
+                    eff_batch,
+                    pct,
+                    eta_str,
+                    skip_no_supervised_positions,
+                    skip_short_seq,
+                    skip_curriculum,
+                    skip_token_id_oob,
+                    trajectory_weighted_pairs,
+                    trajectory_clamped_pairs
                 ));
                 let step_payload = telem_helpers::build_train_step_payload(
-                    epoch, global_step, optimizer_step_count, loss_val, lr_applied_this_step, eta_s_telem,
-                    total_optimizer_steps_planned, skip_no_supervised_positions, skip_short_seq,
-                    skip_curriculum, skip_token_id_oob, trajectory_weighted_pairs, trajectory_clamped_pairs,
-                    ema_steps_per_sec, total_valid_tokens, total_theoretical_tokens,
-                    config.batch_size.max(1) as u64, config.seq_len as u64,
+                    epoch,
+                    global_step,
+                    optimizer_step_count,
+                    loss_val,
+                    lr_applied_this_step,
+                    eta_s_telem,
+                    total_optimizer_steps_planned,
+                    skip_no_supervised_positions,
+                    skip_short_seq,
+                    skip_curriculum,
+                    skip_token_id_oob,
+                    trajectory_weighted_pairs,
+                    trajectory_clamped_pairs,
+                    ema_steps_per_sec,
+                    total_valid_tokens,
+                    total_theoretical_tokens,
+                    config.batch_size.max(1) as u64,
+                    config.seq_len as u64,
                     total_syntax_weight,
                 );
                 telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;
@@ -429,7 +484,9 @@ pub fn run_training_loop(
 
             if PAUSE_FLAG.load(Ordering::SeqCst) {
                 let ckpt_path = out.join(format!("pause_step_{global_step}.safetensors"));
-                trainer.save_adapter(&ckpt_path).context("save pause adapter")?;
+                trainer
+                    .save_adapter(&ckpt_path)
+                    .context("save pause adapter")?;
                 let state = crate::mens::tensor::checkpoint_state::CheckpointState {
                     schema: crate::mens::tensor::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
                     run_id: run_id.to_string(),
@@ -445,7 +502,11 @@ pub fn run_training_loop(
                 };
                 state.save(out).context("save CheckpointState on pause")?;
                 let wall_secs = run_start_inst.elapsed().as_secs_f64();
-                let ms_per_step = if global_step > 0 { (wall_secs * 1000.0) / global_step as f64 } else { 0.0 };
+                let ms_per_step = if global_step > 0 {
+                    (wall_secs * 1000.0) / global_step as f64
+                } else {
+                    0.0
+                };
                 train_log::warn(&format!(
                     "Training paused at step {global_step}. Resume with 'vox mens train --resume {}'",
                     out.display()
@@ -459,28 +520,65 @@ pub fn run_training_loop(
             }
 
             super::checkpoint_mid::maybe_save_mid_epoch_checkpoint(
-                trainer, out, config, db_tx, run_id, epoch, global_step, pair_loop_idx,
-                &shuffled_indices, last_loss_val, run_start_inst,
+                trainer,
+                out,
+                config,
+                db_tx,
+                run_id,
+                epoch,
+                global_step,
+                pair_loop_idx,
+                &shuffled_indices,
+                last_loss_val,
+                run_start_inst,
             )?;
         }
 
         let (val_loss_sum, val_steps) = super::validation::run_validation_pass(
-            &eval_pairs, tokenizer, device, &model, system_prompt, config,
+            &eval_pairs,
+            tokenizer,
+            device,
+            &model,
+            system_prompt,
+            config,
         );
         if val_steps > 0 {
             last_avg_val_loss = Some(val_loss_sum / val_steps as f64);
         }
 
         super::epoch_boundary::finish_epoch(
-            trainer, out, config, db_tx, run_id, epoch, global_step, epoch_steps,
-            epoch_loss_sum, val_loss_sum, val_steps, last_loss_val, progress_anchor_time,
+            trainer,
+            out,
+            config,
+            db_tx,
+            run_id,
+            epoch,
+            global_step,
+            epoch_steps,
+            epoch_loss_sum,
+            val_loss_sum,
+            val_steps,
+            last_loss_val,
+            progress_anchor_time,
         )?;
     }
 
     super::finalize::finalize_training_run(
-        trainer, bundle, out, config, db_tx, run_id, device_label, adapter_layer_order,
-        base_key_map, global_step, optimizer_step_count, total_tokens, total_step_count,
-        total_loss_sum, last_avg_val_loss,
+        trainer,
+        bundle,
+        out,
+        config,
+        db_tx,
+        run_id,
+        device_label,
+        adapter_layer_order,
+        base_key_map,
+        global_step,
+        optimizer_step_count,
+        total_tokens,
+        total_step_count,
+        total_loss_sum,
+        last_avg_val_loss,
         TrainingLoopStats {
             skip_no_supervised_positions,
             skip_short_seq,

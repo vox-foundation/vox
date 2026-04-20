@@ -16,6 +16,8 @@ default = [
 mcp-native = ["dep:schemars"]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
 populi-transport = ["dep:vox-populi", "vox-populi/transport"]
+# `vox-oratio` speech-to-text / refinement tools.
+oratio-rerank = ["dep:vox-oratio"]
 # `vox-publisher` syndication / scientia surfaces (`services::news`). Disable with `--no-default-features` slices.
 news-publish = [
     "dep:vox-publisher",
@@ -73,17 +75,17 @@ vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
 anyhow.workspace = true
 serde_yaml.workspace = true
-vox-mcp-registry = { path = "../vox-mcp-registry" }
-vox-capability-registry = { path = "../vox-capability-registry" }
-vox-oratio = { path = "../vox-oratio", features = ["compiler-rerank"] }
+vox-mcp-registry.workspace = true
+vox-capability-registry.workspace = true
+vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
 rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
-vox-grammar-export = {  path = "../vox-grammar-export" }
+vox-grammar-export.workspace = true
 vox-browser.workspace = true
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 regex = "1"
-vox-corpus = { path = "../vox-corpus", features = ["database"] }
+vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
 # See src/jj_backend.rs for the isolation wrapper. Use `--features jj-backend` to enable.
 jj-lib = { version = "=0.27.0", optional = true, default-features = false }

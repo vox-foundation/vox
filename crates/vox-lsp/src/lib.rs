@@ -33,6 +33,21 @@ fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
         line: el,
         character: ec,
     };
+    let data = serde_json::json!({
+        "suggestions": err.suggestions,
+        "fixes": err.fixes.into_iter().map(|f| {
+            let (sl, sc) = byte_index_to_line_col(text, f.span.start);
+            let (el, ec) = byte_index_to_line_col(text, f.span.end);
+            serde_json::json!({
+                "label": f.label,
+                "replacement": f.replacement,
+                "range": Range {
+                    start: Position { line: sl, character: sc },
+                    end: Position { line: el, character: ec },
+                }
+            })
+        }).collect::<Vec<_>>()
+    });
     Diagnostic {
         range: Range { start, end },
         severity: Some(match err.severity {
@@ -45,7 +60,7 @@ fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
         message: err.message,
         related_information: None,
         tags: None,
-        data: None,
+        data: Some(data),
     }
 }
 

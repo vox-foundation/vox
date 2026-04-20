@@ -16,7 +16,7 @@ impl crate::orchestrator::Orchestrator {
         let Some(db) = self.db() else { return };
         let repo = crate::lineage::repository_id();
         let aid = agent_id.0.to_string();
-        let sid = "canonical-session"; 
+        let sid = "canonical-session";
         let payload_json = payload.map(|p| p.to_string());
 
         let res = db
@@ -48,7 +48,8 @@ impl crate::orchestrator::Orchestrator {
                 output_tokens,
                 cost_usd,
                 payload_json.as_deref(),
-            ).await;
+            )
+            .await;
         }
     }
 

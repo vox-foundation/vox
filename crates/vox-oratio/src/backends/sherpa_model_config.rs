@@ -9,8 +9,12 @@ use std::path::PathBuf;
 
 /// Resolved paths to Sherpa-ONNX model artifacts.
 pub struct SherpaModelPaths {
-    pub model_onnx: PathBuf,
-    pub tokens_txt: PathBuf,
+    /// Path to the ONNX encoder model.
+    pub encoder: PathBuf,
+    /// Path to the ONNX decoder model (can be empty if not required).
+    pub decoder: PathBuf,
+    /// Path to the BPE tokens file.
+    pub tokens: PathBuf,
 }
 
 /// Default HF model ID for Sherpa download.
@@ -20,18 +24,17 @@ pub const DEFAULT_SHERPA_HF_MODEL: &str = "k2-fsa/sherpa-onnx-whisper-tiny.en";
 pub fn resolve_sherpa_model_paths() -> Result<SherpaModelPaths> {
     if let Ok(dir) = std::env::var("VOX_ORATIO_SHERPA_MODEL_DIR") {
         let dir = PathBuf::from(dir.trim());
-        // Basic resolution if local directory provided
-        let model_onnx = dir.join("model.onnx");
-        let tokens_txt = dir.join("tokens.txt");
-        // Often sherpa model has tiny-encoder.onnx, tiny-decoder.onnx...
-        // For simplicity:
+        let encoder = dir.join("encoder.onnx");
+        let decoder = dir.join("decoder.onnx");
+        let tokens = dir.join("tokens.txt");
         return Ok(SherpaModelPaths {
-            model_onnx,
-            tokens_txt,
+            encoder,
+            decoder,
+            tokens,
         });
     }
 
-    // HF Hub download (hf-hub crate already in deps via stt-candle, re-use it)
+    // HF Hub download
     let model_id = std::env::var("VOX_ORATIO_SHERPA_HF_MODEL").unwrap_or_else(|_| {
         std::env::var("VOX_ORATIO_SHERPA_MODEL")
             .unwrap_or_else(|_| DEFAULT_SHERPA_HF_MODEL.to_string())
@@ -44,17 +47,22 @@ pub fn resolve_sherpa_model_paths() -> Result<SherpaModelPaths> {
         revision.to_string(),
     ));
 
-    // Try whisper-tiny.en style mapping for Sherpa
-    let model_onnx = repo
+    let encoder = repo
         .get("tiny.en-encoder.int8.onnx")
+        .or_else(|_| repo.get("encoder.onnx"))
         .or_else(|_| repo.get("model.onnx"))
-        .with_context(|| format!("fetch model.onnx/encoder from {model_id}"))?;
-    let tokens_txt = repo
+        .with_context(|| format!("fetch encoder from {model_id}"))?;
+    let decoder = repo
+        .get("tiny.en-decoder.int8.onnx")
+        .or_else(|_| repo.get("decoder.onnx"))
+        .unwrap_or_default(); // Might be optional for some models?
+    let tokens = repo
         .get("tiny.en-tokens.txt")
         .or_else(|_| repo.get("tokens.txt"))
         .with_context(|| format!("fetch tokens.txt from {model_id}"))?;
     Ok(SherpaModelPaths {
-        model_onnx,
-        tokens_txt,
+        encoder,
+        decoder,
+        tokens,
     })
 }

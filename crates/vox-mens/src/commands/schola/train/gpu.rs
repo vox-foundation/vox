@@ -59,8 +59,9 @@ pub(super) async fn run_gpu_training(
             "⏭".cyan()
         );
     }
-    let mix_path = mix_config
-        .unwrap_or_else(|| vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref()));
+    let mix_path = mix_config.unwrap_or_else(|| {
+        vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref())
+    });
     if !skip_mix && mix_path.is_file() {
         eprintln!(
             "  {} Running corpus mix to refresh training data...",

@@ -14,6 +14,15 @@ pub enum VerifyMode {
     Full,
 }
 
+/// A postcondition requirement with an optional fallback for repair.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PostCondition {
+    /// The condition expression to check.
+    pub condition: Expr,
+    /// Optional fallback function name to call if the condition fails.
+    pub fallback: Option<String>,
+}
+
 /// Function declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FnDecl {
@@ -54,7 +63,7 @@ pub struct FnDecl {
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
     /// Postcondition expressions from `@ensure(expr)` decorators.
-    pub postconditions: Vec<Expr>,
+    pub postconditions: Vec<PostCondition>,
     /// Class invariants (if this is a method).
     pub invariants: Vec<Expr>,
     /// How strictly to enforce contracts at runtime.

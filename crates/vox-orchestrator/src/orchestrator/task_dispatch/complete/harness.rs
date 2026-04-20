@@ -32,7 +32,8 @@ pub(crate) enum HarnessCompletionGuardMode {
 }
 
 pub(crate) fn harness_completion_guard_mode() -> HarnessCompletionGuardMode {
-    let secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorHarnessCompletionGuard);
+    let secret =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorHarnessCompletionGuard);
     let raw = secret.expose().unwrap_or("off");
     match raw.trim().to_ascii_lowercase().as_str() {
         "shadow" | "warn" => HarnessCompletionGuardMode::Shadow,

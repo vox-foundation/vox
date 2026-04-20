@@ -326,4 +326,68 @@ mod tests {
         let r2 = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att_present));
         assert!(r2.is_allowed());
     }
+
+    #[test]
+    fn check_before_queue_allows_scope_denial_when_reliability_is_high() {
+        use crate::scope::{ScopeEnforcement, ScopeGuard};
+        let lock_manager = FileLockManager::new();
+        let event_bus = EventBus::new(16);
+        let path = PathBuf::from("src/outside.rs");
+        let manifest = vec![FileAffinity::write(&path)];
+        let a1 = AgentId(1);
+
+        let mut guard = ScopeGuard::new(ScopeEnforcement::Strict);
+        // Agent 1 is only allowed in src/inside.rs
+        guard.assign_file(a1, PathBuf::from("src/inside.rs"));
+
+        let trust_high = PolicyTrustRelax {
+            relax_scope_strict_on_high_reliability: true,
+            agent_reliability: Some(0.95),
+            min_reliability: 0.90,
+        };
+
+        let r = PolicyEngine::check_before_queue(
+            &lock_manager,
+            Some(&guard),
+            &event_bus,
+            &manifest,
+            a1,
+            trust_high,
+        );
+
+        assert!(
+            r.is_allowed(),
+            "Should be allowed due to high reliability relaxation"
+        );
+    }
+
+    #[test]
+    fn check_before_queue_denies_scope_denial_when_reliability_is_low() {
+        use crate::scope::{ScopeEnforcement, ScopeGuard};
+        let lock_manager = FileLockManager::new();
+        let event_bus = EventBus::new(16);
+        let path = PathBuf::from("src/outside.rs");
+        let manifest = vec![FileAffinity::write(&path)];
+        let a1 = AgentId(1);
+
+        let mut guard = ScopeGuard::new(ScopeEnforcement::Strict);
+        guard.assign_file(a1, PathBuf::from("src/inside.rs"));
+
+        let trust_low = PolicyTrustRelax {
+            relax_scope_strict_on_high_reliability: true,
+            agent_reliability: Some(0.85), // Lower than 0.90
+            min_reliability: 0.90,
+        };
+
+        let r = PolicyEngine::check_before_queue(
+            &lock_manager,
+            Some(&guard),
+            &event_bus,
+            &manifest,
+            a1,
+            trust_low,
+        );
+
+        assert!(!r.is_allowed(), "Should be denied due to low reliability");
+    }
 }

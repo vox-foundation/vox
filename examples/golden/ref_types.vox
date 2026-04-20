@@ -25,9 +25,9 @@ type NetworkState =
 // ANCHOR: matching
 fn handle_state(net_state: NetworkState) {
     match net_state {
-        Disconnected -> print("offline")
-        Connecting -> print("connecting...")
-        Connected(address, port) -> print("connected to " + address)
+        Disconnected => print("offline")
+        Connecting => print("connecting...")
+        Connected(address, port) => print("connected to " + address)
     }
 }
 // ANCHOR_END: matching

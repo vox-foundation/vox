@@ -9,6 +9,7 @@ pub struct McpToolRegistryEntry {
     pub description: &'static str,
     pub product_lane: &'static str,
     pub http_read_role_eligible: bool,
+    pub tier: &'static str,
 }
 
 include!(concat!(env!("OUT_DIR"), "/tool_registry.rs"));

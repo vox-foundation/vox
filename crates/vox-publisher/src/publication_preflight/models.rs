@@ -1,4 +1,3 @@
-
 /// Venue-sensitive strictness (`double_blind` anonymization; `metadata_complete` errors on thin metadata).
 #[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

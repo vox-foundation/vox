@@ -77,7 +77,7 @@ impl DetectionRule for GodObjectDetector {
                 evidence: None,
             });
         } else if nonblank_lines > self.warn_max_lines {
-             findings.push(Finding {
+            findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
                 severity: Severity::Warning,
@@ -96,7 +96,7 @@ impl DetectionRule for GodObjectDetector {
                 evidence: None,
             });
         } else if nonblank_lines > self.info_max_lines {
-             findings.push(Finding {
+            findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
                 severity: Severity::Info,
@@ -143,7 +143,10 @@ impl DetectionRule for GodObjectDetector {
                 file: file.path.clone(),
                 line: 1,
                 column: 0,
-                message: format!("High method/entity density detected (~{} entities vs max {}).", count, self.max_methods),
+                message: format!(
+                    "High method/entity density detected (~{} entities vs max {}).",
+                    count, self.max_methods
+                ),
                 suggestion: Some(
                     "Consider decomposing large structs into multiple traits.".to_string(),
                 ),

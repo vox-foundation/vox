@@ -248,7 +248,11 @@ impl AgentQueue {
 
     /// Calculate the maximum handoff count observed in any active or queued task.
     pub fn max_handoff_count(&self) -> u8 {
-        let mut max = self.in_progress.as_ref().map(|t| t.handoff_count).unwrap_or(0);
+        let mut max = self
+            .in_progress
+            .as_ref()
+            .map(|t| t.handoff_count)
+            .unwrap_or(0);
         for task in &self.tasks {
             if task.handoff_count > max {
                 max = task.handoff_count;

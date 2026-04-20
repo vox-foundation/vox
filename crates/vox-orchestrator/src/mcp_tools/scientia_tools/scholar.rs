@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use vox_publisher::publication::PublicationManifest;
@@ -379,9 +379,7 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
                     )
                     .to_json();
                 }
-                if let Err(findings) =
-                    validate_scholarly_staging(output_path, venue, &manifest)
-                {
+                if let Err(findings) = validate_scholarly_staging(output_path, venue, &manifest) {
                     let findings: Vec<ValidationFinding> = findings;
                     let msg: String = findings
                         .iter()
@@ -610,4 +608,3 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
     }))
     .to_json()
 }
-

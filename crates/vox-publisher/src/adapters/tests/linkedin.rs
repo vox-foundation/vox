@@ -1,11 +1,11 @@
-use wiremock::matchers::{method, path, header};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-use crate::adapters::linkedin;
 use crate::PublisherConfig;
+use crate::adapters::linkedin;
 use crate::types::UnifiedNewsItem;
+use wiremock::matchers::{header, method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
-async fn test_linkedin_post_success()  {
+async fn test_linkedin_post_success() {
     let mock_server = MockServer::start().await;
     let item = UnifiedNewsItem {
         id: "test-item".to_string(),
@@ -13,7 +13,7 @@ async fn test_linkedin_post_success()  {
         content_markdown: "Test Content".to_string(),
         ..Default::default()
     };
-    
+
     let publisher_cfg = PublisherConfig {
         linkedin_access_token: Some("test-token".to_string()),
         linkedin_author_urn: Some("urn:li:person:123".to_string()),

@@ -1,9 +1,11 @@
-﻿use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use super::metadata::ollama_base_url;
 use crate::mcp_tools::llm_bridge::error::HttpInferError;
-use crate::mcp_tools::llm_bridge::limits::{OLLAMA_PROBE_CACHE_TTL_SECS, OLLAMA_PROBE_TIMEOUT_SECS};
+use crate::mcp_tools::llm_bridge::limits::{
+    OLLAMA_PROBE_CACHE_TTL_SECS, OLLAMA_PROBE_TIMEOUT_SECS,
+};
 
 fn ollama_probe_ok_at() -> &'static Mutex<Option<Instant>> {
     static CACHE: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();

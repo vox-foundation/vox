@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone)]
 pub struct QloraTrainingResume {
     pub start_epoch: usize,

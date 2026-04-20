@@ -1,10 +1,10 @@
+use crate::types::TaskCategory;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use crate::types::TaskCategory;
 
 use crate::mcp_tools::llm_bridge::{McpChatModelResolution, resolve_mcp_chat_model_sync};
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 const REM_MODEL_CATEGORY: &str = "Use a known `task_category` (parsing, typechecking, debugging, research, testing, codegen, review) or seed the model registry.";
 const REM_MODEL_REGISTRY: &str =
@@ -142,8 +142,7 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
         .get(&params.model_id)
         .is_some()
     {
-        crate::sync_lock::rw_write(&*handle)
-            .set_override(params.agent_id, params.model_id.clone());
+        crate::sync_lock::rw_write(&*handle).set_override(params.agent_id, params.model_id.clone());
         ToolResult::ok(format!(
             "Successfully overridden model to {} for agent {}",
             params.model_id, params.agent_id
@@ -157,4 +156,3 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
         .to_json()
     }
 }
-

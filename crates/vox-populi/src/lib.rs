@@ -41,6 +41,12 @@ pub struct PopuliEnv {
     /// `VOX_MESH_SCOPE_ID` — populi cluster / tenancy id (join/heartbeat must match server when server enforces scope).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope_id: Option<String>,
+    /// `VOX_MESH_VISIBILITY` — `private`, `public`, or `hybrid`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    /// `VOX_MESH_DONATION_POLICY_JSON` — serialized WorkerDonationPolicy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub donation_policy: Option<vox_mesh_types::WorkerDonationPolicy>,
 }
 
 /// Merge `Vox.toml` `[populi]` into env-derived values when the corresponding env is unset.
@@ -180,6 +186,13 @@ pub fn populi_env() -> PopuliEnv {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     let scope_id = populi_scope_id_from_env();
+    let visibility = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshVisibility)
+        .expose()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let donation_policy = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson)
+        .expose()
+        .and_then(|s| serde_json::from_str(&s).ok());
     PopuliEnv {
         enabled,
         node_id,
@@ -187,6 +200,8 @@ pub fn populi_env() -> PopuliEnv {
         control_addr,
         registry_path,
         scope_id,
+        visibility,
+        donation_policy,
     }
 }
 
@@ -252,12 +267,16 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         version: env!("CARGO_PKG_VERSION").to_string(),
         last_seen_unix_ms: now_ms(),
         scope_id: env.scope_id.clone(),
-        visibility: None,
         pool_id: None,
         trust_tier: None,
         workload_classes: None,
         privacy_class: None,
         loaded_llm_models: None,
+        owner_vox_user_id: None,
+        advertised_models: None,
+        donation_policy: env.donation_policy.clone(),
+        visibility: env.visibility.clone(),
+        ed25519_pub_key_b64: None,
         maintenance: None,
         maintenance_until_unix_ms: None,
         provider: None,
@@ -276,15 +295,21 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         cpu_usage_pct: None,
         memory_free_bytes: None,
     };
-    // ADR 018 Layer A: optional NVML probe (`vox-repository/nvml-probe` via `vox-populi/nvml-gpu-probe`).
-    if let Some(snap) = vox_repository::probe_nvidia_gpu_inventory_best_effort() {
-        rec.gpu_total_count = Some(snap.gpu_total_count);
-        rec.gpu_healthy_count = Some(snap.gpu_healthy_count);
-        rec.gpu_allocatable_count = Some(snap.gpu_allocatable_count);
-        rec.gpu_inventory_source = Some("nvml".to_string());
-        rec.gpu_truth_layer = Some("layer_a_verified".to_string());
-        if rec.capabilities.min_vram_mb.is_none() {
-            rec.capabilities.min_vram_mb = snap.min_vram_mb;
+    // Layer A: Hardware Registry (DXGI/DRM Native + NVML fallback/precision)
+    #[cfg(feature = "mens")]
+    {
+        let summary = futures::executor::block_on(crate::mens::hardware::HardwareRegistry::probe());
+        if summary.vendor != crate::mens::hardware::types::GpuVendor::Cpu {
+            rec.gpu_total_count = Some(summary.gpu_count);
+            rec.gpu_healthy_count = Some(summary.gpu_count);
+            rec.gpu_allocatable_count = Some(summary.gpu_count);
+            rec.gpu_inventory_source = Some("native_registry".to_string());
+            rec.gpu_truth_layer = Some("layer_a_verified".to_string());
+            if rec.capabilities.min_vram_mb.is_none() {
+                rec.capabilities.min_vram_mb = Some(summary.vram_mb as u32);
+            }
+            rec.nvidia_driver_version = summary.driver_version.clone();
+            // TODO: cuda_driver_version from precision layer if needed.
         }
     }
     rec

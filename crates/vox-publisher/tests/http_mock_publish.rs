@@ -6,9 +6,7 @@ use axum::{Json, Router, routing::post};
 use chrono::Utc;
 use serde_json::json;
 use tokio::net::TcpListener;
-use vox_publisher::types::{
-    OpenCollectiveConfig, SyndicationConfig, UnifiedNewsItem,
-};
+use vox_publisher::types::{OpenCollectiveConfig, SyndicationConfig, UnifiedNewsItem};
 use vox_publisher::{Publisher, PublisherConfig};
 
 #[tokio::test]
@@ -51,7 +49,7 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
             forge: None,
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                                scheduled_publish_at: None,
+                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: false,
@@ -114,7 +112,7 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
             forge: None,
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                                scheduled_publish_at: None,
+                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: false,

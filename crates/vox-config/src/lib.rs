@@ -6,12 +6,12 @@ pub mod bootstrap_inference;
 pub mod config;
 pub mod env_parse;
 pub mod inference;
+pub mod operator_registry;
 pub mod paths;
 pub mod policy;
-pub mod operator_registry;
 pub mod rollout;
-pub mod scholarly;
 pub mod routing_policy;
+pub mod scholarly;
 pub mod toml_config;
 
 pub use bootstrap_inference::{

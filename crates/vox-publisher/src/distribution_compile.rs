@@ -105,7 +105,10 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.is_active(crate::types::SocialChannel::Twitter) {
+    if item
+        .syndication
+        .is_active(crate::types::SocialChannel::Twitter)
+    {
         push_channel(
             "twitter",
             &item.syndication,
@@ -168,7 +171,10 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.is_active(crate::types::SocialChannel::Discord) {
+    if item
+        .syndication
+        .is_active(crate::types::SocialChannel::Discord)
+    {
         push_channel(
             "discord",
             &item.syndication,
@@ -177,7 +183,10 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.is_active(crate::types::SocialChannel::Mastodon) {
+    if item
+        .syndication
+        .is_active(crate::types::SocialChannel::Mastodon)
+    {
         push_channel(
             "mastodon",
             &item.syndication,
@@ -195,7 +204,10 @@ pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport 
             &mut channel_plans,
         );
     }
-    if item.syndication.is_active(crate::types::SocialChannel::Bluesky) {
+    if item
+        .syndication
+        .is_active(crate::types::SocialChannel::Bluesky)
+    {
         push_channel(
             "bluesky",
             &item.syndication,
@@ -239,8 +251,13 @@ fn push_channel(
         .clone()
         .unwrap_or_else(|| "fallback".to_string());
 
-    let (resolved_id, max_title, max_primary) =
-        resolve_caps(channel, profile_id.as_str(), template_profile.as_deref(), profiles, warnings);
+    let (resolved_id, max_title, max_primary) = resolve_caps(
+        channel,
+        profile_id.as_str(),
+        template_profile.as_deref(),
+        profiles,
+        warnings,
+    );
 
     out.push(ChannelPlan {
         channel: key,
@@ -290,12 +307,21 @@ fn resolve_caps(
 
 fn channel_contract_defaults(channel: &str) -> (usize, usize) {
     match channel {
-        "twitter" => (crate::adapters::twitter::TWEET_MAX_CHARS, crate::adapters::twitter::TWEET_MAX_CHARS),
+        "twitter" => (
+            crate::adapters::twitter::TWEET_MAX_CHARS,
+            crate::adapters::twitter::TWEET_MAX_CHARS,
+        ),
         #[cfg(feature = "scientia-reddit")]
-        "reddit" => (crate::adapters::reddit::TITLE_MAX, crate::adapters::reddit::SELFPOST_SUMMARY_MAX),
+        "reddit" => (
+            crate::adapters::reddit::TITLE_MAX,
+            crate::adapters::reddit::SELFPOST_SUMMARY_MAX,
+        ),
         "hacker_news" => (crate::adapters::hacker_news::TITLE_MAX, 500),
         #[cfg(feature = "scientia-youtube")]
-        "youtube" => (crate::adapters::youtube::TITLE_MAX, crate::adapters::youtube::DESCRIPTION_MAX),
+        "youtube" => (
+            crate::adapters::youtube::TITLE_MAX,
+            crate::adapters::youtube::DESCRIPTION_MAX,
+        ),
         "github" => (500, 50_000),
         "open_collective" => (200, 10_000),
         "rss" => (500, 100_000),
@@ -361,7 +387,8 @@ mod tests {
 
     #[test]
     fn topic_pack_profiles_all_resolve() {
-        validate_topic_pack_projection_profiles().expect("all topic pack template_profile ids valid");
+        validate_topic_pack_projection_profiles()
+            .expect("all topic pack template_profile ids valid");
     }
 
     #[test]

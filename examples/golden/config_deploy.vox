@@ -14,15 +14,15 @@
 type DatabaseConfig =
     | DatabaseConfig(url: str, pool_size: int)
 
-fn sample_database_url() -> str {
+fn sample_database_url() to str {
     return "libsql://example.turso.io"
 }
 
-fn prod_replica_count() -> int {
+fn prod_replica_count() to int {
     return 3
 }
 
-fn prod_debug_enabled() -> bool {
+fn prod_debug_enabled() to bool {
     return false
 }
 // ANCHOR_END: display

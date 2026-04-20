@@ -565,24 +565,30 @@ impl VoxDb {
             .await?;
 
         // Also populate the flat telemetry table for evaluation SSOT consistency
-        let _ = self.insert_telemetry_flat_raw(
-            "eval-harness",
-            &rec.run_id,
-            "vox-research",
-            "ResearchEvalSample",
-            Some("eval-search"),
-            Some("localized-dispatcher-0.1"),
-            Some("local"),
-            rec.latency_ms,
-            None,
-            None,
-            None,
-            Some(&serde_json::to_string(&serde_json::json!({
-                "query": rec.query,
-                "quality_score": rec.quality_score,
-                "groundedness": rec.groundedness,
-            })).unwrap_or_default()),
-        ).await.ok();
+        let _ = self
+            .insert_telemetry_flat_raw(
+                "eval-harness",
+                &rec.run_id,
+                "vox-research",
+                "ResearchEvalSample",
+                Some("eval-search"),
+                Some("localized-dispatcher-0.1"),
+                Some("local"),
+                rec.latency_ms,
+                None,
+                None,
+                None,
+                Some(
+                    &serde_json::to_string(&serde_json::json!({
+                        "query": rec.query,
+                        "quality_score": rec.quality_score,
+                        "groundedness": rec.groundedness,
+                    }))
+                    .unwrap_or_default(),
+                ),
+            )
+            .await
+            .ok();
 
         Ok(self.conn.last_insert_rowid())
     }

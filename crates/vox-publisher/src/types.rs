@@ -71,7 +71,6 @@ pub struct SyndicationConfig {
     pub distribution_policy: DistributionPolicyConfig,
     #[serde(default)]
     pub dry_run: bool,
-    
 }
 
 impl SyndicationConfig {
@@ -89,7 +88,7 @@ impl SyndicationConfig {
         if val.is_object() {
             return true;
         }
-        
+
         // Fallback to the social vec if the root key is null/missing
         self.social.contains(&channel)
     }
@@ -113,7 +112,12 @@ impl SyndicationConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum SocialChannel { Twitter, Bluesky, Mastodon, Discord }
+pub enum SocialChannel {
+    Twitter,
+    Bluesky,
+    Mastodon,
+    Discord,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct BlueskyOverride {
@@ -121,11 +125,19 @@ pub struct BlueskyOverride {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct DiscordOverride { pub message: Option<String> }
+pub struct DiscordOverride {
+    pub message: Option<String>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct MastodonOverride { pub visibility: Option<String>, pub language: Option<String>, pub spoiler_text: Option<String> }
+pub struct MastodonOverride {
+    pub visibility: Option<String>,
+    pub language: Option<String>,
+    pub spoiler_text: Option<String>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct TwitterOverride { pub thread: bool }
+pub struct TwitterOverride {
+    pub thread: bool,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DistributionPolicyConfig {
@@ -182,8 +194,6 @@ fn default_rss() -> bool {
 fn default_true() -> bool {
     true
 }
-
-
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "PascalCase")]
@@ -265,7 +275,6 @@ impl RedditConfig {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RedditTarget {
     pub name: String,
@@ -343,7 +352,6 @@ pub struct YouTubeConfig {
 fn default_youtube_privacy() -> YouTubePrivacyStatus {
     YouTubePrivacyStatus::Private
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ResearchGateConfig {

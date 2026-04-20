@@ -1,5 +1,5 @@
-use crate::types::{DiscordOverride, UnifiedNewsItem};
 use crate::PublisherConfig;
+use crate::types::{DiscordOverride, UnifiedNewsItem};
 use anyhow::{Result, anyhow};
 
 pub const CONTENT_MAX: usize = 2000;
@@ -36,10 +36,7 @@ pub async fn post(
     }
 
     let client = reqwest::Client::new();
-    let res = client.post(&webhook_url)
-        .json(&payload)
-        .send()
-        .await?;
+    let res = client.post(&webhook_url).json(&payload).send().await?;
 
     if !res.status().is_success() {
         let status = res.status();

@@ -92,7 +92,11 @@ impl Orchestrator {
             reserved_agents: reserved_count,
             dynamic_agents: dynamic_count,
             context_entries: crate::sync_lock::rw_read(&self.context_store).entries(),
-            max_handoff_count: agents.iter().map(|a| a.max_handoff_count).max().unwrap_or(0),
+            max_handoff_count: agents
+                .iter()
+                .map(|a| a.max_handoff_count)
+                .max()
+                .unwrap_or(0),
             agents,
         }
     }

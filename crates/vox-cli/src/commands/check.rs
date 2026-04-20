@@ -22,8 +22,6 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
     let error_count = result.error_count();
     let warning_count = result.warning_count();
 
-
-
     if result.has_errors() {
         anyhow::bail!("Check failed with {error_count} error(s) and {warning_count} warning(s)");
     }

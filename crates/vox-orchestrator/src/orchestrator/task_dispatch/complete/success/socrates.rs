@@ -1,7 +1,7 @@
-use tracing;
-use crate::orchestrator::{Orchestrator, OrchestratorError};
-use crate::types::{AgentId, AgentTask, CompletionAttestation, TaskStatus, TaskId};
 use crate::orchestrator::task_dispatch::complete::success::gates::GateOutcome;
+use crate::orchestrator::{Orchestrator, OrchestratorError};
+use crate::types::{AgentId, AgentTask, CompletionAttestation, TaskId, TaskStatus};
+use tracing;
 
 impl Orchestrator {
     pub async fn check_socrates_gate(
@@ -22,7 +22,13 @@ impl Orchestrator {
             crate::sync_lock::rw_read(&*self.context_store).get(&key)
         });
 
-        let (grounding_shadow, grounding_enforce, socrates_shadow, socrates_enforce, socrates_policy) = {
+        let (
+            grounding_shadow,
+            grounding_enforce,
+            socrates_shadow,
+            socrates_enforce,
+            socrates_policy,
+        ) = {
             let config = crate::sync_lock::rw_read(&*self.config);
             (
                 config.completion_grounding_shadow,
@@ -76,7 +82,8 @@ impl Orchestrator {
                     );
                     let mut t = task.clone();
                     t.debug_iterations += 1;
-                    t.description.push_str(&format!("\n\n[GROUNDING GATE]\n{msg}\n",));
+                    t.description
+                        .push_str(&format!("\n\n[GROUNDING GATE]\n{msg}\n",));
                     t.status = TaskStatus::Queued;
                     return Ok(GateOutcome {
                         requeue: Some((t, "grounding gate policy violation".into(), 1, 0)),
@@ -95,7 +102,11 @@ impl Orchestrator {
             augmented.fatigue_active = true;
         }
 
-        let outcome = crate::socrates::evaluate_socrates_gate(&augmented, &socrates_policy, task.description.as_str());
+        let outcome = crate::socrates::evaluate_socrates_gate(
+            &augmented,
+            &socrates_policy,
+            task.description.as_str(),
+        );
 
         if socrates_shadow {
             tracing::info!(
@@ -119,18 +130,17 @@ impl Orchestrator {
                 .unwrap_or_else(|| vec![task.description.clone()]);
             let trigger = outcome.research_decision.trigger.clone();
 
-            let results = self.perform_autonomous_research(
-                Some(agent_id),
-                Some(task_id),
-                queries,
-                &trigger,
-            ).await.unwrap_or_default();
+            let results = self
+                .perform_autonomous_research(Some(agent_id), Some(task_id), queries, &trigger)
+                .await
+                .unwrap_or_default();
             research_results = results;
         }
 
         if socrates_enforce
             && !trust_relax_gates
-            && (outcome.decision != vox_socrates_policy::RiskDecision::Answer || !research_results.is_empty())
+            && (outcome.decision != vox_socrates_policy::RiskDecision::Answer
+                || !research_results.is_empty())
             && task.debug_iterations < max_socrates_debug_iterations
         {
             let mut t = task.clone();
@@ -140,9 +150,11 @@ impl Orchestrator {
                 let context_raw = store.get(&context_key);
                 drop(store);
                 let parsed = context_raw.as_ref().and_then(|raw| {
-                    serde_json::from_str::<crate::ContextEnvelope>(raw).ok().and_then(|env| {
-                        crate::socrates::SessionRetrievalEnvelope::from_context_envelope(&env)
-                    })
+                    serde_json::from_str::<crate::ContextEnvelope>(raw)
+                        .ok()
+                        .and_then(|env| {
+                            crate::socrates::SessionRetrievalEnvelope::from_context_envelope(&env)
+                        })
                 });
                 if let Some(env) = parsed {
                     t.socrates = Some(env.merge_into(t.socrates.clone()));
@@ -165,7 +177,9 @@ impl Orchestrator {
             }
 
             t.debug_iterations += 1;
-            let next_action = t.socrates.as_ref()
+            let next_action = t
+                .socrates
+                .as_ref()
                 .and_then(|ctx| ctx.recommended_next_action.as_deref())
                 .unwrap_or("gather_more_grounding");
             t.description.push_str(&format!(

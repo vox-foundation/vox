@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::*;
+use serde::{Deserialize, Serialize};
 
 /// Root [`PublicationManifest::metadata_json`] key for this block.
 pub const METADATA_KEY_SCIENTIA_EVIDENCE: &str = "scientia_evidence";
@@ -388,7 +388,9 @@ fn push_signal_unique(out: &mut Vec<DiscoverySignal>, signal: DiscoverySignal) {
     out.push(signal);
 }
 
-pub fn benchmark_pair_run_label(b: Option<&crate::scientia_evidence::BenchmarkPairSnapshot>) -> Option<String> {
+pub fn benchmark_pair_run_label(
+    b: Option<&crate::scientia_evidence::BenchmarkPairSnapshot>,
+) -> Option<String> {
     let b = b?;
     Some(format!(
         "{}|{}",

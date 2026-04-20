@@ -13,8 +13,8 @@ use safetensors::SafeTensors;
 use tokenizers::Tokenizer;
 
 use crate::mens::tensor::candle_model_qwen::{
-    ForwardCache, Qwen2Attention, Qwen2Layer, Qwen2MLP, Qwen2Model, Qwen35AttentionBlock,
-    Qwen35ForwardCache, Qwen35Layer, Qwen35LinearAttention, Qwen35Model,
+    Qwen2Attention, Qwen2MLP, Qwen35AttentionBlock, Qwen35ForwardCache, Qwen35Layer,
+    Qwen35LinearAttention, Qwen35Model,
 };
 use crate::mens::tensor::hf_load::HfArchitecture;
 
@@ -26,12 +26,10 @@ pub struct InferenceEngine {
 }
 
 pub enum InferenceModel {
-    Qwen2(Qwen2Model),
     Qwen35(Qwen35Model),
 }
 
 pub enum InferenceCache {
-    Qwen2(ForwardCache),
     Qwen35(Qwen35ForwardCache),
 }
 
@@ -340,106 +338,12 @@ impl InferenceEngine {
                 lm_head,
             })
         } else {
-            let mut layers = Vec::new();
-            for i in 0..layout.num_hidden_layers {
-                let ln1_key = format!("model.layers.{i}.input_layernorm.weight");
-                let ln2_key = format!("model.layers.{i}.post_attention_layernorm.weight");
-                let ln1 = candle_nn::RmsNorm::new(get_tensor(&ln1_key)?, 1e-6);
-                let ln2 = candle_nn::RmsNorm::new(get_tensor(&ln2_key)?, 1e-6);
-
-                let q_key = format!("model.layers.{i}.self_attn.q_proj.weight");
-                let k_key = format!("model.layers.{i}.self_attn.k_proj.weight");
-                let v_key = format!("model.layers.{i}.self_attn.v_proj.weight");
-                let o_key = format!("model.layers.{i}.self_attn.o_proj.weight");
-
-                let head_dim = layout.hidden_size / layout.num_attention_heads;
-                let q_proj =
-                    QuantizedLinear::from_weight(&get_tensor(&q_key)?, None, &qlora_cfg, &_device)?;
-                let k_proj =
-                    QuantizedLinear::from_weight(&get_tensor(&k_key)?, None, &qlora_cfg, &_device)?;
-                let v_proj =
-                    QuantizedLinear::from_weight(&get_tensor(&v_key)?, None, &qlora_cfg, &_device)?;
-                let o_proj =
-                    QuantizedLinear::from_weight(&get_tensor(&o_key)?, None, &qlora_cfg, &_device)?;
-
-                let att = Qwen2Attention {
-                    q_proj,
-                    k_proj,
-                    v_proj,
-                    o_proj,
-                    n_heads: layout.num_attention_heads,
-                    n_kv_heads: layout.num_key_value_heads,
-                    head_dim,
-                };
-
-                let gate_key = format!("model.layers.{i}.mlp.gate_proj.weight");
-                let up_key = format!("model.layers.{i}.mlp.up_proj.weight");
-                let down_key = format!("model.layers.{i}.mlp.down_proj.weight");
-
-                let mlp = Qwen2MLP {
-                    gate_proj: QuantizedLinear::from_weight(
-                        &get_tensor(&gate_key)?,
-                        None,
-                        &qlora_cfg,
-                        &_device,
-                    )?,
-                    up_proj: QuantizedLinear::from_weight(
-                        &get_tensor(&up_key)?,
-                        None,
-                        &qlora_cfg,
-                        &_device,
-                    )?,
-                    down_proj: QuantizedLinear::from_weight(
-                        &get_tensor(&down_key)?,
-                        None,
-                        &qlora_cfg,
-                        &_device,
-                    )?,
-                };
-
-                let inv_freq_key = format!("model.layers.{i}.self_attn.rotary_emb.inv_freq");
-                let inv_freq = get_tensor(&inv_freq_key).ok();
-
-                layers.push(Qwen2Layer {
-                    input_layernorm: ln1,
-                    self_attn: att,
-                    post_attention_layernorm: ln2,
-                    mlp,
-                    inv_freq,
-                });
-            }
-
-            let norm = candle_nn::RmsNorm::new(get_tensor("model.norm.weight")?, 1e-6);
-            let lm_head_key = if weight_maps
-                .iter()
-                .any(|st: &SafeTensors| st.tensor("lm_head.weight").is_ok())
-            {
-                "lm_head.weight"
-            } else {
-                "model.embed_tokens.weight"
-            };
-            let lm_head = QuantizedLinear::from_weight(
-                &get_tensor(lm_head_key)?,
-                None,
-                &qlora_cfg,
-                &_device,
-            )?;
-            let model = Qwen2Model {
-                embed_tokens: get_tensor("model.embed_tokens.weight")?,
-                layers,
-                norm,
-                lm_head,
-            };
-            InferenceModel::Qwen2(model)
+            anyhow::bail!(
+                "Unsupported architecture for inference: {:?}",
+                layout.architecture
+            );
         };
-        let kv_cache = match &model {
-            InferenceModel::Qwen2(_) => {
-                InferenceCache::Qwen2(ForwardCache::new(layout.num_hidden_layers))
-            }
-            InferenceModel::Qwen35(_) => {
-                InferenceCache::Qwen35(Qwen35ForwardCache::new(layout.num_hidden_layers))
-            }
-        };
+        let kv_cache = InferenceCache::Qwen35(Qwen35ForwardCache::new(layout.num_hidden_layers));
 
         Ok(Self {
             model,
@@ -479,7 +383,7 @@ impl InferenceEngine {
             .to_vec();
 
         let mut generated = String::new();
-        let mut json_fsm = vox_grammar_export::automaton::JsonGrammarAutomaton::new();
+        let mut json_fsm = vox_grammar_export::automaton::JsonBraceDepthTracker::new();
 
         // Very basic inference loop
         for i in 0..max_tokens {
@@ -491,13 +395,9 @@ impl InferenceEngine {
             };
 
             let logits = match (&self.model, &mut self.kv_cache) {
-                (InferenceModel::Qwen2(model), InferenceCache::Qwen2(cache)) => {
-                    model.forward_with_cache(&input, i, cache)?
-                }
                 (InferenceModel::Qwen35(model), InferenceCache::Qwen35(cache)) => {
                     model.forward_with_cache(&input, i, cache)?
                 }
-                _ => anyhow::bail!("inference cache/model mismatch"),
             };
             let logits = logits.squeeze(0)?;
             let seq = logits.dim(0)?;

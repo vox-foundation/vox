@@ -107,6 +107,7 @@ pub fn initial_training_manifest(
         trajectory_failure_category_boost: run.trajectory_failure_category_boost,
         trajectory_quality_floor: run.trajectory_quality_floor,
         trajectory_quality_boost: run.trajectory_quality_boost,
+        contamination_score: run.contamination_score,
     }
 }
 

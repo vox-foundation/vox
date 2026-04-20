@@ -1,7 +1,6 @@
 use crate::models::ModelSpec;
 use serde::{Deserialize, Serialize};
 
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct ClassificationResponse {

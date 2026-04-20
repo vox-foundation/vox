@@ -62,8 +62,7 @@ COPY --from=builder /app/target/release/vox-schola /usr/local/bin/vox-schola
 COPY --from=builder /app/populi/config/gpu-specs.yaml /opt/vox/gpu-specs.yaml
 
 # Entrypoint handles train/serve/agent dispatch via VOX_JOB_KIND
-COPY infra/containers/entrypoints/populi-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY infra/containers/entrypoints/populi-entrypoint.vox /entrypoint.vox
 
 WORKDIR /workspace
 
@@ -76,6 +75,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=60s --timeout=10s --start-period=120s \
     CMD vox doctor --probe
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["vox", "run", "--interp", "/entrypoint.vox"]
 
 

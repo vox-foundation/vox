@@ -1,5 +1,5 @@
-use crate::types::UnifiedNewsItem;
 use crate::PublisherConfig;
+use crate::types::UnifiedNewsItem;
 use anyhow::{Result, anyhow};
 
 pub const API_BASE: &str = "https://api.linkedin.com";
@@ -10,7 +10,7 @@ pub const CANARY_PATH: &str = "/v2/userinfo";
 pub async fn post(
     publisher_cfg: &PublisherConfig,
     item: &UnifiedNewsItem,
-    
+
     dry_run: bool,
 ) -> Result<String> {
     if dry_run {
@@ -26,15 +26,17 @@ pub async fn post(
         .linkedin_author_urn
         .as_deref()
         .filter(|s| !s.trim().is_empty())
-        .ok_or_else(|| anyhow!(
-            "LinkedIn author_urn is required. Set VOX_SOCIAL_LINKEDIN_AUTHOR_URN to your \
+        .ok_or_else(|| {
+            anyhow!(
+                "LinkedIn author_urn is required. Set VOX_SOCIAL_LINKEDIN_AUTHOR_URN to your \
              urn:li:person:... or urn:li:organization:... value."
-        ))?;
+            )
+        })?;
 
     let text = item.content_markdown.clone();
 
     let visibility = "PUBLIC".to_string();
-    
+
     let payload = serde_json::json!({
         "author": author_urn,
         "commentary": text,
@@ -69,7 +71,8 @@ pub async fn post(
         return Err(anyhow!("LinkedIn API failed: {}", err_text));
     }
 
-    let created_urn = res.headers()
+    let created_urn = res
+        .headers()
         .get("x-restli-id")
         .and_then(|h| h.to_str().ok())
         .unwrap_or(&item.id)

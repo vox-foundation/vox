@@ -15,7 +15,7 @@
 //!    unmasked decode when the adapter is unavailable or times out.
 //! 3. **Gate:** enable constrained decode by default only after compile\@k / latency benchmarks beat
 //!    the validator-only baseline on the frozen speech benchmark manifest.
-//! 
+//!
 //! Refactored in April 2026 to separate policy logic and surface contracts.
 
 use std::path::Path;
@@ -103,7 +103,7 @@ impl ConstrainedDecodePolicy {
     pub fn from_env() -> Self {
         let mask_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpGrammarMask);
         let policy_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpDecodePolicy);
-        
+
         let p = policy_env.expose().map(|s| s.to_ascii_lowercase());
         match p.as_deref() {
             Some("rigid") => Self::Rigid,

@@ -1,3 +1,11 @@
+---
+title: "Antigravity Overlay"
+description: "Antigravity-specific behavior and shell discipline for Windows + PowerShell."
+category: "contributor"
+status: "current"
+training_eligible: true
+training_rationale: "Defines Antigravity-specific rules and shell environment expectations."
+---
 # Antigravity Overlay (Windows + PowerShell)
 
 This file is Antigravity-specific. It narrows behavior for this repo without replacing `AGENTS.md`.

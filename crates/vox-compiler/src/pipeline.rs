@@ -15,6 +15,7 @@ use anyhow::Result;
 #[derive(Debug, Clone, Default)]
 pub struct PipelineOptions {
     pub lower_config: LowerConfig,
+    pub script_mode: bool,
 }
 
 /// The result of running the frontend pipeline.
@@ -78,7 +79,10 @@ pub fn run_frontend_str_with_options(
                     ast_node_kind: None,
                 };
                 return Ok(FrontendResult {
-                    module: crate::ast::decl::Module { declarations: vec![], span: crate::ast::span::Span::new(0, 0) },
+                    module: crate::ast::decl::Module {
+                        declarations: vec![],
+                        span: crate::ast::span::Span::new(0, 0),
+                    },
                     hir: crate::hir::HirModule::default(),
                     diagnostics: vec![diag],
                     source: source.to_owned(),
@@ -88,7 +92,12 @@ pub fn run_frontend_str_with_options(
     }
 
     // 2. Parse
-    let module = crate::parser::parse(tokens.clone())
+    let module_res = if options.script_mode {
+        crate::parser::parse_script(tokens.clone())
+    } else {
+        crate::parser::parse(tokens.clone())
+    };
+    let module = module_res
         .map_err(|errors| anyhow::anyhow!("Parsing failed with {} error(s)", errors.len()))?;
 
     // 3. Lower to HIR + structural validation
@@ -96,6 +105,65 @@ pub fn run_frontend_str_with_options(
 
     // 4. Type-check HIR (populates inferred types)
     let mut diagnostics = crate::typeck::typecheck_hir_module(source, &mut hir);
+
+    // 5. Deprecated Usage Detector (Item 16, @deprecated)
+    for line in source.lines() {
+        let line_start_byte = (line.as_ptr() as usize).saturating_sub(source.as_ptr() as usize);
+        if line.trim_start().starts_with("@deprecated") {
+            let start = line_start_byte + line.find("@deprecated").unwrap_or(0);
+            diagnostics.push(Diagnostic {
+                severity: TypeckSeverity::Warning,
+                message: "Found @deprecated annotation. Consider removing this obsolete code."
+                    .to_string(),
+                span: crate::ast::span::Span::new(start, start + 11),
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec![
+                    "Refactor dependents and remove this deprecated item.".to_string(),
+                ],
+                category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
+                code: Some("W092".to_string()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+
+        let jsx_leaks = ["className=", "onClick=", "onChange=", "onSubmit="];
+        for leak in jsx_leaks {
+            if let Some(idx) = line.find(leak) {
+                let start = line_start_byte + idx;
+                let attr = leak.trim_end_matches('=');
+                let mut vox_attr = attr.to_lowercase();
+                if vox_attr.starts_with("on") {
+                    vox_attr = format!("on:{}", &vox_attr[2..]);
+                }
+                if vox_attr == "classname" {
+                    vox_attr = "class".to_string();
+                }
+                diagnostics.push(Diagnostic {
+                    severity: TypeckSeverity::Warning,
+                    message: format!("Raw JSX '{}' leaks into Vox source (Item 16).", attr),
+                    span: crate::ast::span::Span::new(start, start + leak.len()),
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec![format!(
+                        "Use Vox-native syntax: '{}=' instead of '{}='.",
+                        vox_attr, attr
+                    )],
+                    category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
+                    code: Some("W093".to_string()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
+        }
+    }
 
     for e in crate::hir::validate_module(&hir) {
         diagnostics.push(Diagnostic::hir_invariant(
@@ -126,7 +194,7 @@ pub fn format_diagnostics_json(result: &FrontendResult, file_path: &str) -> Stri
 /// Run the full check pipeline and return machine-readable diagnostics even on parse failure.
 pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPayload> {
     let tokens = crate::lexer::lex(source);
-    
+
     // 1.5. Prevent Syntactic Configurability (K-Complexity Guard)
     for spanned in &tokens {
         if let crate::lexer::token::Token::Ident(ref name) = spanned.token {
@@ -146,7 +214,9 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
                     missing_cases: vec![],
                     ast_node_kind: None,
                 };
-                return vec![VoxCompilerDiagnosticPayload::from_diagnostic(&diag, file_path, source)];
+                return vec![VoxCompilerDiagnosticPayload::from_diagnostic(
+                    &diag, file_path, source,
+                )];
             }
         }
     }
@@ -155,6 +225,68 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
         Ok(module) => {
             let mut hir = crate::hir::lower_module(&module);
             let mut diagnostics = crate::typeck::typecheck_hir_module(source, &mut hir);
+
+            // 5. Deprecated Usage Detector (Item 16, @deprecated)
+            for line in source.lines() {
+                let line_start_byte =
+                    (line.as_ptr() as usize).saturating_sub(source.as_ptr() as usize);
+                if line.trim_start().starts_with("@deprecated") {
+                    let start = line_start_byte + line.find("@deprecated").unwrap_or(0);
+                    diagnostics.push(Diagnostic {
+                        severity: TypeckSeverity::Warning,
+                        message:
+                            "Found @deprecated annotation. Consider removing this obsolete code."
+                                .to_string(),
+                        span: crate::ast::span::Span::new(start, start + 11),
+                        expected_type: None,
+                        found_type: None,
+                        context: None,
+                        suggestions: vec![
+                            "Refactor dependents and remove this deprecated item.".to_string(),
+                        ],
+                        category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
+                        code: Some("W092".to_string()),
+                        fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
+                    });
+                }
+
+                let jsx_leaks = ["className=", "onClick=", "onChange=", "onSubmit="];
+                for leak in jsx_leaks {
+                    if let Some(idx) = line.find(leak) {
+                        let start = line_start_byte + idx;
+                        let attr = leak.trim_end_matches('=');
+                        let mut vox_attr = attr.to_lowercase();
+                        if vox_attr.starts_with("on") {
+                            vox_attr = format!("on:{}", &vox_attr[2..]);
+                        }
+                        if vox_attr == "classname" {
+                            vox_attr = "class".to_string();
+                        }
+                        diagnostics.push(Diagnostic {
+                            severity: TypeckSeverity::Warning,
+                            message: format!("Raw JSX '{}' leaks into Vox source (Item 16).", attr),
+                            span: crate::ast::span::Span::new(start, start + leak.len()),
+                            expected_type: None,
+                            found_type: None,
+                            context: None,
+                            suggestions: vec![format!(
+                                "Use Vox-native syntax: '{}=' instead of '{}='.",
+                                vox_attr, attr
+                            )],
+                            category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
+                            code: Some("W093".to_string()),
+                            fixes: vec![],
+                            line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
+                        });
+                    }
+                }
+            }
+
             for e in crate::hir::validate_module(&hir) {
                 diagnostics.push(Diagnostic::hir_invariant(
                     e.message,
@@ -202,8 +334,12 @@ mod tests {
         let diagnostics = check_file(source, "test.vox");
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].error_code, "E091".to_string());
-        assert!(diagnostics[0].message.contains("SyntacticConfigurabilityNotAllowed"));
-        
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("SyntacticConfigurabilityNotAllowed")
+        );
+
         // Also test run_frontend_str
         let frontend_res = run_frontend_str(source, "test.vox").unwrap();
         assert_eq!(frontend_res.diagnostics.len(), 1);

@@ -123,12 +123,16 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
 
     let pol = state.orchestrator_config.effective_socrates_policy();
     prompt.push_str(&socrates_system_rider(&pol));
-    
+
     // Attempt to pull Operating Mode from the session's active ContextEnvelope
     if let Some(session_id) = session_id {
         let env_key = crate::socrates::session_context_envelope_key(session_id);
         let store = state.orchestrator.context_store();
-        if let Some(env_raw) = crate::mcp_tools::sync_poison::poison_rw_read(store.read(), "context_store").ok().and_then(|g| g.get(&env_key).clone()) {
+        if let Some(env_raw) =
+            crate::mcp_tools::sync_poison::poison_rw_read(store.read(), "context_store")
+                .ok()
+                .and_then(|g| g.get(&env_key).clone())
+        {
             if let Ok(env) = serde_json::from_str::<crate::ContextEnvelope>(&env_raw) {
                 if let Some(mode) = env.operating_mode {
                     prompt.push_str(&mode.system_rider());
@@ -136,7 +140,7 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
             }
         }
     }
-    
+
     prompt
 }
 

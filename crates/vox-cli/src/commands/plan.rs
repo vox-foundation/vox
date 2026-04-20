@@ -6,7 +6,7 @@ pub enum PlanCmd {
     Create {
         /// Human readable goal the agent should plan out
         goal: String,
-        
+
         /// Auto-approve execution bypassing the `RequiresApproval` block.
         #[arg(long)]
         approve: bool,

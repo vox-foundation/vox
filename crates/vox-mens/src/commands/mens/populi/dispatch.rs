@@ -15,9 +15,9 @@ use crate::commands::mens::eval_gate;
 use crate::commands::mens::pipeline;
 use crate::commands::mens::status;
 
+use crate::commands::mens::probe;
 #[cfg(feature = "gpu")]
 use crate::commands::mens::{eval_local, merge_weights};
-use crate::commands::mens::probe;
 #[cfg(feature = "gpu")]
 use crate::commands::schola::merge_qlora;
 
@@ -192,6 +192,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             optimizer_experiment_mode,
             data_mode,
             fast_corpus,
+            persistent,
         } => {
             super::train_arm::run_train(
                 model,
@@ -250,6 +251,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 optimizer_experiment_mode.into(),
                 data_mode,
                 fast_corpus,
+                persistent,
             )
             .await
         }
@@ -274,6 +276,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             max_budget: _max_budget,
             model_hf: _model_hf,
             max_runtime_secs: _max_runtime_secs,
+            persistent: _persistent,
         } => {
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
@@ -288,6 +291,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                         _model_hf.unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
                     spec.max_budget_usd = _max_budget;
                     spec.serve_port = port;
+                    spec.persistent = _persistent;
 
                     let resolver = vox_populi::mens::cloud::CloudResolver::new_from_env().await?;
                     return resolver.dispatch(spec, &cloud).await;
@@ -309,14 +313,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if manifest_path.exists() || adapter_path.exists() {
                 let report_path = model.join("collateral_damage_report.json");
                 if !report_path.exists() {
-                    anyhow::bail!("eval_collateral_damage check not found! Run `vox mens eval collateral-damage --pre-score <baseline.json> --post <adapter>` before serving this adapter.");
+                    anyhow::bail!(
+                        "eval_collateral_damage check not found! Run `vox mens eval collateral-damage --pre-score <baseline.json> --post <adapter>` before serving this adapter."
+                    );
                 }
-                
+
                 let report_raw = std::fs::read_to_string(&report_path)?;
                 let report_json: serde_json::Value = serde_json::from_str(&report_raw)?;
                 let status = report_json.get("status").and_then(|s| s.as_str());
                 if status != Some("pass") {
-                    anyhow::bail!("eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served.");
+                    anyhow::bail!(
+                        "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
+                    );
                 }
             }
 
@@ -470,18 +478,25 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     std::env::set_var("VOX_DEI_MODE_PROFILE", m);
                 }
             }
-            vox_cli::commands::review::run(
-                &targets,
-                model.as_deref(),
-                format.as_deref(),
-                severity.as_deref(),
-                free_only,
-                diff,
-                ci,
-                pr_comment,
-                diff_base.as_deref(),
-            )
-            .await
+            let mut cmd = tokio::process::Command::new("vox");
+            cmd.arg("review");
+            for t in &targets {
+                cmd.arg(t);
+            }
+            if let Some(m) = model { cmd.arg("--model").arg(m); }
+            if let Some(f) = format { cmd.arg("--format").arg(f); }
+            if let Some(s) = severity { cmd.arg("--severity").arg(s); }
+            if free_only { cmd.arg("--free-only"); }
+            if diff { cmd.arg("--diff"); }
+            if ci { cmd.arg("--ci"); }
+            if pr_comment { cmd.arg("--pr-comment"); }
+            if let Some(db) = diff_base { cmd.arg("--diff-base").arg(db); }
+            
+            let status = cmd.status().await?;
+            if !status.success() {
+                anyhow::bail!("vox review via subprocess failed");
+            }
+            Ok(())
         }
 
         #[cfg(feature = "mens-dei")]

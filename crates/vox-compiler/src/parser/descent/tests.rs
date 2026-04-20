@@ -169,26 +169,13 @@ fn test_parse_pipe() {
 }
 
 #[test]
-fn test_parse_actor() {
-    let m = parse_str("actor Worker { on receive(msg) to str { return msg } }");
-    if let Decl::Actor(a) = &m.declarations[0] {
-        assert_eq!(a.name, "Worker");
-        assert_eq!(a.handlers.len(), 1);
-        assert_eq!(a.handlers[0].event_name, "receive");
-    } else {
-        panic!("Expected actor");
-    }
+fn test_parse_actor_is_tombstoned() {
+    assert_parse_fails("actor Worker { on receive(msg) to str { return msg } }");
 }
 
 #[test]
-fn test_parse_workflow() {
-    let m = parse_str("workflow process(file: str) to str { return file }");
-    if let Decl::Workflow(w) = &m.declarations[0] {
-        assert_eq!(w.name, "process");
-        assert_eq!(w.params.len(), 1);
-    } else {
-        panic!("Expected workflow");
-    }
+fn test_parse_workflow_is_tombstoned() {
+    assert_parse_fails("workflow process(file: str) to str { return file }");
 }
 
 #[test]
@@ -339,16 +326,8 @@ fn test_parse_multiple_decls() {
 }
 
 #[test]
-fn test_parse_activity() {
-    let m = parse_str("activity send_email(recipient: str) to str { return recipient }");
-    if let Decl::Activity(a) = &m.declarations[0] {
-        assert_eq!(a.name, "send_email");
-        assert_eq!(a.params.len(), 1);
-        assert_eq!(a.params[0].name, "recipient");
-        assert!(a.return_type.is_some());
-    } else {
-        panic!("Expected activity declaration, got {:?}", m.declarations[0]);
-    }
+fn test_parse_activity_is_tombstoned() {
+    assert_parse_fails("activity send_email(recipient: str) to str { return recipient }");
 }
 
 #[test]
@@ -617,4 +596,84 @@ environment staging {
     assert_eq!(2, m.declarations.len());
     assert!(matches!(m.declarations[0], Decl::Agent(_)));
     assert!(matches!(m.declarations[1], Decl::Environment(_)));
+}
+
+// ── parse_script tests (audit item A.1) ──────────────────────────────────────
+
+fn parse_script_str(source: &str) -> Module {
+    let tokens = lex(source);
+    parse_script(tokens).unwrap_or_else(|e| panic!("Script parse errors: {e:?}"))
+}
+
+/// Top-level `let` statement is wrapped in a synthetic `fn main()`.
+#[test]
+fn test_parse_script_top_level_let_becomes_main() {
+    let m = parse_script_str("let x = 42");
+    // The module must contain exactly one declaration: synthetic fn main.
+    assert_eq!(
+        m.declarations.len(),
+        1,
+        "expected exactly synthetic fn main"
+    );
+    if let Decl::Function(f) = &m.declarations[0] {
+        assert_eq!(f.name, "main");
+        assert_eq!(f.params.len(), 0);
+        assert!(!f.is_pub);
+        assert_eq!(f.body.len(), 1);
+        assert!(matches!(&f.body[0], Stmt::Let { .. }));
+    } else {
+        panic!("Expected Decl::Function(main), got {:?}", m.declarations[0]);
+    }
+}
+
+/// A plain expression at the top level becomes a Stmt::Expr inside main.
+#[test]
+fn test_parse_script_top_level_expr_becomes_main_body() {
+    let m = parse_script_str("print(42)");
+    if let Decl::Function(f) = &m.declarations[0] {
+        assert_eq!(f.name, "main");
+        assert_eq!(f.body.len(), 1);
+        assert!(matches!(&f.body[0], Stmt::Expr { .. }));
+    } else {
+        panic!("expected fn main");
+    }
+}
+
+/// Mixed file: a declaration + top-level statements. Declarations stay as-is;
+/// statements are collected into synthetic main appended after them.
+#[test]
+fn test_parse_script_mixed_decl_and_stmts() {
+    let src = "fn helper() to int { return 1 }\nlet result = helper()";
+    let m = parse_script_str(src);
+    // Expect: fn helper, then synthetic fn main.
+    assert_eq!(m.declarations.len(), 2, "expected helper + synthetic main");
+    assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "helper"));
+    assert!(matches!(&m.declarations[1], Decl::Function(f) if f.name == "main"));
+    if let Decl::Function(main) = &m.declarations[1] {
+        assert_eq!(main.body.len(), 1);
+        assert!(matches!(&main.body[0], Stmt::Let { .. }));
+    }
+}
+
+/// A pure-declaration file (no top-level statements) produces no synthetic main.
+#[test]
+fn test_parse_script_pure_decl_file_no_synthetic_main() {
+    let src = "fn add(a, b) to int { return a + b }";
+    let m = parse_script_str(src);
+    assert_eq!(m.declarations.len(), 1);
+    assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "add"));
+}
+
+/// Multiple top-level statements all end up in one synthetic main body.
+#[test]
+fn test_parse_script_multiple_stmts_single_main() {
+    let src = "let x = 1\nlet y = 2\nlet z = x";
+    let m = parse_script_str(src);
+    assert_eq!(m.declarations.len(), 1);
+    if let Decl::Function(f) = &m.declarations[0] {
+        assert_eq!(f.name, "main");
+        assert_eq!(f.body.len(), 3);
+    } else {
+        panic!("expected fn main");
+    }
 }

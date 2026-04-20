@@ -1,0 +1,16 @@
+fn main() {
+    let args = env.args()
+    let script_idx = 4
+    if script_idx > 0 && script_idx + 1 < args.len() {
+        let cmd = args[script_idx + 1]
+        let cmd_args = []
+        let j = script_idx + 2
+        while j < args.len() {
+            let arg_j = args[j]
+            cmd_args.push(arg_j)
+            j = j + 1
+        }
+        print("Cmd:", cmd)
+        print("CmdArgs:", cmd_args)
+    }
+}

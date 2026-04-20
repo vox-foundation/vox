@@ -77,6 +77,30 @@ pub enum PopuliLifecycleCmd {
         /// Allow local insecure mode (disables required mesh token).
         #[arg(long, default_value_t = false)]
         insecure_local: bool,
+        /// Node visibility for task scheduling (`private`, `public`, `hybrid`).
+        #[arg(long, default_value = "private")]
+        visibility: String,
+        /// Opt-in to processing public mesh tasks when idle.
+        #[arg(long, default_value_t = false)]
+        public_mesh: bool,
+        /// Minimum priority for public mesh tasks (0-255).
+        #[arg(long, default_value_t = 128)]
+        donate_min_priority: u8,
+        /// Task kinds allowed for donation (comma-separated, e.g. "text_infer,image_gen").
+        #[arg(long, value_delimiter = ',')]
+        donate_kinds: Vec<String>,
+        /// Explicit whitelist of user IDs allowed to run tasks.
+        #[arg(long, value_delimiter = ',')]
+        allow_users: Vec<String>,
+        /// Explicit blacklist of user IDs denied from running tasks.
+        #[arg(long, value_delimiter = ',')]
+        deny_users: Vec<String>,
+        /// Explicit whitelist of federated mesh networks (scope IDs) to accept tasks from.
+        #[arg(long, value_delimiter = ',')]
+        allow_meshes: Vec<String>,
+        /// Known peer mesh URLs to gossip federation status with (comma-separated).
+        #[arg(long, value_delimiter = ',')]
+        bootstrap_peers: Vec<String>,
     },
     /// Stop the populi control-plane process started by `vox populi up`.
     Down,

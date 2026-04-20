@@ -1,5 +1,5 @@
-﻿use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_publisher::publication::PublicationManifest;
@@ -619,4 +619,3 @@ pub async fn vox_scientia_publication_status(
     })
     .to_json()
 }
-

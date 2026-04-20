@@ -1,10 +1,10 @@
-use vox_cli::cli_actions::WorkflowAction;
 use anyhow::{Context, Result};
 use std::path::Path;
 #[cfg(feature = "workflow-runtime")]
 use std::sync::Arc;
 #[cfg(feature = "workflow-runtime")]
 use uuid::Uuid;
+use vox_cli_core::cli_actions::WorkflowAction;
 
 /// Dispatch workflow actions.
 pub async fn run(action: WorkflowAction) -> Result<()> {
@@ -226,7 +226,7 @@ pub async fn run_workflow(
 
     #[cfg(feature = "workflow-runtime")]
     {
-        use vox_cli::workflow_journal_codex;
+        use vox_cli_core::workflow_journal_codex;
         let run_id = resolve_workflow_run_id(workflow_name, requested_run_id)?;
         let resume_requested = requested_run_id.is_some();
         let db = Arc::new(
@@ -284,7 +284,15 @@ pub async fn run_workflow(
         let _ = requested_run_id;
         // Build the project (same as vox run)
         let out_dir = std::path::PathBuf::from("dist");
-        crate::commands::build::run(file, &out_dir, None, false, false, crate::cli_args::BuildMode::App).await?;
+        crate::commands::build::run(
+            file,
+            &out_dir,
+            None,
+            false,
+            false,
+            crate::cli_args::BuildMode::App,
+        )
+        .await?;
 
         let generated_dir = std::path::PathBuf::from("target").join("generated");
         let shared_target = crate::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));

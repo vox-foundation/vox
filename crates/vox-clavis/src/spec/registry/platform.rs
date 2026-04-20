@@ -1,6 +1,6 @@
-use crate::spec::types::*;
-use crate::spec::ids::SecretId;
 use crate::policy::SecretPolicy;
+use crate::spec::ids::SecretId;
+use crate::spec::types::*;
 
 pub const SPECS_PLATFORM: &[SecretSpec] = &[
     SecretSpec {

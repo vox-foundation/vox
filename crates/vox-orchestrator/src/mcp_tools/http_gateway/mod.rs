@@ -9,7 +9,6 @@ use status::*;
 mod rpc_tools;
 use rpc_tools::*;
 mod ws;
-use ws::*;
 use anyhow::{Context, Result};
 use axum::Json;
 use axum::extract::DefaultBodyLimit;
@@ -28,11 +27,12 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use ws::*;
 
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::{ServerState, tool_json_envelope_is_error};
-pub use vox_mcp_registry::TOOL_REGISTRY;
 use crate::mcp_tools::{canonical_tool_name, handle_tool_call, tool_registry};
+pub use vox_mcp_registry::TOOL_REGISTRY;
 
 const DEFAULT_BIND_HOST: &str = "127.0.0.1";
 const DEFAULT_BIND_PORT: u16 = 3921;
@@ -183,13 +183,16 @@ pub fn spawn_http_gateway_if_enabled(
     }
     let require_forwarded_https =
         read_bool_env(vox_clavis::SecretId::VoxMcpHttpRequireForwardedHttps).unwrap_or(false);
-    let health_auth_required = read_bool_env(vox_clavis::SecretId::VoxMcpHttpHealthAuth).unwrap_or(false);
-    let trust_forwarded_for = read_bool_env(vox_clavis::SecretId::VoxMcpHttpTrustXForwardedFor).unwrap_or(false);
-    let calls_per_minute = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpRateLimitPerMinute)
-        .expose()
-        .and_then(|s| s.parse::<u32>().ok())
-        .filter(|n| *n > 0)
-        .unwrap_or(DEFAULT_RATE_LIMIT_PER_MINUTE);
+    let health_auth_required =
+        read_bool_env(vox_clavis::SecretId::VoxMcpHttpHealthAuth).unwrap_or(false);
+    let trust_forwarded_for =
+        read_bool_env(vox_clavis::SecretId::VoxMcpHttpTrustXForwardedFor).unwrap_or(false);
+    let calls_per_minute =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpRateLimitPerMinute)
+            .expose()
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|n| *n > 0)
+            .unwrap_or(DEFAULT_RATE_LIMIT_PER_MINUTE);
     let allowed_tools = Arc::new(parse_allowed_tools()?);
     let read_role_eligible_tools = Arc::new(metadata_read_role_eligible_tools());
     let read_role_tools_override = parse_read_role_allowed_tools_override()?.map(Arc::new);
@@ -269,20 +272,10 @@ pub fn spawn_http_gateway_if_enabled(
     Ok(Some(handle))
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-pub(super) fn enforce_auth(state: &GatewayState, headers: &HeaderMap) -> std::result::Result<(), String> {
+pub(super) fn enforce_auth(
+    state: &GatewayState,
+    headers: &HeaderMap,
+) -> std::result::Result<(), String> {
     resolve_access_role(state, headers).map(|_| ())
 }
 
@@ -304,7 +297,10 @@ pub(super) fn enforce_https_requirement(
     }
 }
 
-pub(super) fn enforce_rate_limit(state: &GatewayState, identity: &String) -> std::result::Result<(), String> {
+pub(super) fn enforce_rate_limit(
+    state: &GatewayState,
+    identity: &String,
+) -> std::result::Result<(), String> {
     state.rate_limiter.check_key(identity).map_err(|_| {
         format!(
             "rate limit exceeded (max {} requests/minute)",
@@ -314,7 +310,11 @@ pub(super) fn enforce_rate_limit(state: &GatewayState, identity: &String) -> std
 }
 
 pub(super) fn parse_allowed_tools() -> Result<HashSet<String>> {
-    parse_allowed_tools_from_value(vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpAllowedTools).expose().as_deref())
+    parse_allowed_tools_from_value(
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpAllowedTools)
+            .expose()
+            .as_deref(),
+    )
 }
 
 pub(super) fn parse_read_role_allowed_tools_override() -> Result<Option<HashSet<String>>> {
@@ -389,7 +389,7 @@ pub(super) fn parse_allowed_tools_from_value(raw: Option<&str>) -> Result<HashSe
             }
         }
     }
-    
+
     if set.is_empty() {
         for n in DEFAULT_ALLOWED_TOOLS.iter() {
             set.insert(canonical_tool_name(n).to_string());
@@ -410,7 +410,11 @@ pub(super) fn parse_allowed_tools_from_value(raw: Option<&str>) -> Result<HashSe
     Ok(set)
 }
 
-pub(super) fn request_identity(state: &GatewayState, peer: &SocketAddr, headers: &HeaderMap) -> String {
+pub(super) fn request_identity(
+    state: &GatewayState,
+    peer: &SocketAddr,
+    headers: &HeaderMap,
+) -> String {
     if state.trust_forwarded_for
         && let Some(v) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok())
     {
@@ -565,4 +569,3 @@ pub(super) fn mobile_workspace_html() -> &'static str {
 </html>
 "#
 }
-

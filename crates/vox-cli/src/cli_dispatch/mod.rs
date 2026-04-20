@@ -13,7 +13,9 @@ pub(crate) use lanes::run_openclaw_subcommand;
 pub(crate) use lanes::run_review_subcommand;
 #[cfg(feature = "script-execution")]
 pub(crate) use lanes::run_script_subcommand;
-pub(crate) use lanes::{cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd};
+pub(crate) use lanes::{
+    cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd,
+};
 
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
     {
@@ -71,6 +73,10 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Ars { cmd } => {
             run_ars_cmd(cmd).await?;
+        }
+        #[cfg(feature = "extras-ludus")]
+        Cli::Ludus { cmd } => {
+            crate::commands::extras::ludus_cli::run(cmd).await?;
         }
         Cli::Clavis { cmd } => {
             crate::commands::clavis::run(cmd).await?;
@@ -269,6 +275,11 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
+        }
+        Cli::Mens { .. } | Cli::Populi { .. } | Cli::Oratio { .. } | Cli::Schola { .. } => {
+            std::unreachable!(
+                "ML/AI commands are intercepted in main.rs and delegated to external binaries"
+            )
         }
     }
 

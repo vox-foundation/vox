@@ -1,0 +1,3 @@
+fn broken() -> int {
+    ret "not an int"
+}

@@ -4,9 +4,16 @@ use super::super::Parser;
 use crate::ast::expr::{Expr, JsxAttribute, JsxElement, JsxSelfClosingElement};
 use crate::lexer::token::Token;
 
+use crate::parser::error::{ParseError, ParseErrorClass};
+
 impl Parser {
     pub(crate) fn parse_jsx(&mut self) -> Result<Expr, ()> {
         let start = self.span();
+        self.errors.push(ParseError::warning(
+            start,
+            "Raw JSX in .vox source is deprecated and will be rejected. Use the appropriate view macro or @island instead.",
+            ParseErrorClass::Expression,
+        ));
         self.advance(); // eat '<'
         let tag = self.parse_ident_name()?;
         let mut attrs = Vec::new();

@@ -4,8 +4,8 @@
 
 use super::asr_backend::{AsrBackend, AsrOutput};
 use super::sherpa_model_config::resolve_sherpa_model_paths;
-use anyhow::{Context, Result};
-use sherpa_rs::offline_recognizer::{OfflineRecognizer, OfflineRecognizerConfig};
+use anyhow::Result;
+use sherpa_onnx::{OfflineRecognizer, OfflineRecognizerConfig, OfflineWhisperModelConfig};
 use std::sync::Mutex;
 
 /// Oratio Sherpa-ONNX backend. Thread-safe via Mutex; one session per process.
@@ -17,16 +17,25 @@ impl SherpaOnnxBackend {
     /// Initialize the backend (downloads model if needed).
     pub fn new() -> Result<Self> {
         let paths = resolve_sherpa_model_paths()?;
-        let cfg = OfflineRecognizerConfig::new(
-            paths.model_onnx.to_str().context("model path UTF-8")?,
-            paths.tokens_txt.to_str().context("tokens path UTF-8")?,
-        );
-        let recognizer =
-            OfflineRecognizer::new(cfg).map_err(|e| anyhow::anyhow!("Sherpa-ONNX init: {e}"))?;
+
+        let mut config = OfflineRecognizerConfig::default();
+        config.model_config.whisper = OfflineWhisperModelConfig {
+            encoder: Some(paths.encoder.to_string_lossy().to_string()),
+            decoder: Some(paths.decoder.to_string_lossy().to_string()),
+            ..Default::default()
+        };
+        config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
+        config.model_config.num_threads = 4;
+        config.model_config.debug = false;
+
+        let recognizer = OfflineRecognizer::create(&config).ok_or_else(|| {
+            anyhow::anyhow!("Sherpa-ONNX Whisper init failed (check model paths)")
+        })?;
+
         tracing::info!(
             target: "vox_oratio_sherpa",
             event = "sherpa_backend_init",
-            "Sherpa-ONNX backend initialized"
+            "Sherpa-ONNX (Whisper) backend initialized"
         );
         Ok(Self {
             inner: Mutex::new(recognizer),
@@ -45,33 +54,28 @@ impl AsrBackend for SherpaOnnxBackend {
         sample_rate: u32,
         _language: Option<&str>,
     ) -> Result<AsrOutput> {
-        let mut rec = self
+        let rec = self
             .inner
             .lock()
             .map_err(|_| anyhow::anyhow!("SherpaOnnxBackend mutex poisoned"))?;
 
-        // sherpa-rs expects f32 mono PCM at 16 kHz; resample if needed.
-        let pcm_16k: std::borrow::Cow<[f32]> = if sample_rate == 16_000 {
-            std::borrow::Cow::Borrowed(pcm)
-        } else {
-            std::borrow::Cow::Owned(resample_to_16k(pcm, sample_rate)?)
-        };
-
-        let stream = rec
-            .create_stream()
-            .map_err(|e| anyhow::anyhow!("create_stream: {e}"))?;
-        stream.accept_waveform(16_000, &pcm_16k);
-        rec.decode_stream(&stream)
-            .map_err(|e| anyhow::anyhow!("decode_stream: {e}"))?;
+        let stream = rec.create_stream();
+        stream.accept_waveform(sample_rate as i32, pcm);
+        rec.decode(&stream);
         let result = stream.get_result();
+
         Ok(AsrOutput {
-            raw_text: result.text.trim().to_string(),
-            confidence: 0.85, // sherpa-rs offline does not expose per-token log-prob yet
+            raw_text: result
+                .map(|r| r.text.trim().to_string())
+                .unwrap_or_default(),
+            confidence: 0.85,
             n_best: Vec::new(),
+            segments: Vec::new(), // TODO: map timestamps to segments
         })
     }
 }
 
+#[allow(dead_code)]
 fn resample_to_16k(pcm: &[f32], from_hz: u32) -> Result<Vec<f32>> {
     use rubato::{FftFixedInOut, Resampler};
     let ratio = 16_000.0 / from_hz as f64;

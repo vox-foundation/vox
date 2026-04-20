@@ -24,9 +24,9 @@
 }
 
 actor TelemetryGateway {
-    on Ingest(id: str, temp: float, code: int) -> Result[Unit] {
+    on Ingest(id: str, temp: float, code: int) to Result[Unit] {
         let registry = db.DeviceRegistry.filter({ device_id: id })
-        if len(registry) == 0 {
+        if len(registry) is 0 {
             return Error("Unknown device")
         }
         
@@ -36,9 +36,9 @@ actor TelemetryGateway {
 }
 
 @query
-fn get_average_temperature(id: str) -> float {
+fn get_average_temperature(id: str) to float {
     let logs = db.DeviceLog.filter({ device_id: id })
-    if len(logs) == 0 {
+    if len(logs) is 0 {
         return 0.0
     }
     return 42.0 // Mock aggregate for compilation AST target

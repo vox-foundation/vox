@@ -181,7 +181,8 @@ pub struct EarleySampler {
 impl EarleySampler {
     /// Build from an explicit EBNF string.
     pub fn from_ebnf(ebnf: &str) -> Result<Self> {
-        let grammar = Grammar::from_ebnf(ebnf).map_err(|e| ConstrainedGenError::GrammarError { reason: e })?;
+        let grammar = Grammar::from_ebnf(ebnf)
+            .map_err(|e| ConstrainedGenError::GrammarError { reason: e })?;
         debug!(
             productions = grammar.productions.len(),
             start = %grammar.start,

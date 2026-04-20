@@ -109,20 +109,22 @@ pub fn evaluate_readiness(
 ) -> anyhow::Result<FlywheelSignal> {
     use std::io::BufRead;
     use xxhash_rust::xxh3::xxh3_64;
-    
+
     let file = std::fs::File::open(corpus_path)?;
     let reader = std::io::BufReader::new(file);
     let mut count = 0;
-    
+
     // Wave 3-03: Semantic Diversity Matrix
     // Uses AST hashes to ensure data novelty across mutations.
     let mut signatures = std::collections::HashSet::new();
 
     for line in reader.lines() {
         let line = line?;
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
         count += 1;
-        
+
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
             if let Some(resp) = v.get("response").and_then(|r| r.as_str()) {
                 // If it's valid Vox, hash the AST structure to ignore comments/whitespace

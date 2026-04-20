@@ -4,8 +4,8 @@
 /// wrestling with rust's borrow-checker or arc/mutex allocations. The backend 
 /// compiler automatically lowers `let` bindings to the restricted local `ActorHeap`.
 
-Actor MathWorker {
-    pub message compute_weights(a: Tensor[2], b: Tensor[2]) -> Tensor[2] {
+actor MathWorker {
+    on compute_weights(a: Tensor[2], b: Tensor[2]) to Tensor[2] {
         // Look how clean this is. No `.clone()`, no `Arc<Mutex>`, no explicit 
         // dimension tracking allocators.
         

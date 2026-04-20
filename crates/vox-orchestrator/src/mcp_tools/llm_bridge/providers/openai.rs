@@ -7,7 +7,6 @@ use vox_openai_wire::{
     ChatMessageTurn as OpenAiMsg,
 };
 
-
 pub(crate) async fn http_openai_compatible_with_headers(
     client: &reqwest::Client,
     url: &str,

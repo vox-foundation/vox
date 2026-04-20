@@ -1,9 +1,9 @@
-use wiremock::matchers::{method, path, header, body_json};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-use crate::adapters::twitter;
 use crate::PublisherConfig;
+use crate::adapters::twitter;
 use crate::types::UnifiedNewsItem;
 use serde_json::json;
+use wiremock::matchers::{body_json, header, method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn test_twitter_post_success() {
@@ -15,7 +15,7 @@ async fn test_twitter_post_success() {
         content_markdown: "Test Content".to_string(),
         ..Default::default()
     };
-    
+
     let publisher_cfg = PublisherConfig {
         twitter_api_base: Some(mock_server.uri()),
         ..Default::default()
@@ -32,7 +32,8 @@ async fn test_twitter_post_success() {
         .mount(&mock_server)
         .await;
 
-    let result: anyhow::Result<String> = twitter::post(&publisher_cfg, token, &item, None, false).await;
+    let result: anyhow::Result<String> =
+        twitter::post(&publisher_cfg, token, &item, None, false).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "tweet-123");
 }
@@ -45,14 +46,15 @@ async fn test_twitter_post_dry_run() {
         id: "test-item".to_string(),
         ..Default::default()
     };
-        let publisher_cfg = PublisherConfig {
+    let publisher_cfg = PublisherConfig {
         twitter_api_base: Some(mock_server.uri()),
         ..Default::default()
     };
 
     // No mocks mounted -> any request would cause panic if it happened
 
-    let result: anyhow::Result<String> = twitter::post(&publisher_cfg, token, &item, None, true).await;
+    let result: anyhow::Result<String> =
+        twitter::post(&publisher_cfg, token, &item, None, true).await;
     assert!(result.is_ok());
     assert!(result.unwrap().contains("dry-run-twitter"));
 }

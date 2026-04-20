@@ -282,10 +282,16 @@ impl LowerCtx {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
                 Decl::Layout(decl) => {
-                    hir.layouts.push(HirLayout(decl.clone()));
+                    let func = self.lower_fn(&decl.func, true);
+                    hir.layouts.push(HirLayout { func });
                 }
                 Decl::Page(decl) => {
-                    hir.pages.push(HirPage(decl.clone()));
+                    let func = self.lower_fn(&decl.func, true);
+                    hir.pages.push(HirPage {
+                        path: decl.path.clone(),
+                        func,
+                        span: decl.span,
+                    });
                 }
                 Decl::Context(decl) => {
                     hir.contexts.push(HirContext(decl.clone()));

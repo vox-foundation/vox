@@ -1,6 +1,6 @@
-use crate::types::{UnifiedNewsItem, SyndicationConfig, DistributionPolicyConfig};
 use crate::PublisherConfig;
 use crate::contract::NewsSiteConfig;
+use crate::types::{DistributionPolicyConfig, SyndicationConfig, UnifiedNewsItem};
 
 #[cfg(test)]
 pub fn item_fixture() -> UnifiedNewsItem {
@@ -33,16 +33,16 @@ pub fn config_fixture(base_url: Option<String>) -> PublisherConfig {
 }
 
 #[cfg(test)]
-mod twitter;
-#[cfg(test)]
-mod mastodon;
-#[cfg(test)]
 mod bluesky;
+#[cfg(test)]
+mod discord;
 #[cfg(test)]
 mod linkedin;
 #[cfg(test)]
-mod discord;
+mod mastodon;
 #[cfg(test)]
 mod opencollective;
 #[cfg(all(test, feature = "scientia-reddit"))]
 mod reddit;
+#[cfg(test)]
+mod twitter;

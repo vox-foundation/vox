@@ -9,12 +9,46 @@ pub struct AstTarget {
     pub node_kind: String,
     /// Extracted symbol name, if identified.
     pub symbol_name: Option<String>,
+    /// Whether to target the node currently at the cursor.
+    pub at_cursor: bool,
 }
 
 /// Simple heuristic to extract AST targets from transcript (Phase 1C MVP).
 #[must_use]
-pub fn map_to_ast_target(transcript: &str) -> Option<AstTarget> {
+pub fn map_to_ast_target(
+    transcript: &str,
+    context: Option<&crate::routing::IdeContext>,
+) -> Option<AstTarget> {
     let lower = transcript.to_ascii_lowercase();
+
+    // Contextual targeting for "this function", "this struct", etc.
+    if lower.contains("this") {
+        let kind = if lower.contains("function") || lower.contains("fn") {
+            Some("function")
+        } else if lower.contains("struct") {
+            Some("struct")
+        } else if lower.contains("type") {
+            Some("type")
+        } else if lower.contains("module") || lower.contains("file") {
+            Some("module")
+        } else {
+            None
+        };
+
+        if let Some(k) = kind {
+            let symbol_name = if let Some(ctx) = context {
+                ctx.symbol_stack.first().cloned()
+            } else {
+                None
+            };
+            return Some(AstTarget {
+                node_kind: k.to_string(),
+                symbol_name,
+                at_cursor: context.and_then(|c| c.cursor_line).is_some(),
+            });
+        }
+    }
+
     let parts: Vec<&str> = lower.split_whitespace().collect();
 
     for (i, p) in parts.iter().enumerate() {
@@ -35,8 +69,40 @@ pub fn map_to_ast_target(transcript: &str) -> Option<AstTarget> {
             return Some(AstTarget {
                 node_kind: kind,
                 symbol_name: name,
+                at_cursor: false,
             });
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::routing::IdeContext;
+
+    #[test]
+    fn test_map_function_by_name() {
+        let target = map_to_ast_target("create a function called hello", None).unwrap();
+        assert_eq!(target.node_kind, "function");
+        assert_eq!(target.symbol_name.as_deref(), Some("hello"));
+        assert!(!target.at_cursor);
+    }
+
+    #[test]
+    fn test_map_this_function_with_context() {
+        let mut ctx = IdeContext::default();
+        ctx.cursor_line = Some(10);
+        let target = map_to_ast_target("edit this function", Some(&ctx)).unwrap();
+        assert_eq!(target.node_kind, "function");
+        assert!(target.symbol_name.is_none());
+        assert!(target.at_cursor);
+    }
+
+    #[test]
+    fn test_map_this_function_without_context() {
+        let target = map_to_ast_target("edit this function", None).unwrap();
+        assert_eq!(target.node_kind, "function");
+        assert!(!target.at_cursor);
+    }
 }

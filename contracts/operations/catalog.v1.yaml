@@ -79,6 +79,7 @@ operations:
   mcp:
     name: vox_a2a_ack
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: a2a.broadcast
   title: A2a Broadcast
@@ -98,6 +99,7 @@ operations:
   mcp:
     name: vox_a2a_broadcast
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: a2a.history
   title: A2a History
@@ -117,6 +119,7 @@ operations:
   mcp:
     name: vox_a2a_history
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: a2a.inbox
   title: A2a Inbox
@@ -136,6 +139,7 @@ operations:
   mcp:
     name: vox_a2a_inbox
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: a2a.send
   title: A2a Send
@@ -155,6 +159,7 @@ operations:
   mcp:
     name: vox_a2a_send
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: a2a.tasks
   title: A2a Tasks
@@ -174,6 +179,7 @@ operations:
   mcp:
     name: vox_a2a_tasks
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: add
   title: Add
@@ -219,6 +225,7 @@ operations:
   mcp:
     name: vox_agent_assess
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: agent.continue
   title: Agent Continue
@@ -238,6 +245,7 @@ operations:
   mcp:
     name: vox_agent_continue
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: agent.events
   title: Agent Events
@@ -257,6 +265,7 @@ operations:
   mcp:
     name: vox_agent_events
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: agent.handoff
   title: Agent Handoff
@@ -276,6 +285,7 @@ operations:
   mcp:
     name: vox_agent_handoff
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: agent.status
   title: Agent Status
@@ -295,6 +305,7 @@ operations:
   mcp:
     name: vox_agent_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: answer.question
   title: Answer Question
@@ -314,6 +325,7 @@ operations:
   mcp:
     name: vox_answer_question
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: apply.structured.edit
   title: Apply Structured Edit
@@ -333,6 +345,7 @@ operations:
   mcp:
     name: vox_apply_structured_edit
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: architect
   title: Architect
@@ -404,6 +417,7 @@ operations:
   mcp:
     name: vox_ask_agent
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: attention.history
   title: Attention History
@@ -423,6 +437,7 @@ operations:
   mcp:
     name: vox_attention_history
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: attention.reset
   title: Attention Reset
@@ -442,6 +457,7 @@ operations:
   mcp:
     name: vox_attention_reset
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: attention.summary
   title: Attention Summary
@@ -461,25 +477,7 @@ operations:
   mcp:
     name: vox_attention_summary
     http_read_role_eligible: true
-  cli: null
-- id: attention.trust.override
-  title: Attention Trust Override
-  description: Overrides the trust tier for the agent context.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_trust_override
-    http_read_role_eligible: false
+    tier: core
   cli: null
 - id: behavior.record
   title: Behavior Record
@@ -499,6 +497,7 @@ operations:
   mcp:
     name: vox_behavior_record
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: behavior.summary
   title: Behavior Summary
@@ -518,6 +517,7 @@ operations:
   mcp:
     name: vox_behavior_summary
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: benchmark.list
   title: Benchmark List
@@ -537,25 +537,7 @@ operations:
   mcp:
     name: vox_benchmark_list
     http_read_role_eligible: false
-  cli: null
-- id: clavis.doctor
-  title: Clavis Doctor
-  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_clavis_doctor
-    http_read_role_eligible: false
+    tier: core
   cli: null
 - id: benchmark.record
   title: Benchmark Record
@@ -575,6 +557,7 @@ operations:
   mcp:
     name: vox_benchmark_record
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: broadcast
   title: Broadcast
@@ -594,6 +577,7 @@ operations:
   mcp:
     name: vox_broadcast
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.act
   title: Browser Act
@@ -613,6 +597,7 @@ operations:
   mcp:
     name: vox_browser_act
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.click
   title: Browser Click
@@ -632,6 +617,7 @@ operations:
   mcp:
     name: vox_browser_click
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.close
   title: Browser Close
@@ -651,6 +637,7 @@ operations:
   mcp:
     name: vox_browser_close
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.extract
   title: Browser Extract
@@ -670,6 +657,7 @@ operations:
   mcp:
     name: vox_browser_extract
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.extract.json
   title: Browser Extract Json
@@ -689,6 +677,7 @@ operations:
   mcp:
     name: vox_browser_extract_json
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.fill
   title: Browser Fill
@@ -708,6 +697,7 @@ operations:
   mcp:
     name: vox_browser_fill
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.goto
   title: Browser Goto
@@ -727,6 +717,7 @@ operations:
   mcp:
     name: vox_browser_goto
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.html
   title: Browser Html
@@ -746,6 +737,7 @@ operations:
   mcp:
     name: vox_browser_html
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.open
   title: Browser Open
@@ -765,6 +757,7 @@ operations:
   mcp:
     name: vox_browser_open
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.screenshot
   title: Browser Screenshot
@@ -784,6 +777,7 @@ operations:
   mcp:
     name: vox_browser_screenshot
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.text
   title: Browser Text
@@ -803,6 +797,7 @@ operations:
   mcp:
     name: vox_browser_text
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: browser.wait.for
   title: Browser Wait For
@@ -822,6 +817,7 @@ operations:
   mcp:
     name: vox_browser_wait_for
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: budget.status
   title: Budget Status
@@ -841,10 +837,11 @@ operations:
   mcp:
     name: vox_budget_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: build
   title: Build
-  description: CLI operation `vox build` (optional `--scaffold` seeds user app shell; same as `VOX_WEB_EMIT_SCAFFOLD`)
+  description: CLI operation `vox build`
   description_human: null
   product_lane: app
   intent_tags: []
@@ -886,6 +883,7 @@ operations:
   mcp:
     name: vox_build_crate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: builtin.registry
   title: Builtin Registry
@@ -905,6 +903,7 @@ operations:
   mcp:
     name: vox_builtin_registry
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: bundle
   title: Bundle
@@ -950,6 +949,7 @@ operations:
   mcp:
     name: vox_cancel_task
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: capability.model.manifest
   title: Capability Model Manifest
@@ -969,6 +969,7 @@ operations:
   mcp:
     name: vox_capability_model_manifest
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: change.create
   title: Change Create
@@ -988,6 +989,7 @@ operations:
   mcp:
     name: vox_change_create
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: change.log
   title: Change Log
@@ -1007,6 +1009,7 @@ operations:
   mcp:
     name: vox_change_log
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: chat.history
   title: Chat History
@@ -1026,6 +1029,7 @@ operations:
   mcp:
     name: vox_chat_history
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: chat.message
   title: Chat Message
@@ -1045,6 +1049,7 @@ operations:
   mcp:
     name: vox_chat_message
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: check
   title: Check
@@ -1064,6 +1069,7 @@ operations:
   mcp:
     name: vox_check
     http_read_role_eligible: false
+    tier: core
   cli:
     path:
     - check
@@ -1092,6 +1098,7 @@ operations:
   mcp:
     name: vox_check_file_owner
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: check.mood
   title: Check Mood
@@ -1111,6 +1118,7 @@ operations:
   mcp:
     name: vox_check_mood
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: check.workspace
   title: Check Workspace
@@ -1130,6 +1138,7 @@ operations:
   mcp:
     name: vox_check_workspace
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ci
   title: Ci
@@ -1861,33 +1870,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.gui-smoke
-  title: Ci Gui-smoke
-  description: CLI operation `vox ci gui-smoke`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - gui-smoke
-    status: active
-    latin_ns: null
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: false
 - id: ci.grammar-drift
   title: Ci Grammar-drift
   description: CLI operation `vox ci grammar-drift`
@@ -1908,6 +1890,33 @@ operations:
     path:
     - ci
     - grammar-drift
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.gui-smoke
+  title: Ci Gui-smoke
+  description: CLI operation `vox ci gui-smoke`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - gui-smoke
     status: active
     latin_ns: null
     handler_rust: null
@@ -2355,6 +2364,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.query-all-guard
+  title: Ci Query-all-guard
+  description: CLI operation `vox ci query-all-guard`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - query-all-guard
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.release-build
   title: Ci Release-build
   description: CLI operation `vox ci release-build`
@@ -2627,60 +2663,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.query-all-guard
-  title: Ci Query-all-guard
-  description: CLI operation `vox ci query-all-guard`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - query-all-guard
-    status: active
-    latin_ns: null
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: false
-- id: ci.turso-import-guard
-  title: Ci Turso-import-guard
-  description: CLI operation `vox ci turso-import-guard`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - turso-import-guard
-    status: active
-    latin_ns: null
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: false
 - id: ci.ssot-drift
   title: Ci Ssot-drift
   description: CLI operation `vox ci ssot-drift`
@@ -2762,6 +2744,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.turso-import-guard
+  title: Ci Turso-import-guard
+  description: CLI operation `vox ci turso-import-guard`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - turso-import-guard
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.workflow-scripts
   title: Ci Workflow-scripts
   description: CLI operation `vox ci workflow-scripts`
@@ -2807,6 +2816,7 @@ operations:
   mcp:
     name: vox_claim_file
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: clavis
   title: Clavis
@@ -2861,6 +2871,26 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: clavis.doctor
+  title: Clavis Doctor
+  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_clavis_doctor
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: clavis.get
   title: Clavis Get
   description: CLI operation `vox clavis get`
@@ -3255,6 +3285,7 @@ operations:
   mcp:
     name: vox_compaction_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: compiler::ast.inspect
   title: Compiler::ast Inspect
@@ -3274,6 +3305,7 @@ operations:
   mcp:
     name: vox_compiler::ast_inspect
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: complete.task
   title: Complete Task
@@ -3293,6 +3325,7 @@ operations:
   mcp:
     name: vox_complete_task
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: completions
   title: Completions
@@ -3338,6 +3371,7 @@ operations:
   mcp:
     name: vox_config_get
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: config.set
   title: Config Set
@@ -3357,6 +3391,7 @@ operations:
   mcp:
     name: vox_config_set
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: conflict.diff
   title: Conflict Diff
@@ -3376,6 +3411,7 @@ operations:
   mcp:
     name: vox_conflict_diff
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: conflicts
   title: Conflicts
@@ -3395,6 +3431,7 @@ operations:
   mcp:
     name: vox_conflicts
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: context.budget
   title: Context Budget
@@ -3414,6 +3451,7 @@ operations:
   mcp:
     name: vox_context_budget
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: cost.history
   title: Cost History
@@ -3433,6 +3471,7 @@ operations:
   mcp:
     name: vox_cost_history
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: coverage.report
   title: Coverage Report
@@ -3452,6 +3491,7 @@ operations:
   mcp:
     name: vox_coverage_report
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db
   title: Db
@@ -3524,6 +3564,7 @@ operations:
   mcp:
     name: vox_db_conversation_edge_insert
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.conversation.version.append
   title: Db Conversation Version Append
@@ -3543,6 +3584,7 @@ operations:
   mcp:
     name: vox_db_conversation_version_append
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.data.flow
   title: Db Data Flow
@@ -3562,6 +3604,7 @@ operations:
   mcp:
     name: vox_db_data_flow
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.explain.query
   title: Db Explain Query
@@ -3581,6 +3624,7 @@ operations:
   mcp:
     name: vox_db_explain_query
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.mirror-search-corpus
   title: Db Mirror-search-corpus
@@ -3870,6 +3914,7 @@ operations:
   mcp:
     name: vox_db_relationships
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.research.metric.linked
   title: Db Research Metric Linked
@@ -3889,6 +3934,7 @@ operations:
   mcp:
     name: vox_db_research_metric_linked
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.research.session.upsert
   title: Db Research Session Upsert
@@ -3908,6 +3954,7 @@ operations:
   mcp:
     name: vox_db_research_session_upsert
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.sample.data
   title: Db Sample Data
@@ -3927,6 +3974,7 @@ operations:
   mcp:
     name: vox_db_sample_data
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.schema
   title: Db Schema
@@ -3946,6 +3994,7 @@ operations:
   mcp:
     name: vox_db_schema
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.suggest.query
   title: Db Suggest Query
@@ -3965,6 +4014,7 @@ operations:
   mcp:
     name: vox_db_suggest_query
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.topic.evolution.append
   title: Db Topic Evolution Append
@@ -3984,6 +4034,7 @@ operations:
   mcp:
     name: vox_db_topic_evolution_append
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.trust.drift
   title: Db Trust Drift
@@ -4003,6 +4054,7 @@ operations:
   mcp:
     name: vox_db_trust_drift
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.trust.propagate
   title: Db Trust Propagate
@@ -4022,6 +4074,7 @@ operations:
   mcp:
     name: vox_db_trust_propagate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.trust.rollups
   title: Db Trust Rollups
@@ -4041,6 +4094,7 @@ operations:
   mcp:
     name: vox_db_trust_rollups
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: db.trust.summary
   title: Db Trust Summary
@@ -4060,6 +4114,7 @@ operations:
   mcp:
     name: vox_db_trust_summary
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: decorator.registry
   title: Decorator Registry
@@ -4079,6 +4134,7 @@ operations:
   mcp:
     name: vox_decorator_registry
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: dei
   title: Dei
@@ -4433,11 +4489,11 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: migrate.web
-  title: Migrate Web Sources
-  description: CLI operation `vox migrate web` — scan `.vox` for migration diagnostics; `--json`; `--write` applies `@component fn` → `component`, `@hook fn` → `fn` (and related deterministic patches); `--check` fails CI when findings remain (v2)
+- id: doubt.task
+  title: Doubt Task
+  description: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
   description_human: null
-  product_lane: platform
+  product_lane: ai
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -4448,18 +4504,11 @@ operations:
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - migrate
-    - web
-    status: active
-    latin_ns: pm
-    handler_rust: commands::migrate
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: null
+  mcp:
+    name: vox_doubt_task
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: drain.agent
   title: Drain Agent
   description: Remove all queued tasks from an agent without retiring it.
@@ -4478,6 +4527,7 @@ operations:
   mcp:
     name: vox_drain_agent
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: emergency.stop
   title: Emergency Stop
@@ -4497,6 +4547,67 @@ operations:
   mcp:
     name: vox_emergency_stop
     http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: exec.time.query
+  title: Exec Time Query
+  description: Query historical execution time for a tool.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_exec_time_query
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: exec.time.record
+  title: Exec Time Record
+  description: Record an execution duration and outcome.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_exec_time_record
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: export.grammar.ebnf
+  title: Export Grammar Ebnf
+  description: Export the Vox EBNF grammar.
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_export_grammar_ebnf
+    http_read_role_eligible: false
+    tier: core
   cli: null
 - id: fabrica
   title: Fabrica
@@ -4542,6 +4653,7 @@ operations:
   mcp:
     name: vox_fail_task
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: file.graph
   title: File Graph
@@ -4561,6 +4673,7 @@ operations:
   mcp:
     name: vox_file_graph
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: fmt
   title: Fmt
@@ -4609,6 +4722,7 @@ operations:
   mcp:
     name: vox_generate_code
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: get.active.model
   title: Get Active Model
@@ -4628,6 +4742,7 @@ operations:
   mcp:
     name: vox_get_active_model
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: get.context
   title: Get Context
@@ -4647,6 +4762,7 @@ operations:
   mcp:
     name: vox_get_context
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: git.blame
   title: Git Blame
@@ -4666,6 +4782,7 @@ operations:
   mcp:
     name: vox_git_blame
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: git.diff
   title: Git Diff
@@ -4685,6 +4802,7 @@ operations:
   mcp:
     name: vox_git_diff
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: git.log
   title: Git Log
@@ -4704,6 +4822,7 @@ operations:
   mcp:
     name: vox_git_log
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: git.status
   title: Git Status
@@ -4723,6 +4842,7 @@ operations:
   mcp:
     name: vox_git_status
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: handoff.context
   title: Handoff Context
@@ -4742,6 +4862,7 @@ operations:
   mcp:
     name: vox_handoff_context
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: handoff.lineage
   title: Handoff Lineage
@@ -4761,6 +4882,7 @@ operations:
   mcp:
     name: vox_handoff_lineage
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: heartbeat
   title: Heartbeat
@@ -4780,6 +4902,7 @@ operations:
   mcp:
     name: vox_heartbeat
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: init
   title: Init
@@ -4829,6 +4952,7 @@ operations:
   mcp:
     name: vox_inline_edit
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: island
   title: Island
@@ -4856,6 +4980,26 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: journey.canonical.steps
+  title: Journey Canonical Steps
+  description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_journey_canonical_steps
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: knowledge.query
   title: Knowledge Query
   description: Query the knowledge graph (VoxDB) for related concepts by keyword.
@@ -4874,6 +5018,7 @@ operations:
   mcp:
     name: vox_knowledge_query
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: language.surface
   title: Language Surface
@@ -4893,6 +5038,7 @@ operations:
   mcp:
     name: vox_language_surface
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: learn.pattern
   title: Learn Pattern
@@ -4912,6 +5058,7 @@ operations:
   mcp:
     name: vox_learn_pattern
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: lint.crate
   title: Lint Crate
@@ -4931,6 +5078,7 @@ operations:
   mcp:
     name: vox_lint_crate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: list.context
   title: List Context
@@ -4950,6 +5098,7 @@ operations:
   mcp:
     name: vox_list_context
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: list.models
   title: List Models
@@ -4969,6 +5118,7 @@ operations:
   mcp:
     name: vox_list_models
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: live
   title: Live
@@ -5040,6 +5190,7 @@ operations:
   mcp:
     name: vox_lock_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: login
   title: Login
@@ -5163,6 +5314,7 @@ operations:
   mcp:
     name: vox_ludus_battle_start
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.battle.submit
   title: Ludus Battle Submit
@@ -5182,6 +5334,7 @@ operations:
   mcp:
     name: vox_ludus_battle_submit
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.collegium.join
   title: Ludus Collegium Join
@@ -5201,6 +5354,7 @@ operations:
   mcp:
     name: vox_ludus_collegium_join
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.hud
   title: Ludus Hud
@@ -5247,6 +5401,7 @@ operations:
   mcp:
     name: vox_ludus_notification_ack
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.notifications.ack.all
   title: Ludus Notifications Ack All
@@ -5266,6 +5421,7 @@ operations:
   mcp:
     name: vox_ludus_notifications_ack_all
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.notifications.list
   title: Ludus Notifications List
@@ -5285,6 +5441,7 @@ operations:
   mcp:
     name: vox_ludus_notifications_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.progress.snapshot
   title: Ludus Progress Snapshot
@@ -5304,6 +5461,7 @@ operations:
   mcp:
     name: vox_ludus_progress_snapshot
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.quest.list
   title: Ludus Quest List
@@ -5323,6 +5481,7 @@ operations:
   mcp:
     name: vox_ludus_quest_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.shop.buy
   title: Ludus Shop Buy
@@ -5342,6 +5501,7 @@ operations:
   mcp:
     name: vox_ludus_shop_buy
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: ludus.shop.catalog
   title: Ludus Shop Catalog
@@ -5361,6 +5521,7 @@ operations:
   mcp:
     name: vox_ludus_shop_catalog
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: map.agent.session
   title: Map Agent Session
@@ -5380,6 +5541,7 @@ operations:
   mcp:
     name: vox_map_agent_session
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.list.keys
   title: Memory List Keys
@@ -5399,6 +5561,7 @@ operations:
   mcp:
     name: vox_memory_list_keys
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.log
   title: Memory Log
@@ -5418,6 +5581,7 @@ operations:
   mcp:
     name: vox_memory_log
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.recall
   title: Memory Recall
@@ -5437,6 +5601,7 @@ operations:
   mcp:
     name: vox_memory_recall
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.recall.db
   title: Memory Recall Db
@@ -5456,6 +5621,7 @@ operations:
   mcp:
     name: vox_memory_recall_db
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.save.db
   title: Memory Save Db
@@ -5475,6 +5641,7 @@ operations:
   mcp:
     name: vox_memory_save_db
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.search
   title: Memory Search
@@ -5494,6 +5661,7 @@ operations:
   mcp:
     name: vox_memory_search
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: memory.store
   title: Memory Store
@@ -5513,6 +5681,7 @@ operations:
   mcp:
     name: vox_memory_store
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: mens
   title: Mens
@@ -5837,25 +6006,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: mens.journey.steps
-  title: Mens Journey Steps
-  description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_journey_canonical_steps
-    http_read_role_eligible: true
-  cli: null
 - id: mens.probe
   title: Mens Probe
   description: CLI operation `vox mens probe`
@@ -6184,6 +6334,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: migrate.web
+  title: Migrate Web Sources
+  description: CLI operation `vox migrate web`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - migrate
+    - web
+    status: active
+    latin_ns: pm
+    handler_rust: commands::migrate
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: my.files
   title: My Files
   description: Returns all files currently owned by the specified agent.
@@ -6202,6 +6379,7 @@ operations:
   mcp:
     name: vox_my_files
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: news.approval.status
   title: News Approval Status
@@ -6221,6 +6399,7 @@ operations:
   mcp:
     name: vox_news_approval_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: news.approve
   title: News Approve
@@ -6240,6 +6419,7 @@ operations:
   mcp:
     name: vox_news_approve
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: news.draft.research
   title: News Draft Research
@@ -6259,6 +6439,7 @@ operations:
   mcp:
     name: vox_news_draft_research
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: news.simulate.publish.gate
   title: News Simulate Publish Gate
@@ -6278,6 +6459,7 @@ operations:
   mcp:
     name: vox_news_simulate_publish_gate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: news.test.syndicate
   title: News Test Syndicate
@@ -6297,6 +6479,7 @@ operations:
   mcp:
     name: vox_news_test_syndicate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw
   title: Openclaw
@@ -6342,6 +6525,7 @@ operations:
   mcp:
     name: vox_openclaw_discover
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.doctor
   title: Openclaw Doctor
@@ -6415,6 +6599,7 @@ operations:
   mcp:
     name: vox_openclaw_gateway_call
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.health
   title: Openclaw Health
@@ -6434,6 +6619,7 @@ operations:
   mcp:
     name: vox_openclaw_health
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.import.skill
   title: Openclaw Import Skill
@@ -6453,6 +6639,7 @@ operations:
   mcp:
     name: vox_openclaw_import_skill
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.list.remote
   title: Openclaw List Remote
@@ -6472,6 +6659,7 @@ operations:
   mcp:
     name: vox_openclaw_list_remote
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.notify
   title: Openclaw Notify
@@ -6491,6 +6679,7 @@ operations:
   mcp:
     name: vox_openclaw_notify
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.search-remote
   title: Openclaw Search-remote
@@ -6537,6 +6726,7 @@ operations:
   mcp:
     name: vox_openclaw_search_remote
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.sidecar
   title: Openclaw Sidecar
@@ -6667,6 +6857,7 @@ operations:
   mcp:
     name: vox_openclaw_subscribe
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.subscriptions
   title: Openclaw Subscriptions
@@ -6686,6 +6877,7 @@ operations:
   mcp:
     name: vox_openclaw_subscriptions
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: openclaw.unsubscribe
   title: Openclaw Unsubscribe
@@ -6705,6 +6897,7 @@ operations:
   mcp:
     name: vox_openclaw_unsubscribe
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: oplog
   title: Oplog
@@ -6724,6 +6917,7 @@ operations:
   mcp:
     name: vox_oplog
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: oratio
   title: Oratio
@@ -6772,6 +6966,7 @@ operations:
   mcp:
     name: vox_oratio_listen
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: oratio.status
   title: Oratio Status
@@ -6794,6 +6989,7 @@ operations:
   mcp:
     name: vox_oratio_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: oratio.transcribe
   title: Oratio Transcribe
@@ -6816,6 +7012,7 @@ operations:
   mcp:
     name: vox_oratio_transcribe
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: orchestrator.persistence.outbox.lifecycle
   title: Orchestrator Persistence Outbox Lifecycle
@@ -6835,6 +7032,7 @@ operations:
   mcp:
     name: vox_orchestrator_persistence_outbox_lifecycle
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: orchestrator.persistence.outbox.queue
   title: Orchestrator Persistence Outbox Queue
@@ -6854,6 +7052,7 @@ operations:
   mcp:
     name: vox_orchestrator_persistence_outbox_queue
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: orchestrator.start
   title: Orchestrator Start
@@ -6873,6 +7072,7 @@ operations:
   mcp:
     name: vox_orchestrator_start
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: orchestrator.status
   title: Orchestrator Status
@@ -6892,6 +7092,7 @@ operations:
   mcp:
     name: vox_orchestrator_status
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: pause.agent
   title: Pause Agent
@@ -6911,6 +7112,7 @@ operations:
   mcp:
     name: vox_pause_agent
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: pending.questions
   title: Pending Questions
@@ -6930,6 +7132,7 @@ operations:
   mcp:
     name: vox_pending_questions
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: pipeline.status
   title: Pipeline Status
@@ -6949,6 +7152,7 @@ operations:
   mcp:
     name: vox_pipeline_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: plan
   title: Plan
@@ -6968,22 +7172,47 @@ operations:
   mcp:
     name: vox_plan
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: plan.list.sessions
   title: Plan List Sessions
   description: List active and recent plan sessions.
+  description_human: null
   product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
   mcp:
     name: vox_plan_list_sessions
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: plan.resume
   title: Plan Resume
   description: Resume a suspended or pending plan session.
+  description_human: null
   product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
   mcp:
     name: vox_plan_resume
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: plan.status
   title: Plan Status
@@ -7003,6 +7232,7 @@ operations:
   mcp:
     name: vox_plan_status
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: pm
   title: Pm
@@ -7320,6 +7550,7 @@ operations:
   mcp:
     name: vox_poll_events
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: populi
   title: Populi
@@ -7392,6 +7623,7 @@ operations:
   mcp:
     name: vox_populi_local_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: populi.registry-snapshot
   title: Populi Registry-snapshot
@@ -7519,6 +7751,7 @@ operations:
   mcp:
     name: vox_preference_get
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: preference.list
   title: Preference List
@@ -7538,6 +7771,7 @@ operations:
   mcp:
     name: vox_preference_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: preference.set
   title: Preference Set
@@ -7557,6 +7791,7 @@ operations:
   mcp:
     name: vox_preference_set
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: project.init
   title: Project Init
@@ -7579,6 +7814,7 @@ operations:
   mcp:
     name: vox_project_init
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: publish.message
   title: Publish Message
@@ -7598,6 +7834,7 @@ operations:
   mcp:
     name: vox_publish_message
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: questioning.pending
   title: Questioning Pending
@@ -7617,6 +7854,7 @@ operations:
   mcp:
     name: vox_questioning_pending
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: questioning.submit.answer
   title: Questioning Submit Answer
@@ -7636,6 +7874,7 @@ operations:
   mcp:
     name: vox_questioning_submit_answer
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: questioning.sync.ssot
   title: Questioning Sync Ssot
@@ -7655,6 +7894,7 @@ operations:
   mcp:
     name: vox_questioning_sync_ssot
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: queue.status
   title: Queue Status
@@ -7674,6 +7914,7 @@ operations:
   mcp:
     name: vox_queue_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: rebalance
   title: Rebalance
@@ -7693,6 +7934,7 @@ operations:
   mcp:
     name: vox_rebalance
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: recensio
   title: Recensio
@@ -7738,6 +7980,7 @@ operations:
   mcp:
     name: vox_record_cost
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: redo
   title: Redo
@@ -7757,6 +8000,7 @@ operations:
   mcp:
     name: vox_redo
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: remove
   title: Remove
@@ -7802,6 +8046,7 @@ operations:
   mcp:
     name: vox_reorder_task
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: replan
   title: Replan
@@ -7821,6 +8066,7 @@ operations:
   mcp:
     name: vox_replan
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: repo
   title: Repo
@@ -7896,6 +8142,7 @@ operations:
   mcp:
     name: vox_repo_catalog_list
     http_read_role_eligible: true
+    tier: core
   cli:
     path:
     - repo
@@ -7926,6 +8173,7 @@ operations:
   mcp:
     name: vox_repo_catalog_refresh
     http_read_role_eligible: false
+    tier: core
   cli:
     path:
     - repo
@@ -7956,6 +8204,7 @@ operations:
   mcp:
     name: vox_repo_index_refresh
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: repo.index.status
   title: Repo Index Status
@@ -7975,6 +8224,7 @@ operations:
   mcp:
     name: vox_repo_index_status
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: repo.query
   title: Repo Query
@@ -8021,6 +8271,7 @@ operations:
   mcp:
     name: vox_repo_query_file
     http_read_role_eligible: true
+    tier: core
   cli:
     path:
     - repo
@@ -8051,6 +8302,7 @@ operations:
   mcp:
     name: vox_repo_query_history
     http_read_role_eligible: true
+    tier: core
   cli:
     path:
     - repo
@@ -8081,6 +8333,7 @@ operations:
   mcp:
     name: vox_repo_query_text
     http_read_role_eligible: true
+    tier: core
   cli:
     path:
     - repo
@@ -8114,6 +8367,7 @@ operations:
   mcp:
     name: vox_repo_status
     http_read_role_eligible: true
+    tier: core
   cli:
     path:
     - repo
@@ -8143,6 +8397,7 @@ operations:
   mcp:
     name: vox_resolve_conflict
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: resume.agent
   title: Resume Agent
@@ -8162,6 +8417,7 @@ operations:
   mcp:
     name: vox_resume_agent
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: retire.agent
   title: Retire Agent
@@ -8181,6 +8437,7 @@ operations:
   mcp:
     name: vox_retire_agent
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: review
   title: Review
@@ -8252,6 +8509,7 @@ operations:
   mcp:
     name: vox_run_tests
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: schola.submit
   title: Schola Submit
@@ -8271,6 +8529,7 @@ operations:
   mcp:
     name: vox_schola_submit
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia
   title: Scientia
@@ -8316,6 +8575,7 @@ operations:
   mcp:
     name: vox_scientia_assist_suggestions
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.collection-transform-preview
   title: Scientia Collection-transform-preview
@@ -9145,6 +9405,7 @@ operations:
   mcp:
     name: vox_scientia_publication_approve
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.arxiv.handoff.record
   title: Scientia Publication Arxiv Handoff Record
@@ -9164,6 +9425,7 @@ operations:
   mcp:
     name: vox_scientia_publication_arxiv_handoff_record
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.decision.explain
   title: Scientia Publication Decision Explain
@@ -9183,6 +9445,7 @@ operations:
   mcp:
     name: vox_scientia_publication_decision_explain
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.discovery.explain
   title: Scientia Publication Discovery Explain
@@ -9202,6 +9465,7 @@ operations:
   mcp:
     name: vox_scientia_publication_discovery_explain
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.discovery.refresh.evidence
   title: Scientia Publication Discovery Refresh Evidence
@@ -9221,6 +9485,7 @@ operations:
   mcp:
     name: vox_scientia_publication_discovery_refresh_evidence
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.discovery.scan
   title: Scientia Publication Discovery Scan
@@ -9240,6 +9505,7 @@ operations:
   mcp:
     name: vox_scientia_publication_discovery_scan
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.external.jobs.dead.letter
   title: Scientia Publication External Jobs Dead Letter
@@ -9259,6 +9525,7 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_dead_letter
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.external.jobs.due
   title: Scientia Publication External Jobs Due
@@ -9278,6 +9545,7 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_due
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.external.jobs.replay
   title: Scientia Publication External Jobs Replay
@@ -9297,6 +9565,7 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_replay
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.external.jobs.tick
   title: Scientia Publication External Jobs Tick
@@ -9316,6 +9585,7 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_tick
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.external.pipeline.metrics
   title: Scientia Publication External Pipeline Metrics
@@ -9335,6 +9605,7 @@ operations:
   mcp:
     name: vox_scientia_publication_external_pipeline_metrics
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.media.delete
   title: Scientia Publication Media Delete
@@ -9354,6 +9625,7 @@ operations:
   mcp:
     name: vox_scientia_publication_media_delete
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.media.list
   title: Scientia Publication Media List
@@ -9373,6 +9645,7 @@ operations:
   mcp:
     name: vox_scientia_publication_media_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.media.upsert
   title: Scientia Publication Media Upsert
@@ -9392,6 +9665,7 @@ operations:
   mcp:
     name: vox_scientia_publication_media_upsert
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.novelty.fetch
   title: Scientia Publication Novelty Fetch
@@ -9411,6 +9685,7 @@ operations:
   mcp:
     name: vox_scientia_publication_novelty_fetch
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.novelty.happy.path
   title: Scientia Publication Novelty Happy Path
@@ -9430,6 +9705,7 @@ operations:
   mcp:
     name: vox_scientia_publication_novelty_happy_path
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.preflight
   title: Scientia Publication Preflight
@@ -9449,6 +9725,7 @@ operations:
   mcp:
     name: vox_scientia_publication_preflight
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.prepare
   title: Scientia Publication Prepare
@@ -9468,6 +9745,7 @@ operations:
   mcp:
     name: vox_scientia_publication_prepare
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.publish
   title: Scientia Publication Publish
@@ -9487,6 +9765,7 @@ operations:
   mcp:
     name: vox_scientia_publication_publish
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.retry.failed
   title: Scientia Publication Retry Failed
@@ -9506,6 +9785,7 @@ operations:
   mcp:
     name: vox_scientia_publication_retry_failed
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.route.simulate
   title: Scientia Publication Route Simulate
@@ -9525,6 +9805,7 @@ operations:
   mcp:
     name: vox_scientia_publication_route_simulate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.scholarly.pipeline.run
   title: Scientia Publication Scholarly Pipeline Run
@@ -9544,6 +9825,7 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_pipeline_run
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.scholarly.remote.status
   title: Scientia Publication Scholarly Remote Status
@@ -9563,6 +9845,7 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_remote_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.scholarly.remote.status.sync.all
   title: Scientia Publication Scholarly Remote Status Sync All
@@ -9582,6 +9865,7 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_remote_status_sync_all
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.scholarly.remote.status.sync.batch
   title: Scientia Publication Scholarly Remote Status Sync Batch
@@ -9601,6 +9885,7 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_remote_status_sync_batch
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.scholarly.staging.export
   title: Scientia Publication Scholarly Staging Export
@@ -9620,6 +9905,7 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_staging_export
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.status
   title: Scientia Publication Status
@@ -9639,6 +9925,7 @@ operations:
   mcp:
     name: vox_scientia_publication_status
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.publication.submit.local
   title: Scientia Publication Submit Local
@@ -9658,6 +9945,7 @@ operations:
   mcp:
     name: vox_scientia_publication_submit_local
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: scientia.worthiness.evaluate
   title: Scientia Worthiness Evaluate
@@ -9677,6 +9965,7 @@ operations:
   mcp:
     name: vox_scientia_worthiness_evaluate
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: script
   title: Script
@@ -9722,6 +10011,7 @@ operations:
   mcp:
     name: vox_session_cleanup
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: session.compact
   title: Session Compact
@@ -9741,6 +10031,7 @@ operations:
   mcp:
     name: vox_session_compact
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: session.create
   title: Session Create
@@ -9760,6 +10051,7 @@ operations:
   mcp:
     name: vox_session_create
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: session.info
   title: Session Info
@@ -9779,6 +10071,7 @@ operations:
   mcp:
     name: vox_session_info
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: session.list
   title: Session List
@@ -9798,6 +10091,7 @@ operations:
   mcp:
     name: vox_session_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: session.reset
   title: Session Reset
@@ -9817,6 +10111,7 @@ operations:
   mcp:
     name: vox_session_reset
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: set.active.model
   title: Set Active Model
@@ -9836,6 +10131,7 @@ operations:
   mcp:
     name: vox_set_active_model
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: set.agent.budget
   title: Set Agent Budget
@@ -9855,6 +10151,7 @@ operations:
   mcp:
     name: vox_set_agent_budget
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: set.context
   title: Set Context
@@ -9874,6 +10171,7 @@ operations:
   mcp:
     name: vox_set_context
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: set.model
   title: Set Model
@@ -9893,6 +10191,7 @@ operations:
   mcp:
     name: vox_set_model
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: share
   title: Share
@@ -10018,6 +10317,7 @@ operations:
   mcp:
     name: vox_skill_info
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: skill.install
   title: Skill Install
@@ -10037,6 +10337,7 @@ operations:
   mcp:
     name: vox_skill_install
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: skill.list
   title: Skill List
@@ -10056,6 +10357,7 @@ operations:
   mcp:
     name: vox_skill_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: skill.parse
   title: Skill Parse
@@ -10075,6 +10377,7 @@ operations:
   mcp:
     name: vox_skill_parse
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: skill.search
   title: Skill Search
@@ -10094,6 +10397,7 @@ operations:
   mcp:
     name: vox_skill_search
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: skill.uninstall
   title: Skill Uninstall
@@ -10113,6 +10417,7 @@ operations:
   mcp:
     name: vox_skill_uninstall
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: snapshot.diff
   title: Snapshot Diff
@@ -10132,6 +10437,7 @@ operations:
   mcp:
     name: vox_snapshot_diff
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: snapshot.list
   title: Snapshot List
@@ -10151,6 +10457,7 @@ operations:
   mcp:
     name: vox_snapshot_list
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: snapshot.restore
   title: Snapshot Restore
@@ -10173,6 +10480,7 @@ operations:
   mcp:
     name: vox_snapshot_restore
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: snippet
   title: Snippet
@@ -10218,6 +10526,7 @@ operations:
   mcp:
     name: vox_spawn_agent
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: speech.to.code
   title: Speech To Code
@@ -10237,6 +10546,7 @@ operations:
   mcp:
     name: vox_speech_to_code
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: stub-check
   title: Stub-check
@@ -10282,6 +10592,7 @@ operations:
   mcp:
     name: vox_submit_task
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: suggest.model
   title: Suggest Model
@@ -10301,6 +10612,7 @@ operations:
   mcp:
     name: vox_suggest_model
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: sync
   title: Sync
@@ -10346,25 +10658,7 @@ operations:
   mcp:
     name: vox_task_status
     http_read_role_eligible: true
-  cli: null
-- id: task.doubt
-  title: Task Doubt
-  description: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_doubt_task
-    http_read_role_eligible: false
+    tier: core
   cli: null
 - id: telemetry
   title: Telemetry
@@ -10544,6 +10838,27 @@ operations:
   mcp:
     name: vox_test_all
     http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: test.decision
+  title: Test Decision
+  description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_test_decision
+    http_read_role_eligible: true
+    tier: core
   cli: null
 - id: toestub.findings.upsert
   title: Toestub Findings Upsert
@@ -10563,6 +10878,7 @@ operations:
   mcp:
     name: vox_toestub_findings_upsert
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: train
   title: Train
@@ -10608,6 +10924,27 @@ operations:
   mcp:
     name: vox_transfer_file
     http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: trust.override
+  title: Trust Override
+  description: Overrides the trust tier for the agent context.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_trust_override
+    http_read_role_eligible: false
+    tier: core
   cli: null
 - id: undo
   title: Undo
@@ -10627,6 +10964,7 @@ operations:
   mcp:
     name: vox_undo
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: update
   title: Update
@@ -10698,6 +11036,7 @@ operations:
   mcp:
     name: vox_validate_file
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: vcs.status
   title: Vcs Status
@@ -10717,7 +11056,95 @@ operations:
   mcp:
     name: vox_vcs_status
     http_read_role_eligible: false
+    tier: core
   cli: null
+- id: visual.rag.query
+  title: Visual Rag Query
+  description: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_visual_rag_query
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: visus.audit
+  title: Visus Audit
+  description: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - gui
+  - visual
+  - testing
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_visus_audit
+    http_read_role_eligible: false
+    tier: core
+  cli:
+    path:
+    - visus
+    - audit
+    status: active
+    latin_ns: dei
+    handler_rust: commands::visus::dispatch
+    feature_gate: dei
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: visus.baseline
+  title: Visus Baseline
+  description: Manages golden visual baselines for regression testing.
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - gui
+  - visual
+  - testing
+  - baseline
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_visus_baseline
+    http_read_role_eligible: false
+    tier: core
+  cli:
+    path:
+    - visus
+    - baseline
+    status: active
+    latin_ns: dei
+    handler_rust: commands::visus::dispatch
+    feature_gate: dei
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: workspace.create
   title: Workspace Create
   description: Create an isolated workspace for an agent.
@@ -10739,6 +11166,7 @@ operations:
   mcp:
     name: vox_workspace_create
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: workspace.merge
   title: Workspace Merge
@@ -10758,6 +11186,7 @@ operations:
   mcp:
     name: vox_workspace_merge
     http_read_role_eligible: false
+    tier: core
   cli: null
 - id: workspace.modules
   title: Workspace Modules
@@ -10777,6 +11206,7 @@ operations:
   mcp:
     name: vox_workspace_modules
     http_read_role_eligible: true
+    tier: core
   cli: null
 - id: workspace.status
   title: Workspace Status
@@ -10796,160 +11226,8 @@ operations:
   mcp:
     name: vox_workspace_status
     http_read_role_eligible: false
+    tier: core
   cli: null
-- id: export.grammar.ebnf
-  title: Export Grammar Ebnf
-  description: Export the Vox EBNF grammar.
-  description_human: null
-  product_lane: app
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_export_grammar_ebnf
-    http_read_role_eligible: false
-  cli: null
-- id: test.decision
-  title: Test Decision
-  description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_test_decision
-    http_read_role_eligible: true
-  cli: null
-- id: exec.time.query
-  title: Exec Time Query
-  description: Query historical execution time for a tool.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_exec_time_query
-    http_read_role_eligible: true
-  cli: null
-- id: exec.time.record
-  title: Exec Time Record
-  description: Record an execution duration and outcome.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_exec_time_record
-    http_read_role_eligible: false
-  cli: null
-- id: rag.visual.query
-  title: Rag Visual Query
-  description: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_visual_rag_query
-    http_read_role_eligible: false
-  cli: null
-- id: visus.audit
-  title: Visus Audit
-  description: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
-  description_human: null
-  product_lane: ai
-  intent_tags: [gui, visual, testing]
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: true
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_visus_audit
-    http_read_role_eligible: false
-  cli:
-    path:
-    - visus
-    - audit
-    status: active
-    latin_ns: dei
-    handler_rust: commands::visus::dispatch
-    feature_gate: dei
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: null
-- id: visus.baseline
-  title: Visus Baseline
-  description: Manages golden visual baselines for regression testing.
-  description_human: null
-  product_lane: ai
-  intent_tags: [gui, visual, testing, baseline]
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: true
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_visus_baseline
-    http_read_role_eligible: false
-  cli:
-    path:
-    - visus
-    - baseline
-    status: active
-    latin_ns: dei
-    handler_rust: commands::visus::dispatch
-    feature_gate: dei
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: null
 exemptions:
   mcp_tools: []
   cli_paths: []

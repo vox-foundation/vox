@@ -236,10 +236,8 @@ impl<B: Backend> Module<B> {
                         Tensor::D3(m) => m.clone(),
                         _ => panic!("TransformerDecoder expects D3 memory"),
                     };
-                    let dec_input = burn::nn::transformer::TransformerDecoderInput::new(
-                        tgt_d3,
-                        mem_d3,
-                    );
+                    let dec_input =
+                        burn::nn::transformer::TransformerDecoderInput::new(tgt_d3, mem_d3);
                     Tensor::D3(layer.forward(dec_input))
                 }
                 _ => panic!("TransformerDecoder expects Tuple2(D3, D3) [target, memory]"),

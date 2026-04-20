@@ -60,9 +60,13 @@ pub fn emit_lark() -> String {
     g.push_str("index: \"@index\" IDENT \".\" IDENT \"on\" \"(\" IDENT (\",\" IDENT)* \")\"\n\n");
 
     // ── Server / Query / Mutation
-    g.push_str("server_fn: \"@server\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n");
+    g.push_str(
+        "server_fn: \"@server\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n",
+    );
     g.push_str("query_fn: \"@query\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n");
-    g.push_str("mutation_fn: \"@mutation\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n\n");
+    g.push_str(
+        "mutation_fn: \"@mutation\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n\n",
+    );
 
     // ── Tests & PBT
     g.push_str("test: \"@test\" \"fn\" IDENT \"(\" \")\" [\"to\" type_expr] block\n");
@@ -73,7 +77,9 @@ pub fn emit_lark() -> String {
     g.push_str("mcp_resource: \"@mcp.resource\" [STRING_LIT] \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n\n");
 
     // ── Components & Islands
-    g.push_str("component: \"@component\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n");
+    g.push_str(
+        "component: \"@component\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n",
+    );
     g.push_str("reactive_component: \"component\" IDENT \"(\" params? \")\" reactive_block\n");
     g.push_str("reactive_block: \"{\" reactive_member* [\"view:\" expr] \"}\"\n");
     g.push_str("reactive_member: state_decl | derived_decl | effect_block | mount_block | cleanup_block | stmt\n");
@@ -123,7 +129,9 @@ pub fn emit_lark() -> String {
     g.push_str("pipe_expr: expr \"|>\" expr\n");
     g.push_str("?primary: literal | IDENT | call_expr | field_access | method_call\n");
     g.push_str("        | match_expr | if_expr | for_expr | lambda | spawn_expr | with_expr\n");
-    g.push_str("        | object_lit | list_lit | tuple_lit | jsx_expr | block | \"(\" expr \")\"\n\n");
+    g.push_str(
+        "        | object_lit | list_lit | tuple_lit | jsx_expr | block | \"(\" expr \")\"\n\n",
+    );
 
     g.push_str("match_expr: \"match\" expr \"{\" match_arm* \"}\"\n");
     g.push_str("match_arm: pattern \"->\" expr\n");

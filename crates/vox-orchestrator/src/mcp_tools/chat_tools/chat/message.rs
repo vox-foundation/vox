@@ -4,17 +4,17 @@ use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscrip
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
 use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
-use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
-use crate::mcp_tools::memory::{RetrievalTriggerMode, run_retrieval_bundle};
-use crate::mcp_tools::params::ToolResult;
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::mcp_tools::chat_socrates_meta::{
     clarification_turn_for_session, mcp_questioning_session_key, socrates_surface_tags,
     socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
 };
-use crate::mcp_tools::session_identity::normalize_chat_session_id;
 use crate::mcp_tools::journey_envelope;
+use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
+use crate::mcp_tools::memory::{RetrievalTriggerMode, run_retrieval_bundle};
+use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
+use crate::mcp_tools::session_identity::normalize_chat_session_id;
 use crate::session_context_envelope_key;
 use vox_runtime::prompt_canonical;
 
@@ -247,21 +247,23 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         );
     }
     let ctx_handle = state.orchestrator.context_handle();
-    let session_ts =
-        match crate::mcp_tools::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
-            Ok(guard) => guard
-                .age_secs(&format!("chat_history:{session_id}"))
-                .map(|a: u64| format!(" Session last active: {a}s ago."))
-                .unwrap_or_default(),
-            Err(e) => {
-                tracing::warn!(
-                    error = %e,
-                    tool = "vox_chat_message",
-                    "context lock poisoned; skipping session age hint"
-                );
-                String::new()
-            }
-        };
+    let session_ts = match crate::mcp_tools::sync_poison::poison_rw_read(
+        ctx_handle.read(),
+        "orchestrator context",
+    ) {
+        Ok(guard) => guard
+            .age_secs(&format!("chat_history:{session_id}"))
+            .map(|a: u64| format!(" Session last active: {a}s ago."))
+            .unwrap_or_default(),
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                tool = "vox_chat_message",
+                "context lock poisoned; skipping session age hint"
+            );
+            String::new()
+        }
+    };
     let system_prompt = format!(
         "{}{}\n\n{}",
         build_system_prompt(state, None).await,
@@ -305,8 +307,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             None
                         }
                     };
-                    let max_tokens =
-                        crate::mcp_tools::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                    let max_tokens = crate::mcp_tools::llm_bridge::clamp_http_max_output_tokens(
+                        model.max_tokens,
+                    );
                     let routing = McpInferRouting {
                         user_prompt: &user_prompt,
                         sticky_model_pref: pref.as_deref(),
@@ -440,7 +443,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     match serde_json::to_string(&history) {
         Ok(history_json) => {
             let ctx_handle = state.orchestrator.context_handle();
-            match crate::mcp_tools::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
+            match crate::mcp_tools::sync_poison::poison_rw_write(
+                ctx_handle.write(),
+                "orchestrator context",
+            ) {
                 Ok(ctx) => {
                     ctx.set(crate::AgentId(0), &history_key, &history_json, 0);
                     if let Some(ev) = &retrieval_evidence {
@@ -449,12 +455,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             Some(session_id.as_str()),
                         );
                         if let Ok(context_json) = serde_json::to_string(&context_envelope) {
-                            ctx.set(
-                                crate::AgentId(0),
-                                &context_key,
-                                &context_json,
-                                3600,
-                            );
+                            ctx.set(crate::AgentId(0), &context_key, &context_json, 3600);
                         }
                     }
                 }

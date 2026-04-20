@@ -1,4 +1,4 @@
-﻿//! A2A (Agent-to-Agent) MCP tools — send, inbox, ack, broadcast, history.
+//! A2A (Agent-to-Agent) MCP tools — send, inbox, ack, broadcast, history.
 //!
 //! When attention gating is enabled and a message may surface to the pilot, `a2a_send` evaluates interruption policy and may
 //! call [`ServerState::record_attention_event`](crate::mcp_tools::server_state::ServerState::record_attention_event) for defer / proceed decisions
@@ -7,13 +7,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::a2a::{A2ADeliveryPlane, A2AInboxPlane};
 use crate::mcp_tools::attention_policy::{
     a2a_escalation_signals, channel_label, decision_label, evaluate_with_state,
     pending_backlog_for_session, trust_for_session,
 };
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
-use crate::a2a::{A2ADeliveryPlane, A2AInboxPlane};
+use crate::mcp_tools::server_state::ServerState;
 use crate::types::{A2AMessageType, AgentId};
 
 #[inline]
@@ -322,10 +322,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
         let bm = state.orchestrator.budget_manager_handle();
         let snap = crate::sync_lock::rw_read(&*bm).attention_snapshot();
         if let crate::GateResult::AttentionExhausted { message, .. } =
-            crate::BudgetGate::check_attention_snapshot(
-                &snap,
-                &state.orchestrator_config,
-            )
+            crate::BudgetGate::check_attention_snapshot(&snap, &state.orchestrator_config)
         {
             return ToolResult::<String>::err_with_remediation(
                 message,
@@ -344,9 +341,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
         );
         let decision = evaluate_with_state(state, &signals, &snap);
         match decision {
-            crate::InterruptionDecision::RequireHumanBeforeContinue {
-                reason, ..
-            } => {
+            crate::InterruptionDecision::RequireHumanBeforeContinue { reason, .. } => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("A2A escalation blocked pending human review: {reason}"),
                     "Reduce blast radius or include explicit human-approved context before resubmitting this escalation.",
@@ -477,8 +472,10 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                 )
                 .to_json();
             };
-            let repository_id =
-                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose().unwrap_or("default").to_string();
+            let repository_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot)
+                .expose()
+                .unwrap_or("default")
+                .to_string();
             match crate::a2a::send_to_db_with_breaker(
                 &db,
                 sender,
@@ -517,6 +514,9 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                         payload_blake3_hex: None,
                         worker_ed25519_sig_b64: None,
                         jwe_payload: None,
+                        task_kind: None,
+                        model_id: None,
+                        priority: 128,
                     })
                     .await
                     .is_ok();
@@ -761,10 +761,7 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
         let bm = state.orchestrator.budget_manager_handle();
         let snap = crate::sync_lock::rw_read(&*bm).attention_snapshot();
         if let crate::GateResult::AttentionExhausted { message, .. } =
-            crate::BudgetGate::check_attention_snapshot(
-                &snap,
-                &state.orchestrator_config,
-            )
+            crate::BudgetGate::check_attention_snapshot(&snap, &state.orchestrator_config)
         {
             return ToolResult::<String>::err_with_remediation(
                 message,
@@ -786,9 +783,7 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
         );
         let decision = evaluate_with_state(state, &signals, &snap);
         match decision {
-            crate::InterruptionDecision::RequireHumanBeforeContinue {
-                reason, ..
-            } => {
+            crate::InterruptionDecision::RequireHumanBeforeContinue { reason, .. } => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("A2A broadcast blocked pending human review: {reason}"),
                     "Reduce blast radius or include explicit human-approved context before resubmitting.",
@@ -1027,4 +1022,3 @@ mod tests {
         );
     }
 }
-

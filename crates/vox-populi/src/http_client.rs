@@ -11,7 +11,7 @@ use crate::transport::{
     A2AStoredMessage, AdminExecLeaseRevokeRequest, AdminMaintenanceRequest, AdminQuarantineRequest,
     DispatchRequest, DispatchResponse, LeaveRequest, RemoteExecLeaseGrantRequest,
     RemoteExecLeaseGrantResponse, RemoteExecLeaseListResponse, RemoteExecLeaseReleaseRequest,
-    RemoteExecLeaseRenewRequest,
+    RemoteExecLeaseRenewRequest, MeshQueueStats,
 };
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
@@ -74,6 +74,27 @@ impl PopuliHttpClient {
     #[must_use]
     pub fn for_hosted_control_plane(base: impl Into<String>) -> Self {
         Self::new(base)
+    }
+
+    /// Get mesh queue stats.
+    pub async fn queue_stats(&self) -> Result<MeshQueueStats, PopuliRegistryError> {
+        let mut req = self.client.get(format!("{}/v1/populi/queue/stats", self.base));
+        if let Some(ref token) = self.bearer {
+            req = req.bearer_auth(token);
+        }
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
+
+        if !resp.status().is_success() {
+            return Err(PopuliRegistryError::Io(std::io::Error::other(format!(
+                "HTTP {}",
+                resp.status()
+            ))));
+        }
+
+        resp.json().await.map_err(|e| PopuliRegistryError::Json(e.to_string()))
     }
 
     /// New client; `base` is normalized (trailing `/` stripped). No `Authorization` header.
@@ -194,6 +215,38 @@ impl PopuliHttpClient {
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
         let v = Self::ensure_success_with_context(resp, "list_nodes")
+            .await?
+            .json()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        Ok(v)
+    }
+
+    /// `GET /v1/populi/federation/directory`
+    pub async fn federation_directory(&self) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
+        let url = format!("{}/v1/populi/federation/directory", self.base);
+        let resp = self
+            .auth(self.client.get(url))
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        let v = Self::ensure_success_with_context(resp, "federation_directory")
+            .await?
+            .json()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        Ok(v)
+    }
+
+    /// `POST /v1/populi/federation/announce`
+    pub async fn federation_announce(&self, req: &crate::transport::FederationAnnounceRequest) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
+        let url = format!("{}/v1/populi/federation/announce", self.base);
+        let resp = self
+            .auth(self.client.post(url).json(req))
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        let v = Self::ensure_success_with_context(resp, "federation_announce")
             .await?
             .json()
             .await

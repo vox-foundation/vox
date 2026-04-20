@@ -1,6 +1,6 @@
+use crate::models::{ModelSpec, ProviderType};
 use std::future::Future;
 use std::pin::Pin;
-use crate::models::{ModelSpec, ProviderType};
 
 use super::error::HttpInferError;
 use super::provider_auth::{bearer_for, extra_headers_for};
@@ -125,7 +125,10 @@ impl ProviderAdapter for OllamaAdapter {
 impl ProviderAdapter for AnthropicNativeAdapter {
     fn supports(&self, provider_type: &ProviderType) -> bool {
         matches!(provider_type, ProviderType::Anthropic)
-            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect).expose().unwrap_or("") == "1"
+            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect)
+                .expose()
+                .unwrap_or("")
+                == "1"
     }
 
     fn infer<'a>(

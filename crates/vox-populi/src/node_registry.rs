@@ -91,8 +91,19 @@ pub struct NodeRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cpu_usage_pct: Option<f32>,
     /// Available system memory in bytes for Wave 5 resource-aware scheduling.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory_free_bytes: Option<u64>,
+    /// The user ID of the node owner (assigned securely from the join token).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_vox_user_id: Option<String>,
+    /// Models advertised by this node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advertised_models: Option<Vec<vox_mesh_types::ModelAdvertisement>>,
+    /// Donation policy for GPU compute.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub donation_policy: Option<vox_mesh_types::WorkerDonationPolicy>,
+    /// Ed25519 public key used to verify attestation signatures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ed25519_pub_key_b64: Option<String>,
 }
 
 /// Serializable registry file (`.vox/cache/populi/local-registry.json`).
@@ -102,6 +113,9 @@ pub struct PopuliRegistryFile {
     pub schema_version: u32,
     /// Known nodes (typically one for local-only mode).
     pub nodes: Vec<NodeRecord>,
+    /// Wave 5: Global pending job count across all receiver agent inboxes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_depth: Option<usize>,
 }
 
 /// Drop nodes whose `last_seen_unix_ms` is older than `now - max_stale_ms` when `max_stale_ms` is Some and > 0.
@@ -194,6 +208,7 @@ impl LocalRegistry {
             return Ok(PopuliRegistryFile {
                 schema_version: 1,
                 nodes: Vec::new(),
+                queue_depth: None,
             });
         }
         let raw = std::fs::read_to_string(&self.path).map_err(PopuliRegistryError::Io)?;

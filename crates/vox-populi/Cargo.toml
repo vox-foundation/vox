@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = []
+default = ["mens-gpu"]
 # NVIDIA NVML probe → Populi `NodeRecord` gpu_* fields (optional; requires NVML at runtime).
 nvml-gpu-probe = ["vox-repository/nvml-probe"]
 # HTTP control plane (join / heartbeat / list) for multi-node loopback or LAN (TLS in ops layer).
@@ -24,6 +24,7 @@ transport = [
     "dep:data-encoding",
     "dep:base64",
     "dep:dashmap",
+    "dep:vox-db",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -40,7 +41,7 @@ mens = [
     "dep:vox-db",
     "dep:vox-bounded-fs",
 ]
-mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors"]
+mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors", "dep:wgpu", "dep:nvml-wrapper", "dep:windows"]
 mens-candle-qlora = [
     "mens",
     "dep:candle-core",
@@ -56,12 +57,11 @@ mens-candle-qlora-cuda = [
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
-mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval"]
+mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
     "dep:async-trait",
-    "dep:futures",
     "dep:reqwest",
     "dep:vox-reqwest-defaults",
 ]
@@ -78,6 +78,7 @@ vox-clavis = { workspace = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
+vox-mesh-types = { workspace = true }
 
 # Populi transport
 axum = { workspace = true, optional = true }
@@ -85,6 +86,7 @@ tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
 vox-reqwest-defaults = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true, features = ["trace", "request-id"] }
+vox-db = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 ed25519-dalek = { workspace = true, optional = true }
@@ -103,7 +105,6 @@ sysinfo = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
-vox-db = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
 burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
 hf-hub = { workspace = true, optional = true }
@@ -114,9 +115,14 @@ tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
+futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
+vox-compiler = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
+nvml-wrapper = { workspace = true, optional = true }
+windows = { version = "0.58", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"], optional = true }
+
 workspace-hack = { workspace = true }
 hex = "0.4.3"
 
@@ -137,6 +143,10 @@ serial_test = { workspace = true }
 
 [[test]]
 name = "http_control_plane"
+required-features = ["transport"]
+
+[[test]]
+name = "dispatch_persistence"
 required-features = ["transport"]
 
 [lints]

@@ -1,13 +1,11 @@
-﻿//! MCP tools: query recent unified benchmark telemetry (`research_metrics` via [`vox_db`]).
+//! MCP tools: query recent unified benchmark telemetry (`research_metrics` via [`vox_db`]).
 //!
 //! Writers use [`vox_db::benchmark_telemetry`] from CLI / tests when Codex is available.
 //! Sensitivity / trust taxonomy for stored rows: `docs/src/architecture/telemetry-trust-ssot.md` (tool descriptions in
 //! `contracts/mcp/tool-registry.canonical.yaml` point callers at the same SSOT).
 
 use serde::Deserialize;
-use vox_db::research_metrics_contract::{
-    METRIC_TYPE_BENCHMARK_EVENT, METRIC_TYPE_SYNTAX_K_EVENT,
-};
+use vox_db::research_metrics_contract::{METRIC_TYPE_BENCHMARK_EVENT, METRIC_TYPE_SYNTAX_K_EVENT};
 
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;

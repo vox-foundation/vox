@@ -9,10 +9,7 @@ use crate::mcp_tools::params::{ToolResult, VoxVisualRagQueryParams, VoxVisualRag
 use crate::mcp_tools::server_state::ServerState;
 
 /// Dispatches a multi-modal visual RAG query to the configured intelligence backend.
-pub async fn visual_rag_query(
-    _state: &ServerState,
-    params: VoxVisualRagQueryParams,
-) -> String {
+pub async fn visual_rag_query(_state: &ServerState, params: VoxVisualRagQueryParams) -> String {
     // In a full implementation, this would deserialize the image paths/base64 strings,
     // construct a multi-modal prompt, and dispatch to the `vox-oratio` LLM bridge.
     // For this demonstration, we validate the input structure and mock the successful external dispatch.
@@ -23,7 +20,8 @@ pub async fn visual_rag_query(
         ).to_json_compact();
     }
 
-    let image_count = params.image_paths.len() + params.image_base64.as_ref().map(|v| v.len()).unwrap_or(0);
+    let image_count =
+        params.image_paths.len() + params.image_base64.as_ref().map(|v| v.len()).unwrap_or(0);
 
     tracing::info!(
         target: "vox_mcp::rag",
@@ -32,11 +30,17 @@ pub async fn visual_rag_query(
         "Dispatching external multi-modal RAG query"
     );
 
-    let simulated_answer = format!("Visual RAG analysis complete for {} images. The objects in the visual context strongly align with the query: '{}'. External system integration confirmed.", image_count, params.query);
+    let simulated_answer = format!(
+        "Visual RAG analysis complete for {} images. The objects in the visual context strongly align with the query: '{}'. External system integration confirmed.",
+        image_count, params.query
+    );
 
     ToolResult::ok(VoxVisualRagQueryResponse {
         answer: simulated_answer,
-        sources_consulted: vec!["mock-visual-embedding-db-1".to_string(), "oratio-vlm-bridge".to_string()],
+        sources_consulted: vec![
+            "mock-visual-embedding-db-1".to_string(),
+            "oratio-vlm-bridge".to_string(),
+        ],
         confidence_score: 0.95,
     })
     .to_json()

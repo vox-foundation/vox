@@ -1,10 +1,10 @@
-﻿use schemars::JsonSchema;
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::AgentId;
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 const REM_CTX_LOCK: &str = "Retry; poisoned orchestrator locks usually clear after MCP restart.";
 const REM_CTX_KEY: &str = "Use `list_context` with a prefix or verify the key was set under the expected agent namespace.";
@@ -83,19 +83,17 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
     let ttl = params.ttl_seconds.unwrap_or(0);
     let ctx_handle = orch.context_handle();
     let guard: std::sync::RwLockWriteGuard<crate::context::ContextStore> =
-        match crate::mcp_tools::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
+        match crate::mcp_tools::sync_poison::poison_rw_write(
+            ctx_handle.write(),
+            "orchestrator context",
+        ) {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
                     .to_json();
             }
         };
-    guard.set(
-        AgentId(params.agent_id),
-        &params.key,
-        &params.value,
-        ttl,
-    );
+    guard.set(AgentId(params.agent_id), &params.key, &params.value, ttl);
     ToolResult::ok(format!("Key '{}' set successfully", params.key)).to_json()
 }
 
@@ -104,7 +102,10 @@ pub async fn get_context(state: &ServerState, params: GetContextParams) -> Strin
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
     let read_guard: std::sync::RwLockReadGuard<crate::context::ContextStore> =
-        match crate::mcp_tools::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+        match crate::mcp_tools::sync_poison::poison_rw_read(
+            ctx_handle.read(),
+            "orchestrator context",
+        ) {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
@@ -124,7 +125,10 @@ pub async fn list_context(state: &ServerState, params: ListContextParams) -> Str
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
     let read_guard: std::sync::RwLockReadGuard<crate::context::ContextStore> =
-        match crate::mcp_tools::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+        match crate::mcp_tools::sync_poison::poison_rw_read(
+            ctx_handle.read(),
+            "orchestrator context",
+        ) {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<Vec<String>>::err_with_remediation(
@@ -183,10 +187,8 @@ pub async fn set_agent_budget(state: &ServerState, params: SetAgentBudgetParams)
     let orch = &state.orchestrator;
     let agent_id = AgentId(params.agent_id);
 
-    let mut alloc = crate::budget::AgentBudgetAllocation::new(
-        params.max_tokens,
-        params.max_cost_usd,
-    );
+    let mut alloc =
+        crate::budget::AgentBudgetAllocation::new(params.max_tokens, params.max_cost_usd);
     if let (Some(token_al), Some(cost_al)) =
         (params.token_alert_threshold, params.cost_alert_threshold)
     {
@@ -221,21 +223,20 @@ pub async fn handoff_context(state: &ServerState, params: HandoffContextParams) 
     let orch = &state.orchestrator;
     let summary_handle = orch.summary_handle();
     let sum_guard: std::sync::RwLockWriteGuard<crate::summary::SummaryManager> =
-        match crate::mcp_tools::sync_poison::poison_rw_write(summary_handle.write(), "context summary") {
+        match crate::mcp_tools::sync_poison::poison_rw_write(
+            summary_handle.write(),
+            "context summary",
+        ) {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
                     .to_json();
             }
         };
-    sum_guard.handoff(
-        AgentId(params.from_agent),
-        AgentId(params.to_agent),
-    );
+    sum_guard.handoff(AgentId(params.from_agent), AgentId(params.to_agent));
     ToolResult::ok(format!(
         "Context handed off from agent {} to {}",
         params.from_agent, params.to_agent
     ))
     .to_json()
 }
-

@@ -1,0 +1,14 @@
+// vox:caps process
+import process;
+
+fn main() {
+    print("Testing build-regressions call...");
+    let res = process.run("target/debug/vox.exe", ["db", "build-regressions", "--json"]);
+    if res is null {
+        print("Error: process.run returned null");
+    } else {
+        print("Code: " + res.code);
+        print("Stdout: " + res.stdout);
+        print("Stderr: " + res.stderr);
+    }
+}

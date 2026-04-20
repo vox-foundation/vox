@@ -227,16 +227,32 @@ pub fn auto_score_model(
         + f64::from(w.balance) * balance_bias
         + f64::from(w.mobile) * mobile_score(m);
 
-    let mens_bonus = if m.provider_type == crate::models::ProviderType::PopuliMesh {
-        // Find if we are currently parsing or doing inter-agent
-        if *m.id == *"mens/vox-language-model" {
+    let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
+        .expose()
+        .map(|s: &str| s.trim() == "true")
+        .unwrap_or(false);
+
+    let mut mens_bonus = if m.provider_type == crate::models::ProviderType::PopuliMesh {
+        if prefer_mesh {
+            0.8 // High bonus to strongly prefer mesh
+        } else if *m.id == *"mens/vox-language-model" {
             0.25
         } else {
-            0.0
+            0.1 // Base bonus for zero cost
         }
     } else {
         0.0
     };
+
+    if m.provider_type == crate::models::ProviderType::PopuliMesh {
+        if let Some(json) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson).expose() {
+            if let Ok(policy) = serde_json::from_str::<vox_mesh_types::WorkerDonationPolicy>(json) {
+                if policy.public_mesh_opt_in {
+                    mens_bonus += 0.15; // Reciprocity bonus for donating to the network
+                }
+            }
+        }
+    }
 
     (score / total_w) + fim_bias + mens_bonus
 }

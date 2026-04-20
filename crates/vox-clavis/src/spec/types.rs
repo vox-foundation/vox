@@ -1,6 +1,6 @@
+use super::ids::SecretId;
 use crate::policy::SecretPolicy;
 use crate::types::SecretSource;
-use super::ids::SecretId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaxonomyClass {
@@ -18,15 +18,15 @@ pub enum TaxonomyClass {
 impl TaxonomyClass {
     pub const fn slug(self) -> &'static str {
         match self {
-            Self::PlatformIdentity     => "platform",
-            Self::LlmProviderKey       => "llm",
-            Self::CloudGpuInfra        => "gpu",
+            Self::PlatformIdentity => "platform",
+            Self::LlmProviderKey => "llm",
+            Self::CloudGpuInfra => "gpu",
             Self::ScholarlyPublication => "scholarly",
-            Self::SocialSyndication    => "social",
-            Self::MeshTransport        => "mesh",
-            Self::TelemetrySearch      => "telemetry",
-            Self::AuxTooling           => "aux",
-            Self::OperatorTuning       => "config",
+            Self::SocialSyndication => "social",
+            Self::MeshTransport => "mesh",
+            Self::TelemetrySearch => "telemetry",
+            Self::AuxTooling => "aux",
+            Self::OperatorTuning => "config",
         }
     }
 

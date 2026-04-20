@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
-use crate::types::UnifiedNewsItem;
 use super::config::PublisherConfig;
+use crate::types::UnifiedNewsItem;
+use std::collections::BTreeMap;
 
 pub fn summarize_for_social(raw: &str, max_chars: usize) -> String {
     crate::contract::clamp_text(raw, max_chars)
@@ -63,9 +63,8 @@ pub fn twitter_effective_summary_max_chars(
     let p_low = p.to_ascii_lowercase();
     let margin_adj = match p_low.as_str() {
         "brief" | "tight" | "compact" => margin_base.saturating_sub(16).max(4),
-        "roomy" | "spacious" | "narrative" => {
-            (margin_base.saturating_add(24)).min(crate::adapters::twitter::TWEET_MAX_CHARS.saturating_div(3))
-        }
+        "roomy" | "spacious" | "narrative" => (margin_base.saturating_add(24))
+            .min(crate::adapters::twitter::TWEET_MAX_CHARS.saturating_div(3)),
         _ => {
             decision_reasons.insert(
                 "template_profile_fallback_twitter".to_string(),

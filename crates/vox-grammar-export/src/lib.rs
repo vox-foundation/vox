@@ -78,8 +78,8 @@ pub struct GrammarExportResult {
 pub mod automaton;
 pub mod compact_prompt;
 pub mod ebnf;
-pub mod grammar_ir;
 pub mod gbnf;
+pub mod grammar_ir;
 pub mod json_schema;
 pub mod lark;
 pub mod ssot_markdown;

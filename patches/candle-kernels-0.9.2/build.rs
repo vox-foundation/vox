@@ -86,17 +86,38 @@ fn main() {
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok());
+
     if let Some(ver) = &nvcc_version {
         eprintln!(
             "candle-kernels: nvcc detected: {}",
             ver.lines().last().unwrap_or("?")
         );
+        let bindings = builder.build_ptx().unwrap();
+        bindings.write(&ptx_path).unwrap();
     } else {
-        println!("cargo:warning=nvcc not found — CUDA kernel build may fail");
+        println!("cargo:warning=nvcc not found — attempting to use pre-compiled PTX shims");
+        let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        let ptx_src_dir = manifest_dir.join("src").join("ptx");
+        
+        if ptx_src_dir.is_dir() {
+            let mut ptx_rs = String::new();
+            let entries = ["affine", "binary", "cast", "conv", "fill", "indexing", "quantized", "reduce", "sort", "ternary", "unary"];
+            for name in entries {
+                let ptx_file = ptx_src_dir.join(format!("{}.ptx", name));
+                if ptx_file.is_file() {
+                    let content = std::fs::read_to_string(&ptx_file).unwrap();
+                    ptx_rs.push_str(&format!("pub const {}: &str = r#\"{}\"#;\n", name.to_uppercase(), content));
+                } else {
+                    println!("cargo:warning=Missing pre-compiled PTX for {}", name);
+                }
+            }
+            std::fs::write(&ptx_path, ptx_rs).unwrap();
+        } else {
+            println!("cargo:warning=Pre-compiled PTX directory not found at {:?}", ptx_src_dir);
+            // Write an empty ptx.rs so the downstream include! doesn't fail.
+            std::fs::write(&ptx_path, "// nvcc missing and no shims found\n").unwrap();
+        }
     }
-
-    let bindings = builder.build_ptx().unwrap();
-    bindings.write(&ptx_path).unwrap();
 
     // Remove unwanted MOE PTX constants from ptx.rs
     remove_lines(&ptx_path, &["MOE_GGUF", "MOE_WMMA", "MOE_WMMA_GGUF"]);
@@ -115,17 +136,21 @@ fn main() {
         moe_builder = moe_builder.arg("-Xcompiler").arg("-fPIC");
     }
 
-    let moe_builder = moe_builder.kernel_paths(vec![
-        "src/moe/moe_gguf.cu",
-        "src/moe/moe_wmma.cu",
-        "src/moe/moe_wmma_gguf.cu",
-    ]);
-    moe_builder.build_lib(out_dir.join("libmoe.a"));
-    println!("cargo:rustc-link-search={}", out_dir.display());
-    println!("cargo:rustc-link-lib=moe");
-    println!("cargo:rustc-link-lib=dylib=cudart");
-    if !is_target_msvc {
-        println!("cargo:rustc-link-lib=stdc++");
+    if nvcc_version.is_some() {
+        let moe_builder = moe_builder.kernel_paths(vec![
+            "src/moe/moe_gguf.cu",
+            "src/moe/moe_wmma.cu",
+            "src/moe/moe_wmma_gguf.cu",
+        ]);
+        moe_builder.build_lib(out_dir.join("libmoe.a"));
+        println!("cargo:rustc-link-search={}", out_dir.display());
+        println!("cargo:rustc-link-lib=moe");
+        println!("cargo:rustc-link-lib=dylib=cudart");
+        if !is_target_msvc {
+            println!("cargo:rustc-link-lib=stdc++");
+        }
+    } else {
+        println!("cargo:warning=nvcc not found — skipping libmoe build (some MOE features will be missing)");
     }
 }
 

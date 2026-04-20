@@ -1,4 +1,4 @@
-﻿use crate::{ConflictId, OperationId, SnapshotId};
+use crate::{ConflictId, OperationId, SnapshotId};
 
 pub(super) fn _parse_snapshot_id_value(v: Option<&serde_json::Value>) -> Option<SnapshotId> {
     let v = v?;
@@ -32,9 +32,9 @@ pub(super) fn parse_conflict_id_value(v: Option<&serde_json::Value>) -> Option<C
 
 #[cfg(test)]
 mod id_parse_tests {
-    use super::{parse_conflict_id_value, parse_operation_id_value, _parse_snapshot_id_value};
-    use serde_json::json;
+    use super::{_parse_snapshot_id_value, parse_conflict_id_value, parse_operation_id_value};
     use crate::{ConflictId, OperationId, SnapshotId};
+    use serde_json::json;
 
     #[test]
     fn snapshot_id_accepts_numeric_and_s_prefix() {

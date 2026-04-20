@@ -39,12 +39,12 @@ pub fn default_scholarly_job_lock_owner() -> String {
     format!("vox:{}", std::process::id())
 }
 
+pub mod poll;
 pub mod submit;
 pub mod sync;
-pub mod poll;
 pub mod tick;
 
+pub use poll::*;
 pub use submit::*;
 pub use sync::*;
-pub use poll::*;
 pub use tick::*;

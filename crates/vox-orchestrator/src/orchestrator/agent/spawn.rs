@@ -25,8 +25,7 @@ impl crate::orchestrator::Orchestrator {
         let agent_id = self.agent_id_gen.next();
         let mut queue = crate::queue::AgentQueue::new(agent_id, name);
         let probed = crate::capability_probe::probe_host_capabilities();
-        queue.capabilities =
-            crate::capability_probe::merge_agent_capabilities(&caps, probed);
+        queue.capabilities = crate::capability_probe::merge_agent_capabilities(&caps, probed);
         crate::sync_lock::rw_write(&*self.agents)
             .insert(agent_id, std::sync::Arc::new(std::sync::RwLock::new(queue)));
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).register(agent_id);

@@ -1,5 +1,5 @@
 use rand::RngCore;
-use vox_crypto::{verify, VerifyingKey};
+use vox_crypto::{VerifyingKey, verify};
 
 pub fn generate_challenge() -> [u8; 32] {
     let mut nonce = [0u8; 32];

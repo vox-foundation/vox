@@ -3,10 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{
-    Orchestrator, OrchestratorConfig, 
-};
 use crate::mcp_tools::server_state::ServerState;
+use crate::{Orchestrator, OrchestratorConfig};
 // No longer used in this module after refactor
 
 /// When truthy (default if unset), MCP spawns [`crate::runtime::AgentFleet`] so queued
@@ -19,7 +17,7 @@ pub fn mcp_agent_fleet_env_enabled() -> bool {
 fn spawn_embedded_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
     crate::runtime::spawn_agent_fleet_if_enabled(orchestrator.clone());
 
-    // NOTE: ResolutionAgent (formerly vox_dei) functionality is now integrated 
+    // NOTE: ResolutionAgent (formerly vox_dei) functionality is now integrated
     // into the main orchestrator dispatch and verification loops.
 }
 
@@ -85,7 +83,8 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
         .await;
 
     // Optional remote/mobile control plane (HTTP + WebSocket).
-    let _http_gateway = crate::mcp_tools::http_gateway::spawn_http_gateway_if_enabled(state.clone())?;
+    let _http_gateway =
+        crate::mcp_tools::http_gateway::spawn_http_gateway_if_enabled(state.clone())?;
 
     // Flywheel automation: Monitor diversity and trigger training
     let flywheel = crate::services::flywheel::FlywheelMonitor::new(state.orchestrator.clone());

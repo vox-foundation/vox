@@ -1,6 +1,6 @@
-﻿use super::params::{HeartbeatParams, PollEventsParams, RecordCostParams, SubmitTaskParams};
-use crate::mcp_tools::server_state::ServerState;
+use super::params::{HeartbeatParams, PollEventsParams, RecordCostParams, SubmitTaskParams};
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use std::path::PathBuf;
 
 const REM_VCS_SUBMIT: &str =
@@ -113,10 +113,7 @@ fn agent_id_from_kind_json(v: &serde_json::Value) -> u64 {
     0
 }
 
-fn agent_event_to_record(
-    ev: &crate::AgentEvent,
-    repo_id: &str,
-) -> vox_ludus::db::AgentEventRecord {
+fn agent_event_to_record(ev: &crate::AgentEvent, repo_id: &str) -> vox_ludus::db::AgentEventRecord {
     let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
     let event_type = kind_json
         .get("type")
@@ -289,4 +286,3 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
         .to_json()
     }
 }
-

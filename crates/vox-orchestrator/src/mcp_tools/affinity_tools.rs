@@ -1,4 +1,4 @@
-﻿//! MCP tools for file affinity: resolve owners, claim paths, transfer ownership, list files.
+//! MCP tools for file affinity: resolve owners, claim paths, transfer ownership, list files.
 //!
 //! All handlers return JSON via [`crate::ToolResult`]. Mutating calls update the in-memory
 //! orchestrator affinity map (not the filesystem).
@@ -6,9 +6,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::mcp_tools::server_state::ServerState;
-use crate::mcp_tools::params::ToolResult;
 use crate::AgentId;
+use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 
 const REM_AFFINITY_CLAIM: &str = "Release the path, pick another file, or negotiate transfer with the owning agent via affinity tools.";
 const REM_AFFINITY_TRANSFER: &str =
@@ -151,4 +151,3 @@ pub async fn transfer_file(state: &ServerState, params: TransferFileParams) -> S
     ))
     .to_json()
 }
-

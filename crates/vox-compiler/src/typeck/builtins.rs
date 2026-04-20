@@ -212,7 +212,10 @@ impl BuiltinTypes {
         env.define(
             "range".into(),
             Binding {
-                ty: Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::List(Box::new(Ty::Int)))),
+                ty: Ty::Fn(
+                    vec![Ty::Int, Ty::Int],
+                    Box::new(Ty::List(Box::new(Ty::Int))),
+                ),
                 mutable: false,
                 kind: BindingKind::Function,
                 is_deprecated: false,
@@ -463,10 +466,7 @@ impl BuiltinTypes {
         );
         list_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         list_methods.insert("len".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
-        list_methods.insert(
-            "join".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
-        );
+        list_methods.insert("join".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)));
         list_methods.insert(
             "map".into(),
             Ty::Fn(
@@ -502,11 +502,17 @@ impl BuiltinTypes {
         );
         fs_methods.insert(
             "list_dir".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str)))))),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
         );
         fs_methods.insert(
             "glob".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str)))))),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
         );
         methods.insert("FsModule".into(), fs_methods);
 
@@ -539,16 +545,40 @@ impl BuiltinTypes {
         ]);
         process_methods.insert(
             "spawn".into(),
-            Ty::Fn(vec![Ty::Str, Ty::List(Box::new(Ty::Str))], Box::new(Ty::Option(Box::new(process_output.clone())))),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Option(Box::new(process_output.clone()))),
+            ),
+        );
+        process_methods.insert(
+            "spawn_background".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::Int))),
+            ),
         );
         process_methods.insert(
             "run".into(),
-            Ty::Fn(vec![Ty::Str, Ty::List(Box::new(Ty::Str))], Box::new(Ty::Option(Box::new(process_output.clone())))),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Option(Box::new(process_output.clone()))),
+            ),
         );
         process_methods.insert(
-            "exit".into(),
-            Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
+            "exec".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::Unit))),
+            ),
         );
+        process_methods.insert(
+            "register_exit_command".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::Unit))),
+            ),
+        );
+        process_methods.insert("exit".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)));
         methods.insert("ProcessModule".into(), process_methods);
 
         // Env module methods
@@ -556,6 +586,17 @@ impl BuiltinTypes {
         env_methods.insert(
             "get".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        env_methods.insert(
+            "args".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        env_methods.insert(
+            "set".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::Str],
+                Box::new(Ty::Unit),
+            ),
         );
         methods.insert("EnvModule".into(), env_methods);
 
@@ -582,8 +623,14 @@ impl BuiltinTypes {
             "replace".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
         );
-        str_methods.insert("ends_with".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
-        str_methods.insert("starts_with".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
+        str_methods.insert(
+            "ends_with".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
+        str_methods.insert(
+            "starts_with".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods

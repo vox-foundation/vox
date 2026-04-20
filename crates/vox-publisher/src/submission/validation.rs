@@ -1,10 +1,10 @@
+use super::{MAX_STAGING_FILE_BYTES, ScholarlyVenue};
+use crate::publication::PublicationManifest;
+use flate2::read::GzDecoder;
 use std::fs;
 use std::io::Cursor;
 use std::path::Path;
-use flate2::read::GzDecoder;
 use tar::Archive;
-use crate::publication::PublicationManifest;
-use super::{ScholarlyVenue, MAX_STAGING_FILE_BYTES};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationFinding {
@@ -395,8 +395,9 @@ fn arxiv_staging_handoff_quality_notes(
                 if !has_bundle {
                     v.push(ValidationFinding {
                         code: "staging_checksums_missing_arxiv_bundle",
-                        message: "staging_checksums.json should record arxiv_bundle.tar.gz for custody"
-                            .into(),
+                        message:
+                            "staging_checksums.json should record arxiv_bundle.tar.gz for custody"
+                                .into(),
                     });
                 }
             }

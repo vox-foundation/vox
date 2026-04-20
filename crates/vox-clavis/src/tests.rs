@@ -254,7 +254,7 @@ impl crate::backend::SecretBackend for ChaosBackend {
             ))
         }
     }
-    
+
     fn write_audit_log(
         &self,
         _secret_id: &str,
@@ -456,11 +456,20 @@ fn all_secret_ids_have_spec_entries() {
 #[test]
 fn test_contains_secret_material() {
     let text = "this is a test with a super-secret-value inside";
-    assert!(crate::redact::contains_secret_material(text, &["super-secret-value", "another-secret"]));
-    assert!(!crate::redact::contains_secret_material(text, &["not-in-text", "also-not"]));
-    
+    assert!(crate::redact::contains_secret_material(
+        text,
+        &["super-secret-value", "another-secret"]
+    ));
+    assert!(!crate::redact::contains_secret_material(
+        text,
+        &["not-in-text", "also-not"]
+    ));
+
     // Short patterns are ignored
-    assert!(!crate::redact::contains_secret_material("short", &["short"]));
+    assert!(!crate::redact::contains_secret_material(
+        "short",
+        &["short"]
+    ));
 }
 
 #[test]
@@ -472,7 +481,7 @@ fn test_redact_secrets_from_value() {
     });
     let patterns = vec!["super-secret-value", "other-secret-123456"];
     let scrubbed = crate::redact::redact_secrets_from_value(&val, &patterns);
-    
+
     let expected = json!({
         "data": "my [REDACTED] here",
         "nested": ["[REDACTED]", "safe-value"]

@@ -1,3 +1,11 @@
+---
+title: "Vox VS Code Extension"
+description: "Syntax highlighting, LSP integration, and build commands for Vox — the AI-native, full-stack programming language."
+category: "reference"
+status: "current"
+training_eligible: true
+training_rationale: "Provides documentation for the VS Code extension, including commands and configuration."
+---
 # Vox Language Extension for VS Code
 
 > Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/vox-foundation/vox) — the AI-native, full-stack programming language.

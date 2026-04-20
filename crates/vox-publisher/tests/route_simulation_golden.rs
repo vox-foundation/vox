@@ -21,9 +21,9 @@ fn golden_item() -> UnifiedNewsItem {
         id: "golden-route-001".to_string(),
         title: "Golden route item".to_string(),
         author: "Vox".to_string(),
-        published_at: meta.published_at.unwrap_or_else(|| {
-            Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()
-        }),
+        published_at: meta
+            .published_at
+            .unwrap_or_else(|| Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
         tags: meta.tags,
         content_markdown: "Hello world for golden route.".to_string(),
         syndication: meta.syndication,

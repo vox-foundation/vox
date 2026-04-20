@@ -1,8 +1,6 @@
 use super::*;
 use crate::TaskId;
-use crate::mcp_tools::params::{
-    CompleteTaskParams, DrainAgentParams, FailTaskParams, ToolResult,
-};
+use crate::mcp_tools::params::{CompleteTaskParams, DrainAgentParams, FailTaskParams, ToolResult};
 
 pub(super) const REM_TASK_ORCH_OP: &str = "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
 
@@ -21,7 +19,8 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
         observation_summary: None,
     };
     let res = state
-        .orchestrator.complete_task_with_attestation(task_id, Some(attestation))
+        .orchestrator
+        .complete_task_with_attestation(task_id, Some(attestation))
         .await;
 
     match res {
@@ -50,7 +49,9 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
             }
             ToolResult::ok("task completed".to_string()).to_json()
         }
-        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_TASK_ORCH_OP).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }
 
@@ -58,7 +59,11 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
 pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
-    let res = state.orchestrator.fail_task(task_id, params.reason).await.map_err(|e| e.to_string());
+    let res = state
+        .orchestrator
+        .fail_task(task_id, params.reason)
+        .await
+        .map_err(|e| e.to_string());
 
     match res {
         Ok(()) => {
@@ -90,15 +95,25 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
 }
 
 /// Cancel a task by ID.
-pub async fn cancel_task(state: &ServerState, params: crate::mcp_tools::params::CancelTaskParams) -> String {
-    match state.orchestrator.cancel_task(TaskId(params.task_id)).map_err(|e| e.to_string()) {
+pub async fn cancel_task(
+    state: &ServerState,
+    params: crate::mcp_tools::params::CancelTaskParams,
+) -> String {
+    match state
+        .orchestrator
+        .cancel_task(TaskId(params.task_id))
+        .map_err(|e| e.to_string())
+    {
         Ok(()) => ToolResult::ok("Task cancelled successfully".to_string()).to_json(),
         Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
     }
 }
 
 /// Change the priority of a queued task.
-pub async fn reorder_task(state: &ServerState, params: crate::mcp_tools::params::ReorderTaskParams) -> String {
+pub async fn reorder_task(
+    state: &ServerState,
+    params: crate::mcp_tools::params::ReorderTaskParams,
+) -> String {
     let priority = match params.priority.as_str() {
         "urgent" => crate::TaskPriority::Urgent,
         "background" => crate::TaskPriority::Background,
@@ -106,7 +121,9 @@ pub async fn reorder_task(state: &ServerState, params: crate::mcp_tools::params:
     };
 
     match state
-        .orchestrator.reorder_task(TaskId(params.task_id), priority).map_err(|e| e.to_string())
+        .orchestrator
+        .reorder_task(TaskId(params.task_id), priority)
+        .map_err(|e| e.to_string())
     {
         Ok(()) => ToolResult::ok("Task reordered successfully".to_string()).to_json(),
         Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
@@ -114,10 +131,16 @@ pub async fn reorder_task(state: &ServerState, params: crate::mcp_tools::params:
 }
 
 /// Flag a task as suspect by the user, triggering a resolution loop.
-pub async fn doubt_task(state: &ServerState, params: crate::mcp_tools::params::DoubtTaskParams) -> String {
+pub async fn doubt_task(
+    state: &ServerState,
+    params: crate::mcp_tools::params::DoubtTaskParams,
+) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
-    let res = state.orchestrator.doubt_task(task_id, params.reason).map_err(|e| e.to_string());
+    let res = state
+        .orchestrator
+        .doubt_task(task_id, params.reason)
+        .map_err(|e| e.to_string());
 
     match res {
         Ok(()) => {
@@ -152,10 +175,18 @@ pub async fn doubt_task(state: &ServerState, params: crate::mcp_tools::params::D
 
 /// Remove all queued tasks from an agent without retiring it.
 pub async fn drain_agent(state: &ServerState, params: DrainAgentParams) -> String {
-    match state.orchestrator.drain_agent(crate::AgentId(params.agent_id)) {
+    match state
+        .orchestrator
+        .drain_agent(crate::AgentId(params.agent_id))
+    {
         Ok(tasks) => ToolResult::ok(format!(
             "Drained {} tasks from agent {}",
-            tasks.len(), params.agent_id)).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_TASK_ORCH_OP).to_json(),
+            tasks.len(),
+            params.agent_id
+        ))
+        .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }

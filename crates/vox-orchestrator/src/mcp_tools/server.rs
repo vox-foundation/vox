@@ -68,6 +68,22 @@ impl ServerHandler for VoxMcpServer {
     ) -> Result<ListToolsResult, ErrorData> {
         let mut tool_list = crate::mcp_tools::tool_registry();
 
+        // E.56 MCP tool tiering: load core by default, dev/advanced require opt-in
+        let allowed_tiers_env =
+            std::env::var("VOX_MCP_TIERS").unwrap_or_else(|_| "core".to_string());
+        let allowed_tiers: Vec<&str> = allowed_tiers_env.split(',').collect();
+
+        if !allowed_tiers.contains(&"all") {
+            tool_list.retain(|t| {
+                if let Some(meta) = &t.meta {
+                    if let Some(serde_json::Value::String(tier)) = meta.0.get("vox_tier") {
+                        return allowed_tiers.contains(&tier.as_str());
+                    }
+                }
+                true
+            });
+        }
+
         // Auto-register tools from installed skills
         let skills = self.state.skill_registry.list(None);
         for skill in skills {
@@ -108,20 +124,23 @@ impl ServerHandler for VoxMcpServer {
             .map(serde_json::Value::Object)
             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
         let name_str = params.name.to_string();
-        let (result_json, is_error) =
+        let (result_json, is_error): (String, bool) =
             match crate::mcp_tools::handle_tool_call(&self.state, &name_str, args).await {
                 Ok(json) => {
                     let is_err = tool_json_envelope_is_error(&json);
                     (json, is_err)
                 }
-                Err(e) => (
-                    ToolResult::<serde_json::Value>::err_with_remediation(
-                        e.to_string(),
-                        REM_TOOL_DISPATCH,
+                Err(e) => {
+                    let msg = format!("{e}");
+                    (
+                        ToolResult::<serde_json::Value>::err_with_remediation(
+                            msg,
+                            REM_TOOL_DISPATCH,
+                        )
+                        .to_json(),
+                        true,
                     )
-                    .to_json(),
-                    true,
-                ),
+                }
             };
 
         Ok(CallToolResult {

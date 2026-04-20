@@ -59,13 +59,14 @@ pub fn spawn_populi_federation_poller(
                 t == "1" || t.eq_ignore_ascii_case("true")
             })
             .unwrap_or(false);
-    let codex_mesh_telemetry = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
-        .expose()
-        .map(|v: &str| {
-            let t = v.trim();
-            t == "1" || t.eq_ignore_ascii_case("true")
-        })
-        .unwrap_or(false);
+    let codex_mesh_telemetry =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+            .expose()
+            .map(|v: &str| {
+                let t = v.trim();
+                t == "1" || t.eq_ignore_ascii_case("true")
+            })
+            .unwrap_or(false);
     let db_reconcile = db;
     let repo_id_reconcile = repository_id;
     let snap = snapshot;

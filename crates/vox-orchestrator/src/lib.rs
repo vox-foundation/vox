@@ -38,13 +38,12 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::let_underscore_future)]
 
+pub mod attachment_manifest;
 pub mod dei_shim;
 pub mod sync_lock;
-pub mod attachment_manifest;
 
 #[cfg(feature = "mcp-native")]
 pub mod mcp_tools;
-
 
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;
@@ -195,6 +194,7 @@ pub use a2a::{
     A2ARoute, DbA2AMessage, acknowledge_db_message, poll_inbox_from_db, prune_old_a2a_messages,
     send_to_db,
 };
+pub use attachment_manifest::{AttachmentEntry, AttachmentManifest, VisualSegment};
 pub use attention::{
     ActionDescriptor, AgentTrustScore, ApprovalOutcome, ApprovalTier, AttentionBudget,
     AttentionEvent, AttentionEventType, DEFAULT_ATTENTION_BUDGET_MS, DEFAULT_INTERRUPT_COST_MS,
@@ -287,7 +287,6 @@ pub use types::{
     MessageEnvelope, MessageId, MessagePriority, TaskCategory, TaskDescriptor, TaskEnqueueHints,
     TaskId, TaskIdGenerator, TaskPriority, TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
-pub use attachment_manifest::{AttachmentEntry, AttachmentManifest, VisualSegment};
 pub use vox_db::store::types::VictoryCondition;
 pub use vox_db::store::{
     ObservationReport, ObserverAction, TestDecision, TestDecisionPolicy, TierResult, VictoryVerdict,

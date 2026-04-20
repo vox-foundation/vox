@@ -1,7 +1,7 @@
-﻿//! MCP: prior-art fetch + decision explain (parity with `vox db publication-novelty-*`).
+//! MCP: prior-art fetch + decision explain (parity with `vox db publication-novelty-*`).
 
-use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::params::ToolResult;
+use crate::mcp_tools::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::time::Instant;
@@ -582,4 +582,3 @@ pub async fn vox_scientia_publication_novelty_happy_path(
     }))
     .to_json()
 }
-

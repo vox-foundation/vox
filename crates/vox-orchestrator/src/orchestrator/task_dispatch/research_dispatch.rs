@@ -85,21 +85,24 @@ impl Orchestrator {
             hops_remaining -= 1;
         }
 
-        let research_model_enabled = crate::sync_lock::rw_read(&*self.config).research_model_enabled;
+        let research_model_enabled =
+            crate::sync_lock::rw_read(&*self.config).research_model_enabled;
 
         if research_model_enabled && !research_results.is_empty() {
             info!("delegating research synthesis to Lane G (research-expert)");
 
             #[cfg(feature = "runtime")]
             {
-                use vox_runtime::llm::{infer_with_retry, LlmConfig, LlmChatMessage};
+                use vox_runtime::llm::{LlmChatMessage, LlmConfig, infer_with_retry};
 
                 let combined_evidence = research_results.join("\n\n");
 
                 // Configure Lane G endpoint
                 // In production, this might map to a custom local inference server or an external expert model.
                 let config = LlmConfig::openrouter("anthropic/claude-3.5-sonnet:beta");
-                if let Some(_key) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose() {
+                if let Some(_key) =
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose()
+                {
                     // Overwrite if hitting internal mesh. For now, we fallback to standard LLM pipeline.
                     tracing::debug!("Using specific Lane G auth");
                 }
@@ -115,19 +118,27 @@ impl Orchestrator {
                     }
                 ];
 
-                match infer_with_retry(&vox_runtime::activity::ActivityOptions::default(), messages, vec![config]).await {
+                match infer_with_retry(
+                    &vox_runtime::activity::ActivityOptions::default(),
+                    messages,
+                    vec![config],
+                )
+                .await
+                {
                     vox_runtime::ActivityResult::Ok(Ok((res, _cfg))) if !res.content.is_empty() => {
                         let text = res.content;
                         info!("Lane G synthesis completed successfully");
                         research_results.push(format!("[lane_g_synthesis] {}", text));
                     }
                     other => {
-                        warn!(?other, "Lane G synthesis failed or returned empty content, falling back to raw results");
+                        warn!(
+                            ?other,
+                            "Lane G synthesis failed or returned empty content, falling back to raw results"
+                        );
                     }
                 }
             }
         }
-
 
         if !research_results.is_empty() {
             info!(

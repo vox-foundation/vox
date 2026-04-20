@@ -6,7 +6,7 @@ pub async fn verify_broken_links(write_files: &[PathBuf]) -> String {
         .iter()
         .filter(|p| p.extension().is_some_and(|ext| ext == "md"))
         .collect();
-    
+
     if !md_files.is_empty() {
         let mut broken_reports = Vec::new();
         for md_file in md_files {

@@ -51,6 +51,9 @@ pub async fn relay_to_mesh(
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
             jwe_payload: None,
+            task_kind: None,
+            model_id: None,
+            priority: 128,
         })
         .await
         .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
@@ -110,6 +113,9 @@ pub async fn relay_remote_task_envelope(
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
             jwe_payload,
+            task_kind: Some("vox_script".to_string()),
+            model_id: None,
+            priority: 128,
         })
         .await
         .map(|_| ())
@@ -139,6 +145,9 @@ pub async fn relay_remote_task_cancel(
             payload_blake3_hex: None,
             worker_ed25519_sig_b64: None,
             jwe_payload: None,
+            task_kind: None,
+            model_id: None,
+            priority: 255,
         })
         .await
         .map(|_| ())

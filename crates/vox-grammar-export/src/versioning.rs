@@ -20,15 +20,17 @@ pub fn compute_ebnf_hash() -> String {
 
 /// The SHA256 hash of the grammar at the time this crate was built.
 /// Updated via `vox grammar` sync.
-pub const BUILT_GRAMMAR_HASH: &str = "a9f2e0e2ad7ebcc2c802e2430ad7e37b8fa98812f13781b0da3b592791988b0e";
+pub const BUILT_GRAMMAR_HASH: &str =
+    "a9f2e0e2ad7ebcc2c802e2430ad7e37b8fa98812f13781b0da3b592791988b0e";
 
 pub fn verify_grammar_alignment() -> Result<(), String> {
     let live_hash = compute_ebnf_hash();
-    
+
     if live_hash != BUILT_GRAMMAR_HASH {
         Err(format!(
             "Grammar mismatch: built hash {}..., live hash {}... Run `vox grammar --format ebnf > GRAMMAR.ebnf` and update BUILT_GRAMMAR_HASH.",
-            &BUILT_GRAMMAR_HASH[..8], &live_hash[..8]
+            &BUILT_GRAMMAR_HASH[..8],
+            &live_hash[..8]
         ))
     } else {
         Ok(())
