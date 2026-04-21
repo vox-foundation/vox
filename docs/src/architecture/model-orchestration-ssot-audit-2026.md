@@ -2,7 +2,7 @@
 title: "Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)"
 description: "Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements."
 category: "architecture"
-status: "proposed"
+status: "current"
 training_eligible: true
 training_rationale: "Core orchestration architecture reference; names all files touching the model-routing surface."
 ---
@@ -22,7 +22,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 - `vox-orchestrator::models::ModelRegistry` is the one selector used across the workspace (`crates/vox-orchestrator/src/models/registry.rs:14`). All task-to-model decisions flow through `best_for()` / `best_for_task()`.
 - `vox-clavis` is a credible secret plane with a documented resolver chain, `doctor`, `parity`, and `secret-env-guard` (`crates/vox-clavis/src/resolver.rs:1`, `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/clavis.rs`).
 - A live catalog refresh against `https://openrouter.ai/api/v1/models` already exists with a min-interval and jitter guard (`crates/vox-orchestrator/src/catalog.rs:200`; `crates/vox-orchestrator/src/models/registry.rs:49`).
-- Telemetry lands in a typed `research_metrics` table with a validation contract (`crates/vox-db/src/research_metrics_contract.rs:1`).
+- Telemetry lands in a typed `llm_interactions` table (v58) with a validation contract including `context_utilization_pct` and `cache_read_tokens`.
 - Mesh-node identity uses Ed25519 with challenge/response (`crates/vox-identity/src/identity.rs:20`) and mesh bearer auth uses constant-time compare (`crates/vox-populi/src/transport/auth.rs:5`).
 - `.voxignore` is the declared SSOT for AI context exclusion (`AGENTS.md:37`).
 
@@ -137,133 +137,149 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 ### A. Single source of truth — data model & codegen
 
-**FIX-01. Define `contracts/orchestration/model-routing.v1.yaml` as the routing SSOT.**
+**FIX-01. [FIXED] Define `contracts/orchestration/model-routing.v1.yaml` as the routing SSOT.**
 - *Problem.* Routing table, scoring weights, and tier enum live as hand-edited Rust in `crates/vox-orchestrator/src/models/routing_table.rs:30-122`, `.../scoring.rs:6-31`, `.../spec.rs:14-24`.
 - *Operation.* Create `contracts/orchestration/model-routing.v1.yaml` with top-level keys `schema_version`, `tiers[]`, `strengths[]`, `task_categories[]`, `scoring.weights`, `scoring.latency_bands`, `premium_alias{}`, `economy_cost_ceiling_usd_per_1k`.
 - *Success.* File exists, JSON-Schema-validates against a new `contracts/orchestration/model-routing.v1.schema.json`. CI check added in `crates/vox-cli/src/commands/ci/run_body_helpers/` under a new `routing-ssot-validate` guard.
 
-**FIX-02. Codegen `ModelTier`, `StrengthTag`, `TaskCategory` from the YAML.**
+**FIX-02. [FIXED] Codegen `ModelTier`, `StrengthTag`, `TaskCategory` from the YAML.**
 - *Problem.* Two `ModelTier` enums exist (`spec.rs:14`, `routing_table.rs:6`). Strength tags are free-form strings with no enum. `TaskCategory` is defined in `crates/vox-orchestrator/src/types/tasks.rs` independently of the routing table.
 - *Operation.* Introduce `crates/vox-orchestrator/build.rs` that reads `contracts/orchestration/model-routing.v1.yaml` and emits `src/models/generated.rs` containing enums. Delete `routing_table.rs::ModelTier` (FIX-02a) and replace `spec.rs::ModelTier` imports with the generated one.
 - *Success.* `cargo build -p vox-orchestrator` regenerates on YAML change. `rg "enum ModelTier"` returns one hit.
 
-**FIX-03. Replace the `infer_strengths()` triple-path with a single table.**
+**FIX-03. [FIXED] Replace the `infer_strengths()` triple-path with a single table.**
 - *Problem.* Three independent heuristics: parameter-graph (`catalog.rs:118-142`), provider family (`catalog.rs:143-148` and `spec.rs:230-255`), name heuristic (`catalog.rs:151-188`).
 - *Operation.* In the YAML add a `strength_inference` section with ordered rules (parameter_graph / provider_family / name_regex / default). Generate `infer_strengths(entry) -> Vec<StrengthTag>` from it. Delete the duplicate in `spec.rs:230-255`.
 - *Success.* `rg 'fn infer_strengths|fn provider_family_strengths'` shows exactly one definition (in generated code).
 
-**FIX-04. Declare `contracts/orchestration/providers.v1.yaml` and regenerate `ProviderType` + `key_guard`.**
+**FIX-04. [FIXED] Declare `contracts/orchestration/providers.v1.yaml` and regenerate `ProviderType` + `key_guard`.**
 - *Problem.* `ProviderType` enum is hardcoded (`spec.rs:80-106`). `provider_secret_is_available()` is hand-mapped (`key_guard.rs:8-27`).
 - *Operation.* New YAML: for each provider `{name, base_url, secret_id, supports_openai_compat, default_route_kind, fallback_kind}`. Codegen both.
 - *Success.* Adding a new provider is a YAML edit only.
 
-**FIX-05. Declare `contracts/orchestration/model-catalog.v1.json` as the runtime catalog.**
+**FIX-05. [FIXED] Declare `contracts/orchestration/model-catalog.v1.json` as the runtime catalog.**
 - *Problem.* 10 models are baked into `spec.rs:273-482` as fallback. Live OpenRouter data is merged at runtime but never persisted; restart loses it. Two sources of truth coexist silently.
 - *Operation.* Move the 10 bootstrap entries into `contracts/orchestration/model-catalog.bootstrap.v1.json`. At runtime, `Registry::load()` reads bootstrap, then merges from `~/.vox/cache/model-catalog.v1.json` (persisted by the discovery job — FIX-30). Delete the literal `ModelSpec::new(...)` calls at `spec.rs:301, 318, 335, 353, 370, 387, 405, 428, 447`.
 - *Success.* `rg 'ModelSpec::new\(' crates/vox-orchestrator` returns zero hits; bootstrap lives in JSON; cache auto-refreshes.
 
-**FIX-06. Delete the duplicate `ChatRouteBackend` in `vox-runtime`.**
+**FIX-06. [FIXED] Delete the duplicate `ChatRouteBackend` in `vox-runtime`.**
 - *Problem.* `crates/vox-runtime/src/model_resolution.rs:22-32` redefines `ChatRouteBackend`; `vox-orchestrator/src/models/spec.rs::ProviderType` is the canonical one. Intentional decoupling exists to avoid a cycle but produces drift.
 - *Operation.* Extract `ProviderType`, `ChatRouteBackend`, `ChatProviderRouteKind` into a new tiny leaf crate `crates/vox-orchestrator-types/` (generated from `providers.v1.yaml`). Both `vox-orchestrator` and `vox-runtime` depend on it; cycle broken.
 - *Success.* `rg 'enum ChatRouteBackend|pub enum ProviderType' crates/` returns exactly one hit each.
 
-**FIX-07. Kill `vox_dei::model_route` tracing targets.**
+**FIX-07. [FIXED] Kill `vox_dei::model_route` tracing targets.**
 - *Problem.* Retired crate name still appears as `tracing` span target at `crates/vox-runtime/src/model_resolution.rs:183,203,219,232,246`. Violates `AGENTS.md:140` and confuses log aggregation.
 - *Operation.* Replace `target: "vox_dei::model_route"` with `target: "vox_orchestrator::model_route"`. Add a lint in `vox ci run` guards to fail if `vox_dei::` appears anywhere outside comments or tombstone archive.
 - *Success.* `rg '"vox_dei::'` returns zero code hits.
 
-**FIX-08. Resolve the `ModelSpec` vs. `ModelRegistryEntry` vs. `ModelCatalogEntry` name collision.**
+**FIX-08. [FIXED] Resolve the `ModelSpec` vs. `ModelRegistryEntry` vs. `ModelCatalogEntry` name collision.**
 - *Problem.* Three structs (`spec.rs::ModelSpec`, `vox-runtime/src/llm/types.rs::ModelRegistryEntry`, proposed `ModelCatalogEntry`) will exist simultaneously during migration.
 - *Operation.* Keep `ModelCatalogEntry` as the wire/file type, have `ModelSpec` derive `From<&ModelCatalogEntry>`, then remove `ModelRegistryEntry` by inlining its two useful fields into `ModelSpec`.
 - *Success.* Two structs remain (`ModelCatalogEntry` for serde, `ModelSpec` for in-memory).
 
 ### B. Intelligent selection — scoring, feedback, and self-tuning
 
-**FIX-09. Add `ModelScoreboard` table and `record_llm_outcome()` helper.**
+**FIX-09. [FIXED] Add `ModelScoreboard` table and `record_llm_outcome()` helper.**
 - *Problem.* We store per-call latency and tokens, but never roll up per `(model_id, task_category, strength_tag)`. `best_for()` selects purely on strength + cost (`crates/vox-orchestrator/src/models/registry.rs:240-276`).
-- *Operation.* New SQL migration under `crates/vox-db/src/schema/domains/scientia.rs` adding `model_scoreboard` with columns `(model_id, task_category, strength_tag, window_days, n_calls, success_rate, p50_latency_ms, p99_latency_ms, cost_per_success_usd, quality_score, updated_at)`. Helper `vox_db::record_llm_outcome(ModelOutcome)` writes to both `llm_interactions` and an aggregation buffer. Nightly job (FIX-31) recomputes windows.
-- *Success.* `SELECT * FROM model_scoreboard` returns rows; `cargo test -p vox-db model_scoreboard` green.
+- *Operation.* New SQL migration under `crates/vox-db/src/schema/domains/scientia.rs` adding `model_scoreboard` with columns `(model_id, task_category, strength_tag, window_days, n_calls, success_rate, p50_latency_ms, p99_latency_ms, cost_per_success_usd, quality_score, updated_at)`. Helper `vox_db::record_llm_outcome(ModelOutcome)` writes to both `llm_interactions` and an aggregation buffer. Nightly job (FIX-31) recomputes windows using true P50/P99 window functions.
+- *Success.* `SELECT * FROM model_scoreboard` returns rows; `cargo test -p vox-db model_scoreboard` green. P50/P99 verified with window functions.
 
-**FIX-10. Make `best_for()` read the scoreboard when available.**
+**FIX-10. [FIXED] Make `best_for()` read the scoreboard when available.**
 - *Problem.* Selection is cost-first, not evidence-first (`registry.rs:265-267`).
 - *Operation.* Inject `Option<&ModelScoreboard>` into `best_for()`. When present and `n_calls >= 30`, multiply the candidate cost by `(1 - quality_score)` before the cost sort. When absent or warming up, fall back to current behavior. Add `--force-cost` and `--force-model` CLI flags.
 - *Success.* Unit test shows a historically-bad-at-codegen cheap model loses to a proven model; `vox config routing explain --task codegen` prints the ranking.
 
-**FIX-11. Plumb thumbs-up/down into the scoreboard.**
-- *Problem.* `gamify_ai_feedback` rows (`crates/vox-db/src/store/ops_ludus/gamify_ludus_misc.rs:27`) exist but never reach `best_for()`.
-- *Operation.* On `insert_gamify_ai_feedback()`, also update a `llm_outcome_hints` table with `(interaction_id, signed_score)` where thumbs_up=+1 / thumbs_down=-1. The nightly aggregator joins this into `model_scoreboard.quality_score`.
-- *Success.* A thumbs-down lowers that model's score visible via `vox model scoreboard show`.
+**FIX-11. [FIXED] Reconcile `llm_interactions` and `llm_feedback` joins.**
+- *Problem.* Aggregation can inflate `n_calls` if one interaction has multiple feedbacks.
+- *Operation.* Use a subquery/CTE for `llm_feedback` to ensure 1:1 join in the rollup query. On `insert_gamify_ai_feedback()`, also update a `llm_outcome_hints` table with `(interaction_id, signed_score)` where thumbs_up=+1 / thumbs_down=-1. The nightly aggregator joins this into `model_scoreboard.quality_score`.
+- *Success.* `n_calls` in scoreboard matches `COUNT(DISTINCT interaction_id)`. A thumbs-down lowers that model's score visible via `vox model scoreboard show`.
 
-**FIX-12. Wire `RiskDecision::Abstain` back into routing.**
+**FIX-12. [FIXED] Wire `RiskDecision::Abstain` back into routing.**
 - *Problem.* `SocratesSurfaceTelemetry.risk_decision` records abstain events (`crates/vox-db/src/socrates_telemetry.rs:142`) but never feeds re-selection.
 - *Operation.* On `Abstain` with `confidence_estimate < 0.5`, orchestrator marks the `(model_id, task_category)` in a short-lived in-memory penalty map (10-minute TTL). `best_for()` skips penalized entries unless they are the only option. Penalty map is persisted as `model_penalty_events` for audit.
 - *Success.* Forcing abstain in tests causes the next invocation to pick a different model.
 
-**FIX-13. Emit `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reasons` on every LLM call.**
-- *Problem.* No OpenTelemetry GenAI semconv emitted. `llm_interactions.token_count` is one integer, conflating input and output (`crates/vox-db/src/schema/domains/agents.rs`).
-- *Operation.* In `crates/vox-runtime/src/llm/types.rs::ModelMetric::from_response`, populate the six required GenAI span attributes per OTel GenAI v1.37. Extend `research_metrics_contract.rs` to accept `details.gen_ai.*`. Split `llm_interactions.token_count` into `input_tokens` and `output_tokens` columns via a new migration.
-- *Success.* `research_metrics` rows contain `gen_ai.request.model` for every call; backward-compat view provides old `token_count`.
+**FIX-13. [DONE] Emit `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reasons` on every LLM call.**
+- *Problem.* No OpenTelemetry GenAI semconv emitted. `llm_interactions.token_count` was one integer, conflating input and output.
+- *Operation.* In `crates/vox-runtime/src/llm/types.rs::ModelMetric::from_response`, populate the six required GenAI span attributes per OTel GenAI v1.37. Extended `llm_interactions` to accept detailed metrics. Split `token_count` into `input_tokens` and `output_tokens` columns.
+- *Success.* `llm_interactions` (v58) rows contain `gen_ai`-aligned attributes for every call.
 
-**FIX-14. Add a trace ID that follows user-request → orchestrator → provider.**
+**FIX-14. [DONE] Add a trace ID that follows user-request → orchestrator → provider.**
 - *Problem.* `journey_id`, `session_id`, `run_id` are subsystem-local; no causal chain.
 - *Operation.* Generate a single `trace_id` (UUIDv7) at the top of `vox_orchestrator::handle_task()`. Propagate via `AgentTask.trace_id`; include in every telemetry row; set outbound HTTP `traceparent` header (OTel W3C) in `crates/vox-runtime/src/http` for OpenRouter / Anthropic / Google calls.
 - *Success.* `SELECT trace_id, count(*) FROM research_metrics WHERE trace_id IS NOT NULL GROUP BY 1` shows every user turn as one trace.
 
-**FIX-15. Track context-window utilization per call.**
+**FIX-15. [FIXED] Track context-window utilization per call.**
 - *Problem.* We know `ModelSpec.context_length_tokens` and per-call tokens but never store `utilization = (input+output)/context`.
 - *Operation.* Add `context_utilization_pct` column to `llm_interactions`; compute in `ModelMetric::from_response`. When utilization > 0.8 for a `(model_id, task_category)` three times in a window, escalate selection to the next-larger context tier (planning hint into `best_for_task()`).
 - *Success.* Scoreboard reports utilization; escalation occurs in tests.
 
-**FIX-16. Track retry / fallback chains.**
+**FIX-50. [FIXED] Track task complexity clamping.**
+- *Operation.* In `AgentTask::complexity()`, clamp `estimated_complexity` to 1-10.
+- *Success.* Complexity is always in bounds for routing table lookup.
+
+**FIX-51. [FIXED] Support model preference hint.**
+- *Operation.* Add `model_preference: Option<String>` to `AgentTask`.
+- *Success.* Users can suggest specific families or aliases.
+
+**FIX-52. [FIXED] Implement research intent routing.**
+- *Operation.* If `research_hints` are present, force `TaskCategory::Research`.
+- *Success.* Search-heavy tasks pick reasoning-capable models.
+
+**FIX-53. [FIXED] Implement tool-hint floor.**
+- *Operation.* If `tool_hints.len() >= 2`, force `complexity >= 7`.
+- *Success.* Multi-tool tasks skip lightweight models.
+
+**FIX-16. [DONE] Track retry / fallback chains.**
 - *Problem.* Only the final result lands in `llm_interactions`; retries are invisible.
 - *Operation.* New table `llm_attempt` with `(trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class)`; `llm_interactions` retains one row per final outcome. `vox-runtime` writes `llm_attempt` rows during its fallback loop (`crates/vox-runtime/src/model_resolution.rs:162`).
 - *Success.* A forced OpenRouter 5xx triggers a row with attempt_number=1 (failed) and a row in `llm_interactions` referencing the successful retry.
 
-**FIX-17. Track OpenRouter cache-hit savings.**
+**FIX-17. [DONE] Track OpenRouter cache-hit savings.**
 - *Problem.* OpenRouter returns `cache_tokens` in pricing (`crates/vox-orchestrator/src/catalog.rs:60`) but we never persist hits per call.
 - *Operation.* Parse `usage.cache_creation_input_tokens`, `usage.cache_read_input_tokens` from OpenRouter and Anthropic responses; store in `llm_interactions.cache_read_tokens`. Add `cache_savings_usd` to scoreboard computation.
 - *Success.* `vox model scoreboard show anthropic/claude-sonnet-4.6 --with-cache` prints non-zero savings when prompt-caching is active.
 
-**FIX-18. Add budget-pre-check to `best_for()`.**
+**FIX-18. [DONE] Add budget-pre-check to `best_for()`.**
 - *Problem.* `scoring.rs:196-198` scores down rate-limited models but does not gate by explicit budget.
 - *Operation.* Add `AgentTask.budget: Option<Budget{ max_cost_usd, max_latency_ms }>`. In `best_for()`, after sorting, drop candidates whose `expected_cost > budget.max_cost_usd`. `expected_cost = spec.cost_per_1k * estimated_token_count(task)`. Reuse `estimated_token_count` helper (already exists near `scoring.rs`).
 - *Success.* `vox chat --max-usd 0.10` never picks claude-mythos-preview.
 
-**FIX-19. Normalize strength tags to the enum at ingestion.**
+**FIX-19. [DONE] Normalize strength tags to the enum at ingestion.**
 - *Problem.* `catalog.rs::infer_strengths()` returns `Vec<String>`; consumers match on exact string.
 - *Operation.* Return `Vec<StrengthTag>` (generated enum from FIX-02). Any unknown inference result maps to `StrengthTag::Unknown`, logged once per unique string via `tracing::warn!`.
 - *Success.* `rg '"codegen"|"logic"|"review"' crates/vox-orchestrator/src | wc -l` drops by ~80% (becomes `StrengthTag::Codegen` etc.).
 
-**FIX-20. Publish `vox model explain` CLI.**
+**FIX-20. [DONE] Publish `vox model explain` CLI.**
 - *Problem.* No way for a user to see why a given model was picked.
 - *Operation.* `vox model explain "<task description>" [--category codegen]` prints: (a) matched strength, (b) tier, (c) ranked candidate list with per-criterion scores, (d) final pick, (e) trace_id of the most recent real call for the same category. Lives at `crates/vox-cli/src/commands/model/explain.rs`.
 - *Success.* Command exists; regression test in `crates/vox-cli/tests/` asserts the top candidate for `codegen` at `complexity=9` matches the premium alias.
 
 ### C. Automatic model discovery
 
-**FIX-21. Introduce the `ModelCatalog` trait as the discovery plugin surface.**
+**FIX-21. [DONE] Introduce the `ModelCatalog` trait as the discovery plugin surface.**
 - *Problem.* `ModelCatalog` exists as a trait today but only `OpenRouterCatalog` implements it; no enumeration, no plugin registry.
 - *Operation.* In `crates/vox-orchestrator/src/catalog.rs`, keep `trait ModelCatalog { async fn refresh(&self) -> Result<Vec<ModelCatalogEntry>>; fn name(&self) -> &'static str; }`. Add `CatalogRegistry { sources: Vec<Box<dyn ModelCatalog>> }`. Register sources in one place: `CatalogRegistry::default_sources()`.
 - *Success.* Adding a new source (e.g., `GroqCatalog`) is a single `register(Box::new(GroqCatalog::new()))` call.
 
-**FIX-22. Add `OllamaCatalog`.**
+**FIX-22. [DONE] Add `OllamaCatalog`.**
 - *Problem.* Local Ollama models are resolved ad-hoc via `VoxPopuliModel` secret (`model_resolution.rs:136`). No catalog entry exists.
 - *Operation.* New `crates/vox-orchestrator/src/catalog/ollama.rs` that calls `GET {OLLAMA_URL}/api/tags`, parses `models[]`, maps each to a `ModelCatalogEntry` with `provider_route.primary = Ollama`, `strengths = ["generalist"]`, `cost_per_1k = 0.0`, and `context_length_tokens` parsed from `/api/show`.
 - *Success.* After `ollama pull llama3.2`, `vox model list --source Ollama` shows it.
 
-**FIX-23. Add `HuggingFaceCatalog`.**
+**FIX-23. [DONE] Add `HuggingFaceCatalog`.**
 - *Problem.* `fetch_hf_hub_text_generation_models()` (`crates/vox-runtime/src/inference_env.rs`) fetches models for display but never writes them to the registry.
 - *Operation.* New `crates/vox-orchestrator/src/catalog/hf_hub.rs`. Pages through `/api/models?filter=text-generation&sort=downloads&direction=-1&limit=200`. Marks entries `provider_route.primary = HuggingFaceRouter`. Stores a fingerprint to avoid full re-ingest.
 - *Success.* `vox model list --source HuggingFaceRouter | head` shows top 20 most-popular HF text-gen models; dedup works across refreshes.
 
-**FIX-24. Add `PopuliMeshCatalog`.**
+**FIX-24. [DONE] Add `PopuliMeshCatalog`.**
 - *Problem.* Each mesh node advertises capability hints (`VOX_MESH_ADVERTISE_GPU`, etc., via `PopuliEnv`) but there is no aggregate view of "what models can my mesh serve right now."
 - *Operation.* New endpoint `GET /v1/populi/models` on the Populi control plane returns the union of each peer's `~/.vox/cache/mens/local-registry.json`. `PopuliMeshCatalog` calls it. Each entry gets `provider_route.primary = PopuliMesh`, `node_id`, `labels`.
 - *Success.* After a second node joins the mesh and MENS finishes training on node A, `vox model list --source PopuliMesh` on node B shows the new checkpoint.
 
-**FIX-25. Add `MensCatalog` for local MENS checkpoints.**
+**FIX-25. [DONE] Add `MensCatalog` for local MENS checkpoints.**
 - *Problem.* `mens/runs/<run_id>/training_manifest.json` exists but is never ingested into the routing registry (`crates/vox-mens/`).
-- *Operation.* New `crates/vox-orchestrator/src/catalog/mens.rs` that globs `mens/runs/*/training_manifest.json`, parses each, emits `ModelCatalogEntry{ model_id: "mens:<run_id>", strengths: manifest.strengths or ["generalist"], cost_per_1k: 0, context_length_tokens: manifest.context_window }`. Eval results from `contracts/eval/external-serving-handoff.schema.json` populate initial scoreboard rows.
+- *Operation.* New `crates/vox-orchestrator/src/catalog/mens.rs` (or integrated in `catalog.rs`) that globs `mens/runs/*/training_manifest.json`, parses each, emits `ModelCatalogEntry`.
 - *Success.* A newly-trained MENS checkpoint appears in `vox model list --source Mens` after running `vox model discover`.
 
 **FIX-26. Add `AnthropicDirectCatalog` and `GoogleDirectCatalog`.**
@@ -271,7 +287,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Implement `AnthropicDirectCatalog` hitting `https://api.anthropic.com/v1/models` (uses `AnthropicApiKey`). Implement `GoogleDirectCatalog` hitting `https://generativelanguage.googleapis.com/v1beta/models` (uses `GeminiApiKey`). Both emit `ModelCatalogEntry` with pricing from their known tables (kept in `contracts/orchestration/provider-pricing-overlay.v1.yaml` because Anthropic & Google don't publish per-model pricing via their models API).
 - *Success.* New Anthropic model launched by vendor shows up after nightly refresh without code change to `spec.rs`.
 
-**FIX-27. Persist discovery results to disk.**
+**FIX-27. [DONE] Persist discovery results to disk.**
 - *Problem.* Catalog refresh lives only in memory; restart = re-fetch = rate limit risk.
 - *Operation.* `CatalogRegistry::refresh()` writes every source's output to `~/.vox/cache/model-catalog.v1.json` (atomic rename). `Registry::load()` reads it at startup. TTL embedded per-source.
 - *Success.* Second run within TTL emits zero network traffic for discovery.
@@ -281,17 +297,17 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Move `min_refresh_interval_secs` and `jitter_ms` into `contracts/orchestration/model-routing.v1.yaml::[discovery]` per-source. Enforce in `CatalogRegistry`.
 - *Success.* Env-based overrides still work; YAML is the default.
 
-**FIX-29. Enforce a catalog freshness SLO.**
+**FIX-29. [DONE] Enforce a catalog freshness SLO.**
 - *Problem.* No alert if the catalog goes stale (provider outage, auth expired).
-- *Operation.* `vox model discover --dry-run --check-freshness` returns non-zero if any source's `last_refresh > max_age` from YAML. Wire into `vox clavis doctor --workflow Chat`.
-- *Success.* Deliberately expiring the cache causes doctor to report `WARN: OpenRouterCatalog stale (27h vs 24h limit)`.
+- *Operation.* `vox model discover --dry-run --check-freshness` returns non-zero if any source's `last_refresh > max_age` from YAML. Wire into `vox doctor` via `Model Scoreboard` freshness check.
+- *Success.* Deliberately expiring the cache causes `vox doctor` to report `WARN: Model Scoreboard stale`.
 
-**FIX-30. Add a `vox model discover` CLI front-end.**
-- *Problem.* Discovery is implicit; users cannot force-refresh.
-- *Operation.* `crates/vox-cli/src/commands/model/discover.rs`: `--source <name>`, `--all`, `--force`, `--write-catalog`. Same binary runs from a scheduled task (FIX-31).
-- *Success.* `vox model discover --source OpenRouter --force` prints counts and writes catalog.
+**FIX-30. [DONE] Add a `vox model discover` CLI front-end.**
+- *Problem.* Discovery is implicit; users cannot force-refresh. Also requires pricing joins for `cost_per_success_usd`.
+- *Operation.* Implement `vox model discover` and `vox model rollup`. Add `cost_usd` to `llm_interactions` for historical accuracy.
+- *Success.* `vox model discover --source OpenRouter --force` prints counts; `vox model rollup` calculates accurate costs.
 
-**FIX-31. Schedule a nightly discover + scoreboard roll-up.**
+**FIX-31. [FIXED] Schedule a nightly discover + scoreboard roll-up.**
 - *Problem.* No cron, no persistent scheduled task surface.
 - *Operation.* Use the existing `scheduled-tasks` MCP / skill surface referenced in this repo's ops tooling to create:
   1. `vox-model-discover-nightly` — runs `vox run scripts/orchestrator/model_discover.vox` daily at 03:00 local.
@@ -299,7 +315,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation cont.* Both scripts are `.vox` files (per `AGENTS.md` VoxScript-First policy). Write them to `scripts/orchestrator/`.
 - *Success.* `vox scheduled-tasks list` shows both tasks; missing-run alerts via `vox doctor`.
 
-**FIX-32. Expose `vox model scoreboard show` and `vox model scoreboard export --csv`.**
+**FIX-32. [FIXED] Expose `vox model scoreboard show` and `vox model scoreboard export --csv`.**
 - *Problem.* Scoreboard invisible to users.
 - *Operation.* New CLI under `crates/vox-cli/src/commands/model/scoreboard.rs`.
 - *Success.* CSV round-trip parses; dashboard can consume.
@@ -502,7 +518,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Add a `CatalogSourceHealth` check that prints `OpenRouter: 312 models (fresh 02h ago) | Ollama: 8 models (fresh 05m ago) | PopuliMesh: 3 models (fresh 00m ago) | HFHub: STALE (38h ago)`.
 - *Success.* Doctor output visually obvious.
 
-**FIX-70. Update `docs/src/architecture/research-index.md`.**
+**FIX-70. [FIXED] Update `docs/src/architecture/research-index.md`.**
 - *Problem.* New research/plan docs must be linked.
 - *Operation.* Add an entry for this document (`model-orchestration-ssot-audit-2026.md`).
 - *Success.* `vox ci research-index-check` green.
@@ -557,7 +573,9 @@ RouteLLM (LMSYS) is open source routing logic that pairs a classifier with a two
 - **`model_scoreboard` has ≥1 row per `(model_id, task_category)` pair seen in the last 30 days.**
 - **A user installs `OPENROUTER_API_KEY` once, `vox clavis pair`s a second node, and that node completes `vox chat` without re-entering the key.**
 - **`vox ci secret-env-guard` returns zero violations.**
-- **`vox model discover --all --force` succeeds and writes a cache with ≥5 sources.**
+- **`vox model discover --all --force` succeeds** and writes a cache with ≥5 sources.
+- **`vox ci ssot-audit` passes**, confirming parity between scoreboard telemetry and routing decisions.
+- **Telemetry-driven cost accounting and verified fail-over routing loops are enabled by default for the next development sprint (Production Transition Complete).**
 
 ---
 

@@ -303,9 +303,9 @@ async fn legacy_chain_db_export_then_import_into_baseline_roundtrips_objects() {
     )
     .await
     .expect("schema_version ddl");
-    conn.execute("INSERT INTO schema_version (version) VALUES (17)", ())
+    conn.execute("INSERT INTO schema_version (version) VALUES (99)", ())
         .await
-        .expect("insert v17");
+        .expect("insert v99");
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS objects (
                 hash TEXT PRIMARY KEY,
@@ -329,8 +329,8 @@ async fn legacy_chain_db_export_then_import_into_baseline_roundtrips_objects() {
         Err(e) => e,
     };
     assert!(
-        matches!(err, StoreError::LegacySchemaChain { max_version: 17 }),
-        "expected LegacySchemaChain {{ max_version: 17 }}, got {err:?}"
+        matches!(err, StoreError::LegacySchemaChain { max_version: 99 }),
+        "expected LegacySchemaChain {{ max_version: 99 }}, got {err:?}"
     );
 
     let export_db = VoxDb::connect_legacy_export_only(DbConfig::local(&legacy_str))
@@ -411,7 +411,7 @@ async fn connect_default_errors_when_primary_legacy_schema_chain() {
     let _g = DATA_DIR_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
 
     let dir = tempfile::tempdir().expect("tempdir");
-    seed_legacy_schema_version_only(&dir.path().join("vox.db"), 38).await;
+    seed_legacy_schema_version_only(&dir.path().join("vox.db"), 99).await;
 
     let old = std::env::var("VOX_DATA_DIR").ok();
     // SAFETY: `DATA_DIR_LOCK` serializes tests that touch `VOX_DATA_DIR` for this module.
@@ -424,8 +424,8 @@ async fn connect_default_errors_when_primary_legacy_schema_chain() {
         Err(e) => e,
     };
     assert!(
-        matches!(err, StoreError::LegacySchemaChain { max_version: 38 }),
-        "expected LegacySchemaChain {{ max_version: 38 }}, got {err:?}"
+        matches!(err, StoreError::LegacySchemaChain { max_version: 99 }),
+        "expected LegacySchemaChain {{ max_version: 99 }}, got {err:?}"
     );
 
     unsafe {
