@@ -102,6 +102,7 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
         ProviderType::Cerebras => 0.95,
         ProviderType::GoogleDirect => 0.8,
         ProviderType::Anthropic => 0.75,
+        ProviderType::HuggingFaceRouter => 0.9,
         ProviderType::OpenRouter => {
             // Give fast engines on OpenRouter a better fallback if missing p50
             if m.id.to_lowercase().contains("llama-3")
@@ -172,8 +173,9 @@ pub fn auto_score_model(
     }
     let fim_bias = if free_tier_fill_in_middle {
         let id = m.id.to_ascii_lowercase();
-        let has_code_signal = m.strengths.iter().any(|s| s == "codegen" || s == "parsing")
-            || id.contains("coder")
+        let has_code_signal = m.strengths.iter().any(|s| {
+            *s == crate::models::StrengthTag::Codegen || *s == crate::models::StrengthTag::Parsing
+        }) || id.contains("coder")
             || id.contains("code")
             || id.contains("instruct");
         if has_code_signal {
@@ -232,6 +234,7 @@ pub fn auto_score_model(
         .map(|s: &str| s.trim() == "true")
         .unwrap_or(false);
 
+    #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
     let mut mens_bonus = if m.provider_type == crate::models::ProviderType::PopuliMesh {
         if prefer_mesh {
             0.8 // High bonus to strongly prefer mesh
@@ -244,8 +247,11 @@ pub fn auto_score_model(
         0.0
     };
 
+    #[cfg(feature = "populi-transport")]
     if m.provider_type == crate::models::ProviderType::PopuliMesh {
-        if let Some(json) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson).expose() {
+        if let Some(json) =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson).expose()
+        {
             if let Ok(policy) = serde_json::from_str::<vox_mesh_types::WorkerDonationPolicy>(json) {
                 if policy.public_mesh_opt_in {
                     mens_bonus += 0.15; // Reciprocity bonus for donating to the network
@@ -274,7 +280,8 @@ mod tests {
             cost_per_1k_input: cost,
             cost_per_1k_output: cost,
             is_free,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::StrengthTag::Codegen],
             capabilities: ModelCapabilities::default(),
             supported_parameters: vec![],
         }

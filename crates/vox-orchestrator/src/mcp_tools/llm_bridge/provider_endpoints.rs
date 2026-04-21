@@ -72,6 +72,9 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
                 Ok(format!("{trimmed}/v1{suffix}"))
             }
         }
+        ProviderType::HuggingFaceRouter => {
+            Ok("https://api-inference.huggingface.co/v1/chat/completions".to_string())
+        }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
             Err(HttpInferError {
                 status: 0,
@@ -101,6 +104,7 @@ mod tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: ModelCapabilities::default(),
             supported_parameters: vec![],

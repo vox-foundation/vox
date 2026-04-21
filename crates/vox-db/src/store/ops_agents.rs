@@ -125,7 +125,8 @@ impl crate::VoxDb {
         response: &str,
         model_version: &str,
         latency_ms: Option<i64>,
-        token_count: Option<i64>,
+        input_tokens: Option<i64>,
+        output_tokens: Option<i64>,
     ) -> Result<i64, StoreError> {
         let session_id = session_id.to_string();
         let user_id = user_id.map(str::to_string);
@@ -138,8 +139,8 @@ impl crate::VoxDb {
             .call(|| async move {
                 conn.execute(
                     "INSERT INTO llm_interactions
-                         (session_id, user_id, prompt, response, model_version, latency_ms, token_count)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                         (session_id, user_id, prompt, response, model_version, latency_ms, input_tokens, output_tokens)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                     params![
                         session_id.as_str(),
                         user_id.as_deref(),
@@ -147,11 +148,107 @@ impl crate::VoxDb {
                         response.as_str(),
                         model_version.as_str(),
                         latency_ms,
-                        token_count
+                        input_tokens,
+                        output_tokens
                     ],
                 )
                 .await?;
                 Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
+    }
+
+    /// Record a complete LLM outcome, writing to both the `llm_interactions` table for full-text
+    /// retention and the `model_scoreboard` aggregation buffer for intelligent routing.
+    pub async fn record_llm_outcome(
+        &self,
+        outcome: crate::store::types::ModelOutcome<'_>,
+    ) -> Result<i64, StoreError> {
+        let session_id = outcome.session_id.to_string();
+        let user_id = outcome.user_id.map(str::to_string);
+        let prompt = outcome.prompt.to_string();
+        let response = outcome.response.to_string();
+        let model_id = outcome.model_id.to_string();
+        let task_category = outcome.task_category.to_string();
+        let strength_tag = outcome.strength_tag.to_string();
+
+        let latency_ms = outcome.latency_ms;
+        let input_tokens = outcome.input_tokens;
+        let output_tokens = outcome.output_tokens;
+        let cache_read_tokens = outcome.cache_read_tokens;
+        let trace_id = outcome.trace_id.map(str::to_string);
+        let context_utilization_pct = outcome.context_utilization_pct;
+        let success = outcome.success;
+        let cost_usd = outcome.cost_usd;
+        let quality_score = outcome.quality_score.unwrap_or(1.0);
+
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+
+        breaker
+            .call(|| async move {
+                // 1. Insert detailed interaction
+                conn.execute(
+                    "INSERT INTO llm_interactions
+                         (session_id, user_id, prompt, response, model_version, task_category, strength_tag, trace_id, context_utilization_pct, cache_read_tokens, success, latency_ms, input_tokens, output_tokens, cost_usd)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                    params![
+                        session_id.as_str(),
+                        user_id.as_deref(),
+                        prompt.as_str(),
+                        response.as_str(),
+                        model_id.as_str(),
+                        task_category.as_str(),
+                        strength_tag.as_str(),
+                        trace_id.as_deref(),
+                        context_utilization_pct,
+                        cache_read_tokens,
+                        if success { 1 } else { 0 },
+                        latency_ms,
+                        input_tokens,
+                        output_tokens,
+                        cost_usd
+                    ],
+                )
+                .await?;
+                
+                let rowid = conn.last_insert_rowid();
+                
+                // 2. Upsert to model_scoreboard (7-day window)
+                let window_days = 7;
+                let cost_to_add = cost_usd.unwrap_or(0.0);
+                
+                // Note: p50/p99 approximations require separate compute batches. 
+                // We do a simple exponential moving average for quality/cost here for now,
+                // or just increment the counters and let batch jobs recalculate p50.
+                conn.execute(
+                    "INSERT INTO model_scoreboard
+                        (model_id, task_category, strength_tag, window_days, n_calls, success_rate, cost_per_success_usd, quality_score, updated_at_ms)
+                     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?8)
+                     ON CONFLICT(model_id, task_category, strength_tag, window_days) DO UPDATE SET
+                        n_calls = n_calls + 1,
+                        success_rate = ((success_rate * n_calls) + ?5) / (n_calls + 1),
+                        cost_per_success_usd = ((cost_per_success_usd * (success_rate * n_calls)) + ?6) / MAX(1.0, (success_rate * n_calls) + ?5),
+                        quality_score = ((quality_score * n_calls) + ?7) / (n_calls + 1),
+                        updated_at_ms = ?8",
+                    params![
+                        model_id.as_str(),
+                        task_category.as_str(),
+                        strength_tag.as_str(),
+                        window_days,
+                        if success { 1.0 } else { 0.0 },
+                        cost_to_add,
+                        quality_score,
+                        now_ms
+                    ]
+                ).await?;
+                
+                Ok::<_, StoreError>(rowid)
             })
             .await
     }
@@ -497,6 +594,41 @@ impl crate::VoxDb {
                 )
                 .await?;
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Record a single LLM request attempt (success or failure).
+    pub async fn record_llm_attempt(&self, attempt: crate::store::types::ModelAttempt<'_>) -> Result<i64, StoreError> {
+        let trace_id = attempt.trace_id.to_string();
+        let attempt_number = attempt.attempt_number;
+        let model_id = attempt.model_id.to_string();
+        let provider = attempt.provider.to_string();
+        let outcome = attempt.outcome.to_string();
+        let latency_ms = attempt.latency_ms;
+        let error_class = attempt.error_class.map(|s: &str| s.to_string());
+
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO llm_attempts
+                         (trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![
+                        trace_id.as_str(),
+                        attempt_number,
+                        model_id.as_str(),
+                        provider.as_str(),
+                        outcome.as_str(),
+                        latency_ms,
+                        error_class.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok(conn.last_insert_rowid())
             })
             .await
     }

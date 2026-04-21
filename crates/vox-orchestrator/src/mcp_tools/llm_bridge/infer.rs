@@ -150,7 +150,9 @@ pub async fn mcp_infer_completion(
     system_prompt: &str,
     routing: &McpInferRouting<'_>,
     max_tokens: u64,
-    temperature: f32,
+    base_temperature: f32,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
     json_mode: bool,
     attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
@@ -161,7 +163,9 @@ pub async fn mcp_infer_completion(
         system_prompt,
         routing,
         max_tokens,
-        temperature,
+        base_temperature,
+        temperature_override,
+        top_p_override,
         json_mode,
         None,
         None,
@@ -178,7 +182,9 @@ pub async fn mcp_infer_tool_completion(
     system_prompt: &str,
     routing: &McpInferRouting<'_>,
     max_tokens: u64,
-    temperature: f32,
+    base_temperature: f32,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
     json_mode: bool,
     tools: Option<serde_json::Value>,
     tool_choice: Option<serde_json::Value>,
@@ -368,13 +374,41 @@ pub async fn mcp_infer_tool_completion(
             vox_openai_wire::ChatMessageContent::Text(final_user)
         };
 
+        let temperature = temperature_override
+            .or(match model.provider_type {
+                ProviderType::GoogleDirect => vox_config::gemini_tuning_temperature(),
+                ProviderType::Ollama => vox_config::ollama_tuning_temperature(),
+                ProviderType::OpenRouter | ProviderType::Custom(_) => vox_config::openai_tuning_temperature(),
+                ProviderType::Anthropic => vox_config::anthropic_tuning_temperature(),
+                _ => None,
+            })
+            .unwrap_or(base_temperature);
+
+        let top_p = top_p_override.or(match model.provider_type {
+            ProviderType::GoogleDirect => vox_config::gemini_tuning_top_p(),
+            ProviderType::Ollama => vox_config::ollama_tuning_top_p(),
+            ProviderType::OpenRouter | ProviderType::Custom(_) => vox_config::openai_tuning_top_p(),
+            ProviderType::Anthropic => vox_config::anthropic_tuning_top_p(),
+            _ => None,
+        });
+
+        tracing::info!(
+            target: "vox.mcp.llm.tuning",
+            model_id = %model.id,
+            tool = %tool,
+            temperature = %temperature,
+            top_p = ?top_p,
+            "inference tuning active"
+        );
+
         let infer_result = infer_via_provider_adapter(
             client,
             &model,
             final_system,
             user_content,
             max_t,
-            temperature,
+            Some(temperature),
+            top_p,
             json_mode,
             tools.clone(),
             tool_choice.clone(),
@@ -392,13 +426,6 @@ pub async fn mcp_infer_tool_completion(
                 let total_tok = (pt + ct) as u64;
                 let estimated_usd = estimated_cost_usd(&model, pt, ct);
                 let (reconciled_usd, cost_source) = match provider_reported_cost_usd {
-                    Some(provider_usd) if estimated_usd > 0.0 => {
-                        if (provider_usd - estimated_usd).abs() > 0.000_001 {
-                            ((provider_usd + estimated_usd) / 2.0, "reconciled")
-                        } else {
-                            (provider_usd, "provider_reported")
-                        }
-                    }
                     Some(provider_usd) => (provider_usd, "provider_reported"),
                     None => (estimated_usd, "estimated"),
                 };
@@ -465,7 +492,10 @@ pub async fn mcp_infer_tool_completion(
                         let parts: Vec<&str> = model.id.split('/').collect();
                         if parts.len() >= 2 {
                             let node_id = parts[1];
-                            let event_type = if e.status == 408 || e.status == 504 || e.message.to_ascii_lowercase().contains("timeout") {
+                            let event_type = if e.status == 408
+                                || e.status == 504
+                                || e.message.to_ascii_lowercase().contains("timeout")
+                            {
                                 "timeout"
                             } else {
                                 "fail"
@@ -523,6 +553,8 @@ pub async fn call_llm(
     system_prompt: &str,
     user_prompt: &str,
     user_id: Option<&str>,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
     attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
     let pref = match crate::mcp_tools::sync_poison::poison_rw_read(
@@ -568,6 +600,8 @@ pub async fn call_llm(
         &routing,
         max_tokens,
         0.7,
+        temperature_override,
+        top_p_override,
         false,
         attachment_manifest,
     )

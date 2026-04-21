@@ -133,6 +133,10 @@ pub fn signing_key_from_bytes(bytes: &[u8; 32]) -> SigningKey {
     }
 }
 
+pub fn signing_key_to_bytes(key: &SigningKey) -> [u8; 32] {
+    key.inner.to_bytes()
+}
+
 pub fn to_verifying_key(signing_key: &SigningKey) -> VerifyingKey {
     VerifyingKey {
         inner: ed25519_dalek::VerifyingKey::from(&signing_key.inner),
@@ -173,4 +177,84 @@ pub fn verify_signature_hex(
     sig_arr.copy_from_slice(&sig_bytes);
 
     Ok(verify(&pk, message, &sig_arr))
+}
+
+// --- X25519 Sealed Box ---
+
+pub struct EncryptionSecretKey(pub x25519_dalek::StaticSecret);
+pub struct EncryptionPublicKey(pub x25519_dalek::PublicKey);
+
+impl std::fmt::Debug for EncryptionSecretKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EncryptionSecretKey")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for EncryptionPublicKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EncryptionPublicKey")
+            .field("bytes", &hex::encode(self.0.as_bytes()))
+            .finish()
+    }
+}
+
+pub fn generate_encryption_keypair() -> (EncryptionSecretKey, EncryptionPublicKey) {
+    let secret = x25519_dalek::StaticSecret::random_from_rng(rand::thread_rng());
+    let public = x25519_dalek::PublicKey::from(&secret);
+    (EncryptionSecretKey(secret), EncryptionPublicKey(public))
+}
+
+pub fn seal(public_key: &EncryptionPublicKey, plaintext: &[u8]) -> Result<Vec<u8>, String> {
+    let mut rng = rand::thread_rng();
+    let ephemeral_sk = x25519_dalek::StaticSecret::random_from_rng(&mut rng);
+    let ephemeral_pk = x25519_dalek::PublicKey::from(&ephemeral_sk);
+    let shared_secret = ephemeral_sk.diffie_hellman(&public_key.0);
+
+    let key = chacha20poly1305::Key::from_slice(shared_secret.as_bytes());
+    let cipher = ChaCha20Poly1305::new(key);
+    let nonce = ChaCha20Poly1305::generate_nonce(&mut rng);
+
+    let ciphertext = cipher
+        .encrypt(&nonce, plaintext)
+        .map_err(|e| format!("Encryption failed: {}", e))?;
+
+    let mut out = ephemeral_pk.as_bytes().to_vec();
+    out.extend(nonce.as_slice());
+    out.extend(ciphertext);
+    Ok(out)
+}
+
+pub fn unseal(secret_key: &EncryptionSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+    if ciphertext.len() < 32 + 12 {
+        return Err("Ciphertext too short".into());
+    }
+    let (ephemeral_pk_bytes, rest) = ciphertext.split_at(32);
+    let (nonce_bytes, encrypted_payload) = rest.split_at(12);
+
+    let ephemeral_pk_arr: [u8; 32] = ephemeral_pk_bytes
+        .try_into()
+        .map_err(|_| "Invalid public key length")?;
+    let ephemeral_pk = x25519_dalek::PublicKey::from(ephemeral_pk_arr);
+    let shared_secret = secret_key.0.diffie_hellman(&ephemeral_pk);
+
+    let key = chacha20poly1305::Key::from_slice(shared_secret.as_bytes());
+    let cipher = ChaCha20Poly1305::new(key);
+    let nonce = Nonce::from_slice(nonce_bytes);
+
+    cipher
+        .decrypt(nonce, encrypted_payload)
+        .map_err(|e| format!("Decryption failed: {}", e))
+}
+
+pub fn encryption_secret_key_from_bytes(bytes: [u8; 32]) -> EncryptionSecretKey {
+    EncryptionSecretKey(x25519_dalek::StaticSecret::from(bytes))
+}
+
+pub fn encryption_public_key_from_bytes(bytes: [u8; 32]) -> EncryptionPublicKey {
+    EncryptionPublicKey(x25519_dalek::PublicKey::from(bytes))
+}
+
+pub fn encryption_public_key_to_bytes(key: &EncryptionPublicKey) -> [u8; 32] {
+    *key.0.as_bytes()
 }

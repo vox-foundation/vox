@@ -1,0 +1,47 @@
+// 2026-phase7-target-cleanup.vox — Migration M-70.
+//
+// SCAFFOLD ONLY. This file exists to reserve the path and document the
+// intended shape. The actual implementation lands in migration item M-70
+// (see docs/src/architecture/data-storage-migration-backlog-2026.md).
+//
+// Run: vox run scripts/migrations/2026-phase7-target-cleanup.vox
+// Dry:  vox run scripts/migrations/2026-phase7-target-cleanup.vox --check
+//
+// Purpose
+// -------
+// Remove abandoned `target-*` directories left over from ad-hoc per-profile
+// cargo invocations (target-clippy, target-codex, target-coverage, target-doc,
+// target-nextest, target-test, target-bench) and add `target-*/` to
+// `.gitignore` so they cannot return under any tracked-path pattern.
+//
+// Idempotency
+// -----------
+// A second run is a no-op: the directories are already gone, and the
+// `.gitignore` append block is marked with a comment pair that the script
+// detects before inserting.
+//
+// Exit codes
+// ----------
+// 0 — all target-* dirs absent or successfully removed; .gitignore updated.
+// 1 — in --check mode, divergence detected (still-present dirs or missing
+//     gitignore stanza).
+// 2 — I/O error or refusal (e.g., .gitignore contains BOM — see M-74).
+//
+// vox:skip  — body is illustrative; actual implementation in M-70.
+
+fn main() {
+    // TODO(M-70):
+    //   1. Enumerate workspace root for directories matching `target-*`.
+    //   2. For each, verify no tracked files remain (git ls-files).
+    //   3. If tracked files exist, fail with a diagnostic listing them.
+    //   4. Otherwise, rm -rf the directory (respecting --check).
+    //   5. Read `.gitignore`, and if the sentinel block
+    //        # >>> M-70 target-* cleanup >>>
+    //        target-*/
+    //        # <<< M-70 target-* cleanup <<<
+    //      is absent, append it.
+    //   6. Refuse to operate if the first three bytes of `.gitignore` are
+    //      0xEF 0xBB 0xBF (UTF-8 BOM) — the M-74 guard must run first.
+
+    // See also: the data-storage-guard sub-check `abandoned-target-dir`.
+}

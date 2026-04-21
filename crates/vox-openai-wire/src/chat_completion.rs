@@ -43,6 +43,19 @@ pub struct ChatCompletionUsage {
     pub cost: Option<f64>,
     #[serde(default)]
     pub total_cost: Option<f64>,
+    #[serde(default)]
+    pub prompt_tokens_details: Option<ChatCompletionPromptDetails>,
+    /// Anthropic-style cache metrics.
+    #[serde(default)]
+    pub cache_creation_input_tokens: Option<u32>,
+    #[serde(default)]
+    pub cache_read_input_tokens: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct ChatCompletionPromptDetails {
+    #[serde(default)]
+    pub cached_tokens: u32,
 }
 
 /// Request body for OpenAI-compatible chat (non-stream).
@@ -50,9 +63,12 @@ pub struct ChatCompletionUsage {
 pub struct ChatCompletionRequest<'a> {
     pub model: &'a str,
     pub messages: Vec<ChatMessageTurn<'a>>,
-    pub temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
     pub max_tokens: u64,
     pub stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -300,6 +300,8 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         &routing,
         1024,
         0.3,
+        None,
+        None,
         false,
         None,
     )

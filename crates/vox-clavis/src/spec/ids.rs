@@ -1,6 +1,6 @@
 use crate::spec::types::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, strum::Display)]
 pub enum SecretId {
     GeminiApiKey,
     OpenRouterApiKey,
@@ -9,6 +9,10 @@ pub enum SecretId {
     OpenaiModel,
     OpenaiBaseUrl,
     GeminiModel,
+    TogetherFinetuneModel,
+    GeminiDirectModel,
+    OpenRouterGeminiModel,
+    VoxPopuliLocalOllamaUrl,
     AnthropicApiKey,
     OllamaUrl,
     OllamaModel,
@@ -425,6 +429,17 @@ pub enum SecretId {
     VoxSecretGuardGitRef,
     VoxMeshFederationSigningKey,
     VoxRoutingPreferMesh,
+    TogetherTuningTemperature,
+    TogetherTuningTopP,
+    GeminiTuningTemperature,
+    GeminiTuningTopP,
+    OllamaTuningTemperature,
+    OllamaTuningTopP,
+    OllamaTuningNumCtx,
+    OpenaiTuningTemperature,
+    OpenaiTuningTopP,
+    AnthropicTuningTemperature,
+    AnthropicTuningTopP,
 }
 
 pub const ALL_CHAT_OPTIONALS: &[SecretId] = &[
@@ -498,10 +513,22 @@ impl SecretId {
             | SecretId::VoxIdentityKeyPath
             | SecretId::VoxGithubClientId
             | SecretId::VoxGithubOauthToken
+            | SecretId::TogetherTuningTemperature
+            | SecretId::TogetherTuningTopP
+            | SecretId::GeminiTuningTemperature
+            | SecretId::GeminiTuningTopP
+            | SecretId::OllamaTuningTemperature
+            | SecretId::OllamaTuningTopP
+            | SecretId::OllamaTuningNumCtx
+            | SecretId::OpenaiTuningTemperature
+            | SecretId::OpenaiTuningTopP
+            | SecretId::AnthropicTuningTemperature
+            | SecretId::AnthropicTuningTopP
             | SecretId::VoxIdentityMasterPwd => SecretMetadata {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::ApiKey,
                 persistable_account_secret: true,
+                shareable: true,
                 device_local_only: false,
                 allow_env_in_strict: true,
                 allow_compat_sources_in_strict: true,
@@ -520,6 +547,7 @@ impl SecretId {
                 class: SecretClass::Integration,
                 material_kind: SecretMaterialKind::ApiKey,
                 persistable_account_secret: true,
+                shareable: true,
                 device_local_only: false,
                 allow_env_in_strict: false,
                 allow_compat_sources_in_strict: false,
@@ -531,6 +559,7 @@ impl SecretId {
                 class: SecretClass::Operator,
                 material_kind: SecretMaterialKind::ApiKey,
                 persistable_account_secret: false,
+                shareable: false,
                 device_local_only: true,
                 allow_env_in_strict: true,
                 allow_compat_sources_in_strict: true,

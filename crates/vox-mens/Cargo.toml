@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [features]
 default = ["mens-base"]
-mens-base = ["dep:vox-populi"]
+mens-base = ["dep:vox-populi", "vox-bounded-fs/async"]
 oratio = ["mens-base", "dep:vox-oratio", "vox-oratio/serve"]
 oratio-mic = ["oratio", "dep:cpal", "dep:hound"]
 gpu = [
@@ -33,7 +33,7 @@ populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3"]
 codex = []
 broken_inference_stub = []
 execution-api = ["dep:axum"]
-database = []
+database = ["vox-corpus/database"]
 mens = []
 ars = []
 extras-ludus = []
@@ -92,6 +92,8 @@ windows-sys = { workspace = true, features = ["Win32_System_Threading", "Win32_F
 vox-constrained-gen = { workspace = true }
 axum = { workspace = true, optional = true }
 
+[dev-dependencies]
+tempfile = "3.10"
 
 [lints]
 workspace = true

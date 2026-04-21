@@ -15,7 +15,10 @@ impl VoxDb {
         let metadata = req.metadata_json.clone();
 
         self.conn
-            .execute(sql, turso::params![user_id, node_id, primitive, amount, task_id, now, metadata])
+            .execute(
+                sql,
+                turso::params![user_id, node_id, primitive, amount, task_id, now, metadata],
+            )
             .await
             .map_err(crate::StoreError::Turso)?;
 
@@ -23,14 +26,22 @@ impl VoxDb {
     }
 
     /// Record a peer reputation event (success, failure, timeout, invalid).
-    pub async fn record_peer_reputation(&self, node_id: &str, event_type: &str) -> Result<(), crate::StoreError> {
+    pub async fn record_peer_reputation(
+        &self,
+        node_id: &str,
+        event_type: &str,
+    ) -> Result<(), crate::StoreError> {
         let now = crate::types::now_unix_ms() as i64;
         let column = match event_type {
             "success" => "success_count",
             "fail" => "fail_count",
             "timeout" => "timeout_count",
             "invalid" => "invalid_output_count",
-            _ => return Err(crate::StoreError::Internal("Invalid reputation event".into())),
+            _ => {
+                return Err(crate::StoreError::Internal(
+                    "Invalid reputation event".into(),
+                ));
+            }
         };
 
         // UPSERT the peer reputation.
@@ -51,11 +62,15 @@ impl VoxDb {
     }
 
     /// Retrieve the reputation score of a peer. Returns (success_count, fail_count, timeout_count, invalid_output_count).
-    pub async fn get_peer_reputation(&self, node_id: &str) -> Result<Option<(u64, u64, u64, u64)>, crate::StoreError> {
+    pub async fn get_peer_reputation(
+        &self,
+        node_id: &str,
+    ) -> Result<Option<(u64, u64, u64, u64)>, crate::StoreError> {
         let sql = "SELECT success_count, fail_count, timeout_count, invalid_output_count 
                    FROM vox_peer_reputation WHERE node_id = ?1";
-        
-        let mut rows = self.conn
+
+        let mut rows = self
+            .conn
             .query(sql, turso::params![node_id.to_string()])
             .await
             .map_err(crate::StoreError::Turso)?;
@@ -72,15 +87,22 @@ impl VoxDb {
     }
 
     /// Migrate reputation history from an old node ID to a new node ID (used during identity rotation).
-    pub async fn migrate_peer_reputation(&self, old_node_id: &str, new_node_id: &str) -> Result<(), crate::StoreError> {
+    pub async fn migrate_peer_reputation(
+        &self,
+        old_node_id: &str,
+        new_node_id: &str,
+    ) -> Result<(), crate::StoreError> {
         // If the new node doesn't exist, we just UPDATE the old row.
         // If the new node DOES exist (unlikely, but possible), we could sum them, but a simple UPDATE OR REPLACE is easier.
         // Actually, SQLite doesn't natively sum on conflict easily with UPDATE. Let's just do an UPDATE and ignore if new_node_id exists
         // (or we can just UPDATE OR REPLACE, which overwrites). Let's use UPDATE OR IGNORE, and if it ignored because of conflict, we could do a manual merge, but for now simple update is fine.
         let sql = "UPDATE OR IGNORE vox_peer_reputation SET node_id = ?2 WHERE node_id = ?1";
-        
+
         self.conn
-            .execute(sql, turso::params![old_node_id.to_string(), new_node_id.to_string()])
+            .execute(
+                sql,
+                turso::params![old_node_id.to_string(), new_node_id.to_string()],
+            )
             .await
             .map_err(crate::StoreError::Turso)?;
 

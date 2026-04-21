@@ -131,4 +131,44 @@ CREATE TABLE IF NOT EXISTS research_eval_samples (
 
 CREATE INDEX IF NOT EXISTS idx_res_eval_samples_run 
     ON research_eval_samples(run_id);
+
+-- Telemetry: Scoreboard for intelligent routing based on historical execution outcomes.
+CREATE TABLE IF NOT EXISTS model_scoreboard (
+    model_id              TEXT    NOT NULL,
+    task_category         TEXT    NOT NULL,
+    strength_tag          TEXT    NOT NULL,
+    window_days           INTEGER NOT NULL,
+    n_calls               INTEGER NOT NULL DEFAULT 0,
+    success_rate          REAL    NOT NULL DEFAULT 0.0,
+    p50_latency_ms        INTEGER,
+    p99_latency_ms        INTEGER,
+    cost_per_success_usd  REAL,
+    quality_score         REAL    NOT NULL DEFAULT 1.0,
+    updated_at_ms         INTEGER NOT NULL,
+    PRIMARY KEY (model_id, task_category, strength_tag, window_days)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_scoreboard_task 
+    ON model_scoreboard(task_category, strength_tag, success_rate);
+
+-- Observed pricing SSOT updated from llm_interactions
+CREATE TABLE IF NOT EXISTS model_pricing_catalog (
+    model_id                   TEXT    NOT NULL,
+    provider                   TEXT    NOT NULL,
+    observed_blended_per_1k    REAL,
+    observed_input_per_1k      REAL,
+    observed_output_per_1k     REAL,
+    catalog_input_per_1k       REAL    NOT NULL DEFAULT 0.0,
+    catalog_output_per_1k      REAL    NOT NULL DEFAULT 0.0,
+    n_provider_reported        INTEGER NOT NULL DEFAULT 0,
+    n_estimated                INTEGER NOT NULL DEFAULT 0,
+    n_free                     INTEGER NOT NULL DEFAULT 0,
+    confidence                 TEXT    NOT NULL DEFAULT 'low',
+    last_observed_at_ms        INTEGER,
+    updated_at_ms              INTEGER NOT NULL,
+    PRIMARY KEY (model_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_pricing_catalog_model
+    ON model_pricing_catalog(model_id, confidence);
 "#;

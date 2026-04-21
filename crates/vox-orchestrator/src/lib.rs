@@ -283,7 +283,7 @@ pub use topology::{
 };
 pub use types::{
     A2AMessage, A2AMessageType, AccessKind, AgentId, AgentIdGenerator, AgentMessage, AgentTask,
-    BatchId, CompletionAttestation, CorrelationId, CorrelationIdGenerator, FileAffinity,
+    BatchId, Budget, CompletionAttestation, CorrelationId, CorrelationIdGenerator, FileAffinity,
     MessageEnvelope, MessageId, MessagePriority, TaskCategory, TaskDescriptor, TaskEnqueueHints,
     TaskId, TaskIdGenerator, TaskPriority, TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };

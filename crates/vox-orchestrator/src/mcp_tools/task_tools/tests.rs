@@ -29,6 +29,7 @@ fn base_params(description: &str) -> SubmitTaskParams {
         research_hints: vec![],
         required_labels: None,
         is_detached: None,
+        budget: None,
     }
 }
 

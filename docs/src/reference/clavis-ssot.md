@@ -52,6 +52,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-runtime` auth gate |
 | `VOX_MCP_HTTP_BEARER_TOKEN`, `VOX_MCP_HTTP_READ_BEARER_TOKEN` | MCP HTTP gateway auth | Optional hardening | `vox-mcp` HTTP gateway auth surfaces |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
+| `*_TUNING_TEMPERATURE`, `*_TUNING_TOP_P` | LLM inference overrides (Gemini, Ollama, OpenAI, Anthropic, Together) | Optional | Resolution precedence: Request > Env > Tool Default |
 
 ## Managed Secret Env Names
 
@@ -140,3 +141,13 @@ For each managed secret ID:
 - VOX_SOCIAL_MASTODON_DOMAIN
 - VOX_SOCIAL_LINKEDIN_ACCESS_TOKEN
 - VOX_SOCIAL_DISCORD_WEBHOOK_URL
+- GEMINI_TUNING_TEMPERATURE
+- GEMINI_TUNING_TOP_P
+- OLLAMA_TUNING_TEMPERATURE
+- OLLAMA_TUNING_TOP_P
+- OPENAI_TUNING_TEMPERATURE
+- OPENAI_TUNING_TOP_P
+- ANTHROPIC_TUNING_TEMPERATURE
+- ANTHROPIC_TUNING_TOP_P
+- TOGETHER_TUNING_TEMPERATURE
+- TOGETHER_TUNING_TOP_P

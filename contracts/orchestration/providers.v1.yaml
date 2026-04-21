@@ -1,0 +1,88 @@
+schema_version: 1
+
+providers:
+  - name: GoogleDirect
+    description: "Google AI Studio direct (generativelanguage.googleapis.com)"
+    secret_id: "GeminiApiKey"
+    supports_openai_compat: false
+    default_route_kind: "GeminiDirect"
+    fallback_kind: "OpenRouter"
+
+  - name: OpenRouter
+    description: "OpenRouter API (openrouter.ai/api/v1)"
+    secret_id: "OpenRouterApiKey"
+    supports_openai_compat: true
+    default_route_kind: "OpenRouter"
+    fallback_kind: "CascadeFallback"
+
+  - name: Ollama
+    description: "Local Ollama instance (localhost:11434)"
+    secret_id: null
+    supports_openai_compat: true
+    default_route_kind: "Ollama"
+    fallback_kind: "PopuliMesh"
+
+  - name: PopuliMesh
+    description: "Populi Remote mesh endpoint"
+    secret_id: null
+    supports_openai_compat: true
+    default_route_kind: "PopuliMesh"
+    fallback_kind: "OpenRouter"
+
+  - name: Groq
+    description: "Groq LPU endpoint"
+    secret_id: "GroqApiKey"
+    supports_openai_compat: true
+    default_route_kind: "Groq"
+    fallback_kind: "OpenRouter"
+
+  - name: Cerebras
+    description: "Cerebras endpoint"
+    secret_id: "CerebrasApiKey"
+    supports_openai_compat: true
+    default_route_kind: "Cerebras"
+    fallback_kind: "OpenRouter"
+
+  - name: Mistral
+    description: "Mistral direct"
+    secret_id: "MistralApiKey"
+    supports_openai_compat: true
+    default_route_kind: "Mistral"
+    fallback_kind: "OpenRouter"
+
+  - name: DeepSeek
+    description: "DeepSeek direct"
+    secret_id: "DeepSeekApiKey"
+    supports_openai_compat: true
+    default_route_kind: "DeepSeek"
+    fallback_kind: "OpenRouter"
+
+  - name: SambaNova
+    description: "SambaNova endpoint"
+    secret_id: "SambaNovaApiKey"
+    supports_openai_compat: true
+    default_route_kind: "SambaNova"
+    fallback_kind: "OpenRouter"
+
+  - name: Anthropic
+    description: "Anthropic direct or proxy endpoint"
+    secret_id: "AnthropicApiKey"
+    supports_openai_compat: false
+    default_route_kind: "Anthropic"
+    fallback_kind: "OpenRouter"
+
+  - name: Custom
+    description: "Custom third-party endpoint"
+    secret_id: "CustomOpenaiApiKey"
+    supports_openai_compat: true
+    default_route_kind: "Custom"
+    fallback_kind: "OpenRouter"
+    is_tuple: true # Indicates it takes a String payload
+
+  - name: HuggingFaceRouter
+    description: "HuggingFace Dedicated Endpoints / TGI"
+    secret_id: "HfApiKey"
+    supports_openai_compat: true
+    default_route_kind: "HuggingFace"
+    fallback_kind: "OpenRouter"
+

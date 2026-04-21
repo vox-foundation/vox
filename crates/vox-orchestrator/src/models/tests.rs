@@ -15,6 +15,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -40,6 +41,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.01,
             cost_per_1k_output: 0.01,
             is_free: false,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -65,6 +67,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -90,6 +93,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -174,7 +178,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -188,14 +193,15 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
         let picked = r
             .best_for_with_filter(TaskCategory::CodeGen, 2, CostPreference::Performance, |m| {
                 m.is_free && !matches!(m.provider_type, ProviderType::Ollama)
-            })
+            }, None)
             .expect("non-ollama free");
         assert_eq!(picked.id, "gemini-2.0-flash-lite");
     }
@@ -213,7 +219,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -227,7 +234,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -248,7 +256,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: false,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -262,7 +271,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: false,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });

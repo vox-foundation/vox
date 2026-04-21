@@ -5,6 +5,7 @@ use std::pin::Pin;
 
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 use crate::{ActivityOptions, ActivityResult, execute_activity};
+use uuid::Uuid;
 
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use super::wire::{
@@ -66,17 +67,39 @@ pub async fn llm_chat(
             if !api_key.is_empty() {
                 req = req.bearer_auth(api_key);
             }
+            let start = std::time::Instant::now();
             let res = req
                 .send()
                 .await
                 .map_err(|e| format!("HTTP request failed: {}", e))?;
 
             if !res.status().is_success() {
+                let status = res.status();
                 let err_text = res
                     .text()
                     .await
                     .unwrap_or_else(|_| String::from("<no body>"));
-                return Ok(Err(format!("LLM API returned error: {}", err_text)));
+                let err_msg = format!("LLM API returned error ({}): {}", status, err_text);
+                let latency = start.elapsed().as_millis() as i64;
+
+                let _ = record_telemetry_attempt(&config, "error", latency, Some(&status.to_string())).await;
+                
+                if !config.telemetry_skip_interaction {
+                    let _ = record_telemetry_outcome(
+                        &config,
+                        &messages,
+                        &err_msg,
+                        &config.model,
+                        0,
+                        0,
+                        0,
+                        None,
+                        latency,
+                        false,
+                    ).await;
+                }
+
+                return Ok(Err(err_msg));
             }
 
             let llm_res: OpenRouterResponse = res
@@ -93,18 +116,138 @@ pub async fn llm_chat(
                 .unwrap_or_default();
 
             let usage = llm_res.usage.unwrap_or_default();
+            let prompt_tokens = usage.prompt_tokens as i64;
+            let completion_tokens = usage.completion_tokens as i64;
+            let cache_read_tokens = usage.cache_read_input_tokens
+                .or_else(|| usage.prompt_tokens_details.as_ref().map(|d| d.cached_tokens))
+                .unwrap_or(0) as i64;
+            let provider_cost = usage.total_cost.or(usage.cost).map(|c| c as f64);
+            let cost_usd = provider_cost.or_else(|| {
+                config.cost_per_1k.map(|c| {
+                    ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c
+                })
+            });
+
+            let model_id = llm_res.model.unwrap_or_else(|| config.model.clone());
+            let latency = start.elapsed().as_millis() as i64;
+
+            // Telemetry recording
+            let _ = record_telemetry_attempt(&config, "success", latency, None).await;
+
+            if !config.telemetry_skip_interaction {
+                let _ = record_telemetry_outcome(
+                    &config,
+                    &messages,
+                    &content,
+                    &model_id,
+                    prompt_tokens,
+                    completion_tokens,
+                    cache_read_tokens,
+                    cost_usd,
+                    latency,
+                    true,
+                ).await;
+            }
 
             Ok(Ok(LlmResponse {
                 content,
                 prompt_tokens: usage.prompt_tokens,
                 completion_tokens: usage.completion_tokens,
-                model: llm_res.model.unwrap_or_else(|| config.model.clone()),
+                model: model_id,
             }))
         };
         let fut_typed: LlmChatActivityFuture = Box::pin(fut);
         fut_typed
     })
     .await
+}
+
+#[allow(unused_variables)]
+async fn record_telemetry_outcome(
+    config: &LlmConfig,
+    messages: &[ChatMessage],
+    response: &str,
+    model_id: &str,
+    prompt_tokens: i64,
+    completion_tokens: i64,
+    cache_read_tokens: i64,
+    cost_usd: Option<f64>,
+    latency_ms: i64,
+    success: bool,
+) -> Result<(), String> {
+    #[cfg(feature = "database")]
+    {
+        let session_id = config.telemetry_session_id.clone().unwrap_or_else(|| "anon-session".to_string());
+        let user_id = config.telemetry_user_id.clone();
+        let task_category = config.telemetry_task_category.clone().unwrap_or_else(|| "general".to_string());
+        let strength_tag = config.telemetry_strength_tag.clone().unwrap_or_else(|| "medium".to_string());
+        let trace_id = config.telemetry_trace_id.clone();
+        let provider = config.provider.clone();
+        let model_id_owned = model_id.to_string();
+        let response_owned = response.to_string();
+        let prompt_owned = messages.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n---\n");
+
+        tokio::spawn(async move {
+            if let Ok(db) = crate::db::get_db().await {
+                let outcome = vox_db::store::types::ModelOutcome {
+                    session_id: &session_id,
+                    user_id: user_id.as_deref(),
+                    prompt: &prompt_owned,
+                    response: &response_owned,
+                    model_id: &model_id_owned,
+                    provider: &provider,
+                    task_category: &task_category,
+                    strength_tag: &strength_tag,
+                    latency_ms: Some(latency_ms),
+                    input_tokens: Some(prompt_tokens),
+                    output_tokens: Some(completion_tokens),
+                    cache_read_tokens: Some(cache_read_tokens),
+                    trace_id: trace_id.as_deref(),
+                    context_utilization_pct: None,
+                    success,
+                    cost_usd,
+                    quality_score: Some(if success { 1.0 } else { 0.0 }),
+                };
+
+                let _ = db.record_llm_outcome(outcome).await;
+            }
+        });
+    }
+    Ok(())
+}
+
+#[allow(unused_variables)]
+async fn record_telemetry_attempt(
+    config: &LlmConfig,
+    outcome: &str,
+    latency_ms: i64,
+    error_class: Option<&str>,
+) -> Result<(), String> {
+    #[cfg(feature = "database")]
+    {
+        let trace_id = config.telemetry_trace_id.clone().unwrap_or_else(|| "anon-trace".to_string());
+        let attempt_number = config.telemetry_attempt_number.unwrap_or(1);
+        let model_id = config.model.clone();
+        let provider = config.provider.clone();
+        let outcome_owned = outcome.to_string();
+        let error_class_owned = error_class.map(|s| s.to_string());
+
+        tokio::spawn(async move {
+            if let Ok(db) = crate::db::get_db().await {
+                let attempt = vox_db::store::types::ModelAttempt {
+                    trace_id: &trace_id,
+                    attempt_number,
+                    model_id: &model_id,
+                    provider: &provider,
+                    outcome: &outcome_owned,
+                    latency_ms: Some(latency_ms),
+                    error_class: error_class_owned.as_deref(),
+                };
+                let _ = db.record_llm_attempt(attempt).await;
+            }
+        });
+    }
+    Ok(())
 }
 
 /// Exhaustive retry loop over multiple candidate LLM configurations.
@@ -116,10 +259,31 @@ pub async fn infer_with_retry(
     candidates: Vec<LlmConfig>,
 ) -> ActivityResult<Result<(LlmResponse, LlmConfig), String>> {
     let mut last_error = "No LLM candidates provided".to_string();
+    let trace_id = Uuid::new_v4().to_string();
+    let mut attempt_number = 0;
 
-    for candidate in candidates {
+    for mut candidate in candidates.iter().cloned().collect::<Vec<_>>() {
+        attempt_number += 1;
+        candidate.telemetry_trace_id = Some(trace_id.clone());
+        candidate.telemetry_attempt_number = Some(attempt_number);
+        candidate.telemetry_skip_interaction = true;
+
         match llm_chat(options, messages.clone(), candidate.clone()).await {
             ActivityResult::Ok(Ok(response)) => {
+                // Record final interaction success
+                let _ = record_telemetry_outcome(
+                    &candidate,
+                    &messages,
+                    &response.content,
+                    &response.model,
+                    response.prompt_tokens as i64,
+                    response.completion_tokens as i64,
+                    0,
+                    None,
+                    0,
+                    true,
+                ).await;
+
                 return ActivityResult::Ok(Ok((response, candidate)));
             }
             ActivityResult::Ok(Err(api_err)) => {
@@ -135,6 +299,24 @@ pub async fn infer_with_retry(
                 return ActivityResult::Cancelled;
             }
         }
+    }
+
+    // Record terminal failure interaction
+    if !candidates.is_empty() {
+        let mut terminal_config = candidates[0].clone();
+        terminal_config.telemetry_trace_id = Some(trace_id);
+        let _ = record_telemetry_outcome(
+            &terminal_config,
+            &messages,
+            &last_error,
+            &terminal_config.model,
+            0,
+            0,
+            0,
+            None,
+            0,
+            false,
+        ).await;
     }
 
     ActivityResult::Ok(Err(last_error))

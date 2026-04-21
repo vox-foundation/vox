@@ -78,8 +78,10 @@ pub struct Orchestrator {
     pub dynamic_spawn_context:
         std::sync::Arc<std::sync::RwLock<HashMap<AgentId, crate::topology::DynamicSpawnContext>>>,
     /// Handles to the running agent processes.
-    pub agent_handles:
-        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, vox_runtime::ProcessHandle>>>,
+    #[cfg(feature = "runtime")]
+    pub agent_handles: std::sync::Arc<
+        std::sync::RwLock<std::collections::HashMap<AgentId, vox_runtime::ProcessHandle>>,
+    >,
     pub heartbeat_monitor: std::sync::Arc<std::sync::RwLock<crate::heartbeat::HeartbeatMonitor>>,
     /// System resource monitor.
     #[cfg(feature = "system-metrics")]

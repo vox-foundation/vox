@@ -9,7 +9,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+    use vox_bounded_fs::read_utf8_path_capped;
 
     #[test]
     fn dispatch_response_roundtrip_done() {

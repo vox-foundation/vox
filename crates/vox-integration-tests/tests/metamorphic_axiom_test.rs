@@ -1,7 +1,5 @@
 use vox_compiler::codegen_rust::emit::emit_lib;
 use vox_compiler::hir::lower_module;
-use vox_compiler::lexer::lex;
-use vox_compiler::parser::parse;
 
 /// Validates that the Vox compiler successfully drops the `@forall` metamorphic annotations
 /// and compiles pure mathematical idempotency checks correctly into the syntax tree,
@@ -38,6 +36,7 @@ fn prop_sort_idempotent(list: list[int]) {
             llm_model: None,
             is_deprecated: false,
             schedule_interval: None,
+            postconditions: vec![],
             span: vox_compiler::ast::Span::new(0, 0),
         },
     };

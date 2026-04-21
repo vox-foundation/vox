@@ -75,6 +75,7 @@ vox-mesh-types            = { path = "crates/vox-mesh-types" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
+vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-pm                    = { path = "crates/vox-pm" }
@@ -129,6 +130,7 @@ turso              = { version = "0.4", default-features = false, features = ["s
 blake3             = "1"
 jsonwebtoken       = { version = "9", default-features = false }
 ed25519-dalek      = { version = "2", default-features = false }
+x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
 insta              = { version = "1", features = ["json"] }
 async-trait        = "0.1"
 futures-util       = "0.3"

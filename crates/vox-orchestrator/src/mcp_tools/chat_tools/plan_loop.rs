@@ -334,6 +334,8 @@ pub async fn maybe_refine_plan(
             &routing,
             u64::from(max_out),
             0.25,
+            None,
+            None,
             true,
             None,
         )
@@ -390,6 +392,8 @@ Broken output (may be truncated):
                     &routing_fix,
                     retry_cap,
                     0.15,
+                    None,
+                    None,
                     true,
                     None,
                 )

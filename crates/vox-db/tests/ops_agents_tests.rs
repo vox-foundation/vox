@@ -41,6 +41,7 @@ async fn test_llm_interaction_logging() {
             "v1.0",
             Some(150),
             Some(42),
+            Some(42),
         )
         .await
         .unwrap();

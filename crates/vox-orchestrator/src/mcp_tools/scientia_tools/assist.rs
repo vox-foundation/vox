@@ -151,6 +151,8 @@ pub async fn vox_scientia_assist_suggestions(
         &routing,
         1024,
         0.2,
+        None,
+        None,
         false,
         None,
     )

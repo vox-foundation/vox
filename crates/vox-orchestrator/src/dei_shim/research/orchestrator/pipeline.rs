@@ -67,7 +67,7 @@ pub async fn run_research(
         super::super::model_select::resolve_research_models(&llm_model_registry, &base_inference);
     let research_verifier_cfg = verifier_config_for_research_run(&config.verifier, &resolved_llm);
     tracing::info!(
-        target: "vox_dei::model_route",
+        target: "vox_orchestrator::model_route",
         route_source = "research_pipeline",
         planner = %resolved_llm.planner_model,
         claim = %resolved_llm.claim_model,

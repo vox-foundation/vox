@@ -172,6 +172,7 @@ impl TaskProcessor for AiTaskProcessor {
                         crate::models::ProviderType::SambaNova => "sambanova",
                         crate::models::ProviderType::Anthropic => "anthropic",
                         crate::models::ProviderType::PopuliMesh => "populimesh",
+                        crate::models::ProviderType::HuggingFaceRouter => "huggingface",
                         crate::models::ProviderType::Custom(_) => "custom",
                     };
                     allowed_providers.contains(provider_str)

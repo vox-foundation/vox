@@ -66,6 +66,7 @@ tower-lsp = { version = "0.20", optional = true }
 tower-lsp-server = { version = "0.23", optional = true }
 vox-db.workspace = true
 vox-search.workspace = true
+vox-orchestrator-types.workspace = true
 vox-config.workspace = true
 vox-socrates-policy.workspace = true
 vox-eval.workspace = true
@@ -99,6 +100,7 @@ aes-gcm = "0.10.3"
 rand.workspace = true
 base64.workspace = true
 vox-clavis.workspace = true
+vox-mesh-types.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
 workspace-hack = { workspace = true }
@@ -113,6 +115,10 @@ vox-project-scaffold.workspace = true
 [[bin]]
 name = "vox-orchestrator-d"
 path = "src/bin/vox_orchestrator_d.rs"
+
+[build-dependencies]
+serde_yaml = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 proptest = "1.10.0"

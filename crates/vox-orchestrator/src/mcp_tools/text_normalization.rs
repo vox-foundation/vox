@@ -1,4 +1,4 @@
-﻿//! Shared helpers for normalizing LLM tool outputs (markdown fences, token preservation checks).
+//! Shared helpers for normalizing LLM tool outputs (markdown fences, token preservation checks).
 
 use std::path::Path;
 
@@ -30,6 +30,7 @@ pub(crate) fn strip_vox_codegen_fence(s: &str) -> String {
     vox_compiler::generated_vox::strip_vox_codeblock_fence(s)
 }
 
+#[allow(dead_code)]
 pub(crate) fn validate_llm_surface(original: &str, corrected: &str) -> bool {
     if corrected.is_empty() {
         return false;
@@ -54,6 +55,7 @@ pub(crate) fn validate_llm_surface(original: &str, corrected: &str) -> bool {
 }
 
 /// Ensure flag-like, path-like, and module-path tokens from the deterministic transcript appear in the LLM output.
+#[allow(dead_code)]
 pub(crate) fn protected_tokens_preserved(original: &str, corrected: &str) -> bool {
     for raw in original.split_whitespace() {
         let flag_like = raw.starts_with("--");
@@ -82,6 +84,7 @@ pub(crate) fn protected_tokens_preserved(original: &str, corrected: &str) -> boo
     true
 }
 
+#[allow(dead_code)]
 pub(crate) fn llm_changes_well_formed(v: &Value) -> bool {
     match v.get("changes") {
         None => true,
@@ -93,6 +96,7 @@ pub(crate) fn llm_changes_well_formed(v: &Value) -> bool {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn llm_confidence_field_ok(v: &Value) -> bool {
     match v.get("confidence") {
         None => true,

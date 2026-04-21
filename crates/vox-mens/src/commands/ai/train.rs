@@ -139,8 +139,10 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
         .get("id")
         .and_then(|x| x.as_str())
         .ok_or_else(|| anyhow::anyhow!("Together response missing id: {}", text))?;
-    let model = std::env::var("TOGETHER_FINETUNE_MODEL")
-        .unwrap_or_else(|_| DEFAULT_TOGETHER_MODEL.to_string());
+    let model = vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherFinetuneModel)
+        .expose()
+        .map(std::string::ToString::to_string)
+        .unwrap_or_else(|| DEFAULT_TOGETHER_MODEL.to_string());
     let body = serde_json::json!({
         "training_file": file_id,
         "model": model,

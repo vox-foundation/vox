@@ -11,17 +11,7 @@ fn default_true() -> bool {
     true
 }
 
-/// Model tier for routing prioritization
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelTier {
-    #[default]
-    Unknown,
-    Local,
-    Light,
-    Pro,
-    Elite,
-}
+use super::generated::{ModelTier, StrengthTag};
 
 /// Rich capabilities for a model, imported from DeI and the OpenRouter /models catalog.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -67,58 +57,22 @@ pub struct ModelSpec {
     pub cost_per_1k_input: f64,
     #[serde(default)]
     pub cost_per_1k_output: f64,
+    /// Optional ground-truth cost observed from provider telemetry (blended).
+    #[serde(default)]
+    pub observed_cost_per_1k: Option<f64>,
     /// Whether this model is free (no per-token cost).
     pub is_free: bool,
     /// Tags describing fit (speed, reasoning, codegen) for heuristic routing.
-    pub strengths: Vec<String>,
+    pub strengths: Vec<StrengthTag>,
     #[serde(default)]
     pub capabilities: ModelCapabilities,
     #[serde(default)]
     pub supported_parameters: Vec<String>,
 }
 
-/// Provider routing type — determines which API endpoint to call.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ProviderType {
-    /// Google AI Studio direct (generativelanguage.googleapis.com)
-    GoogleDirect,
-    /// OpenRouter API (openrouter.ai/api/v1)
-    OpenRouter,
-    /// Local Ollama instance (localhost:11434)
-    Ollama,
-    /// Populi Remote mesh endpoint
-    PopuliMesh,
-    /// Groq LPU endpoint
-    Groq,
-    /// Cerebras endpoint
-    Cerebras,
-    /// Mistral direct
-    Mistral,
-    /// DeepSeek direct
-    DeepSeek,
-    /// SambaNova
-    SambaNova,
-    /// Anthropic direct or proxy endpoint
-    Anthropic,
-    /// Custom third-party endpoint
-    Custom(String),
-}
+pub use vox_orchestrator_types::ProviderType;
 
-/// Normalized provider-route decision shared by orchestrator runtime and MCP tooling.
-///
-/// Cross-surface telemetry uses the same `(provider_family, route_choice)` strings as
-/// `vox_runtime::model_resolution::backend_telemetry_labels` (`ChatRouteBackend`); MCP delegates there. Keep the four
-/// lanes aligned when changing routing semantics.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelRouteBackend {
-    GeminiDirect,
-    OpenRouter,
-    Ollama,
-    PopuliMesh,
-    CascadeFallback,
-}
+pub use vox_orchestrator_types::ChatRouteBackend as ModelRouteBackend;
 
 /// Resolve the transport/backend lane for a concrete model spec.
 #[must_use]
@@ -134,6 +88,7 @@ pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
         | ProviderType::Cerebras
         | ProviderType::SambaNova
         | ProviderType::Anthropic
+        | ProviderType::HuggingFaceRouter
         | ProviderType::Custom(_) => {
             // P0 Fix: Map arbitrarily typed third-party providers (even those lacking '/') to
             // OpenRouter or a non-cascading endpoint. CascadeFallback on unknown IDs loops infinitely.
@@ -194,6 +149,10 @@ impl ModelSpec {
                 provider: "anthropic".to_string(),
                 model: self.id.clone(),
             },
+            ProviderType::HuggingFaceRouter => LlmUsageKey {
+                provider: "huggingface".to_string(),
+                model: self.id.clone(),
+            },
             ProviderType::Custom(_url) => LlmUsageKey {
                 provider: "custom".to_string(),
                 model: self.id.clone(),
@@ -222,38 +181,6 @@ pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
     map
 }
 
-/// Strength tags inferred from known provider families when name heuristics yield nothing.
-///
-/// Keyed on the provider prefix that appears before `/` in OpenRouter model ids (e.g. `anthropic`,
-/// `openai`, `google`). Returns an empty slice for unknown prefixes so heuristics still apply.
-#[must_use]
-pub fn provider_family_strengths(provider_prefix: &str) -> &'static [&'static str] {
-    match provider_prefix {
-        "anthropic" => &[
-            "codegen",
-            "logic",
-            "review",
-            "research",
-            "ui-codegen",
-            "frontend",
-        ],
-        "openai" => &["codegen", "logic", "research"],
-        "google" => &["research", "codegen", "logic"],
-        "deepseek" => &["codegen", "logic", "debugging"],
-        "qwen" | "qwen2" | "qwen2.5" | "qwen3" | "qwen3.5" | "qwen3_5" => &["codegen", "logic"],
-        "mistral" | "mistralai" => &["codegen", "logic"],
-        "meta-llama" | "meta" => &["codegen", "logic", "research"],
-        "cohere" => &["research", "review"],
-        "perplexity" => &["research"],
-        "x-ai" => &["research", "logic"],
-        "nvidia" => &["codegen", "logic"],
-        "01-ai" => &["logic", "codegen"],
-        "amazon" => &["codegen", "research"],
-        "microsoft" => &["codegen", "logic"],
-        _ => &[],
-    }
-}
-
 fn premium_alias_toml_default() -> HashMap<String, String> {
     let m = HashMap::new();
     let _ = std::hint::black_box(m.capacity());
@@ -277,205 +204,21 @@ impl Default for ModelConfig {
             .filter(|s: &&str| !s.trim().is_empty())
             .unwrap_or("default-model")
             .to_string();
+
+        let bootstrap_json =
+            include_str!("../../../../contracts/orchestration/model-catalog.bootstrap.v1.json");
+        let mut models: Vec<ModelSpec> =
+            serde_json::from_str(bootstrap_json).expect("Invalid bootstrap catalog");
+
+        for m in &mut models {
+            if m.id == "llama3:latest" && m.provider == "ollama" {
+                m.id = local_model.clone();
+                m.canonical_slug = format!("local/{}", local_model);
+            }
+        }
+
         Self {
-            models: vec![
-                // ── Local Ollama / Mens (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
-                ModelSpec {
-                    id: local_model.clone(),
-                    canonical_slug: format!("local/{local_model}"),
-                    provider: "ollama".to_string(),
-                    provider_type: ProviderType::Ollama,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                    capabilities: ModelCapabilities {
-                        tier: ModelTier::Local,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                // ── Fast / Free Tier ──
-                ModelSpec {
-                    id: "qwen/qwen3-coder:free".to_string(),
-                    canonical_slug: "qwen/qwen3-free".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 32_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                    capabilities: ModelCapabilities {
-                        tier: ModelTier::Light,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "meta-llama/llama-4-scout:free".to_string(),
-                    canonical_slug: "llama/llama-4-free".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["inter_agent".to_string(), "logic".to_string()],
-                    capabilities: ModelCapabilities {
-                        tier: ModelTier::Light,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "google/gemini-2.0-flash-lite".to_string(),
-                    canonical_slug: "google/gemini-flash-lite".to_string(),
-                    provider: "google".to_string(),
-                    provider_type: ProviderType::GoogleDirect,
-                    max_tokens: 1_000_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["logic".to_string(), "inter_agent".to_string()],
-                    capabilities: ModelCapabilities {
-                        tier: ModelTier::Light,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                // ── Pro Tier ──
-                ModelSpec {
-                    id: "meta-llama/llama-4-maverick".to_string(),
-                    canonical_slug: "llama/llama-4-maverick".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.06,
-                    cost_per_1k_input: 0.02,
-                    cost_per_1k_output: 0.1,
-                    is_free: false,
-                    strengths: vec!["inter_agent".to_string(), "logic".to_string()],
-                    capabilities: ModelCapabilities {
-                        tier: ModelTier::Pro,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "deepseek/deepseek-r1".to_string(),
-                    canonical_slug: "deepseek/deepseek-r1".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.2, // blended
-                    cost_per_1k_input: 0.014,
-                    cost_per_1k_output: 0.28,
-                    is_free: false,
-                    strengths: vec!["logic".to_string(), "review".to_string()],
-                    capabilities: ModelCapabilities {
-                        tier: ModelTier::Pro,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "google/gemini-2.5-pro-preview".to_string(),
-                    canonical_slug: "google/gemini-pro".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 2_000_000,
-                    cost_per_1k: 5.0,
-                    cost_per_1k_input: 1.25,
-                    cost_per_1k_output: 5.0,
-                    is_free: false,
-                    strengths: vec!["planning".to_string(), "research".to_string()],
-                    capabilities: ModelCapabilities {
-                        supports_vision: true,
-                        tier: ModelTier::Pro,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "anthropic/claude-sonnet-4.6".to_string(),
-                    canonical_slug: "anthropic/sonnet".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 200_000,
-                    cost_per_1k: 15.0,
-                    cost_per_1k_input: 3.0,
-                    cost_per_1k_output: 15.0,
-                    is_free: false,
-                    strengths: vec![
-                        "codegen".to_string(),
-                        "review".to_string(),
-                        "debugging".to_string(),
-                        "security".to_string(),
-                    ],
-                    capabilities: ModelCapabilities {
-                        supports_vision: true,
-                        tier: ModelTier::Pro,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "qwen/qwen-3.5-vl".to_string(),
-                    canonical_slug: "qwen/qwen-3.5-vl".to_string(),
-                    provider: "openrouter".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.1, // estimated
-                    cost_per_1k_input: 0.05,
-                    cost_per_1k_output: 0.2,
-                    is_free: false,
-                    strengths: vec!["visus".to_string(), "vision".to_string()],
-                    capabilities: ModelCapabilities {
-                        supports_vision: true,
-                        tier: ModelTier::Pro,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![],
-                },
-                // ── Elite Tier ──
-                ModelSpec {
-                    id: "claude-mythos-preview-20260407".to_string(),
-                    canonical_slug: "anthropic/mythos-preview".to_string(),
-                    provider: "anthropic".to_string(),
-                    provider_type: ProviderType::Anthropic,
-                    max_tokens: 200_000,
-                    cost_per_1k: 125.0,
-                    cost_per_1k_input: 25.0,
-                    cost_per_1k_output: 125.0,
-                    is_free: false,
-                    strengths: vec![
-                        "codegen".to_string(),
-                        "debugging".to_string(),
-                        "logic".to_string(),
-                        "review".to_string(),
-                        "research".to_string(),
-                        "security".to_string(),
-                    ],
-                    capabilities: ModelCapabilities {
-                        supports_json: true,
-                        supports_vision: true,
-                        supports_native_tools: true,
-                        tier: ModelTier::Elite,
-                        ..Default::default()
-                    },
-                    supported_parameters: vec![
-                        "tools".to_string(),
-                        "response_format".to_string(),
-                        "reasoning".to_string(),
-                    ],
-                },
-            ],
+            models,
             premium_alias: built_in_premium_alias(),
         }
     }
@@ -489,6 +232,6 @@ pub fn task_category_premium_key(task_type: TaskCategory) -> &'static str {
     route_for_category(task_type).premium_alias_key
 }
 
-pub(super) fn task_category_strength(task_type: TaskCategory) -> &'static str {
+pub fn task_category_strength(task_type: TaskCategory) -> StrengthTag {
     route_for_category(task_type).strength_tag
 }

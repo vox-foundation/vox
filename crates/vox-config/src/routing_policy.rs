@@ -121,13 +121,13 @@ pub struct GeminiRouteTargets {
 #[must_use]
 pub fn gemini_route_targets_from_env() -> GeminiRouteTargets {
     GeminiRouteTargets {
-        openrouter_model: std::env::var("OPENROUTER_GEMINI_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
+        openrouter_model: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterGeminiModel)
+            .expose()
+            .map(std::string::ToString::to_string)
             .unwrap_or_else(|| "google/gemini-2.5-flash".to_string()),
-        google_direct_model: std::env::var("GEMINI_DIRECT_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
+        google_direct_model: vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiDirectModel)
+            .expose()
+            .map(std::string::ToString::to_string)
             .unwrap_or_else(|| "gemini-2.5-flash".to_string()),
     }
 }

@@ -15,4 +15,5 @@ zeroize = { version = "1.8", features = ["zeroize_derive"] }
 aead = { workspace = true }
 rand = { workspace = true }
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+x25519-dalek = { workspace = true }
 hex = "0.4.3"

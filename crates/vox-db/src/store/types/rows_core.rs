@@ -332,3 +332,39 @@ pub struct NodeIdentityRow {
     pub created_at: String,
     pub last_seen_at: String,
 }
+
+/// One row from `model_scoreboard`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelScoreboardRow {
+    pub model_id: String,
+    pub task_category: String,
+    pub strength_tag: String,
+    pub window_days: i64,
+    pub n_calls: i64,
+    pub success_rate: f64,
+    pub p50_latency_ms: Option<i64>,
+    pub p99_latency_ms: Option<i64>,
+    pub cost_per_success_usd: Option<f64>,
+    pub quality_score: f64,
+    pub updated_at_ms: i64,
+    pub success_count: i64,
+    pub cumulative_cost_usd: f64,
+}
+
+/// One row from `model_pricing_catalog`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelPricingCatalogRow {
+    pub model_id: String,
+    pub provider: String,
+    pub observed_blended_per_1k: Option<f64>,
+    pub observed_input_per_1k: Option<f64>,
+    pub observed_output_per_1k: Option<f64>,
+    pub catalog_input_per_1k: f64,
+    pub catalog_output_per_1k: f64,
+    pub n_provider_reported: i64,
+    pub n_estimated: i64,
+    pub n_free: i64,
+    pub confidence: String,
+    pub last_observed_at_ms: Option<i64>,
+    pub updated_at_ms: i64,
+}

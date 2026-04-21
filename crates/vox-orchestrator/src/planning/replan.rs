@@ -81,6 +81,8 @@ pub async fn enqueue_recovery_first_node(
                 required_labels: None,
                 socrates_context: None,
                 attachment_manifest: None,
+                budget: None,
+                trace_id: None,
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

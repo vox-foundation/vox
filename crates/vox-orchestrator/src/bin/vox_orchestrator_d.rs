@@ -5,9 +5,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
+#[cfg(feature = "runtime")]
+use vox_orchestrator::runtime;
 use vox_orchestrator::{
     OrchestratorConfig, RemotePopuliSnapshot, a2a, build_repo_scoped_orchestrator,
-    clarification_db_inbox_poll, mesh_federation_poll, orch_daemon, runtime,
+    clarification_db_inbox_poll, mesh_federation_poll, orch_daemon,
 };
 
 fn load_config() -> OrchestratorConfig {
@@ -78,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    #[cfg(feature = "runtime")]
     runtime::spawn_agent_fleet_if_enabled(orch.clone());
 
     // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.

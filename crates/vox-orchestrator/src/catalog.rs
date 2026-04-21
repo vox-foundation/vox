@@ -1,4 +1,4 @@
-use crate::models::{ModelCapabilities, ModelSpec, ProviderType};
+use crate::models::{ModelCapabilities, ModelSpec, ProviderType, StrengthTag};
 use std::time::Duration;
 
 #[async_trait::async_trait]
@@ -108,91 +108,8 @@ fn infer_strengths(
     id: &str,
     description: Option<&str>,
     supported_parameters: &[String],
-) -> Vec<String> {
-    use crate::models::provider_family_strengths;
-    use std::collections::BTreeSet;
-
-    let mut strengths: BTreeSet<String> = BTreeSet::new();
-
-    // ── Tier 1: supported_parameters capability graph ──────────────────────────────────────────
-    let has_tools = supported_parameters
-        .iter()
-        .any(|p| p == "tools" || p == "tool_use");
-    let has_structured = supported_parameters
-        .iter()
-        .any(|p| p == "response_format" || p == "structured_outputs");
-    let has_reasoning = supported_parameters
-        .iter()
-        .any(|p| p == "reasoning" || p == "thinking");
-    let has_web_search = supported_parameters
-        .iter()
-        .any(|p| p == "web_search" || p == "search");
-
-    if has_tools || has_structured {
-        strengths.insert("codegen".to_string());
-        strengths.insert("logic".to_string());
-    }
-    if has_reasoning {
-        strengths.insert("logic".to_string());
-        strengths.insert("debugging".to_string());
-    }
-    if has_web_search {
-        strengths.insert("research".to_string());
-    }
-
-    // ── Tier 2: provider family table ─────────────────────────────────────────────────────────
-    let provider_prefix = id.split('/').next().unwrap_or("");
-    let family = provider_family_strengths(provider_prefix);
-    for s in family {
-        strengths.insert((*s).to_string());
-    }
-
-    // ── Tier 3: name / description heuristic (catch-all for unknown providers) ─────────────────
-    if strengths.is_empty() {
-        let mut haystack = id.to_ascii_lowercase();
-        if let Some(desc) = description {
-            haystack.push(' ');
-            haystack.push_str(&desc.to_ascii_lowercase());
-        }
-
-        if haystack.contains("code")
-            || haystack.contains("coder")
-            || haystack.contains("program")
-            || haystack.contains("software")
-        {
-            strengths.insert("codegen".to_string());
-        }
-        if haystack.contains("reason")
-            || haystack.contains("logic")
-            || haystack.contains("math")
-            || haystack.contains("proof")
-        {
-            strengths.insert("logic".to_string());
-        }
-        if haystack.contains("debug") || haystack.contains("fix") {
-            strengths.insert("debugging".to_string());
-        }
-        if haystack.contains("research")
-            || haystack.contains("analysis")
-            || haystack.contains("science")
-            || haystack.contains("academic")
-        {
-            strengths.insert("research".to_string());
-        }
-        if haystack.contains("review") || haystack.contains("critic") {
-            strengths.insert("review".to_string());
-        }
-        if haystack.contains("parse") || haystack.contains("extract") {
-            strengths.insert("parsing".to_string());
-        }
-    }
-
-    // Last resort: generalist if all three tiers yielded nothing.
-    if strengths.is_empty() {
-        strengths.insert("generalist".to_string());
-    }
-
-    strengths.into_iter().collect()
+) -> Vec<StrengthTag> {
+    crate::models::generated::infer_strengths(id, description, supported_parameters)
 }
 
 #[async_trait::async_trait]
@@ -215,14 +132,16 @@ impl ModelCatalog for OpenRouterCatalog {
         let mut models = Vec::new();
 
         for m in body.data {
-            let cost_input = m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0;
-            let cost_output = m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0;
+            let cost_input = (m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
+            let cost_output = (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
             let p_zero = m.pricing.prompt == "0"
                 || m.pricing.prompt == "0.0"
-                || m.pricing.prompt.starts_with("-");
+                || m.pricing.prompt.starts_with("-")
+                || m.pricing.prompt.is_empty();
             let c_zero = m.pricing.completion == "0"
                 || m.pricing.completion == "0.0"
-                || m.pricing.completion.starts_with("-");
+                || m.pricing.completion.starts_with("-")
+                || m.pricing.completion.is_empty();
             let is_free = p_zero && c_zero;
 
             // True tokenomics tracked separately via cost_per_1k_input and cost_per_1k_output.
@@ -287,6 +206,7 @@ impl ModelCatalog for OpenRouterCatalog {
                 strengths,
                 capabilities,
                 supported_parameters: m.supported_parameters,
+                observed_cost_per_1k: None,
             });
         }
 
@@ -306,15 +226,15 @@ mod tests {
             &["tools".to_string(), "temperature".to_string()],
         );
         assert!(
-            strengths.contains(&"codegen".to_string()),
+            strengths.contains(&StrengthTag::Codegen),
             "tools param should yield codegen"
         );
         assert!(
-            strengths.contains(&"logic".to_string()),
+            strengths.contains(&StrengthTag::Logic),
             "tools param should yield logic"
         );
         assert!(
-            !strengths.contains(&"generalist".to_string()),
+            !strengths.contains(&StrengthTag::Generalist),
             "must not fall through to generalist when tools present"
         );
     }
@@ -324,11 +244,11 @@ mod tests {
         // deepseek with no special parameters and no name signals — family table alone fills it.
         let strengths = infer_strengths("deepseek/deepseek-r1", None, &[]);
         assert!(
-            strengths.contains(&"codegen".to_string()),
+            strengths.contains(&StrengthTag::Codegen),
             "deepseek family → codegen"
         );
         assert!(
-            !strengths.contains(&"generalist".to_string()),
+            !strengths.contains(&StrengthTag::Generalist),
             "family fill must suppress generalist"
         );
     }
@@ -337,7 +257,7 @@ mod tests {
     fn infer_strengths_unknown_provider_uses_name_heuristic() {
         let strengths = infer_strengths("acme/code-assist-7b", None, &["temperature".to_string()]);
         assert!(
-            strengths.contains(&"codegen".to_string()),
+            strengths.contains(&StrengthTag::Codegen),
             "name heuristic: 'code' → codegen"
         );
     }
@@ -347,7 +267,7 @@ mod tests {
         let strengths = infer_strengths("acme/blob-7b", None, &[]);
         assert_eq!(
             strengths,
-            vec!["generalist"],
+            vec![StrengthTag::Generalist],
             "totally unknown model with no signals → generalist only"
         );
     }
@@ -355,7 +275,373 @@ mod tests {
     #[test]
     fn infer_strengths_reasoning_param_yields_logic_debugging() {
         let strengths = infer_strengths("x/m", None, &["reasoning".to_string()]);
-        assert!(strengths.contains(&"logic".to_string()));
-        assert!(strengths.contains(&"debugging".to_string()));
+        assert!(strengths.contains(&StrengthTag::Logic));
+        assert!(strengths.contains(&StrengthTag::Debugging));
+    }
+}
+/// A catalog that pulls available models from local Ollama/Populi.
+pub struct OllamaCatalog {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+impl OllamaCatalog {
+    pub fn new(base_url: String) -> Self {
+        Self {
+            client: vox_reqwest_defaults::client_builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+            base_url,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ModelCatalog for OllamaCatalog {
+    async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
+        let url = format!("{}/api/tags", self.base_url.trim_end_matches('/'));
+        let res = self.client.get(&url).send().await?;
+        if !res.status().is_success() {
+            return Err(anyhow::anyhow!("Ollama catalog refresh failed: {}", res.status()));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct OllamaTagsResponse {
+            models: Vec<OllamaModelData>,
+        }
+        #[derive(serde::Deserialize)]
+        struct OllamaModelData {
+            name: String,
+            #[allow(dead_code)]
+            details: Option<OllamaModelDetails>,
+        }
+        #[derive(serde::Deserialize)]
+        struct OllamaModelDetails {
+            #[allow(dead_code)]
+            parameter_size: Option<String>,
+        }
+
+        let resp: OllamaTagsResponse = res.json().await?;
+        let mut specs = Vec::new();
+        for m in resp.models {
+            specs.push(ModelSpec {
+                id: m.name.clone(),
+                canonical_slug: format!("ollama/{}", m.name),
+                provider: "ollama".to_string(),
+                provider_type: ProviderType::Ollama,
+                max_tokens: 4096, // Default fallback
+                cost_per_1k: 0.0,
+                cost_per_1k_input: 0.0,
+                cost_per_1k_output: 0.0,
+                is_free: true,
+                strengths: vec![StrengthTag::Generalist],
+                capabilities: ModelCapabilities {
+                    tier: crate::models::ModelTier::Local,
+                    ..Default::default()
+                },
+                supported_parameters: vec![],
+                observed_cost_per_1k: None,
+            });
+        }
+        Ok(specs)
+    }
+}
+
+/// A catalog for Hugging Face Inference Providers.
+pub struct HuggingFaceCatalog {
+    #[allow(dead_code)]
+    client: reqwest::Client,
+}
+
+impl HuggingFaceCatalog {
+    pub fn new() -> Self {
+        Self {
+            client: vox_reqwest_defaults::client_builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ModelCatalog for HuggingFaceCatalog {
+    async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
+        // This is a placeholder for the actual HF Inference Providers discovery.
+        // For now, we return a few high-quality known defaults if no dedicated discovery endpoint is used.
+        let known_models = vec![
+            "Qwen/Qwen2.5-72B-Instruct",
+            "meta-llama/Llama-3.1-70B-Instruct",
+            "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        ];
+
+        let mut specs = Vec::new();
+        for m in known_models {
+            specs.push(ModelSpec {
+                id: m.to_string(),
+                canonical_slug: format!("hf/{}", m),
+                provider: "hf_router".to_string(),
+                provider_type: ProviderType::HuggingFaceRouter,
+                max_tokens: 32768,
+                cost_per_1k: 0.0, // Often free/included in token
+                cost_per_1k_input: 0.0,
+                cost_per_1k_output: 0.0,
+                is_free: true,
+                strengths: vec![StrengthTag::Generalist, StrengthTag::Codegen],
+                capabilities: ModelCapabilities {
+                    tier: crate::models::ModelTier::Pro,
+                    ..Default::default()
+                },
+                supported_parameters: vec![],
+                observed_cost_per_1k: None,
+            });
+        }
+        Ok(specs)
+    }
+}
+
+/// A catalog for remote Populi mesh nodes.
+pub struct PopuliMeshCatalog {
+    #[allow(dead_code)]
+    client: reqwest::Client,
+}
+
+impl PopuliMeshCatalog {
+    pub fn new() -> Self {
+        Self {
+            client: vox_reqwest_defaults::client_builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ModelCatalog for PopuliMeshCatalog {
+    async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
+        // In a real implementation, this would poll the mesh discovery DHT or a registry node.
+        // For now, we return an empty list or a placeholder.
+        Ok(vec![])
+    }
+}
+
+/// A catalog for local MENS checkpoints.
+pub struct MensCatalog {
+    root: std::path::PathBuf,
+}
+
+impl MensCatalog {
+    pub fn new(root: impl Into<std::path::PathBuf>) -> Self {
+        Self { root: root.into() }
+    }
+}
+
+#[async_trait::async_trait]
+impl ModelCatalog for MensCatalog {
+    async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
+        let mut specs = Vec::new();
+        let runs_dir = self.root.join("mens").join("runs");
+        if !runs_dir.is_dir() {
+            return Ok(specs);
+        }
+
+        let entries = std::fs::read_dir(&runs_dir)?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                
+                // Look for 'final' or 'checkpoint-*' subdirs to confirm it's a valid run
+                let has_checkpoint = std::fs::read_dir(&path)?
+                    .flatten()
+                    .any(|e| e.file_name().to_str().map(|s| s == "final" || s.starts_with("checkpoint-")).unwrap_or(false));
+
+                if has_checkpoint {
+                    specs.push(ModelSpec {
+                        id: format!("mens/{}", name),
+                        canonical_slug: format!("mens/{}", name),
+                        provider: "populi_local".to_string(),
+                        provider_type: ProviderType::Ollama, // Serves as Ollama-compatible
+                        max_tokens: 8192,
+                        cost_per_1k: 0.0,
+                        cost_per_1k_input: 0.0,
+                        cost_per_1k_output: 0.0,
+                        is_free: true,
+                        strengths: vec![StrengthTag::Generalist, StrengthTag::Codegen],
+                        capabilities: ModelCapabilities {
+                            tier: crate::models::ModelTier::Local,
+                            ..Default::default()
+                        },
+                        supported_parameters: vec![],
+                        observed_cost_per_1k: None,
+                    });
+                }
+            }
+        }
+        Ok(specs)
+    }
+}
+
+/// A catalog that pulls available models directly from Anthropic's API.
+pub struct AnthropicDirectCatalog {
+    client: reqwest::Client,
+}
+
+impl AnthropicDirectCatalog {
+    pub fn new() -> Self {
+        Self {
+            client: vox_reqwest_defaults::client_builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ModelCatalog for AnthropicDirectCatalog {
+    async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
+        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey).expose().map(|s| s.to_string());
+        let Some(key) = api_key else {
+            return Ok(vec![]); // Skip if no key
+        };
+
+        let res = self.client.get("https://api.anthropic.com/v1/models")
+            .header("x-api-key", key)
+            .header("anthropic-version", "2023-06-01")
+            .send()
+            .await?;
+        
+        if !res.status().is_success() {
+            return Err(anyhow::anyhow!("Anthropic catalog refresh failed: {}", res.status()));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct AnthropicModelsResponse {
+            data: Vec<AnthropicModelData>,
+        }
+        #[derive(serde::Deserialize)]
+        struct AnthropicModelData {
+            id: String,
+            display_name: String,
+        }
+
+        let resp: AnthropicModelsResponse = res.json().await?;
+        let mut specs = Vec::new();
+        for m in resp.data {
+            // Static pricing for known Anthropic models (fallback to catalog defaults)
+            let (c_in, c_out) = match m.id.as_str() {
+                id if id.contains("claude-3-5-sonnet") => (3.0, 15.0),
+                id if id.contains("claude-3-5-haiku") => (0.25, 1.25),
+                id if id.contains("claude-3-opus") => (15.0, 75.0),
+                _ => (0.0, 0.0),
+            };
+
+            specs.push(ModelSpec {
+                id: m.id.clone(),
+                canonical_slug: format!("anthropic/{}", m.id),
+                provider: "anthropic".to_string(),
+                provider_type: ProviderType::Anthropic,
+                max_tokens: 200_000,
+                cost_per_1k: c_out,
+                cost_per_1k_input: c_in,
+                cost_per_1k_output: c_out,
+                is_free: c_in == 0.0 && c_out == 0.0,
+                strengths: infer_strengths(&m.id, Some(&m.display_name), &[]),
+                capabilities: ModelCapabilities {
+                    tier: if c_in > 5.0 { crate::models::ModelTier::Elite } else { crate::models::ModelTier::Pro },
+                    ..Default::default()
+                },
+                supported_parameters: vec![],
+                observed_cost_per_1k: None,
+            });
+        }
+        Ok(specs)
+    }
+}
+
+/// A catalog that pulls available models directly from Google's Generative Language API.
+pub struct GoogleDirectCatalog {
+    client: reqwest::Client,
+}
+
+impl GoogleDirectCatalog {
+    pub fn new() -> Self {
+        Self {
+            client: vox_reqwest_defaults::client_builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ModelCatalog for GoogleDirectCatalog {
+    async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
+        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey).expose().map(|s| s.to_string());
+        let Some(key) = api_key else {
+            return Ok(vec![]); // Skip if no key
+        };
+
+        let url = format!("https://generativelanguage.googleapis.com/v1beta/models?key={}", key);
+        let res = self.client.get(&url).send().await?;
+        
+        if !res.status().is_success() {
+            return Err(anyhow::anyhow!("Google catalog refresh failed: {}", res.status()));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct GoogleModelsResponse {
+            models: Vec<GoogleModelData>,
+        }
+        #[derive(serde::Deserialize)]
+        struct GoogleModelData {
+            name: String,
+            description: String,
+            #[serde(rename = "inputTokenLimit")]
+            input_token_limit: u64,
+            #[serde(rename = "outputTokenLimit")]
+            output_token_limit: u64,
+            #[serde(rename = "supportedGenerationMethods")]
+            supported_methods: Vec<String>,
+        }
+
+        let resp: GoogleModelsResponse = res.json().await?;
+        let mut specs = Vec::new();
+        for m in resp.models {
+            if !m.supported_methods.iter().any(|s| s == "generateContent") {
+                continue;
+            }
+
+            let id = m.name.trim_start_matches("models/").to_string();
+
+            // Pricing logic for Google is complex (free tiers vs paid), so we default to 0.0 
+            // and let the observed cost accounting (FIX-75) calibrate it.
+            specs.push(ModelSpec {
+                id: id.clone(),
+                canonical_slug: format!("google/{}", id),
+                provider: "google".to_string(),
+                provider_type: ProviderType::GoogleDirect,
+                max_tokens: m.output_token_limit,
+                cost_per_1k: 0.0,
+                cost_per_1k_input: 0.0,
+                cost_per_1k_output: 0.0,
+                is_free: true,
+                strengths: infer_strengths(&id, Some(&m.description), &[]),
+                capabilities: ModelCapabilities {
+                    max_context: m.input_token_limit,
+                    ..Default::default()
+                },
+                supported_parameters: vec![],
+                observed_cost_per_1k: None,
+            });
+        }
+        Ok(specs)
     }
 }

@@ -2,6 +2,7 @@
 name = "vox-cli"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
 description = "Vox command-line interface: compile, run, bundle, and workspace diagnostics."
 # `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-mens` when `mens-base`).
 default-run = "vox"
@@ -32,7 +33,7 @@ default = []
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
-mcp-server = ["dep:vox-orchestrator", "vox-orchestrator/mcp-native", "dep:axum"]
+mcp-server = ["vox-orchestrator/mcp-native", "dep:axum"]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
 
@@ -68,11 +69,11 @@ ars = ["dep:vox-skills"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
 extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
-ludus-hud = ["extras-ludus", "dep:vox-orchestrator"]
+ludus-hud = ["extras-ludus"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).
-live = ["dep:vox-orchestrator"]
+live = []
 # Manage the DEI (Distributed Execution Intelligence) orchestrator.
-dei = ["dep:vox-orchestrator"]
+dei = []
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = [
     "dep:dirs",
@@ -86,7 +87,7 @@ coderabbit = [
     "dep:vox-toestub",
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:comfy-table", "dep:dirs"]
+island = ["dep:dirs"]
 
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
@@ -136,7 +137,9 @@ vox-doc-inventory = { workspace = true }
 vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true }
 vox-build-meta = { workspace = true }
-vox-orchestrator = { workspace = true, optional = true }
+vox-orchestrator = { workspace = true }
+vox-populi = { workspace = true, features = ["transport"] }
+vox-mesh-types = { workspace = true }
 
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }
@@ -144,7 +147,7 @@ vox-checksum-manifest = { workspace = true }
 vox-install-policy = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
-comfy-table = { workspace = true, optional = true }
+comfy-table = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }

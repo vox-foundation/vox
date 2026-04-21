@@ -7,6 +7,7 @@ use crate::types::{AccessKind, AgentTask, FileAffinity, TaskEnqueueHints, TaskId
 use std::path::PathBuf;
 
 use super::super::super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, TaskTraceStep};
+#[cfg(feature = "runtime")]
 use super::AGENT_NOTIFY_TIMEOUT;
 use super::attention_fields::{populate_task_attention_fields, submission_approval_block_reason};
 
@@ -76,68 +77,12 @@ impl Orchestrator {
         task.capability_requirements = capability_requirements.clone();
         task.session_id = session_id.clone();
         if let Some(h) = &enqueue_hints {
-            if let Some(c) = h.complexity {
-                task.estimated_complexity = c.clamp(1, 10);
-            }
-            if let Some(ref m) = h.model_override {
-                task.model_override = Some(m.clone());
-            }
-            if let Some(ref p) = h.model_preference {
-                task.model_preference = Some(p.clone());
-            }
-            if let Some(cat) = h.task_category {
-                task.task_category = cat;
-            }
-            if let Some(ref campaign_id) = h.campaign_id {
-                let trimmed = campaign_id.trim();
-                if !trimmed.is_empty() {
-                    task.campaign_id = Some(trimmed.to_string());
-                }
-            }
-            if let Some(tier) = h.benchmark_tier {
-                task.benchmark_tier = Some(tier);
-            }
-            if let Some(role) = h.execution_role {
-                task.execution_role = Some(role);
-            }
-            if let Some(ref thread_id) = h.thread_id {
-                let trimmed = thread_id.trim();
-                if !trimmed.is_empty() {
-                    task.thread_id = Some(trimmed.to_string());
-                }
-            }
-            if !h.tool_hints.is_empty() {
-                task.tool_hints.extend(h.tool_hints.clone());
-            }
-            if !h.research_hints.is_empty() {
-                task.research_hints.extend(h.research_hints.clone());
-            }
-            if let Some(ref harness_spec_json) = h.harness_spec_json {
-                let trimmed = harness_spec_json.trim();
-                if !trimmed.is_empty() {
-                    task.harness_spec_json = Some(trimmed.to_string());
-                }
-            }
-            if let Some(ref labels) = h.required_labels {
-                if !labels.is_empty() {
-                    let mut reqs = task.capability_requirements.take().unwrap_or_default();
-                    reqs.labels.extend(labels.clone());
-                    task.capability_requirements = Some(reqs);
-                }
-            }
-            if let Some(req_apprv) = h.requires_approval {
-                if req_apprv {
-                    task.status = crate::types::TaskStatus::BlockedOnApproval;
-                }
-            }
-            if let Some(ref soc) = h.socrates_context {
-                task.socrates = Some(soc.clone());
-            }
-            if let Some(ref attachment_manifest) = h.attachment_manifest {
-                task.attachment_manifest = Some(attachment_manifest.clone());
-            }
-            // `is_detached` would typically inform the task's execution policy or PopuliRemoteDelegate.
-            // For now, if specified, we just pass the flag gracefully into the system.
+            task.apply_hints(h);
+        }
+
+        // Initialize trace_id if missing (FIX-14)
+        if task.trace_id.is_none() {
+            task.trace_id = Some(uuid::Uuid::new_v4().to_string());
         }
         #[cfg(feature = "populi-transport")]
         let _relay_thread_id_seed = task.thread_id.clone();
@@ -512,18 +457,26 @@ impl Orchestrator {
                 if lease_id.is_none() {
                     // Phase 1 Federation Proxy: Try to find a peer mesh if local denies
                     if let Ok(dir) = client.federation_directory().await {
-                        let mut candidates: Vec<_> = dir.entries.into_iter().filter(|e| e.public).collect();
+                        let mut candidates: Vec<_> =
+                            dir.entries.into_iter().filter(|e| e.public).collect();
                         candidates.sort_by_key(|e| e.current_queue_depth.unwrap_or(usize::MAX));
                         for peer in candidates {
-                            let peer_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
-                                &peer.control_url,
-                                std::time::Duration::from_millis(timeout_ms.max(1000)),
-                            ).with_env_deliver_token();
-                            
-                            if let Ok(grant) = peer_client.exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
-                                claimer_node_id: claimer_node_id.clone(),
-                                scope_key: scope_key.clone(),
-                            }).await {
+                            let peer_client =
+                                vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                                    &peer.control_url,
+                                    std::time::Duration::from_millis(timeout_ms.max(1000)),
+                                )
+                                .with_env_deliver_token();
+
+                            if let Ok(grant) = peer_client
+                                .exec_lease_grant(
+                                    &vox_populi::transport::RemoteExecLeaseGrantRequest {
+                                        claimer_node_id: claimer_node_id.clone(),
+                                        scope_key: scope_key.clone(),
+                                    },
+                                )
+                                .await
+                            {
                                 tracing::info!(
                                     task_id = task_id.0,
                                     peer_scope = %peer.scope_id,
@@ -537,7 +490,7 @@ impl Orchestrator {
                         }
                     }
                 }
-                
+
                 if lease_id.is_none() {
                     // Fall through to local enqueue only.
                 } else {
@@ -710,20 +663,35 @@ impl Orchestrator {
                     agent_id,
                     q_len + 1
                 );
-                crate::sync_lock::rw_read(&*self.agent_handles)
-                    .get(&agent_id)
-                    .cloned()
+                #[cfg(feature = "runtime")]
+                {
+                    crate::sync_lock::rw_read(&*self.agent_handles)
+                        .get(&agent_id)
+                        .cloned()
+                }
+                #[cfg(not(feature = "runtime"))]
+                {
+                    None::<()>
+                }
             } else {
                 cleanup_claims(agent_id);
                 return Err(OrchestratorError::AgentNotFound(agent_id));
             }
         } else {
-            crate::sync_lock::rw_read(&*self.agent_handles)
-                .get(&agent_id)
-                .cloned()
+            #[cfg(feature = "runtime")]
+            {
+                crate::sync_lock::rw_read(&*self.agent_handles)
+                    .get(&agent_id)
+                    .cloned()
+            }
+            #[cfg(not(feature = "runtime"))]
+            {
+                None
+            }
         };
 
         // Notify the agent process to wake up and process (outside the locks)
+        #[cfg(feature = "runtime")]
         if let Some(handle) = handle {
             let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
                 .unwrap_or_else(|e| {
@@ -734,6 +702,7 @@ impl Orchestrator {
                 from: vox_runtime::Pid::new(),
                 payload: vox_runtime::mailbox::MessagePayload::Json(json),
             });
+            let handle: &vox_runtime::process::ProcessHandle = &handle;
             match tokio::time::timeout(AGENT_NOTIFY_TIMEOUT, handle.send(env)).await {
                 Ok(send_res) => {
                     if let Err(e) = send_res {

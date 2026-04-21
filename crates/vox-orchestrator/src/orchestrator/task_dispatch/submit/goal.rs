@@ -290,6 +290,7 @@ impl Orchestrator {
             None
         };
         let lex = fallback.as_deref();
+        #[cfg_attr(not(feature = "runtime"), allow(unused_mut))]
         let Ok((mut execution, mut diagnostics, plan)) = vox_search::run_search_with_verification(
             &ctx,
             description,
@@ -324,7 +325,8 @@ impl Orchestrator {
 
             #[cfg(feature = "runtime")]
             if let Some(mut llm_cfg) = maybe_llm_cfg {
-                llm_cfg.temperature = Some(0.0);
+                llm_cfg.temperature = Some(vox_config::gemini_tuning_temperature().unwrap_or(0.0));
+                llm_cfg.top_p = vox_config::gemini_tuning_top_p();
                 let rel = crate::retrieval::crag::CragRouter::evaluate_document_relevance(
                     description,
                     &fused_text,
@@ -519,7 +521,8 @@ impl Orchestrator {
                     crate::config::CostPreference::Performance,
                 );
                 if let Some(mut llm_cfg) = maybe_llm_cfg {
-                    llm_cfg.temperature = Some(0.2);
+                    llm_cfg.temperature = Some(vox_config::gemini_tuning_temperature().unwrap_or(0.2));
+                    llm_cfg.top_p = vox_config::gemini_tuning_top_p();
                     let depth_str = format!("{:?}", cfg.planning_depth);
                     crate::planning::synthesizer::synthesize_plan_nodes_with_llm(
                         &goal,

@@ -46,8 +46,16 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
     prompt TEXT NOT NULL,
     response TEXT NOT NULL,
     model_version TEXT NOT NULL,
+    task_category TEXT NOT NULL DEFAULT 'general',
+    strength_tag TEXT NOT NULL DEFAULT 'generalist',
+    trace_id TEXT,
+    context_utilization_pct REAL,
+    cache_read_tokens INTEGER,
+    success INTEGER NOT NULL DEFAULT 1,
     latency_ms INTEGER,
-    token_count INTEGER,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    cost_usd REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -59,6 +67,18 @@ CREATE TABLE IF NOT EXISTS llm_feedback (
     feedback_type TEXT NOT NULL,
     correction_text TEXT,
     preferred_response TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS llm_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trace_id TEXT NOT NULL,
+    attempt_number INTEGER NOT NULL,
+    model_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    latency_ms INTEGER,
+    error_class TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

@@ -84,6 +84,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Register a `vox-runtime` process handle for an agent.
+    #[cfg(feature = "runtime")]
     pub fn register_agent_handle(&self, agent_id: AgentId, handle: vox_runtime::ProcessHandle) {
         crate::sync_lock::rw_write(&*self.agent_handles).insert(agent_id, handle);
     }

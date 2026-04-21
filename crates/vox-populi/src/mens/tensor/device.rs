@@ -149,7 +149,14 @@ pub fn print_gpu_summary_for(prefix: &str) {
 /// VRAM currently in use — not available without driver APIs.
 #[must_use]
 pub fn sample_vram_used_mb() -> Option<u64> {
-    crate::mens::hardware::nvml::monitor_nvml().map(|t| t.memory_used_mb)
+    #[cfg(feature = "nvml-gpu-probe")]
+    {
+        crate::mens::hardware::nvml::monitor_nvml().map(|t| t.memory_used_mb)
+    }
+    #[cfg(not(feature = "nvml-gpu-probe"))]
+    {
+        None
+    }
 }
 
 /// User-facing hint when OOM / allocation fails.

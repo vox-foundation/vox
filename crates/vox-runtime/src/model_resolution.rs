@@ -10,95 +10,11 @@
 //! Chat-only routes add extra shapes (HF router/dedicated, manual OpenAI-compatible); those map to
 //! [`ChatRouteBackend::CascadeFallback`] unless the manual URL is Google Generative Language API (→ [`ChatRouteBackend::GeminiDirect`]).
 
-use crate::inference_env::{
-    self, HuggingFaceDedicatedEndpoint, HuggingFaceRouterEndpoint, PopuliCapabilitySnapshot,
-};
+use crate::inference_env::{self, PopuliCapabilitySnapshot};
 use crate::llm::LlmConfig;
-
-/// Normalized HTTP/backend lane for chat route telemetry, aligned with `vox_orchestrator::models::ModelRouteBackend`.
-///
-/// Duplicated at the crate boundary so `vox-runtime` stays independent of `vox-orchestrator`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ChatRouteBackend {
-    /// Google AI Studio / Generative Language API (direct).
-    GeminiDirect,
-    OpenRouter,
-    /// Local Ollama / Mens (`PopuliLocal`).
-    Ollama,
-    /// Remote Populi mesh node over LAN.
-    PopuliMesh,
-    /// Aggregators, dedicated endpoints, BYOK OpenAI-compatible, and other non-native lanes.
-    CascadeFallback,
-}
-
-/// Map a concrete chat route to the shared four-lane backend model.
-#[must_use]
-pub fn route_backend_for_chat_route(route: &ChatProviderRouteKind) -> ChatRouteBackend {
-    match route {
-        ChatProviderRouteKind::PopuliLocal { .. } => ChatRouteBackend::Ollama,
-        ChatProviderRouteKind::PopuliMesh { .. } => ChatRouteBackend::PopuliMesh,
-        ChatProviderRouteKind::OpenRouter { .. } => ChatRouteBackend::OpenRouter,
-        ChatProviderRouteKind::ManualOpenAiCompatible { base_url, .. } => {
-            if base_url_looks_like_gemini_direct(base_url) {
-                ChatRouteBackend::GeminiDirect
-            } else {
-                ChatRouteBackend::CascadeFallback
-            }
-        }
-        ChatProviderRouteKind::HuggingFaceRouter(_)
-        | ChatProviderRouteKind::HuggingFaceDedicated(_) => ChatRouteBackend::CascadeFallback,
-    }
-}
-
-fn base_url_looks_like_gemini_direct(base_url: &str) -> bool {
-    base_url
-        .to_ascii_lowercase()
-        .contains("generativelanguage.googleapis.com")
-}
-
-/// `(provider_family, route_choice)` for logs/metrics; **must** stay aligned with MCP `mcp_provider_telemetry_labels`.
-#[must_use]
-pub fn backend_telemetry_labels(backend: ChatRouteBackend) -> (&'static str, &'static str) {
-    match backend {
-        ChatRouteBackend::GeminiDirect => ("google", "direct"),
-        ChatRouteBackend::OpenRouter => ("openrouter", "openrouter"),
-        ChatRouteBackend::Ollama => ("mens", "populi_local"),
-        ChatRouteBackend::PopuliMesh => ("mens", "populi_mesh"),
-        ChatRouteBackend::CascadeFallback => ("custom", "cascade"),
-    }
-}
-
-/// Resolved high-level route before HTTP client configuration.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ChatProviderRouteKind {
-    /// Explicit base URL + model (BYOK / custom endpoint).
-    ManualOpenAiCompatible {
-        /// OpenAI-compatible chat completions URL.
-        base_url: String,
-        /// Model id for that endpoint.
-        model: String,
-        /// Optional bearer token for the manual endpoint.
-        bearer: Option<String>,
-    },
-    /// Local Ollama-compatible OpenAI chat API (`{base}/v1/chat/completions`).
-    PopuliLocal {
-        /// Mens/Ollama server base URL (no `/v1/...` suffix).
-        base_url: String,
-        /// Model name as reported by `/api/tags`.
-        model: String,
-    },
-    /// Remote mesh node API.
-    PopuliMesh { base_url: String, model: String },
-    /// Hugging Face Inference Providers router (OpenAI-compatible).
-    HuggingFaceRouter(HuggingFaceRouterEndpoint),
-    /// Pinned HF Inference Endpoint (dedicated deployment).
-    HuggingFaceDedicated(HuggingFaceDedicatedEndpoint),
-    /// OpenRouter chat completions.
-    OpenRouter {
-        /// OpenRouter model id (or `openrouter/auto` bootstrap).
-        model: String,
-    },
-}
+pub use vox_orchestrator_types::{
+    ChatProviderRouteKind, ChatRouteBackend, backend_telemetry_labels, route_backend_for_chat_route,
+};
 
 /// Inputs for [`resolve_chat_provider_route`].
 #[derive(Debug, Clone)]
@@ -181,7 +97,7 @@ fn resolve_chat_provider_route_impl(
                 && populi_model_plausible(snap, &input.mens_chat_model)
             {
                 tracing::info!(
-                    target: "vox_dei::model_route",
+                    target: "vox_orchestrator::model_route",
                     event = "route_resolution",
                     choice = "populi_gpu",
                     model = %input.mens_chat_model,
@@ -200,7 +116,7 @@ fn resolve_chat_provider_route_impl(
             (&input.hf_dedicated_chat_url, &input.hf_dedicated_chat_model)
         {
             tracing::info!(
-                target: "vox_dei::model_route",
+                target: "vox_orchestrator::model_route",
                 event = "route_resolution",
                 choice = "huggingface_dedicated",
                 model = %mid,
@@ -215,7 +131,7 @@ fn resolve_chat_provider_route_impl(
     if hf_token_present {
         if let Some(ref mid) = input.hf_router_model {
             tracing::info!(
-                target: "vox_dei::model_route",
+                target: "vox_orchestrator::model_route",
                 event = "route_resolution",
                 choice = "huggingface_router",
                 model = %mid,
@@ -229,7 +145,7 @@ fn resolve_chat_provider_route_impl(
 
     if vox_config::inference::openrouter_api_key().is_some() {
         tracing::info!(
-            target: "vox_dei::model_route",
+            target: "vox_orchestrator::model_route",
             event = "route_resolution",
             choice = "openrouter",
             model = %input.openrouter_model,
@@ -243,7 +159,7 @@ fn resolve_chat_provider_route_impl(
     if let Some(ref snap) = input.populi_probe {
         if snap.reachable && populi_model_plausible(snap, &input.mens_chat_model) {
             tracing::info!(
-                target: "vox_dei::model_route",
+                target: "vox_orchestrator::model_route",
                 event = "route_resolution",
                 choice = "populi_any",
                 model = %input.mens_chat_model,
@@ -257,7 +173,7 @@ fn resolve_chat_provider_route_impl(
     }
 
     tracing::info!(
-        target: "vox_dei::model_route",
+        target: "vox_orchestrator::model_route",
         event = "route_resolution",
         choice = "openrouter_bootstrap",
         model = %vox_config::OPENROUTER_AUTO,
@@ -285,12 +201,21 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
         } => LlmConfig {
             provider: "openai_compatible".to_string(),
             model: model.clone(),
+            cost_per_1k: None,
             base_url: Some(base_url.clone()),
             api_key: bearer.clone(),
             temperature: None,
+            top_p: None,
             max_tokens: None,
             response_format: None,
             timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
         },
         ChatProviderRouteKind::PopuliLocal { base_url, model }
         | ChatProviderRouteKind::PopuliMesh { base_url, model } => {
@@ -298,33 +223,60 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             LlmConfig {
                 provider: "ollama".to_string(),
                 model: model.clone(),
+                cost_per_1k: None,
                 base_url: Some(format!("{base}/v1/chat/completions")),
                 api_key: None,
                 temperature: None,
+                top_p: None,
                 max_tokens: None,
                 response_format: None,
                 timeout_ms: None,
+                telemetry_session_id: None,
+                telemetry_user_id: None,
+                telemetry_task_category: None,
+                telemetry_strength_tag: None,
+                telemetry_trace_id: None,
+                telemetry_attempt_number: None,
+                telemetry_skip_interaction: false,
             }
         }
         ChatProviderRouteKind::HuggingFaceRouter(ep) => LlmConfig {
             provider: "hf_router".to_string(),
             model: ep.model.clone(),
+            cost_per_1k: None,
             base_url: Some(ep.chat_completions_url.clone()),
             api_key: ep.bearer_token.clone(),
             temperature: None,
+            top_p: None,
             max_tokens: None,
             response_format: None,
             timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
         },
         ChatProviderRouteKind::HuggingFaceDedicated(ep) => LlmConfig {
             provider: "hf_endpoint".to_string(),
             model: ep.model.clone(),
+            cost_per_1k: None,
             base_url: Some(ep.chat_completions_url.clone()),
             api_key: ep.bearer_token.clone(),
             temperature: None,
+            top_p: None,
             max_tokens: None,
             response_format: None,
             timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
         },
         ChatProviderRouteKind::OpenRouter { model } => LlmConfig::openrouter(model.clone()),
     }

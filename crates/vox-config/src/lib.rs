@@ -22,10 +22,13 @@ pub use config::{GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
     InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
     OPENAI_EMBEDDINGS_URL, OPENROUTER_CHAT_COMPLETIONS_URL, OPENROUTER_EMBEDDINGS_URL,
-    OPENROUTER_MODELS_LIST_URL, hf_chat_model_preference, hf_dedicated_chat_completions_url,
+    OPENROUTER_MODELS_LIST_URL, gemini_tuning_temperature, gemini_tuning_top_p,
+    hf_chat_model_preference, hf_dedicated_chat_completions_url,
     hf_dedicated_chat_model, huggingface_hub_token, inference_profile_allows_local_ollama_http,
-    inference_profile_from_env, local_ollama_populi_base_url, openrouter_api_key,
-    openrouter_chat_model_preference, sanitize_chatml,
+    inference_profile_from_env, local_ollama_populi_base_url, ollama_tuning_temperature,
+    ollama_tuning_top_p, openrouter_api_key, openrouter_chat_model_preference, sanitize_chatml,
+    together_tuning_temperature, together_tuning_top_p, openai_tuning_temperature,
+    openai_tuning_top_p, anthropic_tuning_temperature, anthropic_tuning_top_p,
 };
 pub use paths::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, MCP_SESSIONS_DIR_BASENAME, config_dir, data_dir,

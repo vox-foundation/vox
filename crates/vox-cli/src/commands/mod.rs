@@ -84,6 +84,7 @@ pub mod new;
 #[cfg(feature = "ars")]
 pub mod openclaw;
 pub mod play;
+pub mod model;
 pub mod pm;
 pub mod pm_lifecycle;
 pub mod repair;

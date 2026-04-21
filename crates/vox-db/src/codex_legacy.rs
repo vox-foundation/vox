@@ -176,6 +176,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "mens_observer_observations",
     "mesh_heartbeats",
     "metadata",
+    "model_pricing_catalog",
     "model_scoreboard",
     "names",
     "news_publish_approvals",

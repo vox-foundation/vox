@@ -12,7 +12,10 @@ struct AnthropicMessage<'a> {
 struct AnthropicRequest<'a> {
     model: &'a str,
     max_tokens: u64,
-    temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
     #[serde(skip_serializing_if = "str::is_empty")]
     system: &'a str,
     messages: Vec<AnthropicMessage<'a>>,
@@ -42,11 +45,13 @@ pub(crate) async fn http_anthropic_direct(
     client: &reqwest::Client,
     url: &str,
     api_key: &str,
+    spec: &crate::models::ModelSpec,
     model: &str,
     system: &str,
     user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
-    temperature: f32,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let user_text = match user {
         vox_openai_wire::ChatMessageContent::Text(t) => t,
@@ -63,6 +68,7 @@ pub(crate) async fn http_anthropic_direct(
         model,
         max_tokens: max_tokens.max(1024), // Anthropic requires max_tokens > 0
         temperature,
+        top_p,
         system,
         messages: vec![AnthropicMessage {
             role: "user",
@@ -114,13 +120,19 @@ pub(crate) async fn http_anthropic_direct(
         }
     }
 
+    let input_tokens = parsed.usage.input_tokens;
+    let output_tokens = parsed.usage.output_tokens;
+
+    let estimated_usd = (input_tokens as f64 / 1000.0) * spec.cost_per_1k_input
+        + (output_tokens as f64 / 1000.0) * spec.cost_per_1k_output;
+
     Ok((
         text,
-        parsed.usage.input_tokens,
-        parsed.usage.output_tokens,
+        input_tokens,
+        output_tokens,
         HttpCallMetadata {
             provider_request_id: provider_request_id.or(Some(parsed.id)),
-            provider_reported_cost_usd: None,
+            provider_reported_cost_usd: Some(estimated_usd),
         },
     ))
 }

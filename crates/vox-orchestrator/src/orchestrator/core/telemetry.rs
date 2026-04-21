@@ -96,4 +96,42 @@ impl crate::orchestrator::Orchestrator {
             store.set(AgentId(0), key, raw, 0);
         }
     }
+
+    /// Pull the latest model scoreboard from the database and inject it into the registry
+    /// to enable data-driven model selection.
+    pub async fn refresh_model_scoreboard(&self) {
+        let Some(db) = self.db() else { return };
+        
+        // Use a 7-day window for routing decisions as defined in schema.
+        match db.get_model_scoreboard(7).await {
+            Ok(rows) => {
+                let mut scoreboard = std::collections::HashMap::new();
+                for row in rows {
+                    scoreboard.insert(
+                        row.model_id.clone(),
+                        crate::models::ModelScore::from(row),
+                    );
+                }
+                
+                let mut registry = self.models.write().unwrap();
+                registry.inject_scoreboard(scoreboard);
+                tracing::debug!("Refreshed model scoreboard with {} entries", registry.scoreboard_len());
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to refresh model scoreboard from database");
+            }
+        }
+        
+        match db.get_pricing_catalog().await {
+            Ok(pricing) => {
+                let count = pricing.len();
+                let mut registry = self.models.write().unwrap();
+                registry.inject_pricing_catalog(pricing);
+                tracing::debug!("Refreshed model pricing catalog with {} confident entries", count);
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to refresh model pricing catalog from database");
+            }
+        }
+    }
 }

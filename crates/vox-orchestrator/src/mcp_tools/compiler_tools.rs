@@ -624,6 +624,8 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             &routing,
             2048,
             0.1,
+            None,
+            None,
             false,
             None,
         )
@@ -1076,6 +1078,8 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 &routing,
                 2048,
                 0.2,
+                None,
+                None,
                 false,
                 None,
             ).await {

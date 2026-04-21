@@ -95,7 +95,6 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
                 .to_json();
         }
     };
-    let temperature = 0.2_f32;
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
         sticky_model_pref: pref.as_deref(),
@@ -112,7 +111,9 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         &system_prompt,
         &routing,
         max_tokens,
-        temperature,
+        0.2,
+        params.temperature,
+        params.top_p,
         false,
         None,
     )

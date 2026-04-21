@@ -507,7 +507,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             Ok(())
         }
         CorpusAction::ReviewValidate { input } => {
-            let raw = read_utf8_path_capped_async(&input).await?;
+            let raw: String = read_utf8_path_capped_async(&input).await?;
             let mut rows = Vec::new();
             for (idx, line) in raw.lines().enumerate() {
                 if line.trim().is_empty() {
@@ -524,7 +524,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
         }
         CorpusAction::ReviewStats { input } => stats::run_review_stats(&input).await,
         CorpusAction::DogfoodConvert { input, output } => {
-            let raw = read_utf8_path_capped_async(&input).await?;
+            let raw: String = read_utf8_path_capped_async(&input).await?;
             let mut out = String::new();
             let mut converted = 0;
             // Best effort parse as Vox ToolTraceRecord

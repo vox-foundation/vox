@@ -538,7 +538,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 let env = vox_populi::populi_env_resolved(None);
                 
                 // Generate new key pair
-                let new_sk = vox_crypto::facades::generate_signing_key();
+                let (new_sk, _) = vox_crypto::facades::generate_signing_keypair();
                 let new_sk_bytes = vox_crypto::facades::signing_key_to_bytes(&new_sk);
                 let new_sk_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, new_sk_bytes);
                 

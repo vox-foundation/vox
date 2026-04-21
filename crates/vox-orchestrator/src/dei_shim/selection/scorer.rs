@@ -132,6 +132,10 @@ impl ModelScorer {
             | ProviderType::SambaNova => score += w.direct_free_bonus,
             ProviderType::GoogleDirect => score += w.google_direct_penalty,
             ProviderType::Ollama => score += w.ollama_penalty,
+            ProviderType::PopuliMesh => score += w.openrouter_bonus, // Treat mesh as high-quality bonus
+            ProviderType::Anthropic | ProviderType::HuggingFaceRouter | ProviderType::Custom(_) => {
+                score += w.openrouter_bonus;
+            }
         }
 
         match effective_pref {

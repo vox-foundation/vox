@@ -10,7 +10,8 @@ pub(crate) async fn http_ollama_with_metadata(
     system: &str,
     user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
-    temperature: f32,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
     json_mode: bool,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let base = ollama_base_url();
@@ -52,6 +53,7 @@ pub(crate) async fn http_ollama_with_metadata(
         format,
         options: OllamaOptions {
             temperature,
+            top_p,
             num_predict: max_tokens.min(i32::MAX as u64) as i32,
         },
     };

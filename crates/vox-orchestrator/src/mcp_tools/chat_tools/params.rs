@@ -74,6 +74,12 @@ pub struct ChatMessageParams {
     /// Multimodal attachments bounded by specific MIME types.
     #[serde(default)]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Optional temperature override (0.0–2.0).
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Optional top_p override (0.0–1.0).
+    #[serde(default)]
+    pub top_p: Option<f32>,
 }
 
 fn default_chat_history_session_id() -> String {
@@ -125,6 +131,12 @@ pub struct InlineEditParams {
     /// Multimodal attachments bounded by specific MIME types.
     #[serde(default)]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Optional temperature override (0.0–2.0).
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Optional top_p override (0.0–1.0).
+    #[serde(default)]
+    pub top_p: Option<f32>,
 }
 
 /// Successful inline edit payload returned to the editor host.
@@ -220,6 +232,12 @@ pub struct PlanParams {
     /// Multimodal attachments bounded by specific MIME types.
     #[serde(default)]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Optional temperature override (0.0–2.0).
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Optional top_p override (0.0–1.0).
+    #[serde(default)]
+    pub top_p: Option<f32>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-dei-d` is available.
@@ -354,6 +372,12 @@ pub struct GhostTextParams {
     /// Optional tenant/session partition key for usage attribution.
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Optional temperature override (0.0–2.0).
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Optional top_p override (0.0–1.0).
+    #[serde(default)]
+    pub top_p: Option<f32>,
 }
 
 /// Response from `vox_ghost_text`.

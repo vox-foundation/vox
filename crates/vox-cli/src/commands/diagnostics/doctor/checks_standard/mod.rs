@@ -7,6 +7,8 @@ mod test_health;
 mod toolchain;
 mod vox_ignore;
 mod web_frontend;
+mod model_telemetry;
+mod model_catalog;
 
 use super::common::Check;
 
@@ -19,5 +21,7 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
     gpu_hardware::run(checks).await;
     vox_ignore::run(auto_heal, checks).await;
     web_frontend::run(checks).await;
+    model_telemetry::run(checks).await;
+    model_catalog::run(checks).await;
     tail::run(auto_heal, checks).await;
 }

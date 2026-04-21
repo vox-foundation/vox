@@ -404,6 +404,13 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::ci::CiCmd,
     },
+    /// Manage models: discovery, scoreboard, and explainability (`vox model`).
+    #[command(name = "model")]
+    Model {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::model::ModelCmd,
+    },
 
     /// Unified research operations: infrastructure (up/down/status) and eval.
     Research {

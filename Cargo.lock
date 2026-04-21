@@ -11724,6 +11724,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "strum 0.26.3",
  "thiserror 1.0.69",
  "tokio",
  "turso",
@@ -11803,8 +11804,10 @@ dependencies = [
  "vox-jsonschema-util",
  "vox-ludus",
  "vox-mcp-registry",
+ "vox-mesh-types",
  "vox-orchestrator",
  "vox-pm",
+ "vox-populi",
  "vox-primitives",
  "vox-project-scaffold",
  "vox-protocol",
@@ -11964,6 +11967,7 @@ dependencies = [
  "hex",
  "rand 0.8.5",
  "sha3",
+ "x25519-dalek",
  "xxhash-rust",
  "zeroize",
 ]
@@ -11991,6 +11995,7 @@ dependencies = [
  "vox-compiler",
  "vox-config",
  "vox-mesh-types",
+ "vox-orchestrator-types",
  "vox-repository",
  "vox-socrates-policy",
  "vox-test-harness",
@@ -12235,6 +12240,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sysinfo 0.38.4",
+ "tempfile",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -12388,8 +12394,10 @@ dependencies = [
  "vox-lsp",
  "vox-ludus",
  "vox-mcp-registry",
+ "vox-mesh-types",
  "vox-openai-wire",
  "vox-oratio",
+ "vox-orchestrator-types",
  "vox-pm",
  "vox-populi",
  "vox-project-scaffold",
@@ -12405,6 +12413,14 @@ dependencies = [
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-orchestrator-types"
+version = "0.4.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]
@@ -12603,12 +12619,14 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+ "uuid",
  "vox-browser",
  "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-openai-sse",
  "vox-openai-wire",
+ "vox-orchestrator-types",
  "vox-primitives",
  "vox-reqwest-defaults",
  "vox-skills",
@@ -14679,6 +14697,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
+]
+
+[[package]]
+name = "x25519-dalek"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
+dependencies = [
+ "curve25519-dalek",
+ "rand_core 0.6.4",
 ]
 
 [[package]]

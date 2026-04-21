@@ -108,6 +108,7 @@ pub struct SecretMetadata {
     pub class: SecretClass,
     pub material_kind: SecretMaterialKind,
     pub persistable_account_secret: bool,
+    pub shareable: bool,
     pub device_local_only: bool,
     pub allow_env_in_strict: bool,
     pub allow_compat_sources_in_strict: bool,

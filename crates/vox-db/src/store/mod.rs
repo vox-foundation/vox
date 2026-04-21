@@ -21,7 +21,7 @@ pub use types::{
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
-    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, ObservationReport,
+    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, ModelScoreboardRow, ObservationReport,
     ObserverAction, PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow,
     PublicationAttemptRow, PublicationExternalLinkRow, PublicationExternalLinkUpsertParams,
     PublicationExternalRevisionRow, PublicationExternalRevisionUpsertParams,
@@ -66,6 +66,7 @@ mod ops_news;
 pub mod ops_orchestrator;
 mod ops_planning;
 mod ops_publication;
+mod ops_scientia;
 mod ops_questioning;
 mod ops_retention;
 mod ops_visus;

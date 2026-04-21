@@ -28,6 +28,9 @@ impl crate::orchestrator::Orchestrator {
         // Resuscitate task transcripts from the workflow journal (cross-session recovery)
         let _ = self.hydrate_all_tasks_from_journal().await;
 
+        // Perform initial scoreboard refresh to enable data-driven routing immediately
+        self.refresh_model_scoreboard().await;
+
         Ok(())
     }
 

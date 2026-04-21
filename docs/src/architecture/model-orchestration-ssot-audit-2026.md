@@ -22,7 +22,8 @@ training_rationale: "Core orchestration architecture reference; names all files 
 - `vox-orchestrator::models::ModelRegistry` is the one selector used across the workspace (`crates/vox-orchestrator/src/models/registry.rs:14`). All task-to-model decisions flow through `best_for()` / `best_for_task()`.
 - `vox-clavis` is a credible secret plane with a documented resolver chain, `doctor`, `parity`, and `secret-env-guard` (`crates/vox-clavis/src/resolver.rs:1`, `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/clavis.rs`).
 - A live catalog refresh against `https://openrouter.ai/api/v1/models` already exists with a min-interval and jitter guard (`crates/vox-orchestrator/src/catalog.rs:200`; `crates/vox-orchestrator/src/models/registry.rs:49`).
-- Telemetry lands in a typed `llm_interactions` table (v58) with a validation contract including `context_utilization_pct` and `cache_read_tokens`.
+- Telemetry lands in a typed `llm_interactions` table (v59) with a validation contract including `context_utilization_pct` and `cache_read_tokens`.
+- Observed pricing is stabilized in `model_pricing_catalog` (v59), enabling empirical cost overrides for routing decisions.
 - Mesh-node identity uses Ed25519 with challenge/response (`crates/vox-identity/src/identity.rs:20`) and mesh bearer auth uses constant-time compare (`crates/vox-populi/src/transport/auth.rs:5`).
 - `.voxignore` is the declared SSOT for AI context exclusion (`AGENTS.md:37`).
 
@@ -202,12 +203,17 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 **FIX-13. [DONE] Emit `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reasons` on every LLM call.**
 - *Problem.* No OpenTelemetry GenAI semconv emitted. `llm_interactions.token_count` was one integer, conflating input and output.
 - *Operation.* In `crates/vox-runtime/src/llm/types.rs::ModelMetric::from_response`, populate the six required GenAI span attributes per OTel GenAI v1.37. Extended `llm_interactions` to accept detailed metrics. Split `token_count` into `input_tokens` and `output_tokens` columns.
-- *Success.* `llm_interactions` (v58) rows contain `gen_ai`-aligned attributes for every call.
+- *Success.* `llm_interactions` (v59) rows contain `gen_ai`-aligned attributes for every call.
 
 **FIX-14. [DONE] Add a trace ID that follows user-request → orchestrator → provider.**
 - *Problem.* `journey_id`, `session_id`, `run_id` are subsystem-local; no causal chain.
 - *Operation.* Generate a single `trace_id` (UUIDv7) at the top of `vox_orchestrator::handle_task()`. Propagate via `AgentTask.trace_id`; include in every telemetry row; set outbound HTTP `traceparent` header (OTel W3C) in `crates/vox-runtime/src/http` for OpenRouter / Anthropic / Google calls.
 - *Success.* `SELECT trace_id, count(*) FROM research_metrics WHERE trace_id IS NOT NULL GROUP BY 1` shows every user turn as one trace.
+
+**FIX-75. [DONE] Implement observed-cost feedback loop via `model_pricing_catalog`.**
+- *Problem.* Model pricing in `ModelSpec` was static and hardcoded, leading to stale budget estimates and inaccurate routing.
+- *Operation.* Created `model_pricing_catalog` (v59) to track ground-truth costs derived from provider-reported usage. Implemented a nightly rollup that calculates `observed_blended_per_1k` from telemetry. Injected these observed prices into the `ModelRegistry` at runtime when sample confidence is high (>= 100 samples) or medium (>= 20 samples).
+- *Success.* `vox model pricing show` displays real-time price corrections, and `ModelRegistry` automatically adjusts routing for providers that change their pricing dynamically.
 
 **FIX-15. [FIXED] Track context-window utilization per call.**
 - *Problem.* We know `ModelSpec.context_length_tokens` and per-call tokens but never store `utilization = (input+output)/context`.
@@ -282,7 +288,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* New `crates/vox-orchestrator/src/catalog/mens.rs` (or integrated in `catalog.rs`) that globs `mens/runs/*/training_manifest.json`, parses each, emits `ModelCatalogEntry`.
 - *Success.* A newly-trained MENS checkpoint appears in `vox model list --source Mens` after running `vox model discover`.
 
-**FIX-26. Add `AnthropicDirectCatalog` and `GoogleDirectCatalog`.**
+**FIX-26. [DONE] Add `AnthropicDirectCatalog` and `GoogleDirectCatalog`.**
 - *Problem.* Direct provider calls use hardcoded model IDs (`spec.rs:447` for `claude-mythos-preview-20260407`); no auto-refresh of Anthropic's model list.
 - *Operation.* Implement `AnthropicDirectCatalog` hitting `https://api.anthropic.com/v1/models` (uses `AnthropicApiKey`). Implement `GoogleDirectCatalog` hitting `https://generativelanguage.googleapis.com/v1beta/models` (uses `GeminiApiKey`). Both emit `ModelCatalogEntry` with pricing from their known tables (kept in `contracts/orchestration/provider-pricing-overlay.v1.yaml` because Anthropic & Google don't publish per-model pricing via their models API).
 - *Success.* New Anthropic model launched by vendor shows up after nightly refresh without code change to `spec.rs`.
@@ -369,27 +375,27 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Replace with `vox_clavis::resolve_secret(SecretId::OpenaiApiKey)?`. Delete the `env::var` line. Add a unit test verifying the call fails open in `Profile::Dev` when the secret is missing.
 - *Success.* `vox ci secret-env-guard` passes.
 
-**FIX-42. Migrate `TOGETHER_FINETUNE_MODEL` to Clavis or config.**
+**FIX-42. [DONE] Migrate `TOGETHER_FINETUNE_MODEL` to Clavis or config.**
 - *Problem.* `crates/vox-mens/src/commands/ai/train.rs` reads directly.
 - *Operation.* Decide: if secret, add `SecretId::TogetherFinetuneModel` to `crates/vox-clavis/src/spec/registry/llm.rs` and migrate. If it is non-secret model name, add to `OPERATOR_TUNING_ENVS` in `crates/vox-clavis/src/lib.rs` (line ~59).
 - *Success.* `secret-env-guard` passes.
 
-**FIX-43. Migrate `GEMINI_DIRECT_MODEL` and `OPENROUTER_GEMINI_MODEL` to the config domain.**
+**FIX-43. [DONE] Migrate `GEMINI_DIRECT_MODEL` and `OPENROUTER_GEMINI_MODEL` to the config domain.**
 - *Problem.* `crates/vox-config/src/routing_policy.rs` reads them directly for routing choice.
 - *Operation.* Add both to `OPERATOR_TUNING_ENVS` (they are *routing preference*, not secrets). Documented in new `docs/src/reference/routing-env.md`.
 - *Success.* `secret-env-guard` passes; routing table generator reads the names from one place.
 
-**FIX-44. Add `POPULI_URL` to Clavis spec (as non-secret config) or rename.**
+**FIX-44. [DONE] Add `POPULI_URL` to Clavis spec (as non-secret config) or rename.**
 - *Problem.* `crates/vox-config/src/inference.rs:68-72` reads `POPULI_URL` → falls back to `OLLAMA_URL`. Neither is in Clavis. Confusing name: this is the local Ollama base URL used by Populi, not an auth key.
 - *Operation.* Add to `OPERATOR_TUNING_ENVS`. Add deprecation alias: prefer `VOX_POPULI_LOCAL_OLLAMA_URL` going forward; keep `POPULI_URL` and `OLLAMA_URL` as deprecated aliases with a doctor warning.
 - *Success.* Doctor prints the canonical name; older names still work.
 
-**FIX-45. Add `shareable: bool` to `SecretSpec` and default per-secret.**
+**FIX-45. [DONE] Add `shareable: bool` to `SecretSpec` and default per-secret.**
 - *Problem.* Foundation for FIX-46–FIX-50. Today the spec has no "share across my own mesh" flag.
 - *Operation.* Extend `crates/vox-clavis/src/spec/mod.rs::SecretSpec` with `shareable: bool` and `sensitivity: Sensitivity { UserMeshOnly, UserMeshAndExternalVault }`. Default true for LLM API keys (`OpenRouterApiKey`, etc.), default false for `VoxIdentityKeyPath`, `VoxMeshJwtHmacSecret`, `VoxIdentityMasterPwd`.
 - *Success.* `cargo test -p vox-clavis shareable_defaults` green.
 
-**FIX-46. Implement X25519 sealed-box in `vox-crypto`.**
+**FIX-46. [DONE] Implement X25519 sealed-box in `vox-crypto`.**
 - *Problem.* We have ChaCha20-Poly1305 (symmetric) and Ed25519 (signing) but no X25519 KEM (asymmetric encryption). Required for wrapping a secret for a specific peer without a pre-shared key.
 - *Operation.* Add `x25519-dalek` dependency (pure-Rust, already in the Rust crypto ecosystem allowlist; no cmake/nasm). Expose in `crates/vox-crypto/src/facades.rs`: `fn seal(recipient_pub: &X25519PublicKey, plaintext: &[u8]) -> SealedBox` and `fn unseal(recipient_priv: &X25519PrivateKey, sealed: &SealedBox) -> Result<Vec<u8>>` using libsodium-style `crypto_box_seal` semantics (ephemeral sender key + ChaCha20-Poly1305).
 - *Success.* Unit test: Alice seals → Bob unseals, round trip in 1ms.
@@ -513,7 +519,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Write the reference doc, link from `AGENTS.md` "Related Operational Surfaces" and from `docs/src/reference/cli.md`.
 - *Success.* Every env in `OPERATOR_TUNING_ENVS` appears in the doc.
 
-**FIX-69. `vox doctor` reports catalog source health.**
+**FIX-69. [DONE] `vox doctor` reports catalog source health.**
 - *Problem.* Users don't know which sources failed to refresh.
 - *Operation.* Add a `CatalogSourceHealth` check that prints `OpenRouter: 312 models (fresh 02h ago) | Ollama: 8 models (fresh 05m ago) | PopuliMesh: 3 models (fresh 00m ago) | HFHub: STALE (38h ago)`.
 - *Success.* Doctor output visually obvious.

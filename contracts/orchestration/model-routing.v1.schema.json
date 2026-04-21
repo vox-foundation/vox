@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "tiers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "strengths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "task_categories": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "scoring": {
+      "type": "object",
+      "properties": {
+        "weights": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "latency_bands": {
+          "type": "object",
+          "properties": {
+            "excellent_ms": { "type": "integer" },
+            "poor_ms": { "type": "integer" }
+          },
+          "required": ["excellent_ms", "poor_ms"]
+        }
+      },
+      "required": ["weights", "latency_bands"]
+    },
+    "premium_alias": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "economy_cost_ceiling_usd_per_1k": { "type": "number" }
+  },
+  "required": [
+    "schema_version",
+    "tiers",
+    "strengths",
+    "task_categories",
+    "scoring",
+    "premium_alias",
+    "economy_cost_ceiling_usd_per_1k"
+  ]
+}

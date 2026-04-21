@@ -1,7 +1,7 @@
 //! Gamification CRUD for Disputes (`gamify_disputes` and `gamify_dispute_votes`).
 
-use turso::params;
 use crate::store::types::StoreError;
+use turso::params;
 
 impl crate::VoxDb {
     /// Insert a new dispute.
@@ -93,7 +93,7 @@ impl crate::VoxDb {
         let juror_user_id = juror_user_id.to_string();
         let verdict = verdict.to_string();
         let rationale = rationale.map(|s| s.to_string());
-        
+
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
@@ -123,15 +123,18 @@ impl crate::VoxDb {
         &self,
         status: &str,
     ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT id, accused_user_id, accuser_user_id, github_event_id,
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, accused_user_id, accuser_user_id, github_event_id,
                     CAST(snapshot_id AS TEXT), evidence_json, CAST(malice_score AS TEXT),
                     status, CAST(created_at AS TEXT), CAST(resolved_at AS TEXT),
                     CAST(appeal_deadline_ts AS TEXT), CAST(penalty_applied AS TEXT)
              FROM gamify_disputes WHERE status = ?1",
-            params![status],
-        ).await?;
-        
+                params![status],
+            )
+            .await?;
+
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
             let cols: Vec<Option<String>> = (0..12)
@@ -148,7 +151,7 @@ impl crate::VoxDb {
             "SELECT user_id FROM gamify_profiles WHERE trust_tier = 3 ORDER BY RANDOM() LIMIT ?1",
             params![limit],
         ).await?;
-        
+
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
             if let Ok(user_id) = row.get::<String>(0) {

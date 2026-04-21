@@ -24,7 +24,8 @@ pub(crate) struct InferRequest<'a> {
     pub system_prompt: &'a str,
     pub user_prompt: vox_openai_wire::ChatMessageContent<'a>,
     pub max_t: u64,
-    pub temperature: f32,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
     pub json_mode: bool,
     pub tools: Option<serde_json::Value>,
     pub tool_choice: Option<serde_json::Value>,
@@ -82,10 +83,12 @@ impl ProviderAdapter for GoogleDirectAdapter {
                 client,
                 &model.id,
                 key,
+                model,
                 req.system_prompt,
                 req.user_prompt,
                 req.max_t,
                 req.temperature,
+                req.top_p,
                 req.json_mode,
             )
             .await?;
@@ -115,6 +118,7 @@ impl ProviderAdapter for OllamaAdapter {
                 req.user_prompt,
                 req.max_t,
                 req.temperature,
+                req.top_p,
                 req.json_mode,
             )
             .await?;
@@ -152,11 +156,13 @@ impl ProviderAdapter for AnthropicNativeAdapter {
                 client,
                 &url,
                 api_key,
+                model,
                 &model.id,
                 req.system_prompt,
                 req.user_prompt,
                 req.max_t,
                 req.temperature,
+                req.top_p,
             )
             .await?;
             Ok(adapt_result(text, prompt_tokens, completion_tokens, meta))
@@ -193,6 +199,7 @@ impl ProviderAdapter for OpenAiCompatAdapter {
                     req.user_prompt,
                     req.max_t,
                     req.temperature,
+                    req.top_p,
                     req.json_mode,
                     req.tools.clone(),
                     req.tool_choice.clone(),
@@ -219,7 +226,8 @@ pub(crate) async fn infer_via_provider_adapter(
     system_prompt: &str,
     user_prompt: vox_openai_wire::ChatMessageContent<'_>,
     max_t: u64,
-    temperature: f32,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
     json_mode: bool,
     tools: Option<serde_json::Value>,
     tool_choice: Option<serde_json::Value>,
@@ -229,6 +237,7 @@ pub(crate) async fn infer_via_provider_adapter(
         user_prompt,
         max_t,
         temperature,
+        top_p,
         json_mode,
         tools,
         tool_choice,

@@ -143,7 +143,7 @@ impl CloudResolver {
         let hw = crate::mens::hardware::HardwareRegistry::probe().await;
         let local = if hw.vram_mb > 0 {
             Some(Arc::new(super::local_provider::LocalProvider::new(
-                Arc::new(hw),
+                hw,
                 config.clone(),
             )))
         } else {

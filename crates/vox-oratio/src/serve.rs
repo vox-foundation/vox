@@ -60,13 +60,17 @@ async fn transcribe_handler(mut multipart: Multipart) -> Result<Json<crate::back
         pcm_data.push(val);
     }
 
-    let config = crate::resolved_runtime_config();
-    let output = tokio::task::spawn_blocking(move || {
-        transcribe_pcm_internal(&pcm_data, _language.as_deref(), config)
+    let (raw_text, segments) = tokio::task::spawn_blocking(move || {
+        transcribe_pcm_internal(&pcm_data, _language.as_deref())
     })
     .await
     .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
     .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(output))
+    Ok(Json(crate::backends::asr_backend::AsrOutput {
+        raw_text,
+        confidence: 0.85,
+        n_best: Vec::new(),
+        segments,
+    }))
 }

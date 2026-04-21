@@ -225,6 +225,8 @@ mod routing_tests {
             file_path: None,
             max_tokens: None,
             session_id: None,
+            temperature: None,
+            top_p: None,
         };
         let rich = GhostTextParams {
             prefix: "fn main() {\n    let x = 1;\n".into(),
@@ -233,6 +235,8 @@ mod routing_tests {
             file_path: Some("src/main.rs".into()),
             max_tokens: None,
             session_id: None,
+            temperature: None,
+            top_p: None,
         };
         assert!(ghost_grounding_score(&rich) > ghost_grounding_score(&thin));
     }
@@ -255,6 +259,8 @@ mod routing_tests {
             trace_id: None,
             correlation_id: None,
             attachment_manifest: None,
+            temperature: None,
+            top_p: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -272,6 +278,8 @@ mod routing_tests {
             trace_id: None,
             correlation_id: None,
             attachment_manifest: None,
+            temperature: None,
+            top_p: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

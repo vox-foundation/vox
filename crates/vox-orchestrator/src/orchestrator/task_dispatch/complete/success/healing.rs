@@ -11,13 +11,14 @@ impl Orchestrator {
     ) -> Result<(), OrchestratorError> {
         #[cfg(feature = "runtime")]
         {
-            let vox_files: Vec<_> = write_files
+            let vox_files: Vec<PathBuf> = write_files
                 .iter()
                 .filter(|p| p.extension().is_some_and(|ext| ext == "vox"))
+                .cloned()
                 .collect();
 
             for vox_file in vox_files {
-                if let Ok(original_source) = vox_bounded_fs::read_utf8_path_capped(vox_file) {
+                if let Ok(original_source) = vox_bounded_fs::read_utf8_path_capped(&vox_file) {
                     let loop_ = vox_populi::mens::healing::HealingLoop::new(
                         3,
                         |src| {
@@ -61,11 +62,11 @@ impl Orchestrator {
                     if let vox_populi::mens::healing::HealOutcome::Success { source, .. } =
                         loop_.heal(task_desc, &original_source).await
                     {
-                        let _ = std::fs::write(vox_file, &source);
+                        let _ = std::fs::write(&vox_file, &source);
                         self.event_bus()
                             .emit(crate::events::AgentEventKind::AutoHealApplied {
                                 agent_id,
-                                path: vox_file.clone(),
+                                path: vox_file,
                                 description: "Automated AST healing fixed compiler errors."
                                     .to_string(),
                                 new_source: source,

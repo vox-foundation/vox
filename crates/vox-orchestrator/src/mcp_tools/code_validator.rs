@@ -48,7 +48,10 @@ pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> S
         ).to_json();
     }
 
+    #[cfg(feature = "oratio-rerank")]
     let correlation_id = vox_oratio::trace::new_correlation_id();
+    #[cfg(not(feature = "oratio-rerank"))]
+    let correlation_id = uuid::Uuid::new_v4().to_string();
     tracing::debug!(
         target: "vox_mcp_speech",
         correlation_id = %correlation_id,

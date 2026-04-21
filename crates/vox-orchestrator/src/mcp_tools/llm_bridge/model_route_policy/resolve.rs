@@ -1,4 +1,4 @@
-﻿//! Model registry resolution and telemetry labels.
+//! Model registry resolution and telemetry labels.
 
 use crate::Orchestrator;
 use crate::models::{ModelSpec, ProviderType};
@@ -150,7 +150,7 @@ pub async fn resolve_mcp_chat_model(
 /// so MCP and runtime chat lanes share one string SSOT.
 #[must_use]
 pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, &'static str) {
-    backend_telemetry_labels(match provider {
+    backend_telemetry_labels(match *provider {
         ProviderType::GoogleDirect => ChatRouteBackend::GeminiDirect,
         ProviderType::OpenRouter => ChatRouteBackend::OpenRouter,
         ProviderType::Ollama => ChatRouteBackend::Ollama,
@@ -161,6 +161,7 @@ pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, 
         | ProviderType::DeepSeek
         | ProviderType::SambaNova
         | ProviderType::Anthropic
+        | ProviderType::HuggingFaceRouter
         | ProviderType::Custom(_) => ChatRouteBackend::CascadeFallback,
     })
 }

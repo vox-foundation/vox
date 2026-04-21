@@ -485,6 +485,9 @@ async fn handle_tool_call_inner(
         "vox_plan_resume" => {
             Ok(chat_tools::plan_resume(state, serde_json::from_value(args)?).await)
         }
+        "vox_ghost_text" => {
+            Ok(chat_tools::ghost_text(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_schola_submit" => {
             Ok(training_tools::train_submit(state, serde_json::from_value(args)?).await)

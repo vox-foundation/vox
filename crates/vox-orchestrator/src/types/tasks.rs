@@ -14,6 +14,17 @@ fn default_victory_condition() -> crate::VictoryCondition {
 /// Maximum number of times a task can be handed off before it is considered an infinite loop.
 pub const MAX_A2A_BOUNCE: u8 = 5;
 
+/// Financial and temporal budget constraints for a task.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Budget {
+    /// Maximum allowed cost for the task in USD.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_cost_usd: Option<f64>,
+    /// Maximum allowed wall-clock latency for the task in milliseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_latency_ms: Option<u64>,
+}
+
 /// One turn in a task's conversational history (for agent-to-agent context).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskTurn {
@@ -164,37 +175,7 @@ impl FileAffinity {
     }
 }
 
-/// General category of a task to guide model selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum TaskCategory {
-    /// Parser / syntax work.
-    Parsing,
-    /// Static analysis and type system work.
-    TypeChecking,
-    /// Debugger-driven investigation.
-    Debugging,
-    /// Open-ended information gathering.
-    Research,
-    /// Test authoring and execution.
-    Testing,
-    /// Generating new code or scaffolding.
-    CodeGen,
-    /// Multi-step workflow synthesis.
-    #[default]
-    General,
-    /// Automated Reasoning System execution.
-    Ars,
-    /// Up-front orchestration planning.
-    Planning,
-    /// Code review and critique.
-    Review,
-    /// Short-lived inter-agent relay / summarization hop. Uses Light-tier models.
-    InterAgent,
-    /// Structured tool call orchestration — needs native-tool support but not deep reasoning.
-    ToolOrchestration,
-    /// Visual intelligence and layout auditing (VLM).
-    Visus,
-}
+pub use crate::models::generated::TaskCategory;
 
 /// Populi mesh holds execution authority for this task; local actors must not dequeue it.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -218,6 +199,12 @@ pub struct TaskEnqueueHints {
     /// Estimated complexity 1–10; clamped when merged onto the task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub complexity: Option<u8>,
+    /// Optional trace identifier for cross-system correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Optional budget constraints for the task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget: Option<Budget>,
     /// Non-binding preference string (e.g. tier hint); stored on [`AgentTask::model_preference`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_preference: Option<String>,
@@ -353,6 +340,12 @@ pub struct AgentTask {
     /// Explicit testing requirement decision if known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_decision: Option<crate::planning::TestDecision>,
+    /// Optional trace identifier for cross-system correlation (FIX-14).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Optional budget constraints for the task (FIX-18).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget: Option<Budget>,
     /// Number of times this task has been re-routed due to validation failures.
     pub debug_iterations: u8,
     /// Number of times this task has failed Toestub gates.
@@ -478,6 +471,8 @@ impl AgentTask {
             model_preference: None,
             model_override: None,
             test_decision: None,
+            trace_id: None,
+            budget: None,
             task_category,
             debug_iterations: 0,
             toestub_iterations: 0,
@@ -591,6 +586,76 @@ impl AgentTask {
             .collect()
     }
 
+    /// Merge hints into the task object.
+    pub fn apply_hints(&mut self, h: &TaskEnqueueHints) {
+        if let Some(c) = h.complexity {
+            self.estimated_complexity = c.clamp(1, 10);
+        }
+        if let Some(ref m) = h.model_override {
+            self.model_override = Some(m.clone());
+        }
+        if let Some(ref p) = h.model_preference {
+            self.model_preference = Some(p.clone());
+        }
+        if let Some(cat) = h.task_category {
+            self.task_category = cat;
+        }
+        if let Some(ref campaign_id) = h.campaign_id {
+            let trimmed = campaign_id.trim();
+            if !trimmed.is_empty() {
+                self.campaign_id = Some(trimmed.to_string());
+            }
+        }
+        if let Some(tier) = h.benchmark_tier {
+            self.benchmark_tier = Some(tier);
+        }
+        if let Some(role) = h.execution_role {
+            self.execution_role = Some(role);
+        }
+        if let Some(ref thread_id) = h.thread_id {
+            let trimmed = thread_id.trim();
+            if !trimmed.is_empty() {
+                self.thread_id = Some(trimmed.to_string());
+            }
+        }
+        if !h.tool_hints.is_empty() {
+            self.tool_hints.extend(h.tool_hints.clone());
+        }
+        if !h.research_hints.is_empty() {
+            self.research_hints.extend(h.research_hints.clone());
+        }
+        if let Some(ref harness_spec_json) = h.harness_spec_json {
+            let trimmed = harness_spec_json.trim();
+            if !trimmed.is_empty() {
+                self.harness_spec_json = Some(trimmed.to_string());
+            }
+        }
+        if let Some(ref labels) = h.required_labels {
+            if !labels.is_empty() {
+                let mut reqs = self.capability_requirements.take().unwrap_or_default();
+                reqs.labels.extend(labels.clone());
+                self.capability_requirements = Some(reqs);
+            }
+        }
+        if let Some(req_apprv) = h.requires_approval {
+            if req_apprv {
+                self.status = TaskStatus::BlockedOnApproval;
+            }
+        }
+        if let Some(ref soc) = h.socrates_context {
+            self.socrates = Some(soc.clone());
+        }
+        if let Some(ref attachment_manifest) = h.attachment_manifest {
+            self.attachment_manifest = Some(attachment_manifest.clone());
+        }
+        if let Some(ref trace_id) = h.trace_id {
+            self.trace_id = Some(trace_id.clone());
+        }
+        if let Some(ref budget) = h.budget {
+            self.budget = Some(budget.clone());
+        }
+    }
+
     /// Mark the task as started, recording the start timestamp.
     pub fn start(&mut self) -> &mut Self {
         self.started_at_ms = Some(now_unix_ms());
@@ -658,6 +723,18 @@ impl AgentTask {
         }
         self.status = new_status;
         Ok(())
+    }
+
+    /// Predict the number of tokens this task will consume based on its complexity and category.
+    pub fn estimated_token_count(&self) -> u64 {
+        let base = match self.task_category {
+            TaskCategory::CodeGen => 2000,
+            TaskCategory::Research => 4000,
+            TaskCategory::Visus => 8000,
+            _ => 1000,
+        };
+        let complexity_mult = f64::from(self.estimated_complexity).powi(2) / 25.0; // 5 is 1.0, 10 is 4.0
+        (base as f64 * complexity_mult).round() as u64
     }
 }
 
@@ -767,6 +844,8 @@ mod tests {
             requires_approval: None,
             socrates_context: None,
             attachment_manifest: None,
+            trace_id: None,
+            budget: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

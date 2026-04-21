@@ -595,7 +595,10 @@ impl crate::VoxDb {
         let provider_id = provider_id.to_string();
         let provider_login = provider_login.map(|s| s.to_string());
         let access_token_ref = access_token_ref.map(|s| s.to_string());
-        let linked_at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+        let linked_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
@@ -625,13 +628,16 @@ impl crate::VoxDb {
     }
 
     /// List all linked identities for a given local user.
-    pub async fn get_vox_identities(&self, vox_user_id: &str) -> Result<Vec<(String, String, Option<String>)>, StoreError> {
+    pub async fn get_vox_identities(
+        &self,
+        vox_user_id: &str,
+    ) -> Result<Vec<(String, String, Option<String>)>, StoreError> {
         let vox_user_id = vox_user_id.to_string();
         let rows = self.conn.query(
             "SELECT provider, provider_id, provider_login FROM vox_identities WHERE vox_user_id = ?1",
             params![vox_user_id.as_str()],
         ).await?;
-        
+
         let mut out = Vec::new();
         let mut rows = rows;
         while let Some(row) = rows.next().await? {

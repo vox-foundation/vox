@@ -289,6 +289,8 @@ Rules:
         &routing,
         initial_cap,
         0.3,
+        None,
+        None,
         true, // Enforce strict JSON mode for planning
         None,
     )
@@ -335,6 +337,8 @@ Invalid prior output (may be truncated):
                 &routing_fix,
                 retry_cap,
                 0.15,
+                None,
+                None,
                 true,
                 None,
             )
@@ -748,6 +752,8 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                         &routing,
                         4096,
                         0.2,
+                        None,
+                        None,
                         true,
                         None,
                     )

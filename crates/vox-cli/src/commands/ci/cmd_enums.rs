@@ -60,6 +60,9 @@ pub enum CiCmd {
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]
     DataSsotGuards,
+    /// Finalize the ssot-audit for the orchestration layer, confirming parity between telemetry-based decisioning and the canonical routing architecture.
+    #[command(name = "ssot-audit")]
+    SsotAudit,
     /// `cargo check -p vox-cli` for each supported feature set.
     #[command(name = "feature-matrix")]
     FeatureMatrix,

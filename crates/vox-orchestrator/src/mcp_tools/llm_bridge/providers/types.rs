@@ -85,7 +85,10 @@ pub(crate) struct GeminiTurn<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiGenCfg<'a> {
-    pub temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
     pub max_output_tokens: u32,
     #[serde(rename = "responseMimeType", skip_serializing_if = "Option::is_none")]
     pub response_mime_type: Option<&'a str>,
@@ -109,6 +112,9 @@ pub(crate) struct OllamaChatMsg<'a> {
 
 #[derive(Serialize)]
 pub(crate) struct OllamaOptions {
-    pub temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
     pub num_predict: i32,
 }

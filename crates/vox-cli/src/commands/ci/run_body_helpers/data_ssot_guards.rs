@@ -162,6 +162,29 @@ fn run_scientia_consumption_registry_guard(root: &Path, contracts_index_raw: &st
     Ok(())
 }
 
+fn run_routing_ssot_guard(root: &Path) -> Result<()> {
+    let yaml_path = root.join("contracts/orchestration/model-routing.v1.yaml");
+    let schema_path = root.join("contracts/orchestration/model-routing.v1.schema.json");
+    if !yaml_path.is_file() {
+        return Err(anyhow!("missing {}", yaml_path.display()));
+    }
+    if !schema_path.is_file() {
+        return Err(anyhow!("missing {}", schema_path.display()));
+    }
+    
+    let yaml_txt = read_utf8_path_capped(&yaml_path)
+        .with_context(|| format!("read {}", yaml_path.display()))?;
+    let _yaml: serde_yaml::Value = serde_yaml::from_str(&yaml_txt)
+        .with_context(|| format!("parse {}", yaml_path.display()))?;
+        
+    let schema_txt = read_utf8_path_capped(&schema_path)
+        .with_context(|| format!("read {}", schema_path.display()))?;
+    let _schema: serde_json::Value = serde_json::from_str(&schema_txt)
+        .with_context(|| format!("parse {}", schema_path.display()))?;
+        
+    Ok(())
+}
+
 /// Run file-based checks that do not require a full workspace `cargo test`.
 pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
     let watch = root.join("crates/vox-cli/src/commands/mens/watch_telemetry.rs");
@@ -255,6 +278,8 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
             retention_policy.display()
         ));
     }
+
+    run_routing_ssot_guard(root)?;
 
     println!("data-ssot-guards: OK");
     Ok(())

@@ -1,0 +1,53 @@
+// 2026-phase1-contract-headers.vox — Migration M-10.
+//
+// SCAFFOLD ONLY. This file exists to reserve the path and document the
+// intended shape. The actual implementation lands in migration item M-10
+// (see docs/src/architecture/data-storage-migration-backlog-2026.md).
+//
+// Run: vox run scripts/migrations/2026-phase1-contract-headers.vox
+// Dry:  vox run scripts/migrations/2026-phase1-contract-headers.vox --check
+//
+// Purpose
+// -------
+// For every contract file under contracts/ whose filename contains `.vN.`,
+// ensure the file contains an `x-vox-version: N` field at the top level.
+// Insert when missing. Fail when a mismatched header already exists
+// (e.g., filename says `.v1.` but header says `x-vox-version: 2`).
+//
+// Scope
+// -----
+// - contracts/**/*.schema.json  — JSON
+// - contracts/**/*.yaml         — YAML
+// - contracts/**/*.openapi.yaml — YAML (OpenAPI has its own `info.version`;
+//                                 x-vox-version is additive, not a replacement)
+//
+// Idempotency
+// -----------
+// This script MUST be idempotent. Running it twice is a no-op on the second
+// run. The CI check `version-header-parity` in `vox ci data-storage-guard`
+// verifies the post-condition on every PR.
+//
+// Exit codes
+// ----------
+// 0 — all contracts have consistent filename/header versions.
+// 1 — at least one file was modified (in --check mode) or a conflict was found.
+// 2 — I/O or parse error.
+//
+// vox:skip  — body is illustrative; actual implementation in M-10.
+
+fn main() {
+    // TODO(M-10):
+    //   1. Load contracts/index.yaml.
+    //   2. For each entry, classify the file (JSON/YAML).
+    //   3. Parse conservatively (preserve ordering + comments in YAML).
+    //   4. Extract filename version from `.vN.` suffix.
+    //   5. Extract header version from `x-vox-version` field.
+    //   6. Reconcile:
+    //        - both absent           → insert header from filename.
+    //        - filename absent       → error (rename file to include .vN.).
+    //        - mismatch              → error (human must reconcile).
+    //        - match                 → no change.
+    //   7. Write back with original serialization style preserved.
+
+    // See also: vox-schema::validator (the library form of this check).
+}

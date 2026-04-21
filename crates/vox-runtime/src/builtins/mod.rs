@@ -14,7 +14,6 @@ use vox_skills::ars_shim::{
     DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
 };
 
-
 #[cfg(not(target_arch = "wasm32"))]
 fn exit_commands() -> &'static std::sync::Mutex<Vec<(String, Vec<String>)>> {
     static CMDS: OnceLock<std::sync::Mutex<Vec<(String, Vec<String>)>>> = OnceLock::new();
@@ -29,8 +28,11 @@ fn ensure_signal_handler() {
             handle.spawn(async move {
                 #[cfg(unix)]
                 {
-                    use tokio::signal::unix::{signal, SignalKind};
-                    if let (Ok(mut sigint), Ok(mut sigterm)) = (signal(SignalKind::interrupt()), signal(SignalKind::terminate())) {
+                    use tokio::signal::unix::{SignalKind, signal};
+                    if let (Ok(mut sigint), Ok(mut sigterm)) = (
+                        signal(SignalKind::interrupt()),
+                        signal(SignalKind::terminate()),
+                    ) {
                         tokio::select! {
                             _ = sigint.recv() => {}
                             _ = sigterm.recv() => {}
@@ -43,10 +45,11 @@ fn ensure_signal_handler() {
                 {
                     let _ = tokio::signal::ctrl_c().await;
                 }
-                
+
                 let _ = tokio::task::spawn_blocking(|| {
                     execute_exit_commands();
-                }).await;
+                })
+                .await;
 
                 std::process::exit(1);
             });
@@ -332,7 +335,6 @@ pub fn vox_process_register_exit_command(cmd: &str, args: &[String]) -> Result<(
 pub fn vox_process_register_exit_command(_cmd: &str, _args: &[String]) -> Result<(), String> {
     Err("register_exit_command is not supported in WASI scripts".to_string())
 }
-
 
 /// Remove a directory tree (`std.fs.remove_dir_all`).
 pub fn vox_fs_remove_dir_all(path: &str) -> Result<(), String> {

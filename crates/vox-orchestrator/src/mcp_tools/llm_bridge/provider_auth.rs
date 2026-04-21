@@ -40,6 +40,9 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
         ProviderType::Custom(_) => {
             required_secret(vox_clavis::SecretId::CustomOpenaiApiKey, "Custom OpenAI")
         }
+        ProviderType::HuggingFaceRouter => {
+            required_secret(vox_clavis::SecretId::HuggingFaceToken, "HuggingFace")
+        }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
             Err(HttpInferError {
                 status: 0,
@@ -130,6 +133,7 @@ mod tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: ModelCapabilities::default(),
             supported_parameters: vec![],
@@ -164,6 +168,7 @@ mod tests {
             cost_per_1k_input: 0.01,
             cost_per_1k_output: 0.01,
             is_free: false,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: ModelCapabilities::default(),
             supported_parameters: vec![],

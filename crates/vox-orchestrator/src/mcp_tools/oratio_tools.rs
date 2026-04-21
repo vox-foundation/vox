@@ -177,6 +177,8 @@ async fn maybe_llm_polish(
         &routing,
         llm_max_output_tokens.max(64),
         0.1,
+        None,
+        None,
         true,
         None,
     )

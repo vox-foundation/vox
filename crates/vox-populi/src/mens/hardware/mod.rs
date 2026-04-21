@@ -4,9 +4,12 @@ use tokio::sync::OnceCell;
 
 pub mod linux_drm;
 pub mod macos_metal;
+#[cfg(feature = "nvml-gpu-probe")]
 pub mod nvml;
 pub mod types;
+#[cfg(feature = "mens-gpu")]
 pub mod wgpu_probe;
+#[cfg(all(target_os = "windows", feature = "mens-gpu"))]
 pub mod win_dxgi;
 
 static REGISTRY: OnceCell<Arc<HardwareSummary>> = OnceCell::const_new();
@@ -25,7 +28,14 @@ impl HardwareRegistry {
 
     /// Monitors real-time telemetry (not cached).
     pub fn monitor() -> Option<types::GpuTelemetry> {
-        nvml::monitor_nvml()
+        #[cfg(feature = "nvml-gpu-probe")]
+        {
+            nvml::monitor_nvml()
+        }
+        #[cfg(not(feature = "nvml-gpu-probe"))]
+        {
+            None
+        }
     }
 }
 
@@ -54,6 +64,7 @@ async fn probe_internal() -> HardwareSummary {
     }
 
     // 2. Platform-specific native probes
+    #[cfg(all(target_os = "windows", feature = "mens-gpu"))]
     if let Some(info) = win_dxgi::probe_dxgi() {
         return info;
     }
@@ -65,11 +76,13 @@ async fn probe_internal() -> HardwareSummary {
     }
 
     // 3. Generic Probe: wgpu (cross-platform fallback)
+    #[cfg(feature = "mens-gpu")]
     if let Some(info) = wgpu_probe::probe_wgpu().await {
         return info;
     }
 
     // 4. Ultimate Fallback: NVML (if available) or Host CPU
+    #[cfg(feature = "nvml-gpu-probe")]
     if let Some(telemetry) = nvml::monitor_nvml() {
         return HardwareSummary {
             model_name: "NVIDIA GPU (via NVML)".into(),

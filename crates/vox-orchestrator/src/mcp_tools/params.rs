@@ -170,6 +170,16 @@ pub struct FileSpec {
     pub access: FileAccess,
 }
 
+/// Financial and temporal budget constraints for a task (MCP layer).
+#[derive(Debug, Deserialize, JsonSchema, Clone)]
+#[schemars(deny_unknown_fields)]
+pub struct BudgetParams {
+    /// Maximum allowed cost for the task in USD.
+    pub max_cost_usd: Option<f64>,
+    /// Maximum allowed wall-clock latency for the task in milliseconds.
+    pub max_latency_ms: Option<u64>,
+}
+
 /// Arguments for submitting a new orchestrator task.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -239,8 +249,12 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 256))]
     pub trace_id: Option<String>,
+    /// Optional budget constraints for the task (USD cost and/or latency).
+    #[serde(default)]
+    pub budget: Option<BudgetParams>,
     /// Optional correlation id (e.g. client thread); stored alongside `trace_id` on envelope provenance.
     #[serde(default)]
+
     #[schemars(length(max = 256))]
     pub correlation_id: Option<String>,
     /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
@@ -570,6 +584,10 @@ pub struct BrowserExtractParams {
     /// Natural-language extraction instruction (requires configured MCP chat model).
     #[schemars(length(min = 1, max = 131072))]
     pub instruction: String,
+    /// Optional temperature override.
+    pub temperature: Option<f32>,
+    /// Optional top_p override.
+    pub top_p: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -582,6 +600,10 @@ pub struct BrowserExtractJsonParams {
     pub schema_json: String,
     #[schemars(length(min = 1, max = 131072))]
     pub instruction: String,
+    /// Optional temperature override.
+    pub temperature: Option<f32>,
+    /// Optional top_p override.
+    pub top_p: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

@@ -1,4 +1,4 @@
-﻿//! Opt-in **diagnostics / integration-test** hook: when both `VOX_MCP_TEST_INFER_STUB_BODY` (JSON
+//! Opt-in **diagnostics / integration-test** hook: when both `VOX_MCP_TEST_INFER_STUB_BODY` (JSON
 //! body) and `VOX_MCP_INFER_STUB_ACK` (`1` / `true`) are set, model resolution returns a dummy spec
 //! and [`super::infer::mcp_infer_completion`] returns that body for tool `vox_plan` without HTTP.
 //! Do **not** set in production MCP servers.
@@ -49,5 +49,6 @@ pub fn stub_plan_model_spec() -> ModelSpec {
         strengths: Vec::new(),
         capabilities: ModelCapabilities::default(),
         supported_parameters: Vec::new(),
+        observed_cost_per_1k: None,
     }
 }

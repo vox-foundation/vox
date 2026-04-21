@@ -1,5 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
+use vox_identity::trust::TrustedNodeRegistry;
+use vox_mesh_types::ClavisSyncEnvelope;
+use vox_populi::http_client::PopuliHttpClient;
+use vox_populi::transport::A2ADeliverRequest;
+use tracing::{info, error};
 
 fn redact_value(value: &str) -> String {
     if value.chars().count() > 6 {
@@ -158,6 +163,15 @@ pub enum ClavisCmd {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Sync shareable secrets across the mesh.
+    Sync {
+        /// Sync with other nodes in the mesh.
+        #[arg(long)]
+        mesh: bool,
+        /// If set, preview which secrets would be synced.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 pub async fn run(cmd: ClavisCmd) -> Result<()> {
@@ -278,6 +292,7 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             }
             Ok(())
         }
+        ClavisCmd::Sync { mesh, dry_run } => run_sync(mesh, dry_run).await,
     }
 }
 
@@ -653,5 +668,138 @@ fn emit_doctor_human(
             "warning: VOX_DB_CIRCUIT_BREAKER may gate workflow durability writes under DB stress"
         );
     }
+    Ok(())
+}
+
+async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
+    if !mesh {
+        println!("clavis sync: no targets specified (use --mesh)");
+        return Ok(());
+    }
+
+    println!("clavis sync: identifying shareable secrets...");
+    let mut shareable_secrets = Vec::new();
+    for spec in vox_clavis::all_specs() {
+        if spec.id.metadata().shareable {
+            let res = vox_clavis::resolve_secret(spec.id);
+            if let Some(val) = res.expose() {
+                shareable_secrets.push((spec, val.to_string()));
+            }
+        }
+    }
+
+    if shareable_secrets.is_empty() {
+        println!("no shareable secrets found in vault.");
+        return Ok(());
+    }
+
+    println!("found {} shareable secrets.", shareable_secrets.len());
+
+    let registry = TrustedNodeRegistry::new();
+    let trusted_nodes = registry.list().context("Failed to list trusted nodes")?;
+
+    if trusted_nodes.is_empty() {
+        println!("no trusted nodes found in registry. secret sync requires established trust.");
+        return Ok(());
+    }
+
+    println!("broadcasting to {} trusted nodes...", trusted_nodes.len());
+
+    let sender_node_id = vox_config::local_user_id();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    // Use the local registry to find control plane URLs for trusted nodes
+    let local_reg_path = vox_populi::local_registry_path();
+    let populi_reg = vox_populi::LocalRegistry::new(local_reg_path).load().context("Failed to load populi registry")?;
+    
+    let mut success_count = 0;
+    let mut fail_count = 0;
+
+    let p_env = vox_populi::populi_env();
+    for node in trusted_nodes {
+        println!("  syncing to node: {} ({})", node.node_id, node.label.as_deref().unwrap_or("unlabeled"));
+        
+        let node_record = populi_reg.nodes.iter().find(|n| n.id == node.node_id);
+        let control_url = node_record.and_then(|n| n.listen_addr.as_ref()).or_else(|| {
+            // Fallback to local control plane if node_id matches local or if it's the only one known
+            if node.node_id == sender_node_id {
+                p_env.control_addr.as_ref()
+            } else {
+                None
+            }
+        });
+
+        let Some(url) = control_url else {
+            println!("    warning: no control plane URL found for node {}; skipping", node.node_id);
+            fail_count += 1;
+            continue;
+        };
+
+        let mut pk_bytes = [0u8; 32];
+        hex::decode_to_slice(&node.pubkey_hex, &mut pk_bytes).context("Failed to decode node public key")?;
+        let pk = vox_crypto::facades::encryption_public_key_from_bytes(pk_bytes);
+
+        let client = PopuliHttpClient::new(url).with_env_token();
+
+        for (spec, secret_val) in &shareable_secrets {
+            if dry_run {
+                println!("    [dry-run] would seal and push {}", spec.canonical_env);
+                continue;
+            }
+
+            let sealed = vox_crypto::facades::seal(&pk, secret_val.as_bytes())
+                .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
+
+            let envelope = ClavisSyncEnvelope {
+                secret_id: spec.id.to_string(),
+                sealed_payload: sealed,
+                sender_node_id: sender_node_id.clone(),
+                timestamp_unix_ms: now_ms,
+            };
+
+            let payload = serde_json::to_string(&envelope).context("Failed to serialize envelope")?;
+
+            let deliver_req = A2ADeliverRequest {
+                sender_agent_id: "0".to_string(),
+                receiver_agent_id: "0".to_string(),
+                message_type: "clavis_sync".to_string(),
+                payload,
+                idempotency_key: Some(format!("clavis_sync:{}:{}:{}", node.node_id, spec.canonical_env, now_ms)),
+                privacy_class: Some("trusted".to_string()),
+                payload_blake3_hex: None,
+                worker_ed25519_sig_b64: None,
+                jwe_payload: None,
+                priority: 255,
+                task_kind: Some("clavis_sync".to_string()),
+                model_id: None,
+            };
+
+            match client.relay_a2a(&deliver_req).await {
+                Ok(_) => {
+                    success_count += 1;
+                    info!(
+                        target_node = %node.node_id,
+                        secret = %spec.canonical_env,
+                        "Clavis secret sync successful"
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        target_node = %node.node_id,
+                        secret = %spec.canonical_env,
+                        error = %e,
+                        "Clavis secret sync failed"
+                    );
+                    println!("    error: failed to deliver {} to {}: {}", spec.canonical_env, url, e);
+                    fail_count += 1;
+                }
+            }
+        }
+    }
+
+    println!("sync complete. {} successes, {} failures.", success_count, fail_count);
     Ok(())
 }

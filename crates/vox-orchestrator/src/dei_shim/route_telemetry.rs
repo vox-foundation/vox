@@ -32,10 +32,10 @@ pub struct ModelRouteEvent {
 
 /// Emit a structured tracing event consumable by log aggregators.
 ///
-/// Target `vox_dei::model_route` can be filtered in `RUST_LOG`.
+/// Target `vox_orchestrator::model_route` can be filtered in `RUST_LOG`.
 pub fn emit_model_route(ev: &ModelRouteEvent) {
     tracing::info!(
-        target: "vox_dei::model_route",
+        target: "vox_orchestrator::model_route",
         route_source = ev.route_source,
         task_category = %ev.task_category,
         model_id = %ev.model_id,

@@ -23,6 +23,7 @@ data-encoding = { workspace = true }
 keyring = { workspace = true }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 vox-mesh-types = { workspace = true }
+vox-orchestrator-types = { workspace = true }
 workspace-hack = { workspace = true }
 
 [features]

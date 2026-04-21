@@ -9,22 +9,9 @@ pub use vox_config::inference::{
     huggingface_hub_token, local_ollama_populi_base_url, openrouter_api_key,
 };
 
-/// OpenAI-compatible chat completions URL for the Hugging Face **Inference Providers** router.
-///
-/// See: [HF Inference Providers — OpenAI-compatible API](https://huggingface.co/docs/inference-providers/en/index).
+pub use vox_orchestrator_types::{HuggingFaceDedicatedEndpoint, HuggingFaceRouterEndpoint};
 pub const HF_ROUTER_CHAT_COMPLETIONS_URL: &str =
     "https://router.huggingface.co/v1/chat/completions";
-
-/// Resolved router endpoint for chat; bearer token is optional for some public models but usually required.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HuggingFaceRouterEndpoint {
-    /// Model id as understood by the router (may include provider suffix).
-    pub model: String,
-    /// Full OpenAI-compatible chat completions URL for this router.
-    pub chat_completions_url: String,
-    /// Optional `Authorization: Bearer` token (HF hub token when set).
-    pub bearer_token: Option<String>,
-}
 
 /// Build a HF router chat endpoint for `model`, filling the token from env when present.
 pub fn resolve_huggingface_router(model: impl Into<String>) -> HuggingFaceRouterEndpoint {
@@ -34,17 +21,6 @@ pub fn resolve_huggingface_router(model: impl Into<String>) -> HuggingFaceRouter
         bearer_token: huggingface_hub_token(),
         model,
     }
-}
-
-/// Pinned **Inference Endpoint** (dedicated deployment) with an explicit OpenAI-compatible chat URL.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HuggingFaceDedicatedEndpoint {
-    /// Model id served by the dedicated deployment.
-    pub model: String,
-    /// Deployment-specific OpenAI-compatible chat completions URL.
-    pub chat_completions_url: String,
-    /// Bearer token for the dedicated endpoint, if required.
-    pub bearer_token: Option<String>,
 }
 
 /// Resolve a dedicated endpoint: uses the same HF token env vars as the router.
@@ -218,7 +194,7 @@ pub async fn probe_populi_capabilities(base_url: &str) -> PopuliCapabilitySnapsh
     };
 
     tracing::info!(
-        target: "vox_dei::model_route",
+        target: "vox_orchestrator::model_route",
         base_url = %snapshot.base_url,
         reachable = snapshot.reachable,
         model_count = snapshot.model_names.len(),

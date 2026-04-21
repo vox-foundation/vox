@@ -283,7 +283,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 },
                 ..Default::default()
             };
-            let temperature = if profile == "creative" {
+            let base_temperature = if profile == "creative" {
                 0.8_f32
             } else {
                 0.3_f32
@@ -325,7 +325,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         &system_prompt,
                         &routing,
                         max_tokens,
-                        temperature,
+                        base_temperature,
+                        params.temperature,
+                        params.top_p,
                         params.json_mode,
                         params.attachment_manifest.clone(),
                     )
@@ -353,6 +355,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         &system_prompt,
                         &user_prompt,
                         Some(session_id.as_str()),
+                        params.temperature,
+                        params.top_p,
                         params.attachment_manifest.clone(),
                     )
                     .await
@@ -374,6 +378,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             &system_prompt,
             &user_prompt,
             Some(session_id.as_str()),
+            params.temperature,
+            params.top_p,
             params.attachment_manifest.clone(),
         )
         .await

@@ -27,6 +27,7 @@ rand = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
 blake3 = { workspace = true }
 aes-gcm = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
 workspace-hack = { workspace = true }
 
 [lints]

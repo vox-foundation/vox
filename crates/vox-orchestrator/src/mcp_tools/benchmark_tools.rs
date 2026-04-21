@@ -76,7 +76,7 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
                         }
                     }
                 };
-                match db.query_build_regressions(&rid, run_id).await {
+                match db.query_build_regressions(&rid, run_id, 0.0).await {
                     Ok(v) => ToolResult::ok(serde_json::json!(v)).to_json(),
                     Err(e) => {
                         ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB)

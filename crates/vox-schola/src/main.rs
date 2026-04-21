@@ -2,6 +2,7 @@
 //!
 //! Handles scientific publication, finding candidates, and novelty ledger management.
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -70,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
         .spawn()
         .context("Failed to spawn vox-cli proxy")?;
 
-    let status = child.wait().await?;
+    let status: std::process::ExitStatus = child.wait().await?;
     if !status.success() {
         std::process::exit(status.code().unwrap_or(1));
     }

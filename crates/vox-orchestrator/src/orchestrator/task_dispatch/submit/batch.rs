@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use super::super::super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, TaskTraceStep};
+#[cfg(feature = "runtime")]
 use super::AGENT_NOTIFY_TIMEOUT;
 use super::attention_fields::{populate_task_attention_fields, submission_approval_block_reason};
 
@@ -191,9 +192,16 @@ impl Orchestrator {
                     crate::sync_lock::rw_write(&*self.task_assignments).insert(my_id, agent_id);
 
                     // Grab the handle for notification outside the agents lock
-                    crate::sync_lock::rw_read(&*self.agent_handles)
-                        .get(&agent_id)
-                        .cloned()
+                    #[cfg(feature = "runtime")]
+                    {
+                        crate::sync_lock::rw_read(&*self.agent_handles)
+                            .get(&agent_id)
+                            .cloned()
+                    }
+                    #[cfg(not(feature = "runtime"))]
+                    {
+                        None::<()>
+                    }
                 } else {
                     cleanup_claims();
                     return Err(OrchestratorError::AgentNotFound(agent_id));
@@ -201,6 +209,7 @@ impl Orchestrator {
             };
 
             // Notify outside all locks
+            #[cfg(feature = "runtime")]
             if let Some(handle) = handle_to_notify {
                 let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
                     .unwrap_or_else(|e| {
@@ -211,6 +220,7 @@ impl Orchestrator {
                     from: vox_runtime::Pid::new(),
                     payload: vox_runtime::mailbox::MessagePayload::Json(json),
                 });
+                let handle: &vox_runtime::process::ProcessHandle = &handle;
                 match tokio::time::timeout(AGENT_NOTIFY_TIMEOUT, handle.send(env)).await {
                     Ok(send_res) => {
                         if let Err(e) = send_res {

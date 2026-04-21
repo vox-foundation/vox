@@ -48,6 +48,7 @@ impl crate::orchestrator::Orchestrator {
             dynamic_agents: Arc::new(RwLock::new(std::collections::HashSet::new())),
             agent_delegations: Arc::new(RwLock::new(HashMap::new())),
             dynamic_spawn_context: Arc::new(RwLock::new(HashMap::new())),
+            #[cfg(feature = "runtime")]
             agent_handles: Arc::new(RwLock::new(HashMap::new())),
             heartbeat_monitor: Arc::new(RwLock::new(crate::heartbeat::HeartbeatMonitor::new(
                 config.stale_threshold_ms,
@@ -107,6 +108,7 @@ impl crate::orchestrator::Orchestrator {
             dynamic_agents: Arc::new(RwLock::new(std::collections::HashSet::new())),
             agent_delegations: Arc::new(RwLock::new(HashMap::new())),
             dynamic_spawn_context: Arc::new(RwLock::new(HashMap::new())),
+            #[cfg(feature = "runtime")]
             agent_handles: Arc::new(RwLock::new(HashMap::new())),
             heartbeat_monitor: Arc::new(RwLock::new(crate::heartbeat::HeartbeatMonitor::new(
                 config.stale_threshold_ms,

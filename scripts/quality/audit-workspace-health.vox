@@ -127,6 +127,25 @@ fn main() {
         }
     }
     
+    // 3. Telemetry Freshness Audit
+    print("\nAuditing telemetry scoreboard freshness...");
+    let scoreboard_res = process.run("cmd", ["/c", vox_bin + " model scoreboard --format json"]);
+    if scoreboard_res is not null {
+        if scoreboard_res.code == 0 {
+            let rows = json.parse(scoreboard_res.stdout);
+            if rows is not null {
+                if len(rows) > 0 {
+                    print("  ✅ Scoreboard has " + len(rows) + " active model profiles.");
+                } else {
+                    print("  ⚠️ Scoreboard is empty. Model routing will fall back to static defaults.");
+                }
+            }
+        } else {
+            print("  ❌ Failed to query model scoreboard.");
+            violations = violations + 1;
+        }
+    }
+
     if violations > 0 {
         print("\n❌ Workspace Health Audit failed with " + violations + " issues.");
         print("Architectural integrity is drifting. See docs/src/architecture/dependency-governance.md");

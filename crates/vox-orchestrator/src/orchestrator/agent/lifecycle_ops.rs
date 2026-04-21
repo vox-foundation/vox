@@ -24,6 +24,7 @@ impl crate::orchestrator::Orchestrator {
                 delegations.retain(|_, binding| binding.parent_agent_id != agent_id);
             }
             crate::sync_lock::rw_write(&*self.dynamic_spawn_context).remove(&agent_id);
+            #[cfg(feature = "runtime")]
             crate::sync_lock::rw_write(&*self.agent_handles).remove(&agent_id);
             crate::sync_lock::rw_write(&*self.heartbeat_monitor).unregister(agent_id);
 

@@ -11,6 +11,7 @@ mod guards;
 mod hash;
 mod matrix;
 pub(crate) mod mens;
+mod orchestration_audit;
 mod syntax_k;
 mod timings;
 
@@ -34,5 +35,6 @@ pub(crate) use mens::{
     run_collateral_damage_gate, run_constrained_gen_smoke, run_grpo_reward_baseline,
     run_mens_corpus_health,
 };
+pub(crate) use orchestration_audit::run_ssot_audit;
 pub(crate) use syntax_k::run_k_complexity_budget;
 pub(crate) use timings::run_build_timings;

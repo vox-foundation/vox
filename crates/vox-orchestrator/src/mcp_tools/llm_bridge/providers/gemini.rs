@@ -10,10 +10,12 @@ pub(crate) async fn http_gemini_with_metadata(
     client: &reqwest::Client,
     model_id: &str,
     api_key: &str,
+    spec: &crate::models::ModelSpec,
     system: &str,
     user: vox_openai_wire::ChatMessageContent<'_>,
     max_tokens: u64,
-    temperature: f32,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
     json_mode: bool,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let url = format!(
@@ -86,6 +88,7 @@ pub(crate) async fn http_gemini_with_metadata(
         }],
         generation_config: GeminiGenCfg {
             temperature,
+            top_p,
             max_output_tokens: max_tokens.min(u32::MAX as u64) as u32,
             response_mime_type,
         },
@@ -145,13 +148,16 @@ pub(crate) async fn http_gemini_with_metadata(
         .and_then(|u| u.candidates_token_count)
         .unwrap_or(0);
 
+    let estimated_usd = (prompt_t as f64 / 1000.0) * spec.cost_per_1k_input
+        + (out_t as f64 / 1000.0) * spec.cost_per_1k_output;
+
     Ok((
         text,
         prompt_t,
         out_t,
         HttpCallMetadata {
             provider_request_id,
-            provider_reported_cost_usd: None,
+            provider_reported_cost_usd: Some(estimated_usd),
         },
     ))
 }

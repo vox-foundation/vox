@@ -95,7 +95,6 @@ OUTPUT RULES:
         }
     };
     let max_tokens = clamp_http_max_output_tokens(model.max_tokens);
-    let temperature = 0.3_f32;
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
         sticky_model_pref: pref.as_deref(),
@@ -113,9 +112,11 @@ OUTPUT RULES:
         &system_prompt,
         &routing,
         max_tokens,
-        temperature,
+        0.3,
+        params.temperature,
+        params.top_p,
         params.json_mode,
-        None,
+        params.attachment_manifest,
     )
     .await
     {

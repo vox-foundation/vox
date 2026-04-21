@@ -152,6 +152,11 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         requires_approval: None,
         socrates_context: None,
         attachment_manifest: None,
+        budget: params.budget.as_ref().map(|b| crate::Budget {
+            max_cost_usd: b.max_cost_usd,
+            max_latency_ms: b.max_latency_ms,
+        }),
+        trace_id: params.trace_id.clone(),
     })
 }
 

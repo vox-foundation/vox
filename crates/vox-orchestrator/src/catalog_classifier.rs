@@ -1,4 +1,4 @@
-use crate::models::ModelSpec;
+use crate::models::{ModelSpec, StrengthTag};
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
@@ -10,7 +10,7 @@ struct ClassificationResponse {
     uptime_score: f32,
     /// Refined list of strengths based on meta-analysis.
     #[serde(default)]
-    refined_strengths: Vec<String>,
+    refined_strengths: Vec<StrengthTag>,
 }
 
 /// Applies meta-model classification to dynamically tag model strengths and populate uptime_score.
@@ -46,9 +46,9 @@ pub async fn classify_models(models: &mut [ModelSpec]) {
             m.capabilities.uptime_score = Some(health);
         }
 
-        // Meta-classification: if model is extremely large context, tag as 'long-context-analysis'
-        if m.max_tokens >= 128_000 && !m.strengths.contains(&"long-context".to_string()) {
-            m.strengths.push("long-context".to_string());
+        // Meta-classification: if model is extremely large context, tag as 'long-context'
+        if m.max_tokens >= 128_000 && !m.strengths.contains(&StrengthTag::LongContext) {
+            m.strengths.push(StrengthTag::LongContext);
         }
     }
 }

@@ -73,6 +73,40 @@ pub struct LogInteractionParams<'a> {
     pub token_count: Option<i64>,
 }
 
+/// Parameters for [`crate::VoxDb::record_llm_outcome`].
+#[derive(Debug, Clone)]
+pub struct ModelOutcome<'a> {
+    pub session_id: &'a str,
+    pub user_id: Option<&'a str>,
+    pub prompt: &'a str,
+    pub response: &'a str,
+    pub model_id: &'a str,
+    pub provider: &'a str,
+    pub task_category: &'a str,
+    pub strength_tag: &'a str,
+    pub latency_ms: Option<i64>,
+    pub input_tokens: Option<i64>,
+    pub output_tokens: Option<i64>,
+    pub cache_read_tokens: Option<i64>,
+    pub trace_id: Option<&'a str>,
+    pub context_utilization_pct: Option<f64>,
+    pub success: bool,
+    pub cost_usd: Option<f64>,
+    pub quality_score: Option<f64>,
+}
+
+/// A report on a single LLM request attempt (success or failure).
+#[derive(Debug, Clone)]
+pub struct ModelAttempt<'a> {
+    pub trace_id: &'a str,
+    pub attempt_number: i32,
+    pub model_id: &'a str,
+    pub provider: &'a str,
+    pub outcome: &'a str,
+    pub latency_ms: Option<i64>,
+    pub error_class: Option<&'a str>,
+}
+
 /// Parameters for [`crate::VoxDb::save_snippet`].
 #[derive(Debug, Clone)]
 pub struct SaveSnippetParams<'a> {

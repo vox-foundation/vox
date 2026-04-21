@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+#[cfg(feature = "runtime")]
 pub(super) const AGENT_NOTIFY_TIMEOUT: Duration = Duration::from_secs(30);
 
 mod attention_fields;
