@@ -2,7 +2,7 @@
 title: "Codex / Arca compatibility boundaries"
 description: "Official documentation for Codex / Arca compatibility boundaries for the Vox language. Detailed technical reference, architecture guides,"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -66,4 +66,5 @@ Subscriptions, change logs, invalidation, and HTTP streaming are **Codex capabil
 - [Direct Turso usage allowlist](codex-turso-allowlist.md)
 - [Forward migration charter](forward-migration-charter.md)
 - [Doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md)
+
 

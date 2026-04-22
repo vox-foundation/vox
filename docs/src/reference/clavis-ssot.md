@@ -2,7 +2,7 @@
 title: "Clavis SSOT"
 description: "Canonical secret-management source of truth for Vox Clavis"
 category: "reference"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -151,3 +151,4 @@ For each managed secret ID:
 - ANTHROPIC_TUNING_TOP_P
 - TOGETHER_TUNING_TEMPERATURE
 - TOGETHER_TUNING_TOP_P
+

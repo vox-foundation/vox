@@ -4,7 +4,7 @@ description: "Research synthesis on instruction layering, document-shaped skills
 category: "architecture"
 status: "research"
 sort_order: 13
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -152,4 +152,5 @@ flowchart TB
 - [https://jamanetwork.com/journals/jama/fullarticle/2816213](https://jamanetwork.com/journals/jama/fullarticle/2816213)
 - [https://www.crossref.org/documentation/schema-library/required-recommended-elements/](https://www.crossref.org/documentation/schema-library/required-recommended-elements/)
 - [https://help.zenodo.org/docs/github/describe-software/](https://help.zenodo.org/docs/github/describe-software/)
+
 

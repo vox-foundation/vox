@@ -4,7 +4,7 @@ description: "Grounded implementation plan for making Vox's CSS emission auditab
 category: "architecture"
 status: "roadmap"
 sort_order: 6
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Defines the concrete path from raw string CSS emission to a typed, validated style IR that tools and AI agents can reason about without a browser."
 archived_date: 2026-04-18
@@ -355,4 +355,5 @@ graph TD
 - **[Web Framework Interop Backlog](web-framework-interop-backlog-2026.md)** — Item `CSS emission` (Wave-specific items should be extracted here once sequencing is confirmed).
 - **[Web Architecture Analysis](web-architecture-analysis-2026.md)** — Section 1.3 notes CSS scoped modules at ~30 lines of complexity; Wave 4 likely triples that, which is acceptable given the scope guarantee it provides.
 - **[Internal Web IR Blueprint](internal-web-ir-implementation-blueprint.md)** — Style stage `S` items in OP-0059 / CP-031 are directly extended by Waves 1–3.
+
 

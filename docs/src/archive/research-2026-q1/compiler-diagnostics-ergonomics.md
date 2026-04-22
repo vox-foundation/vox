@@ -4,7 +4,7 @@ description: "Policy for miette vs custom diagnostics, error layers, and how con
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -90,4 +90,5 @@ Example:
 - `crates/vox-compiler/src/parser/error.rs`
 - `crates/vox-compiler/src/typeck/diagnostics.rs`
 - `crates/vox-lsp/src/lib.rs` (diagnostic mapping)
+
 

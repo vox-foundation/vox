@@ -2,7 +2,7 @@
 title: "React interop migration backlog (2026)"
 description: "Granular checklist derived from the mega-plan workstreams (WS01–WS26). Use with react-interop-migration-charter-2026.md."
 category: "architecture"
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -75,4 +75,5 @@ This file tracks **expandable** workstream tasks (T001–T260). The authoritativ
   - **Single-emitter default:** retire or gate parallel JSX / `hir_emit` paths per [internal-web-ir-implementation-blueprint.md](./internal-web-ir-implementation-blueprint.md) acceptance gates — reduces drift between “legacy emit” and WebIR-validated manifests.
   - **Autofix migrations + CI hybrid matrix:** follow blueprint §CI / autofix notes when flipping the default emitter (keeps golden + integration matrix green).
   - **tree-sitter-vox `routes` grammar:** extend [`tree-sitter-vox/`](../../../tree-sitter-vox/) ([`grammar.js`](../../../tree-sitter-vox/grammar.js)) so editor + corpus parsers match [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs) surface (`with loader:`, nested `routes`, `not_found:` / `error:`).
+
 

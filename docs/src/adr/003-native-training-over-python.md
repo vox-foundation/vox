@@ -2,7 +2,7 @@
 title: "ADR 003 — Native Rust Training Over Python"
 description: "Historical move off Python/Unsloth; current Mens training is native Candle + qlora-rs QLoRA via vox mens train (see mens-training SSOT)."
 category: "reference"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -86,3 +86,5 @@ The original Mens training pipeline used `mens/training/train.py` (Python, Unslo
 - [Native ML training pipeline](../explanation/expl-ml-pipeline.md)  
 - `crates/vox-tensor/src/data.rs`, `crates/vox-cli/src/training/`  
 - [Burn ML framework](https://burn.dev)  
+
+

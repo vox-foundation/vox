@@ -4,7 +4,7 @@ description: "Architecture and design principles for LLM-driven CLI command gene
 category: "architecture"
 status: "current"
 sort_order: 10
-last_updated: 2026-04-10
+last_updated: "2026-04-10"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -92,4 +92,5 @@ When maintaining or extending the `vox-cli`:
 - **Do not introduce implicit text behaviors:** Ensure side effects and modifiers are represented directly in the command struct.
 - **Maintain Contract Parity:** Every new command merged into the `clap` parser MUST first be defined in the schema inside `contracts/operations/catalog.v1.yaml`. Our integration tests (`vox-integration-tests`) continuously cross-validate the active `clap` AST against this YAML contract to prevent undocumented feature drift. 
 - **Fail Fast:** If manual string manipulation is found inside a CLI action handler (e.g., parsing a raw string flag instead of using `clap`'s typed value parsers), it violates this standard and will break MENS context generation.
+
 

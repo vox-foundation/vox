@@ -2,7 +2,7 @@
 title: "Command surface duals (intentional)"
 description: "Official documentation for Command surface duals (intentional) for the Vox language. Detailed technical reference, architecture guides, a"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -27,3 +27,5 @@ Some behaviors exist in more than one place by design:
 | **`vox completions <shell>`** | Shell completion output (bash/zsh/fish/powershell/elvish); no script dual required. |
 
 There is **no** `vox clean` subcommand; benchmarks and docs must not assume one — clear caches by deleting the relevant dirs (e.g. `~/.vox/script-cache*`) or use feature-specific tooling.
+
+

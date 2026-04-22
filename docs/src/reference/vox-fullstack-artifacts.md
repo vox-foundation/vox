@@ -2,7 +2,7 @@
 title: "Vox full-stack build artifacts — single source of truth"
 description: "Official documentation for Vox full-stack build artifacts — single source of truth for the Vox language."
 category: "reference"
-last_updated: 2026-04-07
+last_updated: "2026-04-07"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -51,3 +51,5 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — `VOX_SSR_DEV_URL`, `VOX_ORCHESTRATE_VITE`.
 - [ref-cli.md](cli.md) — CLI surface.
+
+

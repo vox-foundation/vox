@@ -2,7 +2,7 @@
 title: "Contributing — Mens native training"
 description: "Onboarding for vox-populi tensor, vox mens train paths, and the golden corpus flywheel."
 category: "how-to"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 
 schema_type: "HowTo"
 ---
@@ -66,3 +66,4 @@ A PR contributing to the MENS pipeline is "done" when:
 ## SSOT rule
 
 **Candle QLoRA** is the active `vox mens train` backend; keep docs and error messages aligned (`lora_train.rs` is authoritative when in doubt).
+

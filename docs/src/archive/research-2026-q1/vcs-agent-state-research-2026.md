@@ -4,7 +4,7 @@ description: "Research on using Jujutsu, Sapling, and other VCS strategies to au
 category: "architecture"
 status: "research"
 sort_order: 6
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: false
 training_rationale: "Research document outlining foundational data shapes for the project"
 
@@ -85,4 +85,5 @@ Given our Windows operational footprint:
 1.  **Harden the JjBridge:** Ensure the `flush_change()` seam is robustly integrated into the agent lifecycle loop so artifacts are saved non-interactively.
 2.  **Expose `undo` to the AI Context:** Give the agent orchestrator the semantic ability to trigger reversions upon detecting a failed execution trace, leveraging `jj op undo`.
 3.  **Deprecate Manual Agent Git Tools:** Remove the agent's direct access to `run_command("git add ...")`, routing all version control actions through the internal `JjBridge` snapshot pipeline to ensure security and auditability.
+
 

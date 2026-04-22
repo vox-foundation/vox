@@ -2,7 +2,7 @@
 title: "ADR 001 — Burn Backend Selection for vox-tensor"
 description: "Official documentation for ADR 001 — Burn Backend Selection for vox-tensor for the Vox language. Detailed technical reference, architectu"
 category: "reference"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -87,3 +87,5 @@ We chose Burn for the **small scratch transformer + wgpu** loop in `vox-tensor`.
 - [Burn framework](https://burn.dev)
 - `crates/vox-tensor/src/vox_nn.rs` — VoxTransformer implementation (`gpu` feature)
 - `crates/vox-cli/src/training/native.rs` — Training loop
+
+

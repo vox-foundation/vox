@@ -2,7 +2,7 @@
 title: "Rust pattern modernization — Wave 0 baseline"
 description: "Official documentation for Rust pattern modernization — Wave 0 baseline for the Vox language. Detailed technical reference, architecture "
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -58,3 +58,4 @@ Use [crate hardening matrix](crate-hardening-matrix.md) for per-crate feature fl
 - [Forward migration charter](../architecture/forward-migration-charter.md)
 - [Workflow enumeration](workflow-enumeration.md)
 - [Crate hardening matrix](crate-hardening-matrix.md)
+

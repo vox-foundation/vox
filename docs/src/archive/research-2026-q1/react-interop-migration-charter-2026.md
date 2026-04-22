@@ -2,7 +2,7 @@
 title: "React interop full-repo migration charter (2026)"
 description: "Governance, KPIs, cutover policy, and completion checkpoints for the framework-agnostic React + islands + v0/shadcn/Tailwind migration."
 category: "architecture"
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -86,4 +86,5 @@ Full numeric gates (G1–G6) and file/test mapping: [internal-web-ir-implementat
 4. **`vox stub-check --path`** on touched compiler/cli dirs; no TOESTUB in product paths.
 5. Docs: mark **historical** TanStack-only specs; SSOT narrative stays **manifest-first** ([`vox-web-stack.md`](../reference/vox-web-stack.md)).
 6. CI runner labels follow [runner-contract.md](../ci/runner-contract.md) unless documented exception.
+
 

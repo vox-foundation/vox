@@ -2,7 +2,7 @@
 title: "Mens external technology options"
 description: "Adoption shortlist for constrained decoding, evaluation methodology, and documentation-to-code retrieval patterns relevant to VoxMens."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -326,3 +326,4 @@ If the remaining failures are still dominated by:
 then the next investment should still be in **architecture around the model**, not necessarily a new model.
 
 If those are largely solved and the model still cannot reason in Vox-specific ways, then the case for a more custom model lane becomes much stronger.
+

@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -57,4 +57,5 @@ The empirical evidence and emerging research literature from 2026 converge to pr
 4. **Decoupling Logic from Formatting:** To entirely avoid the Alignment Tax, the LLM should be tasked with generating raw functional logic completely separately from memory management, dependency tracking, or formatting constraints. By minimizing the structural granularity required during the forward-generation pass, the LLM can dedicate its full attention mechanisms to semantic correctness, leaving the deterministic compiler to handle state enforcement and structural validation.20
 
 The core hypothesis holds true under specific architectural conditions: strict type systems absolutely reduce LLM hallucination rates, provided the language is explicitly engineered to minimize the cognitive tax of writing those types. Vox must evolve beyond being a language of syntax, establishing itself as a deterministic framework of explicitly verified intent.
+
 

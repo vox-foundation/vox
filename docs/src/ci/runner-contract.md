@@ -2,7 +2,7 @@
 title: "CI runner contract"
 description: "Official documentation for CI runner contract for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "reference"
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -89,3 +89,4 @@ Individual async tests can still wrap work in **`tokio::time::timeout`** so plai
 ## Workflow list
 
 See [workflow enumeration](workflow-enumeration.md).
+

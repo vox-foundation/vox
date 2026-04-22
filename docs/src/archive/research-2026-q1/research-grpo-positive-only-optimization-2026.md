@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -40,4 +40,5 @@ To combat this, frameworks utilize "Anna Karenina sampling" to artificially cons
 In code generation specifically, treating compilation and parse failures as hard negatives directly inside the PPO or GRPO objective creates a robust "contrastive" learning environment. The model learns exactly which tokens and structural choices cause a syntax error, rather than blindly learning that a specific, highly-formatted sequence is "good".61
 
 *Evidence Quality Rating:* **Strong**. Extensive algorithmic literature from 2025 and 2026 (including GLOW, SPoT, NSR, and TOPR) precisely isolates the detrimental effects of positive-only training and provides mathematical proofs supporting unified negative reinforcement in reasoning LLMs.
+
 

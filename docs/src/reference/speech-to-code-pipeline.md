@@ -2,7 +2,7 @@
 title: "Speech-to-code pipeline (Oratio → MCP → compiler → MENS)"
 description: "Architecture and contracts for spoken input to validated Vox code."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -51,3 +51,4 @@ MCP `validate_file` and `generate_vox_code` validation retries use **`validate_d
 - [Operations / security / rollout](speech-to-code-operations.md)
 - [MENS training](mens-training.md)
 - [MENS speech curriculum](mens-speech-curriculum.md)
+

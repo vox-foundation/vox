@@ -3,7 +3,7 @@ title: "Telemetry unification research findings 2026"
 description: "Research synthesis for privacy-preserving, trust-first telemetry unification in Vox, including political risk analysis, safe data boundaries, and strategic direction."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -310,4 +310,5 @@ Vox can expand telemetry safely, but only if telemetry is treated as a user trus
 The project already has strong technical building blocks. The critical next step is to preserve legitimacy through strict data boundaries, explicit controls, inspectability, and transparent change management.
 
 Any subsequent implementation blueprint should inherit this trust model as a non-negotiable constraint.
+
 

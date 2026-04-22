@@ -2,7 +2,7 @@
 title: "Feature growth boundaries"
 description: "SSOT for where Vox should add app capability first: WebIR, AppContract, RuntimeProjection, builtin registry, and approved bindings."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -63,4 +63,5 @@ cargo test -p vox-compiler --test projection_parity
 ```
 
 `.github/workflows/ci.yml` runs `cargo test -p vox-compiler --test projection_parity` on the main pipeline. Extend this test (not ad-hoc snapshots) when adding new fields to any of the three contract structs so drift is caught in one place.
+
 

@@ -3,7 +3,7 @@ title: "VoxScript as Universal Glue Code — Implementation Plan 2026"
 description: "Phased roadmap for decommissioning legacy shell/PowerShell technical debt and standardizing on native .vox automation."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: false
 training_rationale: "Unifies automation surface and reduces environment-specific failure modes."
 
@@ -77,4 +77,5 @@ The Vox project is standardizing on native `.vox` scripts for all project automa
 
 - `vox ci script-hygiene` (to be implemented) will check all `.vox` files for syntax and capability compliance.
 - All documents in `docs/` must link to the new native paths.
+
 

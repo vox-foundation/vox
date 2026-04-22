@@ -2,7 +2,7 @@
 title: "ADR 014: async-openai selective adoption (spike outcome)"
 description: "Bounded spike: whether to adopt the async-openai crate after internal OpenAI-compat unification"
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -38,3 +38,5 @@ Evaluate [`async-openai`](https://crates.io/crates/async-openai) for **strictly 
 
 - `vox-openai-wire`, `vox-openai-sse`, `vox-reqwest-defaults`, `vox-runtime` LLM modules.
 - Maintainability plan Phase 4 / `async-openai` spike item — this ADR records the outcome.
+
+

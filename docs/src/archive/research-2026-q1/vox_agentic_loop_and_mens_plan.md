@@ -3,7 +3,7 @@ title: "Vox Agentic Loop Overhaul + MENS Syntax-Intelligence Blueprint"
 description: "254-task implementation blueprint covering OOPAV agent loop, MENS grammar-aware training, and GRPO reinforcement learning."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -508,4 +508,5 @@ archived_date: 2026-04-18
 **Observer separate from Verifier:** Verifier is synchronous and post-hoc. Observer is asynchronous and continuous — allows Act to proceed without blocking while still delivering mid-flight course-corrections via `TriggerReplan`.
 
 **MCP pre-emit failures as negative examples:** Each failure is high-signal teaching data. Invalid LLM-generated code becomes a structured negative pair (error = correction signal), closing the training loop organically without human annotation.
+
 

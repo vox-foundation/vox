@@ -3,7 +3,7 @@ title: "Legacy retirement roadmap (2026)"
 description: "Machine-readable guide identifying retired and retiring code pathways in Vox. Prevents LLMs and contributors from building on deprecated surfaces. Last research audit: 2026-04-06."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-10
+last_updated: "2026-04-10"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -132,4 +132,5 @@ The following surfaces are stable and canonical — new code should live here:
 - [Script surface audit](script-surface-audit.md) — script lifecycle tracking
 - [Boilerplate reduction roadmap](vox-boilerplate-reduction-master-roadmap.md) — Stream H (CLI/MCP) and Stream C (HIR debt)
 - Research backing: `legacy-retirement-research.md` (conversation artifact, April 2026)
+
 

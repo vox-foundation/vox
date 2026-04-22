@@ -2,7 +2,7 @@
 title: "Rosetta Inventory: One Scenario, Four Languages"
 description: "The same inventory merge across C++, Rust, Python, and Vox — not to show who wins, but to show what each language reveals about the problem."
 category: "explanation"
-last_updated: 2026-04-14
+last_updated: "2026-04-14"
 status: "current"
 training_eligible: true
 keywords: [
@@ -401,3 +401,4 @@ Your constraints are real, but they are defined by your model of the world. Vox'
 - [Language Reference](../reference/ref-syntax.md) 
 - [Golden Examples](../examples/golden.md)
 - [Why Vox for AI](why-vox-for-ai.md)
+

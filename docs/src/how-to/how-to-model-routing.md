@@ -2,7 +2,7 @@
 title: "Model Routing & Provider Cascade"
 description: "Official documentation for Model Routing & Provider Cascade for the Vox language. Detailed technical reference, architecture guides, and "
 category: "how-to"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -228,3 +228,5 @@ Operational MCP tools for rollout verification:
 | **OpenRouter key** | `vox_config::inference::openrouter_api_key()` (env `OPENROUTER_API_KEY`). |
 | **Hugging Face token** | `vox_config::inference::huggingface_hub_token()` (`HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN`). |
 | **Research stage models** | Defaults come from `ModelRegistry::best_for_config` per stage (`research::model_select::resolve_research_models`). Last-resort string fallbacks exist only if the registry returns no candidate. |
+
+

@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -59,4 +59,5 @@ Recent optimization literature specifically addresses this low-rollout regime th
 Furthermore, applying an unstable $k=8$ GRPO loop to a highly sparse dataset (< 500 pairs) virtually guarantees rapid reward collapse and catastrophic overfitting. The model will memorize the statistical quirks of the 500 pairs rather than learning generalized code synthesis.8
 
 *Evidence Quality Rating:* **Strong**. The VRAM efficiency of GRPO via the elimination of the value network is a mathematical fact. The instability of $k=8$ sampling and the necessity of algorithmic modifications (DAPO, MC-GRPO) are extensively supported by cutting-edge 2025/2026 optimization literature.
+
 

@@ -3,7 +3,7 @@ title: "Context management implementation blueprint"
 description: "Epic structure, capability decomposition, delivery schema, and implementation mechanics for the Vox context-management program."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-03-30
+last_updated: "2026-03-30"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -589,4 +589,5 @@ The preferred rollout path is always:
 The prioritized first implementation wave lives in:
 
 - [Context management phase 1 backlog](context-management-phase1-backlog.md)
+
 

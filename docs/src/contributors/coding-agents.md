@@ -3,7 +3,7 @@ title: "Coding Agent Instructions"
 description: "Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox."
 category: "contributor"
 status: "current"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: true
 training_rationale: "High-signal quick-reference loaded as agent context; each section is a directly actionable rule."
 
@@ -92,3 +92,4 @@ Research: [AI agent panic and shortcut pathology](../architecture/research-ai-pa
 ## Enforcement
 
 Operations are checked by `AGENTS.md` + CI. Prefer decomposition over shell cleverness. When in doubt, read the SSOT.
+

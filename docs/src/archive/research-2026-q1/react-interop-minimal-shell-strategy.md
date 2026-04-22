@@ -2,7 +2,7 @@
 title: "Minimal React Interop Shell Strategy"
 description: "Architectural strategy for supporting the React ecosystem (including v0.dev) and modern frameworks (Next.js, TanStack) without tightly coupling the Vox compiler to any single framework's complex routing or SSR APIs."
 category: "architecture"
-last_updated: 2026-04-07
+last_updated: "2026-04-07"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -101,4 +101,5 @@ The **Minimal Shell Strategy** is exactly the 90-95% solution. It isolates the h
 4.  **Pivot server functions:** Change `@query` to generate a standard typed fetch SDK rather than tying directly to `createServerFn`.
 
 This allows Vox to remain maintainable while giving developers the full power of the modern frontend ecosystem.
+
 

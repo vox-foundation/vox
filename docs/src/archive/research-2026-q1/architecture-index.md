@@ -4,7 +4,7 @@ description: "Guide to the current architecture, SSOT, research, and roadmap doc
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 machine_readable_companion: "../../agents/ai-ide-feature-matrix-2026.json"
 
@@ -151,4 +151,5 @@ Use these when a page describes intended implementation rather than current beha
 - If you need shipped behavior, prefer pages labeled `status: current` or pages that mirror code and contract surfaces.
 - If you need rationale, open the matching ADR or architecture authority page.
 - If you need future direction, read roadmap and planning documents as plans, not as claims of current capability.
+
 

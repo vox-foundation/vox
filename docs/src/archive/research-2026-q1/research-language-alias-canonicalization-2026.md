@@ -4,7 +4,7 @@ description: "Analysis of the negative impact of language aliases and synonymous
 category: "architecture"
 status: "research"
 sort_order: 7
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: false
 training_rationale: "Explains why synonymous tokens are retired to eliminate split-brain probability mass in language models."
 
@@ -73,4 +73,5 @@ By aggressively collapsing aliases, macros, and syntactic sugar into single, can
 - [Zero-Shot Invariants and K-Complexity](research-ts-hallucination-zero-shot-invariants-2026.md)
 - [Vox Language Focused Training SSOT](vox-lang-training-ssot-2026.md)
 - [LLM Target Language Gap Analysis 2026](llm-target-language-gap-analysis-2026.md)
+
 

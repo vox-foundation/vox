@@ -2,7 +2,7 @@
 title: "Actors & Workflows"
 description: "Deep dive into Vox's primary concurrency primitives: Persistent Actors for stateful messaging and Durable Workflows for reliable orchestration."
 category: "explanation"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 status: "current"
 training_eligible: true
 
@@ -253,3 +253,5 @@ Understanding the types of durability is crucial when reasoning about failure re
    When running via `vox run` or `vox mens` workflow, the engine tracks execution steps natively in the database. If the process dies and restarts, completed activities are short-circuited.
 3. **Compiled Rust Workflows** (Future Parity):
    Workflows that are compiled strictly down to standard Rust async equivalents do not automatically benefit from step-level replayable durability yet. This remains an active implementation target for parity with the interpreted path (see ADR-021).
+
+

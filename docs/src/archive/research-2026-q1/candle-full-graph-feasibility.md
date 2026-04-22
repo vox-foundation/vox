@@ -2,7 +2,7 @@
 title: "Feasibility: full-graph Candle training (qlora-rs)"
 description: "Official documentation for Feasibility: full-graph Candle training (qlora-rs) for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -17,4 +17,5 @@ archived_date: 2026-04-18
 **Suffix training:** CLI **`--qlora-ce-last-k K`** (default 1) applies the same embed→proxy→LM head to **multiple final token positions** per JSONL row, improving alignment with next-token LM on a sequence suffix without implementing full causal depth in Candle.
 
 **Revisit when:** Burn ships production NF4 bases + unified adapter merge parity, or qlora-rs exposes a richer block training API without forking.
+
 

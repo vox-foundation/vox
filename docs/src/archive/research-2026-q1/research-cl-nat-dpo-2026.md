@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -28,4 +28,5 @@ Recent literature validates the concept of "Negative-Aware Training" (NAT).67 By
 Rather than standard supervised fine-tuning, negative splits are optimally utilized via preference optimization frameworks. Techniques such as Direct Preference Optimization (DPO) or the recently proposed Consensus-Driven DPO (Con-DPO) natively accommodate positive/negative pairs.44 By contrasting the successful compilation attempt against the failed parse attempt, the model explicitly learns the delta between correct and incorrect logic.44
 
 **Important constraint:** Negative samples must be carefully balanced with positive samples during batching; an over-representation of failures can cause the model to become overly conservative or induce degenerate outputs.72
+
 

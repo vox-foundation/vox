@@ -2,7 +2,7 @@
 title: "Workspace root `Cargo.toml` (fix forward)"
 description: "Official documentation for Workspace root `Cargo.toml` (fix forward) for the Vox language. Detailed technical reference, architecture gui"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -41,3 +41,5 @@ The committed **`Vox.toml`** at the repo root is the manifest for **Vox package 
 
 - [Runner contract](runner-contract.md) — self-hosted CI labels; canonical **`vox ci`** narrative; optional CUDA compile gate.
 - [Workflow enumeration](workflow-enumeration.md) — where `verify_workspace_manifest` runs.
+
+

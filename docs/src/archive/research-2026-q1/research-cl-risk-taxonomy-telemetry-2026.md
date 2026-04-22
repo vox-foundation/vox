@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -50,4 +50,5 @@ As the Vox MENS architecture operates at the absolute edge of applied machine le
 - **Cross-Modal Forgetting in PEFT Matrices:** The proposed architecture combines highly structured, logical data (Vox code) with unstructured, potentially highly entropic natural language (Schola prose). How this specific combination impacts localized weight updates within a low-rank adapter matrix is not well understood.
 
 Ultimately, the Vox MENS flywheel is a highly ambitious system fraught with systemic risks. By abandoning the naive assumption that raw self-play naturally trends toward continuous improvement, and by proactively architecting robust defenses against Model Autophagy Disorder, semantic drift, and catastrophic forgetting, the system can bypass the theoretical limits of recursive degradation and achieve a stable, autonomous curriculum.
+
 

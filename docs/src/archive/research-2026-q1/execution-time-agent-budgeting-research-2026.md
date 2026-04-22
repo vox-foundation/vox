@@ -3,7 +3,7 @@ title: "Execution Time Budgeting and Agent Learning Research 2026"
 description: "Research and feasibility analysis for dynamic execution time budgeting, wait forecasting, and autonomous latency adaptation within Vox DEI and Arca architectures."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-10
+last_updated: "2026-04-10"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -62,4 +62,5 @@ An audit of the `docs/src/architecture/` boundary indicates that the project doc
 - Prefix and suffix conventions (`research-*`, `*-blueprint`, `-ssot`) systematically categorize intents. 
 - The `architecture-index.md` acts as a cohesive landing page for navigation. 
 The database of architectural knowledge scales very well for autonomous ingestion, precisely because it adheres to strict file naming and categorical domain segregation.
+
 

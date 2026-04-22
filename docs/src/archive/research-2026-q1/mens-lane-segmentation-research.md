@@ -2,7 +2,7 @@
 title: "Mens lane segmentation research"
 description: "Research groundwork for separating code-only, docs QA, chat, tool, speech, and future multimodal lanes in VoxMens training data and evaluation."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -411,4 +411,5 @@ What it does not yet have is a durable lane contract.
 That missing contract is likely one of the biggest reasons VoxMens can still drift away from the primary product goal. The model is being asked, implicitly, to be too many things at once without enough hard boundaries between those things.
 
 The second pass should therefore treat lane segmentation as foundational, not optional.
+
 

@@ -3,7 +3,7 @@ title: "Automated Testing Research for the Vox Language"
 description: "State of the art, implications, and roadmap for automated test generation including PBT, mutation testing, and LLM-driven synthesis."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-04
+last_updated: "2026-04-04"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -509,4 +509,5 @@ archived_date: 2026-04-18
 *Document created: 2026-04-04. Last updated: 2026-04-04.*  
 *Copy to canonical location when ready: `docs/src/architecture/automated-testing-research-2026.md`*  
 *Track implementation progress in `task.md` under the testing initiative.*
+
 

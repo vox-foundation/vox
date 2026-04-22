@@ -3,7 +3,7 @@ title: "CodeRabbit review coverage SSOT"
 description: "Canonical policy for full-repository CodeRabbit review coverage, lane behavior, persistence, and failure recovery in Vox."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -105,4 +105,5 @@ Use this checklist when lanes fail or reviews do not trigger:
 
 - Re-check CodeRabbit limit tables quarterly or when account tier changes.
 - Keep `crates/vox-cli/src/commands/review/coderabbit/limits.rs` synchronized with verified limits and update the verification date.
+
 

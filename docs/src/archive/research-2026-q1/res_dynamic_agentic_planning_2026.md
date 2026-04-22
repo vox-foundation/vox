@@ -3,7 +3,7 @@ title: "2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration"
 description: "Research synthesis on LLM agent planning, context management, workflow orchestration, and state persistence."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -44,4 +44,5 @@ LLMs are inherently stateless. To achieve fault tolerance and interruptible mult
 Plan generation is no longer assumed to be perfect.
 - **Neuro-Symbolic Validation**: LLM plans are validated against hard constraints before execution.
 - **Trigger-Based Replanning**: Steps contain explicit "Replan Triggers". If a step encounters an unrecoverable failure (e.g., a missing expected file), the orchestrator pauses the executor, injects the failure context into a delta-prompt, and creates a *versioned branch* of the plan to recover dynamically. 
+
 

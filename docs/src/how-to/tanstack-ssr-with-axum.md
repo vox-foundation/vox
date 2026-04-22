@@ -2,7 +2,7 @@
 title: "TanStack SSR with Axum (development topology)"
 description: "Official documentation for TanStack SSR with Axum (development topology) for the Vox language. Detailed technical reference, architecture"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -55,3 +55,5 @@ For **full-document SSR** in production, ADR 010’s **Node SSR upstream** may r
 
 - [TanStack web roadmap](../architecture/tanstack-web-roadmap.md)
 - [vox-web-stack.md](../reference/vox-web-stack.md)
+
+

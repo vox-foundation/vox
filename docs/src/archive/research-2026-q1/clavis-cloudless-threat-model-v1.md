@@ -3,7 +3,7 @@ title: "Clavis Cloudless Threat Model V1"
 description: "Threat model, source policy matrix, and break-glass governance for Clavis Cloudless hard-cut execution."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -102,4 +102,5 @@ Primary code anchors:
 3. Strict profiles do not use deprecated aliases.
 4. CI must block new direct secret env reads outside sanctioned source modules.
 5. Cloudless backend failures produce typed errors; no insecure fallback.
+
 

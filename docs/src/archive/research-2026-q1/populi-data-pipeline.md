@@ -4,7 +4,7 @@ description: "Clarifies Populi/mesh runtime data paths versus Mens training corp
 category: "architecture"
 status: "current"
 sort_order: 4
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -33,4 +33,5 @@ archived_date: 2026-04-18
 | Where do I add a **verified** `.vox` snippet for docs? | `examples/golden/` + `{{#include}}`; see [`examples.ssot.v1.yaml`](../../../examples/examples.ssot.v1.yaml). |
 | Where do mesh nodes register? | Populi HTTP client + registry—see Populi reference. |
 | What tokenizes Mens supervised strings? | **HF tokenizer** for the base model on the QLoRA path—not the Vox lexer. |
+
 

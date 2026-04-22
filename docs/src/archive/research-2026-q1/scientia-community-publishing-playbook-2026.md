@@ -4,7 +4,7 @@ description: "Comprehensive implementation plan for the multi-platform Vox Scien
 category: "architecture"
 status: "roadmap"
 sort_order: 16
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Primary implementation reference for vox-publisher community channel adapters. Replaces the first-draft playbook which contained incorrect API details and failed to reference the existing adapter structure."
 
@@ -641,4 +641,5 @@ archived_date: 2026-04-18
 | Date | Change |
 |---|---|
 | 2026-04-12 | Complete rewrite replacing first-draft playbook. Full codebase audit of `vox-publisher`, adapters, contracts, `social_retry.rs`, `syndication_outcome.rs`, `topic_packs.rs`, and `templates.rs`. 30 explicit problems identified with code-verified solutions. Dependency-ordered execution backlog across 8 waves. |
+
 

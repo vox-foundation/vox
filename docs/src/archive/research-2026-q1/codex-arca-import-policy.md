@@ -2,7 +2,7 @@
 title: "Codex, Arca, and Rust import policy"
 description: "Official documentation for Codex, Arca, and Rust import policy for the Vox language. Detailed technical reference, architecture guides, a"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -28,4 +28,5 @@ archived_date: 2026-04-18
 3. Unwired CLI modules should import **`vox_pm::` / `vox_db::` / `vox_codex`** (shim) only — the historical `vox_arca*` crate names are not used in-tree. Staging crates (e.g. minimal **`vox-orchestrator`**) follow the same rule: do not link them from **`vox-cli`** until explicitly decided.
 
 See [ADR 004](../adr/004-codex-arca-turso-ssot.md).
+
 

@@ -2,7 +2,7 @@
 title: "Agent Messaging & Orchestration Roadmap (Aspirational)"
 description: "Official documentation for Agent Messaging & Orchestration Roadmap (Aspirational) for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -48,4 +48,5 @@ This document outlines the aspirational goals for the Vox Distributed Execution 
 2. Extend chat retrieval into task-level replan orchestration when contradiction hints are detected (Immediate).
 3. Draft the HTN topology spec for `vox-orchestrator/src/queue.rs` (Q3 2026).
 4. Build the `PodManager` to enforce specialized agent teaming (Q4 2026).
+
 

@@ -2,7 +2,7 @@
 title: "Explanation: Durable Execution"
 description: "Official documentation for workflow durability in Vox's interpreted runtime, including journal semantics, replay limits, and idempotency guidance."
 category: "explanation"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -111,3 +111,5 @@ This keeps Vox from accidentally using one word for several different guarantees
 - [Workflow Tutorial](../tutorials/tut-workflow-durability.md) — Build your first durable process.
 - [Actors & Workflows](expl-actors-workflows.md) — Current implementation boundary and supported workflow semantics.
 - [Vox Language Reference](../reference/ref-syntax.md) — Syntax for workflows and activities.
+
+

@@ -2,7 +2,7 @@
 title: "Mens Coordination & Database Write Safety"
 description: "Official documentation for Mens Coordination & Database Write Safety for the Vox language. Detailed technical reference, architecture gui"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -243,3 +243,5 @@ Lock TTL defaults: 30s for file edits, 5m for long-running tasks.
 - `crates/vox-orchestrator/src/occ.rs` — OCC write guards
 - `crates/vox-db/src/circuit_breaker.rs` — DB circuit breaker
 - `crates/vox-db/src/schema/domains/sql/coordination.sql` — coordination DDL (Arca fragment; merged in `gamification_coordination.rs`)
+
+

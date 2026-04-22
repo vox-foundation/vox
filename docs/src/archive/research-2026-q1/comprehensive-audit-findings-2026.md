@@ -3,7 +3,7 @@ title: "Comprehensive Vox audit and improvement plan (April 2026, v2)"
 description: "Full-spectrum audit + ~90 prioritized improvements. Targets the 'premier LLM destination for web app code' thesis."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-18
+last_updated: "2026-04-18"
 training_eligible: false
 training_rationale: "Strategic audit context for engineering prioritization."
 schema_type: "TechArticle"
@@ -259,4 +259,5 @@ This is a *coherent* posture. The plan collapses significantly.
 Everything in the audit is still valid as a long-term backlog. But the active working set, given these four answers, is ~25 items, not 100.
 
 — End of audit v2.
+
 

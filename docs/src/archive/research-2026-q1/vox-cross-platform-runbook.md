@@ -2,7 +2,7 @@
 title: "Cross-platform Vox — runbook"
 description: "Official documentation for Cross-platform Vox — runbook for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -69,4 +69,5 @@ Rebuild with different `VOX_CLI_FEATURES` only when you need **code paths** that
 - [Mens SSOT](../reference/populi.md)
 - [Mobile / edge AI SSOT](../reference/mobile-edge-ai.md)
 - [Vox full-stack web UI SSOT](../reference/vox-web-stack.md)
+
 

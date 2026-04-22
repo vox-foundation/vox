@@ -2,7 +2,7 @@
 title: "Weighted deep planning manual"
 description: "Comprehensive planning reference with token-weighted depth guidance so high-risk areas receive proportionally more specification detail."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -213,4 +213,6 @@ This deep manual is complete when:
 - it can be used to produce high-detail planning docs with consistent quality,
 - it prevents under-specification in high-risk sections,
 - it is aligned with anti-foot-gun and gate specs.
+
+
 

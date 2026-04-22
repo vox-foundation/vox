@@ -4,7 +4,7 @@ description: "Sketch for structured MIME+hash attachments on tasks so vision rou
 category: "architecture"
 status: "roadmap"
 sort_order: 20
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Closes the gap between requires_vision heuristics and explicit multimodal task contracts."
 
@@ -50,4 +50,5 @@ Introduce an optional **`attachment_manifest`** (name bikesheddable) on task / e
 3. Update selection unit tests to cover “manifest present → vision lane” vs “hint only”.
 
 Related execution plan: [vox-gui-vision-virtuous-cycle-implementation-plan-2026.md](vox-gui-vision-virtuous-cycle-implementation-plan-2026.md) (items 34–35, wave W3).
+
 

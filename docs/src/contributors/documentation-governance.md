@@ -4,7 +4,7 @@ description: "Authority map, taxonomy, status vocabulary, and maintenance rules 
 category: "contributor"
 status: "current"
 sort_order: 10
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: true
 training_rationale: "Defines how all docs are organized, which agents must understand to write compliant documentation."
 
@@ -179,3 +179,4 @@ Before committing documentation to the repository, verify the following constrai
 3. **Status marker**: Use `status` only when needed (`current`, `experimental`, `legacy`, `research`, `roadmap`, `deprecated`).
 4. **Terminology**: Use established nomenclature (Codex vs Arca, Mens vs Populi, Islands vs Components).
 5. **Navigation integrity**: If creating a user-facing document, verify `SUMMARY.md` is updated and passes `vox-doc-pipeline --check`.
+

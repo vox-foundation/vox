@@ -2,7 +2,7 @@
 title: "Native ML Training Pipeline"
 description: "End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy."
 category: "explanation"
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -258,3 +258,4 @@ Artifact layout: `target/dogfood/train.jsonl` (canonical input), `target/dogfood
 - [Actors & Workflows](expl-actors-workflows.md) — Build durable constructs for the training pipeline
 - [CLI Reference](../reference/cli.md) — `vox mens`, `vox train`
 - [Architecture Overview](expl-architecture.md) — How the compiler pipeline works
+

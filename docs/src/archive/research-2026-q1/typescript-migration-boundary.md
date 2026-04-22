@@ -2,7 +2,7 @@
 title: "TypeScript boundary policy"
 description: "Official documentation for TypeScript boundary policy for the Vox language. Detailed technical reference, architecture guides, and implem"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -30,4 +30,5 @@ When retaining TS utilities, add or keep a **pnpm**-based check (install + typec
 | `spawn-agents.ts` | **Keep** — orchestration helper. |
 | `review.ts` | **Keep** — review helper. |
 | `status.ts` | **Keep** — status helper. |
+
 

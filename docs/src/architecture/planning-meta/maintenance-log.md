@@ -2,7 +2,7 @@
 title: "Planning meta maintenance log"
 description: "Change log for Tier 1/2/3 planning-meta document updates."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -53,3 +53,5 @@ This log is required by `10-document-maintenance-protocol.md`.
 - follow_ups:
   - Roll out WebIR default paths to production environment
 - approver_role: system architect
+
+

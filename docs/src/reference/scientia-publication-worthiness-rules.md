@@ -2,7 +2,7 @@
 title: "SCIENTIA publication worthiness rules"
 description: "Rules and metrics for classifying findings as publishable, evidence-incomplete, or non-publishable."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -206,3 +206,5 @@ When `metadata_json.scientia_distribution` is present:
 - Nature Portfolio policy on AI: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
 - Elsevier policy for AI-assisted writing: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
 - TMLR venue policy context: [https://openreview.net/group?id=TMLR](https://openreview.net/group?id=TMLR)
+
+

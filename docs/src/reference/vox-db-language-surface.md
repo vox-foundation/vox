@@ -2,7 +2,7 @@
 title: "Vox database language surface (canonical)"
 description: "Canonical @table, @query, @mutation, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -67,3 +67,5 @@ The first-class data lane is `turso+vox-db` behind Vox language/database surface
 
 - [Environment variables](./env-vars.md) — `VOX_DB_*`, `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`.
 - [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md)
+
+

@@ -2,7 +2,7 @@
 title: "Vox packaging implementation blueprint"
 description: "Tactical migration blueprint for hard Python retirement, hybrid Vox package commands, and strict install/update/upgrade namespace policy."
 category: "architecture"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -206,4 +206,5 @@ Stability rule: these lanes must not change baseline `import rust:<crate>` seman
 - Docker reproducibility and lock-policy requirements are encoded as mandatory behaviors.
 
 Execution checklist and command mappings: [`reference/pm-migration-2026.md`](../reference/pm-migration-2026.md).
+
 

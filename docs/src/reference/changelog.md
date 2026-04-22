@@ -2,7 +2,7 @@
 title: "Changelog"
 description: "Official documentation for Changelog for the Vox language. Detailed technical reference, architecture guides, and implementation patterns"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -58,3 +58,5 @@ All notable changes to the Vox project are documented here.
 
 ### Removed
 - `PLAN.md` — content merged into `AGENTS.md` §3 (B-076)
+
+

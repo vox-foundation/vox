@@ -4,7 +4,7 @@ description: "Research and best practices on establishing a single source of tru
 category: "architecture"
 status: "research"
 sort_order: 10
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Defines the centralized version policy for Vox deliverables, explicitly required to minimize technical debt and conform to AI-pipeline expectations."
 schema_type: "TechArticle"
@@ -44,4 +44,5 @@ Documentation must not stray from the codebase implementation, particularly rega
 - **Governance:** Ensure code changes are committed within the same PR as their respective `.md` documentation changes to prevent decoupling.
 
 **Link Verification:** Refer to [Documentation Governance](../contributors/documentation-governance.md) and the [Architecture Index](architecture-index.md) to contextualize these documents inside our unified docs pipeline.
+
 

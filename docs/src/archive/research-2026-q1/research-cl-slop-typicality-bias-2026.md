@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -34,4 +34,5 @@ If agent-generated prose must be included in the flywheel, it cannot be raw. The
 The Vox MENS architecture must deploy a secondary, independent "Curator LLM" (preferably a highly capable, API-accessible frontier model) specifically prompted to detect and discard typicality bias, structural repetition, and logical inconsistencies.58 The curator must enforce a strict semantic entropy threshold, rejecting explanations that lack grounded factual consistency.6
 
 Furthermore, treating agentic documentation generation as a multi-step process—where reasoning traces are generated separately from the final prose inference—substantially improves the factual faithfulness of the synthetic output prior to its ingestion into the training corpus.62
+
 

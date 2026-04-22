@@ -4,7 +4,7 @@ description: "Authoritative tier classification for all 64 workspace crates, Rea
 category: "architecture"
 status: "current"
 domain: "P"
-last_updated: 2026-04-18
+last_updated: "2026-04-18"
 training_eligible: false
 training_rationale: "Defines the governed scope of the V0.5 workspace and the maturity contract LLMs must reason about when generating Vox code."
 schema_type: "TechArticle"
@@ -383,4 +383,5 @@ The following are valid long-term work but are not V0.5 or V1.0 scope:
 | `vox-ludus` (gamification) | [Vox Ludus KI](../../../crates/vox-ludus/) |
 | CI governance | [governance.md](../../agents/governance.md) |
 | Classification taxonomy | [classification-ssot-2026.md](./classification-ssot-2026.md) |
+
 

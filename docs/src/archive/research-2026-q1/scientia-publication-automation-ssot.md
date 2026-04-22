@@ -2,7 +2,7 @@
 title: "SCIENTIA publication automation SSOT"
 description: "Research-grounded SSOT for what Vox should automate, assist, or never automate in scientific publication workflows."
 category: "reference"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -301,4 +301,5 @@ Distribution precedence:
 - Y Combinator Hacker News API note: [https://www.ycombinator.com/blog/hacker-news-api](https://www.ycombinator.com/blog/hacker-news-api)
 - YouTube videos.insert reference: [https://developers.google.com/youtube/v3/docs/videos/insert](https://developers.google.com/youtube/v3/docs/videos/insert)
 - YouTube quota reference: [https://developers.google.com/youtube/v3/determine_quota_cost](https://developers.google.com/youtube/v3/determine_quota_cost)
+
 

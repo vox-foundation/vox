@@ -3,7 +3,7 @@ title: "Vox Architectural Organization & Governance"
 description: "Strict organizational principles enforced via vox architect command and TOESTUB reasoning engine."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -60,4 +60,5 @@ Agents are strictly forbidden from:
 3. Using forbidden generic names.
 
 Violations will trigger a `ScopeViolation` or an `ArchitecturalFailure` event in the orchestrator.
+
 

@@ -2,7 +2,7 @@
 title: "Mobile/Desktop Convergence & Language Extension Research 2026"
 description: "Research findings on mobile–desktop view convergence, device API unification, and parser gaps for agent/environment declarations. Informs future implementation planning."
 category: "architecture"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -418,4 +418,5 @@ archived_date: 2026-04-18
 - `crates/vox-compiler/src/ast/decl/logic.rs` — `AgentDecl` struct (awaiting parser)
 - `crates/vox-compiler/src/ast/decl/config.rs` — `EnvironmentDecl` struct (awaiting parser)
 - `contracts/terminal/exec-policy.v1.yaml` — shell policy (relevant to `environment` codegen)
+
 

@@ -2,7 +2,7 @@
 title: "Document boundary matrix"
 description: "Boundary and ownership matrix for planning-meta documents to prevent overlap and contradiction."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -46,4 +46,6 @@ A document passes overlap test when:
 - all major sections map to its ownership column,
 - duplicate normative policy is replaced by a reference,
 - contradictions are absent against Tier 1 docs.
+
+
 

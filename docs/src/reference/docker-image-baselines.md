@@ -2,7 +2,7 @@
 title: "Docker image baselines (D05)"
 description: "How to record cold-start and health-check timing for Vox OCI images"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 
 schema_type: "TechArticle"
 ---
@@ -27,3 +27,5 @@ Record wall times and image sizes (`docker image ls`) when changing `Dockerfile`
 
 - [Deployment compose SSOT](deployment-compose.md)
 - [Cross-platform runbook](../architecture/vox-cross-platform-runbook.md)
+
+

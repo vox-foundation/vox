@@ -2,7 +2,7 @@
 title: "Acceptance runbook — Mens HF fine-tune convergence"
 description: "Official documentation for Acceptance runbook — Mens HF fine-tune convergence for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -41,4 +41,5 @@ archived_date: 2026-04-18
 - Burn: GPT-2-shaped HF tokenizer path trains without planner error.
 - Candle: NF4 path unchanged functionally; telemetry includes `candle_compat_mode: true`.
 - Merge: `merge-qlora` accepts v2 or v3 adapter meta.
+
 

@@ -2,7 +2,7 @@
 title: "Why Vox: Compiler-Verified AI Code"
 description: "Why Python and TypeScript fail for LLM code generation, and how the Vox compiler solves the hallucination boundary."
 category: "explanation"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -57,3 +57,5 @@ By constraining the LLM's output to a strictly-typed, compiler-verified grammar:
 - [Language Reference](../reference/ref-syntax.md)
 - [How-To: Build AI Agents](../how-to/how-to-ai-agents.md)
 - [Installation](../reference/ref-installation.md)
+
+

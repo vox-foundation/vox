@@ -2,7 +2,7 @@
 title: "ADR 016: Oratio streaming Whisper and constrained decode"
 description: "Decide how Vox ships wire-level streaming Whisper and decoder-time constrained generation in Candle."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -57,3 +57,5 @@ Tradeoffs:
 - Add VAD-gated incremental decode policy knobs for production defaults.
 - Add nightly/e2e streaming tests with deterministic fixtures.
 - Evaluate alternate streaming ASR backend behind the same ingress contract if latency SLA requires it.
+
+

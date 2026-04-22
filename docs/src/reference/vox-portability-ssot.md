@@ -2,7 +2,7 @@
 title: "Vox portability SSOT"
 description: "Normative portability contract for Docker/OCI-backed `.vox` deployment, source-of-truth boundaries, and conformance expectations."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -112,3 +112,5 @@ Use this checklist when defining or validating portability-sensitive lanes:
 - [Environment variables (SSOT)](env-vars.md)
 - [Clavis SSOT](clavis-ssot.md)
 - [Command compliance](command-compliance.md)
+
+

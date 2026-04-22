@@ -4,7 +4,7 @@ description: "End-to-end map from .vox text through the lexer and compiler to go
 category: "architecture"
 status: "current"
 sort_order: 3
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -68,4 +68,5 @@ Use this when adding files under `examples/golden/`:
 - [Vox corpus lab (research 2026)](vox-corpus-lab-research-2026.md) — Tier B mass corpus, batch lanes, eval harness sketch
 - [Mens vision and multimodal inputs (research 2026)](mens-vision-multimodal-research-2026.md)
 - [Mens Qwen family migration (research 2026)](mens-qwen-family-migration-research-2026.md)
+
 

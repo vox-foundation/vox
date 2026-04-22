@@ -2,7 +2,7 @@
 title: "Speech-to-code — operations, security, rollout"
 description: "Dashboards, privacy, canary, and release gates for spoken Vox codegen."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -45,3 +45,4 @@ schema_type: "TechArticle"
 - Roll back if p95 latency or error-rate SLO regresses (define per deployment).
 
 See [`speech-to-code-pipeline.md`](speech-to-code-pipeline.md).
+

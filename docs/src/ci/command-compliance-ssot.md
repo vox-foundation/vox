@@ -3,7 +3,7 @@ title: "Command compliance SSOT"
 description: "Legacy filename. Canonical pointer hub is docs/src/ci/documentation-pointers.md; command compliance behavior lives in reference/command-compliance.md."
 category: "ci"
 status: "legacy"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 
 schema_type: "TechArticle"
 ---
@@ -16,3 +16,5 @@ Use:
 
 - **Authority pointers:** [`documentation-pointers.md`](documentation-pointers.md)
 - **Canonical behavior:** [`reference/command-compliance.md`](../reference/command-compliance.md)
+
+

@@ -2,7 +2,7 @@
 title: "Rust ecosystem support contract"
 description: "Machine-readable contract paths and semantics for Vox Rust crate-family support metadata."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -55,3 +55,5 @@ Local verification:
 - `vox ci rust-ecosystem-policy`
 - `cargo run -p vox-cli --quiet -- ci rust-ecosystem-policy`
 - `cargo test -p vox-compiler --test rust_ecosystem_support_parity`
+
+

@@ -3,7 +3,7 @@ title: "Multi-repo context isolation: research findings 2026"
 description: "Comprehensive synthesis of 2026 best practices for managing repository context isolation across AI agents, orchestrators, IDEs, and CI/CD pipelines. Covers scope enforcement, ignore-file SSOT, agent instruction files, memory architecture, security threats, and the vox catalog layer."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: false
 training_rationale: "Directly informs scope guard design, .voxignore SSOT policy, vox catalog CLI, agent instruction file standards, and repository federation architecture."
 
@@ -551,4 +551,5 @@ archived_date: 2026-04-18
 - [Nx: Module boundary enforcement](https://nx.dev/features/enforce-module-boundaries)
 - [Git worktrees](https://git-scm.com/docs/git-worktree)
 - [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+
 

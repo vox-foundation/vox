@@ -2,7 +2,7 @@
 title: "Trim, build, and defer (feature lifecycle)"
 description: "Official documentation for Trim, build, and defer (feature lifecycle) for the Vox language. Detailed technical reference, architecture gu"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -18,4 +18,5 @@ This policy aligns CLI/MCP/docs SSOT work:
 3. **Defer** — Features that stay behind `Cargo` features must list the feature flag in CLI docs and architecture SSOT pages; do not imply they exist in the default minimal binary.
 
 CI guards (`vox ci check-docs-ssot`, `vox ci check-codex-ssot`, doc-inventory verify) catch drift between this policy and the tree.
+
 

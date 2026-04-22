@@ -2,7 +2,7 @@
 title: "Codex HTTP API"
 description: "Official documentation for Codex HTTP API for the Vox language. Detailed technical reference, architecture guides, and implementation pat"
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -37,3 +37,5 @@ OpenAPI paths **`GET /api/audio/status`**, **`POST /api/audio/transcribe`**, **`
 - [Codex BaaS scaffolding](../architecture/codex-baas.md)
 - [Codex vNext schema](../architecture/codex-vnext-schema.md)
 - [Nomenclature migration map](../architecture/nomenclature-migration-map.md) — retired `vox-codex-api` name
+
+

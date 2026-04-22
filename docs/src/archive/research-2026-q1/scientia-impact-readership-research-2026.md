@@ -4,7 +4,7 @@ description: "External landscape for what gets read and cited; feasibility for V
 category: "architecture"
 status: "research"
 sort_order: 12
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -92,4 +92,5 @@ This section **does not replace** code review; it records architectural debt to 
 | --- | --- |
 | 2026-04-02 | Initial research seed, external survey, phased feasibility, critique of heuristic novelty work, link to projection seed YAML. |
 | 2026-04-12 | Crossref Event Data sunset note (pointer to multi-platform research §4.12). |
+
 

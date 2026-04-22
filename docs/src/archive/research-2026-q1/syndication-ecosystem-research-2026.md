@@ -4,7 +4,7 @@ description: "Honest, code-grounded research on whether to adopt platform SDKs f
 category: "architecture"
 status: "research"
 sort_order: 11
-last_updated: 2026-04-14
+last_updated: "2026-04-14"
 training_eligible: false
 training_rationale: "Code-grounded dependency analysis and migration patterns for Rust async HTTP adapters."
 schema_type: "TechArticle"
@@ -260,4 +260,5 @@ The `bsky-sdk` feature gate (`scientia-bluesky-sdk`) follows the existing patter
 | `crosspost` | **REJECT** | — | Self-described as minimally maintained. Supply-chain risk with no benefit over our current model. |
 
 **Do first:** Wave 0 local bug fixes. Zero new dependencies. Immediate production safety improvement. These six fixes touch all five adapters and correct the silent-failure modes that make the current system unreliable.
+
 

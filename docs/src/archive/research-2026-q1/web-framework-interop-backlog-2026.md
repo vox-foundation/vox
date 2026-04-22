@@ -3,7 +3,7 @@ title: "Web Framework Interop — Codebase Backlog 2026"
 description: "Exhaustive task backlog derived from codebase audit, refined against Svelte 5, Solid 2.0, and Vite 8/Rolldown realities. Optimized to prune multi-compiler bloat in favor of a rock-solid 'Library Mode'."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-15
+last_updated: "2026-04-15"
 parent: "web-framework-interop-research-2026.md"
 training_eligible: false
 training_rationale: "Actionable backlog mapping to concrete tasks across WebIR, codegen_ts, app_contract, and CLI templates. Embeds test verification directly into implementation phases."
@@ -156,4 +156,5 @@ archived_date: 2026-04-18
 2. **Phase 2: Data Boundaries (P1)**: Sections C and D. Improves TS types, client, and makes the contract and routing layers framework-agnostic.
 3. **Phase 3: Scaffolds & Tech Debt (P1-P2)**: Sections E and F. Updates the generated ecosystem to modern standards and quashes data races.
 4. **Phase 4: Documentation (P3)**: Section G. User-facing integration guides.
+
 

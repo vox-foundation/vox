@@ -4,7 +4,7 @@ description: "How @mcp.tool maps to shipped MCP surfaces, how this differs from 
 category: "architecture"
 status: "current"
 sort_order: 45
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -107,4 +107,5 @@ These are **design options**, not all committed work. Pick based on product boun
 - [Communication protocols taxonomy](../reference/communication-protocols.md) — MCP vs WS vs SSE.
 - [MCP tool registry contract](../reference/mcp-tool-registry-contract.md) — YAML SSOT pointer.
 - [VoxDB connection policy (SSOT)](voxdb-connect-policy.md) — where DB belongs in the stack.
+
 

@@ -2,7 +2,7 @@
 title: "Contributing — Populi control plane"
 description: "Onboarding for vox-populi HTTP transport and operators"
 category: "how-to"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 
 schema_type: "HowTo"
 ---
@@ -35,3 +35,5 @@ cargo test -p vox-populi --features transport openapi_paths
 - **`GET /health`** stays unauthenticated even when `VOX_MESH_TOKEN` is set.
 - Never log bearer tokens or bootstrap secrets.
 - Prefer **machine-readable** probes (`vox doctor --probe`) in OCI `HEALTHCHECK`.
+
+

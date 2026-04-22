@@ -2,7 +2,7 @@
 title: "Deprecation policy — Mens native fine-tuning"
 description: "Official documentation for Deprecation policy — Mens native fine-tuning for the Vox language. Detailed technical reference, architectur"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -25,4 +25,5 @@ archived_date: 2026-04-18
 
 - No CLI flags removed in this iteration; aliases added (`merge-adapter`).
 - Future removal of legacy paths will be announced in this doc + `mens-training.md` with one release notice.
+
 

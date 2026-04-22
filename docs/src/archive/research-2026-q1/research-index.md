@@ -4,7 +4,7 @@ description: "Guide to the research, findings, and roadmap-heavy documentation i
 category: "architecture"
 status: "research"
 sort_order: 5
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -233,4 +233,5 @@ This page groups the research-oriented documentation in `docs/src/architecture/`
 ## Labeling rule
 
 If a page is primarily research or a roadmap, say so in the title, frontmatter, or first paragraph. Do not rely on filenames alone.
+
 

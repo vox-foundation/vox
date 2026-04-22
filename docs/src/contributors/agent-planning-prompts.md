@@ -3,7 +3,7 @@ title: "Agent Planning Prompts"
 description: "Prompt-engineered system directives for chunked file writing to avoid LLM token exhaustion."
 category: "contributor"
 status: "current"
-last_updated: 2026-04-18
+last_updated: "2026-04-18"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -54,3 +54,4 @@ Instead, you will construct the plan iteratively by writing it directly to the f
 
 ## Maintenance
 When updating prompt behavior to address new LLM context window behaviors or system limits, update this document and bump `last_updated`.
+

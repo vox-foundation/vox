@@ -2,7 +2,7 @@
 title: "ADR 023: Optional telemetry remote upload"
 description: "Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets."
 category: "reference"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -37,3 +37,4 @@ Vox records many **operator-controlled** diagnostics and research metrics locall
 - [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md)
 - [Telemetry implementation backlog 2026](../architecture/telemetry-implementation-backlog-2026.md) — Phase 7
 - [Environment variables (SSOT)](../reference/env-vars.md)
+

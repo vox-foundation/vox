@@ -2,7 +2,7 @@
 title: "TOESTUB self-healing architecture 2026"
 description: "Research-backed architecture blueprint for evolving TOESTUB into a self-healing, LLM-aware quality system integrated with Populi and MENS."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -246,4 +246,5 @@ Policy knobs should be loaded dynamically and fingerprinted in output metadata s
 - Biome: [linter](https://biomejs.dev/linter/)
 - Clippy: [docs](https://doc.rust-lang.org/clippy/)
 - golangci-lint: [configuration](https://golangci-lint.run/docs/configuration/file/), [false positives](https://golangci-lint.run/docs/linters/false-positives/)
+
 

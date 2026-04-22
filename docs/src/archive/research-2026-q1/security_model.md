@@ -3,7 +3,7 @@ title: "Vox Security Model"
 description: "Multi-layer protection against prompt injection, scope violations, and unauthorized access via SecurityPolicy and SecurityGuard."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -90,4 +90,5 @@ All rejected requests, scope violations, and injection attempts are appended to 
 ```json
 {"timestamp": "...", "event": "InjectionDetected", "agent": "...", "description": "..."}
 ```
+
 

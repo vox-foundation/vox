@@ -3,7 +3,7 @@ title: "Telemetry client disclosure SSOT"
 description: "VS Code extension, MCP host, and debug surfaces that affect user perception of data collection and trust."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -51,4 +51,5 @@ MCP hosts (Cursor, VS Code, others) may have **their own** telemetry and network
 
 - [Telemetry trust boundary and SSOT map](telemetry-trust-ssot.md)
 - [Environment variables (SSOT)](../reference/env-vars.md)
+
 

@@ -3,7 +3,7 @@ title: "Context management research findings 2026"
 description: "Research synthesis, baseline inventory, target contracts, and policy recommendations for Vox context management across MCP, orchestrator, search, and Populi."
 category: "architecture"
 status: "research"
-last_updated: 2026-03-30
+last_updated: "2026-03-30"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -503,4 +503,5 @@ The current Vox stack already has enough infrastructure to support this, but the
 - [Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection](https://arxiv.org/abs/2310.11511)
 - [Corrective Retrieval Augmented Generation](https://openreview.net/forum?id=JnWJbrnaUE)
 - [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans)
+
 

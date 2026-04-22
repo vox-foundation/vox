@@ -2,14 +2,14 @@
 title: "QLoRA Fine-tuning Data Strategy & SSoT"
 description: "Official documentation for QLoRA Fine-tuning Data Strategy & SSoT for the Vox language. Detailed technical reference, architecture guides"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
 ---
 # QLoRA Fine-tuning Data Strategy & SSoT
 
-last_updated: 2026-03-22
+last_updated: "2026-03-22"
 
 > [!IMPORTANT]
 > This document is the Single Source of Truth for Vox Mens's QLoRA data scaling requirements and continuous assimilation pipeline. DO NOT attempt to "pad" the pipeline with a stale `examples/` directory.
@@ -49,3 +49,4 @@ The corpus now carries explicit metadata per row:
 
 Operational default for production training is `vox_codegen` only, so prose supervision does not leak into code-only generation behavior.
 Documentation Q&A remains available as a separate lane for future multi-lane runs.
+

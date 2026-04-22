@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -41,4 +41,5 @@ Evaluation of multi-agent orchestration architecture involving conversation hist
 2. **On-Behalf-Of (OBO) Token Binding:** Enforce cryptographic provenance by attaching user-scoped OBO tokens and unique Thread IDs to every agent handoff.
 3. **Unified CRAG Gateway:** Strip generic RAG triggers. Deploy Corrective Retrieval-Augmented Generation (CRAG) via a lightweight evaluator model to dynamically route requests between Trust Memory, Vector Retrieval, or Web searches.
 4. **Asynchronous Memory Distillation:** Separate active turns (Short-Term Memory) from durational persistence. Dedicate an async background worker to extract semantic key-value relationships from the transcript into a Graph/Vector store, preventing silent rolling truncation.
+
 

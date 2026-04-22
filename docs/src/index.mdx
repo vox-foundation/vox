@@ -1,0 +1,119 @@
+---
+title: "Vox: The AI-Native Programming Language"
+description: "One language. Database schema, type-safe server, and live browser UI — designed first as a target for LLMs, and for the developers who work alongside them."
+template: splash
+hero:
+  title: "The Language That Speaks First to LLMs"
+  tagline: "One .vox file. Auto-generated database, server, and browser UI — with zero nulls, no boilerplate, and a built-in AI training pipeline."
+  actions:
+    - text: Get Started
+      link: /tutorials/tut-getting-started/
+      variant: primary
+      icon: right-arrow
+    - text: Syntax Reference
+      link: /reference/ref-syntax/
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/vox-foundation/vox
+      variant: minimal
+      icon: external
+pagefind: false
+sort_order: 0
+category: "getting-started"
+status: "current"
+training_eligible: true
+last_updated: "2026-04-22"
+---
+
+> *"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time?"*
+> — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
+
+---
+
+## Why Vox?
+
+Mainstream languages predate LLMs by decades. They accept implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for humans; it's a minefield for a statistical code generator.
+
+Vox collapses the common cases. One `@table` declaration becomes a schema, an API, and a typed client. Errors are values, not exceptions. Durable execution, MCP tool exposure, and a local training pipeline are **built in** — not glued on top.
+
+## Four Core Pillars
+
+**Pillar 1: Single Source of Truth.** `@table Task { title: str; done: bool }` — one declaration becomes SQL migrations, REST API, and a typed TypeScript client. No schema drift. No sync.
+
+**Pillar 2: Compile-Time Determinism.** `Result[T]` everywhere. Unhandled error branches are compiler failures — not runtime surprises. Null is not a valid state.
+
+**Pillar 3: Islands Architecture.** Browser interactivity is opt-in at explicit `@island` boundaries. The compiler generates the React lifecycle — none of it appears in your `.vox` source.
+
+**Pillar 4: AI-Native Tooling.** `@mcp.tool` exposes any function to Anthropic MCP clients. `workflow` checkpoints survive node death. Local QLoRA fine-tuning via `vox populi` — no Python.
+
+---
+
+## The Language at a Glance
+
+```vox
+// vox:skip
+// One declaration → schema + API + typed client
+@table type Task {
+    title:    str
+    done:     bool
+    priority: int
+    owner:    str
+}
+
+// Compile-enforced: every caller handles both branches
+@server fn get_task(id: Id[Task]) to Result[Task] {
+    let row = db.Task.find(id)
+    match row {
+        Some(t) -> Ok(t)
+        None    -> Error("not found")
+    }
+}
+
+// Expose to AI agents via Model Context Protocol
+@mcp.tool "Complete a task by ID"
+fn complete_task(id: Id[Task]) to Result[Unit] {
+    db.Task.delete(id)
+    ret Ok(Unit)
+}
+```
+
+---
+
+## Stability
+
+| Domain | Tier | What it covers |
+|:---|:---|:---|
+| Core syntax & engine | 🟢 Stable | AST, type checking, compiler directives, LSP |
+| Data & connectivity | 🟢 Stable | `@table` migrations, `@query`/`@server`, wire types |
+| Agent tooling | 🟢 Stable | `@mcp.tool` exposure, MCP protocol compliance |
+| RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards |
+| Durable execution | 🟡 Preview | `workflow` and `actor` lifecycle |
+| Local training (MENS) | 🟡 Preview | Hardware coverage still expanding |
+| Web UI & rendering | 🟡 Preview | WebIR and React bridge will shift |
+| Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design |
+
+*As of `v0.5`, April 2026. See [v1.0 criteria](/architecture/v1-release-criteria/) for the full machine-verified release gate.*
+
+---
+
+## Documentation
+
+Organized by the [Diátaxis framework](https://diataxis.fr/) — structured by user intent, not by feature.
+
+| Intent | Start here |
+|---|---|
+| **Learning** | [Getting Started](/tutorials/tut-getting-started/) · [First full-stack app](/how-to/first-full-stack-app/) |
+| **Task recipes** | [How-To Guides](/how-to/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) |
+| **Understanding** | [Why Vox for AI](/explanation/why-vox-for-ai/) · [Compiler architecture](/explanation/expl-architecture/) |
+| **Reference** | [CLI](/reference/cli/) · [Decorators](/reference/ref-decorators/) |
+| **Architecture** | [Master index](/architecture/architecture-index/) · [Contributor hub](/contributors/contributor-hub/) |
+
+---
+
+## Community, Backing & License
+
+**Open Collective.** Community-backed via [Open Collective](https://opencollective.com/vox-foundation) — every dollar raised and spent is public.
+
+**License.** Apache 2.0 — commercial use permitted, patent rights granted, modifications allowed with attribution.
+
+**Get involved.** [GitHub Discussions](https://github.com/vox-foundation/vox/discussions) · [RSS Feed](https://vox-lang.org/feed.xml) · [Contributor Hub](/contributors/contributor-hub/)

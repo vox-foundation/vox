@@ -3,7 +3,7 @@ title: "Context management phase 1 backlog"
 description: "Prioritized high-win backlog, rollout strategy, and KPI/SLO targets for the first implementation wave of the Vox context-management program."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-03-30
+last_updated: "2026-03-30"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -348,4 +348,5 @@ Phase 1 is complete only when all of the following are true:
 ## Suggested next expansion after phase 1
 
 After the first wave, expand the program by generating capability-level tasks under each epic using the work-item schema. This document now seeds 120+ explicit tasks when the detailed operation expansion is included, but the full program should still grow beyond this into the full hundreds-item implementation set described in the blueprint.
+
 

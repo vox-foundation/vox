@@ -3,7 +3,7 @@ title: "Known Documentation Gaps & Backlog"
 description: "Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors."
 category: "api-crate"
 status: current
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 
 schema_type: "TechArticle"
 ---
@@ -27,3 +27,5 @@ This is a living checklist for the Vox open source community and core contributo
 - [x] Standard library built-ins (completed 2026-04-06)
 - [x] Correct `@island` decorator syntax (completed 2026-04-06)
 - [x] Example pipeline validation documentation (completed 2026-04-06)
+
+

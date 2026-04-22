@@ -2,7 +2,7 @@
 title: "Populi node lifecycle, drain, and GPU hotplug"
 description: "Design for maintenance, quarantine, stale nodes, and capacity changes without a second control plane."
 category: "architecture"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -57,4 +57,5 @@ This document captures the **lifecycle model** implied by today’s control plan
 - [Populi overlay personal cluster runbook](../operations/populi-overlay-personal-cluster-runbook.md)  
 - [Remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md)  
 - [GPU mesh implementation plan 2026](populi-gpu-mesh-implementation-plan-2026.md)
+
 

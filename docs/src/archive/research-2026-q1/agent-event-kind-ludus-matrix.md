@@ -2,7 +2,7 @@
 title: "Orchestrator AgentEventKind → Ludus matrix"
 description: "Maps each orchestrator bus `type` string to Ludus base_reward and process_rewards behavior."
 category: "architecture"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -68,4 +68,5 @@ Orchestrator events serialize with `#[serde(tag = "type", rename_all = "snake_ca
 **Note {** CLI/MCP-only event types (e.g. `check_completed`, `mcp_tool_called`) are documented in [`ludus-integration-contract`](ludus-integration-contract.md) and [`reward_policy`](../../../crates/vox-ludus/src/reward_policy.rs).
 
 **Grind taper:** High-frequency bus types (`task_submitted`, `lock_*`, `snapshot_captured`, `message_sent`, `mcp_tool_called`, …) use the faster anti-grind window in [`apply_policy`](../../../crates/vox-ludus/src/reward_policy.rs).
+
 

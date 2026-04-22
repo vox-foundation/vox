@@ -3,7 +3,7 @@ title: "Vox Session Management"
 description: "Persistent conversation history, metadata, and state management across agent interactions."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -62,4 +62,5 @@ Sessions are dual-written to VoxDB's `agent_sessions` table, enabling:
 - Cross-session search
 - Usage analytics
 - Session recovery after restart
+
 

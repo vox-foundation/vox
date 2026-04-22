@@ -3,7 +3,7 @@ title: "AI-Augmented Testing & Hourglass Architecture Research (2026)"
 description: "Synthesis of 2026 state-of-the-art AI-augmented testing, shifting from the traditional testing pyramid to an hourglass/honeycomb architecture driven by the Vox Internal Representation (HIR) and AI-to-AI integration."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves regarding A2A testing automation and the hourglass ratio."
 
@@ -109,4 +109,5 @@ The `vox-lsp` surfaces these diagnostics directly inline. If an `@ensure` clause
 4. **Enforce Hourglass Policies:** Enforce CI policies that prioritize integration/contract coverage over isolated unit layers for A2A components.
 
 Related actionable backlogs can be found in `telemetry-implementation-backlog-2026.md` and `vox_agentic_loop_and_mens_plan.md`.
+
 

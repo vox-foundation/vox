@@ -2,7 +2,7 @@
 title: "Populi remote execution rollout checklist"
 description: "Go/no-go criteria, kill-switch validation, and rollback steps before enabling authoritative or pilot remote execution beyond local defaults."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -60,3 +60,5 @@ Prove you can **disable remote paths** without redeploying code:
 
 - [Overlay personal cluster runbook](populi-overlay-personal-cluster-runbook.md)
 - [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — roadmap sequencing
+
+

@@ -2,7 +2,7 @@
 title: "Explanation: Compiler Lowering Phases"
 description: "Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,"
 category: "explanation"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -70,3 +70,4 @@ By having multiple intermediate representations, Vox can perform complex archite
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
 - [API Reference: vox-hir (Archived)](../reference/cli.md) — Details on the HIR data structures.
+

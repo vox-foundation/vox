@@ -3,7 +3,7 @@ title: "Completion policy SSOT (LLM premature-completion)"
 description: "Single source of truth for LLM completion policy enforcement, TOESTUB integration, and CI gating."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 training_rationale: "Key architecture constraints and definitions required for agent context"
 
@@ -41,4 +41,5 @@ archived_date: 2026-04-18
 **TOESTUB in CI:** build `vox-cli` with `--features completion-toestub` so `completion-audit` merges `victory-claim` findings (Tier **C** in policy) from `vox-toestub` without duplicating regex logic in `vox-cli`.
 
 **Extra scan roots:** `vox ci completion-audit --scan-extra path/to/generated-crate` (repeatable). Each directory is canonicalized and must lie under the repo root; default remains `crates/`.
+
 

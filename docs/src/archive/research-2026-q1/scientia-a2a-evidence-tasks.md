@@ -2,7 +2,7 @@
 title: "SCIENTIA A2A evidence-gathering tasks"
 description: "Bounded remote task envelopes for read-heavy scientia_evidence hydration (no autonomous claim generation)."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -34,4 +34,5 @@ Orchestrator / mesh A2A can delegate **read-heavy, idempotent** jobs that return
 
 - Discovery ranking: `vox_scientia_publication_discovery_scan` / `vox scientia publication-discovery-scan`
 - LLM assist (bounded): `vox_scientia_assist_suggestions` (`use_llm=false` for heuristic-only)
+
 

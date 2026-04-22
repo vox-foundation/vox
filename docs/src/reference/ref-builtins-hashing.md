@@ -2,7 +2,7 @@
 title: "Hashing & Identity Builtins"
 description: "Official documentation for Hashing & Identity Builtins for the Vox language. Detailed technical reference, architecture guides, and imple"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -199,3 +199,4 @@ that the compiler inlines into generated code.
 - [Security Model](../explanation/expl-security.md) — how Vox handles secrets and threat modeling
 - [vox-runtime API](../reference/cli.md) — full runtime module reference
 - [FTT Pipeline](../how-to/examples.md) — live usage of `hash_secure` and `uuid` in production
+

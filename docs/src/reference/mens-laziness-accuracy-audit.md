@@ -2,7 +2,7 @@
 title: "Mens laziness and accuracy audit"
 description: "Severity-ranked audit of the current VoxMens research implementation, focusing on LLM-style mistakes, drift, brittle heuristics, and durability risks."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -281,3 +281,4 @@ The second-pass implementation plan should answer these explicitly:
 3. Which thresholds belong in schema/policy rather than code?
 4. Which scorecard metrics are strategic KPIs vs temporary heuristics?
 5. Which helper paths should be merged before adding any more generation features?
+

@@ -3,7 +3,7 @@ title: "Environment Variables vs. Clavis: Strategy and Cross-System Settings 202
 description: "Research synthesis on when environment variables are necessary, when they are harmful, what alternatives exist, and how Vox Clavis can evolve to support cross-system user settings sync for logged-in users."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Core platform strategy for configuration, secrets, and user settings across systems, orchestrators, and nodes."
 
@@ -399,4 +399,5 @@ archived_date: 2026-04-18
 - [keyring crate](https://docs.rs/keyring/latest/keyring/)
 - [secrecy crate](https://docs.rs/secrecy/latest/secrecy/)
 - [RFC 8693: OAuth 2.0 Token Exchange](https://rfc-editor.org/rfc/rfc8693)
+
 

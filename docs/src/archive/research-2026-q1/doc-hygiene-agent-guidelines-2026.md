@@ -3,7 +3,7 @@ title: "Documentation hygiene and AI-agent guidelines 2026"
 description: "Guidelines and architecture for documentation hygiene intended to ensure discoverability and robust operation across all AI agents."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Governs documentation quality for AI agents"
 
@@ -60,4 +60,5 @@ Do NOT apply `status: SSOT` artificially; an SSOT doc is identified by the `B-ca
 - `.cursor/rules/*.mdc` ─ Dynamic, glob-targeted rules triggered exclusively within the Cursor IDE.
 - `.github/copilot-instructions.md` ─ Equivalent prompt injection context for PR workflows and GitHub Copilot environments.
 - Directory-level `AGENTS.md` (e.g., `docs/src/AGENTS.md`) ─ Modifies or provides specialized behavior local to the directory depth.
+
 

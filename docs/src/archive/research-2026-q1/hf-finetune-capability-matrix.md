@@ -2,7 +2,7 @@
 title: "HF fine-tuning capability matrix (code-grounded)"
 description: "Official documentation for HF fine-tuning capability matrix (code-grounded) for the Vox language. Detailed technical reference, architect"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -46,4 +46,5 @@ Single control plane: [`crates/vox-populi/src/mens/tensor/finetune_contract.rs`]
 ## Burn production policy
 
 Burn training is held as an opt-in research lane. Promotion to production requires scorecard evidence with explicit backend comparisons (`backend=burn` vs `backend=qlora`) over at least two benchmark cycles, including syntax + semantic KPI deltas and runtime repair KPIs.
+
 

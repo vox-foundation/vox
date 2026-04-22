@@ -2,7 +2,7 @@
 title: "Clavis Cloudless Ops Runbook"
 description: "Operator procedures for Cloudless secret custody, backup/restore, rotation, and incident handling."
 category: "operations"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -81,4 +81,6 @@ When using Vox across multiple environments, there are two primary patterns for 
 - Encryption/decryption roundtrip checks.
 - Local keyring integrity.
 - Audit log append health.
+
+
 

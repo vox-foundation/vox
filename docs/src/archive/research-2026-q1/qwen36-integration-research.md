@@ -2,7 +2,7 @@
 title: "Qwen 3.6 integration research (groundwork)"
 description: "Pre-implementation checklist for Qwen 3.6 vs 3.5: primary sources, HF config and weight layout, Vox integration matrix (native QLoRA vs remote API), risks (context, reasoning, tools, multimodal, closed weights)."
 category: "architecture"
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -57,4 +57,5 @@ If **no** Hugging Face–compatible weights appear for a given SKU, native Mens 
 
 - [Qwen3.5 multimodal Phase 2 backlog](qwen35-multimodal-phase2-backlog.md) — multimodal contracts shared across Qwen generations until proven otherwise.
 - [Mens native training SSOT](../reference/mens-training.md) — current default base model and CLI expectations.
+
 

@@ -3,7 +3,7 @@ title: "Compiler IR Pipeline"
 description: "Reference for the Vox Intermediate Representation emission, validation, and its role in machine-verifiable agent loops."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -48,4 +48,5 @@ The IR pipeline provides a structured target for AI agents:
 - [IR emission SSOT (check vs build)](ir-emission-ssot.md)
 - [Vox IR Specification](../reference/vox-ir-specification.md)
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md)
+
 

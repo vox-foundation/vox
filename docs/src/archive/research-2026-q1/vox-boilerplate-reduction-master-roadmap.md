@@ -2,7 +2,7 @@
 title: "Vox boilerplate reduction master roadmap"
 description: "Execution roadmap for reducing accidental complexity and boilerplate in Vox language and full-stack surfaces."
 category: "architecture"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -276,4 +276,5 @@ This is the persistent execution plan for reducing boilerplate and accidental co
 - MCP/CLI metadata drift is minimized through generation/parity gates.
 - Autofix delivers practical, safe fixes for top repetitive error classes.
 - Docs and training corpus match shipped implementation without major drift.
+
 

@@ -2,7 +2,7 @@
 title: "ADR 020: Populi mesh scaling — default transport posture"
 description: "Records the decision to keep the HTTP control plane as the default scaling surface and when to adopt gossip or QUIC."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -36,3 +36,5 @@ Populi today is a **hub-and-spoke HTTP control plane** (join, heartbeat, A2A, ex
 
 - [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md)
 - [Populi work-type placement matrix](../reference/populi-work-type-placement-matrix.md)
+
+

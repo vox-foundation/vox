@@ -3,7 +3,7 @@ title: "Populi GPU network research 2026"
 description: "Research synthesis for evolving Populi from a CPU-first control plane into a user-owned local or internet-distributed GPU network without changing shipped behavior yet."
 category: "architecture"
 status: "research"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -314,4 +314,5 @@ Before a true implementation roadmap is written, the repo should have a stable a
 - [Populi GPU mesh implementation plan 2026](populi-gpu-mesh-implementation-plan-2026.md) is the ordered rollout proposal derived from this research set.
 
 This page exists to bridge those materials into a future Populi GPU mesh implementation plan without overstating what is already implemented.
+
 

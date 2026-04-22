@@ -2,7 +2,7 @@
 title: "Reference: Type System"
 description: "Deep dive into the Vox type system: ADTs, generics, zero-null discipline, and bidirectional inference."
 category: "reference"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -144,3 +144,5 @@ A collection of key-value pairs.
 - **[Language Guide](./ref-syntax.md)** — General syntax overview.
 - **[Decorator Registry](./ref-decorators.md)** — How types interact with `@table` and `@server`.
 - **[Functions](./ref-syntax.md)** — Detailed function signature reference.
+
+

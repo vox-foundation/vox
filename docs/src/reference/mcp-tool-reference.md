@@ -3,7 +3,7 @@ title: "MCP tool reference (legacy path)"
 description: "Canonical MCP tool registry contract lives under docs/src/reference and contracts/mcp."
 category: "reference"
 status: "legacy"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 
 schema_type: "TechArticle"
 ---
@@ -16,3 +16,5 @@ Canonical source of truth:
 - [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml)
 
 This legacy page intentionally avoids duplicating tool tables. Prefer linking the canonical contract page and the canonical YAML contract instead of this path.
+
+

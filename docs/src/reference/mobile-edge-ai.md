@@ -2,7 +2,7 @@
 title: "Mobile and edge AI — SSOT"
 description: "Official documentation for Mobile and edge AI — SSOT for the Vox language. Detailed technical reference, architecture guides, and impleme"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -138,3 +138,4 @@ Initial unsupported-by-default classes should include:
 - host-assumed builtins without mobile/browser-safe shims (for example current `std.http.*` wasm guardrails)
 
 Use the existing WASI guardrails and diagnostics as a baseline contract source, not as a claim of stock-phone parity.
+

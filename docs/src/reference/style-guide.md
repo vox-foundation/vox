@@ -2,7 +2,7 @@
 title: "Vox Documentation Style Guide"
 description: "Official documentation style guide for the Vox language, covering tone, syntax formatting, and documentation structure."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -46,3 +46,4 @@ All documentation must fall into one of these four categories:
 - **Clear Metadata**: Use frontmatter or clear H1 tags to help AI agents index the page.
 - **Descriptive Links**: Use [Technical Reference](../reference/cli.md) instead of [here](../reference/cli.md).
 - **Structured Data**: Use tables for configuration flags or API parameters.
+

@@ -2,7 +2,7 @@
 title: "External repositories & workspace SSOT"
 description: "Official documentation for External repositories & workspace SSOT for the Vox language. Detailed technical reference, architecture guides"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -74,3 +74,5 @@ See also: [Cross-repo querying and observability](../architecture/cross-repo-que
 - [`mens.md`](populi.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
 - ADR 004 (`docs/src/adr/004-codex-arca-turso.md`) — Codex env and Turso.
 - `AGENTS.md` §2.2.2 — short agent-oriented summary.
+
+

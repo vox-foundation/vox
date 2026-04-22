@@ -2,7 +2,7 @@
 title: "Internal Web IR Implementation Blueprint"
 description: "Detailed execution blueprint for implementing WebIR in Vox with weighted task quotas and critical-path checklist."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -1124,4 +1124,5 @@ Batch **OP-S049–OP-S220** rustc gates are consolidated as follows (representat
 - [Vox full-stack web SSOT](../reference/vox-web-stack.md)
 - [Compiler architecture](../explanation/expl-architecture.md)
 - [Compiler lowering phases](../explanation/expl-compiler-lowering.md)
+
 

@@ -2,7 +2,7 @@
 title: "VoxDB data cutover and telemetry sidecar runbook"
 description: "Operator runbook for legacy schema_version migration via export/import, historical training telemetry file cleanup, aligning telemetry consumers with Populi envelopes, publication/news tables, and rollback guidance."
 category: "operations"
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 
 schema_type: "TechArticle"
 ---
@@ -70,3 +70,4 @@ When the monolithic Arca baseline advances (new `SCHEMA_FRAGMENTS` slice, new se
 
 - Keep `export-legacy` JSONL artifacts until Stage 1 verification passes on a clone.
 - Do not delete primary DB until export verified.
+

@@ -3,7 +3,7 @@ title: "Agent Quick Reference"
 description: "A tightly condensed reference for essential agent tasks, constraints, and CI rules."
 category: "reference"
 status: "current"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -48,3 +48,4 @@ If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
 - Full cross-agent definitions: [`AGENTS.md`](../../AGENTS.md)
 - Governance strict rules: [`docs/agents/governance.md`](../../agents/governance.md)
 - Contributor entry hub: [`docs/src/contributors/contributor-hub.md`](../contributors/contributor-hub.md)
+

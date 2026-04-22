@@ -4,7 +4,7 @@ description: "Synthesis of Human-in-the-Loop (HITL) steering, 'Second Pass' refl
 category: "architecture"
 status: "research"
 sort_order: 5
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Survey of HITL steering and control surface patterns valuable for agent decision-making training examples."
 schema_type: "TechArticle"
@@ -80,4 +80,5 @@ By unifying these, we minimize the UI options for the controller while maximizin
 ## References
 *   [L.A. Noire Doubt Metaphor](hitl-doubt-loop-ssot.md)
 *   [Continuation Prompt Engineering SSOT](../contributors/continuation-prompt-engineering.md)
+
 

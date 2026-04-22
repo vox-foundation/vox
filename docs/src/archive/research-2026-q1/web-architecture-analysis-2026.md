@@ -2,7 +2,7 @@
 title: "Vox Web Architecture Analysis"
 description: "Official documentation for Vox Web Architecture Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -493,4 +493,5 @@ archived_date: 2026-04-18
 4. **The `@island` boundary is the right escape hatch.** Complex React components (shadcn, v0, custom hooks) belong in TypeScript. The Vox compiler should never try to express the full React API surface.
 
 5. **Quantified benefit**: This achieves ~91% of modern framework capability, reduces K-complexity by ~75% for `.vox` authors, and provides a clean training corpus for Mens — all while maintaining full backward compatibility via the `@island` escape hatch into the React/TanStack ecosystem.
+
 

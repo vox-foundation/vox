@@ -2,7 +2,7 @@
 title: "cli"
 description: "Documentation for cli.md"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -16,7 +16,7 @@ schema_type: "TechArticle"
 title: "Reference: `vox` CLI (minimal compiler binary)"
 description: "Official documentation for Reference: `vox` CLI (minimal compiler binary) for the Vox language. Detailed technical reference, architectur"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 ---
 # Reference: `vox` CLI (minimal compiler binary)
@@ -600,7 +600,7 @@ For full-repo waves (`--full-repo`), the semantic manifest persists coverage cou
 title: "Crate: `vox-cli`"
 description: "Official documentation for Crate: `vox-cli` for the Vox language. Detailed technical reference, architecture guides, and implementation p"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 ---
 # Crate: `vox-cli`
@@ -668,7 +668,7 @@ cargo install --locked --path crates/vox-cli
 title: "CLI design rules"
 description: "Official documentation for CLI design rules for the Vox language. Detailed technical reference, architecture guides, and implementation p"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 ---
 
@@ -725,7 +725,7 @@ Use one canonical command description in clap for each command, then reuse it in
 title: "CLI command reachability"
 description: "Official documentation for CLI command reachability for the Vox language. Detailed technical reference, architecture guides, and implemen"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 ---
 
@@ -812,3 +812,4 @@ The following directories under `commands/` were **not** referenced from `comman
 
 - `commands::runtime` — used by `run` (script lane), `dev` re-exports, and feature-gated script execution.
 - `commands::extras` — snippet, share, skill, ludus, ARS helpers.
+

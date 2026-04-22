@@ -3,7 +3,7 @@ title: "Scientia Publication Pipeline — Full Implementation Plan v2 (2026)"
 description: "Explicit, task-by-task implementation plan for hardening the Vox Scientia publication pipeline. v2: corrected 9 factual errors from v1, added Bluesky XRPC endpoint fix, filled missing PublisherConfig credential fields, corrected SyndicationResult already-present fields, removed false Zenodo tasks, and added LinkedIn base-path correction. Designed as a self-contained reference for implementation agents."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-13
+last_updated: "2026-04-13"
 training_eligible: false
 training_rationale: "Transient roadmap document. Training-ineligible to avoid LLMs learning stale task states."
 archived_date: 2026-04-18
@@ -1265,4 +1265,5 @@ archived_date: 2026-04-18
 ---
 
 *Implementation plan v2 — 2026-04-13. Critiqued against: `publisher/mod.rs` (605L), `publisher/config.rs` (198L), `adapters/discord.rs` (52L), `adapters/mastodon.rs` (14L), `adapters/bluesky.rs` (95L), `scholarly/zenodo.rs` (564L), `syndication_outcome.rs` (211L), `spec/ids.rs` (531L). Corrects 13 factual errors from v1. Removes 2 tasks already done (Zenodo audit/gate). Adds 5 tasks discovered during critique (C-001 through C-013).*
+
 

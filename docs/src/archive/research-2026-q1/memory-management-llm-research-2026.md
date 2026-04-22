@@ -4,7 +4,7 @@ description: "Architectural research analyzing the cognitive-load impacts of str
 category: "architecture"
 status: "research"
 sort_order: 10
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Synthesis of memory management trade-offs (Borrow Checker vs GC) specifically through the lens of optimizing for LLM generation paths."
 schema_type: "TechArticle"
@@ -52,4 +52,5 @@ Moving forward, Vox will officially target a **Per-Actor GC** memory model. This
 * [Rosetta Inventory: One Scenario, Four Languages](../explanation/expl-rosetta-inventory.md)
 * [Vox as the First AI-Native Language: Reducing K-Complexity](vox-llm-native-language-research-2026.md)
 * [Terminal execution policy research findings 2026](terminal-exec-policy-research-findings-2026.md)
+
 

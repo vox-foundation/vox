@@ -2,7 +2,7 @@
 title: "Vox full-stack ergonomics deep dive"
 description: "Repository-grounded full-stack boilerplate hotspots and implementation roadmap for Vox."
 category: "architecture"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -99,4 +99,5 @@ archived_date: 2026-04-18
   - migration notes,
   - risk notes,
   - rollback trigger criteria.
+
 

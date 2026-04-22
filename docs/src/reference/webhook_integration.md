@@ -3,7 +3,7 @@ title: "Vox Webhook Integration"
 description: "Lightweight HTTP gateway for receiving events from external services and routing into the orchestrator with HMAC verification."
 category: "reference"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -71,3 +71,5 @@ The `ChannelManager` can broadcast messages across multiple channels simultaneou
 ```rust
 manager.send_all("Build failed on main branch").await;
 ```
+
+

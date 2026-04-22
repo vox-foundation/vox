@@ -2,7 +2,7 @@
 title: "Environment variables (SSOT)"
 description: "Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -417,3 +417,4 @@ For scientia/news social distribution credentials, resolve in this order:
 3. local `~/.vox/auth.json` fallback for developer-only sessions.
 
 Do not persist raw social API credentials in publication metadata or VoxDb domain tables.
+

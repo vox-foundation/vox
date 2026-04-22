@@ -2,7 +2,7 @@
 title: "CLI scope policy"
 description: "Official documentation for CLI scope policy for the Vox language. Detailed technical reference, architecture guides, and implementation p"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -47,4 +47,5 @@ Integration tests and scripts must not assume subcommands that are absent from t
 
 - New **`scripts/...` references** in `.github/workflows/*.yml` must either match the allowlist or the PR must update `workflow-script-allowlist.txt` with an owner note.
 - Prefer extending **`vox ci`** for new guards instead of adding long bash matrices.
+
 

@@ -2,7 +2,7 @@
 title: "Forward-only migration charter"
 description: "Official documentation for Forward-only migration charter for the Vox language. Detailed technical reference, architecture guides, and im"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -31,4 +31,5 @@ archived_date: 2026-04-18
 - [Compatibility and deprecation windows](compatibility-deprecation-windows.md)
 - [Rust modernization baseline (Wave 0)](../ci/rust-modernization-baseline.md)
 - [Crate hardening matrix](../ci/crate-hardening-matrix.md)
+
 

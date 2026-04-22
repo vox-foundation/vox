@@ -3,7 +3,7 @@ title: "Vox and Erlang: Architectural Parallels and Divergences"
 description: "Research and findings comparing Vox's AI-native actor model with Erlang/OTP, highlighting specific capabilities and ideal use cases for each."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Research synthesis"
 schema_type: "TechArticle"
@@ -74,4 +74,5 @@ archived_date: 2026-04-18
 ## Conclusion
 If the focus is on *keeping the system running continuously despite catastrophic hardware or network disruption*, **Erlang** is unparalleled. 
 If the system focuses on *coordinating AI logic, ensuring strict execution durability over time, and reducing architectural K-complexity*, **Vox** provides the more powerful modern baseline.
+
 

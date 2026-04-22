@@ -3,7 +3,7 @@ title: "HITL Doubt Loop (SSOT)"
 description: "Canonical authority document for the HITL doubt system and Resolution Agent."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-10
+last_updated: "2026-04-10"
 training_eligible: false
 training_rationale: "Key architecture constraints and definitions required for agent context"
 
@@ -44,4 +44,5 @@ a valid validated output, the LML calls `vox_doubt_task` on behalf of the curren
 
 See [research-llm-output-mediation-validation-2026.md](research-llm-output-mediation-validation-2026.md)
 §6.3 and §11 (Wave 1) for the design of the repair loop and escalation trigger.
+
 

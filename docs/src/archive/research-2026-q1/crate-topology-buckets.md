@@ -2,7 +2,7 @@
 title: "Crate topology buckets"
 description: "Like-with-like map for workspace crates under crates/* and major modules."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -49,4 +49,5 @@ Use `vox ci build-timings` / `--deep` telemetry as the decision gate for crate-o
 - [crate-build-lanes-migration.md](crate-build-lanes-migration.md)
 - [vox-cli-build-feature-inventory.md](vox-cli-build-feature-inventory.md)
 - [external-repositories.md](../reference/external-repositories.md)
+
 

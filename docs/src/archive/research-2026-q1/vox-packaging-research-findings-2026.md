@@ -2,7 +2,7 @@
 title: "Vox packaging research findings 2026"
 description: "Hard-cut research findings for Cargo-first Vox package management, command namespace unification, and Python/UV retirement."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -244,4 +244,5 @@ As of the 2026 packaging execution wave: hybrid top-level + **`vox pm`** grammar
 - SLSA provenance schema: [SLSA provenance](https://slsa.dev/spec/v1.0/provenance)
 - Sigstore attest verification: [Cosign in-toto attestations](https://docs.sigstore.dev/cosign/verifying/attestation/)
 - in-toto framework: [Getting started](https://in-toto.io/docs/getting-started)
+
 

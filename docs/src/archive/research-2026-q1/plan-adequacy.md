@@ -2,7 +2,7 @@
 title: "Plan adequacy — thin plans, external limits, and Vox mitigation"
 description: "Why IDE and API planners produce underspecified plans, how Vox detects and expands them safely, and telemetry for rollout."
 category: "architecture"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -109,4 +109,5 @@ Use `json_extract(iterative_loop_metadata_json, '$.adequacy_after.score')` (or `
 - [OpenAI — Controlling the length of model responses](https://help.openai.com/en/articles/5072518-controlling-the-length-of-openai-model-responses)
 - [Cursor — Dynamic context discovery](https://cursor.sh/blog/dynamic-context-discovery)
 - [Cursor — Training Composer / self-summarization](https://cursor.com/blog/self-summarization)
+
 

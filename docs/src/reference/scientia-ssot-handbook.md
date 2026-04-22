@@ -2,7 +2,7 @@
 title: "SCIENTIA SSOT handbook (glossary, vocabulary, checklists)"
 description: "Single reference for SCIENTIA lifecycle terms, status vocabulary, SSOT routing, anti-drift checklists, operator flows, SLOs, and LLM task conventions."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -225,3 +225,4 @@ Use **`vox scientia publication-openreview-profile --publication-id <id>`** (or 
 
 - CLI: **`vox scientia publication-scholarly-pipeline-run … --json`** emits **single-line** JSON for dry-run and success payloads (default remains pretty-printed for humans).
 - MCP: **`vox_scientia_publication_scholarly_pipeline_run`** accepts **`json_compact: true`** for the same shape in compact form inside the tool result envelope.
+

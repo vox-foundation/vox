@@ -3,7 +3,7 @@ title: "Vox A2A Orchestration Hardening Findings 2026"
 description: "Synthesized results and implementation details for securing agent-to-agent handoffs, preventing infinite loops, and ensuring durable context continuity."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 archived_date: 2026-04-18
 training_rationale: "Findings synthesis"
@@ -59,5 +59,6 @@ Operators were unable to distinguish between a "hard task" and a "looping task" 
 1. **Socrates Bridge**: Finalize the integration of the `transcript` into the Hallucination Detection gate.
 2. **Transcript Compaction**: Implement summarization for turns 4-10 to prevent long-term context decay.
 3. **Capability-Based Handoffs**: Add access control lists (ACLs) to the handoff protocol to prevent unauthorized agent delegation.
+
 
 

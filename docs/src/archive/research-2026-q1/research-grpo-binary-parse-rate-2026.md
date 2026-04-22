@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -34,4 +34,5 @@ The literature evaluating binary parse signals against continuous reward signals
 To address this, modern architectures deploy continuous, dense reward signals. Frameworks such as Verifiable Process Reward Models (VPRMs) and methods like CodeScaler provide intermediate, step-level scores to partially correct or logically sound code.11 By assigning a continuous distribution of rewards based on execution traces, these systems allow the policy to capture structural nuances and explore a significantly more diverse solution space without suffering catastrophic penalties for minor syntactic infractions.11  
 Alternatively, systems like Execution-Grounded Credit Assignment (EGCA) maintain the critic-free nature of GRPO but localize the binary outcome penalty by executing candidate code alongside a canonical reference, identifying the exact token span where semantic divergence occurs, and masking the downstream tokens from the gradient penalty.12 The Vox MENS architecture lacks any such credit localization mechanism, relying instead on a blunt, heavily weighted binary syntax filter that is empirically proven to underperform continuous or localized process rewards.  
 *Evidence Quality Rating:* **Strong**. The limitations of sparse binary rewards and the necessity for either process-level feedback, dense continuous signals, or localized credit assignment in code RL are exhaustively documented across 2024–2026 architectures (EGCA, VPRMs, CodeScaler).
+
 

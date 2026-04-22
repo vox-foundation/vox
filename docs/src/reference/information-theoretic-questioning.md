@@ -2,7 +2,7 @@
 title: "Information-theoretic questioning protocol"
 description: "SSOT for when and how Vox asks clarifying questions with maximum diagnostic value per user effort."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -216,3 +216,5 @@ Question-level runtime telemetry must be queryable in VoxDB via dedicated questi
 - `docs/src/reference/orchestration-unified.md`
 - `docs/src/architecture/research-diagnostic-questioning-2026.md` — full research grounding (POMDP, EVPI, gap analysis, implementation roadmap)
 - `docs/src/architecture/planning-meta/12-question-gate-standard.md` — Tier 1 normative rules for planning-mode questioning
+
+

@@ -2,7 +2,7 @@
 title: "Vox bell-curve strategy"
 description: "Program SSOT for the narrow app-software scope, product lanes, ranking model, and rollout status used by the Vox bell-curve work."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -88,4 +88,5 @@ All docs in this program should explicitly label one of these states when a surf
 - `escape hatch`
 
 This is especially important for workflows, frontend emission ownership, and interop claims.
+
 

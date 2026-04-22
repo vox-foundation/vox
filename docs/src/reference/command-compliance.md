@@ -2,7 +2,7 @@
 title: "Command compliance"
 description: "Official documentation for Command compliance for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -33,3 +33,4 @@ schema_type: "TechArticle"
 **Definition of done** for a new shipped CLI operation: registry row + docs + **`command-compliance`** green (see [`cli-design-rules.md`](cli.md)).
 
 For fast local policy iteration across this lane, use **`vox ci policy-smoke`** (`cargo check -p vox-orchestrator`, in-process command-compliance, then the same `cargo test -p vox-compiler --test rust_ecosystem_support_parity` used by **`vox ci rust-ecosystem-policy`**).
+

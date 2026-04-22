@@ -2,7 +2,7 @@
 title: "ADR 018: Populi GPU truth layering"
 description: "Normative layering between probe-backed hardware facts, allocatable capacity, and operator policy labels for Populi scheduling."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -38,3 +38,5 @@ Scheduling and routing need **trustworthy** signals: today, many GPU/NPU hints a
 - [Work-type placement policy matrix](../reference/populi-work-type-placement-matrix.md).
 - [Populi GPU truth probe specification (NVML Layer A)](../architecture/populi-gpu-truth-probe-spec.md) — shipped probe wiring and build features.
 - [Populi GPU network research 2026](../architecture/populi-gpu-network-research-2026.md) — evidence and gaps (research).
+
+

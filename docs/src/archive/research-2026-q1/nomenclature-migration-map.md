@@ -2,7 +2,7 @@
 title: "Nomenclature migration map (SSOT)"
 description: "Canonical English terms, Latin CLI aliases, and legacy identifiers for the Vox codebase."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -105,4 +105,5 @@ Values come from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/
 - [Glossary: Vox Terminology](../explanation/glossary.md)
 - [Command compliance](../reference/command-compliance.md)
 - [Governance](../../agents/governance.md) — naming discipline
+
 

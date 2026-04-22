@@ -2,7 +2,7 @@
 title: "Phase 0 documentation baseline — signoff"
 description: "Official documentation for Phase 0 documentation baseline — signoff for the Vox language. Detailed technical reference, architecture guid"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -22,4 +22,5 @@ This file records completion of the **documentation-first** baseline for the for
 | `ref-cli` / `AGENTS` reconciled | Maintainers | Done | 2026-03-20 |
 
 Update this table when each gate is satisfied. **No Git-restore workflow** is required — update the tree forward only.
+
 

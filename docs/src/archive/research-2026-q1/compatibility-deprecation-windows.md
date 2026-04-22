@@ -2,7 +2,7 @@
 title: "Compatibility and deprecation windows"
 description: "Official documentation for Compatibility and deprecation windows for the Vox language. Detailed technical reference, architecture guides,"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -37,4 +37,5 @@ Full registry (orchestrator, repo root, CI knobs): [Environment variables (SSOT)
 
 1. Document deprecation in [changelog.md](../reference/changelog.md) when behavior changes.
 2. Keep [codex-legacy-migration.md](codex-legacy-migration.md) aligned with shipped CLI subcommands.
+
 

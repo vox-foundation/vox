@@ -3,7 +3,7 @@ title: "VoxScript as Universal Glue Code — Research & Architecture 2026"
 description: "Strategy, security model, execution tiers, and migration policy for replacing .ps1/.sh/.py glue scripts with .vox files driven by `vox run`."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: false
 training_rationale: "Establishes the foundational policy for VoxScript as the project's sole glue language, replacing shell scripts and Python."
 archived_date: 2026-04-18
@@ -339,4 +339,5 @@ archived_date: 2026-04-18
 2. **Whitespace Sensitivity in Literals:** Object and list literals must explicitly skip newlines in their internal loops, or they will collide with the interpreter's newline-as-statement-boundary rule.
 3. **Immutable List Ergonomics:** Since Vox lists are currently immutable in the interpreter, the `list = list.push(item)` pattern is mandatory. This must be documented for Python/PS1 users.
 4. **Namespace Shadowing:** Scripts must be careful not to name local variables after stdlib namespaces (e.g., `let path = ...` shadows the `path` builtin). Explicit namespace use is recommended.
+
 

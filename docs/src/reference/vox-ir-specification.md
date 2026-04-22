@@ -3,7 +3,7 @@ title: "Vox IR Specification"
 description: "Stability-first Intermediate Representation (IR) for machine-verifiable Vox programs."
 category: "reference"
 status: current
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 
 schema_type: "TechArticle"
 ---
@@ -112,3 +112,4 @@ While internal HIR layouts may evolve between compiler versions, **Vox IR** (v2.
 - [Internal Web IR blueprint](../architecture/internal-web-ir-implementation-blueprint.md)
 - [HIR Reference](./hir-legacy-inventory.md)
 - [WebIR Strategy](../adr/012-internal-web-ir-strategy.md)
+

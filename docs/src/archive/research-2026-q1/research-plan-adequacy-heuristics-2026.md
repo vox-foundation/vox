@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -46,4 +46,5 @@ Correlating text length/word count to architectural adequacy incentivizes "evalu
 1. **Shift to Programmatic Prompts / Preconditions:** Avoid text heuristics. Force models to output structured actions accompanied by explicit pre-condition assertions (e.g. `assert database_active == true`). Fail adequacy if precondition logic doesn't exist.
 2. **LLMs-as-Formalizers (NL-PDDL):** Evaluate Natural Language via formal semantic frameworks like NL-PDDL. Use lifted regression algorithms to execute entailment checking—verifying mathematically if the steps actually entail the final desired state.
 3. **Implement LLM-as-a-Judge Coverage Testing:** Deprecate keyword regex. Utilize a fine-tuned evaluator LLM (Socratic Self-Refine) constrained by a rubric to identify missing dependencies, unstated destructive actions framed globally, and entity coverage matching against the prompt.
+
 

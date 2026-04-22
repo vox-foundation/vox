@@ -2,7 +2,7 @@
 title: "Clavis Break-Glass Runbook"
 description: "Emergency access workflow for Clavis Cloudless with JIT controls, immutable audit, and mandatory rotation."
 category: "operations"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -50,3 +50,5 @@ Define emergency access procedure that balances incident response speed with acc
 - Missing ticket/reason -> deny break-glass.
 - Missing immutable audit sink -> deny break-glass.
 - Inability to rotate touched credentials post-incident -> incident remains open.
+
+

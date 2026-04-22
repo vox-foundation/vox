@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -46,4 +46,5 @@ Based on the rigorous synthesis of recent LLM reinforcement learning literature,
 
 - *Adjustment:* A dataset of 500 pairs is insufficient for RLVR convergence.
 - *Implementation:* Leverage the base Qwen2.5-Coder model to synthesize mutated, increasingly difficult variations of the 500 pairs prior to RL training (Data Expansion).66 Implement an Anna Karenina sampling strategy to artificially balance the batch distribution with known negative trajectories drawn from the model's own rollouts. This maintains high policy entropy and prevents rapid saturation on the small dataset, sustaining the exploration necessary for functional code generation.59
+
 

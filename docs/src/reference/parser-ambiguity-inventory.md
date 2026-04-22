@@ -2,7 +2,7 @@
 title: "Parser ambiguity and robustness inventory"
 description: "Known parse edge cases, error classes, and fixture locations for the canonical vox-compiler parser"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -38,3 +38,4 @@ Automated **no-panic** corpus { [`crates/vox-compiler/tests/parser_corpus_no_pan
 
 - [Lexer / tokens — Vox Language Reference](../reference/ref-syntax.md)
 - [STYLE / examples](../../../examples/STYLE.md)
+

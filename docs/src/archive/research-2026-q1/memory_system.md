@@ -3,7 +3,7 @@ title: "Vox Memory System"
 description: "Persistent, searchable long-term storage for agent knowledge with tiered primaries per concern."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -92,4 +92,5 @@ The `CompactionEngine` supports three strategies:
 ## Storage and domain persistence
 
 Prefer **Arca-governed** `VoxDb` operations in `crates/vox-db` for gamification (`vox-ludus`), schedules, and telemetry rather than duplicating state in unstructured logs. Markdown remains appropriate for human-curated narratives alongside Codex.
+
 

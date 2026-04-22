@@ -4,7 +4,7 @@ description: "Research findings on applying Network Neuroscience Theory to Vox's
 category: "architecture"
 status: "research"
 sort_order: 185
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Provides theoretical and architectural groundwork for evolving vox-dei towards dynamic 'Agentic Neural Networks' with small-world routing topology."
 
@@ -62,4 +62,5 @@ Integrating NNT into Vox allows us to build an orchestrator that is an adaptive 
 
 1. How do we programmatically define the boundary between a "local cluster" and a "long-range hub" within `vox-dei` without falling back to rigid configuration files?
 2. Can we use GRPO reward shaping to train the orchestrator model to optimize for "small-world" routing efficiency?
+
 

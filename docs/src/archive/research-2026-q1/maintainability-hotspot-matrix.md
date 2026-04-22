@@ -2,7 +2,7 @@
 title: "Maintainability hotspot matrix (baseline)"
 description: "Tracking matrix for the package and maintainability overhaul: duplicates, target consolidation, gating tests, and acceptance criteria."
 category: "architecture"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -51,4 +51,5 @@ This document is the **baseline** for the package and maintainability rollout. U
 
 - [Environment variables (SSOT)](../reference/env-vars.md) — `VOX_DB_PATH`, OpenClaw sidecar env vars
 - [AGENTS.md](../../../AGENTS.md) — Clavis secret resolution
+
 

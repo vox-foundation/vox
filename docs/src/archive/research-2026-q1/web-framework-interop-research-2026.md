@@ -3,7 +3,7 @@ title: "Web Framework Interop Research 2026"
 description: "Codebase-grounded research on React, TanStack, Svelte, SolidJS, Next.js, Qwik, Astro, and Vite — their TypeScript requirements, convergence trends, and how Vox can support all of them as an AI-first compilation target without creating a maintenance nightmare."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-14
+last_updated: "2026-04-14"
 training_eligible: false
 training_rationale: "Documents the framework landscape and Vox's multi-backend strategy for TypeScript output, grounded in codebase audit of codegen_ts, web_ir, and cli templates."
 
@@ -525,4 +525,5 @@ Vox is uniquely positioned as a language that:
 7. **Vite 8 / Rolldown**: [vite.dev](https://vite.dev), [rolldown.rs](https://rolldown.rs), [voidzero.dev](https://voidzero.dev). Rolldown 1.0 RC (Jan 2026).
 8. **Framework comparison**: Synthesized from strapi.io, quartzdevs.com, dev.to, medium.com, boundev.com, acropolium.com.
 9. **Vox codebase**: Direct audit of `codegen_ts/`, `web_ir/`, `app_contract.rs`, `react_bridge.rs`, `codegen_rust/`, `cli/templates/`.
+
 

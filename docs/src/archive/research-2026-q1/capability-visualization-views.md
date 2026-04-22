@@ -4,7 +4,7 @@ description: "Planned IDE/dashboard views fed by the capability registry, model 
 category: "architecture"
 status: "current"
 sort_order: 13
-last_updated: 2026-03-31
+last_updated: "2026-03-31"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -54,4 +54,5 @@ flowchart LR
 
 - **Payload:** `CrossRepoQueryTrace` on `vox_repo_query_*` responses (`source_plane`, `trace_id`, latency).
 - **UI:** collapsible “last query” panel for debugging polyrepo search.
+
 

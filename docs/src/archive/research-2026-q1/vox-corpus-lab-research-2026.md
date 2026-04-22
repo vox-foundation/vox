@@ -4,7 +4,7 @@ description: "Tier A/B/C corpus policy, compiler lanes vs golden parity, Syntax-
 category: "architecture"
 status: "research"
 sort_order: 18
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Unifies compiler evidence, optional UI pixels-to-JSON, and model eval without duplicating SSOT already in golden tests and Mens contracts."
 
@@ -88,4 +88,5 @@ Operator-local, gitignored root e.g. `.vox/corpus-lab/` (exact name subject to `
 1. Single CLI owner (`vox ci corpus-lab` vs `vox mens corpus` extension) to avoid duplicate batch drivers.
 2. Whether to reuse `syntax_k_event` schema only or define `corpus_lab_event` sibling in `contracts/eval/`.
 3. Windows `target/` lock contention policy for parallel batch runs ([build environment](../../../.cursor/rules/build-environment.mdc) guidance).
+
 

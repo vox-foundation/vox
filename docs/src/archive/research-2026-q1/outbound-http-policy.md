@@ -4,7 +4,7 @@ description: "Single policy for building reqwest clients across Vox crates; migr
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -49,4 +49,5 @@ Workspace crates that build outbound clients through `vox_reqwest_defaults::clie
 
 - [Language surface SSOT](language-surface-ssot.md)
 - [OpenAPI contract SSOT](openapi-contract-ssot.md)
+
 

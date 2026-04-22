@@ -2,7 +2,7 @@
 title: "Rust ecosystem support SSOT"
 description: "Canonical support matrix and debt model for Rust crate families used by Vox lanes."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -91,4 +91,5 @@ Data support prioritizes `turso+vox-db` before broad SQL ecosystems. `sqlx`, `di
 - data-lane abstractions are stable,
 - representative app/workflow examples prove demand,
 - and debt-to-value ratio improves.
+
 

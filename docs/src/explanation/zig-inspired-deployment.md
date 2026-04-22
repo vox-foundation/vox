@@ -2,7 +2,7 @@
 title: "Zig-Inspired Deployment Architecture"
 description: "Official documentation for Zig-Inspired Deployment Architecture for the Vox language. Detailed technical reference, architecture guides, "
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -111,3 +111,5 @@ Before this architecture, deployment was scattered across four commands and file
 - Bare-metal was buried in `vox-container/src/bare_metal.rs`, unreachable from CLI
 
 All of this is now unified under `vox deploy` with target dispatch logic in `vox-container::deploy_target`.
+
+

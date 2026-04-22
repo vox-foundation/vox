@@ -2,7 +2,7 @@
 title: "TanStack web backlog"
 description: "Official documentation for TanStack web backlog for the Vox language. Detailed technical reference, architecture guides, and implementati"
 category: "reference"
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -77,5 +77,6 @@ Spec / historical fate table: [tanstack-start-codegen-spec.md](./tanstack-start-
 - **Partial — Wave I:** **No** virtual route snapshots; instead `web_ir_lower_emit`, `include_01` pipeline, `axum_emit_contract`. Add tests only if new grammar ships.
 - **Partial — Wave J:** [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs), [`spa.rs`](../../../crates/vox-cli/src/templates/spa.rs), [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs) are live; revisit when `vox init --web` changes.
 - [ ] **Wave K:** ADR 010 / **architecture-index** links — spot-check when touching web ADRs.
+
 
 

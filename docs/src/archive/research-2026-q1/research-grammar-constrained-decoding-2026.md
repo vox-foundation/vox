@@ -1,6 +1,6 @@
 ---
 title: "LLM Grammar Constraints for Code"
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 research_source: "gemini_deep_research"
 category: "architecture"
 description: "Research on grammar-constrained decoding for LLM code generation and output validity."
@@ -312,4 +312,5 @@ Ultimately, realizing the full potential of language models in software synthesi
 38. A Survey of Hybrid Inference Systems for Large Language Models - OpenReview, accessed April 8, 2026, [<u>https://openreview.net/attachment?id=OIrJI53MvN&name=pdf</u>](https://openreview.net/attachment?id=OIrJI53MvN&name=pdf)
 
 39. A Survey on Parallel Text Generation: From Parallel Decoding to Diffusion Language Models - arXiv, accessed April 8, 2026, [<u>https://arxiv.org/html/2508.08712v4</u>](https://arxiv.org/html/2508.08712v4)
+
 

@@ -3,7 +3,7 @@ title: "Vox Skill Marketplace"
 description: "Documentation for the Vox skills ecosystem including ARS runtime, skill registries, and workflows."
 category: "reference"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -86,3 +86,4 @@ Available events: `TaskCompleted`, `TaskFailed`, `AgentStarted`, `AgentStopped`,
 ## Skills vs. Deep Execution Libraries (PyTorch)
 
 Skills are designed exclusively for **loose-coupled orchestration** (e.g., connecting to a database, resolving a Git conflict, routing workflows) and are not meant to replace high-speed, tight-loop native ML execution like PyTorch. Because Skills function as discrete event-driven bundles with high-latency JSON/IPC handoffs, they should never be used for per-pixel or per-node calculations. For heavy loop execution or math operations, rely on native, highly coupled Rust constructs (such as `vox-tensor`), avoiding external library spaghetti.
+

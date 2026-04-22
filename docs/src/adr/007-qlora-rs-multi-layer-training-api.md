@@ -2,7 +2,7 @@
 title: "ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate)"
 description: "Official documentation for ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate) for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -62,3 +62,5 @@ Source audit (`qlora-rs` 1.0.5 `src/training.rs`):
 
 - Crate: `qlora-rs` 1.0.5 (`training.rs`, `qlora.rs`).
 - SSOT: [`mens-training.md`](../reference/mens-training.md) — § Full-graph QLoRA design.
+
+

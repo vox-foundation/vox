@@ -2,7 +2,7 @@
 title: "MENS findings: Composer and Kimi (2026)"
 description: "Revalidated evidence grading for Composer/Kimi claims and operational implications for MENS."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -61,5 +61,6 @@ Direct machine retrieval of some social-post evidence remains inconsistent in ou
 - **Eval**: add tiered held-out checks (unit parity tests today; extend toward long-horizon agent tasks only when compute allows — Kimi-style swarm/PARL is not a 4080 QLoRA default).
 - **Manifests**: keep `training_manifest.json` and `populi_adapter_manifest_v3.json` as the promotion gate for lineage; avoid “hero” adapter drops without upstream ids.
 - **MoE / trillion-parameter assumptions**: out of scope for the local Candle trainer; absorb any external MoE bases only through **documented** HF ids + provenance fields, not by pretending in-tree graphs match their block structure.
+
 
 

@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -39,4 +39,5 @@ To ensure zero-shot reliability, the core grammar must remain ruthless, small, a
 - [K-Complexity and Multi-File LLM Code Generation](research-ts-hallucination-k-complexity-2026.md)
 - [The Frontier: Unknowns in LLM-Native Language Design](research-ts-hallucination-frontier-2026.md)
 - [Works Cited: Hallucination and Type-System Research](research-ts-hallucination-works-cited-2026.md)
+
 

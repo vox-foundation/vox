@@ -4,7 +4,7 @@ description: "Advisory synthesis: converging on one taxonomy and durable SSOT (V
 category: "architecture"
 status: "research"
 sort_order: 6
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -253,4 +253,5 @@ One-line relevance for research traceability (order does not imply priority).
 | Date | Change |
 | --- | --- |
 | 2026-03-28 | Initial advisory: lane matrix, overlap analysis, SSOT gaps, bibliography; A2A overview link uses [a2a-protocol.org](https://a2a-protocol.org/latest/topics/what-is-a2a/). |
+
 

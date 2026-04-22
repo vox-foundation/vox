@@ -2,7 +2,7 @@
 title: "Vox boilerplate research findings 2026"
 description: "Research findings on common boilerplate sources and reduction methods applied to Vox language design."
 category: "architecture"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -82,4 +82,5 @@ This study used 30 targeted web searches across language ergonomics, compiler de
 - Higher diagnostic fixability (autofixable classes).
 - Lower docs/code drift incidents in CI.
 - Reduced median lead time for first full-stack feature in repo examples.
+
 

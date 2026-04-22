@@ -4,7 +4,7 @@ description: "Ordered execution plan for de-factoring God Objects across vox-pub
 category: "architecture"
 status: "experimental"
 
-last_updated: 2026-04-13
+last_updated: "2026-04-13"
 training_eligible: false
 archived_date: 2026-04-18
 ---
@@ -76,4 +76,5 @@ After each decomposition:
 1. `vox ci sync-ignore-files` (if ignore files were touched).
 2. `cargo check --all-targets`.
 3. Mental verify: No module exceeds 500 lines.
+
 

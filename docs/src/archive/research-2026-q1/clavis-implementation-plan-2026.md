@@ -7,7 +7,7 @@ description: >
 category: "architecture"
 status: "experimental"
 
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 archived_date: 2026-04-18
 ---
@@ -1405,4 +1405,5 @@ archived_date: 2026-04-18
 | [clavis-secrets-env-research-2026.md](clavis-secrets-env-research-2026.md) | Base research; waves extend its gates |
 | [clavis-one-stop-secrets-research-2026.md](clavis-one-stop-secrets-research-2026.md) | Feature requirements mapped to §V CLI surface |
 | [terminal-exec-policy-research-findings-2026.md](terminal-exec-policy-research-findings-2026.md) | `vox clavis run` subprocess model |
+
 

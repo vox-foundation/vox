@@ -2,7 +2,7 @@
 title: "ADR 012 — Internal Web IR strategy for Vox"
 description: "Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu"
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -346,3 +346,4 @@ flowchart LR
 - [Compiler Lowering Phases](../explanation/expl-compiler-lowering.md)
 - [Vox web stack SSOT](../reference/vox-web-stack.md)
 - [vox-codegen-ts API](../reference/cli.md)
+

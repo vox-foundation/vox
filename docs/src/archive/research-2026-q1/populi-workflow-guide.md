@@ -2,7 +2,7 @@
 title: "Mens Coordination Workflow Guide"
 description: "Official documentation for Mens Coordination Workflow Guide for the Vox language. Detailed technical reference, architecture guides, and "
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -202,4 +202,5 @@ archived_date: 2026-04-18
 - `docs/src/reference/mens-coordination.md` — Architecture SSOT  
 - `docs/src/adr/004-codex-arca-turso.md` — Turso/Arca naming  
 - `docs/src/reference/orchestration-unified.md` — Orchestrator internals  
+
 

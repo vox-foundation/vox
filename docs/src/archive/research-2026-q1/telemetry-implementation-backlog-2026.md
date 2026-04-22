@@ -3,7 +3,7 @@ title: "Telemetry implementation backlog 2026"
 description: "Executable, codebase-wide checklist for telemetry unification; grouped by phase and primary path."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -244,4 +244,5 @@ archived_date: 2026-04-18
 - [x] All Phase 0–4 items checked for minimal viable trust convergence.
 - [x] Phase 5–6 complete before any default remote upload ships (no default upload in product; `vox telemetry upload` remains explicit).
 - [x] Phase 7 technical guardrails documented in ADR 023; organization legal/security sign-off for production ingest remains operator responsibility (called out in ADR).
+
 

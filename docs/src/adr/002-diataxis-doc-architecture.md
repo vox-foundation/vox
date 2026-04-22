@@ -3,7 +3,7 @@ title: "ADR 002 — Diátaxis Three-Tier Documentation Architecture"
 description: "Grounded documentation architecture for Vox: mdBook front door, contributor surfaces, contracts, and status vocabulary."
 category: "adr"
 status: "current"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -57,7 +57,7 @@ Published pages should use YAML frontmatter. At minimum, new pages should carry:
 title: "Human-readable Title"
 description: "One-sentence summary"
 category: getting-started|tutorial|how-to|explanation|reference|adr|architecture|contributor|ci
-last_updated: 2026-03-01
+last_updated: "2026-03-01"
 training_eligible: true
 status: current|experimental|legacy|research|roadmap|deprecated  # when needed
 ---
@@ -104,3 +104,5 @@ Filename prefixes are allowed when they improve scanability, but they are no lon
 - [`../contributors/documentation-governance.md`](../contributors/documentation-governance.md)
 - `crates/vox-doc-pipeline/src/main.rs` — SUMMARY generation
 - `.github/workflows/docs-deploy.yml` — docs deploy integration
+
+

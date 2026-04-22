@@ -3,7 +3,7 @@ title: "Vox shell operations boundaries"
 description: "Where host PowerShell, `vox shell`, and `.vox` std I/O/process primitives each belong — and what Vox is not building (shell emulator)."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -41,4 +41,5 @@ Vox is a **language and toolchain**. It does **not** ship a **general-purpose sh
 - Std surfaces: [`docs/src/reference/std-surfaces.md`](../reference/std-surfaces.md).
 - Script primitives: [`docs/src/architecture/vox-automation-primitives.md`](vox-automation-primitives.md).
 - Policy research: [`terminal-exec-policy-research-findings-2026.md`](terminal-exec-policy-research-findings-2026.md), [`terminal-ast-validation-research-2026.md`](terminal-ast-validation-research-2026.md).
+
 

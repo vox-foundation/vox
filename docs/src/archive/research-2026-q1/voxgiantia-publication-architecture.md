@@ -2,7 +2,7 @@
 title: "VoxGiantia publication architecture (beginner map)"
 description: "Beginner-friendly map of how VoxGiantia turns one manifest into multi-platform publication attempts."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -120,4 +120,5 @@ Centralized switching primitives make behavior deterministic across interfaces.
 - `docs/src/architecture/scientia-publication-automation-ssot.md`
 - `docs/src/architecture/scientia-publication-readiness-audit.md`
 - `docs/src/reference/scientia-publication-worthiness-rules.md`
+
 

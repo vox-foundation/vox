@@ -2,7 +2,7 @@
 title: "Binary release artifact contract"
 description: "SSOT for GitHub Release binary names, archive layout, checksum manifest, and supported host triples for `vox-bootstrap` and `vox ci release-build`."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -107,3 +107,4 @@ Before shipping a real tag:
 1. Locally: `cargo run -p vox-cli -- ci release-build --target <host-triple>` (optional `--version`), extract the archive, run `./vox --version`.
 2. `cargo test -p vox-cli release_build`, `cargo test -p vox-bootstrap`, `cargo run -p vox-cli -- ci command-compliance`.
 3. CI: push a disposable test tag `v0.0.0-test.<timestamp>`, confirm all matrix jobs + publish; then delete the test tag/release if it was only for verification.
+

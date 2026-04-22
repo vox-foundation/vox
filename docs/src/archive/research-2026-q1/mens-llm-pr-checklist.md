@@ -2,7 +2,7 @@
 title: "Mens / HF fine-tune — LLM PR checklist"
 description: "Official documentation for Mens / HF fine-tune — LLM PR checklist for the Vox language. Detailed technical reference, architecture guid"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -63,4 +63,5 @@ Use this when agents or humans touch **`vox-populi`** **Mens** training (`mens-t
 - [HF fine-tune gap matrix](../reference/hf-finetune-gap-matrix.md)
 - [Mens training SSOT](../reference/mens-training.md)
 - [HF fine-tune capability matrix](hf-finetune-capability-matrix.md)
+
 

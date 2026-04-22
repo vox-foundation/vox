@@ -3,7 +3,7 @@ title: "FableForge to Vox Conversion Analysis"
 description: "Feasibility study and architectural comparison for migrating the FableForge TypeScript/Convex stack to the Vox AI-native language."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Research synthesis"
 archived_date: 2026-04-18
@@ -82,4 +82,5 @@ Converting FableForge to Vox is a strategic move that would reduce the "Integrat
 
 ---
 *Research conducted by Antigravity AI on 2026-04-16.*
+
 

@@ -2,7 +2,7 @@
 title: "Contributing — parser and HIR"
 description: "Onboarding for vox-compiler frontend, HIR lowering, and diagnostic discipline."
 category: "how-to"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 
 schema_type: "HowTo"
 ---
@@ -61,3 +61,4 @@ cargo test -p vox-compiler --test golden_vox_examples
 - `vox corpus eval --mode ast examples/golden/` passes without new failures.
 - New declaration kinds either get a dedicated `Hir*` vector or land in `legacy_ast_nodes` **only** with an inventory update and a graduation plan.
 - The changed files pass `vox stub-check` with no god-object violations.
+

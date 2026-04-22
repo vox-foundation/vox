@@ -2,7 +2,7 @@
 title: "Vox packaging full implementation plan 2026"
 description: "Execution-grade implementation plan for Cargo-first Vox package management, hard Python retirement, and CLI namespace unification."
 category: "architecture"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -455,4 +455,5 @@ Each WP is complete only when all are true:
 - [x] Docker lock/reproducibility gates active.
 - [x] Provenance baseline active in release/publish lanes.
 - [x] Command registry, docs, and parser are in parity.
+
 

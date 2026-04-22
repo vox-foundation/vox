@@ -2,7 +2,7 @@
 title: "Vox Docker-backed portability implementation plan 2026"
 description: "Execution-grade implementation plan for lock-bound Docker/OCI portability, layered SSOT boundaries, and cross-platform `.vox` deployment."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -472,4 +472,5 @@ This plan is ready to drive a future implementation wave when:
 - the normative portability SSOT exists,
 - milestone objectives and gates are stable,
 - and a future coding plan can translate milestones into concrete file-level tasks without reopening architecture questions.
+
 

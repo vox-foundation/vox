@@ -4,7 +4,7 @@ description: "Research analyzing the landscape of LLM-native programming languag
 category: "architecture"
 status: "research"
 sort_order: 6
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -52,4 +52,5 @@ By offering primitives like `@table`, `@island`, and `@server`, Vox collapses th
 Based on extensive internet architecture mapping in early 2026, there are no other serious, production-ready full-stack languages executing this unified, AI-native vision. 
 
 Other tools offer AI wrappers around existing languages, or primitive experimental dialects that humans cannot practically read. Vox uniquely bridges the gap: it restricts the architectural entropy that breaks LLM reasoning, while retaining a deterministic, expressive syntax that human developers can comfortably audit, maintain, and expand.
+
 

@@ -2,7 +2,7 @@
 title: "Mens Cloud GPU Training Strategy"
 description: "Official documentation for Mens Cloud GPU Training Strategy for the Vox language. Detailed technical reference, architecture guides, an"
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -65,3 +65,4 @@ See [Populi GPU network research 2026](../architecture/populi-gpu-network-resear
 - Keep `4080` as first-pass default for regression and acceptance gating.
 - Use cloud dispatch when you need faster iteration or larger VRAM, not as a dependency for baseline dev flow.
 - For interruptible cloud hosts, persist `--output-dir` to durable storage and avoid `--force-restart` unless intentionally resetting.
+

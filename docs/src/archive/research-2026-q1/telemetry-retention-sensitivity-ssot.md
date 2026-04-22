@@ -3,7 +3,7 @@ title: "Telemetry retention and sensitivity SSOT"
 description: "Maps telemetry and telemetry-adjacent data to sensitivity classes, retention expectations, and prune policy alignment."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -79,4 +79,5 @@ Execution time telemetry records for agentic budgeting ([exec_time_telemetry](..
 
 - [Telemetry taxonomy and contracts SSOT](telemetry-taxonomy-contracts-ssot.md)
 - [Telemetry implementation backlog 2026](telemetry-implementation-backlog-2026.md)
+
 

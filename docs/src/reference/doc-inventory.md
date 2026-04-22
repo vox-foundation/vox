@@ -2,7 +2,7 @@
 title: "Doc inventory verifier (SSOT)"
 description: "Official documentation for Doc inventory verifier (SSOT) for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -24,3 +24,5 @@ The committed machine-readable doc map is **`docs/agents/doc-inventory.json`** (
 Implementation: **`crates/vox-doc-inventory`** (Rust). There is **no** supported Python generator path in-tree; the legacy doc-inventory Python helpers were removed — use only the Rust crate and **`vox ci doc-inventory`**.
 
 **Canonical CI entrypoint:** **`vox ci …`** (GitHub Actions often uses `cargo run -p vox-cli --quiet -- ci …` before `vox` is on `PATH`). See [Runner contract](../ci/runner-contract.md) (section *Canonical `vox ci` vs shell scripts*).
+
+

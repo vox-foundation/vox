@@ -4,7 +4,7 @@ description: "Qwen2 vs Qwen3.5 in Vox Candle paths; operator runbook vs code rem
 category: "architecture"
 status: "research"
 sort_order: 17
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Prevents accidental removal of Qwen2 compatibility while standardizing new work on Qwen3.5 defaults."
 
@@ -83,4 +83,5 @@ Hugging Face `Qwen3_5Config` documents `vision_config` and image placeholder tok
 1. Minimum Qwen2 fixture set to keep permanently in `vox-populi` tests after tier **Frozen**.
 2. Whether to publish a **single** `external_serving_handoff` extension field for `base_family` when VL is used only for eval, not training.
 3. Official policy on community weight migration scripts (license, no vendoring without review).
+
 

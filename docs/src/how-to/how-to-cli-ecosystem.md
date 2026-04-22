@@ -2,7 +2,7 @@
 title: "Ecosystem & Tooling"
 description: "Official documentation for Ecosystem & Tooling for the Vox language. Detailed technical reference, architecture guides, and implementatio"
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -227,3 +227,4 @@ cargo clippy --workspace      # Lint check
 - [Compiler Architecture](../explanation/expl-architecture.md) — Pipeline internals
 - [Actors & Workflows](../explanation/expl-actors-workflows.md) — Concurrency and durable execution
 - [Examples](examples-corpus.md) — Annotated example programs
+

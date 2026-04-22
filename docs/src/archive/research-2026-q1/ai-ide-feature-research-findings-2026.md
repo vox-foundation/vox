@@ -3,7 +3,7 @@ title: "AI IDE feature research findings 2026"
 description: "Evidence-backed comparison of modern AI IDE features and a Vox difficulty, LOC, necessity, GUI, and Mens gap analysis."
 category: "architecture"
 status: "research"
-last_updated: 2026-03-31
+last_updated: "2026-03-31"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -438,4 +438,5 @@ If Vox wants the strongest return on implementation effort while staying inside 
 5. Surface verification and autofix loops as part of the normal workflow, not as hidden tools.
 
 If Vox does those well, it will already cover a large portion of what developers most consistently love in modern AI IDEs, without needing to change the Vox language or chase the most expensive hosted-platform features first.
+
 

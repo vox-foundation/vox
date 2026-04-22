@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -38,4 +38,5 @@ An analysis of leading code generation systems reveals sophisticated alternative
 4. **CodeRL+:** Emphasizes *execution semantics alignment*. The research explicitly proves that over-optimizing for static syntax or token-level matching frequently leads to memorization and severely restricted performance when the model is faced with out-of-domain tasks or new datasets.5 CodeRL+ jointly trains execution semantic understanding with code generation, deriving its reward from variable-level execution trajectories rather than surface-level token patterns.53
 
 *Evidence Quality Rating:* **Moderate to Strong**. While the exact scalar weights utilized by proprietary labs are occasionally obscured, open-source reproductions, technical reports (DeepSeek, OpenRLHF), and algorithmic analyses explicitly warn against heavily weighting low-barrier proxies like syntax over verifiable functional outcomes.
+
 

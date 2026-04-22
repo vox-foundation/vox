@@ -3,7 +3,7 @@ title: "Clavis Cloudless Implementation Catalog"
 description: "Task-by-task execution catalog for hardened Clavis Cloudless rollout, keyed to plan todo IDs."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -384,4 +384,5 @@ Before declaring completion:
 3. all migrated callsites have strict-profile tests.
 4. contracts and docs remain synchronized.
 5. cutover rehearsal passes in CI profile.
+
 

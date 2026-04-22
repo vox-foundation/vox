@@ -2,7 +2,7 @@
 title: "Compiler Architecture"
 description: "Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat"
 category: "explanation"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -225,3 +225,5 @@ The full checklist for adding a new language construct:
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
 - [Web IR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
 - [Web IR acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) — parser, K-metric, parity, and rollout thresholds
+
+

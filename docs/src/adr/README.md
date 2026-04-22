@@ -2,7 +2,7 @@
 title: "Architecture Decision Records (index)"
 description: "Entrypoint mirror for ADR cross-links used by CI doc gates."
 category: "reference"
-last_updated: 2026-04-07
+last_updated: "2026-04-07"
 
 schema_type: "TechArticle"
 ---
@@ -15,3 +15,5 @@ See the full table in [`index.md`](index.md). This file exists so tooling can re
 - [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md)
 - [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md)
 - **K-metric appendix** — reproducible metrics in the side-by-side schema (`#k-metric-appendix-reproducible`).
+
+

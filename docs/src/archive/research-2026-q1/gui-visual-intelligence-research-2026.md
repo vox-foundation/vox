@@ -4,7 +4,7 @@ description: "Comprehensive research and design blueprint for an AI-native GUI v
 category: "architecture"
 status: "research"
 sort_order: 6
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Foundational architecture research for image analysis capabilities in Vox MENS pipeline and GUI testing."
 schema_type: "TechArticle"
@@ -448,4 +448,5 @@ archived_date: 2026-04-18
 | Hub-and-spoke multi-agent pattern dominant in 2025 | LangChain, AutoGen, industry surveys |
 | VLM token budget isolation is mandatory in multi-modal pipelines | EVEv2, ECVL-ROUTER research |
 | Few-shot + structured JSON output reduces VLM false positives | Multiple applied ML papers |
+
 

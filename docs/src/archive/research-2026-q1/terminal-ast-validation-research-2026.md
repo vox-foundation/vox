@@ -3,7 +3,7 @@ title: "Terminal AST validation research 2026"
 description: "Resolving IDE allowlist/denylist brittleness with a single-source-of-truth PowerShell AST validation engine and robust IDE enforcement."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -96,4 +96,5 @@ We use a `PreCommandLookupAction` or `PSReadLine` hook inside the PowerShell ses
 
 By transitioning from simplistic prompt-based execution limits to an **environment-hijacking deployment**, we remove the burden from the LLM. Both Cursor and Antigravity can operate as they normally do, generating complex, piped commands. 
 The workspace terminal settings/profiles silently route every execution through `vox check-terminal`, executing the PowerShell AST parse against `contracts/terminal/exec-policy.v1.yaml`. This guarantees codebase-wide persistence without divergence.
+
 

@@ -2,7 +2,7 @@
 title: "Migration metrics (script → `vox ci`)"
 description: "Official documentation for Migration metrics (script → `vox ci`) for the Vox language. Detailed technical reference, architecture guides,"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -24,4 +24,5 @@ archived_date: 2026-04-18
 | GitLab inline `grep`/`find` repo guards | 3 blocks | `vox ci repo-guards` (in `vox-ci-guards` job) |
 
 Source: [`docs/agents/baseline-script-metrics.json`](../../agents/baseline-script-metrics.json), [`docs/agents/script-registry.json`](../../agents/script-registry.json).
+
 

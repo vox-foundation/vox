@@ -2,7 +2,7 @@
 title: "Populi work-type placement policy matrix"
 description: "Canonical matrix of allowed, gated, and out-of-scope work classes across local, trusted LAN, and overlay-WAN personal clusters."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -43,3 +43,4 @@ This page is the **canonical** policy matrix for **first-wave personal-cluster**
 
 - [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — phased delivery (roadmap); Phase 5 tasks **`p5-placement-policy`**, **`p5-queued-capacity-rebalance`**, **`p5-gang-nccl-pilot`** cover unified placement, queued replanning on capacity changes, and collective pilot bounds.
 - [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) — transport and delivery-plane context.
+

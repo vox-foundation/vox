@@ -3,7 +3,7 @@ title: "Telemetry taxonomy and contracts SSOT"
 description: "Planned unified event taxonomy, metric_type families, JSON Schema contracts, and transmission classes for Vox telemetry."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -88,4 +88,5 @@ The following MUST NOT appear in `approved_usage_upload` or default `local_only`
 
 - [Telemetry retention and sensitivity SSOT](telemetry-retention-sensitivity-ssot.md)
 - [Telemetry implementation backlog 2026](telemetry-implementation-backlog-2026.md) — contract tasks
+
 

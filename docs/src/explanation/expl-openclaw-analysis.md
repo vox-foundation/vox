@@ -2,7 +2,7 @@
 title: "OpenClaw Competitive Analysis"
 description: "Official documentation for OpenClaw Competitive Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "explanation"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -160,3 +160,5 @@ Protocol fixtures are versioned in:
 The CI guard `vox ci openclaw-contract` validates required fixture presence and baseline shape invariants.
 
 Resolver and sidecar lifecycle SSOT: `docs/src/reference/openclaw-discovery-sidecar-ssot.md`.
+
+

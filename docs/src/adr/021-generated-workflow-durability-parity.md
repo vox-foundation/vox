@@ -2,7 +2,7 @@
 title: "ADR 021: Generated workflow durability parity"
 description: "Defines the compatibility contract for bringing generated Rust workflows to durable replay parity."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -63,3 +63,5 @@ Interpreted workflows currently define the durable replay contract (`journal_ver
 
 - [ADR 019: Durable workflow journal contract v1](019-durable-workflow-journal-contract-v1.md)
 - [Explanation: Durable Execution](../explanation/expl-durable-execution.md)
+
+

@@ -2,7 +2,7 @@
 title: "How-To: Deploy to Production"
 description: "Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization."
 category: "how-to"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 status: "current"
 training_eligible: true
  
@@ -154,3 +154,4 @@ Since Vox uses SQLite for the data layer and durability journal, ensure you moun
 - [Fullstack Artifacts](../reference/ref-syntax.md) — Rust-first containers vs Express `server.ts`.
 - [CLI Reference](../reference/cli.md) — All `vox package` and `vox deploy` options.
 - [Runtime Explanation](../explanation/expl-actors-workflows.md) — Understanding the runtime environment.
+

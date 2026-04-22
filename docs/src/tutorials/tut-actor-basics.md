@@ -2,7 +2,7 @@
 title: "Tutorial: Persistent Actors & State"
 description: "Master stateful concurrency in Vox. Learn to define, spawn, and persist actor state across system restarts."
 category: "tutorial"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -101,3 +101,5 @@ When you run `vox build`, the compiler lowers actor constructs directly into hig
 - [Workflow Durability](tut-workflow-durability.md) — Orchestrate complex, multi-step long-running processes.
 - [Actors & Workflows Explanation](../explanation/expl-actors-workflows.md) — Deep dive into the theory.
 - [CLI Reference: vox run](../reference/cli.md#vox-run-file----args) — Run your actor-based applications.
+
+

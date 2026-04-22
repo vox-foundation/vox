@@ -3,7 +3,7 @@ title: "Rosetta language comparison: C++, Rust, Python pedagogy research 2026"
 description: "Pedagogical research and web search findings supporting the design of the Vox Rosetta Inventory multi-language documentation."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-14
+last_updated: "2026-04-14"
 training_eligible: false
 training_rationale: "Research synthesis"
 schema_type: "TechArticle"
@@ -50,4 +50,5 @@ Web research indicates that traditional "straw-man" comparison pages alienate ex
 
 - **Finding:** Static type systems provide objective, rapid feedback loops for Code LLMs (like MENS/Qwen3). 
 - **Mechanism:** If an LLM hallucinates an object field name in a dynamically typed language, the error surfaces only during runtime execution (or unit tests). In statically typed systems, the compiler catches the non-existent field instantly. This objective gradient improves the accuracy of agentic planning modes by fast-failing invalid code paths before execution.
+
 

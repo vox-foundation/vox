@@ -4,7 +4,7 @@ description: "Detailed operational blueprint for bridging actor boundaries in th
 category: "architecture"
 status: "roadmap"
 sort_order: 11
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Maps the high-level GC concepts down to precise crate, struct, and module mutations within vox-runtime and vox-tensor."
 schema_type: "TechArticle"
@@ -59,4 +59,5 @@ The implementation sequence traces from the core data structures outward to the 
 3. `vox-runtime/src/mailbox.rs`: `DeepCloneToOwned` serialization
 4. `vox-tensor/src/tensor/tensor.rs`: RAII unmanaged handle integration
 5. `vox-compiler/src/codegen.rs`: Re-routing AST lowering to `ctx.heap.allocate(...)`
+
 

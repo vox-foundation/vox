@@ -2,7 +2,7 @@
 title: "ADR 010 — TanStack as the Vox web spine"
 description: "Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -48,3 +48,5 @@ Vox compiles `.vox` UI to **React + Vite** (`vox-codegen-ts`), serves static ass
 - [TanStack Start — React](https://tanstack.com/start/latest/docs/framework/react/overview)
 - [vox-web-stack.md](../reference/vox-web-stack.md)
 - [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md) — canonical vs legacy artifacts (`server.ts`, `VOX_EMIT_EXPRESS_SERVER`, containers)
+
+

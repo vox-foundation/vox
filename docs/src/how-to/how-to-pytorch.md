@@ -2,7 +2,7 @@
 title: "@py.import – Python Library Integration (`torch`, `numpy`, etc.)"
 description: "Official documentation for @py.import – Python Library Integration (`torch`, `numpy`, etc.) for the Vox language."
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -279,3 +279,5 @@ This ensures **Low K-Complexity** (no shell dependencies), native type-checked o
 > [!NOTE]
 > `vox-tensor` uses **NdArray** (CPU) as the default backend with **Autodiff** for gradient tracking.
 > GPU acceleration (WGPU) is available via the `wgpu` feature flag in `vox-tensor/Cargo.toml`.
+
+

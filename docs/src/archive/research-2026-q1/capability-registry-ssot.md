@@ -4,7 +4,7 @@ description: "Transport-independent capability IDs for CLI, MCP, Mens, and model
 category: "architecture"
 status: "current"
 sort_order: 12
-last_updated: 2026-03-31
+last_updated: "2026-03-31"
 training_eligible: false
 training_rationale: "Key architecture constraints and definitions required for agent context"
 
@@ -94,4 +94,5 @@ Language builtins such as `std.fs` / path / process helpers are **not** the same
 - [CLI reference](../reference/cli.md) — human-facing needles for `ref_cli_required` paths
 - [MCP exposure from the Vox language](mcp-vox-language-exposure.md) — how `@mcp.tool` relates to shipped tools
 - [Operations catalog SSOT](operations-catalog-ssot.md) — unified operation identity and MCP/CLI projections
+
 

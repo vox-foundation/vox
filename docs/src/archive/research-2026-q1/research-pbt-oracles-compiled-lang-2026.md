@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -41,4 +41,5 @@ Methodologies for validating an LLM-targeted, strongly-typed statically compiled
 2. **Wave 2 (Frontend PBT):** Deploy the `@forall` macro backed by the `proptest` framework to strictly enforce structural boundaries via stateful recursive shrinking.
 3. **Wave 3 (Semantic Contracts & MRs):** Integrate lightweight `@spec(requires, ensures)` block constraints. These act as runtime assertion oracles (not SMT blockings), sidestepping the LLM Oracle problem.
 4. **Wave 4 (Differential Fuzzing):** Use LLVM IR-layer equivalents (mutation on arithmetic/relational operators). Filter mutation operators strictly away from standard-out/logging paths to prevent Arid Node rejection.
+
 

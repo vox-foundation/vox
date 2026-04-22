@@ -2,7 +2,7 @@
 title: "Orchestrator bootstrap factory and daemon boundaries"
 description: "Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon."
 category: "reference"
-last_updated: 2026-04-01
+last_updated: "2026-04-01"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -54,3 +54,4 @@ When product requirements justify fixing **cold-start** and **gravity** (one RAM
 - [`crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
 - [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs)
 - [Orphan surface inventory](../architecture/orphan-surface-inventory.md) — `vox-orchestrator` staging crate vs `vox-orchestrator` SSOT
+

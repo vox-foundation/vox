@@ -3,7 +3,7 @@ title: "News syndication: incident patterns and mitigations"
 description: "Searchable SSOT for automated outbound publishing failure modes and Vox-specific safety controls."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -49,4 +49,5 @@ Searchable SSOT for **why** automated outbound publishing fails in production an
 
 - Open Collective API direction (GraphQL v2): [Open Collective API](https://docs.opencollective.com/help/contributing/development/api) → `https://graphql-docs-v2.opencollective.com/`.
 - Cross-cutting env vars: [env-vars.md](../reference/env-vars.md).
+
 

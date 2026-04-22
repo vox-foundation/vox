@@ -2,7 +2,7 @@
 title: "VoxDB connection policy (SSOT)"
 description: "Strict, degraded-optional, and legacy-schema policies for VoxDb connects; inventory of callsites by surface/crate; remediation pointer and rules for adding new connections without silent Codex drops."
 category: "architecture"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -65,4 +65,5 @@ flowchart TD
 - Canonical store env: `docs/src/reference/env-vars.md` — `VOX_DB_PATH`, Turso URL/token.
 - Mens training: `docs/src/reference/mens-training.md` — canonical `connect_default` + legacy migration.
 - Cutover: [`docs/src/operations/voxdb-cutover-runbook.md`](../operations/voxdb-cutover-runbook.md).
+
 

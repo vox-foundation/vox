@@ -2,7 +2,7 @@
 title: "Vox boilerplate implementation status"
 description: "Live status board for roadmap execution across Wave 1, Wave 2, and Wave 3."
 category: "architecture"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -55,4 +55,5 @@ archived_date: 2026-04-18
 - Land route IR unification and typed HIR debt elimination.
 - Expand autofix rules beyond suggested-text baseline.
 - Add KPI instrumentation and CI policy gates for boilerplate regression.
+
 

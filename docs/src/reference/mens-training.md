@@ -2,7 +2,7 @@
 title: "Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)"
 description: "Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -359,4 +359,5 @@ Recommended rollout order: shadow (`routing_experimental`), then training scorin
 - **LLM / agent PR hygiene:** [`mens-llm-pr-checklist.md`](../architecture/mens-llm-pr-checklist.md) — LoRA duplication, layouts, merge, CI test names, parity tiers.
 - **LoRA ownership boundary:** [`mens-lora-ownership.md`](mens-lora-ownership.md)
 - **Speech / ASR** (Oratio): [`oratio-speech.md`](oratio-speech.md) — orthogonal to training; use top-level **`vox oratio`** / **`vox speech`**. CLI STT commands need **`vox-cli`** feature **`oratio`** (not default **`mens-base`**).
+
 

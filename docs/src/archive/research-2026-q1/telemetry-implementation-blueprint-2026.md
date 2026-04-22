@@ -3,7 +3,7 @@ title: "Telemetry implementation blueprint 2026"
 description: "Phased, codebase-wide plan to unify telemetry under trust boundaries, contracts, retention, controls, CI enforcement, and client disclosure."
 category: "architecture"
 status: "roadmap"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -99,4 +99,5 @@ Every phase completion MUST satisfy:
 ## Related
 
 - [Telemetry implementation backlog 2026](telemetry-implementation-backlog-2026.md)
+
 

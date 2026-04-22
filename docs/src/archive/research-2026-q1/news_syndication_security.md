@@ -3,7 +3,7 @@ title: "Unified News Syndication Security & Safety"
 description: "Safety mechanisms and architectural constraints preventing accidental automated social media posts."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -76,4 +76,5 @@ Strict JSON input schemas are registered in `vox-mcp` `input_schemas.rs`.
 
 - `vox-publisher`: `dry_run_tests`, local HTTP mock tests for X + Open Collective.
 - `vox-db`: `news_approval_tests` for dual approval and `published_news` column mapping.
+
 

@@ -2,7 +2,7 @@
 title: "Populi overlay personal cluster runbook"
 description: "Operator steps and WAN boundaries for user-owned Populi clusters across VPN-style overlays."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -54,3 +54,5 @@ schema_type: "TechArticle"
 - [Deployment compose SSOT](../reference/deployment-compose.md) — image profiles and env blocks.
 - [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) — broader transport synthesis.
 - [Mens SSOT](../reference/populi.md) — current API and env reference.
+
+

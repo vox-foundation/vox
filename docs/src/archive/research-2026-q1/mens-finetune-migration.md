@@ -2,7 +2,7 @@
 title: "Migration: backend-centric flags → fine-tune contract"
 description: "Official documentation for Migration: backend-centric flags → fine-tune contract for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -23,4 +23,5 @@ archived_date: 2026-04-18
 
 - Prefer **`vox mens train`** over legacy `vox train --native-lora` (already deprecated in CLI messaging).
 - For QLoRA/NF4, keep **`--backend qlora --tokenizer hf --model …`**.
+
 

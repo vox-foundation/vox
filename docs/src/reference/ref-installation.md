@@ -2,7 +2,7 @@
 title: "Installation Reference"
 description: "Authoritative guide for installing the Vox CLI, toolchain, and AI provider backends across Windows, macOS, and Linux."
 category: "reference"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -168,5 +168,7 @@ docker compose up
 ### Linux
 - **C Compiler:** `sudo apt-get install build-essential` (Debian/Ubuntu).
 - **clang (recommended for Turso):** `sudo apt-get install clang` or `./scripts/install.sh --install-clang`.
+
+
 
 

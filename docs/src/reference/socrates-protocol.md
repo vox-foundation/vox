@@ -2,7 +2,7 @@
 title: "Socrates protocol — single source of truth"
 description: "Official documentation for Socrates protocol — single source of truth for the Vox language. Detailed technical reference, architecture gu"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -79,3 +79,5 @@ Numeric defaults and risk classification live in **`vox-socrates-policy`** — d
 ## Related ADR
 
 - [ADR 005: Socrates anti-hallucination SSOT](../adr/005-socrates-anti-hallucination-ssot.md)
+
+

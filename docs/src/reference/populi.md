@@ -2,7 +2,7 @@
 title: "Mesh / Populi SSOT (CPU-first)"
 description: "Official documentation for mesh (Populi) runtime, env vars, and HTTP control plane (CPU-first)."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -240,3 +240,4 @@ Mesh/security doc changes must remain **`training_eligible: true`** where approp
 - [ADR 009: hosted mens BaaS (future)](../adr/009-populi-hosted-baas.md) — trust model vs self-hosted clusters.
 - [ADR 017: lease-based remote execution](../adr/017-populi-lease-remote-execution.md), [ADR 018: GPU truth layering](../adr/018-populi-gpu-truth-layering.md)
 - [Work-type placement matrix](populi-work-type-placement-matrix.md)
+

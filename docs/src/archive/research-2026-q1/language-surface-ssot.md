@@ -4,7 +4,7 @@ description: "Authoritative plan for unifying Vox language-surface metadata acro
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Key architecture constraints and definitions required for agent context"
 
@@ -74,4 +74,5 @@ The legacy `@component fn` surface is formally deprecated and will be removed fr
 3. Migrate LSP and eval last (highest churn in snippets vs plain names).
 
 See also: [Outbound HTTP policy](outbound-http-policy.md), [OpenAPI contract SSOT](openapi-contract-ssot.md).
+
 

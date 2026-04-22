@@ -2,7 +2,7 @@
 title: "Searching the Documentation"
 description: "Official documentation for Searching the Documentation for the Vox language. Detailed technical reference, architecture guides, and imple"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -37,3 +37,4 @@ We maintain comprehensive indexes of available keywords and decorators:
 ## External Search (Website Integration)
 
 If you are viewing this documentation on the main Vox website, the search bar integrates directly with our `decorators.json` and `keywords.json` manifests, allowing structured API searches alongside general tutorial content.
+

@@ -2,7 +2,7 @@
 title: "Crate hardening matrix (rolling)"
 description: "Official documentation for Crate hardening matrix (rolling) for the Vox language. Detailed technical reference, architecture guides, and "
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -30,3 +30,4 @@ Minimal **four-check** row per critical crate: compile, unit tests, lint (when e
 **Runner labels** for CI: see [runner contract](runner-contract.md).
 
 **Rust pattern modernization (rolling):** [Wave 0 baseline](rust-modernization-baseline.md) (lint manifest + pilot file list; aligns with `.cursor/plans/rust-pattern-modernization-master_*.plan.md`).
+

@@ -2,7 +2,7 @@
 title: "Interop tier policy"
 description: "SSOT for the four-tier Vox interop model: core surfaces, approved bindings, package-managed Vox libraries, and explicit escape hatches."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -64,4 +64,5 @@ For data crates to graduate from escape hatch/deferred to approved wrappers, all
 4. Debt-to-value score remains favorable in the Rust ecosystem support registry.
 
 See also: [Rust ecosystem support contract](../reference/rust-ecosystem-support-contract.md).
+
 

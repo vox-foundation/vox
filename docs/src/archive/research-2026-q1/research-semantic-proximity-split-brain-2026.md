@@ -3,7 +3,7 @@ title: "Semantic Proximity, Split-Brain Detection, and Safe Symbol Surfacing (Re
 description: "How to programmatically detect conceptually related but divergently named code, surface proximity hints without causing LLM hallucination, and build a discovery layer for semantic drift in AI-native codebases."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: false
 training_rationale: "Foundational for the MENS corpus quality flywheel and vox-search symbol-proximity layer. Directly reduces LLM hallucination risk from identifier-conflation and split-brain naming drift."
 see_also:
@@ -483,4 +483,5 @@ archived_date: 2026-04-18
 - Sourcegraph Cody: Hybrid LSP + semantic code search for deterministic enumeration. [sourcegraph.com](https://sourcegraph.com), 2025.
 - "Lost-in-distance" phenomenon in graph-aware LLM attention. OpenReview, 2025.
 - VibeDrift behavioral pattern detection; Archcodex living registry pattern. 2025–2026.
+
 

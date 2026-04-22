@@ -2,7 +2,7 @@
 title: "How-To: Rust crate imports in Vox scripts"
 description: "Syntax, compiler pipeline, Cargo.toml synthesis, diagnostics, limitations, and pragmatic ways to reduce boilerplate without over-engineering."
 category: "how-to"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -172,3 +172,4 @@ Those belong behind explicit **feature gates** and product milestones, not on th
 
 **Maintenance:** When you change parser, HIR, registration, or codegen behavior for rust imports, update this page and the golden JSON under `crates/vox-cli/tests/golden/` if diagnostics or spans shift.
 After contract/policy edits, run `cargo run -p vox-cli --quiet -- ci rust-ecosystem-policy`.
+

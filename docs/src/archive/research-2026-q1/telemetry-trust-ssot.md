@@ -3,7 +3,7 @@ title: "Telemetry trust boundary and SSOT map"
 description: "Single map of telemetry-related surfaces, trust boundaries, documentation authority, and corrections to earlier research-only plans."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -77,4 +77,5 @@ See [doc-to-code acceptance checklist](doc-to-code-acceptance-checklist.md).
 - [Telemetry retention and sensitivity SSOT](telemetry-retention-sensitivity-ssot.md)
 - [Telemetry taxonomy and contracts SSOT](telemetry-taxonomy-contracts-ssot.md)
 - [Telemetry client disclosure SSOT](telemetry-client-disclosure-ssot.md)
+
 

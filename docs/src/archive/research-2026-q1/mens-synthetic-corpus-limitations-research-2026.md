@@ -4,7 +4,7 @@ description: "Synthesizes the known limitations of Vox's gigantic synthetic corp
 category: "architecture"
 status: "research"
 research_date: "2026-04-12"
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Directly shapes the corpus generation and quality-gating strategy for all MENS domain adapters."
 
@@ -301,4 +301,5 @@ And the MENS multi-track KI:
 ---
 
 *Document date: 2026-04-12. Update when: (a) a new corpus strategy is implemented, (b) a new domain profile is added, or (c) a production flywheel cycle reveals novel failure modes not covered here.*
+
 

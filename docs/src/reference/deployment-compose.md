@@ -2,7 +2,7 @@
 title: "Deployment: Docker, Compose, Coolify, CI (SSOT)"
 description: "Official documentation for Deployment: Docker, Compose, Coolify, CI (SSOT) for the Vox language. Detailed technical reference, architectu"
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -83,3 +83,4 @@ When teams need phone-based project management:
 See [MCP HTTP gateway contract](mcp-http-gateway-contract.md), [Crate API: vox-mcp](../reference/cli.md), and [env vars SSOT](env-vars.md) for the complete control-plane policy surface.
 
 This deployment SSOT remains about server/container runtime surfaces; it does not redefine phones as first-class OCI runtime hosts.
+

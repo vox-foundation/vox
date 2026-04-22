@@ -2,7 +2,7 @@
 title: "Unified orchestration — SSOT"
 description: "Official documentation for Unified orchestration — SSOT for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -192,3 +192,4 @@ Effective Socrates thresholds still merge from `vox-socrates-policy` with option
 - [`external-repositories.md`](external-repositories.md) — `repository_id`, sessions, cache layout.
 - [`socrates-protocol.md`](socrates-protocol.md) — Socrates telemetry and policy.
 - [`mens-training.md`](mens-training.md) — training backends and env.
+

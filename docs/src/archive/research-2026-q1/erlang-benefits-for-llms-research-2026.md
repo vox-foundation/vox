@@ -3,7 +3,7 @@ title: "Adopting Erlang's Benefits for LLM-Native Code Generation"
 description: "Research and architectural plan to bring Erlang's isolation, preemption, and let-it-crash benefits into Vox to lower K-complexity for LLMs."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Research synthesis"
 schema_type: "TechArticle"
@@ -74,4 +74,5 @@ archived_date: 2026-04-18
 ## Priority Next Steps
 1. **Scaffold the Compiler Guard:** Implement a prototype AST lowering pass in `vox-compiler` that detects raw `while` loops and conditionally limits/yields the execution context.
 2. **Standardize `@supervisor` defaults:** Determine default retry cascades (e.g. max 3 retries over 5 minutes) to ensure a panicked LLM agent does not create an infinite restart flood.
+
 

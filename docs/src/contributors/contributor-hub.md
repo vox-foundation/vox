@@ -4,7 +4,7 @@ description: "Start here for contributor-facing Vox documentation, governance, i
 category: "contributor"
 status: "current"
 sort_order: 0
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -105,3 +105,4 @@ Use a **single** positional path per invocation (repeat for each directory). See
 - When code changes alter public behavior, update the corresponding docs in the same PR.
 - Treat `contracts/` as machine SSOT, `docs/src/reference/` as human lookup, `docs/src/architecture/` as design and rationale, and `docs/agents/` as contributor and automation support.
 - Use `vox ci` guards where they exist instead of replacing them with one-off shell checks.
+

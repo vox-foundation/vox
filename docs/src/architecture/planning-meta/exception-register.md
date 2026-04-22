@@ -2,7 +2,7 @@
 title: "Planning meta exception register"
 description: "Active and retired exceptions/deferrals for planning-meta governance."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -19,4 +19,6 @@ None.
 ## Retired exceptions
 
 None.
+
+
 

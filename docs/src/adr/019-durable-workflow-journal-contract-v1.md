@@ -2,7 +2,7 @@
 title: "ADR 019: Durable workflow journal contract v1"
 description: "Freeze the interpreted workflow durability boundary, replay source of truth, and v1 event contract."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -55,3 +55,4 @@ That made two failure modes too easy:
 - [Explanation: Durable Execution](../explanation/expl-durable-execution.md)
 - [Crate: vox-workflow-runtime](../reference/cli.md)
 - [ADR 004: Codex over Arca over Turso](004-codex-arca-turso-ssot.md)
+

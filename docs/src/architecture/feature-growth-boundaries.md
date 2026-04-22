@@ -3,7 +3,7 @@ title: "Feature growth and boundaries SSOT (2026)"
 description: "Governance for the Vox feature surface, crate sprawl limits, and the deterministic projection parity gate."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-21
+last_updated: "2026-04-21"
 training_eligible: true
 training_rationale: "Defines the limits of the Vox feature set and the parity gates used to enforce them."
 schema_type: "TechArticle"
@@ -37,3 +37,4 @@ Every new feature requiring a dependency with >10 downstream crates MUST be plac
 ## Governance
 
 Changes to the feature set defined here require an ADR (Architectural Decision Record) and a corresponding update to the operations catalog.
+

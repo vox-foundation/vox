@@ -2,7 +2,7 @@
 title: "Hybrid adapter cookbook (SPA + SSR)"
 description: "How user-owned adapters consume routes.manifest.ts and vox-client.ts for SPA/islands vs SSR tracks."
 category: "architecture"
-last_updated: 2026-04-07
+last_updated: "2026-04-07"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -45,4 +45,5 @@ archived_date: 2026-04-18
 - [ ] `vox build` produces **`routes.manifest.ts`** + **`vox-client.ts`** (when RPC/routes exist).
 - [ ] Scaffold or adapter imports manifest from **`dist/`** (or your configured out dir).
 - [ ] `doctor` passes pnpm/node; **`components.json`** has **`rsc: false`** when using shadcn; globals.css uses **`@import "tailwindcss"`** (v4).
+
 

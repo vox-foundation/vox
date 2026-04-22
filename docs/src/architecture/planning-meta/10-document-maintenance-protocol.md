@@ -2,7 +2,7 @@
 title: "Document maintenance protocol"
 description: "Lifecycle, versioning, ownership, and change-control protocol for maintaining the planning-meta corpus."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -144,4 +144,6 @@ This protocol is active when:
 - major changes trigger mandatory consistency pass,
 - supersession and archival are explicitly recorded,
 - stale documents are visible and actionable.
+
+
 

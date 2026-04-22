@@ -4,7 +4,7 @@ description: "Roadmap tying WebIR, golden UI, vox island/v0, Playwright, MCP bro
 category: "architecture"
 status: "roadmap"
 sort_order: 19
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Turns prior research docs into an execution-ordered plan for GUI quality, automation, and model-assisted verification."
 
@@ -230,4 +230,5 @@ archived_date: 2026-04-18
 - [Mens training reference](../reference/mens-training.md)
 - [vscode-extension-redesign-research-2026.md](vscode-extension-redesign-research-2026.md) (v0.dev workflow depth)
 - [Runner contract: labels + env](../ci/runner-contract.md) (browser pool for Playwright jobs)
+
 

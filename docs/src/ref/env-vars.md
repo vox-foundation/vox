@@ -2,7 +2,7 @@
 title: "Environment variables (SSOT) (redirect)"
 description: "Canonical env var registry lives under docs/src/reference/env-vars.md"
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 
 schema_type: "TechArticle"
 ---
@@ -12,3 +12,5 @@ schema_type: "TechArticle"
 The **canonical** registry is **[`docs/src/reference/env-vars.md`](../reference/env-vars.md)**.
 
 This file exists so shorthand paths like `docs/src/ref/env-vars.md` keep working. Prefer **`reference/env-vars.md`** in new docs.
+
+

@@ -1,6 +1,6 @@
 ---
 title: "LLM Output Mediation and Programmatic Validator Generation"
-last_updated: 2026-04-11
+last_updated: "2026-04-11"
 research_source: "mixed (web research + codebase cross-reference)"
 category: "architecture"
 description: >
@@ -695,4 +695,5 @@ archived_date: 2026-04-18
 _This research document should be cross-referenced when implementing
 [`vox-mediation` crate design](../architecture/architecture-index.md) and when revising
 [`capability-registry-ssot.md`](capability-registry-ssot.md)._
+
 

@@ -4,7 +4,7 @@ description: "Executable, wave-gated implementation plan for escaping the synthe
 category: "architecture"
 status: "roadmap"
 research_date: "2026-04-12"
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 sort_order: 40
 
@@ -558,4 +558,5 @@ archived_date: 2026-04-18
 ---
 
 *Document date: 2026-04-12. This plan supersedes the recommendations in `mens-synthetic-corpus-limitations-research-2026.md` where they conflict. The research doc should be treated as background context; this document is the execution SSOT.*
+
 

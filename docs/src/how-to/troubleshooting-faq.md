@@ -3,7 +3,7 @@ title: "Troubleshooting FAQ"
 description: "Operational troubleshooting for Vox CLI, MCP, LSP, dashboard, and contributor environment issues."
 category: "how-to"
 status: "current"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -152,3 +152,5 @@ The Vox compiler provides structured diagnostic codes to help you (and AI agents
 - [Vox FAQ](../explanation/faq.md) — Architectural and conceptual Q&A.
 - [`vox doctor`](../reference/cli.md#vox-doctor) — Automates environment verification.
 - [Contributor Hub](../contributors/contributor-hub.md) — If you've found a compiler bug.
+
+

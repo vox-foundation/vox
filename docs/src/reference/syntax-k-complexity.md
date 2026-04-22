@@ -2,7 +2,7 @@
 title: "Syntax K complexity telemetry (WebIR + emit)"
 description: "Kolmogorov-style syntax complexity telemetry for Vox compiler outputs, including schema, reproducibility protocol, and rollout gates."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -87,3 +87,5 @@ Core payload fields:
   - `enforce`: enables threshold assertion in the regression-gate benchmark test.
 - `VOX_SYNTAX_K_MAX_BYTES`
   - Optional byte threshold used only when gate mode is `enforce`.
+
+

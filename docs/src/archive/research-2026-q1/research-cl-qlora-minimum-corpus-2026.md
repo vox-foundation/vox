@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -34,4 +34,5 @@ For QLoRA to successfully instill a new syntax or DSL without irrevocably damagi
 - **Domain Expertise Capture:** Deep mastery of complex domain logic requires 50,000 to 500,000 examples.49
 
 **Recommended action for Vox MENS:** If the system generates valid code slowly and cannot confidently validate more than 500 pairs per operational cycle, periodic QLoRA fine-tuning is the incorrect architectural choice. In ultra-low data regimes, the system should strictly utilize Retrieval-Augmented Generation (RAG) and Few-Shot prompting.64 RAG leverages the model's in-context learning capabilities, entirely bypassing gradient updates and the associated risks of CF, until sufficient data volume is aggregated to safely execute a fine-tuning epoch.64
+
 

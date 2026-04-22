@@ -2,7 +2,7 @@
 title: "Codex legacy migration"
 description: "Official documentation for Codex legacy migration for the Vox language. Detailed technical reference, architecture guides, and implementa"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -44,4 +44,5 @@ Operator guide: [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-
 | Skill bundles | `vox codex import-skill-bundle --file …` (JSON descriptor) |
 
 See [Codex vNext schema](codex-vnext-schema.md) and [ADR 004](../adr/004-codex-arca-turso-ssot.md).
+
 

@@ -3,7 +3,7 @@ title: "Vox Developer User Journeys: Intent vs. Actualization"
 description: "Baseline target workflows mapping how real human developers interface with the Vox orchestrator system."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-05
+last_updated: "2026-04-05"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -79,4 +79,5 @@ Transitioning from Intent to Actualization reveals several architectural gaps in
 *   **Correction Seed:** Formalize the "Vox Execution Sandbox" via an execution policy. Agents must route commands through a safe virtualized terminal layer that auto-rejects destructive patterns, while allowing compilation.
 
 *(Note: The concrete execution steps for addressing these gaps are maintained in the accompanying AI Implementation plan.)*
+
 

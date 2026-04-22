@@ -1,0 +1,25 @@
+# Cloudflare Pages / Netlify redirect rules
+# Maps legacy mdBook *.html URLs to new Starlight slug format (trailing slash)
+# Also maps the bare /book/ prefix from any cached CDN paths
+
+/tutorials/tut-getting-started.html   /tutorials/tut-getting-started/  301
+/tutorials/tut-first-app.html         /tutorials/tut-first-app/         301
+/tutorials/tut-actor-basics.html      /tutorials/tut-actor-basics/      301
+/tutorials/tut-workflow-durability.html /tutorials/tut-workflow-durability/ 301
+/tutorials/tut-ui-integration.html    /tutorials/tut-ui-integration/    301
+
+/reference/cli.html                   /reference/cli/                   301
+/reference/ref-syntax.html            /reference/ref-syntax/            301
+/reference/ref-decorators.html        /reference/ref-decorators/        301
+/reference/ref-type-system.html       /reference/ref-type-system/       301
+/reference/ref-stdlib.html            /reference/ref-stdlib/            301
+/reference/env-vars.html              /reference/env-vars/              301
+/reference/clavis-ssot.html           /reference/clavis-ssot/           301
+
+/architecture/architecture-index.html /architecture/architecture-index/ 301
+/architecture/research-index.html     /architecture/research-index/     301
+
+/contributors/contributor-hub.html    /contributors/contributor-hub/    301
+
+# Legacy book/ prefix from old mdBook deployment
+/book/*                               /:splat                           301

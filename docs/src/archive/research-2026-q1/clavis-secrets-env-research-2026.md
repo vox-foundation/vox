@@ -3,7 +3,7 @@ title: "Clavis secrets, env vars, and API key strategy research 2026"
 description: "Research synthesis for Vox Clavis on secrets sprawl, API key reduction, SSOT maintainability, and account-level persistence patterns."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -458,4 +458,5 @@ flowchart LR
 - [aws-sdk-secretsmanager crate](https://crates.io/crates/aws-sdk-secretsmanager)
 - [google-cloud-secretmanager-v1 crate](https://crates.io/crates/google-cloud-secretmanager-v1)
 - [secret-service crate docs](https://docs.rs/secret-service/latest/secret_service/)
+
 

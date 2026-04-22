@@ -3,7 +3,7 @@ title: "GPU Discovery & C++ Retirement Strategy (2026)"
 description: "Authoritative reference for hardware discovery logic and C++ decommissioning status."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-18
+last_updated: "2026-04-18"
 training_eligible: false
 training_rationale: "Defines the authoritative strategy for hardware detection and build hygiene."
 archived_date: 2026-04-18
@@ -58,4 +58,5 @@ To prevent diagnostic fragmentation, all project automation and hardware-specifi
 - [Vox Mens Qwen Migration](mens-qwen-family-migration-research-2026.md)
 - [Populi GPU mesh implementation plan](../architecture/populi-gpu-mesh-implementation-plan-2026.md)
 - [ADR 018: Populi GPU Truth Layering](../adr/018-populi-gpu-truth-layering.md)
+
 

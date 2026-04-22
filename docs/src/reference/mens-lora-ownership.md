@@ -2,7 +2,7 @@
 title: "Mens LoRA / adapter ownership (vox-tensor vs vox-populi)"
 description: "Official documentation for Mens LoRA / adapter ownership (vox-tensor vs vox-populi) for the Vox language."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -28,3 +28,5 @@ schema_type: "TechArticle"
 - [`mens-training.md`](mens-training.md) — CLI, kernels, manifests, CI commands.
 - [`hf-finetune-capability-matrix.md`](../architecture/hf-finetune-capability-matrix.md) — supported combos.
 - [Nomenclature migration map](../architecture/nomenclature-migration-map.md) — retired **`vox-mens`** crate name.
+
+

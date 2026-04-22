@@ -2,7 +2,7 @@
 title: "vox-cli build and feature inventory"
 description: "Official documentation for vox-cli build and feature inventory for the Vox language. Detailed technical reference, architecture guides, a"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -75,4 +75,5 @@ OS keyring helpers live on **`vox-db`** as `vox_db::secrets`.
 
 - Local / CI: `vox ci build-timings` (human table or `--json`). Add **`--crates`** for extra isolated `cargo check -p …` lanes (`vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`) — see [crate-build-lanes migration](crate-build-lanes-migration.md).
 - CUDA lane is skipped unless `nvcc` is on `PATH` (same policy as `vox ci cuda-features`).
+
 

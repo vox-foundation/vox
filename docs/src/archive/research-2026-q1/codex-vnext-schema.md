@@ -2,7 +2,7 @@
 title: "Codex vNext — schema domains"
 description: "Official documentation for Codex vNext — schema domains for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -65,4 +65,5 @@ This document is the **design SSOT** for how relational tables are grouped after
 - **Language IR hooks:** `.vox` query chains can now carry plan capabilities (`.live("topic")`, `.using("fts|vector|hybrid")`, `.sync()`, `.scope("populi|orchestrator")`) so compiler/codegen keep reactivity, retrieval, replica-sync, and orchestration hints together in one DB plan.
 
 See [ADR 004: Codex over Arca over Turso](../adr/004-codex-arca-turso-ssot.md).
+
 

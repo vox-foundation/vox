@@ -2,7 +2,7 @@
 title: "Vox React/v0 Interop Research Findings"
 description: "Comprehensive research findings (20+ web searches) on the React ecosystem, v0.dev anatomy, framework landscape, stable API surfaces, and what features Vox must actually support to achieve a maintainable 90-95% frontend shell. This is the research foundation for the Minimal React Interop strategy."
 category: "architecture"
-last_updated: 2026-04-07
+last_updated: "2026-04-07"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -436,4 +436,5 @@ For Vox's greenfield migration:
 | Scaffold | `vite.config.ts`, `App.tsx`, `main.tsx`, `components.json`, `globals.css` | New scaffold emitter (one-time write) |
 
 Everything in this table maps to stable, long-lived APIs. The only volatile part was the routing layer — now replaced by an abstract manifest that a user-owned `App.tsx` adapts.
+
 

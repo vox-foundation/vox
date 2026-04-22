@@ -2,7 +2,7 @@
 title: "TanStack web roadmap"
 description: "Official documentation for TanStack web roadmap for the Vox language. Detailed technical reference, architecture guides, and implementati"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -49,4 +49,5 @@ The name appears in historical docs and Ludus quests; **no crate** ships under `
 
 - [TanStack web backlog](tanstack-web-backlog.md) (checkbox task decomposition)
 - [vox-web-stack.md](../reference/vox-web-stack.md)
+
 

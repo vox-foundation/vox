@@ -2,7 +2,7 @@
 title: "ADR 009: Hosted mens / BaaS (future scope)"
 description: "Official documentation for ADR 009: Hosted mens / BaaS (future scope) for the Vox language. Detailed technical reference, architecture gu"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -44,3 +44,5 @@ Product demand may include a **managed** mens (discovery, quotas, org billing) w
 
 - [Mens SSOT](../reference/populi.md)
 - [ADR 008 — Mens transport](008-populi-transport.md)
+
+

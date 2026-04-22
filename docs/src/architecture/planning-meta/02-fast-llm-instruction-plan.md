@@ -2,7 +2,7 @@
 title: "Fast LLM instruction plan"
 description: "Deterministic planning instruction set for creating and revising Vox planning artifacts quickly without implementation leakage."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -146,4 +146,6 @@ This fast plan is complete when:
 - a planner can produce or revise the 10-document core corpus in one pass,
 - no implementation execution tasks are included,
 - consistency checks can be run using only this doc plus the Tier 1 docs.
+
+
 

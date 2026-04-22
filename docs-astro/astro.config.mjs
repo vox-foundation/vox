@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightLlmsTxt from 'starlight-llms-txt';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 
@@ -23,6 +24,13 @@ export default defineConfig({
           langs: [voxGrammar],
         },
       },
+      plugins: [
+        starlightLlmsTxt({
+          projectName: 'Vox',
+          description: 'Vox is an AI-native full-stack programming language. It compiles a single .vox file into a database schema, type-safe server, and live browser application. Designed first as a target for large language models.',
+          llmsFullTxt: true,
+        }),
+      ],
       pagefind: true,
     }),
   ],

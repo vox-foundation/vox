@@ -4,7 +4,7 @@ description: "Tiered survey of social and scholarly visibility mechanics (expand
 category: "architecture"
 status: "research"
 sort_order: 15
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Informs Scientia outbound syndication, inbound discovery, and contract-weighted policy without treating third-party SEO claims as requirements."
 
@@ -332,4 +332,5 @@ Use this table as a **maintenance checklist** when URLs rot or products rebrand.
 | --- | --- |
 | 2026-04-12 | Initial document: tiered web methodology, platform cluster table, SSOT projection profiles, measurement sketches, cross-links to Scientia and RAG SSOT. |
 | 2026-04-12 | Deep research wave: per-surface Tier A synthesis (Reddit Help, YouTube Blog, Meta transparency pages, TikTok transparency, LinkedIn engineering, HN FAQ, Scholar, arXiv, PubMed Best Match, Semantic Scholar, ORCID, Bluesky, Mastodon, Discord, DSA); Crossref Event Data sunset; expanded summary table; works-cited registry; section renumbering. |
+
 

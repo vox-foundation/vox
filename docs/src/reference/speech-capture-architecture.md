@@ -2,7 +2,7 @@
 title: "Speech capture architecture (edge vs backend)"
 description: "Where audio is captured, how it reaches Oratio/MCP, and Docker-friendly deployment."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -46,3 +46,4 @@ OpenAPI mirror (Codex HTTP catalog): `contracts/codex-api.openapi.yaml` under `/
 - [Operations & rollout](speech-to-code-operations.md)
 - [Oratio & speech SSOT](oratio-speech.md)
 - [Deployment compose](deployment-compose.md)
+

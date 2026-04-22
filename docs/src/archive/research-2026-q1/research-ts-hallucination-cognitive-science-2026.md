@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -62,4 +62,5 @@ When evaluating code for security vulnerabilities, LLMs frequently generate bare
 Therefore, a compiler that halts on strict type violations, non-null violations, or exhaustive pattern matching failures provides a deterministic ground truth that the LLM cannot hallucinate its way around. The feedback is exact, terminating the generation loop before runtime and forcing the agent to address the specific identifier, capability declaration, or state transition.
 
 **Confidence Assessment:** There is **high confidence** that exact compiler error messages drastically outperform generalized runtime errors or abstract test failures as a feedback mechanism for LLM self-correction. The more specific, localized, and deterministic the compiler error, the higher the mathematical probability of successful agentic repair.27
+
 

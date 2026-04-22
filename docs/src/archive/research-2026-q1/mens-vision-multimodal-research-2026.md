@@ -4,7 +4,7 @@ description: "TrainingPair limits, orchestrator vision hints vs attachments, cor
 category: "architecture"
 status: "research"
 sort_order: 16
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Aligns Mens JSONL contracts, orchestrator routing, and optional vision QA without conflating native QLoRA with multimodal weights."
 
@@ -79,4 +79,5 @@ Document-only requirements for a future serde shape:
 1. Should `vox_vision_rubric` be a first-class **mix lane** in `mens/config/mix.yaml`, or a separate JSONL source consumed only by eval jobs?
 2. Who owns JSON Schema for rubric output — `vox-corpus`, `vox-eval`, or `contracts/eval/`?
 3. Minimum redaction rules before any screenshot hash is logged to `research_metrics`.
+
 

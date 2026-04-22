@@ -2,7 +2,7 @@
 title: "Codex BaaS scaffolding"
 description: "Official documentation for Codex BaaS scaffolding for the Vox language. Detailed technical reference, architecture guides, and implementa"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -47,4 +47,5 @@ Optional object storage: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_
 - [Environment variables (SSOT)](../reference/env-vars.md) — full `VOX_*` / Turso precedence
 - [Codex vNext schema](codex-vnext-schema.md)
 - Roadmap tasks: `.cursor/plans/vox_context_baas_deployment_roadmap.md` (internal backlog)
+
 

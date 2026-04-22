@@ -2,7 +2,7 @@
 title: "Mens Architecture 2026 Synthesis"
 description: "Official documentation for Mens Architecture 2026 Synthesis for the Vox language. Detailed technical reference, architecture guides, an"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -81,4 +81,5 @@ pretraining and RL. Training artifacts should carry:
 This keeps compliance visible to operators and avoids ambiguity during model promotion and external
 distribution. Supporting evidence and confidence labels for the 2026 Composer/Kimi discussion are
 tracked in [`mens-composer-kimi-findings-2026.md`](mens-composer-kimi-findings-2026.md).
+
 

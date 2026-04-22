@@ -2,7 +2,7 @@
 title: "How to use the canonical VoxDB / Codex store"
 description: "Single source of truth for user-global vox.db, project-local store, and training telemetry fallback."
 category: "how-to"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: false
 
 schema_type: "HowTo"
@@ -51,3 +51,4 @@ Mens training uses [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/
 - [Codex / Arca compatibility boundaries](../architecture/codex-arca-compatibility-boundaries.md)
 - [Forward migration charter](../architecture/forward-migration-charter.md)
 - [Mens training](../reference/mens-training.md)
+

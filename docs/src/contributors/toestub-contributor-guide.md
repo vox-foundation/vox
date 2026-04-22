@@ -3,7 +3,7 @@ title: "TOESTUB contributor guide"
 description: "Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes."
 category: "contributor"
 status: "current"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: true
 training_rationale: "Practical fix patterns for every TOESTUB rule ID — high utility for human and AI contributors."
 
@@ -290,3 +290,4 @@ genuine waivers, not for avoiding the work.
 - [TOESTUB scaling rules SSOT](../architecture/scaling-toestub-rules.md) — all 14 scaling sub-rules
 - [TOESTUB self-healing architecture](../architecture/toestub-self-healing-architecture-2026.md) — research on where TOESTUB is going
 - [Contribution loop](contribution-loop.md) — why these rules also protect the training corpus
+

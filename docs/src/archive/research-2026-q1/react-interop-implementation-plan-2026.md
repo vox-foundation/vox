@@ -2,7 +2,7 @@
 title: "Vox Web: Minimal React Interop Implementation Plan"
 description: "Complete implementation plan for Vox's minimal-surface, framework-agnostic React interop system. Supersedes the TanStack Start-specific codegen plan. Covers route manifest pattern, vox-client typed fetch SDK, v0/shadcn compatibility, decorator retirement, and full migration with 250+ tasks."
 category: "architecture"
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -684,4 +684,5 @@ export function App() {
 | v0 drop-in | Islands + named exports | [`v0` decorator doc](../reference/ref-decorators.md), `v0_tsx_normalize` tests |
 
 **Optional goldens:** `blog_fullstack.vox`, `v0_shadcn_island.vox` — tutorial narrative; **`web_routing_fullstack.vox`** already covers nested routes + loader + pending + `not_found` / `error`.
+
 

@@ -2,7 +2,7 @@
 title: "Automation primitives"
 description: "Official automation primitive surface for Vox script-mode builtins and runtime semantics."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -57,4 +57,5 @@ Type-checker routing: `crates/vox-compiler/src/typeck/checker/expr_field.rs` (`S
 - **Agent and contributor shell sessions** (terminal instructions, IDE runners, docs examples for “run this locally”) target **PowerShell** when **`pwsh`** is available — see [`AGENTS.md`](../../../AGENTS.md) and [`docs/src/reference/cli.md`](../reference/cli.md) (`vox shell check`). That policy governs **strings you paste into a shell** around the repo.
 - **`std.process.*` and `std.fs.*` in Vox** are **not** PowerShell: they lower to Rust `std::process::Command` / filesystem APIs (see codegen/runtime links above). A `.vox` script uses the table in this document regardless of whether you launched `vox` from **pwsh**, **bash**, or **cmd** — the Vox runtime stays host-neutral at the language level while still using OS-specific paths at the edge.
 - **Design lexicon:** PowerShell-like habits (explicit path kind, normalize before compare, resolve tools on `PATH`) map to the `std.fs` / `std.path` / `std.process` table above; see [Standard library surfaces](../reference/std-surfaces.md#lessons-from-powershell-shaped-ergonomics-mapped-to-std) and [Vox shell operations boundaries](vox-shell-operations-boundaries.md).
+
 

@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -46,4 +46,5 @@ Paradoxically, the same study noted that the bug-fix commit ratio was 32% higher
 ## Confidence Assessment
 
 There is **moderate to low confidence** that strict typing alone reduces zero-shot error rates in text-based LLMs, primarily because dynamic languages currently yield higher pass@1 rates due to immense training volume advantages. However, there is **high confidence** that strictly typed languages yield code with fewer deep semantic vulnerabilities, provided the agent operates within a multi-turn workflow and has access to compiler feedback.
+
 

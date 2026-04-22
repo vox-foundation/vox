@@ -3,7 +3,7 @@ title: "Scientia Publication Endpoints — Ground-Truth Research & Implementatio
 description: "Authoritative, web-research- and code-audit-backed reference for all publication destinations in the Vox Scientia pipeline. Covers real API mechanics, code reality, hallucination inventory, ResearchGate policy, new scholarly targets (ORCID, Figshare), codebase structural discrepancies, and a forward implementation policy."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-13
+last_updated: "2026-04-13"
 training_eligible: false
 training_rationale: "Primary evidence base for which Scientia publication destinations are real, partially real, or out of scope. Required reading before touching any adapter, SyndicationConfig struct, or SSoT data model."
 
@@ -1082,4 +1082,5 @@ Tasks are organized by dependency order. `EP-NNN` references correlate to §2-§
 ---
 
 *Research v2 — web searches and code audit conducted 2026-04-13. Code files audited: `adapters/*`, `scholarly/*`, `switching.rs`, `syndication_outcome.rs`, `types.rs`, `gate.rs`, `social_retry.rs`, `scientia_heuristics.rs`. ResearchGate: confirmed no public API via multiple sources. ORCID and Figshare: confirmed public APIs with REST/token access.*
+
 

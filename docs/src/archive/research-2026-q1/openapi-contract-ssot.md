@@ -4,7 +4,7 @@ description: "How committed OpenAPI YAML stays authoritative and how we validate
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -43,4 +43,5 @@ archived_date: 2026-04-18
 - `contracts/codex-api.openapi.yaml`
 - `crates/vox-populi/tests/openapi_paths.rs`
 - `crates/vox-mcp/tests/http_gateway_openapi_paths.rs`
+
 

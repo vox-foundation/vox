@@ -2,7 +2,7 @@
 title: "Golden Examples: Working Vox Code"
 description: "Complete, validated Vox code examples demonstrating server functions, actors, workflows, MCP tools, and UI components in the Vox programming language."
 category: "example"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -157,3 +157,4 @@ Bundled as `/opt/vox/mesh-noop.vox` in the Docker image for compose-based worker
 ## Rosetta inventory (multi-language walkthrough)
 
 Two golden files back the [Rosetta inventory explanation](../explanation/expl-rosetta-inventory.md): core merge + `@table` in `inventory_rosetta_core.vox`, and actor / workflow / MCP / UI / capability layers in `inventory_rosetta_platform.vox`. Use that page for C++ / Rust / Python contrast snippets; Vox sections pull anchored regions from these files.
+

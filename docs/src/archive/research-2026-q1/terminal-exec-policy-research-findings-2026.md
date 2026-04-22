@@ -3,7 +3,7 @@ title: "Terminal execution policy research findings 2026"
 description: "Evidence-backed synthesis for PowerShell-first agent shells, IDE allow/deny limitations, and a single-source terminal policy model aligned with Vox operations SSOT."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -174,4 +174,5 @@ When adding IDE hosts or changing policy engines:
 1. Update the **evidence** sections with `documented` vs `community-reported` labels.
 2. Bump `last_updated` in frontmatter.
 3. Run `vox ci check-docs-ssot` after link edits.
+
 

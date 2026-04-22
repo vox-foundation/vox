@@ -2,7 +2,7 @@
 title: "TanStack Start Implementation Backlog"
 description: "Complete checkbox-by-checkbox implementation backlog for Vox TanStack Start fullstack codegen. 200+ tasks organized by wave, with exact file names, line numbers, and code shapes for each change."
 category: "architecture"
-last_updated: 2026-04-08
+last_updated: "2026-04-08"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -703,4 +703,5 @@ Wave K (ADR updates) — last
 - [ ] `app/routes.ts` is present with `rootRoute`, `index`, and `route` calls
 - [ ] `serverFns.ts` uses `GET` for `@query`, `POST` for `@mutation`
 - [ ] Running `vite dev` on generated output starts a TanStack Start dev server without errors
+
 

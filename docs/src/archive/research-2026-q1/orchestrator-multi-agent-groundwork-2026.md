@@ -2,7 +2,7 @@
 title: "Orchestrator multi-agent groundwork (2026)"
 description: "Code-grounded baseline for delegation topology, unified routing, provenance ledger, Vox orchestration surface, and OpenRouter enrichment."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 
 schema_type: "TechArticle"
 training_eligible: false
@@ -126,4 +126,5 @@ Next enrichment pass (not yet implemented):
 - no single MAT-style (message-action trace) table family that unifies trust, lineage, tool actions, and generations
 - runtime task execution and runtime provider-lane routing are still separate policy surfaces
 - `.vox` orchestration grammar above is documented target surface, not yet parser/runtime behavior
+
 

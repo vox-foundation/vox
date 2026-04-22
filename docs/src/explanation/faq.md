@@ -3,7 +3,7 @@ title: "Vox FAQ: Frequently Asked Questions"
 description: "Answers to common questions about Vox, its current architecture, generated outputs, MCP support, and Mens training lanes."
 category: "explanation"
 status: "current"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "FAQPage"
@@ -87,3 +87,5 @@ Deployment surfaces exist, but they are not all equivalent in maturity. Treat th
 
 ### Is Vox open source? How do I contribute?
 Yes, Apache-2.0 licensed. Start with the [Contributor hub](../contributors/contributor-hub.md), follow `STYLE.md`, and use the relevant `vox ci` guards for the area you changed.
+
+

@@ -3,7 +3,7 @@ title: "Clavis as a one-stop secrets manager: research findings 2026"
 description: "Comprehensive research synthesis on secret sprawl, env-var taxonomy, user-facing feature requirements, AI-agent credential flows, A2A delegation, and the roadmap for evolving Vox Clavis into a full-lifecycle secrets management platform."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints, security research, and feature gaps for Clavis implementation waves."
 
@@ -605,4 +605,5 @@ archived_date: 2026-04-18
 - [`blake3` crate](https://docs.rs/blake3/latest/blake3/)
 - [`vaultrs` crate](https://crates.io/crates/vaultrs)
 - [`keyring` crate](https://docs.rs/keyring/latest/keyring/)
+
 

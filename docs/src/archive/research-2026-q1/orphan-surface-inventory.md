@@ -2,7 +2,7 @@
 title: "Orphan surface inventory"
 description: "Official documentation for Orphan surface inventory for the Vox language. Detailed technical reference, architecture guides, and implemen"
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -130,4 +130,5 @@ workspace-hack
 ## Review cadence
 
 Re-run classification when adding a workspace member or a new `vox` subcommand.
+
 

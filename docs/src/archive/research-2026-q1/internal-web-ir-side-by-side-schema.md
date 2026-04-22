@@ -2,7 +2,7 @@
 title: "Internal Web IR Side-by-Side Schema"
 description: "Parser-grounded current-vs-target WebIR mapping for one full-stack Vox app across source, IR, TSX/TS, CSS, HTML, and Rust/API."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -451,5 +451,6 @@ Use this appendix as the **human-facing index** for Web IR offline verification 
 **Interop policy:** escape hatch rows must carry policy reasons — see [ADR 012 interop policy](../adr/012-internal-web-ir-strategy.md#interop-policy-op-s103-op-s104-op-s150-op-s183-op-s213).
 
 **Registry note pass C (OP-S181):** keep this table aligned when adding new gate binaries; bump [`internal-web-ir-implementation-blueprint.md`](internal-web-ir-implementation-blueprint.md) Done lines together.
+
 
 

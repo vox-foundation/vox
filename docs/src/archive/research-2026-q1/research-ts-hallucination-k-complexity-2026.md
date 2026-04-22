@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -34,4 +34,5 @@ Therefore, reducing the K-complexity required to implement a feature directly im
 ## Confidence Assessment
 
 There is **high confidence** that multi-file, multi-language codebase complexity severely degrades LLM code generation quality.43 Reducing the K-complexity of the target language is a critical requirement for maintaining performance at the repository level.
+
 

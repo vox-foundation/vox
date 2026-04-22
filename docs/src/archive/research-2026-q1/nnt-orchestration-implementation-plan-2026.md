@@ -4,7 +4,7 @@ description: "Implementation roadmap for integrating small-world topologies and 
 category: "architecture"
 status: "roadmap"
 sort_order: 186
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Defines the exact codebase mutations required to implement dynamic NNT-inspired routing."
 
@@ -69,4 +69,5 @@ To explicitly train the LLM orchestrator to optimize for small-world topologies,
 - **Wave 0:** Ensure `cargo test -p vox-orchestrator` passes after injecting `AffinityMatrix`.
 - **Wave 1:** Simulate a long-range vs short-range handoff and verify the penalty scores.
 - **Wave 2:** Integrate into `vox-populi` continuous learning loss calculations.
+
 

@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -52,4 +52,5 @@ To circumvent the limitations of traditional continual learning, recent literatu
 - **CURLoRA:** Modifies the CUR matrix decomposition process intrinsic to low-rank updates. By utilizing inverted probabilities for row/column selection (acting as implicit regularization) and initializing the $U$ matrix as zero, CURLoRA achieves stable task accuracy while strictly maintaining the base model's perplexity scores during continual fine-tuning, dramatically outperforming standard LoRA.15
 
 - **FAPM (Forgetting-Aware Pruning Metric):** A pruning methodology that analyzes the ratio of task vector magnitude to the corresponding pre-trained model parameters. It actively penalizes the modification of parameters that overlap heavily with pre-trained weights, successfully limiting catastrophic forgetting to a mere 0.25% while maintaining 99.67% downstream task accuracy.17
+
 

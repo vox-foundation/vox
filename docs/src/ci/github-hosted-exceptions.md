@@ -2,7 +2,7 @@
 title: "GitHub-hosted runner exceptions"
 description: "Official documentation for GitHub-hosted runner exceptions for the Vox language. Detailed technical reference, architecture guides, and i"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -22,3 +22,4 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) must add a row here or switch to the self-hosted tuple.
 
 **Not GitHub-hosted (self-hosted only):** [`ci.yml`](../../../.github/workflows/ci.yml) and [`ml_data_extraction.yml`](../../../.github/workflows/ml_data_extraction.yml) use **`[self-hosted, linux, x64]`** (plus **`docker`** / CUDA lanes per [runner contract](runner-contract.md)). They are listed here so agents do not mistake them for missing exceptions — see [workflow enumeration](workflow-enumeration.md) for step-level detail.
+

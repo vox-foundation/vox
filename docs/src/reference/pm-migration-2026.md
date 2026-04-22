@@ -2,7 +2,7 @@
 title: "Package management migration (2026)"
 description: "Old-to-new command mappings for Cargo-first Vox PM, retired install/Python lanes, and tooling upgrades."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -36,3 +36,4 @@ This note is the **operator-facing mapping** for the packaging redesign (hybrid 
 
 - [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md) — ecosystem entry and **`vox install`** removal note.
 - [`cli-command-surface.generated.md`](cli-command-surface.generated.md) — generated status table (`vox ci command-sync --write`).
+

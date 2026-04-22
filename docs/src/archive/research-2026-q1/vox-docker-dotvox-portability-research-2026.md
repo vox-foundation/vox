@@ -2,7 +2,7 @@
 title: "Vox Docker-backed portability research 2026"
 description: "Research findings and architectural recommendation for Docker/OCI-backed cross-platform `.vox` deployment, packaging, and SSOT boundaries."
 category: "architecture"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -523,4 +523,5 @@ It means Vox should stop treating packaging, deployment, and portability as unre
 ### Tier C
 
 - Ecosystem comparisons and tradeoff analyses were used only to frame operational caveats around rootless runtimes, multi-arch workflows, and base-image choices.
+
 

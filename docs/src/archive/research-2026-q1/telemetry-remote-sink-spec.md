@@ -2,7 +2,7 @@
 title: "Telemetry remote sink specification"
 description: "Normative behavior for optional vox telemetry upload: transport, auth, limits, signing roadmap."
 category: "architecture"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -42,4 +42,5 @@ Operators MUST NOT enqueue secrets or raw PII into the spool. Classification and
 
 - [telemetry-trust-ssot](telemetry-trust-ssot.md)
 - [env-vars SSOT](../reference/env-vars.md) — `VOX_TELEMETRY_*`
+
 

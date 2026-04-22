@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -35,4 +35,5 @@ Contemporary research offers empirically validated countermeasures: transitionin
 - [Utilizing Parse Failures as Negative Examples](research-cl-nat-dpo-2026.md)
 - [Risk Taxonomy, Monitoring Design, and Open Research Questions](research-cl-risk-taxonomy-telemetry-2026.md)
 - [Works Cited: Continual Learning Flywheel Risks](research-cl-works-cited-2026.md)
+
 

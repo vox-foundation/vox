@@ -3,7 +3,7 @@ title: "The Vox Contribution Loop"
 description: "How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible."
 category: "contributor"
 status: "current"
-last_updated: 2026-04-17
+last_updated: "2026-04-17"
 training_eligible: true
 training_rationale: "Core motivational narrative for the contribution-to-corpus feedback loop."
 
@@ -129,3 +129,4 @@ coverage inside `.vox` files a first-class quality signal.
 - [Vox source → MENS pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md) — authoritative technical crosswalk
 - [Mens native training SSOT](../reference/mens-training.md) — training pipeline reference
 - [AI agent panic and shortcut pathology](../architecture/research-ai-panic-shortcuts-2026.md) — why shortcuts harm the corpus
+

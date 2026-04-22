@@ -2,7 +2,7 @@
 title: "Workflow enumeration (GitHub Actions)"
 description: "Official documentation for Workflow enumeration (GitHub Actions) for the Vox language. Detailed technical reference, architecture guides,"
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -33,3 +33,5 @@ GitLab: `.gitlab-ci.yml` mirrors Rust guards, tests, docs, and ML jobs. Job **`v
 | `docker-vox-image-smoke` | `docker-vox-image-smoke` | `docker build` default + mens features; Docker-in-Docker service + `allow_failure: true` unless the runner allows **privileged** service containers (typical GitLab constraint). |
 
 If your runner cannot run DinD, the smoke job fails soft; keep **`mens-compose-config`** green for compose YAML validation. See [deployment compose SSOT](../reference/deployment-compose.md).
+
+

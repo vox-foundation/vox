@@ -4,7 +4,7 @@ description: "Investigation into Vox's actual TOESTUB God Object limits versus d
 category: "architecture"
 status: "research"
 sort_order: 18
-last_updated: 2026-04-12
+last_updated: "2026-04-12"
 training_eligible: false
 training_rationale: "Documents God Object limits and chunking strategy directly applicable to MENS QLoRA training corpus curation."
 schema_type: "TechArticle"
@@ -67,4 +67,5 @@ To enact this without breaking the build:
 1. We must introduce a `#[toestub(ignore_god_object)]` suppression or a blessed `.toestubignore` list specifically for the existing legacy files like `orchestrator.rs` (70 KB) and `memory.rs` (31 KB).
 2. Revert `max_lines` back to 500 and `max_methods` back to 12 in `vox-toestub/src/detectors/god_object.rs`.
 3. Inform the MENS pipeline `ast_mutator` to slice files larger than 150 lines into AST-bounded chunks (functions/impls) rather than treating the file as a single training row.
+
 

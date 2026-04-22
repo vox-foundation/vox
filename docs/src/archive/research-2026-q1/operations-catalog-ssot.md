@@ -3,7 +3,7 @@ title: "Operations catalog SSOT"
 description: "Unified operation catalog for MCP + CLI + planner parity."
 category: "architecture"
 status: "current"
-last_updated: 2026-04-02
+last_updated: "2026-04-02"
 training_eligible: false
 training_rationale: "Key architecture constraints and definitions required for agent context"
 
@@ -47,4 +47,5 @@ User `@mcp.tool` and `@mcp.resource` generated app surfaces remain outside this 
 Implementation and producer-audit backlog (including catalog ↔ guard alignment): [`telemetry-implementation-backlog-2026.md`](./telemetry-implementation-backlog-2026.md).
 
 Optional operator upload queue is catalogued as **`telemetry`** / **`telemetry.*`** in the same YAML; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry-remote-sink-spec](telemetry-remote-sink-spec.md), and **`vox telemetry`** in [`cli.md`](../reference/cli.md).
+
 

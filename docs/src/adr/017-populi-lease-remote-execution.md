@@ -2,7 +2,7 @@
 title: "ADR 017: Populi lease-based authoritative remote execution"
 description: "Normative target model for single-owner lease semantics, A2A transport, and local fallback when promoting remote execution beyond best-effort relay."
 category: "reference"
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -50,3 +50,5 @@ The first-wave **personal-cluster** roadmap needs a clear upgrade path from rela
 - [Populi overlay personal cluster runbook](../operations/populi-overlay-personal-cluster-runbook.md) — WAN and enrollment boundaries.
 - [Remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md) — kill switches and go/no-go.
 - [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — phased sequencing (roadmap; not edited by this ADR).
+
+

@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -42,4 +42,5 @@ To prevent runaway semantic drift, the validation oracle must extend beyond stat
 2. **The "Incoherence" Metric:** If execution verification is impossible, the system must deploy proxy metrics. Proposed in a 2026 AAAI paper, "incoherence" serves as an oracle-less measure of error that evaluates the internal consistency and logical probability of the generated program.8 In empirical evaluations, an incoherence-based methodology automatically identified approximately two-thirds of functionally incorrect programs without returning false positives, serving as a reliable substitute for traditional pass@1 evaluations.8
 
 3. **Semantic Entropy Filtering:** Implementing "code semantic entropy" allows the system to assess the functional diversity of program behaviors during generation. By measuring the uncertainty at the problem level, the system can construct curricula that filter out highly uncertain, noisy self-generated supervision before it enters the positive split.44
+
 

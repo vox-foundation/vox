@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -40,4 +40,5 @@ By strictly prohibiting implicit coercions, the compiler forces the LLM to expli
 ## Confidence Assessment
 
 There is **high confidence** that specific deterministic features—namely Algebraic Data Types, exhaustive pattern matching, non-null by default policies, and zero implicit coercion—drastically improve the reliability of LLM-generated code. They achieve this by systematically shifting the burden of state management and edge-case handling from the probabilistic language model to the deterministic compiler.34
+
 

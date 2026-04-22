@@ -4,7 +4,7 @@ description: "Research findings on the challenges AI agents face when inferring 
 category: "architecture"
 status: "research"
 sort_order: 6
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Documents the gap between static CSS text analysis and runtime browser computed styles, informing future multi-modal and headless browser agent strategies."
 archived_date: 2026-04-18
@@ -57,4 +57,5 @@ Encouraging highly deterministic, locally scoped styling (such as strictly enfor
 
 ## Conclusion
 CSS's cascading, fault-tolerant nature makes it uniquely hostile to static AI inference. To build reliable autonomous UI agents within Vox, we must treat CSS not as code to be logically deduced, but as a configuration state that can only be truly verified at runtime within a browser engine.
+
 

@@ -2,7 +2,7 @@
 title: "Scientia publication failure playbook"
 description: "Deterministic remediation for common publication gate and syndication failures."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -54,3 +54,5 @@ Syndication tokens resolve through **Clavis** (`vox_clavis::resolve_secret`) for
 ## crates.io channel
 
 If `crates_io` appears in routing, expect **explicit** non-success outcomes until a real adapter exists—never assume a crate was published.
+
+

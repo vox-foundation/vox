@@ -4,7 +4,7 @@ description: "SSOT for explicit polyrepo catalogs, local-first cross-repo queryi
 category: "architecture"
 status: "current"
 sort_order: 0
-last_updated: 2026-03-29
+last_updated: "2026-03-29"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -237,5 +237,6 @@ The trust layer already recognizes `repository` as an entity type. Cross-repo qu
 - [Trust Reliability Layer (SSOT)](trust-reliability-layer.md)
 - [Telemetry and research_metrics contract](../reference/telemetry-metric-contract.md)
 - [Multi-repo context isolation: research findings 2026](multi-repo-context-isolation-research-2026.md) — security model, scope guard, `.voxignore` SSOT, IDE isolation, and agent instruction file hierarchy
+
 
 

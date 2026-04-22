@@ -2,7 +2,7 @@
 title: "SCIENTIA publication readiness audit"
 description: "Architecture audit of SCIENTIA publication workflows against core AI journal and self-publication requirements."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -245,4 +245,5 @@ codexLedger --> readinessReports[ReadinessAndOpsReports]
 ## Conclusion
 
 SCIENTIA already has a strong publication ledger and governance core (manifest + digest + approvals + durable state tracking). The main gap is not control-plane integrity; it is publication-system interoperability and venue-specific packaging/compliance automation. The recommended path is to keep the current SSOT model and add typed metadata, preflight gates, and real adapters in phased order.
+
 

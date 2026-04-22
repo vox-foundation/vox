@@ -2,7 +2,7 @@
 title: "Testing Standard — SSOT"
 description: "Official documentation for Testing Standard — SSOT for the Vox language. Detailed technical reference, architecture guides, and implement"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -111,4 +111,5 @@ cargo test -p vox-test-harness
 - [vox-integration-tests API](../reference/cli.md)
 - [documentation-rubric](../../agents/documentation-rubric.md)
 - [CI runner contract](../ci/runner-contract.md)
+
 

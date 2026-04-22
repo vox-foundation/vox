@@ -2,7 +2,7 @@
 title: "Vox full-stack web UI — single source of truth"
 description: "Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur"
 category: "reference"
-last_updated: 2026-04-07
+last_updated: "2026-04-07"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -110,3 +110,4 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — dev topology during SSR adoption.
 - [Mens SSOT](populi.md) — worker/runtime mens registry and HTTP control plane; not emitted by `vox-codegen-*` (operator env only).
 - [`AGENTS.md`](../../../AGENTS.md) — architecture index.
+

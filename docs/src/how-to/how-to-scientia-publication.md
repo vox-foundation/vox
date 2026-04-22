@@ -2,7 +2,7 @@
 title: "How-To: Publish Scientia findings"
 description: "Prepare, approve, and submit scientific findings from Vox Scientia using the publication manifest SSOT."
 category: "how-to"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -188,3 +188,5 @@ vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run t
 Add `--json` for machine-readable stdout (one structured object per invocation). MCP equivalents `vox_scientia_publication_publish` and `vox_scientia_publication_retry_failed` accept **`json: true`** for a single-line compact JSON tool envelope.
 
 **Retry-failed idempotency:** `publication-retry-failed` / MCP `vox_scientia_publication_retry_failed` pick candidates from the latest **digest-bound** attempt. Channels that already have a `Success` outcome for that digest are **not** republished (they appear as `skipped_success_channels`). Explicit `--channel` / `channel` follows the same planner so operators cannot accidentally duplicate a succeeded post when retrying a subset.
+
+

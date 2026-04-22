@@ -2,7 +2,7 @@
 title: "Crate and build-lane migration map"
 description: "Official documentation for Crate and build-lane migration map for the Vox language. Detailed technical reference, architecture guides, an"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: false
 
 schema_type: "TechArticle"
@@ -108,4 +108,5 @@ Use **`docs/ci/build-timings/snapshot-metadata.json`** with each `latest.jsonl` 
 - [x] `vox ci build-timings --crates`
 - [x] This migration map + inventory doc updates
 - [ ] Optional: deprecate `vox-codex` crate in a later release after downstreams migrate (breaking policy: allowed)
+
 

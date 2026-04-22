@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
 schema_type: "TechArticle"
@@ -42,4 +42,5 @@ Modern frontier models heavily reliant on synthetic training data do not ingest 
 **AlphaCode 2 (Google DeepMind):** The system employs high-temperature sampling to generate up to one million diverse candidate code solutions per problem.30 It then applies a rigorous execution-based filter, removing approximately 95% of candidates that either fail to compile or fail test cases.30 To prevent mode collapse into a single dominant coding style, the surviving 50,000 candidates are clustered based on their execution signatures and runtime behaviors.30 Only a select few candidates from the largest distinct clusters are retained, ensuring that the training corpus represents functionally diverse algorithmic pathways rather than mere syntactic permutations.29
 
 **The Phi Series and Cosmopedia:** Microsoft's Phi-1, Phi-1.5, and Phi-2 models demonstrated that highly curated synthetic data could allow a 2.7B-parameter model to outperform models 25 times its size.31 The core philosophy, published as *Textbooks Are All You Need*, required engineering highly specific prompts to guarantee topical diversity across 1.4 trillion tokens, specifically avoiding the homogenization typical of raw LLM outputs.31 Similarly, Hugging Face's Cosmopedia project generated 25 billion synthetic tokens using Mixtral by aggressively deduplicating content to maintain a duplicate rate below 1%.34 An external LLM auditor was frequently employed to inject an exogenous verification signal, preventing the primary model from reinforcing its own cognitive loops.35
+
 

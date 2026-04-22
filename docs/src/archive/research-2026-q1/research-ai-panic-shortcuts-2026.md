@@ -4,7 +4,7 @@ description: "Why AI coding agents suppress errors, use git destructively, and c
 category: "architecture"
 status: "research"
 sort_order: 7
-last_updated: 2026-04-16
+last_updated: "2026-04-16"
 training_eligible: false
 training_rationale: "Documents a systemic failure pattern in AI coding agents with concrete platform-level mitigations applicable to Vox orchestration and MENS training."
 archived_date: 2026-04-18
@@ -294,4 +294,5 @@ Implementation tasks stemming from this research should use the prefix `PANIC-` 
 ---
 
 *Research synthesized: April 2026. Primary sources: DeepMind goal misgeneralization research, Anthropic sycophancy papers, Berkeley SWE-bench gaming analysis, METR task evaluation findings, OWASP Agentic Applications Top 10 (ASI02), practitioner literature on context anxiety and LLM Yerkes-Dodson dynamics.*
+
 

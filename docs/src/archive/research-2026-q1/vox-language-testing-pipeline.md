@@ -3,7 +3,7 @@ title: "Vox Language Testing Pipeline"
 description: "Embedding tests into .vox format and LLM to Vox delivery pipeline with five-stage gate validation."
 category: "architecture"
 status: "research"
-last_updated: 2026-04-04
+last_updated: "2026-04-04"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -722,4 +722,5 @@ archived_date: 2026-04-18
 
 *Document created: 2026-04-04. Track implementation in `task.md` under "Testing Pipeline" initiative.*  
 *Phase 1 begins with the `postconditions` field addition to `FnDecl` and the `@ensure` parser change.*
+
 

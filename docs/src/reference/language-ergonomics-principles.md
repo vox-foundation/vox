@@ -2,7 +2,7 @@
 title: "Language ergonomics principles"
 description: "Principles for reducing boilerplate in Vox while preserving readability and explicit intent."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -42,3 +42,5 @@ schema_type: "TechArticle"
 - Typechecker behavior remains stable and diagnosable.
 - Codegen for Rust and TS remains semantically aligned.
 - Migration path and lint guidance are provided.
+
+

@@ -3,7 +3,7 @@ title: "Human-In-The-Loop & Doubt"
 description: "User-facing reference explaining the Doubt control mechanism and human resolution flow."
 category: "reference"
 status: "current"
-last_updated: 2026-04-10
+last_updated: "2026-04-10"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -37,3 +37,5 @@ Common triggers for doubt:
 To combat AI obsequiousness (the tendency to always say "yes" even when wrong), the system actively rewards the choice to doubt. 
 
 When the `ResolutionAgent` concludes a doubt session, it submits an audit report. If the doubt was raised due to genuine ambiguity rather than simple capability failure, it triggers an `internal_affairs` achievement in the `vox-ludus` gamification engine. This reinforces a behavior model where safe, clarified execution is paramount.
+
+

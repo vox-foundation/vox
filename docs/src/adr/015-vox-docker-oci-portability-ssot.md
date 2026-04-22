@@ -2,7 +2,7 @@
 title: "ADR 015: Vox Docker/OCI portability SSOT"
 description: "Formalizes Docker/OCI-backed application portability, layered SSOT boundaries, and the rule against a portability god object."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -92,3 +92,5 @@ Adopt a **Docker/OCI-backed portability model** as the primary deployment portab
 - `crates/vox-pm/src/manifest.rs`
 - `crates/vox-container/src/deploy_target.rs`
 - `crates/vox-install-policy/src/lib.rs`
+
+

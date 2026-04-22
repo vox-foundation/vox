@@ -6,7 +6,7 @@ status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
 training_eligible: false
-last_updated: 2026-04-09
+last_updated: "2026-04-09"
 
 schema_type: "TechArticle"
 archived_date: 2026-04-18
@@ -92,4 +92,5 @@ archived_date: 2026-04-18
 76. PurpCode: Reasoning for Safer Code Generation — arXiv, accessed April 8, 2026, <https://arxiv.org/pdf/2507.19060>
 77. AI Model Collapse: Causes and Prevention — WitnessAI, accessed April 8, 2026, <https://witness.ai/blog/ai-model-collapse/>
 78. Measuring the metacognition of AI — ResearchGate, accessed April 8, 2026, <https://www.researchgate.net/publication/403380033_Measuring_the_metacognition_of_AI>
+
 

@@ -4,7 +4,7 @@ description: "Research plan deliverables for standards-to-signals mapping, canon
 category: "architecture"
 status: "research"
 sort_order: 14
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 training_eligible: false
 training_rationale: "Synthesizes architecture constraints and findings for implementation waves."
 
@@ -235,4 +235,5 @@ Proceed to implementation planning only when all are true:
 - Crossref/DataCite/JATS/CFF/CodeMeta/ORCID/ROR metadata and interoperability surfaces.
 - FAIR/RSMD metadata principles.
 - Reproducibility and integrity literature on citation hallucination, contamination risk, and claim-evidence attribution.
+
 

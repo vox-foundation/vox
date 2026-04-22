@@ -3,7 +3,7 @@ title: "Documentation authority pointers"
 description: "CI-facing pointer index to canonical documentation authority pages. Keep behavior in reference docs; this page exists for stable guard paths."
 category: "ci"
 status: "current"
-last_updated: 2026-04-06
+last_updated: "2026-04-06"
 
 schema_type: "TechArticle"
 ---
@@ -28,3 +28,5 @@ This page is a CI-facing pointer surface for documentation authority. Canonical 
 - `vox ci command-compliance`
 - `vox ci doc-inventory verify`
 - `vox ci check-links`
+
+
