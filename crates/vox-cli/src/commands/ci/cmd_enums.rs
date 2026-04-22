@@ -455,8 +455,10 @@ pub enum CiCmd {
 #[derive(clap::Args, Debug, Clone)]
 pub struct GuardOpts {
     /// Emit machine-readable JSON only.
-    #[arg(long)]
+    #[clap(long)]
     pub json: bool,
+    #[clap(long)]
+    pub check_policy_only: bool,
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].

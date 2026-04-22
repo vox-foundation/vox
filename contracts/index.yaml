@@ -128,6 +128,31 @@ contracts:
       - vox ci contracts-index
       - cargo test -p vox-publisher scientia_novelty
 
+  - id: data-storage-policy-v1
+    path: contracts/db/data-storage-policy.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: SSOT for data storage rules, tiers, and file ownership.
+    enforced_by:
+      - vox ci contracts-index
+      - vox ci data-storage-guard
+
+  - id: data-storage-policy-v1-schema
+    path: contracts/db/data-storage-policy.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for data storage policy.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: data-storage-guard-report-v1-schema
+    path: contracts/db/data-storage-guard-report.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for the data storage guard report output.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: terminal-exec-policy-v1-schema
     path: contracts/terminal/exec-policy.v1.schema.json
     owner: platform-ci

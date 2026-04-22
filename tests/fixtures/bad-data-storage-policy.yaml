@@ -1,0 +1,4 @@
+version: 1
+x-vox-version: 1
+
+# Missing all required fields like tiers, env_vars, etc.
