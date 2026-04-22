@@ -1,5 +1,0 @@
-// vox:caps env
-fn main() {
-    env.set("TEST_KEY", "TEST_VAL")
-    print("Test key:", env.get("TEST_KEY"))
-}

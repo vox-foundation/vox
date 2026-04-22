@@ -1,5 +1,0 @@
-actor MyActor {
-    on ping() {
-        print("pong")
-    }
-}

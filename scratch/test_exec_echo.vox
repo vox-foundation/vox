@@ -1,3 +1,0 @@
-fn main() {
-    process.exec("echo", ["hello"])
-}

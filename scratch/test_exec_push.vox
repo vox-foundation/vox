@@ -1,6 +1,0 @@
-// vox:caps subprocess env
-fn main() {
-    let cmd_args = []
-    cmd_args.push("hello")
-    process.exec("echo", cmd_args)
-}

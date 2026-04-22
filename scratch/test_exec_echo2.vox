@@ -1,4 +1,0 @@
-// vox:caps subprocess, env
-fn main() {
-    process.exec("echo", ["hello"])
-}

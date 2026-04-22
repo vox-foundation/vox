@@ -103,6 +103,20 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         }
     }
 
+    if let Ok(output) = std::process::Command::new("git")
+        .arg("ls-files")
+        .arg("scratch/")
+        .current_dir(&root)
+        .output()
+    {
+        if let Ok(stdout) = String::from_utf8(output.stdout) {
+            let tracked_files: Vec<&str> = stdout.lines().filter(|l| !l.ends_with(".gitkeep")).collect();
+            if !tracked_files.is_empty() {
+                report.violations.push(format!("scratch-clean: scratch/ contains tracked files other than .gitkeep: {:?}", tracked_files));
+            }
+        }
+    }
+
     if !opts.json {
         if report.violations.is_empty() {
             println!("DataStorageGuard check passed.");
