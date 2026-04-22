@@ -53,6 +53,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   5. Link from `docs/src/SUMMARY.md` if it exists (check first).
 - **Verification**: `rg '^# Data Storage SSOT' docs/src/architecture/` returns exactly the three docs; `rg 'data-storage-ssot-2026.md' docs/src/architecture/research-index.md` non-empty.
 
+> Landed in a029121a on 2026-04-22; verification: green.
+
 ### M-01 · Scaffold `vox ci data-storage-guard` sub-command (stub)
 
 - **Owner**: CI.
