@@ -3,6 +3,7 @@ title: "Data Storage Migration Backlog (2026)"
 category: "architecture"
 status: "roadmap"
 training_eligible: true
+training_rationale: "Backlog for the data storage migration"
 audience: ["contributors", "agents"]
 ---
 

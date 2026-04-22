@@ -3,6 +3,7 @@ title: "Data Storage SSOT (2026)"
 category: "architecture"
 status: "roadmap"
 training_eligible: true
+training_rationale: "Single source of truth for data storage architecture"
 audience: ["contributors", "agents"]
 related:
   - docs/src/architecture/data-storage-migration-backlog-2026.md
