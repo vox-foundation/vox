@@ -12,3 +12,7 @@
 ## Testing
 
 <!-- e.g. `cargo test -p vox-ludus`, `cargo test -p vox-mcp`, etc. -->
+
+## Data Storage / DB
+
+- [ ] If `crates/vox-db/src/schema/manifest.rs` was touched, include `BASELINE_VERSION: <new_value>` in this PR body (matching the Rust constant) to auto-update the baseline contract post-merge.

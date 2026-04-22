@@ -4,9 +4,9 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 54
+  repository_baseline_integer: 59
   # Keccak-256 (0x-prefixed) of `vox_db::schema::baseline_sql()` — `vox ci check-codex-ssot` enforces parity when set.
-  repository_baseline_digest_hex: "0xf571972e9a3c90ea4f61c012368957fe2e9fbc6d4bda81e167634d6c5d51e067"
+  repository_baseline_digest_hex: "0x6c0747200da0316740ba9731adf0139bcb7412550f98de1bb617382181f42132"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
