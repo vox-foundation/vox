@@ -8,12 +8,15 @@ pub async fn apply_ludus_migrations(db: &vox_db::Codex) -> Result<()> {
     let mut migrations = Vec::new();
     for (i, (version_label, sql)) in crate::schema::ALL_MIGRATIONS.iter().enumerate() {
         // We use versions 1000+ to avoid conflict with Arca builtin migrations (baseline is 1).
-        migrations.push(Migration::new(1000 + i as i64, version_label.to_string(), sql.to_string()));
+        migrations.push(Migration::new(
+            1000 + i as i64,
+            version_label.to_string(),
+            sql.to_string(),
+        ));
     }
     db.apply_migrations(&migrations).await?;
     Ok(())
 }
-
 
 /// Canonical user-identity normalisation.
 ///

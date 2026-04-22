@@ -1,6 +1,6 @@
 use clap::Parser;
 use comfy_table::Table;
-use vox_db::{VoxDb, DbConfig};
+use vox_db::{DbConfig, VoxDb};
 
 /// Show detailed cost reporting.
 #[derive(Parser)]
@@ -49,7 +49,9 @@ pub async fn run(args: CostsArgs) -> anyhow::Result<()> {
             row.n_calls.to_string(),
             row.success_count.to_string(),
             format!("${:.5}", row.cumulative_cost_usd),
-            row.cost_per_success_usd.map(|v| format!("${:.5}", v)).unwrap_or_else(|| "$0.00000".to_string()),
+            row.cost_per_success_usd
+                .map(|v| format!("${:.5}", v))
+                .unwrap_or_else(|| "$0.00000".to_string()),
         ]);
     }
 

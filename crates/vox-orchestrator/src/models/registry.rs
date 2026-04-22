@@ -8,8 +8,7 @@ use crate::types::{AgentTask, TaskCategory};
 
 use super::key_guard::provider_secret_is_available;
 use super::spec::{
-    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias,
-    task_category_strength,
+    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_strength,
 };
 
 /// A performance score from the `model_scoreboard`.
@@ -66,7 +65,10 @@ impl ModelRegistry {
         self.scoreboard = scores;
     }
 
-    pub fn inject_pricing_catalog(&mut self, pricing: Vec<vox_db::store::types::ModelPricingCatalogRow>) {
+    pub fn inject_pricing_catalog(
+        &mut self,
+        pricing: Vec<vox_db::store::types::ModelPricingCatalogRow>,
+    ) {
         for row in pricing {
             if row.confidence == "medium" || row.confidence == "high" {
                 if let Some(spec) = self.models.get_mut(&row.model_id) {
@@ -80,7 +82,7 @@ impl ModelRegistry {
                         );
                         spec.cost_per_1k = blended;
                         spec.observed_cost_per_1k = Some(blended);
-                        
+
                         // If provider separates inputs/outputs, override those too
                         if let Some(input) = row.observed_input_per_1k {
                             spec.cost_per_1k_input = input;
@@ -319,7 +321,9 @@ impl ModelRegistry {
             registry.register(model);
         }
 
-        let cache_file = vox_config::paths::dot_vox_user_dir().join("cache").join("model-catalog.v1.json");
+        let cache_file = vox_config::paths::dot_vox_user_dir()
+            .join("cache")
+            .join("model-catalog.v1.json");
         if let Ok(contents) = std::fs::read_to_string(&cache_file) {
             if let Ok(cached_models) = serde_json::from_str::<Vec<ModelSpec>>(&contents) {
                 for m in cached_models {
@@ -376,8 +380,6 @@ impl ModelRegistry {
         self.best_for_with_filter(task_type, complexity, preference, |_| true, None)
     }
 
-
-
     /// Like [`Self::best_for`] but only considers models for which `pred` returns true.
     #[must_use]
     pub fn best_for_with_filter(
@@ -397,7 +399,8 @@ impl ModelRegistry {
         let strength = task_category_strength(task_type);
 
         // First pass: Respect penalties
-        let result = self.best_for_internal(task_type, strength, effective_pref, &mut pred, true, task);
+        let result =
+            self.best_for_internal(task_type, strength, effective_pref, &mut pred, true, task);
         if result.is_some() {
             return result;
         }
@@ -429,10 +432,12 @@ impl ModelRegistry {
                 if let (Some(t), Some(budget)) = (task, task.and_then(|t| t.budget.as_ref())) {
                     let est_tokens = t.estimated_token_count();
                     // Use scoreboard cost if available for more empirical gating
-                    let cost_basis = self.scoreboard.get(&m.id)
+                    let cost_basis = self
+                        .scoreboard
+                        .get(&m.id)
                         .and_then(|s| s.cost_per_success_usd)
                         .unwrap_or(m.cost_per_1k);
-                    
+
                     let est_cost = (est_tokens as f64 / 1000.0) * cost_basis;
                     if let Some(max) = budget.max_cost_usd {
                         if est_cost > max {
@@ -462,18 +467,36 @@ impl ModelRegistry {
 
                 cost_a.total_cmp(&cost_b).then_with(|| {
                     // Secondary sort by success rate if costs (adjusted) are equal
-                    let a_sr = self.scoreboard.get(&a.id).map(|s| s.success_rate).unwrap_or(0.5);
-                    let b_sr = self.scoreboard.get(&b.id).map(|s| s.success_rate).unwrap_or(0.5);
+                    let a_sr = self
+                        .scoreboard
+                        .get(&a.id)
+                        .map(|s| s.success_rate)
+                        .unwrap_or(0.5);
+                    let b_sr = self
+                        .scoreboard
+                        .get(&b.id)
+                        .map(|s| s.success_rate)
+                        .unwrap_or(0.5);
                     b_sr.total_cmp(&a_sr).then_with(|| {
                         // Tertiary sort by latency if costs and success rates are similar
-                        let a_lat = self.scoreboard.get(&a.id).and_then(|s| s.p50_latency_ms).unwrap_or(2000);
-                        let b_lat = self.scoreboard.get(&b.id).and_then(|s| s.p50_latency_ms).unwrap_or(2000);
-                        
+                        let a_lat = self
+                            .scoreboard
+                            .get(&a.id)
+                            .and_then(|s| s.p50_latency_ms)
+                            .unwrap_or(2000);
+                        let b_lat = self
+                            .scoreboard
+                            .get(&b.id)
+                            .and_then(|s| s.p50_latency_ms)
+                            .unwrap_or(2000);
+
                         a_lat.cmp(&b_lat).then_with(|| {
-                            let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
-                                .expose()
-                                .map(|s: &str| s.trim() == "true")
-                                .unwrap_or(false);
+                            let prefer_mesh = vox_clavis::resolve_secret(
+                                vox_clavis::SecretId::VoxRoutingPreferMesh,
+                            )
+                            .expose()
+                            .map(|s: &str| s.trim() == "true")
+                            .unwrap_or(false);
                             if prefer_mesh {
                                 let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
                                 let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
@@ -495,7 +518,8 @@ impl ModelRegistry {
         strength: crate::models::StrengthTag,
         preference: crate::config::CostPreference,
     ) -> Vec<ModelSpec> {
-        let mut candidates: Vec<ModelSpec> = self.models
+        let mut candidates: Vec<ModelSpec> = self
+            .models
             .values()
             .filter(|m| {
                 if preference == crate::config::CostPreference::Performance && m.is_free {
@@ -520,18 +544,22 @@ impl ModelRegistry {
             let cost_b = get_effective_cost(b);
 
             cost_a.total_cmp(&cost_b).then_with(|| {
-                let a_sr = self.scoreboard.get(&a.id).map(|s| s.success_rate).unwrap_or(0.5);
-                let b_sr = self.scoreboard.get(&b.id).map(|s| s.success_rate).unwrap_or(0.5);
-                b_sr.total_cmp(&a_sr).then_with(|| {
-                    a.id.cmp(&b.id)
-                })
+                let a_sr = self
+                    .scoreboard
+                    .get(&a.id)
+                    .map(|s| s.success_rate)
+                    .unwrap_or(0.5);
+                let b_sr = self
+                    .scoreboard
+                    .get(&b.id)
+                    .map(|s| s.success_rate)
+                    .unwrap_or(0.5);
+                b_sr.total_cmp(&a_sr).then_with(|| a.id.cmp(&b.id))
             })
         });
 
         candidates
     }
-
-
 
     /// Return the best free model for a given task category.
     pub fn best_free_for(&self, task_type: TaskCategory) -> Option<ModelSpec> {
@@ -711,15 +739,25 @@ impl ModelRegistry {
                         telemetry_skip_interaction: false,
                     },
                     ProviderType::HuggingFaceRouter => {
-                        let mut cfg = vox_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
+                        let mut cfg =
+                            vox_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
-                        cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+                        cfg.telemetry_strength_tag =
+                            Some(task_category_strength(task_type).to_string());
                         cfg
                     }
-                    ProviderType::Custom(_) | ProviderType::PopuliMesh | ProviderType::Anthropic | ProviderType::Mistral | ProviderType::DeepSeek | ProviderType::SambaNova | ProviderType::Groq | ProviderType::Cerebras => {
+                    ProviderType::Custom(_)
+                    | ProviderType::PopuliMesh
+                    | ProviderType::Anthropic
+                    | ProviderType::Mistral
+                    | ProviderType::DeepSeek
+                    | ProviderType::SambaNova
+                    | ProviderType::Groq
+                    | ProviderType::Cerebras => {
                         let mut cfg = vox_runtime::llm::LlmConfig::openrouter(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
-                        cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+                        cfg.telemetry_strength_tag =
+                            Some(task_category_strength(task_type).to_string());
                         cfg
                     }
                 };

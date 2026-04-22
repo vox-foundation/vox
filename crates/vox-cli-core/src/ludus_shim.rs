@@ -19,7 +19,9 @@ async fn record_cli_event_inner(
     command_path: Option<&str>,
 ) -> anyhow::Result<()> {
     // Only proceed if DB is available
-    let Ok(db) = vox_db::VoxDb::connect_canonical().await else { return Ok(()); };
+    let Ok(db) = vox_db::VoxDb::connect_canonical().await else {
+        return Ok(());
+    };
     let user_id = vox_db::paths::local_user_id();
 
     // Codex: log CLI command event for unified capability telemetry

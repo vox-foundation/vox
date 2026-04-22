@@ -163,9 +163,10 @@ fn mcp_extract_matches_workspace_vox_orchestrator_mcp_tools_mod_rs() {
         .and_then(|p| p.parent())
         .expect("vox-cli lives at crates/vox-cli");
     let base = repo_root.join("crates/vox-orchestrator/src/mcp_tools");
-    let mcp_mod = read_utf8_path_capped(&base.join("mod.rs")).expect("read vox-orchestrator mcp_tools/mod.rs");
-    let dispatch =
-        read_utf8_path_capped(&base.join("dispatch.rs")).expect("read vox-orchestrator mcp_tools/dispatch.rs");
+    let mcp_mod = read_utf8_path_capped(&base.join("mod.rs"))
+        .expect("read vox-orchestrator mcp_tools/mod.rs");
+    let dispatch = read_utf8_path_capped(&base.join("dispatch.rs"))
+        .expect("read vox-orchestrator mcp_tools/dispatch.rs");
     let aliases = read_utf8_path_capped(&base.join("tool_aliases.rs"))
         .expect("read vox-orchestrator mcp_tools/tool_aliases.rs");
     let reg = extract_mcp_registry_tool_names(repo_root).expect("registry tools");

@@ -483,15 +483,31 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             for t in &targets {
                 cmd.arg(t);
             }
-            if let Some(m) = model { cmd.arg("--model").arg(m); }
-            if let Some(f) = format { cmd.arg("--format").arg(f); }
-            if let Some(s) = severity { cmd.arg("--severity").arg(s); }
-            if free_only { cmd.arg("--free-only"); }
-            if diff { cmd.arg("--diff"); }
-            if ci { cmd.arg("--ci"); }
-            if pr_comment { cmd.arg("--pr-comment"); }
-            if let Some(db) = diff_base { cmd.arg("--diff-base").arg(db); }
-            
+            if let Some(m) = model {
+                cmd.arg("--model").arg(m);
+            }
+            if let Some(f) = format {
+                cmd.arg("--format").arg(f);
+            }
+            if let Some(s) = severity {
+                cmd.arg("--severity").arg(s);
+            }
+            if free_only {
+                cmd.arg("--free-only");
+            }
+            if diff {
+                cmd.arg("--diff");
+            }
+            if ci {
+                cmd.arg("--ci");
+            }
+            if pr_comment {
+                cmd.arg("--pr-comment");
+            }
+            if let Some(db) = diff_base {
+                cmd.arg("--diff-base").arg(db);
+            }
+
             let status = cmd.status().await?;
             if !status.success() {
                 anyhow::bail!("vox review via subprocess failed");

@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Wed, 22 Apr 2026 03:50:40 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 22 Apr 2026 14:04:50 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -13,7 +13,7 @@
     <link>https://vox-lang.org/architecture/build-stabilization-findings-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/build-stabilization-findings-2026.html</guid>
     <description>Vox Orchestration Build Stabilization Findings (2026-04-21)</description>
-    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
 
@@ -22,7 +22,7 @@
     <link>https://vox-lang.org/architecture/data-storage-lint-and-ci-spec-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-lint-and-ci-spec-2026.html</guid>
     <description>Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.gitlab-ci.yml` `vox-ci-guards` job and `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD.</description>
-    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
 
@@ -31,7 +31,7 @@
     <link>https://vox-lang.org/architecture/data-storage-migration-backlog-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-migration-backlog-2026.html</guid>
     <description>Data Storage Migration Backlog (2026)</description>
-    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
 
@@ -40,7 +40,25 @@
     <link>https://vox-lang.org/architecture/data-storage-ssot-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-ssot-2026.html</guid>
     <description>Data Storage SSOT (2026)</description>
-    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Ludus Security and Anti-Cheat Architecture (Research 2026)</title>
+    <link>https://vox-lang.org/architecture/ludus-security-and-anti-cheat-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-security-and-anti-cheat-research-2026.html</guid>
+    <description>Ludus Security and Anti-Cheat Architecture (Research 2026)</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Model Orchestration SSOT — Audit &amp; Convergence Plan (2026-04-20)</title>
+    <link>https://vox-lang.org/architecture/model-orchestration-ssot-audit-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/model-orchestration-ssot-audit-2026.html</guid>
+    <description>Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements.</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
 
@@ -59,15 +77,6 @@
     <link>https://vox-lang.org/architecture/inference-tuning-resolution-research-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/inference-tuning-resolution-research-2026.html</guid>
     <description>Research into precedence-based parameter resolution for LLM inference.</description>
-    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Model Orchestration SSOT — Audit &amp; Convergence Plan (2026-04-20)</title>
-    <link>https://vox-lang.org/architecture/model-orchestration-ssot-audit-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/model-orchestration-ssot-audit-2026.html</guid>
-    <description>Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements.</description>
     <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -124,15 +133,6 @@
     <link>https://vox-lang.org/architecture/ludus-identity-github-integration-research-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-identity-github-integration-research-2026.html</guid>
     <description>Research findings and architecture plan for decentralized Ludus profile storage and GitHub account linking.</description>
-    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Ludus Security and Anti-Cheat Architecture (Research 2026)</title>
-    <link>https://vox-lang.org/architecture/ludus-security-and-anti-cheat-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-security-and-anti-cheat-research-2026.html</guid>
-    <description>Ludus Security and Anti-Cheat Architecture (Research 2026)</description>
     <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -231,13 +231,12 @@
   </item>
 
   <item>
-    <title>Comprehensive Vox audit and improvement plan (April 2026, v2)</title>
-    <link>https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</guid>
-    <description>Full-spectrum audit + ~90 prioritized improvements. Targets the &apos;premier LLM destination for web app code&apos; thesis.</description>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Architecture Index</description>
     <pubDate>Sat, 18 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>

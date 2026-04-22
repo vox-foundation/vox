@@ -18,8 +18,8 @@ use super::handlers::{
     a2a_ack, a2a_inbox, a2a_lease_renew, admin_exec_lease_revoke, admin_maintenance,
     admin_quarantine, bootstrap_exchange, deliver_a2a, dispatch_results_poll, dispatch_script,
     exec_lease_grant, exec_lease_list, exec_lease_release, exec_lease_renew, execute_on_worker,
-    health, heartbeat, join_node, leave_node, list_nodes, queue_stats,
-    federation_directory, federation_announce,
+    federation_announce, federation_directory, health, heartbeat, join_node, leave_node,
+    list_nodes, queue_stats,
 };
 
 /// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
@@ -227,7 +227,7 @@ pub fn populi_http_app(state: PopuliTransportState) -> Router {
 pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!(%addr, "vox-populi HTTP control plane listening");
-    
+
     // Start federation gossip if any bootstrap peers are configured
     state.start_federation_gossip();
 

@@ -1,7 +1,7 @@
 //! Telemetry and Scoreboard operations for [`crate::VoxDb`] (Arca / Turso).
 
+use crate::store::types::{ModelScoreboardRow, StoreError};
 use turso::params;
-use crate::store::types::{StoreError, ModelScoreboardRow};
 
 impl crate::VoxDb {
     /// Retrieve the current model scoreboard for a specific window.
@@ -11,7 +11,7 @@ impl crate::VoxDb {
     ) -> Result<Vec<ModelScoreboardRow>, StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker
             .call(move || {
                 let conn = conn.clone();
@@ -54,13 +54,10 @@ impl crate::VoxDb {
     }
 
     /// Upsert a model scoreboard entry.
-    pub async fn upsert_model_scoreboard(
-        &self,
-        row: ModelScoreboardRow,
-    ) -> Result<(), StoreError> {
+    pub async fn upsert_model_scoreboard(&self, row: ModelScoreboardRow) -> Result<(), StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker
             .call(move || {
                 let conn = conn.clone();
@@ -217,10 +214,12 @@ impl crate::VoxDb {
     }
 
     /// Retrieve the current model pricing catalog (confident rows).
-    pub async fn get_pricing_catalog(&self) -> Result<Vec<crate::store::types::ModelPricingCatalogRow>, StoreError> {
+    pub async fn get_pricing_catalog(
+        &self,
+    ) -> Result<Vec<crate::store::types::ModelPricingCatalogRow>, StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        
+
         breaker
             .call(move || {
                 let conn = conn.clone();

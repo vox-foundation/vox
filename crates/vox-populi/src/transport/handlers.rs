@@ -11,13 +11,13 @@
 
 use std::sync::atomic::Ordering;
 
+use super::MeshQueueStats;
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use base64::Engine as _;
 use tracing::{info, warn};
-use super::MeshQueueStats;
 
 use crate::{
     MAX_MAINTENANCE_FOR_MS, NodeRecord, node_maintenance_blocks_new_work,
@@ -584,7 +584,11 @@ pub(super) async fn admin_exec_lease_revoke(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn claim_policy_allows_worker(worker: &NodeRecord, msg: &A2AStoredMessage, sender_owner_id: Option<&str>) -> bool {
+fn claim_policy_allows_worker(
+    worker: &NodeRecord,
+    msg: &A2AStoredMessage,
+    sender_owner_id: Option<&str>,
+) -> bool {
     let privacy = msg
         .privacy_class
         .as_deref()
@@ -1046,9 +1050,12 @@ pub(super) async fn a2a_inbox(
         if leased_other && lease_alive {
             continue;
         }
-        
+
         let sender_owner_id = m.sender_node_id.as_ref().and_then(|id| {
-            nodes.iter().find(|n| n.id == *id).and_then(|n| n.owner_vox_user_id.as_deref())
+            nodes
+                .iter()
+                .find(|n| n.id == *id)
+                .and_then(|n| n.owner_vox_user_id.as_deref())
         });
 
         if !claim_policy_allows_worker(&worker, m, sender_owner_id) {
@@ -1325,7 +1332,6 @@ fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Optio
     candidates.first().copied()
 }
 
-
 pub(super) async fn queue_stats(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -1554,7 +1560,7 @@ pub(super) async fn federation_directory(
             "populi: token required for federation/directory".into(),
         ));
     }
-    
+
     let entries = {
         let g = st.federated_meshes.read().await;
         g.clone()
@@ -1608,7 +1614,7 @@ pub(super) async fn federation_announce(
 
     let entries = {
         let mut g = st.federated_meshes.write().await;
-        
+
         if let Some(i) = g.iter().position(|e| e.scope_id == req.entry.scope_id) {
             g[i] = req.entry;
         } else {

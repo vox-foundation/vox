@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
+use tracing::{error, info};
 use vox_identity::trust::TrustedNodeRegistry;
 use vox_mesh_types::ClavisSyncEnvelope;
 use vox_populi::http_client::PopuliHttpClient;
 use vox_populi::transport::A2ADeliverRequest;
-use tracing::{info, error};
 
 fn redact_value(value: &str) -> String {
     if value.chars().count() > 6 {
@@ -713,33 +713,45 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
 
     // Use the local registry to find control plane URLs for trusted nodes
     let local_reg_path = vox_populi::local_registry_path();
-    let populi_reg = vox_populi::LocalRegistry::new(local_reg_path).load().context("Failed to load populi registry")?;
-    
+    let populi_reg = vox_populi::LocalRegistry::new(local_reg_path)
+        .load()
+        .context("Failed to load populi registry")?;
+
     let mut success_count = 0;
     let mut fail_count = 0;
 
     let p_env = vox_populi::populi_env();
     for node in trusted_nodes {
-        println!("  syncing to node: {} ({})", node.node_id, node.label.as_deref().unwrap_or("unlabeled"));
-        
+        println!(
+            "  syncing to node: {} ({})",
+            node.node_id,
+            node.label.as_deref().unwrap_or("unlabeled")
+        );
+
         let node_record = populi_reg.nodes.iter().find(|n| n.id == node.node_id);
-        let control_url = node_record.and_then(|n| n.listen_addr.as_ref()).or_else(|| {
-            // Fallback to local control plane if node_id matches local or if it's the only one known
-            if node.node_id == sender_node_id {
-                p_env.control_addr.as_ref()
-            } else {
-                None
-            }
-        });
+        let control_url = node_record
+            .and_then(|n| n.listen_addr.as_ref())
+            .or_else(|| {
+                // Fallback to local control plane if node_id matches local or if it's the only one known
+                if node.node_id == sender_node_id {
+                    p_env.control_addr.as_ref()
+                } else {
+                    None
+                }
+            });
 
         let Some(url) = control_url else {
-            println!("    warning: no control plane URL found for node {}; skipping", node.node_id);
+            println!(
+                "    warning: no control plane URL found for node {}; skipping",
+                node.node_id
+            );
             fail_count += 1;
             continue;
         };
 
         let mut pk_bytes = [0u8; 32];
-        hex::decode_to_slice(&node.pubkey_hex, &mut pk_bytes).context("Failed to decode node public key")?;
+        hex::decode_to_slice(&node.pubkey_hex, &mut pk_bytes)
+            .context("Failed to decode node public key")?;
         let pk = vox_crypto::facades::encryption_public_key_from_bytes(pk_bytes);
 
         let client = PopuliHttpClient::new(url).with_env_token();
@@ -760,14 +772,18 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                 timestamp_unix_ms: now_ms,
             };
 
-            let payload = serde_json::to_string(&envelope).context("Failed to serialize envelope")?;
+            let payload =
+                serde_json::to_string(&envelope).context("Failed to serialize envelope")?;
 
             let deliver_req = A2ADeliverRequest {
                 sender_agent_id: "0".to_string(),
                 receiver_agent_id: "0".to_string(),
                 message_type: "clavis_sync".to_string(),
                 payload,
-                idempotency_key: Some(format!("clavis_sync:{}:{}:{}", node.node_id, spec.canonical_env, now_ms)),
+                idempotency_key: Some(format!(
+                    "clavis_sync:{}:{}:{}",
+                    node.node_id, spec.canonical_env, now_ms
+                )),
                 privacy_class: Some("trusted".to_string()),
                 payload_blake3_hex: None,
                 worker_ed25519_sig_b64: None,
@@ -793,13 +809,19 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                         error = %e,
                         "Clavis secret sync failed"
                     );
-                    println!("    error: failed to deliver {} to {}: {}", spec.canonical_env, url, e);
+                    println!(
+                        "    error: failed to deliver {} to {}: {}",
+                        spec.canonical_env, url, e
+                    );
                     fail_count += 1;
                 }
             }
         }
     }
 
-    println!("sync complete. {} successes, {} failures.", success_count, fail_count);
+    println!(
+        "sync complete. {} successes, {} failures.",
+        success_count, fail_count
+    );
     Ok(())
 }

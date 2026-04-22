@@ -593,10 +593,7 @@ impl BuiltinTypes {
         );
         env_methods.insert(
             "set".into(),
-            Ty::Fn(
-                vec![Ty::Str, Ty::Str],
-                Box::new(Ty::Unit),
-            ),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Unit)),
         );
         methods.insert("EnvModule".into(), env_methods);
 

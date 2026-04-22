@@ -37,22 +37,38 @@ fn telemetry_runtime() -> &'static tokio::runtime::Runtime {
 
 /// Async: connect and write one benchmark row.
 pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<serde_json::Value>) {
-    if !telemetry_enabled() { return; }
-    let Ok(cfg) = DbConfig::resolve_canonical() else { return; };
+    if !telemetry_enabled() {
+        return;
+    }
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
+        return;
+    };
     let rid = repository_id_for_telemetry();
     if let Ok(db) = VoxDb::connect(cfg).await {
-        let _ = db.record_benchmark_event(&rid, name, metric_value, None, details).await;
+        let _ = db
+            .record_benchmark_event(&rid, name, metric_value, None, details)
+            .await;
     }
 }
 
 /// Blocking variant for sync CLI paths.
-pub fn record_opt_blocking(name: &str, metric_value: Option<f64>, details: Option<serde_json::Value>) {
-    if !telemetry_enabled() { return; }
-    let Ok(cfg) = DbConfig::resolve_canonical() else { return; };
+pub fn record_opt_blocking(
+    name: &str,
+    metric_value: Option<f64>,
+    details: Option<serde_json::Value>,
+) {
+    if !telemetry_enabled() {
+        return;
+    }
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
+        return;
+    };
     let rid = repository_id_for_telemetry();
     telemetry_runtime().block_on(async {
         if let Ok(db) = VoxDb::connect(cfg).await {
-            let _ = db.record_benchmark_event(&rid, name, metric_value, None, details).await;
+            let _ = db
+                .record_benchmark_event(&rid, name, metric_value, None, details)
+                .await;
         }
     });
 }

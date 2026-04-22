@@ -33,7 +33,9 @@ async fn run_show(model_filter: Option<String>) -> anyhow::Result<()> {
     let pricing = db.get_pricing_catalog().await?;
 
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL).apply_modifier(UTF8_ROUND_CORNERS);
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS);
     table.set_header(vec![
         "Model",
         "Provider",
@@ -85,9 +87,9 @@ async fn run_show(model_filter: Option<String>) -> anyhow::Result<()> {
 async fn run_rollup() -> anyhow::Result<()> {
     let db = vox_db::VoxDb::open_default().await?;
     println!("Rolling up observed telemetry into pricing catalog...");
-    
+
     let changes = db.rollup_pricing_catalog().await?;
     println!("{} {} updated.", changes.to_string().green(), "rows");
-    
+
     Ok(())
 }

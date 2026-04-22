@@ -305,7 +305,11 @@ impl CloudResolver {
         &self,
         ranked: &[ResolvedOffer],
         spec: &CloudJobSpec,
-    ) -> anyhow::Result<(JobHandle, tokio::task::JoinHandle<()>, Arc<dyn CloudProvider>)> {
+    ) -> anyhow::Result<(
+        JobHandle,
+        tokio::task::JoinHandle<()>,
+        Arc<dyn CloudProvider>,
+    )> {
         let top = ranked.first().ok_or_else(|| {
             anyhow::anyhow!("No offers to dispatch — resolve returned empty list")
         })?;

@@ -599,7 +599,10 @@ impl crate::VoxDb {
     }
 
     /// Record a single LLM request attempt (success or failure).
-    pub async fn record_llm_attempt(&self, attempt: crate::store::types::ModelAttempt<'_>) -> Result<i64, StoreError> {
+    pub async fn record_llm_attempt(
+        &self,
+        attempt: crate::store::types::ModelAttempt<'_>,
+    ) -> Result<i64, StoreError> {
         let trace_id = attempt.trace_id.to_string();
         let attempt_number = attempt.attempt_number;
         let model_id = attempt.model_id.to_string();

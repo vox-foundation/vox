@@ -199,9 +199,13 @@ mod registry_filter_tests {
             supported_parameters: vec![],
         });
         let picked = r
-            .best_for_with_filter(TaskCategory::CodeGen, 2, CostPreference::Performance, |m| {
-                m.is_free && !matches!(m.provider_type, ProviderType::Ollama)
-            }, None)
+            .best_for_with_filter(
+                TaskCategory::CodeGen,
+                2,
+                CostPreference::Performance,
+                |m| m.is_free && !matches!(m.provider_type, ProviderType::Ollama),
+                None,
+            )
             .expect("non-ollama free");
         assert_eq!(picked.id, "gemini-2.0-flash-lite");
     }

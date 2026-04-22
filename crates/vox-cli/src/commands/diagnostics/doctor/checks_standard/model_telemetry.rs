@@ -17,7 +17,7 @@ pub async fn run(checks: &mut Vec<Check>) {
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_millis() as i64)
                     .unwrap_or(0);
-                
+
                 let age_ms = now_ms - max_updated;
                 let age_hours = age_ms / 3600000;
 
@@ -29,7 +29,10 @@ pub async fn run(checks: &mut Vec<Check>) {
                 } else if age_hours > 24 {
                     checks.push(Check::fail(
                         "Model Scoreboard",
-                        format!("Scoreboard is stale (last updated {}h ago). Run `vox model rollup`.", age_hours),
+                        format!(
+                            "Scoreboard is stale (last updated {}h ago). Run `vox model rollup`.",
+                            age_hours
+                        ),
                     ));
                 } else {
                     checks.push(Check::pass(

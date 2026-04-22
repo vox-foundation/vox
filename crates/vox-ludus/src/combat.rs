@@ -248,7 +248,10 @@ impl CombatState {
             self.companion_hp = 0;
             self.result = CombatResult::Defeat;
         }
-        format!("Skipped turn. Recharged energy. {} attacked for {} damage.", self.bug.name, dmg)
+        format!(
+            "Skipped turn. Recharged energy. {} attacked for {} damage.",
+            self.bug.name, dmg
+        )
     }
 
     /// Submit a code fix to instantly resolve the bug.

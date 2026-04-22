@@ -1,8 +1,8 @@
 //! Scientia subcommand definitions.
 
-use clap::Subcommand;
-use crate::db_types::*;
 use crate::constants::*;
+use crate::db_types::*;
+use clap::Subcommand;
 
 /// Subcommands for `vox scientia`.
 #[derive(Subcommand, Clone, Debug, serde::Serialize, serde::Deserialize)]

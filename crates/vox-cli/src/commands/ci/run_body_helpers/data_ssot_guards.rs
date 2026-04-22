@@ -171,17 +171,17 @@ fn run_routing_ssot_guard(root: &Path) -> Result<()> {
     if !schema_path.is_file() {
         return Err(anyhow!("missing {}", schema_path.display()));
     }
-    
+
     let yaml_txt = read_utf8_path_capped(&yaml_path)
         .with_context(|| format!("read {}", yaml_path.display()))?;
     let _yaml: serde_yaml::Value = serde_yaml::from_str(&yaml_txt)
         .with_context(|| format!("parse {}", yaml_path.display()))?;
-        
+
     let schema_txt = read_utf8_path_capped(&schema_path)
         .with_context(|| format!("read {}", schema_path.display()))?;
     let _schema: serde_json::Value = serde_json::from_str(&schema_txt)
         .with_context(|| format!("parse {}", schema_path.display()))?;
-        
+
     Ok(())
 }
 

@@ -5,7 +5,17 @@ use std::io::IsTerminal;
 use std::sync::OnceLock;
 
 /// Global color choice for the CLI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    clap::ValueEnum,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum ColorChoice {
     /// Detect if stdout/stderr is a TTY (default)
     #[default]

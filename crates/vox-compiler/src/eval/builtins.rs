@@ -1,9 +1,7 @@
 use super::value::VoxValue;
 use secrecy::ExposeSecret;
-use std::sync::OnceLock;
 use std::sync::Mutex;
-
-
+use std::sync::OnceLock;
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
@@ -19,8 +17,11 @@ fn ensure_signal_handler() {
             handle.spawn(async move {
                 #[cfg(unix)]
                 {
-                    use tokio::signal::unix::{signal, SignalKind};
-                    if let (Ok(mut sigint), Ok(mut sigterm)) = (signal(SignalKind::interrupt()), signal(SignalKind::terminate())) {
+                    use tokio::signal::unix::{SignalKind, signal};
+                    if let (Ok(mut sigint), Ok(mut sigterm)) = (
+                        signal(SignalKind::interrupt()),
+                        signal(SignalKind::terminate()),
+                    ) {
                         tokio::select! {
                             _ = sigint.recv() => {}
                             _ = sigterm.recv() => {}
@@ -33,10 +34,11 @@ fn ensure_signal_handler() {
                 {
                     let _ = tokio::signal::ctrl_c().await;
                 }
-                
+
                 let _ = tokio::task::spawn_blocking(|| {
                     execute_exit_commands();
-                }).await;
+                })
+                .await;
 
                 std::process::exit(1);
             });
@@ -220,14 +222,23 @@ pub fn call_builtin_method(
         VoxValue::Option(opt) => match method {
             "is_some" => Some(VoxValue::Bool(opt.is_some())),
             "is_none" => Some(VoxValue::Bool(opt.is_none())),
-            "unwrap" => Some(opt.as_ref().map(|v| (**v).clone()).unwrap_or(VoxValue::Null)),
+            "unwrap" => Some(
+                opt.as_ref()
+                    .map(|v| (**v).clone())
+                    .unwrap_or(VoxValue::Null),
+            ),
             _ => None,
         },
         // ── Result ───────────────────────────────────────────────────
         VoxValue::Result(res) => match method {
             "is_ok" => Some(VoxValue::Bool(res.is_ok())),
             "is_err" => Some(VoxValue::Bool(res.is_err())),
-            "unwrap" => Some(res.as_ref().ok().map(|v| (**v).clone()).unwrap_or(VoxValue::Null)),
+            "unwrap" => Some(
+                res.as_ref()
+                    .ok()
+                    .map(|v| (**v).clone())
+                    .unwrap_or(VoxValue::Null),
+            ),
             _ => None,
         },
 
@@ -264,7 +275,8 @@ pub fn call_builtin_method(
                         || ns_str == "process"
                         || ns_str == "env"
                         || ns_str == "clavis")
-                        && !(c.contains(ns_str) || (ns_str == "process" && c.contains("subprocess")))
+                        && !(c.contains(ns_str)
+                            || (ns_str == "process" && c.contains("subprocess")))
                     {
                         println!("Capability denied: script missing capability '{}'", ns_str);
                         return Some(VoxValue::Null);
@@ -486,10 +498,18 @@ pub fn call_builtin_method(
 
                         let handle = match tokio::runtime::Handle::try_current() {
                             Ok(h) => h,
-                            Err(_) => return Some(VoxValue::Result(Err("spawn_background must be run within a Tokio runtime".to_string()))),
+                            Err(_) => {
+                                return Some(VoxValue::Result(Err(
+                                    "spawn_background must be run within a Tokio runtime"
+                                        .to_string(),
+                                )));
+                            }
                         };
 
-                        match tokio::process::Command::new(cmd_name).args(cmd_args).spawn() {
+                        match tokio::process::Command::new(cmd_name)
+                            .args(cmd_args)
+                            .spawn()
+                        {
                             Ok(mut child) => {
                                 let id = child.id().unwrap_or(0);
                                 handle.spawn(async move {

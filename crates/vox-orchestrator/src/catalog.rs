@@ -133,7 +133,8 @@ impl ModelCatalog for OpenRouterCatalog {
 
         for m in body.data {
             let cost_input = (m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
-            let cost_output = (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
+            let cost_output =
+                (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
             let p_zero = m.pricing.prompt == "0"
                 || m.pricing.prompt == "0.0"
                 || m.pricing.prompt.starts_with("-")
@@ -303,7 +304,10 @@ impl ModelCatalog for OllamaCatalog {
         let url = format!("{}/api/tags", self.base_url.trim_end_matches('/'));
         let res = self.client.get(&url).send().await?;
         if !res.status().is_success() {
-            return Err(anyhow::anyhow!("Ollama catalog refresh failed: {}", res.status()));
+            return Err(anyhow::anyhow!(
+                "Ollama catalog refresh failed: {}",
+                res.status()
+            ));
         }
 
         #[derive(serde::Deserialize)]
@@ -451,15 +455,19 @@ impl ModelCatalog for MensCatalog {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown")
                     .to_string();
-                
+
                 // Look for 'final' or 'checkpoint-*' subdirs to confirm it's a valid run
-                let has_checkpoint = std::fs::read_dir(&path)?
-                    .flatten()
-                    .any(|e| e.file_name().to_str().map(|s| s == "final" || s.starts_with("checkpoint-")).unwrap_or(false));
+                let has_checkpoint = std::fs::read_dir(&path)?.flatten().any(|e| {
+                    e.file_name()
+                        .to_str()
+                        .map(|s| s == "final" || s.starts_with("checkpoint-"))
+                        .unwrap_or(false)
+                });
 
                 if has_checkpoint {
                     specs.push(ModelSpec {
@@ -506,19 +514,26 @@ impl AnthropicDirectCatalog {
 #[async_trait::async_trait]
 impl ModelCatalog for AnthropicDirectCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
-        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey).expose().map(|s| s.to_string());
+        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+            .expose()
+            .map(|s| s.to_string());
         let Some(key) = api_key else {
             return Ok(vec![]); // Skip if no key
         };
 
-        let res = self.client.get("https://api.anthropic.com/v1/models")
+        let res = self
+            .client
+            .get("https://api.anthropic.com/v1/models")
             .header("x-api-key", key)
             .header("anthropic-version", "2023-06-01")
             .send()
             .await?;
-        
+
         if !res.status().is_success() {
-            return Err(anyhow::anyhow!("Anthropic catalog refresh failed: {}", res.status()));
+            return Err(anyhow::anyhow!(
+                "Anthropic catalog refresh failed: {}",
+                res.status()
+            ));
         }
 
         #[derive(serde::Deserialize)]
@@ -554,7 +569,11 @@ impl ModelCatalog for AnthropicDirectCatalog {
                 is_free: c_in == 0.0 && c_out == 0.0,
                 strengths: infer_strengths(&m.id, Some(&m.display_name), &[]),
                 capabilities: ModelCapabilities {
-                    tier: if c_in > 5.0 { crate::models::ModelTier::Elite } else { crate::models::ModelTier::Pro },
+                    tier: if c_in > 5.0 {
+                        crate::models::ModelTier::Elite
+                    } else {
+                        crate::models::ModelTier::Pro
+                    },
                     ..Default::default()
                 },
                 supported_parameters: vec![],
@@ -584,16 +603,24 @@ impl GoogleDirectCatalog {
 #[async_trait::async_trait]
 impl ModelCatalog for GoogleDirectCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
-        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey).expose().map(|s| s.to_string());
+        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+            .expose()
+            .map(|s| s.to_string());
         let Some(key) = api_key else {
             return Ok(vec![]); // Skip if no key
         };
 
-        let url = format!("https://generativelanguage.googleapis.com/v1beta/models?key={}", key);
+        let url = format!(
+            "https://generativelanguage.googleapis.com/v1beta/models?key={}",
+            key
+        );
         let res = self.client.get(&url).send().await?;
-        
+
         if !res.status().is_success() {
-            return Err(anyhow::anyhow!("Google catalog refresh failed: {}", res.status()));
+            return Err(anyhow::anyhow!(
+                "Google catalog refresh failed: {}",
+                res.status()
+            ));
         }
 
         #[derive(serde::Deserialize)]
@@ -621,7 +648,7 @@ impl ModelCatalog for GoogleDirectCatalog {
 
             let id = m.name.trim_start_matches("models/").to_string();
 
-            // Pricing logic for Google is complex (free tiers vs paid), so we default to 0.0 
+            // Pricing logic for Google is complex (free tiers vs paid), so we default to 0.0
             // and let the observed cost accounting (FIX-75) calibrate it.
             specs.push(ModelSpec {
                 id: id.clone(),

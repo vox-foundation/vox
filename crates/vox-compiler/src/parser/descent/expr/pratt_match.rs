@@ -333,8 +333,9 @@ impl Parser {
             });
         }
 
-        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_) | Token::StringLit(_) | Token::SingleStringLit(_)) =
-            self.tokens.get(i).map(|t| &t.token)
+        let is_object = if let Some(
+            Token::Ident(_) | Token::TypeIdent(_) | Token::StringLit(_) | Token::SingleStringLit(_),
+        ) = self.tokens.get(i).map(|t| &t.token)
         {
             let mut j = i + 1;
             while j < self.tokens.len() && matches!(self.tokens[j].token, Token::Newline) {

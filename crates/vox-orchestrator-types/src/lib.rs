@@ -44,23 +44,15 @@ pub enum ChatProviderRouteKind {
         bearer: Option<String>,
     },
     /// Local Ollama-compatible OpenAI chat API (`{base}/v1/chat/completions`).
-    PopuliLocal {
-        base_url: String,
-        model: String,
-    },
+    PopuliLocal { base_url: String, model: String },
     /// Remote mesh node API.
-    PopuliMesh {
-        base_url: String,
-        model: String,
-    },
+    PopuliMesh { base_url: String, model: String },
     /// Hugging Face Inference Providers router (OpenAI-compatible).
     HuggingFaceRouter(HuggingFaceRouterEndpoint),
     /// Pinned HF Inference Endpoint (dedicated deployment).
     HuggingFaceDedicated(HuggingFaceDedicatedEndpoint),
     /// OpenRouter chat completions.
-    OpenRouter {
-        model: String,
-    },
+    OpenRouter { model: String },
 }
 
 #[must_use]
@@ -70,7 +62,10 @@ pub fn route_backend_for_chat_route(route: &ChatProviderRouteKind) -> ChatRouteB
         ChatProviderRouteKind::PopuliMesh { .. } => ChatRouteBackend::PopuliMesh,
         ChatProviderRouteKind::OpenRouter { .. } => ChatRouteBackend::OpenRouter,
         ChatProviderRouteKind::ManualOpenAiCompatible { base_url, .. } => {
-            if base_url.to_ascii_lowercase().contains("generativelanguage.googleapis.com") {
+            if base_url
+                .to_ascii_lowercase()
+                .contains("generativelanguage.googleapis.com")
+            {
                 ChatRouteBackend::GeminiDirect
             } else {
                 ChatRouteBackend::CascadeFallback

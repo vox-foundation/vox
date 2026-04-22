@@ -2,12 +2,12 @@
 
 use clap::{Parser, Subcommand};
 
+pub mod costs;
 pub mod discover;
+pub mod explain;
+pub mod pricing;
 pub mod rollup;
 pub mod scoreboard;
-pub mod explain;
-pub mod costs;
-pub mod pricing;
 
 /// Manage models: discovery, scoreboard, and explainability.
 #[derive(Parser)]

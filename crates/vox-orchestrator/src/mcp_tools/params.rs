@@ -254,7 +254,6 @@ pub struct SubmitTaskParams {
     pub budget: Option<BudgetParams>,
     /// Optional correlation id (e.g. client thread); stored alongside `trace_id` on envelope provenance.
     #[serde(default)]
-
     #[schemars(length(max = 256))]
     pub correlation_id: Option<String>,
     /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).

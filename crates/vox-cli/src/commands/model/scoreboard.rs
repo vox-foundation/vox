@@ -1,7 +1,7 @@
 use clap::Parser;
 use comfy_table::Table;
-use vox_db::{VoxDb, DbConfig};
 use owo_colors::OwoColorize;
+use vox_db::{DbConfig, VoxDb};
 
 /// Show the model scoreboard.
 #[derive(Parser)]
@@ -54,9 +54,15 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
             row.strength_tag,
             row.n_calls.to_string(),
             success_color,
-            row.p50_latency_ms.map(|v| v.to_string()).unwrap_or_default(),
-            row.p99_latency_ms.map(|v| v.to_string()).unwrap_or_default(),
-            row.cost_per_success_usd.map(|v| format!("${:.4}", v)).unwrap_or_default(),
+            row.p50_latency_ms
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            row.p99_latency_ms
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            row.cost_per_success_usd
+                .map(|v| format!("${:.4}", v))
+                .unwrap_or_default(),
             format!("{:.2}", row.quality_score),
         ]);
     }

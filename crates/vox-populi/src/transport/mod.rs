@@ -143,7 +143,6 @@ fn default_priority() -> u8 {
     128
 }
 
-
 /// Reply from the control plane after an A2A deliver attempt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A2ADeliverResponse {
@@ -634,27 +633,47 @@ impl PopuliTransportState {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             let env = crate::populi_env();
-            
-            let scope_id = env.scope_id.clone().unwrap_or_else(|| "unknown".to_string());
-            let control_url = env.control_addr.clone().unwrap_or_else(|| "http://127.0.0.1:9847".to_string());
-            let public = env.visibility.as_deref() == Some("public");
-            
-            // Resolve signing key from Clavis
-            let signing_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
-                .expose()
-                .and_then(|s| {
-                    let bytes = data_encoding::BASE64.decode(s.trim().as_bytes()).ok()?;
-                    if bytes.len() != 32 { return None; }
-                    let mut arr = [0u8; 32];
-                    arr.copy_from_slice(&bytes);
-                    Some(vox_crypto::facades::signing_key_from_bytes(&arr))
-                });
 
-            let public_key = signing_key.as_ref().map(|k| vox_crypto::facades::verifying_key_to_bytes(&vox_crypto::facades::to_verifying_key(k)));
+            let scope_id = env
+                .scope_id
+                .clone()
+                .unwrap_or_else(|| "unknown".to_string());
+            let control_url = env
+                .control_addr
+                .clone()
+                .unwrap_or_else(|| "http://127.0.0.1:9847".to_string());
+            let public = env.visibility.as_deref() == Some("public");
+
+            // Resolve signing key from Clavis
+            let signing_key =
+                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                    .expose()
+                    .and_then(|s| {
+                        let bytes = data_encoding::BASE64.decode(s.trim().as_bytes()).ok()?;
+                        if bytes.len() != 32 {
+                            return None;
+                        }
+                        let mut arr = [0u8; 32];
+                        arr.copy_from_slice(&bytes);
+                        Some(vox_crypto::facades::signing_key_from_bytes(&arr))
+                    });
+
+            let public_key = signing_key.as_ref().map(|k| {
+                vox_crypto::facades::verifying_key_to_bytes(&vox_crypto::facades::to_verifying_key(
+                    k,
+                ))
+            });
 
             // Derive task kinds from donation policy if present
-            let task_kinds = env.donation_policy.as_ref()
-                .map(|p| p.slots.iter().map(|s| s.task_kind.clone()).collect::<Vec<_>>())
+            let task_kinds = env
+                .donation_policy
+                .as_ref()
+                .map(|p| {
+                    p.slots
+                        .iter()
+                        .map(|s| s.task_kind.clone())
+                        .collect::<Vec<_>>()
+                })
                 .unwrap_or_default();
 
             tracing::info!(
@@ -670,11 +689,11 @@ impl PopuliTransportState {
 
                 // Simple metric for load: count of pending A2A messages
                 let queue_depth = state.a2a_messages.read().await.len();
-                
+
                 let mut entry = vox_mesh_types::federation::MeshDirectoryEntry {
                     scope_id: scope_id.clone(),
                     control_url: control_url.clone(),
-                    region_label: None, 
+                    region_label: None,
                     task_kinds: task_kinds.clone(),
                     public,
                     current_queue_depth: Some(queue_depth),
@@ -682,7 +701,7 @@ impl PopuliTransportState {
                     signature: None,
                     public_key,
                 };
-                
+
                 if let Some(ref key) = signing_key {
                     let msg = entry.canonical_bytes();
                     entry.signature = Some(vox_crypto::facades::sign(key, &msg).to_vec());
@@ -707,16 +726,20 @@ impl PopuliTransportState {
                         continue;
                     }
 
-                    let client = crate::http_client::PopuliHttpClient::new(&peer_url).with_env_token();
+                    let client =
+                        crate::http_client::PopuliHttpClient::new(&peer_url).with_env_token();
                     match client.federation_announce(&announce).await {
                         Ok(resp) => {
                             // Infectious discovery: merge entries learned from this peer
                             let mut federated = state.federated_meshes.write().await;
                             for peer_entry in resp.entries {
-                                // Don't add ourselves or nodes we already know with newer info? 
+                                // Don't add ourselves or nodes we already know with newer info?
                                 // For now, simple upsert by scope_id
                                 if peer_entry.scope_id != scope_id {
-                                    if let Some(pos) = federated.iter().position(|e| e.scope_id == peer_entry.scope_id) {
+                                    if let Some(pos) = federated
+                                        .iter()
+                                        .position(|e| e.scope_id == peer_entry.scope_id)
+                                    {
                                         federated[pos] = peer_entry;
                                     } else {
                                         federated.push(peer_entry);

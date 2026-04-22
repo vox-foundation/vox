@@ -2,13 +2,13 @@
 
 mod clavis;
 mod gpu_hardware;
+mod model_catalog;
+mod model_telemetry;
 mod tail;
 mod test_health;
 mod toolchain;
 mod vox_ignore;
 mod web_frontend;
-mod model_telemetry;
-mod model_catalog;
 
 use super::common::Check;
 

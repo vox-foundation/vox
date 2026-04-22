@@ -378,7 +378,9 @@ pub async fn mcp_infer_tool_completion(
             .or(match model.provider_type {
                 ProviderType::GoogleDirect => vox_config::gemini_tuning_temperature(),
                 ProviderType::Ollama => vox_config::ollama_tuning_temperature(),
-                ProviderType::OpenRouter | ProviderType::Custom(_) => vox_config::openai_tuning_temperature(),
+                ProviderType::OpenRouter | ProviderType::Custom(_) => {
+                    vox_config::openai_tuning_temperature()
+                }
                 ProviderType::Anthropic => vox_config::anthropic_tuning_temperature(),
                 _ => None,
             })

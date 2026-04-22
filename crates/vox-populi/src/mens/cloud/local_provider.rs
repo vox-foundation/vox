@@ -1,9 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::mens::cloud::{
-    CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobStatus,
-};
+use crate::mens::cloud::{CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobStatus};
 use crate::mens::hardware::types::HardwareSummary;
 
 /// Provider that spawns an in-process local worker acting as a mesh node.
@@ -93,7 +91,10 @@ impl CloudProvider for LocalProvider {
                         adapter_uploaded: false,
                     });
                 } else {
-                    return Ok(JobStatus::Failed(format!("Local worker exited with {}", status)));
+                    return Ok(JobStatus::Failed(format!(
+                        "Local worker exited with {}",
+                        status
+                    )));
                 }
             }
             return Ok(JobStatus::Running {
@@ -112,7 +113,11 @@ impl CloudProvider for LocalProvider {
         Ok(())
     }
 
-    async fn get_serve_url(&self, handle: &JobHandle, _port: u16) -> anyhow::Result<Option<String>> {
+    async fn get_serve_url(
+        &self,
+        handle: &JobHandle,
+        _port: u16,
+    ) -> anyhow::Result<Option<String>> {
         // Port is stored in the job_id
         Ok(Some(format!("http://127.0.0.1:{}", handle.job_id)))
     }

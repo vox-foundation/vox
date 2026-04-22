@@ -1,6 +1,6 @@
 use clap::Parser;
-use vox_db::{VoxDb, DbConfig};
 use owo_colors::OwoColorize;
+use vox_db::{DbConfig, VoxDb};
 
 /// Perform batch aggregation of telemetry into the scoreboard.
 #[derive(Parser)]
@@ -14,12 +14,16 @@ pub async fn run(args: RollupArgs) -> anyhow::Result<()> {
     let db_config = DbConfig::resolve_canonical().map_err(anyhow::Error::msg)?;
     let db = VoxDb::connect(db_config).await?;
 
-    let windows: Vec<i64> = args.windows
+    let windows: Vec<i64> = args
+        .windows
         .split(',')
         .filter_map(|s| s.trim().parse::<i64>().ok())
         .collect();
 
-    println!("{} Performing model scoreboard rollup...", " INFO ".on_blue().white().bold());
+    println!(
+        "{} Performing model scoreboard rollup...",
+        " INFO ".on_blue().white().bold()
+    );
 
     for window in windows {
         print!("  Processing {} day window... ", window);

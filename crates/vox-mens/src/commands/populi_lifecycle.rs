@@ -91,9 +91,21 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 max_job_duration_secs: 300,
                 public_mesh_opt_in: public_mesh,
                 min_priority: donate_min_priority,
-                allowed_scopes: if allow_meshes.is_empty() { None } else { Some(allow_meshes) },
-                allowed_users: if allow_users.is_empty() { None } else { Some(allow_users) },
-                denied_users: if deny_users.is_empty() { None } else { Some(deny_users) },
+                allowed_scopes: if allow_meshes.is_empty() {
+                    None
+                } else {
+                    Some(allow_meshes)
+                },
+                allowed_users: if allow_users.is_empty() {
+                    None
+                } else {
+                    Some(allow_users)
+                },
+                denied_users: if deny_users.is_empty() {
+                    None
+                } else {
+                    Some(deny_users)
+                },
                 allowed_mesh_networks: None, // Used in routing, populated from allowed_scopes currently
             };
             if let Ok(json) = serde_json::to_string(&donation_policy) {
@@ -149,10 +161,8 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
             if !env_map.contains_key("VOX_MESH_FEDERATION_SIGNING_KEY") {
                 let (sk, vk) = vox_crypto::facades::generate_signing_keypair();
                 let sk_bytes = sk.inner.to_bytes();
-                let sk_b64 = base64::Engine::encode(
-                    &base64::engine::general_purpose::STANDARD,
-                    &sk_bytes,
-                );
+                let sk_b64 =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &sk_bytes);
                 env_map.insert("VOX_MESH_FEDERATION_SIGNING_KEY".to_string(), sk_b64);
 
                 let vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&vk);

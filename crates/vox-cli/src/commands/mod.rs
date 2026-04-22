@@ -79,12 +79,12 @@ pub mod mcp;
 pub mod mcp_server;
 /// React interop / web stack migrations (`vox migrate web`, …).
 pub mod migrate;
+pub mod model;
 pub mod new;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;
 pub mod play;
-pub mod model;
 pub mod pm;
 pub mod pm_lifecycle;
 pub mod repair;

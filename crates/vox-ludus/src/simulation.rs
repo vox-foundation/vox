@@ -4,10 +4,10 @@
 //! battles across all bug types and archetypes. Funnels results into
 //! persistent artifacts (JSONL/Markdown) per Zero-STDOUT architecture.
 
-use crate::battle::BugType;
-use crate::combat::{CombatState, CombatResult, BugEnemy};
 use crate::ability::{Archetype, default_abilities};
-use serde::{Serialize, Deserialize};
+use crate::battle::BugType;
+use crate::combat::{BugEnemy, CombatResult, CombatState};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Result metrics for a single simulation batch.
@@ -51,7 +51,7 @@ pub fn run_monte_carlo_battle_sweep(iterations: u32) -> SimulationReport {
         BugType::Performance,
         BugType::Security,
     ];
-    
+
     // We simulate using a Centurion with all abilities unlocked to test "peak" balance.
     let mut abilities = default_abilities(Archetype::Centurion);
     for a in &mut abilities {
@@ -61,16 +61,15 @@ pub fn run_monte_carlo_battle_sweep(iterations: u32) -> SimulationReport {
     for i in 0..iterations {
         let bug_type = bug_types[(i as usize) % bug_types.len()];
         // Create a bug enemy for the simulation.
-        let enemy = BugEnemy::new(
-            bug_type,
-            "A synthetic bug for Monte Carlo sweep."
-        );
+        let enemy = BugEnemy::new(bug_type, "A synthetic bug for Monte Carlo sweep.");
 
         let mut state = CombatState::new(
             format!("sim-{}", i),
             enemy,
-            100, 100, // companion hp
-            100, 100, // companion energy
+            100,
+            100, // companion hp
+            100,
+            100, // companion energy
             abilities.clone(),
         );
 
@@ -80,14 +79,26 @@ pub fn run_monte_carlo_battle_sweep(iterations: u32) -> SimulationReport {
         // 3. Otherwise, use basic strike.
         while state.result == CombatResult::Ongoing && state.turn < 100 {
             let hp_pct = state.companion_hp as f64 / state.companion_max_hp as f64;
-            
+
             let action = if hp_pct < 0.3 {
-                state.abilities.iter()
-                    .find(|a| a.damage < 0 && state.companion_energy >= a.energy_cost && state.cooldowns.get(&a.id).copied().unwrap_or(0) == 0)
+                state
+                    .abilities
+                    .iter()
+                    .find(|a| {
+                        a.damage < 0
+                            && state.companion_energy >= a.energy_cost
+                            && state.cooldowns.get(&a.id).copied().unwrap_or(0) == 0
+                    })
                     .map(|a| a.id.clone())
             } else {
-                state.abilities.iter()
-                    .filter(|a| a.damage > 0 && state.companion_energy >= a.energy_cost && state.cooldowns.get(&a.id).copied().unwrap_or(0) == 0)
+                state
+                    .abilities
+                    .iter()
+                    .filter(|a| {
+                        a.damage > 0
+                            && state.companion_energy >= a.energy_cost
+                            && state.cooldowns.get(&a.id).copied().unwrap_or(0) == 0
+                    })
                     .max_by_key(|a| a.damage)
                     .map(|a| a.id.clone())
             };
@@ -114,12 +125,15 @@ pub fn run_monte_carlo_battle_sweep(iterations: u32) -> SimulationReport {
     let mut results_by_type = HashMap::new();
     for (t, (wins, losses, turns)) in type_stats {
         let total = wins + losses;
-        results_by_type.insert(t.as_str().to_string(), TypeStats {
-            wins,
-            losses,
-            total,
-            avg_turns: turns as f64 / total as f64,
-        });
+        results_by_type.insert(
+            t.as_str().to_string(),
+            TypeStats {
+                wins,
+                losses,
+                total,
+                avg_turns: turns as f64 / total as f64,
+            },
+        );
     }
 
     SimulationReport {

@@ -161,9 +161,12 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 db::mens_metrics(domain.as_deref(), limit).await
             }
             DbCliCore::BuildHealth { repo, json } => db::build_health(repo, json).await,
-            DbCliCore::BuildRegressions { repo, run_id, threshold, json } => {
-                db::build_regressions(repo, run_id, threshold, json).await
-            }
+            DbCliCore::BuildRegressions {
+                repo,
+                run_id,
+                threshold,
+                json,
+            } => db::build_regressions(repo, run_id, threshold, json).await,
         },
         DbCli::Publication(cmd) => match cmd {
             DbCliPublication::PublicationPrepare {

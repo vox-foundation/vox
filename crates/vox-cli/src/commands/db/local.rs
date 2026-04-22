@@ -769,7 +769,9 @@ pub async fn build_regressions(
             .ok_or_else(|| anyhow::anyhow!("No build runs found for repository '{}'", repo_id))?
     };
 
-    let regressions = db.query_build_regressions(&repo_id, target_run_id, threshold).await?;
+    let regressions = db
+        .query_build_regressions(&repo_id, target_run_id, threshold)
+        .await?;
 
     if json {
         println!("{}", serde_json::to_string_pretty(&regressions)?);

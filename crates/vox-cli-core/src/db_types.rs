@@ -41,7 +41,9 @@ pub struct PublicationPrepareBodyCli {
     pub human_ai_disclosure_complete: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum, serde::Serialize, serde::Deserialize,
+)]
 pub enum DbPreflightProfileCli {
     #[default]
     Default,
@@ -50,7 +52,9 @@ pub enum DbPreflightProfileCli {
     ArxivAssist,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum, serde::Serialize, serde::Deserialize,
+)]
 pub enum DiscoveryIntakeGateCli {
     #[default]
     None,

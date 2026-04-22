@@ -82,12 +82,16 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b)),
                 (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b)),
                 (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a >= b)),
-                (HirBinOp::Add, VoxValue::Str(a), other) => {
-                    Ok(VoxValue::Str(format!("{}{}", a, super::builtins::vox_value_display(&other))))
-                }
-                (HirBinOp::Add, other, VoxValue::Str(b)) => {
-                    Ok(VoxValue::Str(format!("{}{}", super::builtins::vox_value_display(&other), b)))
-                }
+                (HirBinOp::Add, VoxValue::Str(a), other) => Ok(VoxValue::Str(format!(
+                    "{}{}",
+                    a,
+                    super::builtins::vox_value_display(&other)
+                ))),
+                (HirBinOp::Add, other, VoxValue::Str(b)) => Ok(VoxValue::Str(format!(
+                    "{}{}",
+                    super::builtins::vox_value_display(&other),
+                    b
+                ))),
                 (HirBinOp::Add, VoxValue::Float(a), VoxValue::Float(b)) => {
                     Ok(VoxValue::Float(a + b))
                 }

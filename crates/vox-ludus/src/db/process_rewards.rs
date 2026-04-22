@@ -113,7 +113,8 @@ pub async fn process_event_rewards(
     }
 
     // 5. Apply policy-driven rewards
-    let mut policy_snapshot: Option<(u64, u64, f64, u64, u64, u32, bool, i64, Option<String>)> = None;
+    let mut policy_snapshot: Option<(u64, u64, f64, u64, u64, u32, bool, i64, Option<String>)> =
+        None;
     let mut leveled_up_info = None;
     let mut final_reward = None;
     {
@@ -128,7 +129,14 @@ pub async fn process_event_rewards(
         let mut rw = None;
         if let Ok(mut session) = session_lock.try_lock() {
             let base = base_reward(event_type);
-            let reward = apply_policy(&base, mode_mult, streak_days, profile.trust_tier.clone(), event_type, &mut session);
+            let reward = apply_policy(
+                &base,
+                mode_mult,
+                streak_days,
+                profile.trust_tier.clone(),
+                event_type,
+                &mut session,
+            );
             base_rw = Some(base);
             rw = Some(reward);
         }
@@ -169,7 +177,10 @@ pub async fn process_event_rewards(
                 profile_changed = true;
             }
             if reward.xp > 0 || reward.crystals > 0 || reward.lumens != 0 || reward.grant_shield {
-                let metadata = event_kind.get("metadata").and_then(|v| v.as_str()).map(|s| s.to_string());
+                let metadata = event_kind
+                    .get("metadata")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
                 policy_snapshot = Some((
                     base.xp,
                     base.crystals,
@@ -196,8 +207,17 @@ pub async fn process_event_rewards(
         );
         let _ = insert_notification(db, &notif).await;
     }
-    if let Some((base_xp, base_crystals, eff_mult, rxp, rcrystals, streak, grind_capped, rlumens, rmetadata)) =
-        policy_snapshot
+    if let Some((
+        base_xp,
+        base_crystals,
+        eff_mult,
+        rxp,
+        rcrystals,
+        streak,
+        grind_capped,
+        rlumens,
+        rmetadata,
+    )) = policy_snapshot
     {
         let _ = insert_policy_snapshot(
             db,

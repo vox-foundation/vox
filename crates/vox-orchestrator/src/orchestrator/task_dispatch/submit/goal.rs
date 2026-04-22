@@ -521,7 +521,8 @@ impl Orchestrator {
                     crate::config::CostPreference::Performance,
                 );
                 if let Some(mut llm_cfg) = maybe_llm_cfg {
-                    llm_cfg.temperature = Some(vox_config::gemini_tuning_temperature().unwrap_or(0.2));
+                    llm_cfg.temperature =
+                        Some(vox_config::gemini_tuning_temperature().unwrap_or(0.2));
                     llm_cfg.top_p = vox_config::gemini_tuning_top_p();
                     let depth_str = format!("{:?}", cfg.planning_depth);
                     crate::planning::synthesizer::synthesize_plan_nodes_with_llm(

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::task::TaskKind;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DonationSlot {

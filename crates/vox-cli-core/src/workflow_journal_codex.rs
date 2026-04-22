@@ -1,11 +1,12 @@
 //! Codex persistence for interpreted workflow journals.
 
-use std::path::PathBuf;
 use serde_json::Value;
+use std::path::PathBuf;
 use vox_db::{DbConfig, VoxDb};
 
 fn journal_codex_disabled() -> bool {
-    std::env::var("VOX_WORKFLOW_JOURNAL_CODEX_OFF").is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+    std::env::var("VOX_WORKFLOW_JOURNAL_CODEX_OFF")
+        .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
 fn discovery_start() -> PathBuf {
@@ -22,12 +23,18 @@ async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
     if journal_codex_disabled() || journal.is_empty() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_canonical() else { return; };
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
+        return;
+    };
     let start = discovery_start();
     let rid = vox_repository::discover_repository_or_fallback(&start).repository_id;
-    let Ok(db) = VoxDb::connect(cfg).await else { return; };
+    let Ok(db) = VoxDb::connect(cfg).await else {
+        return;
+    };
     for entry in journal {
-        let _ = db.record_workflow_journal_entry(&rid, workflow_name, entry).await;
+        let _ = db
+            .record_workflow_journal_entry(&rid, workflow_name, entry)
+            .await;
     }
 }
 

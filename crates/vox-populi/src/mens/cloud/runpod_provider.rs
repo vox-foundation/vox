@@ -329,11 +329,18 @@ impl CloudProvider for RunPodClient {
         Ok(())
     }
 
-    async fn get_serve_url(&self, handle: &JobHandle, serve_port: u16) -> anyhow::Result<Option<String>> {
+    async fn get_serve_url(
+        &self,
+        handle: &JobHandle,
+        serve_port: u16,
+    ) -> anyhow::Result<Option<String>> {
         // RunPod exposes ports via proxy. The URL is deterministic once the pod is running.
         let status = self.poll_status(handle).await?;
         if matches!(status, JobStatus::Running { .. }) {
-            Ok(Some(format!("https://{}-{}.proxy.runpod.net", handle.job_id, serve_port)))
+            Ok(Some(format!(
+                "https://{}-{}.proxy.runpod.net",
+                handle.job_id, serve_port
+            )))
         } else {
             Ok(None)
         }

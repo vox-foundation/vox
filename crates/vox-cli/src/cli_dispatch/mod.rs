@@ -13,12 +13,12 @@ pub(crate) use lanes::run_openclaw_subcommand;
 pub(crate) use lanes::run_review_subcommand;
 #[cfg(feature = "script-execution")]
 pub(crate) use lanes::run_script_subcommand;
+#[cfg(feature = "stub-check")]
+pub(crate) use lanes::run_stub_check_command;
 pub(crate) use lanes::{
     cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_doctor_command,
     run_fabrica_cmd,
 };
-#[cfg(feature = "stub-check")]
-pub(crate) use lanes::run_stub_check_command;
 
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
     {

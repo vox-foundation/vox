@@ -21,21 +21,21 @@ pub use types::{
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
-    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, ModelScoreboardRow, ObservationReport,
-    ObserverAction, PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow,
-    PublicationAttemptRow, PublicationExternalLinkRow, PublicationExternalLinkUpsertParams,
-    PublicationExternalRevisionRow, PublicationExternalRevisionUpsertParams,
-    PublicationManifestParams, PublicationManifestRow, PublicationMediaAssetParams,
-    PublicationMediaAssetRow, PublicationStatusEventRow, PublishArtifactParams,
-    QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams, QuestionOptionOutcomeRow,
-    QuestionOptionParams, QuestionOptionRow, QuestionRow, QuestionSessionCreateParams,
-    QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow, RegisterAgentParams,
-    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
-    SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
-    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, TestDecision,
-    TestDecisionPolicy, ThroughputProfileRow, TierResult, TrainingPair, TrustRollupEntry,
-    TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry, VictoryVerdict,
-    VisusAuditLogRow, VisusBaselineRow, WarningRow, WorkflowExecutionRow,
+    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, ModelScoreboardRow,
+    ObservationReport, ObserverAction, PackageSearchResult, PlanNodeRow, PlanSessionRow,
+    PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
+    PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
+    PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
+    PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
+    QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
+    QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
+    RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
+    ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
+    SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
+    TestDecision, TestDecisionPolicy, ThroughputProfileRow, TierResult, TrainingPair,
+    TrustRollupEntry, TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry,
+    VictoryVerdict, VisusAuditLogRow, VisusBaselineRow, WarningRow, WorkflowExecutionRow,
 };
 
 pub use ops_build::{BuildDependencyShape, BuildHealthSummary, CrateSample, RegressionRow};
@@ -66,7 +66,7 @@ mod ops_news;
 pub mod ops_orchestrator;
 mod ops_planning;
 mod ops_publication;
-mod ops_scientia;
 mod ops_questioning;
 mod ops_retention;
+mod ops_scientia;
 mod ops_visus;

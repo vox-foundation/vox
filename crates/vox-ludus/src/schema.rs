@@ -345,4 +345,3 @@ pub const ALL_MIGRATIONS: &[(&str, &str)] = &[
     ("v26", SCHEMA_V26),
     ("v27", SCHEMA_V27),
 ];
-

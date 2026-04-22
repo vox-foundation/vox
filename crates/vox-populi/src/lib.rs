@@ -190,9 +190,10 @@ pub fn populi_env() -> PopuliEnv {
         .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let donation_policy = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson)
-        .expose()
-        .and_then(|s| serde_json::from_str(&s).ok());
+    let donation_policy =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson)
+            .expose()
+            .and_then(|s| serde_json::from_str(&s).ok());
     PopuliEnv {
         enabled,
         node_id,

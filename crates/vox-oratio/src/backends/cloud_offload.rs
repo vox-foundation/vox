@@ -4,12 +4,12 @@
 //! GPU instance via `CloudResolver`, sends the PCM audio payload for transcription,
 //! and retrieves the result.
 
-use std::sync::Arc;
 use anyhow::{Context, Result};
 use reqwest::Client;
+use std::sync::Arc;
 
 use vox_populi::mens::cloud::{
-    CloudResolver, CloudJobSpec, CloudProviderConfig, JobKind, CloudTarget, ResolveRequest
+    CloudJobSpec, CloudProviderConfig, CloudResolver, CloudTarget, JobKind, ResolveRequest,
 };
 
 use super::asr_backend::{AsrBackend, AsrOutput};
@@ -54,43 +54,50 @@ impl AsrBackend for CloudOffloadBackend {
                 max_acceptable_cost: 1.0,
                 target: CloudTarget::Auto,
             };
-            
+
             let ranked = resolver.resolve(&req).await?;
-            
+
             // 2. Dispatch job
             let config = Arc::new(CloudProviderConfig::default());
             let mut spec = CloudJobSpec::new_serve(&config, 300);
             spec.job_kind = JobKind::Agent; // Treat STT offload as Agent task
-            
+
             let (_handle, join, provider) = resolver.dispatch_top(&ranked, &spec).await?;
-            
-            let is_local = matches!(_handle.provider, vox_populi::mens::cloud::ProviderKind::Local);
+
+            let is_local = matches!(
+                _handle.provider,
+                vox_populi::mens::cloud::ProviderKind::Local
+            );
             let (poll_interval_secs, max_polls) = if is_local { (2, 10) } else { (5, 60) };
-            
+
             // a) Wait for the pod to be "Running" and get its URL
             let mut serve_url = None;
-            for _ in 0..max_polls { // poll for up to ~5 minutes
+            for _ in 0..max_polls {
+                // poll for up to ~5 minutes
                 match provider.get_serve_url(&_handle, spec.serve_port).await {
                     Ok(Some(url)) => {
                         serve_url = Some(url);
                         break;
                     }
-                    _ => tokio::time::sleep(std::time::Duration::from_secs(poll_interval_secs)).await,
+                    _ => {
+                        tokio::time::sleep(std::time::Duration::from_secs(poll_interval_secs)).await
+                    }
                 }
             }
-            
-            let url = serve_url.ok_or_else(|| anyhow::anyhow!("Cloud instance did not become ready in time"))?;
-            
+
+            let url = serve_url
+                .ok_or_else(|| anyhow::anyhow!("Cloud instance did not become ready in time"))?;
+
             // b) Send the PCM payload via HTTP
             let pcm_bytes: Vec<u8> = _pcm.iter().flat_map(|f| f.to_le_bytes()).collect();
             let part = reqwest::multipart::Part::bytes(pcm_bytes)
                 .file_name("audio.raw")
                 .mime_str("application/octet-stream")?;
-            
+
             let mut form = reqwest::multipart::Form::new()
                 .part("file", part)
                 .text("sample_rate", _sample_rate.to_string());
-                
+
             if let Some(lang) = _language {
                 form = form.text("language", lang.to_string());
             }
@@ -99,7 +106,8 @@ impl AsrBackend for CloudOffloadBackend {
 
             // d) Receive the JSON AsrOutput (retry to allow container app to boot)
             let mut result = None;
-            for _ in 0..app_max_polls { // wait ~1 min for container app to start up
+            for _ in 0..app_max_polls {
+                // wait ~1 min for container app to start up
                 // We need to clone the form parts manually or just recreate them if it fails,
                 // but since we only recreate it if the request fails, let's just recreate it inside the loop
                 let pcm_bytes_clone: Vec<u8> = _pcm.iter().flat_map(|f| f.to_le_bytes()).collect();
@@ -113,7 +121,9 @@ impl AsrBackend for CloudOffloadBackend {
                     form_clone = form_clone.text("language", lang.to_string());
                 }
 
-                let req = self.http.post(format!("{}/transcribe", url))
+                let req = self
+                    .http
+                    .post(format!("{}/transcribe", url))
                     .multipart(form_clone)
                     .send()
                     .await;
@@ -123,13 +133,15 @@ impl AsrBackend for CloudOffloadBackend {
                         result = Some(res.json::<AsrOutput>().await?);
                         break;
                     }
-                    _ => tokio::time::sleep(std::time::Duration::from_secs(app_poll_interval)).await,
+                    _ => {
+                        tokio::time::sleep(std::time::Duration::from_secs(app_poll_interval)).await
+                    }
                 }
             }
-            
+
             // Terminate job upon completion or failure
             let _ = provider.terminate(&_handle).await;
-            
+
             result.ok_or_else(|| anyhow::anyhow!("Failed to get transcription from cloud worker"))
         })
     }

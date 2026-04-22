@@ -643,7 +643,8 @@ pub fn transcribe_pcm_internal(
             "decoder processor selected"
         );
         // FORCE OOM for testing
-        let text_res: Result<String, anyhow::Error> = Err(anyhow::anyhow!("out of memory simulated for testing"));
+        let text_res: Result<String, anyhow::Error> =
+            Err(anyhow::anyhow!("out of memory simulated for testing"));
         let text = match text_res {
             Ok(t) => t,
             Err(e) => {
@@ -657,7 +658,11 @@ pub fn transcribe_pcm_internal(
                         // language_override is also passed to transcribe_pcm_internal.
                         match cloud.transcribe_pcm(pcm, 16000, language_override) {
                             Ok(out) => return Ok((out.raw_text, out.segments)),
-                            Err(cloud_err) => return Err(cloud_err.context("Cloud fallback also failed after CUDA OOM")),
+                            Err(cloud_err) => {
+                                return Err(
+                                    cloud_err.context("Cloud fallback also failed after CUDA OOM")
+                                );
+                            }
                         }
                     }
                 }
@@ -740,7 +745,10 @@ pub fn transcribe_pcm_internal(
                         let cloud = CloudOffloadBackend::new();
                         match cloud.transcribe_pcm(pcm, 16000, language_override) {
                             Ok(out) => return Ok((out.raw_text, out.segments)),
-                            Err(cloud_err) => return Err(cloud_err.context("Cloud fallback also failed after chunked CUDA OOM")),
+                            Err(cloud_err) => {
+                                return Err(cloud_err
+                                    .context("Cloud fallback also failed after chunked CUDA OOM"));
+                            }
                         }
                     }
                 }

@@ -9,9 +9,9 @@ use std::time::Duration;
 use crate::transport::{
     A2AAckRequest, A2ADeliverRequest, A2AInboxRequest, A2AInboxResponse, A2ALeaseRenewRequest,
     A2AStoredMessage, AdminExecLeaseRevokeRequest, AdminMaintenanceRequest, AdminQuarantineRequest,
-    DispatchRequest, DispatchResponse, LeaveRequest, RemoteExecLeaseGrantRequest,
+    DispatchRequest, DispatchResponse, LeaveRequest, MeshQueueStats, RemoteExecLeaseGrantRequest,
     RemoteExecLeaseGrantResponse, RemoteExecLeaseListResponse, RemoteExecLeaseReleaseRequest,
-    RemoteExecLeaseRenewRequest, MeshQueueStats,
+    RemoteExecLeaseRenewRequest,
 };
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
@@ -78,7 +78,9 @@ impl PopuliHttpClient {
 
     /// Get mesh queue stats.
     pub async fn queue_stats(&self) -> Result<MeshQueueStats, PopuliRegistryError> {
-        let mut req = self.client.get(format!("{}/v1/populi/queue/stats", self.base));
+        let mut req = self
+            .client
+            .get(format!("{}/v1/populi/queue/stats", self.base));
         if let Some(ref token) = self.bearer {
             req = req.bearer_auth(token);
         }
@@ -94,7 +96,9 @@ impl PopuliHttpClient {
             ))));
         }
 
-        resp.json().await.map_err(|e| PopuliRegistryError::Json(e.to_string()))
+        resp.json()
+            .await
+            .map_err(|e| PopuliRegistryError::Json(e.to_string()))
     }
 
     /// New client; `base` is normalized (trailing `/` stripped). No `Authorization` header.
@@ -223,7 +227,9 @@ impl PopuliHttpClient {
     }
 
     /// `GET /v1/populi/federation/directory`
-    pub async fn federation_directory(&self) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
+    pub async fn federation_directory(
+        &self,
+    ) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/federation/directory", self.base);
         let resp = self
             .auth(self.client.get(url))
@@ -239,7 +245,10 @@ impl PopuliHttpClient {
     }
 
     /// `POST /v1/populi/federation/announce`
-    pub async fn federation_announce(&self, req: &crate::transport::FederationAnnounceRequest) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
+    pub async fn federation_announce(
+        &self,
+        req: &crate::transport::FederationAnnounceRequest,
+    ) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/federation/announce", self.base);
         let resp = self
             .auth(self.client.post(url).json(req))

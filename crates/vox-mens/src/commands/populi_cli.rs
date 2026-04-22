@@ -457,21 +457,37 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
         }
         PopuliCli::Identity { cmd } => match cmd {
             PopuliIdentityCmd::Show => {
-                let sk_b64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey).expose().map(|s| s.to_string());
+                let sk_b64 =
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                        .expose()
+                        .map(|s| s.to_string());
                 if let Some(s) = sk_b64 {
-                    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s.trim()).map_err(|e| anyhow::anyhow!("Invalid private key base64: {}", e))?;
-                    let sk = vox_crypto::facades::signing_key_from_bytes(&bytes.try_into().map_err(|_| anyhow::anyhow!("Invalid private key length"))?);
+                    let bytes = base64::Engine::decode(
+                        &base64::engine::general_purpose::STANDARD,
+                        s.trim(),
+                    )
+                    .map_err(|e| anyhow::anyhow!("Invalid private key base64: {}", e))?;
+                    let sk = vox_crypto::facades::signing_key_from_bytes(
+                        &bytes
+                            .try_into()
+                            .map_err(|_| anyhow::anyhow!("Invalid private key length"))?,
+                    );
                     let vk = vox_crypto::facades::to_verifying_key(&sk);
                     let vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&vk);
                     println!("Mesh Federation Identity (Public Key):");
                     println!("  {}", hex::encode(vk_bytes));
                 } else {
-                    println!("No Mesh Federation Identity found. Run 'vox populi up' to generate one.");
+                    println!(
+                        "No Mesh Federation Identity found. Run 'vox populi up' to generate one."
+                    );
                 }
                 Ok(())
             }
             PopuliIdentityCmd::Export => {
-                let sk_b64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey).expose().map(|s| s.to_string());
+                let sk_b64 =
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                        .expose()
+                        .map(|s| s.to_string());
                 if let Some(s) = sk_b64 {
                     println!("!!! SECURE BACKUP - DO NOT SHARE THIS KEY !!!");
                     println!("Mesh Federation Private Key (base64):");
@@ -484,7 +500,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             PopuliIdentityCmd::SetVisibility { mode } => {
                 let valid_modes = ["public", "private", "hybrid"];
                 if !valid_modes.contains(&mode.as_str()) {
-                    anyhow::bail!("Invalid visibility mode: {}. Must be one of {:?}", mode, valid_modes);
+                    anyhow::bail!(
+                        "Invalid visibility mode: {}. Must be one of {:?}",
+                        mode,
+                        valid_modes
+                    );
                 }
                 let auth_path = vox_clavis::set_registry_token("mesh_visibility", &mode, None)?;
                 println!("Updated mesh visibility to '{}'", mode);
@@ -500,10 +520,12 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             }
             PopuliIdentityCmd::SetPolicy { json_payload } => {
                 // Try parsing it first to validate
-                let _parsed: vox_mesh_types::WorkerDonationPolicy = serde_json::from_str(&json_payload)
-                    .map_err(|e| anyhow::anyhow!("Invalid WorkerDonationPolicy JSON: {}", e))?;
-                
-                let auth_path = vox_clavis::set_registry_token("mesh_donation_policy", &json_payload, None)?;
+                let _parsed: vox_mesh_types::WorkerDonationPolicy =
+                    serde_json::from_str(&json_payload)
+                        .map_err(|e| anyhow::anyhow!("Invalid WorkerDonationPolicy JSON: {}", e))?;
+
+                let auth_path =
+                    vox_clavis::set_registry_token("mesh_donation_policy", &json_payload, None)?;
                 println!("Updated mesh donation policy (valid JSON).");
                 println!("Wrote to Clavis auth store at: {}", auth_path.display());
                 Ok(())
@@ -518,7 +540,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                         println!("  Failures:         {}", f);
                         println!("  Timeouts:         {}", t);
                         println!("  Invalid Outputs:  {}", i);
-                        
+
                         let total_bad = f + t + i;
                         if total_bad > 3 && total_bad > s {
                             println!("  Status:           BLACKLISTED (too many failures)");
@@ -536,23 +558,34 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             PopuliIdentityCmd::Rotate => {
                 let db = vox_db::VoxDb::open_default().await?;
                 let env = vox_populi::populi_env_resolved(None);
-                
+
                 // Generate new key pair
                 let (new_sk, _) = vox_crypto::facades::generate_signing_keypair();
                 let new_sk_bytes = vox_crypto::facades::signing_key_to_bytes(&new_sk);
-                let new_sk_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, new_sk_bytes);
-                
+                let new_sk_b64 = base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    new_sk_bytes,
+                );
+
                 let new_vk = vox_crypto::facades::to_verifying_key(&new_sk);
                 let new_vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&new_vk);
                 let new_node_id = hex::encode(&vox_crypto::secure_hash(&new_vk_bytes)[0..16]);
 
                 if let Some(old_node_id) = env.node_id {
                     // Migrate reputation
-                    db.migrate_peer_reputation(&old_node_id, &new_node_id).await?;
-                    println!("Migrated reputation from node '{}' to '{}'", old_node_id, new_node_id);
+                    db.migrate_peer_reputation(&old_node_id, &new_node_id)
+                        .await?;
+                    println!(
+                        "Migrated reputation from node '{}' to '{}'",
+                        old_node_id, new_node_id
+                    );
                 }
 
-                let auth_path = vox_clavis::set_registry_token("mesh_federation_signing_key", &new_sk_b64, None)?;
+                let auth_path = vox_clavis::set_registry_token(
+                    "mesh_federation_signing_key",
+                    &new_sk_b64,
+                    None,
+                )?;
                 println!("Rotated Mesh Federation Identity.");
                 println!("New Public Key:");
                 println!("  {}", hex::encode(new_vk_bytes));
@@ -580,12 +613,15 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     } else {
                         for peer in dir.entries {
                             let pub_str = if peer.public { "Public" } else { "Private" };
-                            let q_depth = peer.current_queue_depth.map_or("?".to_string(), |v| v.to_string());
+                            let q_depth = peer
+                                .current_queue_depth
+                                .map_or("?".to_string(), |v| v.to_string());
                             let region = peer.region_label.as_deref().unwrap_or("unknown");
                             println!("  - [{}] {} ({})", pub_str, peer.scope_id, region);
                             println!("      URL:   {}", peer.control_url);
                             println!("      Queue: {}", q_depth);
-                            let kinds: Vec<_> = peer.task_kinds.iter().map(|k| k.to_string()).collect();
+                            let kinds: Vec<_> =
+                                peer.task_kinds.iter().map(|k| k.to_string()).collect();
                             println!("      Kinds: {}", kinds.join(", "));
                         }
                     }
@@ -593,15 +629,13 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 Ok(())
             }
         },
-        PopuliCli::Stats {
-            control_url,
-            json,
-        } => {
+        PopuliCli::Stats { control_url, json } => {
             let base = resolve_populi_control_base(control_url)?;
             let client = vox_populi::http_client::PopuliHttpClient::new(&base).with_env_token();
-            let stats = client.queue_stats().await.map_err(|e| {
-                anyhow::anyhow!("Failed to fetch mesh stats from {}: {}", base, e)
-            })?;
+            let stats = client
+                .queue_stats()
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to fetch mesh stats from {}: {}", base, e))?;
 
             if json || global_json {
                 println!("{}", serde_json::to_string_pretty(&stats)?);

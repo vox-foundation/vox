@@ -177,15 +177,28 @@ async fn record_telemetry_outcome(
 ) -> Result<(), String> {
     #[cfg(feature = "database")]
     {
-        let session_id = config.telemetry_session_id.clone().unwrap_or_else(|| "anon-session".to_string());
+        let session_id = config
+            .telemetry_session_id
+            .clone()
+            .unwrap_or_else(|| "anon-session".to_string());
         let user_id = config.telemetry_user_id.clone();
-        let task_category = config.telemetry_task_category.clone().unwrap_or_else(|| "general".to_string());
-        let strength_tag = config.telemetry_strength_tag.clone().unwrap_or_else(|| "medium".to_string());
+        let task_category = config
+            .telemetry_task_category
+            .clone()
+            .unwrap_or_else(|| "general".to_string());
+        let strength_tag = config
+            .telemetry_strength_tag
+            .clone()
+            .unwrap_or_else(|| "medium".to_string());
         let trace_id = config.telemetry_trace_id.clone();
         let provider = config.provider.clone();
         let model_id_owned = model_id.to_string();
         let response_owned = response.to_string();
-        let prompt_owned = messages.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n---\n");
+        let prompt_owned = messages
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n---\n");
 
         tokio::spawn(async move {
             if let Ok(db) = crate::db::get_db().await {
@@ -225,7 +238,10 @@ async fn record_telemetry_attempt(
 ) -> Result<(), String> {
     #[cfg(feature = "database")]
     {
-        let trace_id = config.telemetry_trace_id.clone().unwrap_or_else(|| "anon-trace".to_string());
+        let trace_id = config
+            .telemetry_trace_id
+            .clone()
+            .unwrap_or_else(|| "anon-trace".to_string());
         let attempt_number = config.telemetry_attempt_number.unwrap_or(1);
         let model_id = config.model.clone();
         let provider = config.provider.clone();
@@ -282,7 +298,8 @@ pub async fn infer_with_retry(
                     None,
                     0,
                     true,
-                ).await;
+                )
+                .await;
 
                 return ActivityResult::Ok(Ok((response, candidate)));
             }
@@ -316,7 +333,8 @@ pub async fn infer_with_retry(
             None,
             0,
             false,
-        ).await;
+        )
+        .await;
     }
 
     ActivityResult::Ok(Err(last_error))

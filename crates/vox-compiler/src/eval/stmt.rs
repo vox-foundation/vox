@@ -33,48 +33,46 @@ pub fn eval_pattern(
                 })
             }
         }
-        HirPattern::Constructor(name, args, _) => {
-            match value {
-                VoxValue::Option(opt) => {
-                    if name == "Some" && args.len() == 1 {
-                        if let Some(val) = opt {
-                            eval_pattern(interp, &args[0], *val)?;
-                            Ok(())
-                        } else {
-                            Err(EvalError::AssertionFailed("Matched Some on None".into()))
-                        }
-                    } else if name == "None" && args.is_empty() {
-                        if opt.is_none() {
-                            Ok(())
-                        } else {
-                            Err(EvalError::AssertionFailed("Matched None on Some".into()))
-                        }
+        HirPattern::Constructor(name, args, _) => match value {
+            VoxValue::Option(opt) => {
+                if name == "Some" && args.len() == 1 {
+                    if let Some(val) = opt {
+                        eval_pattern(interp, &args[0], *val)?;
+                        Ok(())
                     } else {
-                        Err(EvalError::AssertionFailed("Variant mismatch".into()))
+                        Err(EvalError::AssertionFailed("Matched Some on None".into()))
                     }
-                }
-                VoxValue::Result(res) => {
-                    if name == "Ok" && args.len() == 1 {
-                        if let Ok(val) = res {
-                            eval_pattern(interp, &args[0], *val)?;
-                            Ok(())
-                        } else {
-                            Err(EvalError::AssertionFailed("Matched Ok on Err".into()))
-                        }
-                    } else if name == "Err" && args.len() == 1 {
-                        if let Err(msg) = res {
-                            eval_pattern(interp, &args[0], VoxValue::Str(msg))?;
-                            Ok(())
-                        } else {
-                            Err(EvalError::AssertionFailed("Matched Err on Ok".into()))
-                        }
+                } else if name == "None" && args.is_empty() {
+                    if opt.is_none() {
+                        Ok(())
                     } else {
-                        Err(EvalError::AssertionFailed("Variant mismatch".into()))
+                        Err(EvalError::AssertionFailed("Matched None on Some".into()))
                     }
+                } else {
+                    Err(EvalError::AssertionFailed("Variant mismatch".into()))
                 }
-                _ => Err(EvalError::AssertionFailed("Not a constructor value".into())),
             }
-        }
+            VoxValue::Result(res) => {
+                if name == "Ok" && args.len() == 1 {
+                    if let Ok(val) = res {
+                        eval_pattern(interp, &args[0], *val)?;
+                        Ok(())
+                    } else {
+                        Err(EvalError::AssertionFailed("Matched Ok on Err".into()))
+                    }
+                } else if name == "Err" && args.len() == 1 {
+                    if let Err(msg) = res {
+                        eval_pattern(interp, &args[0], VoxValue::Str(msg))?;
+                        Ok(())
+                    } else {
+                        Err(EvalError::AssertionFailed("Matched Err on Ok".into()))
+                    }
+                } else {
+                    Err(EvalError::AssertionFailed("Variant mismatch".into()))
+                }
+            }
+            _ => Err(EvalError::AssertionFailed("Not a constructor value".into())),
+        },
         HirPattern::Literal(lit_expr, _) => {
             let lit_val = super::expr::eval_expr(interp, lit_expr)?;
             if lit_val == value {

@@ -1,6 +1,6 @@
 use super::super::common::Check;
-use vox_db::DbConfig;
 use std::time::{SystemTime, UNIX_EPOCH};
+use vox_db::DbConfig;
 
 pub async fn run(checks: &mut Vec<Check>) {
     let db_opt = if let Ok(cfg) = DbConfig::resolve_canonical() {
@@ -18,7 +18,7 @@ pub async fn run(checks: &mut Vec<Check>) {
                         .duration_since(UNIX_EPOCH)
                         .map(|d| d.as_secs())
                         .unwrap_or(0);
-                    
+
                     let age_secs = now_secs.saturating_sub(last_secs);
                     let age_hours = age_secs / 3600;
 
@@ -29,7 +29,9 @@ pub async fn run(checks: &mut Vec<Check>) {
                         ));
                     } else {
                         // Also check cache file for model counts
-                        let cache_file = vox_config::paths::dot_vox_user_dir().join("cache").join("model-catalog.v1.json");
+                        let cache_file = vox_config::paths::dot_vox_user_dir()
+                            .join("cache")
+                            .join("model-catalog.v1.json");
                         let count_str = if let Ok(contents) = std::fs::read_to_string(&cache_file) {
                             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
                                 if let Some(arr) = json.as_array() {
