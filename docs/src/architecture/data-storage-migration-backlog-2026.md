@@ -127,6 +127,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   - `vox ci contracts-index` still passes.
   - `vox ci data-storage-guard --check-policy-only` returns 0 on a good policy file and nonzero on a malformed one (add a synthetic broken copy at `tests/fixtures/bad-data-storage-policy.yaml`).
 
+> Landed in 9d5e915c on 2026-04-22; verification: green.
+
 ### M-05 · Delete empty `schemas/` directory
 
 - **Owner**: CI.
