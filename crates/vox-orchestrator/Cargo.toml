@@ -111,6 +111,7 @@ rmp-serde = { workspace = true }
 vox-openai-wire.workspace = true
 async-stream.workspace = true
 vox-project-scaffold.workspace = true
+tempfile.workspace = true
 
 [[bin]]
 name = "vox-orchestrator-d"

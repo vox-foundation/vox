@@ -12,6 +12,8 @@ mod ws;
 use anyhow::{Context, Result};
 use axum::Json;
 use axum::extract::DefaultBodyLimit;
+mod eval;
+use eval::*;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -217,6 +219,7 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/info", get(http_info))
         .route("/v1/tools", get(http_tools))
         .route("/v1/tools/call", post(http_call_tool))
+        .route("/v1/eval", post(http_eval))
         .route("/v1/ws", get(http_ws))
         .route("/v1/mobile", get(http_mobile_workspace))
         .route("/v1/mobile/status", get(http_mobile_status))
