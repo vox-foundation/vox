@@ -331,6 +331,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   - `grep -E 'BASELINE_VERSION: i64 = ' crates/vox-db/src/schema/manifest.rs` output and `grep 'repository_baseline_integer:' contracts/db/baseline-version-policy.yaml` output agree byte-for-byte after stripping labels.
   - `cargo run -p vox-cli --quiet -- ci data-storage-guard --check codex-ssot-digest --json` returns `"status": "pass"`.
 
+> Landed in 87d4031a on 2026-04-22; verification: green.
+
 ### M-21 · Delta migration framework
 
 - **Owner**: Data Core.
