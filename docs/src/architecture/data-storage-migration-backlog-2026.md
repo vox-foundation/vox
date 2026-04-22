@@ -185,6 +185,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   3. Add guard sub-check `scratch-clean`: `git ls-files scratch/ | grep -v '.gitkeep' | wc -l` must be 0.
 - **Verification**: guard passes on a fresh clone.
 
+> Landed in 6c000bd9 on 2026-04-22; verification: green.
+
 ### M-09 · `.vox/` boot contract
 
 - **Owner**: Data Core.
