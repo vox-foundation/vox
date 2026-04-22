@@ -81,6 +81,46 @@ impl Interpreter {
             )]),
         );
 
+        // Standard library root
+        let std_ns = VoxValue::Object(vec![
+            (
+                "fs".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("fs".to_string()),
+                )]),
+            ),
+            (
+                "process".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("process".to_string()),
+                )]),
+            ),
+            (
+                "env".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("env".to_string()),
+                )]),
+            ),
+            (
+                "path".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("path".to_string()),
+                )]),
+            ),
+            (
+                "json".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("json".to_string()),
+                )]),
+            ),
+        ]);
+        scope.set("std".to_string(), std_ns);
+
         Self {
             scope,
             step_limit,

@@ -1,5 +1,6 @@
 [
   {
+  "x-vox-version": 1,
     "id": "llama3:latest",
     "canonical_slug": "local/llama3:latest",
     "provider": "ollama",
@@ -10,7 +11,7 @@
     "cost_per_1k_output": 0.0,
     "is_free": true,
     "strengths": ["codegen", "parsing"],
-    "capabilities": {
+    "capabilities": 
       "tier": "local",
       "supports_json": false,
       "supports_vision": false,
@@ -19,7 +20,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "qwen/qwen3-coder:free",
     "canonical_slug": "qwen/qwen3-free",
     "provider": "openrouter",
@@ -30,7 +31,7 @@
     "cost_per_1k_output": 0.0,
     "is_free": true,
     "strengths": ["codegen", "parsing"],
-    "capabilities": {
+    "capabilities": 
       "tier": "light",
       "supports_json": false,
       "supports_vision": false,
@@ -39,7 +40,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "meta-llama/llama-4-scout:free",
     "canonical_slug": "llama/llama-4-free",
     "provider": "openrouter",
@@ -50,7 +51,7 @@
     "cost_per_1k_output": 0.0,
     "is_free": true,
     "strengths": ["inter_agent", "logic"],
-    "capabilities": {
+    "capabilities": 
       "tier": "light",
       "supports_json": false,
       "supports_vision": false,
@@ -59,7 +60,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "google/gemini-2.0-flash-lite",
     "canonical_slug": "google/gemini-flash-lite",
     "provider": "google",
@@ -70,7 +71,7 @@
     "cost_per_1k_output": 0.0,
     "is_free": true,
     "strengths": ["logic", "inter_agent"],
-    "capabilities": {
+    "capabilities": 
       "tier": "light",
       "supports_json": false,
       "supports_vision": false,
@@ -79,7 +80,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "meta-llama/llama-4-maverick",
     "canonical_slug": "llama/llama-4-maverick",
     "provider": "openrouter",
@@ -90,7 +91,7 @@
     "cost_per_1k_output": 0.1,
     "is_free": false,
     "strengths": ["inter_agent", "logic"],
-    "capabilities": {
+    "capabilities": 
       "tier": "pro",
       "supports_json": false,
       "supports_vision": false,
@@ -99,7 +100,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "deepseek/deepseek-r1",
     "canonical_slug": "deepseek/deepseek-r1",
     "provider": "openrouter",
@@ -110,7 +111,7 @@
     "cost_per_1k_output": 0.28,
     "is_free": false,
     "strengths": ["logic", "review"],
-    "capabilities": {
+    "capabilities": 
       "tier": "pro",
       "supports_json": false,
       "supports_vision": false,
@@ -119,7 +120,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "google/gemini-2.5-pro-preview",
     "canonical_slug": "google/gemini-pro",
     "provider": "openrouter",
@@ -130,7 +131,7 @@
     "cost_per_1k_output": 5.0,
     "is_free": false,
     "strengths": ["planning", "research"],
-    "capabilities": {
+    "capabilities": 
       "tier": "pro",
       "supports_json": false,
       "supports_vision": true,
@@ -139,7 +140,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "anthropic/claude-sonnet-4.6",
     "canonical_slug": "anthropic/sonnet",
     "provider": "openrouter",
@@ -150,7 +151,7 @@
     "cost_per_1k_output": 15.0,
     "is_free": false,
     "strengths": ["codegen", "review", "debugging", "security"],
-    "capabilities": {
+    "capabilities": 
       "tier": "pro",
       "supports_json": false,
       "supports_vision": true,
@@ -159,7 +160,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "qwen/qwen-3.5-vl",
     "canonical_slug": "qwen/qwen-3.5-vl",
     "provider": "openrouter",
@@ -170,7 +171,7 @@
     "cost_per_1k_output": 0.2,
     "is_free": false,
     "strengths": ["visus", "vision"],
-    "capabilities": {
+    "capabilities": 
       "tier": "pro",
       "supports_json": false,
       "supports_vision": true,
@@ -179,7 +180,7 @@
     },
     "supported_parameters": []
   },
-  {
+  
     "id": "claude-mythos-preview-20260407",
     "canonical_slug": "anthropic/mythos-preview",
     "provider": "anthropic",
@@ -190,7 +191,7 @@
     "cost_per_1k_output": 125.0,
     "is_free": false,
     "strengths": ["codegen", "debugging", "logic", "review", "research", "security"],
-    "capabilities": {
+    "capabilities": 
       "tier": "elite",
       "supports_json": true,
       "supports_vision": true,

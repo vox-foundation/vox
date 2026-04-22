@@ -7,3 +7,4 @@ crates/vox-cli/src/commands/db/
 crates/vox-cli/src/commands/review/coderabbit/
 crates/vox-clavis/
 crates/vox-workflow-runtime/tests/
+crates/vox-ludus/

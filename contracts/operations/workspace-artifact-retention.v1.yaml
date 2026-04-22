@@ -1,3 +1,4 @@
+x-vox-version: 1
 # SSOT for `vox ci artifact-prune` (age + size; mens runs + transient targets + scratch).
 # Validated informally by `vox ci artifact-prune`; add JSON Schema when CI requires it.
 schema_version: 1

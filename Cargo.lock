@@ -11795,6 +11795,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-doc-inventory",
+ "vox-doc-pipeline",
  "vox-eval",
  "vox-forge",
  "vox-git",
@@ -11819,6 +11820,7 @@ dependencies = [
  "vox-scientia-ingest",
  "vox-search",
  "vox-skills",
+ "vox-spool",
  "vox-ssg",
  "vox-toestub",
  "vox-workflow-runtime",
@@ -12147,7 +12149,11 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "jsonschema",
+ "regex",
+ "serde",
  "serde_json",
+ "serde_yaml",
+ "sha2",
  "workspace-hack",
 ]
 
@@ -12790,6 +12796,20 @@ version = "0.4.0"
 dependencies = [
  "serde",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-spool"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vox-config",
 ]
 
 [[package]]

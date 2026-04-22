@@ -1,3 +1,4 @@
+x-vox-version: 1
 # SSOT: LLM premature-completion / anti-skeleton policy (tiers A/B/C).
 # Validated by `vox ci command-compliance` and used by `vox ci completion-audit`.
 schema_version: 1

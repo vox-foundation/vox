@@ -1,6 +1,6 @@
 {
   "fileTypes": [],
-  "injectionSelector": "L:text.html.markdown, L:text.html.markdown.source",
+  "injectionSelector": "L:text.html.markdown, L:source.markdown",
   "scopeName": "markdown.vox.codeblock",
   "patterns": [
     {

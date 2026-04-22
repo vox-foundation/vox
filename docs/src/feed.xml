@@ -5,14 +5,41 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Wed, 22 Apr 2026 14:04:50 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 22 Apr 2026 21:47:52 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Architecture Index</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Vox Orchestration Build Stabilization Findings (2026-04-21)</title>
     <link>https://vox-lang.org/architecture/build-stabilization-findings-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/build-stabilization-findings-2026.html</guid>
     <description>Vox Orchestration Build Stabilization Findings (2026-04-21)</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Classification Taxonomy SSoT</title>
+    <link>https://vox-lang.org/architecture/classification-ssot-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/classification-ssot-2026.html</guid>
+    <description>Single Source of Truth for Vox component classification and naming conventions.</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Cryptography Policy SSoT</title>
+    <link>https://vox-lang.org/architecture/cryptography-ssot-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/cryptography-ssot-2026.html</guid>
+    <description>Canonical cryptographic invariants and banned primitives for Vox.</description>
     <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -60,6 +87,24 @@
     <description>Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements.</description>
     <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Telemetry Trust (SSoT)</title>
+    <link>https://vox-lang.org/architecture/telemetry-trust-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/telemetry-trust-ssot.html</guid>
+    <description>Canonical boundaries and trust policies for Vox telemetry.</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Repository Root Files</title>
+    <link>https://vox-lang.org/reference/repo-root-files.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/repo-root-files.html</guid>
+    <description>Repository Root Files</description>
+    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
   </item>
 
   <item>
@@ -165,15 +210,6 @@
   </item>
 
   <item>
-    <title>Case Study: First Production Deployment (v1.0 Gate)</title>
-    <link>https://vox-lang.org/case-studies/v1-production-deployment.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/case-studies/v1-production-deployment.html</guid>
-    <description>A walkthrough of deploying a real web application using Vox&apos;s single-command deployment pipeline.</description>
-    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>Agent Planning Prompts</title>
     <link>https://vox-lang.org/contributors/agent-planning-prompts.html</link>
     <guid isPermaLink="true">https://vox-lang.org/contributors/agent-planning-prompts.html</guid>
@@ -201,42 +237,6 @@
     <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
     <category>How-To</category>
     <category domain="https://schema.org">HowTo</category>
-  </item>
-
-  <item>
-    <title>AI IDE Feature Matrix (2026)</title>
-    <link>https://vox-lang.org/reference/ai-ide-feature-matrix.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/ai-ide-feature-matrix.html</guid>
-    <description>AI IDE Feature Matrix (2026)</description>
-    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
-    <title>CLI command surface (generated)</title>
-    <link>https://vox-lang.org/reference/cli-command-surface.generated.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/cli-command-surface.generated.html</guid>
-    <description>Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox ci operations-sync --target cli --write then vox ci command-sync --write.</description>
-    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
-    <title>What&apos;s Shipped Today</title>
-    <link>https://vox-lang.org/reference/shipped-v0.4.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/shipped-v0.4.html</guid>
-    <description>What&apos;s Shipped Today</description>
-    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
-    <title>Architecture Index</title>
-    <link>https://vox-lang.org/architecture/architecture-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
-    <description>Architecture Index</description>
-    <pubDate>Sat, 18 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>

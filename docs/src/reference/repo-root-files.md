@@ -1,3 +1,9 @@
+---
+title: "repo-root-files"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Repository Root Files
 
 This document provides the canonical list of configuration files permitted at the repository root and their purposes. As part of our architectural governance, unmanaged or generated files are forbidden from existing at the root level.
@@ -12,3 +18,4 @@ This document provides the canonical list of configuration files permitted at th
 
 All of these files MUST be tracked in version control (git). They should NEVER be added to `.gitignore`, `.voxignore`, `.aiignore`, or `.cursorignore`. 
 The `vox ci data-storage-guard` enforces parity to ensure that no ignored file is mistakenly tracked by git, eliminating "ignored-but-tracked" contradictions.
+

@@ -2,141 +2,14 @@
 
 use std::collections::HashSet;
 
-use serde::{Deserialize, Serialize};
 
-/// Optional subject continuity carried on a harness artifact.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessSubject {
-    pub repository_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thread_id: Option<String>,
-}
 
-/// Role boundary inside a harness.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessRole {
-    pub role_id: String,
-    pub prompt_purpose: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub responsibilities: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub permission_mode: Option<String>,
-}
-
-/// Contracted artifact produced or consumed by a harness.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessArtifactSpec {
-    pub artifact_id: String,
-    pub kind: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub path_hint: Option<String>,
-    #[serde(default)]
-    pub required: bool,
-}
-
-/// Completion gate for a harness stage or whole run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessGate {
-    pub gate_id: String,
-    pub description: String,
-    #[serde(default)]
-    pub evidence_required: bool,
-    #[serde(default)]
-    pub independent_verification: bool,
-}
-
-/// Stage topology inside the harness.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessStage {
-    pub stage_id: String,
-    pub role_id: String,
-    pub summary: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub input_artifacts: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub output_artifacts: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub completion_gate_ids: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub failure_mode_codes: Vec<String>,
-}
-
-/// Deterministic adapter hook referenced by the harness.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessAdapter {
-    pub adapter_id: String,
-    pub kind: String,
-    pub description: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_ref: Option<String>,
-}
-
-/// Durable state carrier expectations.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessState {
-    pub state_root: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub child_workspace_root: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_history_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub artifact_manifest_path: Option<String>,
-    #[serde(default)]
-    pub path_addressable: bool,
-    #[serde(default)]
-    pub compaction_stable: bool,
-}
-
-/// Named failure mode that can drive retries or staged recovery.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessFailureMode {
-    pub code: String,
-    pub description: String,
-    #[serde(default)]
-    pub retryable: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub recovery_stage_id: Option<String>,
-}
-
-/// Completion contract and output requirements.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HarnessContracts {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub required_outputs: Vec<HarnessArtifactSpec>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub completion_gates: Vec<HarnessGate>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_attempts: Option<u32>,
-    #[serde(default)]
-    pub requires_artifact_backed_completion: bool,
-}
-
-/// Portable harness representation aligned with the NLAH paper's contract-first control layer.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentHarnessSpec {
-    pub schema_version: u32,
-    pub harness_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_family: Option<String>,
-    pub runtime_charter: String,
-    pub subject: HarnessSubject,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub roles: Vec<HarnessRole>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub stages: Vec<HarnessStage>,
-    pub contracts: HarnessContracts,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub adapters: Vec<HarnessAdapter>,
-    pub state: HarnessState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub failure_taxonomy: Vec<HarnessFailureMode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<serde_json::Value>,
-}
+use crate::generated::agent_harness::{
+    Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,
+    Contracts as HarnessContracts, FailureTaxonomy as HarnessFailureMode,
+    RequiredOutput as HarnessArtifactSpec, Role as HarnessRole, Stage as HarnessStage,
+    State as HarnessState, Subject as HarnessSubject,
+};
 
 /// Anti-bleed expectations when a harness is supplied by MCP, handoff, or remote execution.
 #[derive(Debug, Clone, Copy)]
@@ -217,26 +90,26 @@ impl AgentHarnessSpec {
                     stage_id: "execute".to_string(),
                     role_id: "worker".to_string(),
                     summary: "Perform the task and materialize designated outputs.".to_string(),
-                    input_artifacts: vec![],
-                    output_artifacts: required_outputs
+                    input_artifacts: Some(vec![]),
+                    output_artifacts: Some(required_outputs
                         .iter()
                         .map(|x| x.artifact_id.clone())
-                        .collect(),
-                    completion_gate_ids: vec!["artifact_delivery".to_string()],
-                    failure_mode_codes: vec!["tool_error".to_string(), "timeout".to_string()],
+                        .collect()),
+                    completion_gate_ids: Some(vec!["artifact_delivery".to_string()]),
+                    failure_mode_codes: Some(vec!["tool_error".to_string(), "timeout".to_string()]),
                 },
                 HarnessStage {
                     stage_id: "verify_completion".to_string(),
                     role_id: "orchestrator".to_string(),
                     summary: "Check that required outputs and evidence exist before closure."
                         .to_string(),
-                    input_artifacts: required_outputs
+                    input_artifacts: Some(required_outputs
                         .iter()
                         .map(|x| x.artifact_id.clone())
-                        .collect(),
-                    output_artifacts: vec![],
-                    completion_gate_ids: vec!["artifact_delivery".to_string()],
-                    failure_mode_codes: vec!["missing_artifact".to_string()],
+                        .collect()),
+                    output_artifacts: Some(vec![]),
+                    completion_gate_ids: Some(vec!["artifact_delivery".to_string()]),
+                    failure_mode_codes: Some(vec!["missing_artifact".to_string()]),
                 },
             ],
             contracts: HarnessContracts {
@@ -246,13 +119,13 @@ impl AgentHarnessSpec {
                     description:
                         "All required outputs must be path-addressable before the task is complete."
                             .to_string(),
-                    evidence_required: true,
-                    independent_verification: false,
+                    evidence_required: Some(true),
+                    independent_verification: Some(false),
                 }],
                 max_attempts: Some(3),
                 requires_artifact_backed_completion: true,
             },
-            adapters: vec![
+            adapters: Some(vec![
                 HarnessAdapter {
                     adapter_id: "workspace_io".to_string(),
                     kind: "file_system".to_string(),
@@ -269,7 +142,7 @@ impl AgentHarnessSpec {
                             .to_string(),
                     target_ref: None,
                 },
-            ],
+            ]),
             state: HarnessState {
                 state_root: "runtime/".to_string(),
                 child_workspace_root: Some("children/".to_string()),
@@ -282,19 +155,19 @@ impl AgentHarnessSpec {
                 HarnessFailureMode {
                     code: "missing_artifact".to_string(),
                     description: "A required output path was not materialized.".to_string(),
-                    retryable: true,
+                    retryable: Some(true),
                     recovery_stage_id: Some("execute".to_string()),
                 },
                 HarnessFailureMode {
                     code: "tool_error".to_string(),
                     description: "A deterministic adapter failed unexpectedly.".to_string(),
-                    retryable: true,
+                    retryable: Some(true),
                     recovery_stage_id: Some("execute".to_string()),
                 },
                 HarnessFailureMode {
                     code: "timeout".to_string(),
                     description: "The task exceeded the run or stage budget.".to_string(),
-                    retryable: true,
+                    retryable: Some(true),
                     recovery_stage_id: Some("execute".to_string()),
                 },
             ],
@@ -441,7 +314,7 @@ pub fn validate_agent_harness_ingest(
         .map(|g| g.gate_id.clone())
         .collect();
     for stage in &harness.stages {
-        for gate_id in &stage.completion_gate_ids {
+        for gate_id in stage.completion_gate_ids.as_deref().unwrap_or_default() {
             if !gate_ids.contains(gate_id) {
                 errors.push(format!(
                     "stage {:?} references unknown completion gate {:?}",
@@ -457,7 +330,7 @@ pub fn validate_agent_harness_ingest(
         .map(|f| f.code.clone())
         .collect();
     for stage in &harness.stages {
-        for code in &stage.failure_mode_codes {
+        for code in stage.failure_mode_codes.as_deref().unwrap_or_default() {
             if !failure_codes.contains(code) {
                 errors.push(format!(
                     "stage {:?} references unknown failure_mode_code {:?}",

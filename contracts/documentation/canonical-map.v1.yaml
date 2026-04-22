@@ -1,3 +1,4 @@
+x-vox-version: 1
 schema_version: 1
 
 domains:
@@ -14,8 +15,8 @@ domains:
     aliases: []
     owning_crate_globs:
       - crates/vox-populi/src/mens/**/*.rs
-      - crates/vox-cli/src/commands/mens/**/*.rs
-      - crates/vox-cli/src/commands/ai/train.rs
+      - crates/vox-mens/src/commands/mens/**/*.rs
+      - crates/vox-mens/src/commands/ai/train.rs
     notes: Canonical operator behavior is vox mens train (Candle QLoRA dispatch).
 
   - id: cli-surface
@@ -113,13 +114,12 @@ domains:
   - id: hitl-doubt
     title: HITL Doubt Flow and Resolution
     tier: B-canon
-    status: current
+    status: legacy
     spec_paths: []
-    canon_doc: docs/src/architecture/hitl-doubt-loop-ssot.md
+    canon_doc: docs/src/archive/research-2026-q1/hitl-doubt-loop-ssot.md
     aliases:
       - docs/src/reference/hitl-and-doubt.md
-    owning_crate_globs:
-      - crates/vox-dei/**
+    owning_crate_globs: []
 
   - id: agent-instruction-files
     title: Agent instruction file hierarchy
@@ -147,7 +147,7 @@ domains:
     tier: B-canon
     status: current
     spec_paths: []
-    canon_doc: docs/src/architecture/multi-repo-context-isolation-research-2026.md
+    canon_doc: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md
     aliases: []
 
   - id: ai-ide-feature-matrix
@@ -156,7 +156,7 @@ domains:
     status: current
     spec_paths:
       - docs/agents/ai-ide-feature-matrix-2026.json
-    canon_doc: docs/src/architecture/ai-ide-feature-research-findings-2026.md
+    canon_doc: docs/src/archive/research-2026-q1/ai-ide-feature-research-findings-2026.md
     aliases: []
 
   - id: toestub-quality

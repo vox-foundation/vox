@@ -1,3 +1,9 @@
+---
+title: "populi-gpu-truth-probe-spec"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 title: "Populi GPU truth probe specification (Native Layer A)"
 description: "How probe-backed native hardware inventory flows into NodeRecord heartbeats and reconciles with ADR 018."
 category: "architecture"
@@ -46,5 +52,6 @@ Operators should send the **same** [`NodeRecord`] shape on **join** and **heartb
 - [ADR 018](../adr/018-populi-gpu-truth-layering.md)
 - [Populi GPU mesh implementation plan 2026](populi-gpu-mesh-implementation-plan-2026.md)
 - [Mens cloud GPU strategy](../reference/mens-cloud-gpu.md) (boundary vs Populi)
+
 
 

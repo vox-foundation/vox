@@ -1,4 +1,5 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox-lang.org/contracts/scientia/finding-candidate.v1.schema.json",
   "title": "SCIENTIA finding candidate ledger record v1",

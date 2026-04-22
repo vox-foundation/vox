@@ -14,8 +14,6 @@
 //! 2. **Frontmatter presence**: files without a `---` YAML block are flagged as warnings.
 //! 3. **Generic descriptions**: template `"Official documentation for ... in the Vox programming language ecosystem."` are errors.
 
-mod pipeline;
-
 fn main() {
-    pipeline::run();
+    vox_doc_pipeline::pipeline::run();
 }

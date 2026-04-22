@@ -1,43 +1,44 @@
 {
+  "x-vox-version": 1,
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "properties": {
-    "schema_version": { "type": "integer" },
-    "tiers": {
+  "properties": 
+    "schema_version":  "type": "integer" },
+    "tiers": 
       "type": "array",
-      "items": { "type": "string" }
+      "items":  "type": "string" }
     },
-    "strengths": {
+    "strengths": 
       "type": "array",
-      "items": { "type": "string" }
+      "items":  "type": "string" }
     },
-    "task_categories": {
+    "task_categories": 
       "type": "array",
-      "items": { "type": "string" }
+      "items":  "type": "string" }
     },
-    "scoring": {
+    "scoring": 
       "type": "object",
-      "properties": {
-        "weights": {
+      "properties": 
+        "weights": 
           "type": "object",
-          "additionalProperties": { "type": "integer" }
+          "additionalProperties":  "type": "integer" }
         },
-        "latency_bands": {
+        "latency_bands": 
           "type": "object",
-          "properties": {
-            "excellent_ms": { "type": "integer" },
-            "poor_ms": { "type": "integer" }
+          "properties": 
+            "excellent_ms":  "type": "integer" },
+            "poor_ms":  "type": "integer" }
           },
           "required": ["excellent_ms", "poor_ms"]
         }
       },
       "required": ["weights", "latency_bands"]
     },
-    "premium_alias": {
+    "premium_alias": 
       "type": "object",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties":  "type": "string" }
     },
-    "economy_cost_ceiling_usd_per_1k": { "type": "number" }
+    "economy_cost_ceiling_usd_per_1k":  "type": "number" }
   },
   "required": [
     "schema_version",

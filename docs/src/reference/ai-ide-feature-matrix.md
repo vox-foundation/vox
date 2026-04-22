@@ -1,3 +1,9 @@
+---
+title: "ai-ide-feature-matrix"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # AI IDE Feature Matrix (2026)
 
 This matrix compares modern AI-native IDEs and agents against the Vox baseline. Data is derived from the machine-readable [feature-matrix.json](../../../docs/agents/ai-ide-feature-matrix-2026.json).
@@ -19,3 +25,4 @@ This matrix compares modern AI-native IDEs and agents against the Vox baseline. 
 
 ---
 *Last updated: 2026-03-31*
+

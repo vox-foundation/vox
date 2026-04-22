@@ -1155,6 +1155,8 @@ mod registry_dispatch_tests {
         "vox_generate_code",
         "vox_project_init",
         "vox_oratio_transcribe",
+        "vox_oratio_listen",
+        "vox_oratio_status",
         "vox_speech_to_code",
         "vox_openclaw_list_remote",
         "vox_openclaw_search_remote",

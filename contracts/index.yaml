@@ -2,6 +2,38 @@
 schema_version: 1
 
 contracts:
+  - id: telemetry-events
+    path: contracts/telemetry/events.v1.yaml
+    owner: platform-observability
+    kind: yaml
+    description: Master inventory of telemetry events and their schemas.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-events-schema
+    path: contracts/telemetry/events.v1.schema.json
+    owner: platform-observability
+    kind: json-schema
+    description: JSON Schema for events.v1.yaml.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: config-env-vars
+    path: contracts/config/env-vars.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Master inventory of all environment variables across the workspace.
+    enforced_by:
+      - vox ci env-parity
+
+  - id: config-env-vars-schema
+    path: contracts/config/env-vars.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for env-vars.v1.yaml.
+    enforced_by:
+      - vox ci env-parity
+
   - id: cli-command-registry
     path: contracts/cli/command-registry.yaml
     owner: platform-ci
@@ -289,6 +321,7 @@ contracts:
     description: Portable contract-first agent harness specification for MCP submit, handoff, and remote relay surfaces.
     enforced_by:
       - vox ci contracts-index
+      - vox ci data-storage-guard schema-codegen-drift
 
   - id: orchestration-vox-generate-code-file-outcomes-schema
     path: contracts/orchestration/vox-generate-code-file-outcomes.schema.json

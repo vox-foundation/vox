@@ -1,3 +1,4 @@
+x-vox-version: 1
 version: v1
 description: >
   SCIENTIA schema-to-runtime consumption registry. Entries marked

@@ -1,67 +1,68 @@
 {
+  "x-vox-version": 1,
   "version": 1,
   "surfaces": [
-    {
+    
       "retired_symbol": "vox-dei",
       "canonical_replacement": "vox-orchestrator",
       "notes": "Old large orchestrator crate."
     },
-    {
+    
       "retired_symbol": "vox-ars",
       "canonical_replacement": "vox-skills"
     },
-    {
+    
       "retired_symbol": "vox-gamify",
       "canonical_replacement": "vox-ludus"
     },
-    {
+    
       "retired_symbol": "vox-lexer",
       "canonical_replacement": "vox-compiler"
     },
-    {
+    
       "retired_symbol": "vox-parser",
       "canonical_replacement": "vox-compiler"
     },
-    {
+    
       "retired_symbol": "vox-hir",
       "canonical_replacement": "vox-compiler"
     },
-    {
+    
       "retired_symbol": "vox-typeck",
       "canonical_replacement": "vox-compiler"
     },
-    {
+    
       "retired_symbol": "@component fn Name()",
-      "canonical_replacement": "component Name() {}",
+      "canonical_replacement": "component Name() }",
       "notes": "Deprecated TSX-like syntax."
     },
-    {
+    
       "retired_symbol": "TURSO_URL",
       "canonical_replacement": "VOX_DB_URL"
     },
-    {
+    
       "retired_symbol": "VOX_TURSO_URL",
       "canonical_replacement": "VOX_DB_URL"
     },
-    {
+    
       "retired_symbol": "VOX_TURSO_TOKEN",
       "canonical_replacement": "VOX_DB_TOKEN"
     },
-    {
+    
       "retired_symbol": "recall()",
       "canonical_replacement": "recall_async(query_spec)",
       "notes": "Synchronous memory read."
     },
-    {
+    
       "retired_symbol": "persist_fact()",
       "canonical_replacement": "sync_to_db()"
     },
-    {
+    
       "retired_symbol": "-> (return type)",
       "canonical_replacement": "to",
       "notes": "Hyphen-arrow is retired for return type boundaries to reduce K-complexity."
     },
-    {
+    
       "retired_symbol": "-> (match arm)",
       "canonical_replacement": "=>",
       "notes": "Hyphen-arrow is retired for match arms in favor of the fat-arrow => pattern."

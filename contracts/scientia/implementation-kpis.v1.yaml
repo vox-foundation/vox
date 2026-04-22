@@ -1,3 +1,4 @@
+x-vox-version: 1
 version: v1
 baselines:
   publishability_precision: null

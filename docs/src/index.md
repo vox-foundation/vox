@@ -5,7 +5,7 @@ category: "getting-started"
 status: "current"
 sort_order: 0
 keywords: ["Vox programming language", "AI-native language", "Zero-hallucination", "Rust compiler", "MCP tools", "Durable workflows"]
-last_updated: 2026-04-10
+last_updated: 2026-04-22
 training_eligible: true
 difficulty: "beginner"
 
@@ -24,16 +24,10 @@ schema_type: "HowTo"
     </div>
 </div>
 
-*“Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!”*  
+*"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"*  
 — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
 
-## The Architecture: Designed for AI and Humans
-
-Traditional programming languages predate LLMs by decades, assuming local, CPU-bound execution. Their dynamic typing, pointer mutation, and configuration layers compound into hallucination. While human developers manage undeclared state and hidden exceptions, LLMs struggle due to their statistical nature.
-
-Furthermore, AI depends profoundly on cloud infrastructure and distributed GPU meshes. Yet, contemporary ecosystems treat networking and agent-to-agent orchestration as separated, external frameworks. A million-token context window sounds generous until the signal is buried in integration boilerplate, exacerbating the technical debt of the object-relational impedance mismatch.
-
-Vox resolves these structural bottlenecks by natively outfitting developers with built-in supplemental models, integrated databasing, and distributed agent tooling out of the box. Unifying the entire stack under one architecturally complete syntax provides the determinism machines require and the expressiveness humans expect.
+{{#include ../../README.md:why_vox}}
 
 ## The Language, Step by Step
 
@@ -139,14 +133,20 @@ fn search_knowledge(query: str, max_results: int) to SearchResult {
 
 ## Agent Orchestration & AI Capabilities
 
-Vox goes beyond just syntax. It includes a full AI ecosystem built directly into the toolchain:
+Vox ships an AI ecosystem alongside the compiler:
 
-- **Multi-Agent Coordination:** The DEI orchestrator (`vox-dei`) routes concurrent tasks by file affinity and role. Every state transition is persisted and traceable.
-- **Agent-to-Agent Messaging:** Agents exchange typed, JWE-encrypted envelopes over a structured bus, ensuring compile-time shape guarantees for AI interactions.
-- **Local GPU & Native Training (MENS):** The MENS neural pipeline natively equips developers to fine-tune models using [Burn](https://github.com/tracel-ai/burn) and [Candle](https://github.com/huggingface/candle). No Python required. `vox populi probe` orchestrates:
-  1. **QLoRA Fine-Tuning** against your internal repositories.
-  2. **Speech-to-Code (ASR)** via local Whisper/Qwen to map vocal commands to AST edits.
-  3. **Local Mesh Serving** securely exposing models over a `/v1/completions` endpoint for offline execution.
+- **Multi-agent coordination:** `vox-orchestrator` assigns work to agents by file affinity and role; every state transition is persisted and traceable. The control surface is exposed as MCP tools for any MCP-compatible client.
+- **Agent-to-agent messaging:** Typed, JWE-encrypted envelopes over a structured bus. Both sides declare the same Vox type; the compiler catches shape mismatches at build time. In-process by default; cross-machine relay is opt-in via the `populi-transport` feature.
+- **Local GPU & native training (MENS):** A Rust pipeline (Burn + Candle) — no Python required. `vox populi probe` detects CUDA/Metal/WebGPU and orchestrates:
+  1. **QLoRA fine-tuning** against your internal repositories.
+  2. **Speech-to-code (ASR)** via local Whisper/Qwen for vocal AST edits.
+  3. **Local mesh serving** over an OpenAI-compatible `/v1/completions` endpoint for offline execution.
+
+Native training requires the `gpu` feature: `cargo build -p vox-cli --features gpu`.
+
+---
+
+{{#include ../../README.md:tier_table}}
 
 ---
 
@@ -177,16 +177,11 @@ Vox uses the **Diátaxis** framework to organize knowledge by user intent.
     </div>
 </div>
 
-## Community, Backing & License
+---
 
-### Backing Vox (Open Collective)
-
-Community-backed via **Open Collective** — every dollar raised and spent is public. Sponsorships fund developer grants, CI hardware for MENS neural training, and academic bounties.
-
-### License
-
-**Apache 2.0** — commercial use permitted, patent rights granted, modifications allowed with attribution.
+{{#include ../../README.md:community_license}}
 
 ### Quick Documentation Links
+
 - **[Installation Guide](tutorials/tut-getting-started.md)**: Set up the `vox` toolchain on your machine.
 - **[Master Architecture Index](architecture/architecture-index.md)**: Deep dives into the compiler and runtime internals.

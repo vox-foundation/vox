@@ -99,8 +99,9 @@ pub mod grounding;
 pub mod groups;
 /// Structured handoff payloads between agents.
 pub mod handoff;
-/// Portable contract-first natural-language harness specifications.
-pub mod harness;
+pub mod generated;
+pub mod legacy;
+
 /// Agent liveness heartbeats and staleness policy.
 pub mod heartbeat;
 /// Jujutsu (jj) merge DAG and backend helpers.
@@ -233,11 +234,12 @@ pub use groups::{AffinityGroup, AffinityGroupRegistry, load_from_config};
 pub use handoff::{
     HandoffInvariantError, HandoffPayload, execute_handoff, validate_handoff_invariants,
 };
-pub use harness::{
-    AgentHarnessSpec, HarnessAdapter, HarnessArtifactSpec, HarnessContracts, HarnessFailureMode,
-    HarnessGate, HarnessIngestExpectations, HarnessRole, HarnessStage, HarnessState,
-    HarnessSubject, apply_harness_subject_defaults, validate_agent_harness_ingest,
+pub use generated::agent_harness::{
+    Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate, Contracts as HarnessContracts,
+    FailureTaxonomy as HarnessFailureMode, RequiredOutput as HarnessArtifactSpec, Role as HarnessRole,
+    Stage as HarnessStage, State as HarnessState, Subject as HarnessSubject,
 };
+pub use legacy::harness_hand::{HarnessIngestExpectations, apply_harness_subject_defaults, validate_agent_harness_ingest};
 pub use heartbeat::{
     AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel, evict_dead_heartbeats,
     live_nodes_from_db, persist_heartbeat,

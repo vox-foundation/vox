@@ -1,3 +1,9 @@
+---
+title: "ludus-adjudication-implementation-plan-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Ludus Adjudication System — Implementation Plan (2026)
 
 > **Agent Directive:** This file is the single executable blueprint for implementing
@@ -263,3 +269,4 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 | Phase | Step | Original Plan | Actual Result | Agent Notes |
 |---|---|---|---|---|
 | — | — | — | — | Initialized. No deviations yet. |
+

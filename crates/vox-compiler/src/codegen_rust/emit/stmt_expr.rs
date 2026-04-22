@@ -34,9 +34,10 @@ pub(super) fn emit_stmt(
             }
         }
         HirStmt::Assign { target, value, .. } => {
+            // The target must be an l-value; do not emit `.clone()` on ident targets.
+            let lhs = emit_assign_target(target);
             format!(
-                "{pad}{} = {};\n",
-                emit_expr_with(target, is_route, is_actor, mutation_tx),
+                "{pad}{lhs} = {};\n",
                 emit_expr_with(value, is_route, is_actor, mutation_tx)
             )
         }
@@ -146,6 +147,22 @@ pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
     emit_stmt(stmt, indent, false, false, false)
 }
 
+/// Emit an assignment l-value target without adding `.clone()`.
+///
+/// The standard `emit_expr_with` appends `.clone()` to every identifier,
+/// which produces invalid Rust like `j.clone() = rhs`. This function emits
+/// a bare identifier or a simple field-access path instead.
+fn emit_assign_target(expr: &HirExpr) -> String {
+    match expr {
+        HirExpr::Ident(n, _) => n.clone(),
+        HirExpr::FieldAccess(obj, field, _) => {
+            format!("{}.{}", emit_assign_target(obj), field)
+        }
+        // Fallback: use the generic emitter for complex lvalues (index ops etc.)
+        other => emit_expr_with(other, false, false, false),
+    }
+}
+
 pub(super) fn emit_pattern(
     pat: &HirPattern,
     is_route: bool,
@@ -223,7 +240,10 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
-        HirExpr::StringLit(v, _) => format!("\"{}\".to_string()", v),
+        HirExpr::StringLit(v, _) => {
+            let escaped = v.replace("\"", "\\\"").replace("\n", "\\n");
+            format!("\"{}\".to_string()", escaped)
+        }
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::DecimalLit(v, _) => {
             format!("rust_decimal::Decimal::from_str_exact(\"{v}\").unwrap()")
@@ -238,8 +258,8 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
         ),
 
         HirExpr::Ident(n, _) => {
-            if n == "request" {
-                "request".into()
+            if n == "request" || n == "std" || n == "fs" {
+                n.clone()
             } else if n.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                 n.clone()
             } else {
@@ -307,14 +327,18 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             }
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
-                if let HirExpr::Ident(module_name, _) = &**namespace_expr
-                    && (module_name == "OpenClaw" || module_name == "Browser")
-                {
+                if let HirExpr::Ident(module_name, _) = &**namespace_expr {
                     let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
-                    if let Some(expr) =
-                        emit_openclaw_or_browser_registry_call(module_name, fn_name, &a)
-                    {
-                        return expr;
+                    if module_name == "OpenClaw" || module_name == "Browser" {
+                        if let Some(expr) =
+                            emit_openclaw_or_browser_registry_call(module_name, fn_name, &a)
+                        {
+                            return expr;
+                        }
+                    } else if module_name == "fs" {
+                        if let Some(call) = std_namespace_runtime_call("fs", fn_name, &a) {
+                            return call;
+                        }
                     }
                 }
                 if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
@@ -338,7 +362,7 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                             if let Some(b) = builtin {
                                 return if *is_await { format!("{}.await", b) } else { b };
                             }
-                            let call = format!("std::{}::{}({})", ns_name, fn_name, a.join(", "));
+                            let call = format!("::std::{}::{}({})", ns_name, fn_name, a.join(", "));
                             return if *is_await {
                                 format!("{}.await", call)
                             } else {

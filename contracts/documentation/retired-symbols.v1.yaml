@@ -1,3 +1,4 @@
+x-vox-version: 1
 # Vox Documentation: Retired Symbols and Canonical Replacements
 # Used by `vox ci retired-symbol-check` to prevent hallucination-prone identifiers from appearing in docs.
 

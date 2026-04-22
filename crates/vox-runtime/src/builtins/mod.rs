@@ -931,6 +931,14 @@ pub fn vox_fs_glob(pattern: &str) -> Result<Vec<String>, String> {
     Ok(paths)
 }
 
+pub fn vox_fs_read(path: &str) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+pub fn vox_fs_write(path: &str, content: &str) -> Result<(), String> {
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
 /// Convert a `dec` value to a string (`std.dec.to_string`).
 pub fn vox_dec_to_str(d: rust_decimal::Decimal) -> String {
     d.to_string()

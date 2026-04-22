@@ -1,4 +1,5 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox-lang.org/contracts/scientia/evidence-pack.v1.schema.json",
   "title": "SCIENTIA EvidencePack v1",
@@ -12,26 +13,26 @@
     "candidate",
     "replay_instructions"
   ],
-  "properties": {
-    "version": { "type": "string", "const": "v1" },
-    "publication_id": { "type": "string", "minLength": 1 },
-    "manifest_digest": { "type": "string", "minLength": 16 },
-    "baseline": { "$ref": "#/$defs/runRef" },
-    "candidate": { "$ref": "#/$defs/runRef" },
-    "pair_integrity_passed": { "type": "boolean" },
-    "replay_instructions": { "type": "string", "minLength": 1 }
+  "properties": 
+    "version":  "type": "string", "const": "v1" },
+    "publication_id":  "type": "string", "minLength": 1 },
+    "manifest_digest":  "type": "string", "minLength": 16 },
+    "baseline":  "$ref": "#/$defs/runRef" },
+    "candidate":  "$ref": "#/$defs/runRef" },
+    "pair_integrity_passed":  "type": "boolean" },
+    "replay_instructions":  "type": "string", "minLength": 1 }
   },
-  "$defs": {
-    "runRef": {
+  "$defs": 
+    "runRef": 
       "type": "object",
       "additionalProperties": false,
       "required": ["run_id", "config_digest"],
-      "properties": {
-        "run_id": { "type": "string", "minLength": 1 },
-        "config_digest": { "type": "string", "minLength": 16 },
-        "telemetry_digest": { "type": "string" },
-        "eval_digest": { "type": "string" },
-        "gate_digest": { "type": "string" }
+      "properties": 
+        "run_id":  "type": "string", "minLength": 1 },
+        "config_digest":  "type": "string", "minLength": 16 },
+        "telemetry_digest":  "type": "string" },
+        "eval_digest":  "type": "string" },
+        "gate_digest":  "type": "string" }
       }
     }
   }

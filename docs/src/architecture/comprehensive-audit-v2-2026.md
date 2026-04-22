@@ -38,7 +38,7 @@ This v2 supersedes the prior file; it corrects two count errors (crates=63, ADRs
 
 ### Single-sentence verdict
 
-*Vox has the best architectural governance of any v0.4 language I've seen, the only real compiler+training+orchestrator stack at this tier, and zero empirical evidence for its headline LLM-native claim — while being too sprawled to ship that evidence at current scope.*
+*Vox has the best architectural governance of any v0.5 language I've seen, the only real compiler+training+orchestrator stack at this tier, and zero empirical evidence for its headline LLM-native claim — while being too sprawled to ship that evidence at current scope.*
 
 ## Part V — Reshaped plan, given the answers
 

@@ -3,7 +3,7 @@ use vox_compiler::pipeline::check_file;
 
 use crate::pipeline::types::{LintError, LintKind};
 
-pub(crate) fn check_doctests(path: &Path, content: &str, errors: &mut Vec<LintError>) {
+pub fn check_doctests(path: &Path, content: &str, errors: &mut Vec<LintError>) {
     println!("RUNNING check_doctests on {}", path.display());
     let mut in_fence = false;
     let mut current_block = String::new();

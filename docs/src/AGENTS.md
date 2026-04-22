@@ -1,3 +1,11 @@
+---
+title: "AGENTS.md"
+description: "Documentation for AGENTS.md."
+category: "architecture"
+status: "current"
+training_eligible: true
+training_rationale: "Project architecture context."
+---
 # Documentation Rules (docs/src/ scope)
 
 ## Code block policy

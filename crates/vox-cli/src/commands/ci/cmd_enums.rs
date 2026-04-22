@@ -449,14 +449,27 @@ pub enum CiCmd {
         #[arg(long, default_value_t = 25)]
         cap: usize,
     },
+    /// Run vox doctest extraction and compile-check on one or more Markdown files.
+    /// SSG-agnostic: reads .md files directly, does not require mdBook.
+    #[command(name = "doctest-md")]
+    DoctestMd {
+        /// One or more paths: file.md or directory. Defaults to docs/src/.
+        #[arg(default_value = "docs/src")]
+        paths: Vec<PathBuf>,
+        /// Exit non-zero if any doctest fails (default: warn only).
+        #[arg(long)]
+        strict: bool,
+    },
 }
 
-/// Options for data-storage-guard.
 #[derive(clap::Args, Debug, Clone)]
 pub struct GuardOpts {
     /// Emit machine-readable JSON only.
     #[clap(long)]
     pub json: bool,
+    /// Run only the specified checks (comma-separated or multiple flags).
+    #[clap(long = "only", value_name = "CHECK")]
+    pub only: Vec<String>,
     #[clap(long)]
     pub check_policy_only: bool,
 }

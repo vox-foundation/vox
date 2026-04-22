@@ -15,6 +15,7 @@ use super::contracts_index;
 use super::coverage_gates;
 use super::dep_sprawl;
 use super::determinism_audit;
+use super::doctest_md;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
@@ -345,5 +346,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
         CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
+        CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
     }
 }

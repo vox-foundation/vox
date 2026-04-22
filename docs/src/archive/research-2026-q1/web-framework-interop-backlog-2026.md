@@ -6,7 +6,6 @@ status: "roadmap"
 last_updated: 2026-04-15
 parent: "web-framework-interop-research-2026.md"
 training_eligible: false
-training_rationale: "Roadmap for web framework interop"
 training_rationale: "Actionable backlog mapping to concrete tasks across WebIR, codegen_ts, app_contract, and CLI templates. Embeds test verification directly into implementation phases."
 archived_date: 2026-04-18
 ---

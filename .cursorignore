@@ -31,6 +31,8 @@ __pycache__/
 crates/*/pkg/
 islands/
 .vox_modules/
+docs-astro/node_modules/
+docs-astro/dist/
 
 # === VCS INTERNALS ===
 # .jj/ MUST be excluded: corruption causes irreversible history loss (JUNIE-597)

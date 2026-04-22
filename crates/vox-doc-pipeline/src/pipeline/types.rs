@@ -14,15 +14,14 @@ pub(crate) struct Page {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
-pub(crate) struct LintError {
+pub struct LintError {
     pub file: PathBuf,
     pub line: usize,
     pub kind: LintKind,
 }
 
 #[derive(Debug)]
-pub(crate) enum LintKind {
+pub enum LintKind {
     UnclosedCodeFence,
     ShortCodeFence { backticks: usize, at_line: usize },
     GenericDescription,

@@ -22,6 +22,7 @@ pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
+pub mod telemetry_spool;
 /// External `vox-dei-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).

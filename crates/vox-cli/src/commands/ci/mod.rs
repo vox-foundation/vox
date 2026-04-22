@@ -15,6 +15,7 @@ mod contracts_index;
 pub mod data_storage_guard;
 mod dep_sprawl;
 mod determinism_audit;
+mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;
 mod frozen_crates;

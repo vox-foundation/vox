@@ -1,3 +1,4 @@
+x-vox-version: 1
 # CodeRabbit semantic grouping — version 1
 # Loaded by `vox review coderabbit semantic-submit` (bundled default; override with
 # `[review.coderabbit] groups_config` in Vox.toml). Workspace crate rules are inserted

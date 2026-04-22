@@ -1,3 +1,4 @@
+x-vox-version: 1
 # Projection profile limits for syndication compile (vox-publisher `distribution_compile`).
 # `template_profile` strings from `distribution.topic-packs.yaml` must resolve here (CI-enforced).
 version: 1

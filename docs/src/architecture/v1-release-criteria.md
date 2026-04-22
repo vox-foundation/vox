@@ -1,3 +1,9 @@
+---
+title: "v1-release-criteria"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Vox v1.0 Release Criteria (Hardened)
 
 To reach a stable v1.0, the Vox foundation must satisfy the following machine-verified and human-audited criteria.
@@ -24,3 +30,4 @@ To reach a stable v1.0, the Vox foundation must satisfy the following machine-ve
 
 ---
 *Approved by Vox Foundation Council — April 2026*
+

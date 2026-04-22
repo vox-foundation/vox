@@ -95,7 +95,7 @@ pub(crate) fn harness_completion_issues(
         .contracts
         .completion_gates
         .iter()
-        .any(|g| g.evidence_required);
+        .any(|g| g.evidence_required.unwrap_or(false));
     if evidence_required {
         let evidence_present = completion_attestation
             .map(|a| !a.evidence_citations.is_empty())

@@ -12,10 +12,10 @@ All notable changes to the Vox project are documented here.
 
 ## [Unreleased]
 
-## [1.0.0-RC1] - 2026-04-18
+## [0.5.0] - 2026-04-18
 
 ### Added
-- **V1 Core SSOT**: Created `docs/src/architecture/v1-core-ssot.md` as the authoritative architecture summary for the v1.0 release.
+- **V0.5 Core SSOT**: Created `docs/src/architecture/v0.5-core-ssot.md` as the authoritative architecture summary for the v0.5 release.
 - **Golden Path Validation**: Verified end-to-end build and dry-run deployment for `marquee_app` via Fly.io target.
 
 ### Fixed

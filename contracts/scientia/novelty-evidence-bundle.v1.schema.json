@@ -1,4 +1,5 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox-lang.org/contracts/scientia/novelty-evidence-bundle.v1.schema.json",
   "title": "SCIENTIA novelty evidence bundle v1",

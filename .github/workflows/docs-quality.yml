@@ -34,16 +34,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install mdBook
-        uses: peaceiris/actions-mdbook@v2
-        with:
-          mdbook-version: '0.4.40'
-
-      - name: Install mdBook tools
-        run: |
-          cargo install mdbook-metadata --locked
-          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
-
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -57,6 +47,9 @@ jobs:
 
       - name: Doc pipeline strict check (lint + SUMMARY)
         run: cargo run -p vox-doc-pipeline -- --check
+
+      - name: Doctest extraction and check (SSG-agnostic)
+        run: cargo run -p vox-cli -- ci doctest-md --strict
 
       - name: Run docs pipeline
         id: docs_pipeline
@@ -76,14 +69,14 @@ jobs:
         if: steps.internal_links.outcome == 'failure'
         run: echo "::warning title=Internal docs links::Broken internal documentation links were detected; this workflow is advisory and will not block."
 
-      - name: Build mdBook
-        id: mdbook_build
-        continue-on-error: true
-        run: mdbook build docs
+      - name: Install docs-astro deps
+        working-directory: docs-astro
+        run: pnpm install --frozen-lockfile
 
-      - name: Warn if mdBook build failed
-        if: steps.mdbook_build.outcome == 'failure'
-        run: echo "::warning title=mdBook build failed::mdBook failed to build documentation; this workflow is advisory and will not block."
+      - name: Build Starlight
+        id: starlight_build
+        working-directory: docs-astro
+        run: pnpm build
 
       - name: Markdown lint
         id: markdown_lint

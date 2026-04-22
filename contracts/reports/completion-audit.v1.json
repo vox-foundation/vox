@@ -1,10 +1,11 @@
 {
+  "x-vox-version": 1,
   "schema_version": 1,
   "generated_at": "2026-04-02T10:08:34.565080+00:00",
   "policy_schema_version": 1,
   "repository_id": "d820b80d21b5d07a",
   "findings": [
-    {
+    
       "detector_id": "ignored-test-debt",
       "tier": "B",
       "severity": "warning",
@@ -14,7 +15,7 @@
       "fingerprint": "43cc5e89d33aa236",
       "metric": 22
     },
-    {
+    
       "detector_id": "todo-macro-prod",
       "tier": "B",
       "severity": "warning",

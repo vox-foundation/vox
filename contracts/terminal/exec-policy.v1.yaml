@@ -1,3 +1,4 @@
+x-vox-version: 1
 # Default terminal exec policy (SSOT). Validated by contracts/index + `vox ci exec-policy-contract`.
 version: 1
 allowed_cmdlets:

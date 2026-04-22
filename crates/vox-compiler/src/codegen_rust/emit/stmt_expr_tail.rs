@@ -82,15 +82,15 @@ where
             s
         }
         HirExpr::FieldAccess(obj, field, _) => {
-            if let HirExpr::Ident(root, _) = obj.as_ref() {
-                if root == "std" && field == "args" {
-                    "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
-                        .to_string()
-                } else {
-                    format!("{}[\"{}\"].clone()", emit(obj), field)
-                }
+            let o = emit(obj);
+            if o == "std" && field == "args" {
+                "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
+                    .to_string()
+            } else if o == "std" || o == "::std" || o.starts_with("std::") || o.starts_with("::std::") {
+                let prefix = if o.starts_with("::") { o } else { format!("::{}", o) };
+                format!("{}::{}", prefix, field)
             } else {
-                format!("{}[\"{}\"].clone()", emit(obj), field)
+                format!("{}[\"{}\"].clone()", o, field)
             }
         }
         HirExpr::Block(stmts, _) => {

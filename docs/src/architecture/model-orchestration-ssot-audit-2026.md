@@ -35,7 +35,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 4. **No model scoreboard.** `eval_runs` and `llm_feedback` exist but are never aggregated per `(model_id, task_category)` and never fed back to `best_for()`.
 5. **No distributed trace ID.** `journey_id`, `session_id`, `run_id` are local to each subsystem; there is no OpenTelemetry-style GenAI span with `gen_ai.request.model`, `gen_ai.usage.input_tokens`, etc.
 6. **Automatic model discovery is one shot per process start.** No scheduled nightly refresh; no Populi mesh catalog aggregation; no HF Hub auto-registration into the routing registry.
-7. **Direct env reads for secret-ish values leak outside Clavis.** Confirmed violation in `crates/vox-schola/src/curator.rs` (`OPENAI_API_KEY`) and suspected drift for `TOGETHER_FINETUNE_MODEL` (`crates/vox-mens/src/commands/ai/train.rs`), `GEMINI_DIRECT_MODEL`/`OPENROUTER_GEMINI_MODEL` (`crates/vox-config/src/routing_policy.rs`).
+7. **Direct env reads for secret-ish values leak outside Clavis.** Confirmed violation in `crates/vox-schola/src/curator.rs` (`OPENAI_API_KEY`) and suspected drift for `TOGETHER_FINETUNE_MODEL` (`crates/vox-cli/src/commands/ai/train.rs`), `GEMINI_DIRECT_MODEL`/`OPENROUTER_GEMINI_MODEL` (`crates/vox-config/src/routing_policy.rs`).
 8. **No cross-node secret sync.** `A2ADeliverRequest.jwe_payload` is plumbed but never populated (`crates/vox-populi/src/transport/mod.rs:76`). `vox-crypto` has ChaCha20-Poly1305 and Ed25519 but **no X25519 KEM** for wrapping secrets to another node.
 9. **No device-pairing flow.** A user with 3 mesh nodes must install `OPENROUTER_API_KEY` three times by hand.
 10. **Retired-surface drift.** `vox_dei::model_route` is still used as the `tracing` target in `crates/vox-runtime/src/model_resolution.rs:183-246` (harmless in theory, but violates the retired-symbol policy in `AGENTS.md:140`).
@@ -284,7 +284,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Success.* After a second node joins the mesh and MENS finishes training on node A, `vox model list --source PopuliMesh` on node B shows the new checkpoint.
 
 **FIX-25. [DONE] Add `MensCatalog` for local MENS checkpoints.**
-- *Problem.* `mens/runs/<run_id>/training_manifest.json` exists but is never ingested into the routing registry (`crates/vox-mens/`).
+- *Problem.* `mens/runs/<run_id>/training_manifest.json` exists but is never ingested into the routing registry (`crates/vox-populi/`).
 - *Operation.* New `crates/vox-orchestrator/src/catalog/mens.rs` (or integrated in `catalog.rs`) that globs `mens/runs/*/training_manifest.json`, parses each, emits `ModelCatalogEntry`.
 - *Success.* A newly-trained MENS checkpoint appears in `vox model list --source Mens` after running `vox model discover`.
 
@@ -376,7 +376,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Success.* `vox ci secret-env-guard` passes.
 
 **FIX-42. [DONE] Migrate `TOGETHER_FINETUNE_MODEL` to Clavis or config.**
-- *Problem.* `crates/vox-mens/src/commands/ai/train.rs` reads directly.
+- *Problem.* `crates/vox-cli/src/commands/ai/train.rs` reads directly.
 - *Operation.* Decide: if secret, add `SecretId::TogetherFinetuneModel` to `crates/vox-clavis/src/spec/registry/llm.rs` and migrate. If it is non-secret model name, add to `OPERATOR_TUNING_ENVS` in `crates/vox-clavis/src/lib.rs` (line ~59).
 - *Success.* `secret-env-guard` passes.
 

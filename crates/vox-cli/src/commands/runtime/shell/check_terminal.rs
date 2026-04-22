@@ -24,7 +24,48 @@ fn url_host_regex() -> &'static Regex {
 /// Repo-relative default policy path.
 pub const DEFAULT_POLICY_REL: &str = "contracts/terminal/exec-policy.v1.yaml";
 const SCHEMA_REL: &str = "contracts/terminal/exec-policy.v1.schema.json";
-const EXTRACT_SCRIPT_REL: &str = "contracts/terminal/pwsh_extract_command_asts.ps1";
+const EXTRACT_SCRIPT_SRC: &str = r#"
+param()
+$payload = $env:VOX_SHELL_CHECK_PAYLOAD
+if ([string]::IsNullOrWhiteSpace($payload)) { exit 0 }
+$errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseInput($payload, [ref]$null, [ref]$errors)
+
+$parseErrors = @()
+if ($null -ne $errors) {
+    foreach ($err in $errors) {
+        $parseErrors += @{ message = $err.Message; text = $err.Extent.Text }
+    }
+}
+
+$commands = @()
+if ($null -ne $ast) {
+    $foundCmds = $ast.FindAll({ param($astNode) $astNode -is [System.Management.Automation.Language.CommandAst] }, $true)
+    if ($null -ne $foundCmds) {
+        foreach ($cmd in $foundCmds) {
+            $name = $cmd.GetCommandName()
+            $parameters = @()
+            foreach ($elem in $cmd.CommandElements) {
+                if ($elem -is [System.Management.Automation.Language.CommandParameterAst]) {
+                    $parameters += $elem.ParameterName
+                }
+            }
+            $commands += @{ name = $name; parameters = $parameters }
+        }
+    }
+}
+
+$literals = @()
+if ($null -ne $ast) {
+    $foundLits = $ast.FindAll({ param($astNode) $astNode -is [System.Management.Automation.Language.StringConstantExpressionAst] }, $true)
+    if ($null -ne $foundLits) {
+        foreach ($lit in $foundLits) { $literals += $lit.Value }
+    }
+}
+
+$result = @{ parse_errors = $parseErrors; commands = $commands; string_literals = $literals }
+$result | ConvertTo-Json -Depth 5 -Compress
+"#;
 
 #[derive(Debug, Deserialize)]
 struct PwshExtraction {
@@ -110,18 +151,14 @@ pub fn validate_policy_yaml_against_schema(
     serde_yaml::from_str::<ExecPolicyV1>(&policy_src).context("deserialize exec policy")
 }
 
-fn run_pwsh_extract(repo_root: &Path, payload: &str) -> Result<PwshExtraction> {
-    let script = repo_root.join(EXTRACT_SCRIPT_REL);
-    if !script.is_file() {
-        return Err(anyhow!("missing extractor script {}", script.display()));
-    }
+fn run_pwsh_extract(_repo_root: &Path, payload: &str) -> Result<PwshExtraction> {
     let pwsh = resolve_pwsh()?;
     let output = std::process::Command::new(&pwsh)
         .arg("-NoProfile")
         .arg("-ExecutionPolicy")
         .arg("Bypass")
-        .arg("-File")
-        .arg(&script)
+        .arg("-Command")
+        .arg(EXTRACT_SCRIPT_SRC)
         .env("VOX_SHELL_CHECK_PAYLOAD", payload)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

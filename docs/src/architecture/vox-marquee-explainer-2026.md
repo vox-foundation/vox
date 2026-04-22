@@ -1,3 +1,9 @@
+---
+title: "vox-marquee-explainer-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Vox: The Agentic Foundation for 2026
 
 Vox is not just another web framework; it is the first **agentic-native** operating surface for software. In an era where AI agents are no longer just assistants but active developers and maintainers, the traditional "human-only" developer experience (DX) is the bottleneck. Vox solves this by reducing the **K-complexity** of the entire stack, making it as legible to a machine as it is powerful for a human.
@@ -24,3 +30,4 @@ In 2026, the cost of human-in-the-loop (HITL) maintenance is the primary cost of
 
 ---
 *Vox Foundation — April 2026*
+

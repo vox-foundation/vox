@@ -1,3 +1,9 @@
+---
+title: "build-stabilization-findings-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Vox Orchestration Build Stabilization Findings (2026-04-21)
 
 ## Summary
@@ -38,3 +44,4 @@ The Vox workspace has been restored to a stable state. All core orchestration co
 ## Related Artifacts
 - Walkthrough (IDE-private artifact, not versioned)
 - Implementation Plan (IDE-private artifact, not versioned)
+

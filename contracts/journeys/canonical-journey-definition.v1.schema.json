@@ -1,15 +1,16 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox-lang.org/contracts/journeys/canonical-journey-definition.v1.schema.json",
   "title": "CanonicalJourneyDefinitionV1",
   "type": "object",
   "additionalProperties": true,
   "required": ["journey_id", "version", "title"],
-  "properties": {
-    "journey_id": { "type": "string", "minLength": 1 },
-    "version": { "type": "integer", "minimum": 1 },
-    "title": { "type": "string" },
-    "description": { "type": "string" },
-    "documentation_contract": { "type": "string" }
+  "properties": 
+    "journey_id":  "type": "string", "minLength": 1 },
+    "version":  "type": "integer", "minimum": 1 },
+    "title":  "type": "string" },
+    "description":  "type": "string" },
+    "documentation_contract":  "type": "string" }
   }
 }

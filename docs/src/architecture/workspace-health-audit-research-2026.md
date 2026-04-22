@@ -1,3 +1,9 @@
+---
+title: "workspace-health-audit-research-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Research: Workspace Health & Dependency Governance (2026)
 
 ## Overview
@@ -42,3 +48,4 @@ The `audit-workspace-health.vox` script is now a mandatory blocking gate in the 
 ---
 *Created by Antigravity (April 2026)*
 *See: AGENTS.md §Structural Limits & Code Quality*
+

@@ -1,4 +1,5 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox-lang.org/schemas/canonical-map.v1.schema.json",
   "title": "Documentation canonical map v1",
@@ -6,6 +7,9 @@
   "required": ["schema_version", "domains"],
   "additionalProperties": false,
   "properties": {
+    "x-vox-version": {
+      "type": "integer"
+    },
     "schema_version": {
       "type": "integer",
       "const": 1

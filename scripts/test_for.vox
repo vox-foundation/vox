@@ -1,0 +1,9 @@
+fn main() {
+    let files_res = std.fs.glob("*");
+    if files_res.is_err() { return; }
+    let files = files_res.unwrap();
+    for f in files {
+        let parts = f.split(".");
+        print("f: " + f);
+    }
+}

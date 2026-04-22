@@ -1,3 +1,9 @@
+---
+title: "telemetry-driven-cost-accounting-research-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Telemetry-Driven Cost Accounting Architecture (2026)
 
 ## Status: IMPLEMENTED (v59)
@@ -41,3 +47,4 @@ The orchestrator selects models by minimizing `cost_per_success`, ensuring the s
 - **Sample Gating**: Prevents a single anomalous interaction from causing a routing spike.
 - **Provider Parity**: Normalizes billing across OpenRouter, direct provider APIs, and local `$0` mesh nodes.
 - **Audit Consistency**: Verified against `vox ci ssot-audit --features dei`.
+

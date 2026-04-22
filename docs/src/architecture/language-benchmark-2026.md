@@ -1,3 +1,9 @@
+---
+title: "language-benchmark-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Vox Language Benchmark: Developer Velocity & K-Complexity (2026)
 
 ## Executive Summary
@@ -16,3 +22,4 @@ Three identical "Task Management" applications were generated using a standard A
 
 ---
 *Last updated: 2026-04-19*
+

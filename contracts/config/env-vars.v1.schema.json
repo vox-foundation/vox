@@ -1,0 +1,32 @@
+{
+  "x-vox-version": 1,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.org/schemas/config/env-vars.v1.schema.json",
+  "title": "Vox Environment Variables Contract",
+  "type": "object",
+  "properties": {
+    "version": { "type": "integer" },
+    "variables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "owner_crate": { "type": "string" },
+          "kind": { 
+            "type": "string",
+            "enum": ["string", "int", "bool", "path"]
+          },
+          "default": { "type": ["string", "null", "integer", "boolean"] },
+          "required": { "type": "boolean" },
+          "introduced_in": { "type": "string" },
+          "deprecates": { "type": "string" },
+          "see_also": { "type": "array", "items": { "type": "string" } },
+          "description": { "type": "string" }
+        },
+        "required": ["name", "owner_crate", "kind", "required", "introduced_in"]
+      }
+    }
+  },
+  "required": ["version", "variables"]
+}

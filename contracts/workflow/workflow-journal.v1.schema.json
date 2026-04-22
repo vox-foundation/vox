@@ -1,4 +1,5 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox-lang.org/contracts/workflow/workflow-journal.v1.schema.json",
   "title": "Interpreted workflow journal event (v1)",
@@ -8,11 +9,11 @@
     "journal_version",
     "event"
   ],
-  "properties": {
-    "journal_version": {
+  "properties": 
+    "journal_version": 
       "const": 1
     },
-    "event": {
+    "event": 
       "type": "string",
       "enum": [
         "WorkflowStarted",
@@ -35,7 +36,7 @@
     }
   },
   "oneOf": [
-    {
+    
       "required": [
         "event",
         "workflow",
@@ -44,34 +45,34 @@
         "resume_attempt",
         "max_attempts_window"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityAttemptRecovered"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "resume_attempt": {
+        "resume_attempt": 
           "type": "integer",
           "minimum": 2
         },
-        "max_attempts_window": {
+        "max_attempts_window": 
           "type": "integer",
           "minimum": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
@@ -81,140 +82,140 @@
         "max_attempts",
         "idempotency_key"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityTask"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "execution_boundary": {
+        "execution_boundary": 
           "type": "string",
           "enum": [
             "local",
             "mesh"
           ]
         },
-        "max_attempts": {
+        "max_attempts": 
           "type": "integer",
           "minimum": 1
         },
-        "timeout_ms": {
+        "timeout_ms": 
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0
         },
-        "idempotency_key": {
+        "idempotency_key": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
         "steps"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "WorkflowStarted"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "steps": {
+        "steps": 
           "type": "integer",
           "minimum": 0
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "WorkflowCompleted"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
         "activity",
         "activity_id"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityStarted"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
         "activity",
         "activity_id"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityCompleted"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "replayed": {
+        "replayed": 
           "type": "boolean"
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
@@ -222,30 +223,30 @@
         "activity_id",
         "reason"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivitySkipped"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "reason": {
+        "reason": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
@@ -254,33 +255,33 @@
         "replay_source",
         "result_event"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityReplayed"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "replay_source": {
+        "replay_source": 
           "const": "workflow_activity_log"
         },
-        "result_event": {
+        "result_event": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
@@ -290,38 +291,38 @@
         "max_attempts",
         "error"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityAttemptFailed"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "attempt": {
+        "attempt": 
           "type": "integer",
           "minimum": 1
         },
-        "max_attempts": {
+        "max_attempts": 
           "type": "integer",
           "minimum": 1
         },
-        "error": {
+        "error": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "workflow",
@@ -331,90 +332,90 @@
         "next_attempt",
         "delay_ms"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "ActivityRetryScheduled"
         },
-        "workflow": {
+        "workflow": 
           "type": "string",
           "minLength": 1
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "attempt": {
+        "attempt": 
           "type": "integer",
           "minimum": 1
         },
-        "next_attempt": {
+        "next_attempt": 
           "type": "integer",
           "minimum": 2
         },
-        "delay_ms": {
+        "delay_ms": 
           "type": "integer",
           "minimum": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "activity",
         "activity_id",
         "signal_key"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "SignalWaitSatisfied"
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "signal_key": {
+        "signal_key": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "activity",
         "activity_id",
         "waited_ms"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "TimerWaitCompleted"
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "waited_ms": {
+        "waited_ms": 
           "type": "integer",
           "minimum": 0
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "activity",
@@ -422,32 +423,32 @@
         "branch",
         "decision_source"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "BranchDecision"
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "branch": {
+        "branch": 
           "type": "string",
           "enum": [
             "then",
             "else"
           ]
         },
-        "decision_source": {
+        "decision_source": 
           "const": "deterministic_condition"
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "activity",
@@ -455,29 +456,29 @@
         "status",
         "classification"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "LocalActivity"
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "status": {
+        "status": 
           "const": "executed"
         },
-        "classification": {
+        "classification": 
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "activity",
@@ -485,19 +486,19 @@
         "mesh_op",
         "control"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "MeshActivity"
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "mesh_op": {
+        "mesh_op": 
           "type": "string",
           "enum": [
             "noop",
@@ -506,45 +507,45 @@
             "heartbeat"
           ]
         },
-        "control": {
+        "control": 
           "type": "string",
           "minLength": 1
         },
-        "node_id": {
+        "node_id": 
           "type": "string",
           "minLength": 1
         },
-        "node_count": {
+        "node_count": 
           "type": "integer",
           "minimum": 0
         },
-        "schema_version": {
+        "schema_version": 
           "type": "integer",
           "minimum": 1
         }
       },
       "additionalProperties": true
     },
-    {
+    
       "required": [
         "event",
         "activity",
         "activity_id",
         "reason"
       ],
-      "properties": {
-        "event": {
+      "properties": 
+        "event": 
           "const": "MeshActivitySkipped"
         },
-        "activity": {
+        "activity": 
           "type": "string",
           "minLength": 1
         },
-        "activity_id": {
+        "activity_id": 
           "type": "string",
           "minLength": 1
         },
-        "reason": {
+        "reason": 
           "type": "string",
           "minLength": 1
         }

@@ -1,3 +1,9 @@
+---
+title: "ludus-security-and-anti-cheat-research-2026"
+category: "reference"
+status: "current"
+training_eligible: false
+---
 # Ludus Security and Anti-Cheat Architecture (Research 2026)
 
 ## Overview
@@ -68,3 +74,4 @@ Players have a 7-day "Grace Period" to appeal any automated or peer-voted penalt
 *   [Ludus Identity SSOT](ludus-identity-github-integration-research-2026.md)
 *   [Telemetry Trust SSOT](telemetry-trust-ssot.md)
 *   [Anti-Cheat Research Findings 2026](ludus-security-and-anti-cheat-research-2026.md)
+

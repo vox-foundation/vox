@@ -581,11 +581,11 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("fs", "read") if !args.is_empty() => Some(format!(
-            "std::fs::read_to_string({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
+            "::vox_runtime::builtins::vox_fs_read(({}).as_str())",
             args[0]
         )),
         ("fs", "write") if args.len() >= 2 => Some(format!(
-            "std::fs::write({}, {}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
+            "::vox_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
             args[0], args[1]
         )),
         ("fs", "exists") if !args.is_empty() => {
@@ -598,19 +598,23 @@ pub fn std_namespace_runtime_call(
             Some(format!("std::path::Path::new(&{}).is_dir()", args[0]))
         }
         ("fs", "canonicalize") if !args.is_empty() => Some(format!(
-            "std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
+            "::std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
             args[0]
         )),
         ("fs", "remove") if !args.is_empty() => Some(format!(
-            "std::fs::remove_file({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
+            "::std::fs::remove_file({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
             args[0]
         )),
         ("fs", "read_bytes") if !args.is_empty() => Some(format!(
-            "std::fs::read({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
+            "::std::fs::read({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
             args[0]
         )),
         ("fs", "mkdir") if !args.is_empty() => Some(format!(
-            "std::fs::create_dir_all({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
+            "::std::fs::create_dir_all({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
+            args[0]
+        )),
+        ("fs", "glob") if !args.is_empty() => Some(format!(
+            "::vox_runtime::builtins::vox_fs_glob(({}).as_str())",
             args[0]
         )),
         ("path", "join") if args.len() >= 2 => Some(format!(

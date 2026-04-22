@@ -478,6 +478,7 @@ module.exports = grammar({
     // ─── Terminals ─────────────────────────────────────────────
     identifier: $ => /[a-z_][a-zA-Z0-9_]*/,
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+    keyword: $ => choice(/*SSOT_TS_KW*/'fn', 'let', 'mut'/*END_SSOT_TS_KW*/),
     integer: $ => /[0-9]+/,
     float: $ => /[0-9]+\.[0-9]+/,
     string: $ => choice(
@@ -485,7 +486,7 @@ module.exports = grammar({
       seq("'", /([^'\\]|\\.)*/, "'"),
     ),
     boolean: $ => choice('true', 'false'),
-    comment: $ => /#[^\r\n]*/,
+    comment: $ => /\/\/[^\r\n]*/,
     _newline: $ => /\r?\n/,
   },
 });

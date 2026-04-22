@@ -224,18 +224,20 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 
 > Landed in 2a819464 on 2026-04-22; verification: green.
 
-### M-11 · First consumer — `vox-orchestrator::harness`
+### [x] M-11 · First consumer — `vox-orchestrator::harness` (Landed: 2026-04-22)
 
 - **Owner**: Orchestrator.
 - **Blast radius**: M.
 - **Blockers**: M-10.
 - **SSOT findings**: F11.
 - **Sub-steps**:
-  1. Delete (or move to `src/legacy/harness_hand.rs` for reference) the hand-maintained `crates/vox-orchestrator/src/harness.rs`.
-  2. Replace callers of `harness::*` with imports from `crate::generated::agent_harness::*`.
-  3. Add a CI sub-check `schema-codegen-drift` that runs `vox-jsonschema-util`'s emitter with `--dry-run` and fails if the output diff is non-empty.
+  1. Move legacy hand-maintained harness structs and tests from `crates/vox-orchestrator/src/harness.rs` to `crates/vox-orchestrator/src/legacy/harness_hand.rs`.
+  2. Update `vox-orchestrator` consumers to import generated types from `crate::generated::agent_harness`.
+  3. Add CI sub-check `schema-codegen-drift` that runs `vox-jsonschema-util`'s emitter with `--verify` and fails if the output diff is non-empty.
   4. Update `contracts/index.yaml` entry for `agent-harness.schema.json` to add `enforced_by: - vox ci data-storage-guard schema-codegen-drift`.
 - **Verification**: `cargo test -p vox-orchestrator` passes; `vox ci data-storage-guard --only schema-codegen-drift` is green.
+
+> Landed in [x] on 2026-04-22; verification: green.
 
 ### M-12 · Version header parity (`x-vox-version` ↔ filename `.vN.`)
 

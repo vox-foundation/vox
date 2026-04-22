@@ -1,4 +1,5 @@
 {
+  "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox.local/contracts/reports/toestub-remediation/delta-after-remediation.v1.schema.json",
   "title": "TOESTUB remediation delta snapshot (v1)",
@@ -11,30 +12,30 @@
     "current_by_severity",
     "current_by_rule_family"
   ],
-  "properties": {
-    "generated_at": {
+  "properties": 
+    "generated_at": 
       "type": "string",
       "description": "RFC3339 / ISO-8601 timestamp"
     },
-    "baseline_total": { "type": "integer" },
-    "current_total": { "type": "integer" },
-    "delta_total": { "type": "integer" },
-    "current_by_severity": {
+    "baseline_total":  "type": "integer" },
+    "current_total":  "type": "integer" },
+    "delta_total":  "type": "integer" },
+    "current_by_severity": 
       "type": "object",
       "required": ["error", "warning", "info"],
-      "properties": {
-        "error": { "type": "integer", "minimum": 0 },
-        "warning": { "type": "integer", "minimum": 0 },
-        "info": { "type": "integer", "minimum": 0 },
-        "critical": { "type": "integer", "minimum": 0 }
+      "properties": 
+        "error":  "type": "integer", "minimum": 0 },
+        "warning":  "type": "integer", "minimum": 0 },
+        "info":  "type": "integer", "minimum": 0 },
+        "critical":  "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     },
-    "current_by_rule_family": {
+    "current_by_rule_family": 
       "type": "object",
-      "additionalProperties": { "type": "integer", "minimum": 0 }
+      "additionalProperties":  "type": "integer", "minimum": 0 }
     },
-    "notes": { "type": "string" }
+    "notes":  "type": "string" }
   },
   "additionalProperties": false
 }
