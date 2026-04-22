@@ -109,6 +109,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   - `cargo test -p vox-spool` passes.
   - `rg 'OpenOptions::new\(\)[^;]*\.append\(\s*true' crates/ --glob '!crates/vox-spool/**' --glob '!tests/**'` returns at most the allowlisted exceptions (see lint spec rule 8).
 
+> Landed in 1cf50d3b on 2026-04-22; verification: green.
+
 ### M-04 · Land the guard's policy-file schema
 
 - **Owner**: CI.
