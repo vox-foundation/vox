@@ -12026,6 +12026,7 @@ name = "vox-doc-pipeline"
 version = "0.4.0"
 dependencies = [
  "anyhow",
+ "serde_json",
  "vox-bounded-fs",
  "vox-build-meta",
  "vox-compiler",

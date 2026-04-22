@@ -97,11 +97,32 @@ pub fn run() {
     let check_mode = args.contains(&"--check".to_string());
     let lint_only = args.contains(&"--lint-only".to_string());
     let fix_mode = args.contains(&"--fix".to_string());
+    let corpus_mode = args.windows(2).any(|w| w[0] == "--mode" && w[1] == "corpus");
 
     let docs_src = Path::new("docs/src");
     if !docs_src.exists() {
         eprintln!("Error: docs/src/ not found. Run from repo root.");
         std::process::exit(1);
+    }
+
+    if corpus_mode {
+        let mut md_files = Vec::new();
+        collect_md_files(docs_src, &mut md_files);
+        let mut corpus_output = String::new();
+        for f in md_files {
+            if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&f) {
+                let item = serde_json::json!({
+                    "path": f.to_string_lossy().to_string(),
+                    "content": content
+                });
+                corpus_output.push_str(&item.to_string());
+                corpus_output.push('\n');
+            }
+        }
+        let out_path = docs_src.join("corpus.jsonl");
+        fs::write(&out_path, corpus_output).expect("Failed to write corpus.jsonl");
+        println!("Successfully generated docs/src/corpus.jsonl");
+        return;
     }
 
     let lint_targets = parse_paths_arg(&args, docs_src);
