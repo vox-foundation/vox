@@ -1,7 +1,7 @@
 ---
 title: "Data Storage SSOT (2026)"
 category: "architecture"
-status: "proposed"
+status: "roadmap"
 training_eligible: true
 audience: ["contributors", "agents"]
 related:

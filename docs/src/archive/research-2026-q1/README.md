@@ -2,7 +2,7 @@
 title: "Archive"
 description: "Archive"
 category: "architecture"
-status: "archived"
+status: "legacy"
 training_eligible: false
 archived_date: 2026-04-18
 ---

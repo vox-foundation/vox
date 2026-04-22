@@ -1,8 +1,8 @@
 ---
 title: "Vox Oratio: Speech-to-Code Findings 2026"
 description: "Analysis of the deterministic intent bottleneck and roadmap for LLM-backed refinement."
-category: "research"
-status: "current"
+category: "architecture"
+status: "legacy"
 last_updated: "2026-04-18"
 training_eligible: false
 training_rationale: "Analysis of speech-to-code gaps and Phase 1/2 roadmap."
