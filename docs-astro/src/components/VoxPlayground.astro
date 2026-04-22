@@ -7,15 +7,18 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
 
 <vox-playground data-initial-code={initialCode}>
   <div class="vox-playground">
+    <div class="notice-banner">
+      <strong>Note:</strong> Live execution is currently disabled on the static GitHub Pages deployment. A dedicated sandbox backend is pending in a future update.
+    </div>
     <div class="editor-container">
       <textarea class="code-editor" spellcheck="false" aria-label="Vox Code Editor"></textarea>
     </div>
     <div class="actions">
-      <button class="run-btn">Run Code</button>
-      <span class="status-msg"></span>
+      <button class="run-btn" disabled title="Pending backend deployment">Run Code</button>
+      <span class="status-msg">Execution Offline</span>
     </div>
     <div class="output-container">
-      <pre class="output-display">Ready.</pre>
+      <pre class="output-display">Waiting for backend...</pre>
     </div>
   </div>
 </vox-playground>
@@ -27,6 +30,16 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
     overflow: hidden;
     margin: 1.5rem 0;
     background-color: var(--sl-color-bg);
+  }
+  .notice-banner {
+    background-color: var(--sl-color-orange-low);
+    color: var(--sl-color-orange-high);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
   .editor-container {
     border-bottom: 1px solid var(--sl-color-gray-5);
