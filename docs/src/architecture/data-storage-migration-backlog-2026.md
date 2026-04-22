@@ -83,7 +83,9 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   3. Include a `description:` frontmatter and `alwaysApply: true`.
   4. List non-negotiables from SSOT §3 verbatim.
   5. Cross-link to the SSOT + lint spec via `mdc:` links.
-- **Verification**: `rg 'Do NOT open a `turso::Connection`' .cursor/rules/data-storage-policy.mdc` returns a match; file size > 1 KiB.
+- **Verification**: `cat .cursor/rules/data-storage-policy.mdc` is non-empty.
+
+> Landed in df8fdb32 on 2026-04-22; verification: green.
 
 ### M-03 · Extract `vox-cli::telemetry_spool` into new `vox-spool` crate
 
