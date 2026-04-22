@@ -5,13 +5,12 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'docs-astro/**'
       - 'crates/vox-doc-pipeline/**'
       - 'examples/**'
 
 # ── Permissions ────────────────────────────────────────────────────────────
 # GitHub Pages requires pages: write + id-token: write.
-# When porting to GitLab/Gitea, remove this block entirely —
-# those platforms use separate deploy keys or CI variables.
 permissions:
   pages: write
   id-token: write
@@ -22,27 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      # Public site origin for sitemap.xml (match GitHub Pages / docs URL).
-      MDBOOK_SITEMAP_DOMAIN: https://vox-lang.org/
     steps:
       - uses: actions/checkout@v4
 
-      # ── Rust toolchain ──────────────────────────────────────────────────
-      # Portable alternative: rustup update stable && rustup default stable
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      # ── mdBook ─────────────────────────────────────────────────────────
-      # Portable alternative (any platform): cargo install mdbook --locked
-      - name: Install mdBook
-        uses: peaceiris/actions-mdbook@v2
-        with:
-          mdbook-version: '0.4.40'
-
-      - name: Install mdBook tools
-        run: |
-          cargo install mdbook-metadata --locked
-          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.5
@@ -53,84 +36,49 @@ jobs:
           RUSTC_WRAPPER: sccache
 
       - name: Run Docs Pipeline (extract + validate SUMMARY)
-        id: deploy_docs_pipeline
-        continue-on-error: true
-        run: |
-          cargo run -p vox-doc-pipeline
+        run: cargo run -p vox-doc-pipeline
         env:
-          # Passed through to feed.xml lastBuildDate for reproducible builds.
-          # GitHub sets this to the ISO 8601 commit timestamp; the pipeline
-          # accepts both ISO strings and Unix epoch integers.
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
 
-      - name: Warn if docs pipeline failed during deploy
-        if: steps.deploy_docs_pipeline.outcome == 'failure'
-        run: echo "::warning title=Docs pipeline failed::Proceeding with Pages build using repository docs state."
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: Install libxml2-utils
-        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
-      - name: Validate feed.xml (well-formed XML)
-        id: validate_feed
-        run: xmllint --noout docs/src/feed.xml
+      - name: Install docs-astro deps
+        working-directory: docs-astro
+        run: pnpm install --frozen-lockfile
 
-      - name: Warn if feed.xml validation failed
-        if: steps.validate_feed.outcome == 'failure'
-        run: echo "::warning title=feed.xml invalid::feed.xml validation failed; proceeding with Pages build."
-
-      - name: Check SUMMARY.md drift
-        id: deploy_summary_drift
-        continue-on-error: true
-        run: cargo run -p vox-doc-pipeline -- --check
-
-      - name: Warn if SUMMARY drift was detected during deploy
-        if: steps.deploy_summary_drift.outcome == 'failure'
-        run: echo "::warning title=SUMMARY drift::SUMMARY drift detected during deploy; proceeding with Pages build."
-
-      - name: Build mdBook
-        id: mdbook_build
-        run: mdbook build docs
+      - name: Build Starlight
+        working-directory: docs-astro
+        run: pnpm build
 
       - name: Run Lychee Link Checker for UI
         continue-on-error: true
         uses: lycheeverse/lychee-action@v1.9.3
         with:
-          args: --base docs --verbose --no-progress --format json --output docs/lychee_report.json 'docs/**/*.md'
+          args: --base docs-astro/dist --verbose --no-progress --format json --output docs-astro/lychee_report.json 'docs-astro/dist/**/*.html'
           fail: false
-
-      - name: Inject Lychee Icons
-        run: python docs/scripts/lychee_icons.py
 
       - name: Link Checker Guidance
         run: |
-          if grep -q '"errors": [1-9]' docs/lychee_report.json; then
-            echo "::warning title=Broken Links Warning::Documentation contains broken links (marked with red icons)."
+          if grep -q '"errors": [1-9]' docs-astro/lychee_report.json; then
+            echo "::warning title=Broken Links Warning::Documentation contains broken links."
             echo "::notice title=Whitelist Guidance::To ignore a persistent or archival link, add it to .lycheeignore."
-            echo "Whitelist Location: .lycheeignore"
-            echo "Action Required: Decide if links should be fixed in Markdown or added to the whitelist for archival maintenance."
           fi
 
-      - name: Run SEO post-build pass
-        run: python docs/scripts/seo_postprocess.py
-
-      - name: Validate deployed feed.xml
-        run: xmllint --noout docs/book/feed.xml
-
-      - name: Generate sitemap.xml
-        working-directory: docs
-        run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/sitemap.xml
-
       # ── Archive docs artifact ───────────────────────────────────────────
-      # This step is platform-agnostic: it produces docs.tar.gz as a
-      # portable build artifact.
       - name: Archive docs
-        run: tar -czf docs.tar.gz docs/book/
+        run: tar -czf docs.tar.gz docs-astro/dist/
 
       # ── GitHub Pages Deploy ─────────────────────────────────────────────
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/book
+          path: docs-astro/dist
 
   deploy-pages:
     name: Deploy to GitHub Pages
@@ -143,20 +91,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-  sitemap-ping:
-    name: Notify Search Engines
-    needs: deploy-pages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Google Search Console
-        run: >
-          curl --fail --silent --show-error
-          "https://www.google.com/ping?sitemap=https%3A%2F%2Fvox-lang.org%2Fsitemap.xml"
-          || echo "Google ping failed (non-blocking)"
-      - name: Ping Bing Webmaster
-        run: >
-          curl --fail --silent --show-error
-          "https://www.bing.com/ping?sitemap=https%3A%2F%2Fvox-lang.org%2Fsitemap.xml"
-          || echo "Bing ping failed (non-blocking)"
 
