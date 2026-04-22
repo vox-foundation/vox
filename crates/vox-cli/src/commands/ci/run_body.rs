@@ -79,6 +79,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             if opts.json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }
+            if !report.violations.is_empty() {
+                anyhow::bail!("DataStorageGuard failed with {} violations", report.violations.len());
+            }
             Ok(())
         }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),

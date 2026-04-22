@@ -51,9 +51,19 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         return Ok(GuardReport::empty());
     }
 
-    let report = GuardReport::empty();
+    let mut report = GuardReport::empty();
+    
+    let schemas_path = root.join("schemas");
+    if schemas_path.exists() {
+        report.violations.push("schemas-dir-absent: schemas directory exists but is forbidden by policy.".to_string());
+    }
+
     if !opts.json {
-        println!("DataStorageGuard check passed (stub).");
+        if report.violations.is_empty() {
+            println!("DataStorageGuard check passed.");
+        } else {
+            println!("DataStorageGuard check failed with violations: {:#?}", report.violations);
+        }
     }
     Ok(report)
 }
