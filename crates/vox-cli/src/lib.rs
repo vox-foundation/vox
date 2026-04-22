@@ -48,7 +48,6 @@ mod process_supervision;
 pub(crate) mod render;
 #[cfg(feature = "island")]
 mod table;
-mod telemetry_spool;
 pub mod templates;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
