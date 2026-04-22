@@ -5,248 +5,237 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 18 Apr 2026 12:01:36 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 22 Apr 2026 03:50:40 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Vox Orchestration Build Stabilization Findings (2026-04-21)</title>
+    <link>https://vox-lang.org/architecture/build-stabilization-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/build-stabilization-findings-2026.html</guid>
+    <description>Vox Orchestration Build Stabilization Findings (2026-04-21)</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Data Storage Lint &amp; CI Spec (2026)</title>
+    <link>https://vox-lang.org/architecture/data-storage-lint-and-ci-spec-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-lint-and-ci-spec-2026.html</guid>
+    <description>Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.gitlab-ci.yml` `vox-ci-guards` job and `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD.</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Data Storage Migration Backlog (2026)</title>
+    <link>https://vox-lang.org/architecture/data-storage-migration-backlog-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-migration-backlog-2026.html</guid>
+    <description>Data Storage Migration Backlog (2026)</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Data Storage SSOT (2026)</title>
+    <link>https://vox-lang.org/architecture/data-storage-ssot-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-ssot-2026.html</guid>
+    <description>Data Storage SSOT (2026)</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Feature growth and boundaries SSOT (2026)</title>
+    <link>https://vox-lang.org/architecture/feature-growth-boundaries.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/feature-growth-boundaries.html</guid>
+    <description>Governance for the Vox feature surface, crate sprawl limits, and the deterministic projection parity gate.</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Inference Tuning Resolution Research 2026</title>
+    <link>https://vox-lang.org/architecture/inference-tuning-resolution-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/inference-tuning-resolution-research-2026.html</guid>
+    <description>Research into precedence-based parameter resolution for LLM inference.</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Model Orchestration SSOT — Audit &amp; Convergence Plan (2026-04-20)</title>
+    <link>https://vox-lang.org/architecture/model-orchestration-ssot-audit-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/model-orchestration-ssot-audit-2026.html</guid>
+    <description>Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements.</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Telemetry-Driven Cost Accounting Architecture (2026)</title>
+    <link>https://vox-lang.org/architecture/telemetry-driven-cost-accounting-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/telemetry-driven-cost-accounting-research-2026.html</guid>
+    <description>Telemetry-Driven Cost Accounting Architecture (2026)</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Clavis SSOT</title>
+    <link>https://vox-lang.org/reference/clavis-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/clavis-ssot.html</guid>
+    <description>Canonical secret-management source of truth for Vox Clavis</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>cli</title>
+    <link>https://vox-lang.org/reference/cli.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli.html</guid>
+    <description>Documentation for cli.md</description>
+    <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Vox Language Benchmark: Developer Velocity &amp; K-Complexity (2026)</title>
+    <link>https://vox-lang.org/architecture/language-benchmark-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/language-benchmark-2026.html</guid>
+    <description>Vox Language Benchmark: Developer Velocity &amp; K-Complexity (2026)</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Ludus Adjudication System — Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/ludus-adjudication-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-adjudication-implementation-plan-2026.html</guid>
+    <description>Ludus Adjudication System — Implementation Plan (2026)</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Ludus Identity Federation &amp; GitHub Integration</title>
+    <link>https://vox-lang.org/architecture/ludus-identity-github-integration-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-identity-github-integration-research-2026.html</guid>
+    <description>Research findings and architecture plan for decentralized Ludus profile storage and GitHub account linking.</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Ludus Security and Anti-Cheat Architecture (Research 2026)</title>
+    <link>https://vox-lang.org/architecture/ludus-security-and-anti-cheat-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-security-and-anti-cheat-research-2026.html</guid>
+    <description>Ludus Security and Anti-Cheat Architecture (Research 2026)</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox v1.0 Release Criteria (Hardened)</title>
+    <link>https://vox-lang.org/architecture/v1-release-criteria.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/v1-release-criteria.html</guid>
+    <description>Vox v1.0 Release Criteria (Hardened)</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox: The Agentic Foundation for 2026</title>
+    <link>https://vox-lang.org/architecture/vox-marquee-explainer-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-marquee-explainer-2026.html</guid>
+    <description>Vox: The Agentic Foundation for 2026</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Research: Workspace Health &amp; Dependency Governance (2026)</title>
+    <link>https://vox-lang.org/architecture/workspace-health-audit-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/workspace-health-audit-research-2026.html</guid>
+    <description>Research: Workspace Health &amp; Dependency Governance (2026)</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Case Study: First Production Deployment (v1.0 Gate)</title>
+    <link>https://vox-lang.org/case-studies/v1-production-deployment.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/case-studies/v1-production-deployment.html</guid>
+    <description>A walkthrough of deploying a real web application using Vox&apos;s single-command deployment pipeline.</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Agent Planning Prompts</title>
     <link>https://vox-lang.org/contributors/agent-planning-prompts.html</link>
     <guid isPermaLink="true">https://vox-lang.org/contributors/agent-planning-prompts.html</guid>
     <description>Prompt-engineered system directives for chunked file writing to avoid LLM token exhaustion.</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Documentation governance</title>
+    <link>https://vox-lang.org/contributors/documentation-governance.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/documentation-governance.html</guid>
+    <description>Authority map, taxonomy, status vocabulary, and maintenance rules for Vox documentation.</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>How-To: Deploy to Production</title>
+    <link>https://vox-lang.org/how-to/how-to-deploy.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-deploy.html</guid>
+    <description>Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization.</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
+    <title>AI IDE Feature Matrix (2026)</title>
+    <link>https://vox-lang.org/reference/ai-ide-feature-matrix.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ai-ide-feature-matrix.html</guid>
+    <description>AI IDE Feature Matrix (2026)</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>CLI command surface (generated)</title>
+    <link>https://vox-lang.org/reference/cli-command-surface.generated.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli-command-surface.generated.html</guid>
+    <description>Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox ci operations-sync --target cli --write then vox ci command-sync --write.</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>What&apos;s Shipped Today</title>
+    <link>https://vox-lang.org/reference/shipped-v0.4.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/shipped-v0.4.html</guid>
+    <description>What&apos;s Shipped Today</description>
+    <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Comprehensive Vox audit and improvement plan (April 2026, v2)</title>
+    <link>https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</guid>
+    <description>Full-spectrum audit + ~90 prioritized improvements. Targets the &apos;premier LLM destination for web app code&apos; thesis.</description>
     <pubDate>Sat, 18 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Compiler diagnostics and Rust codegen ergonomics</title>
-    <link>https://vox-lang.org/architecture/compiler-diagnostics-ergonomics.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/compiler-diagnostics-ergonomics.html</guid>
-    <description>Policy for miette vs custom diagnostics, error layers, and how contributors should read and troubleshoot vox check output.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Comprehensive Vox audit findings (April 2026)</title>
-    <link>https://vox-lang.org/architecture/comprehensive-audit-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/comprehensive-audit-findings-2026.html</guid>
-    <description>Full-spectrum audit of the Vox codebase, docs, and roadmap; identifies the biggest gaps blocking the &apos;premier LLM destination for web app code&apos; thesis and lists ~100 prioritized improvements.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>LLM Target Language Gap Analysis (April 2026)</title>
-    <link>https://vox-lang.org/architecture/llm-target-language-gap-analysis-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/llm-target-language-gap-analysis-2026.html</guid>
-    <description>Comprehensive audit of gaps across syntax, AST, HIR, type checking, codegen, grammar-constrained decoding, diagnostics, testing, contract system, training, and LSP — with specific, actionable tasks for making Vox the premier LLM target language.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>LLM Target Language: Explicit Implementation Plan (April 2026)</title>
-    <link>https://vox-lang.org/architecture/llm-target-language-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/llm-target-language-implementation-plan-2026.html</guid>
-    <description>Fully explicit, file-level remediation plan for making Vox the premier LLM target language. Incorporates a full codebase audit pass, corrects erroneous prior analysis, surfaces real bugs, and marks all deprecated language surfaces with machine-readable deprecation notices.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>VoxScript as Universal Glue Code — Implementation Plan 2026</title>
-    <link>https://vox-lang.org/architecture/vox-as-glue-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-as-glue-implementation-plan-2026.html</guid>
-    <description>Phased roadmap for decommissioning legacy shell/PowerShell technical debt and standardizing on native .vox automation.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>VoxScript as Universal Glue Code — Research &amp; Architecture 2026</title>
-    <link>https://vox-lang.org/architecture/vox-as-glue-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-as-glue-research-2026.html</guid>
-    <description>Strategy, security model, execution tiers, and migration policy for replacing .ps1/.sh/.py glue scripts with .vox files driven by `vox run`.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Vox Language Focused Training SSOT</title>
-    <link>https://vox-lang.org/architecture/vox-lang-training-ssot-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-lang-training-ssot-2026.html</guid>
-    <description>Vox Language Focused Training SSOT</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Coding Agent Instructions</title>
-    <link>https://vox-lang.org/contributors/coding-agents.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/coding-agents.html</guid>
-    <description>Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>The Vox Contribution Loop</title>
-    <link>https://vox-lang.org/contributors/contribution-loop.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/contribution-loop.html</guid>
-    <description>How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>TOESTUB contributor guide</title>
-    <link>https://vox-lang.org/contributors/toestub-contributor-guide.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/toestub-contributor-guide.html</guid>
-    <description>Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Contributing — Mens native training</title>
-    <link>https://vox-lang.org/how-to/how-to-contribute-mens.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-contribute-mens.html</guid>
-    <description>Onboarding for vox-populi tensor, vox mens train paths, and the golden corpus flywheel.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
-    <category domain="https://schema.org">HowTo</category>
-  </item>
-
-  <item>
-    <title>Contributing — parser and HIR</title>
-    <link>https://vox-lang.org/how-to/how-to-contribute-parser-hir.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-contribute-parser-hir.html</guid>
-    <description>Onboarding for vox-compiler frontend, HIR lowering, and diagnostic discipline.</description>
-    <pubDate>Fri, 17 Apr 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
-    <category domain="https://schema.org">HowTo</category>
-  </item>
-
-  <item>
-    <title>Vox A2A Orchestration Hardening Findings 2026</title>
-    <link>https://vox-lang.org/architecture/a2a-orchestration-hardening-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/a2a-orchestration-hardening-findings-2026.html</guid>
-    <description>Synthesized results and implementation details for securing agent-to-agent handoffs, preventing infinite loops, and ensuring durable context continuity.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Actor GC Implementation Blueprint</title>
-    <link>https://vox-lang.org/architecture/actor-gc-implementation-blueprint-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/actor-gc-implementation-blueprint-2026.html</guid>
-    <description>Detailed operational blueprint for bridging actor boundaries in the Vox Rust-lowering compiler to support Per-Actor Garbage Collection, isolating LLM code generation from strict borrow-checking.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>CSS and AI Inference: The Computed Styles Cascade Problem</title>
-    <link>https://vox-lang.org/architecture/css-ai-inference-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/css-ai-inference-research-2026.html</guid>
-    <description>Research findings on the challenges AI agents face when inferring CSS computed styles, how CSS differs mechanically from traditional programming, and potential mitigations.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>CSS Determinism: Implementation Plan for Vox Style Emission</title>
-    <link>https://vox-lang.org/architecture/css-determinism-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/css-determinism-implementation-plan-2026.html</guid>
-    <description>Grounded implementation plan for making Vox&apos;s CSS emission auditable, constraint-checked, and AI-tractable. Rooted in actual codebase analysis of codegen_ts/emitter.rs, web_ir/, and the StyleBlock/StyleNode pipeline.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Custom Model Pretraining vs Qwen Fine-Tuning Research</title>
-    <link>https://vox-lang.org/architecture/custom-model-pretraining-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/custom-model-pretraining-research-2026.html</guid>
-    <description>&gt;</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Documentation hygiene and AI-agent guidelines 2026</title>
-    <link>https://vox-lang.org/architecture/doc-hygiene-agent-guidelines-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/doc-hygiene-agent-guidelines-2026.html</guid>
-    <description>Guidelines and architecture for documentation hygiene intended to ensure discoverability and robust operation across all AI agents.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Environment Variables vs. Clavis: Strategy and Cross-System Settings 2026</title>
-    <link>https://vox-lang.org/architecture/env-vars-clavis-strategy-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/env-vars-clavis-strategy-2026.html</guid>
-    <description>Research synthesis on when environment variables are necessary, when they are harmful, what alternatives exist, and how Vox Clavis can evolve to support cross-system user settings sync for logged-in users.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Adopting Erlang&apos;s Benefits for LLM-Native Code Generation</title>
-    <link>https://vox-lang.org/architecture/erlang-benefits-for-llms-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/erlang-benefits-for-llms-research-2026.html</guid>
-    <description>Research and architectural plan to bring Erlang&apos;s isolation, preemption, and let-it-crash benefits into Vox to lower K-complexity for LLMs.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>FableForge to Vox Conversion Analysis</title>
-    <link>https://vox-lang.org/architecture/fableforge-to-vox-conversion-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/fableforge-to-vox-conversion-research-2026.html</guid>
-    <description>Feasibility study and architectural comparison for migrating the FableForge TypeScript/Convex stack to the Vox AI-native language.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>GUI Visual Intelligence: Image Analysis Lane Architecture</title>
-    <link>https://vox-lang.org/architecture/gui-visual-intelligence-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-visual-intelligence-research-2026.html</guid>
-    <description>Comprehensive research and design blueprint for an AI-native GUI visual testing and continuous feedback system within the Vox ecosystem.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Memory Management &amp; Per-Actor GC for LLMs</title>
-    <link>https://vox-lang.org/architecture/memory-management-llm-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/memory-management-llm-research-2026.html</guid>
-    <description>Architectural research analyzing the cognitive-load impacts of strict borrow-checking on LLM code generation and the shift toward an Erlang-style, per-actor garbage collection model to reduce K-Complexity.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Network Neuroscience Theory and AI Agent Orchestration (Research 2026)</title>
-    <link>https://vox-lang.org/architecture/network-neuroscience-theory-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/network-neuroscience-theory-research-2026.html</guid>
-    <description>Research findings on applying Network Neuroscience Theory to Vox&apos;s multi-agent orchestrator architecture.</description>
-    <pubDate>Thu, 16 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
