@@ -69,6 +69,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   5. Wire a no-op invocation in `.gitlab-ci.yml` `vox-ci-guards` job so the command exists but is green.
 - **Verification**: `vox ci data-storage-guard --help` succeeds locally; CI pipeline on a PR shows `vox-ci-guards: passed` with a stub log line.
 
+> Landed in 1fa8aa2c on 2026-04-22; verification: green.
+
 ### M-02 · Land `.cursor/rules/data-storage-policy.mdc` (NET-NEW)
 
 - **Owner**: Governance.
