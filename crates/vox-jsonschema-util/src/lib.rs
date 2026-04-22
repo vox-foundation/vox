@@ -5,6 +5,8 @@
 use std::path::Path;
 
 use anyhow::{Context as _, anyhow};
+pub mod codegen;
+
 pub use jsonschema::Validator;
 use serde_json::Value;
 
