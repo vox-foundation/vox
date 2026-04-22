@@ -156,6 +156,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   5. Update `.gitignore` stanza to fail forward: don't add them, just forbid re-creation in the guard.
 - **Verification**: `for f in build_errors.txt codex-cutover-*.sidecar.json test_lexer.rs error.vox; do [ ! -e "$f" ]; done`.
 
+> Landed in a9372778 on 2026-04-22; verification: green.
+
 ### M-07 · Fix `vox-agent.json` / `vox-schema.json` / `vox.tokens.json` ignored-but-tracked contradiction
 
 - **Owner**: Governance.
