@@ -58,6 +58,28 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         report.violations.push("schemas-dir-absent: schemas directory exists but is forbidden by policy.".to_string());
     }
 
+    let strays = [
+        "build_errors.txt",
+        "test_lexer.rs",
+        "error.vox",
+        "prototype_vox_tokenizer.json",
+    ];
+    for stray in strays.iter() {
+        if root.join(stray).exists() {
+            report.violations.push(format!("repo-root-strays-absent: {} is forbidden by policy.", stray));
+        }
+    }
+    
+    if let Ok(entries) = std::fs::read_dir(&root) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("codex-cutover-") && name.ends_with(".sidecar.json") {
+                    report.violations.push(format!("repo-root-strays-absent: {} is forbidden by policy.", name));
+                }
+            }
+        }
+    }
+
     if !opts.json {
         if report.violations.is_empty() {
             println!("DataStorageGuard check passed.");
