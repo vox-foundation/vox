@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct Page {
     pub title: String,
     pub path: String,
