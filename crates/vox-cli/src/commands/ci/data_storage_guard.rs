@@ -80,6 +80,29 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         }
     }
 
+    let ignore_files = [".voxignore", ".aiignore", ".cursorignore", ".aiexclude"];
+    for ignore_file in ignore_files.iter() {
+        if let Ok(content) = std::fs::read_to_string(root.join(ignore_file)) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') || line.contains('*') || line.ends_with('/') {
+                    continue;
+                }
+                
+                if let Ok(output) = std::process::Command::new("git")
+                    .arg("ls-files")
+                    .arg(line)
+                    .current_dir(&root)
+                    .output()
+                {
+                    if !output.stdout.is_empty() {
+                        report.violations.push(format!("ignore-tracked-parity: {} is in {} but is tracked by git.", line, ignore_file));
+                    }
+                }
+            }
+        }
+    }
+
     if !opts.json {
         if report.violations.is_empty() {
             println!("DataStorageGuard check passed.");

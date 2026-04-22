@@ -80,8 +80,6 @@ package-lock.json
 *.gen.rs
 *.gen.ts
 contracts/capability/model-manifest.generated.json
-vox-agent.json
-vox-schema.json
 stub_check_results*.json
 opencode.json
 
