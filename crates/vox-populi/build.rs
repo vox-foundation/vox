@@ -6,7 +6,6 @@ fn main() {
     if precompiled {
         println!("cargo:rustc-cfg=feature=\"vox-precompiled-kernels\"");
         // Skip nvcc checks and compilation
-        return;
     }
 
     // Default behavior (if any was intended here)

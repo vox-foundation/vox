@@ -94,7 +94,7 @@ fn main() {
     out_p.push_str("    #[default]\n    Unknown,\n");
     let mut strength_variants = Vec::new();
     for s in &routing_config.strengths {
-        let pascal = s.split(|c| c == '-' || c == '_').map(|part| {
+        let pascal = s.split(['-', '_']).map(|part| {
             let mut chars = part.chars();
             match chars.next() {
                 None => String::new(),
