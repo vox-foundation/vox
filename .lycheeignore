@@ -20,3 +20,9 @@ docs/news/templates/.*
 .*diva-portal\.org.*
 .*\.gemini/antigravity/.*
 file://.*\.cargo/config\.toml
+# Known planned-but-not-yet-authored architecture stubs (tracked in data-storage-ssot findings F74+)
+# Remove each entry when the corresponding document is created.
+docs/src/architecture/telemetry-trust-ssot\.md
+docs/src/architecture/research-diagnostic-questioning-2026\.md
+docs/src/architecture/plan-adequacy\.md
+docs/src/architecture/agent-event-kind-ludus-matrix\.md

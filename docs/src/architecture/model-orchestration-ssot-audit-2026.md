@@ -599,5 +599,5 @@ RouteLLM (LMSYS) is open source routing logic that pairs a classifier with a two
 - [LLM router comparison 2026](https://inworld.ai/resources/best-llm-router-ai-gateway)
 - [LiteLLM alternatives 2026](https://toolsinfo.com/c/litellm-alternatives/guide)
 - [age/rage encryption — X25519 recipients](https://docs.rs/age/latest/age/)
-- [Vox `AGENTS.md` (this repo)](../../AGENTS.md)
+- [Vox `AGENTS.md` (this repo)](../../../AGENTS.md)
 - [Vox Clavis SSOT (this repo)](../reference/clavis-ssot.md)

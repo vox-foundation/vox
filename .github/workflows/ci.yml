@@ -375,7 +375,7 @@ jobs:
       - name: Vite production build (full_stack_minimal)
         env:
           VOX_WEB_VITE_SMOKE: "1"
-        run: cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored --nocapture
+        run: cargo test -p vox-integration-tests --test web_vite_smoke_test -- --ignored --nocapture
 
   vox-vscode-extension:
     name: VS Code extension (compile + lint)

@@ -65,6 +65,6 @@ Players have a 7-day "Grace Period" to appeal any automated or peer-voted penalt
 3.  **Heuristic Validation**: Implement a basic `CodeMaster` service that checks PR sizes and file types during `sync-github`.
 
 ## References
-*   [Ludus Identity SSOT](file:///c:/Users/Owner/vox/docs/src/architecture/ludus-identity-github-integration-research-2026.md)
-*   [Telemetry Trust SSOT](file:///c:/Users/Owner/vox/docs/src/architecture/telemetry-trust-ssot.md)
-*   [Anti-Cheat Research Findings 2026](file:///c:/Users/Owner/vox/docs/src/architecture/ludus-security-and-anti-cheat-research-2026.md)
+*   [Ludus Identity SSOT](ludus-identity-github-integration-research-2026.md)
+*   [Telemetry Trust SSOT](telemetry-trust-ssot.md)
+*   [Anti-Cheat Research Findings 2026](ludus-security-and-anti-cheat-research-2026.md)

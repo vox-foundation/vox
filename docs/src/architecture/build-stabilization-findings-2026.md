@@ -36,5 +36,5 @@ Recent changes to the `vox build` command (adding `BuildMode` support) broke int
 The Vox workspace has been restored to a stable state. All core orchestration components (`mens`, `populi`, `oratio`, `orchestrator`) now compile cleanly under all feature sets, and the central HTTP control plane integration tests pass.
 
 ## Related Artifacts
-- [Walkthrough (IDE-Private)](walkthrough.md)
-- [Implementation Plan (IDE-Private)](implementation_plan.md)
+- Walkthrough (IDE-private artifact, not versioned)
+- Implementation Plan (IDE-private artifact, not versioned)

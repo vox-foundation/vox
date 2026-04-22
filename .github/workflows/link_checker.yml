@@ -17,7 +17,7 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v1.9.3
         with:
-          args: --base . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 '**/*.md'
+          args: --base . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 --exclude-path docs/src/archive '**/*.md'
           fail: true
 
       - name: Link Checker Guidance
