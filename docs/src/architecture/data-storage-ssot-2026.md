@@ -59,7 +59,7 @@ Canonical persistence for anything that has identity, relations, or constraints.
   - User-global: `$VOX_DATA_DIR/store.db` — conversations, agents, events, Arca/Codex core. Baseline DDL assembled from `SCHEMA_FRAGMENTS` in `crates/vox-db/src/schema/manifest.rs`.
   - Project-local: `<repo>/.vox_modules/local_store.db` — package manager index, materialized from `vox.lock`. Regenerable; opened today via bare string literal in `crates/vox-cli/src/commands/{update,sync,search,pm_lifecycle}.rs` (F6).
   - Retired: `research-audit-codex.db` (fold into `store.db` with namespaced prefix, M-24); `vox_hardened.db` at repo root (orphan — no crate opens it — delete in M-25).
-- **Schema**: 19 domain fragments (`foundation`, `clavis_cloudless`, `cas_codex`, `conversations`, `agents`, `ci_completion`, `developer_journeys`, `exec_time`, `execution`, `external_review`, `gamification_coordination`, `knowledge`, `mens_intelligence`, `packages`, `publish_cloud`, `scientia`, `toestub_build`, `visus`, `vox_mesh`) under `crates/vox-db/src/schema/domains/`. `BASELINE_VERSION = 57` in `manifest.rs`. Contract `contracts/db/baseline-version-policy.yaml` currently pins `repository_baseline_integer: 54` — **live drift**, see F1.
+- **Schema**: 19 domain fragments (`foundation`, `clavis_cloudless`, `cas_codex`, `conversations`, `agents`, `ci_completion`, `developer_journeys`, `exec_time`, `execution`, `external_review`, `gamification_coordination`, `knowledge`, `mens_intelligence`, `packages`, `publish_cloud`, `scientia`, `toestub_build`, `visus`, `vox_mesh`) under `crates/vox-db/src/schema/domains/`. `BASELINE_VERSION = 59` in `manifest.rs` (bumped from 55 → 58 → 59 in commits `411adcac` and `ff0fdccc` on 2026-04-21; this integer is a moving target — the guard must read the live value, not hard-code it). Contract `contracts/db/baseline-version-policy.yaml` currently pins `repository_baseline_integer: 54` — **live drift**, now 5 versions behind, see F1. The scientia domain gained two telemetry tables on 2026-04-21 (`model_scoreboard`, `model_pricing_catalog`); see §F75.
 - **Access policy**: `turso::Connection` / `libsql::Connection` may be opened only inside `vox-db`, `vox-clavis`, `vox-test-harness`. Everywhere else goes through the `vox-db` facade.
 
 ### 4.2 Tier B — Append-only JSONL spools
@@ -155,13 +155,13 @@ Invariants:
 - Wire DTOs (`dto/<domain>.rs`) derive both, and live in a separate module tree.
 - A `From<Row> for Dto` / `TryFrom<Dto> for Row` pair lives in `conv/<domain>.rs`. Generated.
 
-## 7. Findings (F1–F74)
+## 7. Findings (F1–F78)
 
 Each finding has an ID, a one-line summary, a file-and-line anchor, and a link to the migration ticket that fixes it. Findings retain their numbers across drafts for stable cross-reference.
 
 ### A. Tier A — libSQL / Turso surface
 
-- **F1**. `BASELINE_VERSION: i64 = 57` in `crates/vox-db/src/schema/manifest.rs:12` disagrees with `repository_baseline_integer: 54` in `contracts/db/baseline-version-policy.yaml`. The contract claims to be SSoT for this integer and for the baseline digest; in practice the Rust constant moved forward and the contract was not updated. **Live drift.** Fixed by M-20 (digest + version re-sync) and gated by existing `vox ci check-codex-ssot` once M-20 wires auto-update.
+- **F1**. `BASELINE_VERSION: i64 = 59` in `crates/vox-db/src/schema/manifest.rs` (HEAD 2026-04-21 after `ff0fdccc`) disagrees with `repository_baseline_integer: 54` in `contracts/db/baseline-version-policy.yaml`. The contract claims to be SSoT for this integer and for the baseline digest; in practice the Rust constant moved forward three times in the last two days (55 → 58 in `411adcac`, 58 → 59 in `ff0fdccc`) while the contract was not touched. **Live drift, widening.** Fixed by M-20 (digest + version re-sync; must read the Rust constant at build time, not hard-code a number) and gated by existing `vox ci check-codex-ssot` once M-20 wires auto-update. Because the gap is now widening with each orchestration-schema PR, M-20 should land before Phase 2 rather than mid-Phase-2 as originally sequenced.
 - **F2**. No delta migration framework — `BASELINE_VERSION` monotonically grows but every prior baseline is collapsed into one monolithic DDL. Users upgrading mid-version need a forward migration path rather than a drop-and-recreate. M-21.
 - **F3**. 19 domain fragments are authored in Rust (`crates/vox-db/src/schema/domains/*.rs`). Contract-side YAML equivalents do not exist. Inverts the stated "contracts/ is canonical" policy. M-22 emits the YAML side, M-23 flips ownership.
 - **F4**. `research-audit-codex.db` (a second libSQL file at `.vox/research-audit-codex.db`, 1.4 MB on disk) duplicates the ops-storage pattern of `store.db` without a documented reason. Fold into `store.db` with a table-namespaced prefix. M-24.
@@ -257,6 +257,21 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F73**. `tools/` and `infra/` top-level dirs: similar to F72. M-73.
 - **F74**. `telemetry-trust-ssot.md`, `telemetry-remote-sink-spec.md`, and `telemetry-implementation-blueprint-2026.md` are referenced by `AGENTS.md §Telemetry trust (SSOT)` but do NOT exist in `docs/src/architecture/`. M-40 is blocked on authoring at least the trust SSOT. Tracked here so downstream migrations know the prerequisite.
 
+### I. Findings from 2026-04-21 reconciliation pass (F75–F78)
+
+Added after cross-checking the planning docs against the 24-hour commit window `411adcac..ff0fdccc..d5365d43..29c11a4e..8594df02..6249453b` (seven commits, ~4,000 LOC net, landing orchestration routing SSOT + model admin subcommand tree).
+
+- **F75**. New orchestration contract surface at `contracts/orchestration/` — 14 files at HEAD including `model-routing.v1.yaml`, `model-routing.v1.schema.json`, `providers.v1.yaml`, `model-catalog.bootstrap.v1.json`, plus seven `.schema.json` files (`agent-harness`, `agent-vcs-facade`, `context-lifecycle-telemetry`, `context-work-item`, `journey-envelope.v1`, `orch-daemon-rpc-methods`, `repo-reconstruction`, `vox-generate-code-file-outcomes`). This is a first-class *contract domain* that the SSOT's initial inventory did not list. The `scientia` schema fragment gained two Tier A telemetry tables (`model_scoreboard`, `model_pricing_catalog`) as sinks for this routing surface; the `vox-cli model {costs,discover,explain,pricing,rollup,scoreboard}` subcommand tree (`crates/vox-cli/src/commands/model/`) reads/writes them. Action: SSOT §4 Tier A must enumerate the model telemetry tables as an expected Tier A surface; lint spec's `domain-format-single` must allowlist `contracts/orchestration/` as a mixed-format domain (MCP-like exception); backlog gets M-75 to cross-link the new domain and enforce provider-secret parity. Also added: `run_routing_ssot_guard` is already wired into `data-ssot-guards` (`crates/vox-cli/src/commands/ci/run_body_helpers/data_ssot_guards.rs:165,282`) — do not duplicate in `data-storage-guard`.
+- **F76**. **Version-header field name is inconsistent** across contract files. Survey at HEAD:
+  - `contracts/db/data-storage-policy.v1.yaml` uses both `version: 1` and `x-vox-version: 1` (redundant).
+  - `contracts/orchestration/model-routing.v1.yaml` uses `schema_version: 1`.
+  - `contracts/orchestration/providers.v1.yaml` uses `schema_version: 1`.
+  - Older JSON schemas use neither (rely on filename + `$id`).
+
+  The lint spec's `version-header-parity` rule (§1.3) was written assuming only `x-vox-version: N`; against HEAD it would false-fail on every orchestration file. Action: (a) extend the rule to accept the set `{x-vox-version, schema_version, version}` as synonyms for now, (b) add M-76 to converge on `x-vox-version` via a contract-renaming migration that also retires the duplicate `version: 1` in the policy file.
+- **F77**. `contracts/orchestration/providers.v1.yaml::providers[].secret_id` is a new Clavis-parity surface. Each entry's `secret_id` (e.g., `GeminiApiKey`, `OpenRouterApiKey`, `GroqApiKey`) must correspond to a registered ID in `crates/vox-clavis/src/spec/ids.rs` (see `ff0fdccc` diff: `crates/vox-clavis/src/spec/ids.rs` gained +31 lines and `crates/vox-clavis/src/spec/registry/llm.rs` is a new 165-line module registering these). Today this parity is not CI-checked. Action: M-77 adds a guard sub-check `provider-secret-parity`.
+- **F78**. **New `model_*` Tier A tables lack a retention-policy entry.** `contracts/db/retention-policy.yaml` does not yet name `model_scoreboard` or `model_pricing_catalog`; without an explicit retention rule these tables grow unboundedly from `llm_interactions` rollups. Action: M-78 adds retention rules and backfills the policy contract; the existing `vox ci data-ssot-guards` path (`run_scientia_consumption_registry_guard` sibling) gets extended to validate every table in a domain fragment has either a retention rule or an explicit `retention: append-only` marker.
+
 ## 8. Migration phases (seven)
 
 Phases are a summary. Ticket-level detail is in the [migration backlog](data-storage-migration-backlog-2026.md). Every migration item is broken into numbered sub-steps (1, 2, 3, …) with exact file paths so a future LLM or human contributor can execute without re-deriving context.
@@ -316,4 +331,4 @@ This work is considered "done" when all of:
 - **Digest parity** — `schema_baseline_digest_hex()` matches `repository_baseline_digest_hex` in `contracts/db/baseline-version-policy.yaml`. Enforced by existing `vox ci check-codex-ssot`.
 - **Tier A/B/C/D** — the four persistence tiers in §4. Every persistent surface MUST declare its tier; "tierless" is not allowed.
 - **Tierless surface** — a persistent file/table with no declared tier. Treated as a bug by the guard.
-- **Guard** — `vox ci data-storage-guard`, the new sub-check authored by this work.
+- **Guard** 

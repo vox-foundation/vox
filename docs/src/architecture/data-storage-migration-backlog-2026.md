@@ -9,6 +9,23 @@ audience: ["contributors", "agents"]
 
 # Data Storage Migration Backlog (2026)
 
+## Execution order (authoritative)
+
+The omni-agent reads this list top-down. An item is "landed" when `git log --all --grep "^M-NN\b" --pretty=oneline` returns at least one commit. The agent skips landed items and executes the first un-landed item whose listed blockers are all landed.
+
+1. M-00, M-01, M-02, M-03, M-04, M-05, M-06, M-07, M-08, M-09    *(Phase 0 — scaffolding)*
+2. M-20                                                            *(Phase 1b — baseline re-sync; promoted ahead of Phase 1 due to widening BASELINE_VERSION drift, see F1)*
+3. M-10, M-11, M-12, M-13, M-14, M-15, M-16, M-17, M-18, M-19    *(Phase 1 — contracts surface; skip M-20, already landed)*
+4. M-21, M-22, M-23, M-24, M-25, M-26, M-27, M-28, M-29-spike, M-29, M-30  *(Phase 2 — DDL flip; note M-29-spike before M-29)*
+5. M-31, M-32, M-33, M-34, M-35, M-36, M-37, M-38, M-39          *(Phase 3 — Tier B/C rollout)*
+6. M-40, M-41, M-42, M-43, M-44, M-45, M-46, M-47, M-48, M-49    *(Phase 4 — observability)*
+7. M-50, M-51, M-52, M-53, M-54, M-55, M-56, M-57, M-58, M-59    *(Phase 5 — memory hygiene)*
+8. M-60, M-61, M-62, M-63, M-64, M-65, M-66                      *(Phase 6 — regression gates)*
+9. M-67, M-68, M-69, M-70, M-71, M-72, M-73, M-74                *(Phase 7 — gap cleanup)*
+10. M-75, M-76, M-77, M-78                                        *(Phase 7b — reconcile orchestration surface; added 2026-04-21)*
+
+Deferred side-items (M-55b, M-55c, M-57d) are opt-in and not part of the main sweep.
+
 Ticket-level breakdown of the work described in [data-storage-ssot-2026.md](data-storage-ssot-2026.md). Every ticket has:
 
 - **Owner** — default claimant.
@@ -278,20 +295,25 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 
 ## Phase 2 — DDL flip
 
-### M-20 · Re-sync `BASELINE_VERSION` and baseline digest
+### M-20 · Re-sync `BASELINE_VERSION` and baseline digest (raised priority: Phase 1b)
 
 - **Owner**: Data Core.
 - **Blast radius**: M.
 - **Blockers**: M-04.
 - **SSOT findings**: F1, F20, F49.
+- **Priority note**: Between 2026-04-20 and 2026-04-21 `BASELINE_VERSION` moved 55 → 58 → 59 while the contract stayed at 54. The gap is widening with each orchestration-schema PR; M-20 must land before Phase 2 rather than mid-Phase-2.
 - **Sub-steps**:
-  1. Compute current baseline digest: `cargo run -p vox-db --example print_baseline_digest`.
-  2. In `contracts/db/baseline-version-policy.yaml`, update `repository_baseline_integer` to match `BASELINE_VERSION` in `crates/vox-db/src/schema/manifest.rs:12` (currently 57).
+  1. Compute current baseline digest: `cargo run -p vox-db --example print_baseline_digest` — or, if no such example exists, write one at `crates/vox-db/examples/print_baseline_digest.rs` that prints `vox_db::schema::schema_baseline_digest_hex()`.
+  2. In `contracts/db/baseline-version-policy.yaml`, update `repository_baseline_integer` to match `crates/vox-db::schema::manifest::BASELINE_VERSION` (59 at HEAD 2026-04-21; read the value at PR-land time, do not hard-code in this ticket).
   3. Update `repository_baseline_digest_hex` to match `vox_db::schema::schema_baseline_digest_hex()`.
   4. Route `VOX_DB_URL` / `VOX_DB_TOKEN` reads through `vox_clavis::resolve_secret(...)`: modify `crates/vox-db/src/config.rs` to call Clavis first, fall back to `env::var` only during tests.
   5. Run existing `vox ci check-codex-ssot` — should now pass.
   6. Add auto-update logic inside the guard: when `schema_baseline_digest_hex()` changes, a follow-up PR is suggested (or auto-drafted via a CI bot) rather than a hard failure that blocks all PRs.
-- **Verification**: `vox ci check-codex-ssot` passes; `grep BASELINE_VERSION crates/vox-db/src/schema/manifest.rs` and `grep repository_baseline_integer contracts/db/baseline-version-policy.yaml` show equal integers.
+  7. Add a pre-landing check to the PR template: if `crates/vox-db/src/schema/manifest.rs` was touched in the PR, the PR body must include a line `BASELINE_VERSION: <new>` matching the Rust constant; used to auto-update the contract via a post-merge workflow.
+- **Verification**:
+  - `vox ci check-codex-ssot` passes.
+  - `grep -E 'BASELINE_VERSION: i64 = ' crates/vox-db/src/schema/manifest.rs` output and `grep 'repository_baseline_integer:' contracts/db/baseline-version-policy.yaml` output agree byte-for-byte after stripping labels.
+  - `cargo run -p vox-cli --quiet -- ci data-storage-guard --check codex-ssot-digest --json` returns `"status": "pass"`.
 
 ### M-21 · Delta migration framework
 
@@ -885,6 +907,72 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   2. Add guard sub-check `bom-config-files`: fails on any of these starting with `0xEF 0xBB 0xBF`.
 - **Verification**: a synthetic BOM-adding PR fails.
 
+## Phase 7b — Reconciliation with 2026-04-21 orchestration surface (M-75..M-78)
+
+These four tickets close the findings added in SSOT §I (F75–F78) after reconciling the plan with the 24-hour commit window `411adcac..6249453b`.
+
+### M-75 · Cross-link `contracts/orchestration/` as a first-class contract domain
+
+- **Owner**: Platform + Data Core.
+- **Blast radius**: S.
+- **Blockers**: M-04.
+- **SSOT findings**: F75.
+- **Sub-steps**:
+  1. Update `contracts/index.yaml` (if not already present) so every file under `contracts/orchestration/` is listed; run `vox ci contracts-index` to confirm.
+  2. Allowlist `contracts/orchestration/` in `data-storage-policy.v1.yaml::contract_policy.allowed_formats_by_domain` as a mixed-format domain (`[yaml, schema.json, json]`), mirroring the existing `mcp` exception. Pattern: the JSON fixtures + YAML catalog + schema sidecar are all legitimate siblings.
+  3. Extend the lint spec's `domain-format-single` rule so the policy-YAML allowlist governs exceptions. In `crates/vox-cli/src/commands/ci/data_storage_guard/checks/domain_format.rs`, read `allowed_formats_by_domain[<subdir>]` before flagging.
+  4. Cross-reference `contracts/orchestration/` from SSOT §4 Tier A as a seed source for the `model_pricing_catalog` and `model_scoreboard` tables.
+  5. Add a new sub-check `orchestration-contract-sibling-parity` — every `.v1.yaml` in `contracts/orchestration/` has a sibling `.v1.schema.json`; every `.v1.schema.json` has a referenced YAML or fixture.
+- **Verification**:
+  - `vox ci contracts-index` passes.
+  - `vox ci data-storage-guard --check domain-format-single --json` returns `"status": "pass"` with `contracts/orchestration/` allowlisted.
+
+### M-76 · Normalize contract version-header field name
+
+- **Owner**: Platform.
+- **Blast radius**: S–M (touches ~15 files).
+- **Blockers**: M-75.
+- **SSOT findings**: F76.
+- **Sub-steps**:
+  1. Author ADR-style note in `docs/src/architecture/` (small, one page): `x-vox-version` is the canonical version-header key for all contracts; `version` and `schema_version` are deprecated aliases with a one-release sunset.
+  2. Run inventory: `rg -n '^(version|schema_version|x-vox-version):' contracts/ --type yaml` — record the full list in the ADR.
+  3. In `crates/vox-cli/src/commands/ci/data_storage_guard/checks/version_header.rs`, accept `{x-vox-version, version, schema_version}` as synonyms during the sunset window; emit `Severity::Warn` (not `Error`) for the non-canonical forms.
+  4. Script-rename: add `scripts/migrations/2026-q2-normalize-version-header.vox` that rewrites every non-canonical key to `x-vox-version` and removes duplicates (the policy YAML has both `version: 1` and `x-vox-version: 1` — keep the latter).
+  5. After script lands, flip the warn to error and drop the synonym allowance.
+- **Verification**:
+  - `rg -n '^(version|schema_version):' contracts/ --type yaml` returns zero post-script.
+  - `vox ci data-storage-guard --check version-header-parity --json` returns `"status": "pass"` with no warnings.
+
+### M-77 · Provider-secret parity (`providers.v1.yaml` ↔ Clavis)
+
+- **Owner**: Clavis.
+- **Blast radius**: S.
+- **Blockers**: M-75.
+- **SSOT findings**: F77.
+- **Sub-steps**:
+  1. Read every `providers[].secret_id` from `contracts/orchestration/providers.v1.yaml`.
+  2. Assert each is registered in `crates/vox-clavis/src/spec/ids.rs` (the enum that `ff0fdccc` extended by 31 lines) and handled by `crates/vox-clavis/src/spec/registry/llm.rs` (new in `ff0fdccc`, 165 lines).
+  3. Add guard sub-check `provider-secret-parity` in `data_storage_guard/checks/provider_secret.rs`. Implementation follows the same YAML-read + source-grep pattern as `data-ssot-guards::run_scientia_consumption_registry_guard`.
+  4. Extend existing `vox ci clavis-parity` to cross-check in the reverse direction: every `SecretId` that carries the `llm` tag has exactly one referencing entry in `providers.v1.yaml`.
+- **Verification**:
+  - Adding a dummy `- name: FakeProvider, secret_id: "DoesNotExist"` to `providers.v1.yaml` makes `vox ci data-storage-guard --check provider-secret-parity` fail.
+  - Removing a real `secret_id` makes `vox ci clavis-parity` fail.
+
+### M-78 · Retention policy for `model_scoreboard` / `model_pricing_catalog`
+
+- **Owner**: Data Core + Platform.
+- **Blast radius**: S.
+- **Blockers**: M-75.
+- **SSOT findings**: F78.
+- **Sub-steps**:
+  1. Inspect `contracts/db/retention-policy.yaml` — add rules for both new tables. Rollup sources: `llm_interactions` (existing) → `model_pricing_catalog` (daily rollup, keep 90d) → `model_scoreboard` (per-(category, strength, window) aggregate, keep 180d).
+  2. Enforce: extend `data-ssot-guards` (not `data-storage-guard`) with a new file-check: every Tier A table listed in a domain fragment under `crates/vox-db/src/schema/domains/` appears in `retention-policy.yaml` with either a concrete `keep_*` rule or an explicit `retention: append-only`.
+  3. Add unit test `crates/vox-db/tests/retention_policy_coverage.rs` that parses the domain SQL, enumerates `CREATE TABLE` names, and asserts each is named in the retention contract.
+  4. Backfill: for each existing table (~80 tables), add either a retention rule or `append-only` marker. This is mechanical but large; the unit test gates it.
+- **Verification**:
+  - `cargo test -p vox-db --test retention_policy_coverage` passes.
+  - `vox ci data-ssot-guards` output includes `retention-policy coverage OK`.
+
 ## Deferred / side-item tickets
 
 - **M-55b**: benchmark `smol_str::SmolStr` in `vox-runtime` request hot path (F38).
@@ -968,4 +1056,4 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Governance**: owners of `AGENTS.md`, `crates/_frozen.md`, and `docs/src/architecture/decisions/`.
 - **CI**: owners of `.gitlab-ci.yml`, `.github/workflows/`, and the `vox ci` subcommands.
 
-If a team lead isn't named when a ticket is claimed, the default claimant is the crate's most recent non-agent committer, escalating to the governance-doc owner on conflict.
+If a team lead isn't named when a ticket is claimed, the default claimant is the crate's most recent non-agent com

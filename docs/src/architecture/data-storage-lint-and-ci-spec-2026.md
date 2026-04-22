@@ -60,11 +60,15 @@ Every row pairs the check name → finding → the migration item that flips it 
 | Name | Replaces/extends | Finding | One-line description |
 |---|---|---|---|
 | `contracts-index` | delegates to existing `vox ci contracts-index` | — | Every contract listed in `contracts/index.yaml` validates against `contracts/index.schema.json`. |
-| `version-header-parity` | new | F12, M-10 | Every `*.vN.*.{json,yaml}` contract carries `x-vox-version: N` matching the filename digit. |
+| `version-header-parity` | new | F12, F76, M-10, M-76 | Every `*.vN.*.{json,yaml}` contract carries a version-header key (`x-vox-version`, `schema_version`, or `version`) equal to `N`. Canonical key is `x-vox-version`; the other two are sunsetting synonyms until M-76 lands. |
+| `domain-format-single` | new | F16, F75, M-15, M-75 | Within one `contracts/<domain>/` subdir, only one file format is present *unless* the subdir is listed in `data-storage-policy.v1.yaml::contract_policy.allowed_formats_by_domain` (today: `mcp`, `populi`; M-75 adds `orchestration`). |
+| `orchestration-contract-sibling-parity` | new | F75, M-75 | Every `contracts/orchestration/*.v1.yaml` has a sibling `*.v1.schema.json`; vice versa. |
+| `provider-secret-parity` | new | F77, M-77 | Every `providers[].secret_id` in `contracts/orchestration/providers.v1.yaml` matches a `SecretId` variant in `crates/vox-clavis/src/spec/ids.rs` handled by `crates/vox-clavis/src/spec/registry/llm.rs`. |
+| `retention-policy-coverage` | delegated to `data-ssot-guards` | F78, M-78 | Every `CREATE TABLE` in `crates/vox-db/src/schema/domains/*.rs` is named in `contracts/db/retention-policy.yaml`. Not re-implemented in `data-storage-guard`; referenced here only so the check appears in the panel. |
 | `domain-format-single` | new | F16, M-15 | Within one `contracts/<domain>/` subdir, only one contract format is present (or a documented exception in that subdir's README). |
 | `openapi-contract-ref-parity` | new | F17, M-16 | OpenAPI component schemas `$ref` into canonical JSON schemas; no inline duplicates of top-level contract types. |
 | `schema-codegen-drift` | new | F11, F14, M-11 | Re-running `vox schema generate` (module shipped by M-10) produces byte-identical Rust sources. |
-| `codex-ssot-digest` | refocused from existing `vox ci check-codex-ssot` | F3, F5, M-23 | Baseline digest in `contracts/db/baseline-version-policy.yaml::repository_baseline_integer` matches `vox_db::schema::manifest::BASELINE_VERSION` + delta chain. Currently 54 (contract) vs 57 (code); F1 gate flips to *enforcing* only after M-23 lands. |
+| `codex-ssot-digest` | refocused from existing `vox ci check-codex-ssot` | F1, F3, F5, M-20, M-23 | Baseline digest in `contracts/db/baseline-version-policy.yaml::repository_baseline_integer` matches `vox_db::schema::manifest::BASELINE_VERSION` + delta chain. Drift is widening (54 contract vs 59 code at HEAD 2026-04-21 after `411adcac` bumped to 58 and `ff0fdccc` bumped to 59). Gate flips to *enforcing* only after M-20 lands — M-20 has been promoted out of Phase 2 to Phase 1b for this reason. |
 | `schemas-dir-empty` | new | F15, M-05 | Top-level `schemas/` does not exist. Encoded in `contracts/db/data-storage-policy.v1.yaml::repo_hygiene.forbid_existence`. |
 | `repo-root-strays` | new | F25, M-06 | None of `build_errors.txt`, `codex-cutover-*.sidecar.json`, `test_lexer.rs`, `error.vox` exist at repo root. Policy list lives in the same YAML as above. |
 | `gitignored-but-tracked` | new | F26, M-07 | `vox-agent.json`, `vox-schema.json`, `vox.tokens.json` are not in `git ls-files`. |
@@ -543,3 +547,4 @@ done
 ```
 
 Green ledger → this spec is faithful to HEAD. Red ledger → fix the spec before merging (do not silently retcon paths).
+ 
