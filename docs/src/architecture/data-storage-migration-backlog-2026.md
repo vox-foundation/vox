@@ -171,6 +171,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   4. Add guard sub-check `ignore-tracked-parity` that enumerates `.voxignore`, `.aiignore`, `.cursorignore`, `.aiexclude` and fails if any listed file is also tracked by git.
 - **Verification**: guard check passes; documentation reflects the decision.
 
+> Landed in 64b17bf4 on 2026-04-22; verification: green.
+
 ### M-08 · `scratch/` hygiene
 
 - **Owner**: CI.
