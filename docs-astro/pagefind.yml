@@ -1,0 +1,10 @@
+# Pagefind configuration
+# Tells Pagefind which HTML files to index after the Astro build.
+# The 'site' dir is where Astro writes the static output.
+# Negating the archive glob prevents tombstoned research from polluting search results.
+site: dist
+glob: "**/*.html"
+exclude_selectors:
+  - "[data-pagefind-ignore]"
+# Force-ignore the archive subtree by excluding its output path
+force_language: auto

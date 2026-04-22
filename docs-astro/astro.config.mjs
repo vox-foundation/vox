@@ -11,6 +11,7 @@ export default defineConfig({
     starlight({
       title: 'Vox: The AI-Native Programming Language',
       description: 'Official documentation for Vox, the AI-native full-stack programming language.',
+      routeMiddleware: './src/routeData.ts',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/vox-foundation/vox' }
       ],
