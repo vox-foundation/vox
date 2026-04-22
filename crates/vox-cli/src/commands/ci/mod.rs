@@ -12,6 +12,7 @@ mod command_compliance;
 mod command_sync;
 pub mod completion_quality;
 mod contracts_index;
+pub mod data_storage_guard;
 mod dep_sprawl;
 mod determinism_audit;
 mod eval_matrix;

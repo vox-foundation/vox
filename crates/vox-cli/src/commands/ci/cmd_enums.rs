@@ -60,6 +60,9 @@ pub enum CiCmd {
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]
     DataSsotGuards,
+    /// Data storage policy guard checks.
+    #[command(name = "data-storage-guard")]
+    DataStorageGuard(GuardOpts),
     /// Finalize the ssot-audit for the orchestration layer, confirming parity between telemetry-based decisioning and the canonical routing architecture.
     #[command(name = "ssot-audit")]
     SsotAudit,
@@ -446,6 +449,14 @@ pub enum CiCmd {
         #[arg(long, default_value_t = 25)]
         cap: usize,
     },
+}
+
+/// Options for data-storage-guard.
+#[derive(clap::Args, Debug, Clone)]
+pub struct GuardOpts {
+    /// Emit machine-readable JSON only.
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].

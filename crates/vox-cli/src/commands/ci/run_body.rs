@@ -40,8 +40,8 @@ use run_body_helpers::{
     run_feature_matrix, run_grammar_drift, run_grammar_export_check, run_grpo_reward_baseline,
     run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
-    run_secret_env_guard, run_sql_surface_guard, run_ssot_audit, run_ssot_drift, run_toestub_scoped,
-    run_toestub_self_apply, run_turso_import_guard,
+    run_secret_env_guard, run_sql_surface_guard, run_ssot_audit, run_ssot_drift,
+    run_toestub_scoped, run_toestub_self_apply, run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -74,6 +74,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
+        CiCmd::DataStorageGuard(opts) => {
+            let report = crate::commands::ci::data_storage_guard::run(&opts)?;
+            if opts.json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            }
+            Ok(())
+        }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),

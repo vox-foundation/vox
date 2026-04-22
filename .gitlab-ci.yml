@@ -60,6 +60,7 @@ vox-ci-guards:
     - cargo build -p vox-cli
     - cargo run -p vox-cli --quiet -- ci line-endings
     - cargo run -p vox-cli --quiet -- ci manifest
+    - cargo run -p vox-cli --quiet -- ci data-storage-guard --json
     - cargo run -p vox-cli --quiet -- ci check-codex-ssot
     - cargo run -p vox-cli --quiet -- ci check-docs-ssot
     - cargo run -p vox-cli --quiet -- ci command-compliance
