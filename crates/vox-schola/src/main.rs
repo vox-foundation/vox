@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     let root = VoxScholaRoot::parse();
     vox_cli_core::apply_global_opts(&root.global);
 
-    let mut args: Vec<String> = std::env::args().collect();
+    let args: Vec<String> = std::env::args().collect();
     if args.is_empty() {
         anyhow::bail!("No arguments provided");
     }

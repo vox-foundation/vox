@@ -591,7 +591,7 @@ fn verify_catalog_read_role_vs_governance(
 }
 
 fn tool_input_schema_fn_slice(repo_root: &Path) -> Result<String> {
-    let p = repo_root.join("crates/vox-mcp/src/tools/input_schemas.rs");
+    let p = repo_root.join("crates/vox-orchestrator/src/mcp_tools/input_schemas.rs");
     let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
     let start = s
         .find("pub(super) fn tool_input_schema")
@@ -633,7 +633,7 @@ fn verify_mcp_input_schema_coverage(repo_root: &Path, mcp_names: &BTreeSet<Strin
         let needle = format!("\"{name}\"");
         if !body.contains(&needle) {
             return Err(anyhow!(
-                "MCP tool `{raw_name}` has no explicit `tool_input_schema` arm (missing {needle} in crates/vox-mcp/src/tools/input_schemas.rs)"
+                "MCP tool `{raw_name}` has no explicit `tool_input_schema` arm (missing {needle} in crates/vox-orchestrator/src/mcp_tools/input_schemas.rs)"
             ));
         }
     }
@@ -672,14 +672,14 @@ fn verify_derived_registry_artifacts(repo_root: &Path, catalog: &OperationsCatal
 }
 
 fn verify_mcp_dispatch_coverage(repo_root: &Path, mcp_names: &BTreeSet<String>) -> Result<()> {
-    let dispatch_path = repo_root.join("crates/vox-mcp/src/tools/dispatch.rs");
+    let dispatch_path = repo_root.join("crates/vox-orchestrator/src/mcp_tools/dispatch.rs");
     let dispatch = read_utf8_path_capped(&dispatch_path)
         .with_context(|| format!("read {}", dispatch_path.display()))?;
     for name in mcp_names {
         let needle = format!("\"{name}\"");
         if !dispatch.contains(&needle) {
             return Err(anyhow!(
-                "operations catalog MCP tool `{}` not found in vox-mcp dispatch match arms ({})",
+                "operations catalog MCP tool `{}` not found in vox-orchestrator dispatch match arms ({})",
                 name,
                 dispatch_path.display()
             ));

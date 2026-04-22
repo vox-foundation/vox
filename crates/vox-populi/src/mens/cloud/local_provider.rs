@@ -1,11 +1,10 @@
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::mens::cloud::{
-    CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobStatus, TerminationReason,
+    CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobStatus,
 };
-use crate::mens::hardware::types::{ComputeBackend, GpuVendor, HardwareSummary};
+use crate::mens::hardware::types::HardwareSummary;
 
 /// Provider that spawns an in-process local worker acting as a mesh node.
 pub struct LocalProvider {

@@ -155,19 +155,19 @@ fn ref_cli_vox_ci_section_until_eof_when_last_heading() {
     assert!(sec.contains("`manifest"));
 }
 
-/// Guard against drift in `vox-mcp` layout: full wiring must stay parseable by the compliance gate.
+/// Guard against drift in `vox-orchestrator` layout: full wiring must stay parseable by the compliance gate.
 #[test]
-fn mcp_extract_matches_workspace_vox_mcp_mod_rs() {
+fn mcp_extract_matches_workspace_vox_orchestrator_mcp_tools_mod_rs() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
         .expect("vox-cli lives at crates/vox-cli");
-    let base = repo_root.join("crates/vox-mcp/src/tools");
-    let mcp_mod = read_utf8_path_capped(&base.join("mod.rs")).expect("read vox-mcp tools/mod.rs");
+    let base = repo_root.join("crates/vox-orchestrator/src/mcp_tools");
+    let mcp_mod = read_utf8_path_capped(&base.join("mod.rs")).expect("read vox-orchestrator mcp_tools/mod.rs");
     let dispatch =
-        read_utf8_path_capped(&base.join("dispatch.rs")).expect("read vox-mcp tools/dispatch.rs");
+        read_utf8_path_capped(&base.join("dispatch.rs")).expect("read vox-orchestrator mcp_tools/dispatch.rs");
     let aliases = read_utf8_path_capped(&base.join("tool_aliases.rs"))
-        .expect("read vox-mcp tools/tool_aliases.rs");
+        .expect("read vox-orchestrator mcp_tools/tool_aliases.rs");
     let reg = extract_mcp_registry_tool_names(repo_root).expect("registry tools");
     let han = extract_mcp_handler_tools(&dispatch).expect("handler tools");
     let missing: Vec<&String> = reg.iter().filter(|t| !han.contains(*t)).collect();

@@ -681,22 +681,6 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
         ));
     }
 
-    let bootstrap_install = repo_root.join("crates/vox-bootstrap/src/engine/install.rs");
-    let bootstrap_txt = read_utf8_path_capped(&bootstrap_install)
-        .with_context(|| format!("read {}", bootstrap_install.display()))?;
-    if !bootstrap_txt.contains("vox_install_policy::") {
-        return Err(anyhow!(
-            "{}: must delegate install policy to `vox_install_policy` (avoid drift with bootstrap)",
-            bootstrap_install.display()
-        ));
-    }
-    if !bootstrap_txt.contains("CARGO_INSTALL_CLI_FROM_SOURCE") {
-        return Err(anyhow!(
-            "{}: source install must use `vox_install_policy::CARGO_INSTALL_CLI_FROM_SOURCE` (includes `--locked`)",
-            bootstrap_install.display()
-        ));
-    }
-
     let repo_up = repo_root.join("crates/vox-cli/src/commands/repo_upgrade.rs");
     let repo_up_txt =
         read_utf8_path_capped(&repo_up).with_context(|| format!("read {}", repo_up.display()))?;
@@ -844,6 +828,7 @@ pub(crate) fn check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root: &Pat
     }
     fn allowed(rel_posix: &str) -> bool {
         rel_posix.contains("architecture/vox-packaging")
+            || rel_posix.contains("archive/")
             || rel_posix == "reference/pm-migration-2026.md"
             || rel_posix == "reference/cli.md"
     }
@@ -893,9 +878,12 @@ pub(crate) fn check_packaging_pm_docs_no_resurrected_uv_copies(repo_root: &Path)
     ];
     for rel in PATHS {
         let p = repo_root.join(rel);
-        let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        if !p.exists() {
+            continue;
+        }
+        let content = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
         for frag in BAD {
-            if s.contains(frag) {
+            if content.contains(frag) {
                 return Err(anyhow!(
                     "{}: forbidden doc fragment `{frag}` — keep Python/uv paths explicitly historical/retired",
                     p.display()

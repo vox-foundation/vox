@@ -16,10 +16,7 @@ use super::candle_engine::{DecodeTask, Decoder, StreamEvent, WhisperModel, token
 use super::logit_processors;
 use super::multilingual;
 
-#[cfg(feature = "cloud")]
-use super::cloud_offload::CloudOffloadBackend;
-#[cfg(feature = "cloud")]
-use crate::backends::asr_backend::AsrBackend;
+use super::asr_backend::{AsrBackend, AsrOutput};
 
 use crate::runtime_config::resolved_runtime_config;
 
@@ -841,7 +838,8 @@ mod chunk_tests {
 
 // ─── AsrBackend impl ──────────────────────────────────────────────────────
 
-use super::asr_backend::{AsrBackend, AsrOutput};
+#[cfg(feature = "cloud")]
+use super::cloud_offload::CloudOffloadBackend;
 
 /// Zero-allocation wrapper so `candle_whisper` participates in the backend dispatch table.
 pub struct CandleWhisperBackend;

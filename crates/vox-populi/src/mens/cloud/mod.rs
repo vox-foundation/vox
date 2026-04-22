@@ -409,6 +409,7 @@ mod tests {
             started_at: SystemTime::now(),
             estimated_seconds: 3600.0,
             price_per_hour_usd: 1.0,
+            is_persistent: false,
         };
         assert!(h.accrued_cost_usd() < 0.01);
     }

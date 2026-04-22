@@ -251,10 +251,55 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::LockArgs,
     },
+    /// Check toolchain and local environment readiness (`vox doctor`).
+    Doctor {
+        #[command(flatten)]
+        args: cli_args::DoctorArgs,
+    },
+    /// Workspace layout validation + god-object scan (`vox architect`).
+    #[cfg(any(feature = "codex", feature = "stub-check"))]
+    Architect {
+        #[command(subcommand)]
+        cmd: crate::cli_actions::ArchitectAction,
+    },
+    /// TOESTUB scan + Codex baselines / Ludus rewards (`vox stub-check`).
+    #[cfg(feature = "stub-check")]
+    StubCheck {
+        #[command(flatten)]
+        args: cli_args::StubCheckArgs,
+    },
     /// Materialize registry packages from `vox.lock` into `.vox_modules/dl/`.
     Sync {
         #[command(flatten)]
         args: cli_args::SyncArgs,
+    },
+    /// Deprecated: use `vox auth connect` instead.
+    #[command(hide = true)]
+    Login,
+    /// Deprecated: use `vox auth` instead.
+    #[command(hide = true)]
+    Logout,
+    /// Share / search packages via local Arca index (`vox share`).
+    Share {
+        #[command(subcommand)]
+        cmd: crate::commands::extras::share_cli::ShareCli,
+    },
+    /// Deprecated: use `vox mens train` instead.
+    #[command(hide = true)]
+    Train {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Snippet helpers (local `vox-pm` store).
+    Snippet {
+        #[command(subcommand)]
+        cmd: crate::commands::extras::snippet_cli::SnippetCli,
+    },
+    /// ARS skill registry + promote / context (`vox skill`).
+    #[cfg(feature = "ars")]
+    Skill {
+        #[command(subcommand)]
+        cmd: crate::commands::extras::skill_cmd::SkillCmd,
     },
     /// Ludus gamification: profile, companions, quests, and battle simulations.
     #[cfg(feature = "extras-ludus")]

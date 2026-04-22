@@ -332,6 +332,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_visus_baseline" => parse_obj(
             r#"{"type":"object","properties":{"url":{"type":"string"}},"required":["url"],"additionalProperties":false}"#,
         ),
+        "vox_visual_rag_query" => {
+            derived_tool_schema!(crate::mcp_tools::params::VoxVisualRagQueryParams)
+        }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
         "vox_project_init" => parse_obj(
             r#"{"type":"object","properties":{"project_name":{"type":"string","minLength":1,"description":"Project / package name"},"package_kind":{"type":"string","description":"e.g. application, skill, agent, workflow, chatbot, library"},"template":{"type":"string","description":"Optional application template: chatbot, dashboard, api"},"target_subdir":{"type":"string","description":"Repo-relative directory for the scaffold (no `..`); default is workspace root"}},"required":["project_name"],"additionalProperties":false}"#,

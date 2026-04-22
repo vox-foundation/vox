@@ -59,7 +59,7 @@ curated:
 - id: cli.build
   title: Build
   description_human: null
-  description_model: CLI operation `vox build` (optional `--scaffold` seeds user app shell; same as `VOX_WEB_EMIT_SCAFFOLD`)
+  description_model: CLI operation `vox build`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -2547,7 +2547,7 @@ curated:
 - id: cli.migrate.web
   title: Migrate Web Sources
   description_human: null
-  description_model: CLI operation `vox migrate web` — scan `.vox` for migration diagnostics; `--json`; `--write` applies `@component fn` → `component`, `@hook fn` → `fn` (and related deterministic patches); `--check` fails CI when findings remain (v2)
+  description_model: CLI operation `vox migrate web`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -5350,7 +5350,7 @@ curated:
   cli_path: null
   parameters: null
 - id: mcp.vox_doubt_task
-  title: Task Doubt
+  title: Doubt Task
   description_human: null
   description_model: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
   intent_tags: []
@@ -5528,6 +5528,22 @@ curated:
   mcp_tool: vox_get_context
   cli_path: null
   parameters: null
+- id: mcp.vox_ghost_text
+  title: Chat Ghost Text
+  description_human: null
+  description_model: LLM fill-in-the-middle completion for single-line editor fragments.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_ghost_text
+  cli_path: null
+  parameters: null
 - id: mcp.vox_git_blame
   title: Git Blame
   description_human: null
@@ -5657,7 +5673,7 @@ curated:
   cli_path: null
   parameters: null
 - id: mcp.vox_journey_canonical_steps
-  title: Mens Journey Steps
+  title: Journey Canonical Steps
   description_human: null
   description_model: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
   intent_tags: []
@@ -7982,7 +7998,7 @@ curated:
   cli_path: null
   parameters: null
 - id: mcp.vox_trust_override
-  title: Attention Trust Override
+  title: Trust Override
   description_human: null
   description_model: Overrides the trust tier for the agent context.
   intent_tags: []
@@ -8046,7 +8062,7 @@ curated:
   cli_path: null
   parameters: null
 - id: mcp.vox_visual_rag_query
-  title: Rag Visual Query
+  title: Visual Rag Query
   description_human: null
   description_model: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
   intent_tags: []

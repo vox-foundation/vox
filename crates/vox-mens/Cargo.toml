@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [features]
 default = ["mens-base"]
-mens-base = ["dep:vox-populi", "vox-bounded-fs/async"]
+mens-base = ["dep:vox-populi", "vox-bounded-fs/async", "database"]
 oratio = ["mens-base", "dep:vox-oratio", "vox-oratio/serve"]
 oratio-mic = ["oratio", "dep:cpal", "dep:hound"]
 gpu = [

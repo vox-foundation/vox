@@ -55,6 +55,15 @@ The command registry also carries a separate **`product_lane`** value used for b
 | `data` | database and publication workflows | `vox db`, `vox codex`, `vox scientia` |
 | `platform` | packaging, diagnostics, compliance, secrets | `vox pm`, `vox ci`, `vox doctor`, `vox clavis`, `vox telemetry` |
 
+## Visus (`vox visus`)
+
+The `vox visus` suite provides visual intelligence, agentic GUI reasoning, and accessibility audits.
+
+| Command | Role |
+|---------|------|
+| **`vox visus audit`** | Run accessibility and structural audits on web components using visual DOM parsing. |
+| **`vox visus baseline`** | Manages golden visual baselines for regression testing. |
+
 ## Package management (`vox-pm`)
 
 Project dependencies are **declared** in `Vox.toml`, **locked** in `vox.lock`, and **materialized** under `.vox_modules/`. This is separate from **`vox upgrade`**, which refreshes the **Vox toolchain** (never edits `Vox.toml` / `vox.lock`): either a **release binary** or a **local git checkout** + source install.

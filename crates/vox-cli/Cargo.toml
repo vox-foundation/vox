@@ -74,6 +74,10 @@ ludus-hud = ["extras-ludus"]
 live = []
 # Manage the DEI (Distributed Execution Intelligence) orchestrator.
 dei = []
+# DEI training and AI operations (mens).
+mens-dei = ["dei", "database"]
+# Interpreted workflow journal + activities.
+workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = [
     "dep:dirs",
@@ -140,6 +144,7 @@ vox-build-meta = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-populi = { workspace = true, features = ["transport"] }
 vox-mesh-types = { workspace = true }
+vox-workflow-runtime = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }

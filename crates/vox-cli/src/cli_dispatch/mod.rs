@@ -14,8 +14,11 @@ pub(crate) use lanes::run_review_subcommand;
 #[cfg(feature = "script-execution")]
 pub(crate) use lanes::run_script_subcommand;
 pub(crate) use lanes::{
-    cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd,
+    cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_doctor_command,
+    run_fabrica_cmd,
 };
+#[cfg(feature = "stub-check")]
+pub(crate) use lanes::run_stub_check_command;
 
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
     {
@@ -127,11 +130,44 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Sync { args } => {
             crate::commands::sync::run(args.registry.as_deref(), args.frozen).await?;
         }
+        Cli::Login => {
+            eprintln!("vox login is deprecated. Use `vox auth connect` instead.");
+            std::process::exit(1);
+        }
+        Cli::Logout => {
+            eprintln!("vox logout is deprecated. Use `vox auth` instead.");
+            std::process::exit(1);
+        }
+        Cli::Share { cmd } => {
+            crate::commands::extras::share_cli::run(cmd).await?;
+        }
+        Cli::Train { .. } => {
+            eprintln!("vox train is deprecated. Use `vox mens train` instead.");
+            std::process::exit(1);
+        }
+        Cli::Snippet { cmd } => {
+            crate::commands::extras::snippet_cli::run(cmd).await?;
+        }
+        #[cfg(feature = "ars")]
+        Cli::Skill { cmd } => {
+            crate::commands::extras::skill_cmd::run(cmd).await?;
+        }
         Cli::Deploy { args } => {
             crate::commands::deploy::run(args).await?;
         }
         Cli::Pm { cmd } => {
             crate::commands::pm::run(cmd).await?;
+        }
+        Cli::Doctor { args } => {
+            run_doctor_command(&args).await?;
+        }
+        #[cfg(any(feature = "codex", feature = "stub-check"))]
+        Cli::Architect { cmd } => {
+            crate::commands::diagnostics::tools::architect::run(cmd).await?;
+        }
+        #[cfg(feature = "stub-check")]
+        Cli::StubCheck { args } => {
+            run_stub_check_command(&args).await?;
         }
         Cli::Upgrade { args } => {
             crate::commands::upgrade::run(&args, global.json).await?;

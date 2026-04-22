@@ -11821,6 +11821,7 @@ dependencies = [
  "vox-skills",
  "vox-ssg",
  "vox-toestub",
+ "vox-workflow-runtime",
  "walkdir",
  "wasmtime",
  "wasmtime-wasi",

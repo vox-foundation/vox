@@ -16,19 +16,19 @@ pub enum MensSubcommand {
     #[command(name = "mens")]
     Mens {
         #[command(subcommand)]
-        action: vox_mens::commands::mens::PopuliAction,
+        action: Box<vox_mens::commands::mens::PopuliAction>,
     },
     #[cfg(feature = "oratio")]
     #[command(name = "oratio", visible_alias = "speech")]
     Oratio {
         #[command(subcommand)]
-        action: vox_mens::commands::oratio_cmd::OratioAction,
+        action: Box<vox_mens::commands::oratio_cmd::OratioAction>,
     },
     #[cfg(feature = "populi")]
     #[command(name = "populi")]
     Populi {
         #[command(subcommand)]
-        cmd: vox_mens::commands::populi_cli::PopuliCli,
+        cmd: Box<vox_mens::commands::populi_cli::PopuliCli>,
     },
 }
 
@@ -41,15 +41,15 @@ async fn main() -> anyhow::Result<()> {
     match root.command {
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         MensSubcommand::Mens { action } => {
-            vox_mens::commands::mens::run(action, root.global.json, root.global.verbose > 0).await
+            vox_mens::commands::mens::run(*action, root.global.json, root.global.verbose > 0).await
         }
         #[cfg(feature = "oratio")]
         MensSubcommand::Oratio { action } => {
-            vox_mens::commands::oratio_cmd::run(action, root.global.json).await
+            vox_mens::commands::oratio_cmd::run(*action, root.global.json).await
         }
         #[cfg(feature = "populi")]
         MensSubcommand::Populi { cmd } => {
-            vox_mens::commands::populi_cli::run(cmd, root.global.json).await
+            vox_mens::commands::populi_cli::run(*cmd, root.global.json).await
         }
     }
 }

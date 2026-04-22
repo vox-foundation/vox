@@ -5233,7 +5233,7 @@ operations:
     - login
     status: deprecated
     latin_ns: ars
-    handler_rust: commands::login
+    handler_rust: null
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -5259,7 +5259,7 @@ operations:
     - logout
     status: deprecated
     latin_ns: ars
-    handler_rust: commands::logout
+    handler_rust: null
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -5724,7 +5724,7 @@ operations:
     - mens
     status: active
     latin_ns: mens
-    handler_rust: commands::mens
+    handler_rust: null
     feature_gate: mens-base|gpu
     catalog_group: null
     ref_cli_required: true
@@ -6960,7 +6960,7 @@ operations:
     - oratio
     status: active
     latin_ns: fabrica
-    handler_rust: commands::oratio_cmd
+    handler_rust: null
     feature_gate: oratio
     catalog_group: oratio
     ref_cli_required: true
@@ -7593,7 +7593,7 @@ operations:
     - populi
     status: active
     latin_ns: null
-    handler_rust: commands::populi_cli
+    handler_rust: null
     feature_gate: populi
     catalog_group: null
     ref_cli_required: true
@@ -10921,7 +10921,7 @@ operations:
     - train
     status: deprecated
     latin_ns: mens
-    handler_rust: commands::ai::train
+    handler_rust: null
     feature_gate: gpu+mens-dei
     catalog_group: null
     ref_cli_required: true

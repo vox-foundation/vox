@@ -224,7 +224,9 @@ More: [`examples/golden/`](examples/golden/) · [Rosetta comparison (C++, Rust, 
 
 ---
 
-## Quick Start
+## The CLI
+
+### Quick Start
 
 **macOS:**
 ```bash
@@ -258,6 +260,7 @@ vox test <file>          Run @test functions
 vox fmt <file>           Format source
 vox bundle <file>        Full production build → pnpm → single binary
 vox doctor               Verify toolchain, environment, and secret health
+vox commands --recommended Show recommended discovery commands
 ```
 
 ### Pillar 6: VoxScript-First Glue Code

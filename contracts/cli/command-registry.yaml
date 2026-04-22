@@ -1387,7 +1387,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::login
+  handler_rust: null
 - surface: vox-cli
   path:
   - logout
@@ -1398,7 +1398,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::logout
+  handler_rust: null
 - surface: vox-cli
   path:
   - lsp
@@ -1443,7 +1443,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::mens
+  handler_rust: null
 - surface: vox-cli
   path:
   - mens
@@ -1844,7 +1844,7 @@ operations:
   catalog_group: oratio
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::oratio_cmd
+  handler_rust: null
 - surface: vox-cli
   path:
   - pm
@@ -1988,7 +1988,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::populi_cli
+  handler_rust: null
 - surface: vox-cli
   path:
   - populi
@@ -2746,7 +2746,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::ai::train
+  handler_rust: null
 - surface: vox-cli
   path:
   - update
