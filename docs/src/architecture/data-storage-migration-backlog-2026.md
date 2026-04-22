@@ -222,6 +222,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   - `cargo run -p vox-jsonschema-util --example emit_agent_harness -- --dry-run` prints a diff but makes no writes.
   - `cargo run -p vox-jsonschema-util --example emit_agent_harness` writes the file; re-running is a no-op (idempotent).
 
+> Landed in 2a819464 on 2026-04-22; verification: green.
+
 ### M-11 · First consumer — `vox-orchestrator::harness`
 
 - **Owner**: Orchestrator.
