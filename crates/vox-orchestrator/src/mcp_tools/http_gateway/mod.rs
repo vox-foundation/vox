@@ -207,12 +207,32 @@ pub fn spawn_http_gateway_if_enabled(
         
     // Auto-permit unauthenticated access when dashboard is running on loopback only
     #[cfg(feature = "dashboard")]
-    let allow_unauthenticated = allow_unauthenticated
-        || (bind_host == DEFAULT_BIND_HOST
-            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashboardEnabled)
-                .expose()
-                .map(|s| s.trim() == "1")
-                .unwrap_or(false));
+    let mut dashboard_token: Option<String> = None;
+    #[cfg(feature = "dashboard")]
+    if bind_host == DEFAULT_BIND_HOST
+        && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashboardEnabled)
+            .expose()
+            .map(|s| s.trim() == "1")
+            .unwrap_or(false)
+    {
+        use rand::Rng;
+        let token: String = rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
+            
+        let mut path = std::env::temp_dir();
+        path.push("vox");
+        let _ = std::fs::create_dir_all(&path);
+        path.push("dashboard.token");
+        let _ = std::fs::write(&path, &token);
+        
+        if bearer_token.is_none() {
+            bearer_token = Some(token.clone());
+        }
+        dashboard_token = Some(token);
+    }
 
     let public_eval_enabled =
         read_bool_env(vox_clavis::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);
@@ -267,9 +287,35 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/mobile/status", get(http_mobile_status));
 
     #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router());
+    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token));
+
+    async fn check_origin_allowlist(
+        headers: axum::http::HeaderMap,
+        req: axum::extract::Request,
+        next: axum::middleware::Next,
+    ) -> axum::response::Response {
+        let origin = headers.get(axum::http::header::ORIGIN)
+            .and_then(|v| v.to_str().ok())
+            .or_else(|| headers.get(axum::http::header::HOST).and_then(|v| v.to_str().ok()))
+            .unwrap_or("");
+        
+        if !origin.is_empty() {
+            let is_loopback = origin.starts_with("http://127.0.0.1") 
+                || origin.starts_with("http://localhost")
+                || origin.starts_with("https://127.0.0.1")
+                || origin.starts_with("https://localhost")
+                || origin.starts_with("127.0.0.1")
+                || origin.starts_with("localhost");
+                
+            if !is_loopback {
+                return (axum::http::StatusCode::FORBIDDEN, "Forbidden: Invalid Origin/Host").into_response();
+            }
+        }
+        next.run(req).await
+    }
 
     let app = app
+        .layer(axum::middleware::from_fn(check_origin_allowlist))
         .layer(DefaultBodyLimit::max(256 * 1024))
         .with_state(gateway_state.clone());
 

@@ -23,7 +23,7 @@ pub async fn run(args: DashboardArgs) -> Result<()> {
     
     println!("Starting Vox Orchestrator on port {} with Dashboard enabled...", port);
     
-    // We spawn it detached so it survives the CLI exit
+    // We own it in the foreground
     #[cfg(target_os = "windows")]
     let mut child = std::process::Command::new(&daemon_path);
     #[cfg(not(target_os = "windows"))]
@@ -31,24 +31,39 @@ pub async fn run(args: DashboardArgs) -> Result<()> {
     
     child.env("VOX_MCP_HTTP_ENABLED", "1")
          .env("VOX_DASHBOARD_ENABLED", "1")
-         .env("VOX_MCP_HTTP_PORT", port.to_string())
-         .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", format!("127.0.0.1:{}", port + 1));
+         .env("VOX_MCP_HTTP_PORT", port.to_string());
     
     // Try to spawn it
     match child.spawn() {
-        Ok(_) => {
-            println!("[VOX_DASHBOARD_READY: http://127.0.0.1:{}/dashboard]", port);
-            if args.open {
-                let url = format!("http://127.0.0.1:{}/dashboard", port);
-                #[cfg(target_os = "windows")]
-                let _ = std::process::Command::new("cmd").args(&["/C", "start", &url]).spawn();
-                #[cfg(target_os = "macos")]
-                let _ = std::process::Command::new("open").arg(&url).spawn();
-                #[cfg(target_os = "linux")]
-                let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+        Ok(mut child_process) => {
+            let url = format!("http://127.0.0.1:{}/dashboard", port);
+            
+            // Poll socket for up to 5 seconds
+            let mut ready = false;
+            for _ in 0..50 {
+                if std::net::TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
+                    ready = true;
+                    break;
+                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
-            // Keep the CLI process alive so the user sees logs if they want, or they can ctrl-c
-            tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+
+            if ready {
+                println!("[VOX_DASHBOARD_READY: {}]", url);
+                if args.open {
+                    #[cfg(target_os = "windows")]
+                    let _ = std::process::Command::new("cmd").args(&["/C", "start", &url]).spawn();
+                    #[cfg(target_os = "macos")]
+                    let _ = std::process::Command::new("open").arg(&url).spawn();
+                    #[cfg(target_os = "linux")]
+                    let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+                }
+            } else {
+                eprintln!("Warning: Daemon did not bind to port {} within 5 seconds.", port);
+            }
+            
+            // Wait for it in the foreground so Ctrl-C kills it naturally
+            let _ = child_process.wait();
         }
         Err(e) => {
             anyhow::bail!("Failed to start orchestrator daemon: {}", e);

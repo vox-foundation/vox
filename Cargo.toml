@@ -138,6 +138,7 @@ futures-util       = "0.3"
 glob               = "0.3"
 hound              = "3.5.1"
 dirs               = "6"
+mime_guess         = "2.0"
 uuid               = { version = "1", features = ["v4", "serde"] }
 async-stream       = "0.3"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }

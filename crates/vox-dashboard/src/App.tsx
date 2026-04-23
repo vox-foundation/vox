@@ -23,6 +23,7 @@ const vscode = getVsCodeApi();
 type TabId = 'speak' | 'command' | 'network' | 'forge';
 
 function App() {
+  const transport = useVoxTransport();
   const [activeTab, setActiveTab] = useState<TabId>('speak');
   const { playSound } = useSoundEffects(true); // Always enabled for now, can be wired to settings later
   
@@ -59,7 +60,7 @@ function App() {
   const [toasts, setToasts] = useState<any[]>([]);
 
   const addToast = (toast: any) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = Math.random().toString(36).slice(2, 9);
     setToasts((prev) => [...prev, { ...toast, id }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -67,7 +68,6 @@ function App() {
   };
 
   useEffect(() => {
-    const transport = useVoxTransport();
     // Start WebSocket connection
     transport.connect();
     
@@ -106,7 +106,11 @@ function App() {
         }),
         transport.on('playSound', (val: any) => {
           if (typeof val === 'string') {
-            playSound(val as SoundType);
+            try {
+              playSound(val as SoundType);
+            } catch (e) {
+              console.error("Failed to play sound", e);
+            }
           }
         }),
         transport.on('achievementEarned', (val: any) => {

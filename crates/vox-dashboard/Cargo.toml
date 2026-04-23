@@ -5,18 +5,18 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-default = ["embedded-assets"]
+default = []
 # embed built SPA dist/ bytes into binary; disable for dev (Vite serves separately)
 embedded-assets = ["dep:include_dir"]
 
 [dependencies]
 axum = { workspace = true, features = ["http1", "json", "tokio"] }
 tokio = { workspace = true }
-tower-http = { version = "0.6.2", features = ["fs", "cors"] }
+tower-http = { workspace = true, features = ["fs", "cors"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 workspace-hack = { workspace = true }
 include_dir = { version = "0.7", optional = true }
-mime_guess = "2.0"
+mime_guess = { workspace = true }
