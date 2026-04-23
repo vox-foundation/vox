@@ -296,7 +296,7 @@ pub fn spawn_http_gateway_if_enabled(
         next: axum::middleware::Next,
     ) -> axum::response::Response {
         // Exempt the public eval sandbox from loopback restrictions
-        if state.public_eval_enabled && req.uri().path() == "/v1/eval" {
+        if state.public_eval_enabled && (req.uri().path() == "/v1/eval" || req.uri().path() == "/health") {
             return next.run(req).await;
         }
 
@@ -313,7 +313,7 @@ pub fn spawn_http_gateway_if_enabled(
                 || origin.starts_with("127.0.0.1")
                 || origin.starts_with("localhost");
                 
-            if !is_loopback {
+            if !is_loopback && !state.public_eval_enabled {
                 return (axum::http::StatusCode::FORBIDDEN, "Forbidden: Invalid Origin/Host").into_response();
             }
         }

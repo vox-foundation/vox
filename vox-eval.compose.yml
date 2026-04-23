@@ -16,7 +16,7 @@ services:
       dockerfile: Dockerfile
       args:
         # Minimal features to avoid OOM on VPS
-        VOX_CLI_FEATURES: ""
+        VOX_CLI_FEATURES: "mcp-server"
         CARGO_BUILD_JOBS: "1"
 
     container_name: vox-eval-sandbox
