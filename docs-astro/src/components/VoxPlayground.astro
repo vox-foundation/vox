@@ -112,8 +112,29 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
       const runBtn = this.querySelector(".run-btn");
       const statusMsg = this.querySelector(".status-msg");
       const outputDisplay = this.querySelector(".output-display");
+      const noticeBanner = this.querySelector(".notice-banner");
 
       if (editor) editor.value = initialCode;
+      
+      const evalUrl = localStorage.getItem("VOX_EVAL_ENDPOINT") || "https://eval.vox-lang.org/v1/eval";
+      const healthUrl = evalUrl.replace("/v1/eval", "/health");
+
+      // Auto-detect backend health on mount
+      if (runBtn && noticeBanner && statusMsg) {
+        fetch(healthUrl, { signal: AbortSignal.timeout(2000) })
+          .then(res => {
+            if (res.ok) {
+              runBtn.disabled = false;
+              runBtn.title = "Run Vox Code";
+              statusMsg.textContent = "Ready";
+              noticeBanner.style.display = "none";
+              outputDisplay.textContent = "Ready.";
+            }
+          })
+          .catch(() => {
+            // Fails silently; remains in default offline state (disabled + banner showing)
+          });
+      }
 
       if (runBtn) {
         runBtn.addEventListener("click", async () => {
@@ -125,8 +146,6 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
           outputDisplay.textContent = "";
 
           try {
-            // Default to localhost for local docs preview, but allow overrides
-            const endpoint = localStorage.getItem("VOX_EVAL_ENDPOINT") || "http://127.0.0.1:3921/v1/eval";
             const token = localStorage.getItem("VOX_EVAL_TOKEN") || "";
 
             const headers = {
@@ -136,7 +155,7 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
               headers["Authorization"] = `Bearer ${token}`;
             }
 
-            const res = await fetch(endpoint, {
+            const res = await fetch(evalUrl, {
               method: "POST",
               headers,
               body: JSON.stringify({ code })

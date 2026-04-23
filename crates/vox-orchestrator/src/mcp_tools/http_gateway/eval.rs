@@ -24,23 +24,39 @@ pub(super) async fn http_eval(
     headers: HeaderMap,
     Json(req): Json<EvalRequest>,
 ) -> Response {
-    if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
-    }
-    
-    // Check if the current role is authorized for execution. 
-    // Both Read and Write roles allow basic /v1/eval since it runs sandboxed
-    // via `vox run --interp` which itself has strict IO boundaries unless configured otherwise.
-    let _role = match resolve_access_role(&state, &headers) {
-        Ok(r) => r,
-        Err(msg) => {
+    let identity = request_identity(&state, &connect.0, &headers);
+
+    if state.public_eval_enabled {
+        if let Err(msg) = enforce_https_requirement(&state, &headers) {
             return (
-                StatusCode::UNAUTHORIZED,
+                StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({ "error": msg })),
             )
                 .into_response();
         }
-    };
+        if state.public_eval_rate_limiter.check_key(&identity).is_err() {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({ "error": "rate limit exceeded for public eval (10/min)" })),
+            )
+                .into_response();
+        }
+    } else {
+        if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
+            return resp;
+        }
+        
+        let _role = match resolve_access_role(&state, &headers) {
+            Ok(r) => r,
+            Err(msg) => {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({ "error": msg })),
+                )
+                    .into_response();
+            }
+        };
+    }
 
     let dir = match tempfile::tempdir() {
         Ok(d) => d,

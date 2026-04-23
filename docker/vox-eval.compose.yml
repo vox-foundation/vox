@@ -1,0 +1,57 @@
+# Vox Eval Sandbox — Coolify deployment
+# Purpose: exposes /v1/eval to the public internet for the docs playground.
+# This is ONLY the HTTP gateway. It has no workspace, no AI keys, no mesh.
+# Secrets are injected as environment variables via Coolify's project secrets.
+#
+# Docs: docs/src/architecture/eval-sandbox-deployment.md
+
+name: vox-eval-sandbox
+
+services:
+  eval:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        # Only compile the MCP HTTP gateway feature; omit everything else.
+        # This produces a smaller binary and a smaller attack surface.
+        VOX_CLI_FEATURES: ""
+    container_name: vox-eval-sandbox
+    restart: unless-stopped
+    command: ["vox", "mcp"]
+    environment:
+      # Gateway on — bind to 0.0.0.0 so Coolify's Traefik can reach it
+      - VOX_MCP_HTTP_ENABLED=1
+      - VOX_MCP_HTTP_HOST=0.0.0.0
+      - VOX_MCP_HTTP_PORT=3921
+      # Public eval mode: no bearer token required for /v1/eval only
+      - VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED=1
+      # Trust Coolify's Traefik for real IP (for per-IP rate limiting)
+      - VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR=1
+      # HTTPS enforcement: Coolify terminates TLS, so X-Forwarded-Proto: https is set
+      - VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS=1
+      # Lock down rate limit for anonymous playground callers (10/min per IP)
+      # Admin token below is for internal use only; never exposed to docs site
+      - VOX_MCP_HTTP_BEARER_TOKEN=${VOX_MCP_HTTP_BEARER_TOKEN}
+    ports:
+      # Only expose to Traefik, not to the public directly.
+      # Coolify will route eval.vox-lang.org → container port 3921
+      - "3921"
+    labels:
+      # Coolify / Traefik routing labels (filled by Coolify UI, shown here for reference)
+      - "traefik.enable=true"
+      - "traefik.http.routers.vox-eval.rule=Host(`eval.vox-lang.org`)"
+      - "traefik.http.routers.vox-eval.tls=true"
+      - "traefik.http.routers.vox-eval.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vox-eval.loadbalancer.server.port=3921"
+      # CORS for GitHub Pages — allow the static docs site to call the eval endpoint
+      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolalloworiginlist=https://vox-lang.github.io,https://vox-lang.org,http://localhost:4321"
+      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowmethods=POST,OPTIONS"
+      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
+      - "traefik.http.routers.vox-eval.middlewares=vox-eval-cors"
+      - com.centurylinklabs.watchtower.enable=true
+    healthcheck:
+      test: ["CMD", "vox", "doctor", "--probe"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s

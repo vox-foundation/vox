@@ -2457,6 +2457,17 @@ pub const SPECS_MISSING: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
+        id: SecretId::VoxMcpHttpPublicEvalEnabled,
+        canonical_env: "VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set to 1 to allow unauthenticated access to /v1/eval for public playground use.",
+        scope_description: "",
+    },
+    SecretSpec {
         id: SecretId::VoxMeshMaxStaleMs,
         canonical_env: "VOX_MESH_MAX_STALE_MS",
         aliases: &[],

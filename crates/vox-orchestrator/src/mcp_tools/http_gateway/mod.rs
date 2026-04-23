@@ -101,6 +101,8 @@ pub(super) struct GatewayState {
     read_role_tools_override: Option<Arc<HashSet<String>>>,
     calls_per_minute: u32,
     rate_limiter: Arc<IdentityRateLimiter>,
+    pub(super) public_eval_enabled: bool,
+    pub(super) public_eval_rate_limiter: Arc<IdentityRateLimiter>,
 }
 
 #[derive(Debug, Serialize)]
@@ -212,9 +214,13 @@ pub fn spawn_http_gateway_if_enabled(
                 .map(|s| s.trim() == "1")
                 .unwrap_or(false));
 
-    if bearer_token.is_none() && read_bearer_token.is_none() && !allow_unauthenticated {
+    let public_eval_enabled =
+        read_bool_env(vox_clavis::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);
+    let public_eval_rate_limiter = new_identity_rate_limiter(10);
+
+    if bearer_token.is_none() && read_bearer_token.is_none() && !allow_unauthenticated && !public_eval_enabled {
         anyhow::bail!(
-            "VOX_MCP_HTTP_ENABLED=1 requires VOX_MCP_HTTP_BEARER_TOKEN or VOX_MCP_HTTP_READ_BEARER_TOKEN unless VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1 is explicitly set."
+            "VOX_MCP_HTTP_ENABLED=1 requires VOX_MCP_HTTP_BEARER_TOKEN or VOX_MCP_HTTP_READ_BEARER_TOKEN unless VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1 or VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED=1 is explicitly set."
         );
     }
     let require_forwarded_https =
@@ -246,6 +252,8 @@ pub fn spawn_http_gateway_if_enabled(
         read_role_tools_override,
         calls_per_minute,
         rate_limiter: new_identity_rate_limiter(calls_per_minute),
+        public_eval_enabled,
+        public_eval_rate_limiter,
     };
 
     let app = Router::new()

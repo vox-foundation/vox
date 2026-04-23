@@ -374,6 +374,7 @@ pub enum SecretId {
     VoxMcpHttpRequireForwardedHttps,
     VoxMcpHttpHealthAuth,
     VoxMcpHttpTrustXForwardedFor,
+    VoxMcpHttpPublicEvalEnabled,
     VoxMeshMaxStaleMs,
     VoxMcpLlmCostEvents,
     VoxMcpGrammarMask,
