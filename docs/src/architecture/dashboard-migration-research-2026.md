@@ -14,7 +14,7 @@ This document synthesizes the architectural decisions and prerequisites discover
 
 ## Decision
 
-We have decoupled the orchestration dashboard from the VS Code extension, opting for a local Axum-served Single Page Application (SPA). The SPA is bundled at compile-time into the `vox-orchestrator` binary (or the thin `vox-dashboard-d` daemon) using `include_dir!`. This eliminates the need for Node.js at runtime, removes the dependency on the VS Code extension host, and allows universal access from any browser or editor via `vox dashboard`.
+We have decoupled the orchestration dashboard from the VS Code extension, opting for a local Axum-served Single Page Application (SPA). The SPA is bundled at compile-time into the `vox-orchestrator` binary using `include_dir!`. This eliminates the need for Node.js at runtime, removes the dependency on the VS Code extension host, and allows universal access from any browser or editor via `vox dashboard`.
 
 ## Transport
 

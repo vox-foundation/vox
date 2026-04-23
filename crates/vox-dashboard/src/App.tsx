@@ -46,7 +46,8 @@ function App() {
   const [planAdequacyQuestions, setPlanAdequacyQuestions] = useState<string[]>([]);
   const [attentionStatus, setAttentionStatus] = useState<AttentionStatusPayload | null>(null);
   const [attentionAlert, setAttentionAlert] = useState<any | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<{status: string, code?: number}>({status: 'connecting'});
+  const [connectionStatus, setConnectionStatus] = useState<{status: string, code?: number, attempt?: number}>({status: 'connecting'});
+  const [authStatus, setAuthStatus] = useState<string>('authorized');
 
   // Local UI states
   const [chatInput, setChatInput] = useState<string>('');
@@ -135,7 +136,8 @@ function App() {
             type: validated ? 'success' : 'danger',
           });
         }),
-        transport.on('connection_status', (val: any) => setConnectionStatus(val as {status: string, code?: number}))
+        transport.on('connection_status', (val: any) => setConnectionStatus(val as {status: string, code?: number, attempt?: number})),
+        transport.on('authStatus', (val: any) => setAuthStatus(val as string))
     ];
     
     return () => {
@@ -436,12 +438,20 @@ function App() {
             {capabilities?.lastMcpError ? ` · MCP error: ${String(capabilities.lastMcpError).slice(0, 120)}` : ''}
           </div>
           <div className="flex items-center gap-2 font-bold tracking-widest uppercase">
-            {connectionStatus.status === 'disconnected' ? (
+            {authStatus === 'unauthorized' ? (
+              <span className="text-destructive animate-pulse">⚠️ Unauthorized</span>
+            ) : authStatus === 'no_token' ? (
+              <span className="text-destructive">⚠️ No Token (Unauthorized)</span>
+            ) : connectionStatus.status === 'disconnected' ? (
               <span className="text-destructive">⚠️ WS Disconnected {connectionStatus.code ? `(${connectionStatus.code})` : ''}</span>
+            ) : connectionStatus.status === 'error' ? (
+              <span className="text-destructive">⚠️ WS Error</span>
+            ) : connectionStatus.status === 'failed_permanently' ? (
+              <span className="text-destructive">⚠️ WS Failed Permanently</span>
             ) : connectionStatus.status === 'connected' ? (
               <span className="text-green-500">● WS Connected</span>
             ) : (
-              <span className="text-yellow-500 animate-pulse">↻ WS Connecting</span>
+              <span className="text-yellow-500 animate-pulse">↻ WS Connecting {connectionStatus.attempt ? `(${connectionStatus.attempt})` : ''}</span>
             )}
           </div>
         </div>

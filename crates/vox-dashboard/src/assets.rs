@@ -10,6 +10,7 @@ static DIST: include_dir::Dir<'_> = include_dir::include_dir!("$CARGO_MANIFEST_D
 
 pub async fn serve_asset(
     path: Option<Path<String>>,
+    req_headers: axum::http::HeaderMap,
     axum::extract::Extension(token): axum::extract::Extension<Option<String>>
 ) -> Response {
     let mut asset_path = path
@@ -21,19 +22,17 @@ pub async fn serve_asset(
     }
 
     let csp = "default-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'";
-
-    let response_builder = axum::response::Response::builder()
-        .header("Content-Security-Policy", csp)
-        .header("X-Frame-Options", "DENY")
-        .header("Referrer-Policy", "no-referrer");
+    
+    // ETag calculation
+    let etag_prefix = env!("CARGO_PKG_VERSION");
 
     #[cfg(feature = "embedded-assets")]
     let file_result = {
         match DIST.get_file(&asset_path) {
-            Some(file) => Some((mime_guess::from_path(&asset_path).first_or_octet_stream(), file.contents().to_vec())),
+            Some(file) => Some((mime_guess::from_path(&asset_path).first_or_octet_stream(), file.contents().to_vec(), file.contents().len())),
             None => {
                 if let Some(index) = DIST.get_file("index.html") {
-                    Some((mime_guess::from_path("index.html").first_or_octet_stream(), index.contents().to_vec()))
+                    Some((mime_guess::from_path("index.html").first_or_octet_stream(), index.contents().to_vec(), index.contents().len()))
                 } else {
                     None
                 }
@@ -54,13 +53,28 @@ pub async fn serve_asset(
         };
         
         std::fs::read(&file_path).ok().map(|contents| {
-            (mime_guess::from_path(&file_path).first_or_octet_stream(), contents)
+            let len = contents.len();
+            (mime_guess::from_path(&file_path).first_or_octet_stream(), contents, len)
         })
     };
 
     match file_result {
-        Some((mime_type, mut contents)) => {
-            let mut response_builder = response_builder;
+        Some((mime_type, mut contents, size)) => {
+            let etag = format!("\"{}--{}-{}\"", etag_prefix, asset_path.replace('/', "-"), size);
+            
+            // Check If-None-Match
+            if let Some(if_none_match) = req_headers.get(axum::http::header::IF_NONE_MATCH) {
+                if if_none_match.to_str().unwrap_or("") == etag {
+                    return StatusCode::NOT_MODIFIED.into_response();
+                }
+            }
+            
+            let mut response_builder = axum::response::Response::builder()
+                .header("Content-Security-Policy", csp)
+                .header("X-Frame-Options", "DENY")
+                .header("Referrer-Policy", "no-referrer")
+                .header("ETag", etag);
+
             if mime_type.as_ref() == "text/html" {
                 response_builder = response_builder.header("Cache-Control", "no-store");
                 if let Some(t) = token {
@@ -71,7 +85,10 @@ pub async fn serve_asset(
                     );
                     contents = injected.into_bytes();
                 }
+            } else {
+                response_builder = response_builder.header("Cache-Control", "public, max-age=31536000, immutable");
             }
+            
             response_builder
                 .header(header::CONTENT_TYPE, mime_type.as_ref())
                 .body(axum::body::Body::from(contents))

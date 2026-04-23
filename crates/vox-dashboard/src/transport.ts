@@ -5,6 +5,14 @@ export class VoxTransport {
   private maxReconnectAttempts = 10;
   private isConnecting = false;
 
+  constructor() {
+    setTimeout(() => {
+      if (!this.getToken()) {
+        this.emit('authStatus', 'no_token');
+      }
+    }, 0);
+  }
+
   private getMetaContent(name: string): string | null {
     const el = document.querySelector(`meta[name="${name}"]`);
     return el ? el.getAttribute('content') : null;
@@ -51,6 +59,7 @@ export class VoxTransport {
 
     this.ws.onerror = (err) => {
         console.error('WS error:', err);
+        this.emit('connection_status', { status: 'error', error: 'WebSocket error' });
     };
     
     this.ws.onmessage = (event) => {
@@ -77,21 +86,27 @@ export class VoxTransport {
       console.log(`WS disconnected: code=${event.code}, reason=${event.reason}`);
       this.ws = null;
       this.isConnecting = false;
-      this.emit('connection_status', { status: 'disconnected', code: event.code });
+      this.emit('connection_status', { status: 'disconnected', code: event.code, attempt: this.reconnectAttempts });
       
       // Stop reconnecting on auth failure (1008 Policy Violation or 4000+ custom auth codes)
-      if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
+      if (event.code === 1008 || event.code === 4001 || event.code === 4003 || event.code === 4401) {
           console.error("WS authentication failed. Stopping reconnects.");
+          this.emit('authStatus', 'unauthorized');
           return;
       }
       
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
-          const backoff = Math.min(2000 * Math.pow(1.5, this.reconnectAttempts), 15000);
+          let backoff = 250 * Math.pow(2, this.reconnectAttempts);
+          if (this.reconnectAttempts === 4) backoff = 5000;
+          else if (this.reconnectAttempts === 5) backoff = 10000;
+          else if (this.reconnectAttempts >= 6) backoff = 30000;
+          
           console.log(`Attempting reconnect ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts} in ${backoff}ms...`);
           this.reconnectAttempts++;
           setTimeout(() => this.connect(), backoff);
       } else {
           console.error("WS max reconnect attempts reached.");
+          this.emit('connection_status', { status: 'failed_permanently' });
       }
     };
   }
@@ -113,6 +128,9 @@ export class VoxTransport {
         args
       })
     });
+    if (res.status === 401 || res.status === 403) {
+        this.emit('authStatus', 'unauthorized');
+    }
     if (!res.ok) {
         throw new Error(`Tool call failed: ${res.status} ${res.statusText}`);
     }
