@@ -9,13 +9,9 @@ name: vox-eval-sandbox
 
 services:
   eval:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # Only compile the MCP HTTP gateway feature; omit everything else.
-        # This produces a smaller binary and a smaller attack surface.
-        VOX_CLI_FEATURES: ""
+    # Pre-built by GitHub Actions → ghcr.io (avoids OOM on memory-constrained VPS).
+    # Workflow: .github/workflows/docker-eval.yml
+    image: ghcr.io/vox-foundation/vox-eval:latest
     container_name: vox-eval-sandbox
     restart: unless-stopped
     command: ["vox", "mcp"]
