@@ -1,10 +1,9 @@
 {
-  "x-vox-version": 1,
   "schema": "contracts/clavis/managed-env-names.v1.json",
-  "generated_at_ms": 1776373202552,
+  "generated_at_ms": 1776909558798,
   "generator": "vox ci clavis-contracts",
   "secrets": [
-    
+    {
       "id": "GeminiApiKey",
       "canonical_env": "GEMINI_API_KEY",
       "aliases": [
@@ -19,7 +18,29 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
+      "id": "GeminiDirectModel",
+      "canonical_env": "GEMINI_DIRECT_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OpenRouterGeminiModel",
+      "canonical_env": "OPENROUTER_GEMINI_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "OpenRouterApiKey",
       "canonical_env": "OPENROUTER_API_KEY",
       "aliases": [
@@ -32,7 +53,7 @@
         "ChatCloudPrimary"
       ]
     },
-    
+    {
       "id": "OpenRouterModel",
       "canonical_env": "OPENROUTER_MODEL",
       "aliases": [],
@@ -43,7 +64,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "OpenaiApiKey",
       "canonical_env": "OPENAI_API_KEY",
       "aliases": [
@@ -56,7 +77,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "AnthropicApiKey",
       "canonical_env": "ANTHROPIC_API_KEY",
       "aliases": [
@@ -69,7 +90,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "GroqApiKey",
       "canonical_env": "GROQ_API_KEY",
       "aliases": [
@@ -82,7 +103,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "MistralApiKey",
       "canonical_env": "MISTRAL_API_KEY",
       "aliases": [
@@ -95,7 +116,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "DeepSeekApiKey",
       "canonical_env": "DEEPSEEK_API_KEY",
       "aliases": [
@@ -108,7 +129,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "SambaNovaApiKey",
       "canonical_env": "SAMBANOVA_API_KEY",
       "aliases": [
@@ -121,7 +142,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "HuggingFaceToken",
       "canonical_env": "HF_TOKEN",
       "aliases": [
@@ -136,7 +157,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "OllamaUrl",
       "canonical_env": "OLLAMA_URL",
       "aliases": [],
@@ -147,7 +168,20 @@
         "Orchestration"
       ]
     },
-    
+    {
+      "id": "VoxPopuliLocalOllamaUrl",
+      "canonical_env": "VOX_POPULI_LOCAL_OLLAMA_URL",
+      "aliases": [],
+      "deprecated_aliases": [
+        "POPULI_URL"
+      ],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "OllamaModel",
       "canonical_env": "OLLAMA_MODEL",
       "aliases": [],
@@ -158,7 +192,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "TogetherApiKey",
       "canonical_env": "TOGETHER_API_KEY",
       "aliases": [
@@ -171,7 +205,18 @@
         "GpuCloud"
       ]
     },
-    
+    {
+      "id": "TogetherFinetuneModel",
+      "canonical_env": "TOGETHER_FINETUNE_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "CustomOpenaiApiKey",
       "canonical_env": "CUSTOM_OPENAI_API_KEY",
       "aliases": [],
@@ -182,7 +227,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "V0ApiKey",
       "canonical_env": "V0_API_KEY",
       "aliases": [],
@@ -194,7 +239,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "OpenClawToken",
       "canonical_env": "OPENCLAW_TOKEN",
       "aliases": [],
@@ -206,7 +251,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxRunpodApiKey",
       "canonical_env": "RUNPOD_API_KEY",
       "aliases": [],
@@ -217,7 +262,7 @@
         "GpuCloud"
       ]
     },
-    
+    {
       "id": "VoxVastApiKey",
       "canonical_env": "VAST_API_KEY",
       "aliases": [],
@@ -228,7 +273,7 @@
         "GpuCloud"
       ]
     },
-    
+    {
       "id": "CerebrasApiKey",
       "canonical_env": "CEREBRAS_API_KEY",
       "aliases": [
@@ -241,7 +286,7 @@
         "ChatCloudAlt"
       ]
     },
-    
+    {
       "id": "VoxAnthropicDirect",
       "canonical_env": "VOX_ANTHROPIC_DIRECT",
       "aliases": [],
@@ -252,7 +297,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenrouterHttpReferer",
       "canonical_env": "OPENROUTER_HTTP_REFERER",
       "aliases": [
@@ -265,7 +310,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenrouterAppTitle",
       "canonical_env": "OPENROUTER_APP_TITLE",
       "aliases": [
@@ -278,7 +323,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenrouterRouteHint",
       "canonical_env": "OPENROUTER_ROUTE_HINT",
       "aliases": [],
@@ -289,7 +334,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOllamaHost",
       "canonical_env": "OLLAMA_HOST",
       "aliases": [],
@@ -300,7 +345,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGroqChatCompletionsUrl",
       "canonical_env": "VOX_GROQ_CHAT_COMPLETIONS_URL",
       "aliases": [],
@@ -311,7 +356,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCerebrasChatCompletionsUrl",
       "canonical_env": "VOX_CEREBRAS_CHAT_COMPLETIONS_URL",
       "aliases": [],
@@ -322,7 +367,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMistralChatCompletionsUrl",
       "canonical_env": "VOX_MISTRAL_CHAT_COMPLETIONS_URL",
       "aliases": [],
@@ -333,7 +378,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxDeepseekChatCompletionsUrl",
       "canonical_env": "VOX_DEEPSEEK_CHAT_COMPLETIONS_URL",
       "aliases": [],
@@ -344,7 +389,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSambanovaChatCompletionsUrl",
       "canonical_env": "VOX_SAMBANOVA_CHAT_COMPLETIONS_URL",
       "aliases": [],
@@ -355,7 +400,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxAnthropicChatCompletionsUrl",
       "canonical_env": "VOX_ANTHROPIC_CHAT_COMPLETIONS_URL",
       "aliases": [],
@@ -366,7 +411,128 @@
         "Orchestration"
       ]
     },
-    
+    {
+      "id": "TogetherTuningTemperature",
+      "canonical_env": "TOGETHER_TUNING_TEMPERATURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "TogetherTuningTopP",
+      "canonical_env": "TOGETHER_TUNING_TOP_P",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "GeminiTuningTemperature",
+      "canonical_env": "GEMINI_TUNING_TEMPERATURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "GeminiTuningTopP",
+      "canonical_env": "GEMINI_TUNING_TOP_P",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OllamaTuningTemperature",
+      "canonical_env": "OLLAMA_TUNING_TEMPERATURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OllamaTuningTopP",
+      "canonical_env": "OLLAMA_TUNING_TOP_P",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OllamaTuningNumCtx",
+      "canonical_env": "OLLAMA_TUNING_NUM_CTX",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OpenaiTuningTemperature",
+      "canonical_env": "OPENAI_TUNING_TEMPERATURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "OpenaiTuningTopP",
+      "canonical_env": "OPENAI_TUNING_TOP_P",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "AnthropicTuningTemperature",
+      "canonical_env": "ANTHROPIC_TUNING_TEMPERATURE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "AnthropicTuningTopP",
+      "canonical_env": "ANTHROPIC_TUNING_TOP_P",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "VoxCostPreference",
       "canonical_env": "VOX_COST_PREFERENCE",
       "aliases": [],
@@ -377,7 +543,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxDogfoodTracePath",
       "canonical_env": "VOX_DOGFOOD_TRACE_PATH",
       "aliases": [],
@@ -388,7 +554,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "ForgeToken",
       "canonical_env": "FORGE_TOKEN",
       "aliases": [
@@ -406,7 +572,7 @@
         "PublishReview"
       ]
     },
-    
+    {
       "id": "V0ApiKey",
       "canonical_env": "V0_API_KEY",
       "aliases": [
@@ -420,7 +586,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "OpenClawToken",
       "canonical_env": "VOX_OPENCLAW_TOKEN",
       "aliases": [],
@@ -432,7 +598,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxOpenClawUrl",
       "canonical_env": "VOX_OPENCLAW_URL",
       "aliases": [],
@@ -443,7 +609,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenClawWsUrl",
       "canonical_env": "VOX_OPENCLAW_WS_URL",
       "aliases": [],
@@ -454,7 +620,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxApiKey",
       "canonical_env": "VOX_API_KEY",
       "aliases": [],
@@ -465,7 +631,7 @@
         "RuntimeIngress"
       ]
     },
-    
+    {
       "id": "VoxBearerToken",
       "canonical_env": "VOX_BEARER_TOKEN",
       "aliases": [],
@@ -476,7 +642,7 @@
         "RuntimeIngress"
       ]
     },
-    
+    {
       "id": "VoxDbUrl",
       "canonical_env": "VOX_DB_URL",
       "aliases": [],
@@ -490,7 +656,7 @@
         "DbRemote"
       ]
     },
-    
+    {
       "id": "VoxDbToken",
       "canonical_env": "VOX_DB_TOKEN",
       "aliases": [],
@@ -504,7 +670,7 @@
         "DbRemote"
       ]
     },
-    
+    {
       "id": "WebhookIngressToken",
       "canonical_env": "VOX_WEBHOOK_INGRESS_TOKEN",
       "aliases": [],
@@ -515,7 +681,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "WebhookSigningSecret",
       "canonical_env": "VOX_WEBHOOK_SIGNING_SECRET",
       "aliases": [],
@@ -526,7 +692,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "TavilyApiKey",
       "canonical_env": "TAVILY_API_KEY",
       "aliases": [
@@ -542,7 +708,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "TavilyProject",
       "canonical_env": "TAVILY_PROJECT",
       "aliases": [
@@ -556,7 +722,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSyndicationTemplateProfileEnabled",
       "canonical_env": "VOX_SYNDICATION_TEMPLATE_PROFILE",
       "aliases": [],
@@ -567,7 +733,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "TavilyProject",
       "canonical_env": "TAVILY_PROJECT_ID",
       "aliases": [
@@ -581,7 +747,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxGenericApiKey",
       "canonical_env": "API_KEY",
       "aliases": [],
@@ -592,7 +758,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxProviderDailyLimitDefault",
       "canonical_env": "VOX_PROVIDER_DAILY_LIMIT_DEFAULT",
       "aliases": [],
@@ -603,7 +769,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxProviderLimitProviders",
       "canonical_env": "VOX_PROVIDER_LIMIT_PROVIDERS",
       "aliases": [],
@@ -614,7 +780,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxProviderDailyLimitsFile",
       "canonical_env": "VOX_PROVIDER_DAILY_LIMITS_FILE",
       "aliases": [],
@@ -625,7 +791,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxProviderDailyLimitsJson",
       "canonical_env": "VOX_PROVIDER_DAILY_LIMITS_JSON",
       "aliases": [],
@@ -636,7 +802,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxWorkspaceRoot",
       "canonical_env": "VOX_WORKSPACE_ROOT",
       "aliases": [],
@@ -647,7 +813,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMensExperimentalOptimizer",
       "canonical_env": "VOX_MENS_EXPERIMENTAL_OPTIMIZER",
       "aliases": [],
@@ -658,7 +824,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCloudPriceTtl",
       "canonical_env": "VOX_CLOUD_PRICE_TTL",
       "aliases": [],
@@ -669,7 +835,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCloudImage",
       "canonical_env": "VOX_CLOUD_IMAGE",
       "aliases": [],
@@ -680,7 +846,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCloudMaxRuntime",
       "canonical_env": "VOX_CLOUD_MAX_RUNTIME",
       "aliases": [],
@@ -691,7 +857,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGpuModel",
       "canonical_env": "VOX_GPU_MODEL",
       "aliases": [],
@@ -702,7 +868,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGpuVramMb",
       "canonical_env": "VOX_GPU_VRAM_MB",
       "aliases": [],
@@ -713,7 +879,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBaseModel",
       "canonical_env": "VOX_BASE_MODEL",
       "aliases": [],
@@ -724,7 +890,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxTrainProfile",
       "canonical_env": "VOX_TRAIN_PROFILE",
       "aliases": [],
@@ -735,7 +901,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxQwen35NativeCutover",
       "canonical_env": "VOX_QWEN35_NATIVE_CUTOVER",
       "aliases": [],
@@ -746,7 +912,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxAllowQwen2Native",
       "canonical_env": "VOX_ALLOW_QWEN2_NATIVE",
       "aliases": [],
@@ -757,7 +923,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMensTrainJsonlStrict",
       "canonical_env": "VOX_MENS_TRAIN_JSON_STRICT",
       "aliases": [
@@ -770,7 +936,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxVramOverrideGb",
       "canonical_env": "VOX_VRAM_OVERRIDE_GB",
       "aliases": [],
@@ -781,7 +947,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCandleDevice",
       "canonical_env": "VOX_CANDLE_DEVICE",
       "aliases": [],
@@ -792,7 +958,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxRepositoryRoot",
       "canonical_env": "VOX_REPOSITORY_ROOT",
       "aliases": [
@@ -805,7 +971,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxReviewRepositoryId",
       "canonical_env": "VOX_REVIEW_REPOSITORY_ID",
       "aliases": [],
@@ -816,7 +982,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxRegistryToken",
       "canonical_env": "VOX_REGISTRY_TOKEN",
       "aliases": [],
@@ -827,7 +993,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxPmAllowGitUnverified",
       "canonical_env": "VOX_PM_ALLOW_GIT_UNVERIFIED",
       "aliases": [],
@@ -838,7 +1004,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCoderabbitGithubPerPage",
       "canonical_env": "CODERABBIT_GITHUB_PER_PAGE",
       "aliases": [],
@@ -849,7 +1015,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScriptCacheMaxEntries",
       "canonical_env": "VOX_SCRIPT_CACHE_MAX_ENTRIES",
       "aliases": [],
@@ -860,7 +1026,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScriptCacheMaxSizeMb",
       "canonical_env": "VOX_SCRIPT_CACHE_MAX_SIZE_MB",
       "aliases": [],
@@ -871,7 +1037,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenclawSidecarDisable",
       "canonical_env": "VOX_OPENCLAW_SIDECAR_DISABLE",
       "aliases": [],
@@ -882,7 +1048,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxWebTanstackStart",
       "canonical_env": "VOX_WEB_TANSTACK_START",
       "aliases": [],
@@ -893,7 +1059,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSyndicationTemplateProfile",
       "canonical_env": "VOX_SYNDICATION_TEMPLATE_PROFILE",
       "aliases": [],
@@ -904,7 +1070,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGithubSha",
       "canonical_env": "GITHUB_SHA",
       "aliases": [],
@@ -915,7 +1081,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxEmitExpressServer",
       "canonical_env": "VOX_EMIT_EXPRESS_SERVER",
       "aliases": [],
@@ -926,7 +1092,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxJsonOutput",
       "canonical_env": "VOX_JSON_OUTPUT",
       "aliases": [
@@ -939,7 +1105,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMensScorecardMaxTokens",
       "canonical_env": "VOX_MENS_SCORECARD_MAX_TOKENS",
       "aliases": [],
@@ -950,7 +1116,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenclawSidecarExpectVersion",
       "canonical_env": "VOX_OPENCLAW_SIDECAR_EXPECT_VERSION",
       "aliases": [],
@@ -961,7 +1127,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCliGlobalJson",
       "canonical_env": "VOX_CLI_GLOBAL_JSON",
       "aliases": [],
@@ -972,7 +1138,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScriptRelease",
       "canonical_env": "VOX_SCRIPT_RELEASE",
       "aliases": [],
@@ -983,7 +1149,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCargoBin",
       "canonical_env": "VOX_CARGO_BIN",
       "aliases": [],
@@ -994,7 +1160,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "SkipCudaFeatureCheck",
       "canonical_env": "SKIP_CUDA_FEATURE_CHECK",
       "aliases": [],
@@ -1005,7 +1171,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSecretGuardGitRef",
       "canonical_env": "VOX_SECRET_GUARD_GIT_REF",
       "aliases": [],
@@ -1016,7 +1182,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxTelemetryUploadUrl",
       "canonical_env": "VOX_TELEMETRY_UPLOAD_URL",
       "aliases": [],
@@ -1027,7 +1193,7 @@
         "AuxTools"
       ]
     },
-    
+    {
       "id": "VoxTelemetryUploadToken",
       "canonical_env": "VOX_TELEMETRY_UPLOAD_TOKEN",
       "aliases": [],
@@ -1038,7 +1204,7 @@
         "AuxTools"
       ]
     },
-    
+    {
       "id": "VoxSearchQdrantApiKey",
       "canonical_env": "VOX_SEARCH_QDRANT_API_KEY",
       "aliases": [],
@@ -1049,7 +1215,7 @@
         "AuxTools"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpBearerToken",
       "canonical_env": "VOX_MCP_HTTP_BEARER_TOKEN",
       "aliases": [],
@@ -1060,7 +1226,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpReadBearerToken",
       "canonical_env": "VOX_MCP_HTTP_READ_BEARER_TOKEN",
       "aliases": [],
@@ -1071,7 +1237,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGithubSha",
       "canonical_env": "GITHUB_SHA",
       "aliases": [],
@@ -1082,7 +1248,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "SkipCudaFeatureCheck",
       "canonical_env": "SKIP_CUDA_FEATURE_CHECK",
       "aliases": [],
@@ -1093,7 +1259,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCargoBin",
       "canonical_env": "VOX_CARGO_BIN",
       "aliases": [],
@@ -1104,7 +1270,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCliGlobalJson",
       "canonical_env": "VOX_CLI_GLOBAL_JSON",
       "aliases": [],
@@ -1115,7 +1281,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshToken",
       "canonical_env": "VOX_MESH_TOKEN",
       "aliases": [],
@@ -1126,7 +1292,7 @@
         "Mesh"
       ]
     },
-    
+    {
       "id": "VoxMeshJwtHmacSecret",
       "canonical_env": "VOX_MESH_JWT_HMAC_SECRET",
       "aliases": [],
@@ -1137,7 +1303,7 @@
         "Mesh"
       ]
     },
-    
+    {
       "id": "VoxMeshWorkerToken",
       "canonical_env": "VOX_MESH_WORKER_TOKEN",
       "aliases": [],
@@ -1148,7 +1314,7 @@
         "Mesh"
       ]
     },
-    
+    {
       "id": "VoxMeshSubmitterToken",
       "canonical_env": "VOX_MESH_SUBMITTER_TOKEN",
       "aliases": [],
@@ -1159,7 +1325,7 @@
         "Mesh"
       ]
     },
-    
+    {
       "id": "VoxMeshAdminToken",
       "canonical_env": "VOX_MESH_ADMIN_TOKEN",
       "aliases": [],
@@ -1170,7 +1336,7 @@
         "Mesh"
       ]
     },
-    
+    {
       "id": "VoxMeshWorkerResultVerifyKey",
       "canonical_env": "VOX_MESH_WORKER_RESULT_VERIFY_KEY",
       "aliases": [],
@@ -1181,7 +1347,7 @@
         "Mesh"
       ]
     },
-    
+    {
       "id": "VoxMeshHttpJoin",
       "canonical_env": "VOX_MESH_HTTP_JOIN",
       "aliases": [],
@@ -1192,7 +1358,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshHttpHeartbeatSecs",
       "canonical_env": "VOX_MESH_HTTP_HEARTBEAT_SECS",
       "aliases": [],
@@ -1203,7 +1369,51 @@
         "Orchestration"
       ]
     },
-    
+    {
+      "id": "VoxMeshVisibility",
+      "canonical_env": "VOX_MESH_VISIBILITY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshDonationPolicyJson",
+      "canonical_env": "VOX_MESH_DONATION_POLICY_JSON",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxMeshFederationSigningKey",
+      "canonical_env": "VOX_MESH_FEDERATION_SIGNING_KEY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Mesh"
+      ]
+    },
+    {
+      "id": "VoxRoutingPreferMesh",
+      "canonical_env": "VOX_ROUTING_PREFER_MESH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Mesh"
+      ]
+    },
+    {
       "id": "VoxNewsTwitterBearer",
       "canonical_env": "VOX_NEWS_TWITTER_TOKEN",
       "aliases": [
@@ -1217,7 +1427,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialDiscordWebhook",
       "canonical_env": "VOX_SOCIAL_DISCORD_WEBHOOK",
       "aliases": [],
@@ -1229,7 +1439,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialBlueskyHandle",
       "canonical_env": "VOX_SOCIAL_BLUESKY_HANDLE",
       "aliases": [],
@@ -1241,7 +1451,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialBlueskyPassword",
       "canonical_env": "VOX_SOCIAL_BLUESKY_PASSWORD",
       "aliases": [],
@@ -1253,7 +1463,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialRedditClientId",
       "canonical_env": "VOX_SOCIAL_REDDIT_CLIENT_ID",
       "aliases": [],
@@ -1265,7 +1475,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialRedditClientSecret",
       "canonical_env": "VOX_SOCIAL_REDDIT_CLIENT_SECRET",
       "aliases": [],
@@ -1277,7 +1487,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialRedditRefreshToken",
       "canonical_env": "VOX_SOCIAL_REDDIT_REFRESH_TOKEN",
       "aliases": [],
@@ -1289,7 +1499,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialRedditUserAgent",
       "canonical_env": "VOX_SOCIAL_REDDIT_USER_AGENT",
       "aliases": [],
@@ -1301,7 +1511,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialYoutubeClientId",
       "canonical_env": "VOX_SOCIAL_YOUTUBE_CLIENT_ID",
       "aliases": [],
@@ -1313,7 +1523,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialYoutubeClientSecret",
       "canonical_env": "VOX_SOCIAL_YOUTUBE_CLIENT_SECRET",
       "aliases": [],
@@ -1325,7 +1535,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialYoutubeRefreshToken",
       "canonical_env": "VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN",
       "aliases": [],
@@ -1337,7 +1547,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialMastodonToken",
       "canonical_env": "VOX_SOCIAL_MASTODON_TOKEN",
       "aliases": [],
@@ -1349,7 +1559,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialMastodonDomain",
       "canonical_env": "VOX_SOCIAL_MASTODON_DOMAIN",
       "aliases": [],
@@ -1361,7 +1571,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialLinkedinAccessToken",
       "canonical_env": "VOX_SOCIAL_LINKEDIN_ACCESS_TOKEN",
       "aliases": [],
@@ -1373,7 +1583,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxNewsOpenCollectiveToken",
       "canonical_env": "VOX_NEWS_OPENCOLLECTIVE_TOKEN",
       "aliases": [],
@@ -1385,7 +1595,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialTwitterApiBase",
       "canonical_env": "VOX_SOCIAL_TWITTER_API_BASE",
       "aliases": [
@@ -1398,7 +1608,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialLinkedinApiBase",
       "canonical_env": "VOX_SOCIAL_LINKEDIN_API_BASE",
       "aliases": [],
@@ -1409,7 +1619,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialRedditApiBase",
       "canonical_env": "VOX_SOCIAL_REDDIT_API_BASE",
       "aliases": [],
@@ -1420,7 +1630,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxNewsTwitterTextChunkMax",
       "canonical_env": "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
       "aliases": [],
@@ -1431,7 +1641,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxNewsTwitterTruncationSuffix",
       "canonical_env": "VOX_NEWS_TWITTER_TRUNCATION_SUFFIX",
       "aliases": [],
@@ -1442,7 +1652,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialTwitterSummaryMarginChars",
       "canonical_env": "VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS",
       "aliases": [],
@@ -1453,7 +1663,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialRedditSelfpostSummaryMax",
       "canonical_env": "VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX",
       "aliases": [],
@@ -1464,7 +1674,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialHnMode",
       "canonical_env": "VOX_SOCIAL_HN_MODE",
       "aliases": [],
@@ -1475,7 +1685,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialYoutubeDefaultCategoryId",
       "canonical_env": "VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID",
       "aliases": [],
@@ -1486,7 +1696,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialLinkedinAuthorUrn",
       "canonical_env": "VOX_SOCIAL_LINKEDIN_AUTHOR_URN",
       "aliases": [],
@@ -1498,7 +1708,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialBlueskyPdsUrl",
       "canonical_env": "VOX_SOCIAL_BLUESKY_PDS_URL",
       "aliases": [],
@@ -1510,7 +1720,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxNewsOpenCollectiveSlug",
       "canonical_env": "VOX_NEWS_OPENCOLLECTIVE_SLUG",
       "aliases": [],
@@ -1522,7 +1732,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxZenodoAccessToken",
       "canonical_env": "ZENODO_ACCESS_TOKEN",
       "aliases": [
@@ -1535,7 +1745,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewEmail",
       "canonical_env": "VOX_OPENREVIEW_EMAIL",
       "aliases": [],
@@ -1546,7 +1756,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewAccessToken",
       "canonical_env": "VOX_OPENREVIEW_ACCESS_TOKEN",
       "aliases": [],
@@ -1557,7 +1767,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewPassword",
       "canonical_env": "VOX_OPENREVIEW_PASSWORD",
       "aliases": [],
@@ -1568,7 +1778,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxCrossrefPlusApiKey",
       "canonical_env": "VOX_CROSSREF_PLUS_API_KEY",
       "aliases": [],
@@ -1579,7 +1789,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxArxivAssistHandoffSecret",
       "canonical_env": "VOX_ARXIV_ASSIST_HANDOFF_SECRET",
       "aliases": [],
@@ -1590,7 +1800,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxOrcidClientId",
       "canonical_env": "VOX_ORCID_CLIENT_ID",
       "aliases": [],
@@ -1601,7 +1811,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxOrcidClientSecret",
       "canonical_env": "VOX_ORCID_CLIENT_SECRET",
       "aliases": [],
@@ -1612,7 +1822,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxDataCiteRepository",
       "canonical_env": "VOX_DATACITE_REPOSITORY",
       "aliases": [],
@@ -1623,7 +1833,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxDataCitePassword",
       "canonical_env": "VOX_DATACITE_PASSWORD",
       "aliases": [],
@@ -1634,7 +1844,7 @@
         "ScholarlyPublication"
       ]
     },
-    
+    {
       "id": "VoxScholarlyAdapter",
       "canonical_env": "VOX_SCHOLARLY_ADAPTER",
       "aliases": [],
@@ -1645,7 +1855,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScholarlyDisable",
       "canonical_env": "VOX_SCHOLARLY_DISABLE",
       "aliases": [],
@@ -1656,7 +1866,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScholarlyDisableLive",
       "canonical_env": "VOX_SCHOLARLY_DISABLE_LIVE",
       "aliases": [],
@@ -1667,7 +1877,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScholarlyDisableZenodo",
       "canonical_env": "VOX_SCHOLARLY_DISABLE_ZENODO",
       "aliases": [],
@@ -1678,7 +1888,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScholarlyDisableOpenReview",
       "canonical_env": "VOX_SCHOLARLY_DISABLE_OPENREVIEW",
       "aliases": [],
@@ -1689,7 +1899,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewApiBase",
       "canonical_env": "VOX_OPENREVIEW_API_BASE",
       "aliases": [],
@@ -1700,7 +1910,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewInvitation",
       "canonical_env": "VOX_OPENREVIEW_INVITATION",
       "aliases": [],
@@ -1711,7 +1921,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewSignature",
       "canonical_env": "VOX_OPENREVIEW_SIGNATURE",
       "aliases": [],
@@ -1722,7 +1932,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoSandbox",
       "canonical_env": "VOX_ZENODO_SANDBOX",
       "aliases": [],
@@ -1733,7 +1943,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoApiBase",
       "canonical_env": "VOX_ZENODO_API_BASE",
       "aliases": [],
@@ -1744,7 +1954,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoAttachManifestBody",
       "canonical_env": "VOX_ZENODO_ATTACH_MANIFEST_BODY",
       "aliases": [],
@@ -1755,7 +1965,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoPublishDeposition",
       "canonical_env": "VOX_ZENODO_PUBLISH_DEPOSITION",
       "aliases": [],
@@ -1766,7 +1976,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoDraftOnly",
       "canonical_env": "VOX_ZENODO_DRAFT_ONLY",
       "aliases": [],
@@ -1777,7 +1987,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoPublishNow",
       "canonical_env": "VOX_ZENODO_PUBLISH_NOW",
       "aliases": [],
@@ -1788,7 +1998,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoStagingDir",
       "canonical_env": "VOX_ZENODO_STAGING_DIR",
       "aliases": [],
@@ -1799,7 +2009,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoUploadAllowlist",
       "canonical_env": "VOX_ZENODO_UPLOAD_ALLOWLIST",
       "aliases": [],
@@ -1810,7 +2020,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_ENABLED",
       "aliases": [],
@@ -1821,7 +2031,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorLogLevel",
       "canonical_env": "VOX_ORCHESTRATOR_LOG_LEVEL",
       "aliases": [],
@@ -1832,7 +2042,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxModel",
       "canonical_env": "VOX_MODEL",
       "aliases": [],
@@ -1843,7 +2053,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBudgetUsd",
       "canonical_env": "VOX_BUDGET_USD",
       "aliases": [],
@@ -1854,7 +2064,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxDataDir",
       "canonical_env": "VOX_DATA_DIR",
       "aliases": [],
@@ -1865,7 +2075,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpBinary",
       "canonical_env": "VOX_MCP_BINARY",
       "aliases": [],
@@ -1876,7 +2086,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGamifyEnabled",
       "canonical_env": "VOX_GAMIFY_ENABLED",
       "aliases": [],
@@ -1887,7 +2097,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGamifyMode",
       "canonical_env": "VOX_GAMIFY_MODE",
       "aliases": [],
@@ -1898,7 +2108,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxWebRunMode",
       "canonical_env": "VOX_WEB_RUN_MODE",
       "aliases": [],
@@ -1909,7 +2119,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorAttentionEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_ENABLED",
       "aliases": [],
@@ -1920,7 +2130,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorAttentionBudgetMs",
       "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS",
       "aliases": [],
@@ -1931,7 +2141,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_ENABLED",
       "aliases": [],
@@ -1942,7 +2152,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorResearchModelEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_RESEARCH_MODEL_ENABLED",
       "aliases": [],
@@ -1953,7 +2163,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxRepositoryRoot",
       "canonical_env": "VOX_REPO_ROOT",
       "aliases": [
@@ -1966,7 +2176,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxWorkspaceRoot",
       "canonical_env": "VOX_WORKSPACE_ROOT",
       "aliases": [],
@@ -1977,7 +2187,51 @@
         "Orchestration"
       ]
     },
-    
+    {
+      "id": "VoxIdentityKeyPath",
+      "canonical_env": "VOX_IDENTITY_KEY_PATH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxIdentityMasterPwd",
+      "canonical_env": "VOX_IDENTITY_MASTER_PWD",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxGithubClientId",
+      "canonical_env": "VOX_GITHUB_CLIENT_ID",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxGithubOauthToken",
+      "canonical_env": "VOX_GITHUB_OAUTH_TOKEN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "OpenaiModel",
       "canonical_env": "VOX_OPENAI_MODEL",
       "aliases": [],
@@ -1988,7 +2242,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "OpenaiBaseUrl",
       "canonical_env": "VOX_OPENAI_BASE_URL",
       "aliases": [],
@@ -1999,7 +2253,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "GeminiModel",
       "canonical_env": "VOX_GEMINI_MODEL",
       "aliases": [],
@@ -2010,7 +2264,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "PopuliApiKey",
       "canonical_env": "POPULI_API_KEY",
       "aliases": [],
@@ -2021,7 +2275,7 @@
         "AuxTools"
       ]
     },
-    
+    {
       "id": "VoxNewsSiteBaseUrl",
       "canonical_env": "VOX_NEWS_SITE_BASE_URL",
       "aliases": [],
@@ -2032,7 +2286,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxNewsRssFeedPath",
       "canonical_env": "VOX_NEWS_RSS_FEED_PATH",
       "aliases": [],
@@ -2043,7 +2297,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxNewsPublishArmed",
       "canonical_env": "VOX_NEWS_PUBLISH_ARMED",
       "aliases": [],
@@ -2054,7 +2308,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoVerifyStagingChecksums",
       "canonical_env": "VOX_ZENODO_VERIFY_STAGING_CHECKSUMS",
       "aliases": [],
@@ -2065,7 +2319,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoRequireMetadataParity",
       "canonical_env": "VOX_ZENODO_REQUIRE_METADATA_PARITY",
       "aliases": [],
@@ -2076,7 +2330,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpAgentFleet",
       "canonical_env": "VOX_MCP_AGENT_FLEET",
       "aliases": [],
@@ -2087,7 +2341,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxZenodoHttpMaxAttempts",
       "canonical_env": "VOX_ZENODO_HTTP_MAX_ATTEMPTS",
       "aliases": [],
@@ -2098,7 +2352,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenReviewHttpMaxAttempts",
       "canonical_env": "VOX_OPEN_REVIEW_HTTP_MAX_ATTEMPTS",
       "aliases": [],
@@ -2109,7 +2363,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScholarlyJobLockOwner",
       "canonical_env": "VOX_SCHOLARLY_JOB_LOCK_OWNER",
       "aliases": [],
@@ -2120,7 +2374,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxScientiaCrossrefMailto",
       "canonical_env": "VOX_SCIENTIA_CROSSREF_MAILTO",
       "aliases": [],
@@ -2131,7 +2385,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshBootstrapToken",
       "canonical_env": "VOX_MESH_BOOTSTRAP_TOKEN",
       "aliases": [],
@@ -2142,7 +2396,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshBootstrapExpiresUnixMs",
       "canonical_env": "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
       "aliases": [],
@@ -2153,7 +2407,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshEnabled",
       "canonical_env": "VOX_MESH_ENABLED",
       "aliases": [],
@@ -2164,7 +2418,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshMode",
       "canonical_env": "VOX_MESH_MODE",
       "aliases": [],
@@ -2175,7 +2429,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshNodeId",
       "canonical_env": "VOX_MESH_NODE_ID",
       "aliases": [],
@@ -2186,7 +2440,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshLabels",
       "canonical_env": "VOX_MESH_LABELS",
       "aliases": [],
@@ -2197,7 +2451,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshControlAddr",
       "canonical_env": "VOX_MESH_CONTROL_ADDR",
       "aliases": [],
@@ -2208,7 +2462,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshRegistryPath",
       "canonical_env": "VOX_MESH_REGISTRY_PATH",
       "aliases": [],
@@ -2219,7 +2473,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshAdvertiseGpu",
       "canonical_env": "VOX_MESH_ADVERTISE_GPU",
       "aliases": [],
@@ -2230,7 +2484,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshScopeId",
       "canonical_env": "VOX_MESH_SCOPE_ID",
       "aliases": [],
@@ -2241,7 +2495,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshServerStalePruneMs",
       "canonical_env": "VOX_MESH_SERVER_STALE_PRUNE_MS",
       "aliases": [],
@@ -2252,7 +2506,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshA2aMaxMessages",
       "canonical_env": "VOX_MESH_A2A_MAX_MESSAGES",
       "aliases": [],
@@ -2263,7 +2517,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshA2aLeaseMs",
       "canonical_env": "VOX_MESH_A2A_LEASE_MS",
       "aliases": [],
@@ -2274,7 +2528,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshHttpRateLimit",
       "canonical_env": "VOX_MESH_HTTP_RATE_LIMIT",
       "aliases": [],
@@ -2285,7 +2539,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMaxAgents",
       "canonical_env": "VOX_ORCHESTRATOR_MAX_AGENTS",
       "aliases": [],
@@ -2296,7 +2550,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorLockTimeoutMs",
       "canonical_env": "VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS",
       "aliases": [],
@@ -2307,7 +2561,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorToestubGate",
       "canonical_env": "VOX_ORCHESTRATOR_TOESTUB_GATE",
       "aliases": [],
@@ -2318,7 +2572,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMaxDebugIterations",
       "canonical_env": "VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS",
       "aliases": [],
@@ -2329,7 +2583,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMaxToestubDebugIterations",
       "canonical_env": "VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS",
       "aliases": [],
@@ -2340,7 +2594,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMaxSocratesDebugIterations",
       "canonical_env": "VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS",
       "aliases": [],
@@ -2351,7 +2605,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorFallbackSingle",
       "canonical_env": "VOX_ORCHESTRATOR_FALLBACK_SINGLE",
       "aliases": [],
@@ -2362,7 +2616,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMinAgents",
       "canonical_env": "VOX_ORCHESTRATOR_MIN_AGENTS",
       "aliases": [],
@@ -2373,7 +2627,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorScalingThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_SCALING_THRESHOLD",
       "aliases": [],
@@ -2384,7 +2638,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorIdleRetirementMs",
       "canonical_env": "VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS",
       "aliases": [],
@@ -2395,7 +2649,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorScalingEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_SCALING_ENABLED",
       "aliases": [],
@@ -2406,7 +2660,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorCostPreference",
       "canonical_env": "VOX_ORCHESTRATOR_COST_PREFERENCE",
       "aliases": [],
@@ -2417,7 +2671,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorScalingLookback",
       "canonical_env": "VOX_ORCHESTRATOR_SCALING_LOOKBACK",
       "aliases": [],
@@ -2428,7 +2682,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorResourceWeight",
       "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_WEIGHT",
       "aliases": [],
@@ -2439,7 +2693,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorResourceCpuMult",
       "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_CPU_MULT",
       "aliases": [],
@@ -2450,7 +2704,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorResourceMemMult",
       "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_MEM_MULT",
       "aliases": [],
@@ -2461,7 +2715,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorResourceExponent",
       "canonical_env": "VOX_ORCHESTRATOR_RESOURCE_EXPONENT",
       "aliases": [],
@@ -2472,7 +2726,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorScalingProfile",
       "canonical_env": "VOX_ORCHESTRATOR_SCALING_PROFILE",
       "aliases": [],
@@ -2483,7 +2737,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMaxSpawnPerTick",
       "canonical_env": "VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK",
       "aliases": [],
@@ -2494,7 +2748,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorScalingCooldownMs",
       "canonical_env": "VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS",
       "aliases": [],
@@ -2505,7 +2759,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorUrgentRebalanceThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD",
       "aliases": [],
@@ -2516,7 +2770,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorSocratesGateShadow",
       "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW",
       "aliases": [],
@@ -2527,7 +2781,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorSocratesGateEnforce",
       "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE",
       "aliases": [],
@@ -2538,7 +2792,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorSocratesReputationRouting",
       "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING",
       "aliases": [],
@@ -2549,7 +2803,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorSocratesReputationWeight",
       "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT",
       "aliases": [],
@@ -2560,7 +2814,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTrustGateRelaxEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED",
       "aliases": [],
@@ -2571,7 +2825,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTrustGateRelaxMinReliability",
       "canonical_env": "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY",
       "aliases": [],
@@ -2582,7 +2836,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTrustEwmaAlpha",
       "canonical_env": "VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA",
       "aliases": [],
@@ -2593,7 +2847,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTrustProvisionalThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD",
       "aliases": [],
@@ -2604,7 +2858,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTrustTrustedThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD",
       "aliases": [],
@@ -2615,7 +2869,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTrustAutoApproveMin",
       "canonical_env": "VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN",
       "aliases": [],
@@ -2626,7 +2880,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMigrationV2Enabled",
       "canonical_env": "VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED",
       "aliases": [],
@@ -2637,7 +2891,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMigrationLegacyFallback",
       "canonical_env": "VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK",
       "aliases": [],
@@ -2648,7 +2902,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshControlUrl",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_CONTROL_URL",
       "aliases": [],
@@ -2659,7 +2913,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPopuliInferenceBaseUrl",
       "canonical_env": "VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL",
       "aliases": [],
@@ -2670,7 +2924,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshPollIntervalSecs",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS",
       "aliases": [],
@@ -2681,7 +2935,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshHttpTimeoutMs",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS",
       "aliases": [],
@@ -2692,7 +2946,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRoutingExperimental",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL",
       "aliases": [],
@@ -2703,7 +2957,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRebalanceOnRemoteSchedulableDrop",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP",
       "aliases": [],
@@ -2714,7 +2968,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshReplayQueuedRoutesOnRemoteSchedulableDrop",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
       "aliases": [],
@@ -2725,7 +2979,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshTrainingRoutingExperimental",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL",
       "aliases": [],
@@ -2736,7 +2990,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshTrainingBudgetPressure",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE",
       "aliases": [],
@@ -2747,7 +3001,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteExecuteExperimental",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL",
       "aliases": [],
@@ -2758,7 +3012,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteExecuteReceiverAgent",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_RECEIVER_AGENT",
       "aliases": [],
@@ -2769,7 +3023,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteExecuteSenderAgent",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT",
       "aliases": [],
@@ -2780,7 +3034,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteResultPollIntervalSecs",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS",
       "aliases": [],
@@ -2791,7 +3045,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteResultMaxMessagesPerPoll",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL",
       "aliases": [],
@@ -2802,7 +3056,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteWorkerPollIntervalSecs",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS",
       "aliases": [],
@@ -2813,7 +3067,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteLeaseGatingEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED",
       "aliases": [],
@@ -2824,7 +3078,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshRemoteLeaseGatedRoles",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES",
       "aliases": [],
@@ -2835,7 +3089,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorChatmlStrict",
       "canonical_env": "VOX_ORCHESTRATOR_CHATML_STRICT",
       "aliases": [],
@@ -2846,7 +3100,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorCompletionGroundingShadow",
       "canonical_env": "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW",
       "aliases": [],
@@ -2857,7 +3111,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorCompletionGroundingEnforce",
       "canonical_env": "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE",
       "aliases": [],
@@ -2868,7 +3122,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningLlmSynthesisEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_LLM_SYNTHESIS_ENABLED",
       "aliases": [],
@@ -2879,7 +3133,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningLlmSynthesisModel",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_LLM_SYNTHESIS_MODEL",
       "aliases": [],
@@ -2890,7 +3144,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningRouterEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED",
       "aliases": [],
@@ -2901,7 +3155,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningReplanEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED",
       "aliases": [],
@@ -2912,7 +3166,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningWorkflowHandoffEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED",
       "aliases": [],
@@ -2923,7 +3177,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningShadowMode",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE",
       "aliases": [],
@@ -2934,7 +3188,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningAutoModeEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED",
       "aliases": [],
@@ -2945,7 +3199,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanningRolloutPercent",
       "canonical_env": "VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT",
       "aliases": [],
@@ -2956,7 +3210,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanAdequacyShadow",
       "canonical_env": "VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW",
       "aliases": [],
@@ -2967,7 +3221,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorPlanAdequacyEnforce",
       "canonical_env": "VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE",
       "aliases": [],
@@ -2978,7 +3232,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorContextLifecycleShadow",
       "canonical_env": "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW",
       "aliases": [],
@@ -2989,7 +3243,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorContextLifecycleEnforce",
       "canonical_env": "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE",
       "aliases": [],
@@ -3000,7 +3254,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorSocratesGateAutoMode",
       "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_AUTO_MODE",
       "aliases": [],
@@ -3011,7 +3265,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorSocratesGateThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_SOCRATES_GATE_THRESHOLD",
       "aliases": [],
@@ -3022,7 +3276,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorAttentionAlertThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD",
       "aliases": [],
@@ -3033,7 +3287,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorAttentionInterruptCostMs",
       "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS",
       "aliases": [],
@@ -3044,7 +3298,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTlxMental",
       "canonical_env": "VOX_ORCHESTRATOR_TLX_MENTAL",
       "aliases": [],
@@ -3055,7 +3309,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTlxTemporal",
       "canonical_env": "VOX_ORCHESTRATOR_TLX_TEMPORAL",
       "aliases": [],
@@ -3066,7 +3320,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTlxFrustration",
       "canonical_env": "VOX_ORCHESTRATOR_TLX_FRUSTRATION",
       "aliases": [],
@@ -3077,7 +3331,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTlxTrustDiscount",
       "canonical_env": "VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT",
       "aliases": [],
@@ -3088,7 +3342,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTierGateEntropyThreshold",
       "canonical_env": "VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD",
       "aliases": [],
@@ -3099,7 +3353,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorTierGateMinObservations",
       "canonical_env": "VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS",
       "aliases": [],
@@ -3110,7 +3364,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorInterruptionCalPlanGain",
       "canonical_env": "VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN",
       "aliases": [],
@@ -3121,7 +3375,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorInterruptionCalA2AGain",
       "canonical_env": "VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2_A_GAIN",
       "aliases": [],
@@ -3132,7 +3386,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorInterruptionCalBacklogPenalty",
       "canonical_env": "VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY",
       "aliases": [],
@@ -3143,7 +3397,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorAttentionTrustRoutingWeight",
       "canonical_env": "VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT",
       "aliases": [],
@@ -3154,7 +3408,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorRepoShardSpecializationWeight",
       "canonical_env": "VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT",
       "aliases": [],
@@ -3165,7 +3419,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorRepoShardValidationFailurePenalty",
       "canonical_env": "VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY",
       "aliases": [],
@@ -3176,7 +3430,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorRepoReduceConflictCooldownPenalty",
       "canonical_env": "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY",
       "aliases": [],
@@ -3187,7 +3441,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorRepoReduceConflictCooldownMs",
       "canonical_env": "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS",
       "aliases": [],
@@ -3198,7 +3452,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorExecTimeBudgetEnabled",
       "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_BUDGET_ENABLED",
       "aliases": [],
@@ -3209,7 +3463,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorExecTimeSafetyMultiplier",
       "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER",
       "aliases": [],
@@ -3220,7 +3474,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorExecTimeTimeoutRateAlert",
       "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT",
       "aliases": [],
@@ -3231,7 +3485,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorExecTimeDefaultBudgetMs",
       "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS",
       "aliases": [],
@@ -3242,7 +3496,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorExecTimeHistoryWindowDays",
       "canonical_env": "VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS",
       "aliases": [],
@@ -3253,7 +3507,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorCampaignId",
       "canonical_env": "VOX_ORCHESTRATOR_CAMPAIGN_ID",
       "aliases": [],
@@ -3264,7 +3518,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "PopuliModel",
       "canonical_env": "POPULI_MODEL",
       "aliases": [],
@@ -3275,7 +3529,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenRouterCatalogMinRefreshIntervalSecs",
       "canonical_env": "VOX_OPEN_ROUTER_CATALOG_MIN_REFRESH_INTERVAL_SECS",
       "aliases": [],
@@ -3286,7 +3540,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenRouterCatalogRefreshJitterMs",
       "canonical_env": "VOX_OPEN_ROUTER_CATALOG_REFRESH_JITTER_MS",
       "aliases": [],
@@ -3297,7 +3551,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorHarnessCompletionGuard",
       "canonical_env": "VOX_ORCHESTRATOR_HARNESS_COMPLETION_GUARD",
       "aliases": [],
@@ -3308,7 +3562,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshExecLeaseReconcile",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE",
       "aliases": [],
@@ -3319,7 +3573,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorMeshExecLeaseAutoRevoke",
       "canonical_env": "VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE",
       "aliases": [],
@@ -3330,7 +3584,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorDaemonSocket",
       "canonical_env": "VOX_ORCHESTRATOR_DAEMON_SOCKET",
       "aliases": [],
@@ -3341,7 +3595,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOpenRouterClassifierEnabled",
       "canonical_env": "VOX_OPEN_ROUTER_CLASSIFIER_ENABLED",
       "aliases": [],
@@ -3353,7 +3607,7 @@
         "AutonomousResearch"
       ]
     },
-    
+    {
       "id": "VoxSocialWorthinessScoreMin",
       "canonical_env": "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
       "aliases": [],
@@ -3364,7 +3618,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialChannelWorthinessFloors",
       "canonical_env": "VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS",
       "aliases": [],
@@ -3375,7 +3629,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxNewsScanRecursive",
       "canonical_env": "VOX_NEWS_SCAN_RECURSIVE",
       "aliases": [],
@@ -3386,7 +3640,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshExecPolicy",
       "canonical_env": "VOX_MESH_EXEC_POLICY",
       "aliases": [],
@@ -3397,7 +3651,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshA2aStorePath",
       "canonical_env": "VOX_MESH_A2A_STORE_PATH",
       "aliases": [],
@@ -3408,7 +3662,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshExecLeaseStorePath",
       "canonical_env": "VOX_MESH_EXEC_LEASE_STORE_PATH",
       "aliases": [],
@@ -3419,7 +3673,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshDispatchStorePath",
       "canonical_env": "VOX_MESH_DISPATCH_STORE_PATH",
       "aliases": [],
@@ -3430,7 +3684,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshHttpMaxBodyBytes",
       "canonical_env": "VOX_MESH_HTTP_MAX_BODY_BYTES",
       "aliases": [],
@@ -3441,7 +3695,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshReplayPersist",
       "canonical_env": "VOX_MESH_REPLAY_PERSIST",
       "aliases": [],
@@ -3452,7 +3706,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshReplayStatePath",
       "canonical_env": "VOX_MESH_REPLAY_STATE_PATH",
       "aliases": [],
@@ -3463,7 +3717,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxCloudMaxBudget",
       "canonical_env": "VOX_CLOUD_MAX_BUDGET",
       "aliases": [],
@@ -3474,7 +3728,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshTrain",
       "canonical_env": "VOX_MESH_TRAIN",
       "aliases": [],
@@ -3485,7 +3739,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshRank",
       "canonical_env": "VOX_MESH_RANK",
       "aliases": [],
@@ -3496,7 +3750,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxQuestioningMirrorGlobalAttention",
       "canonical_env": "VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION",
       "aliases": [],
@@ -3507,7 +3761,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpOrchestratorDaemonRepositoryIdStrict",
       "canonical_env": "VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT",
       "aliases": [],
@@ -3518,84 +3772,7 @@
         "Orchestration"
       ]
     },
-    
-      "id": "VoxMcpOrchestratorRpcReads",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_RPC_READS",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
-      "id": "VoxMcpOrchestratorRpcWrites",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
-      "id": "VoxMcpOrchestratorTaskStatusRpc",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
-      "id": "VoxMcpOrchestratorStartRpc",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_START_RPC",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
-      "id": "VoxMcpOrchestratorStatusToolRpc",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
-      "id": "VoxMcpOrchestratorTaskWritesRpc",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_TASK_WRITES_RPC",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
-      "id": "VoxMcpOrchestratorAgentWritesRpc",
-      "canonical_env": "VOX_MCP_ORCHESTRATOR_AGENT_WRITES_RPC",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    
+    {
       "id": "VoxQuestioningMaxAttentionMs",
       "canonical_env": "VOX_QUESTIONING_MAX_ATTENTION_MS",
       "aliases": [],
@@ -3606,7 +3783,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioLogitBiasStrength",
       "canonical_env": "VOX_ORATIO_LOGIT_BIAS_STRENGTH",
       "aliases": [],
@@ -3617,7 +3794,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioLogitBiasMaxTokens",
       "canonical_env": "VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS",
       "aliases": [],
@@ -3628,7 +3805,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioLogitForbidTokens",
       "canonical_env": "VOX_ORATIO_LOGIT_FORBID_TOKENS",
       "aliases": [],
@@ -3639,7 +3816,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioConstrainedTrie",
       "canonical_env": "VOX_ORATIO_CONSTRAINED_TRIE",
       "aliases": [],
@@ -3650,7 +3827,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioConstrainedPhrases",
       "canonical_env": "VOX_ORATIO_CONSTRAINED_PHRASES",
       "aliases": [],
@@ -3661,7 +3838,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioTrieStuckSteps",
       "canonical_env": "VOX_ORATIO_TRIE_STUCK_STEPS",
       "aliases": [],
@@ -3672,7 +3849,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioSpeechLexiconPath",
       "canonical_env": "VOX_ORATIO_SPEECH_LEXICON_PATH",
       "aliases": [],
@@ -3683,7 +3860,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioSessionHotwords",
       "canonical_env": "VOX_ORATIO_SESSION_HOTWORDS",
       "aliases": [],
@@ -3694,7 +3871,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioMaxBiasPhrases",
       "canonical_env": "VOX_ORATIO_MAX_BIAS_PHRASES",
       "aliases": [],
@@ -3705,7 +3882,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioContextualBias",
       "canonical_env": "VOX_ORATIO_CONTEXTUAL_BIAS",
       "aliases": [],
@@ -3716,7 +3893,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioAcousticPreprocessBudgetMs",
       "canonical_env": "VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS",
       "aliases": [],
@@ -3727,7 +3904,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioModel",
       "canonical_env": "VOX_ORATIO_MODEL",
       "aliases": [],
@@ -3738,7 +3915,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioRevision",
       "canonical_env": "VOX_ORATIO_REVISION",
       "aliases": [],
@@ -3749,7 +3926,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioCuda",
       "canonical_env": "VOX_ORATIO_CUDA",
       "aliases": [],
@@ -3760,7 +3937,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioLanguage",
       "canonical_env": "VOX_ORATIO_LANGUAGE",
       "aliases": [],
@@ -3771,7 +3948,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioChunkSec",
       "canonical_env": "VOX_ORATIO_CHUNK_SEC",
       "aliases": [],
@@ -3782,7 +3959,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioChunkOverlapSec",
       "canonical_env": "VOX_ORATIO_CHUNK_OVERLAP_SEC",
       "aliases": [],
@@ -3793,7 +3970,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioEmitPartialPath",
       "canonical_env": "VOX_ORATIO_EMIT_PARTIAL_PATH",
       "aliases": [],
@@ -3804,7 +3981,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioStreamTokens",
       "canonical_env": "VOX_ORATIO_STREAM_TOKENS",
       "aliases": [],
@@ -3815,7 +3992,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioSeed",
       "canonical_env": "VOX_ORATIO_SEED",
       "aliases": [],
@@ -3826,7 +4003,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioVerbose",
       "canonical_env": "VOX_ORATIO_VERBOSE",
       "aliases": [],
@@ -3837,7 +4014,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioTask",
       "canonical_env": "VOX_ORATIO_TASK",
       "aliases": [],
@@ -3848,7 +4025,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioNoSpeechThreshold",
       "canonical_env": "VOX_ORATIO_NO_SPEECH_THRESHOLD",
       "aliases": [],
@@ -3859,7 +4036,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxPopuliModel",
       "canonical_env": "VOX_POPULI_MODEL",
       "aliases": [],
@@ -3870,7 +4047,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxPopuliTemperature",
       "canonical_env": "VOX_POPULI_TEMPERATURE",
       "aliases": [],
@@ -3881,7 +4058,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxPopuliMaxTokens",
       "canonical_env": "VOX_POPULI_MAX_TOKENS",
       "aliases": [],
@@ -3892,7 +4069,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchBm25K1",
       "canonical_env": "VOX_SEARCH_BM25_K1",
       "aliases": [],
@@ -3903,7 +4080,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchBm25B",
       "canonical_env": "VOX_SEARCH_BM25_B",
       "aliases": [],
@@ -3914,7 +4091,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchRrfK",
       "canonical_env": "VOX_SEARCH_RRF_K",
       "aliases": [],
@@ -3925,7 +4102,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchQdrantUrl",
       "canonical_env": "VOX_SEARCH_QDRANT_URL",
       "aliases": [],
@@ -3936,7 +4113,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchQdrantCollection",
       "canonical_env": "VOX_SEARCH_QDRANT_COLLECTION",
       "aliases": [],
@@ -3947,7 +4124,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchQdrantVectorName",
       "canonical_env": "VOX_SEARCH_QDRANT_VECTOR_NAME",
       "aliases": [],
@@ -3958,7 +4135,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTantivyRoot",
       "canonical_env": "VOX_SEARCH_TANTIVY_ROOT",
       "aliases": [],
@@ -3969,7 +4146,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchPreferRrf",
       "canonical_env": "VOX_SEARCH_PREFER_RRF",
       "aliases": [],
@@ -3980,7 +4157,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTavilyEnabled",
       "canonical_env": "VOX_SEARCH_TAVILY_ENABLED",
       "aliases": [],
@@ -3991,7 +4168,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTavilyDepth",
       "canonical_env": "VOX_SEARCH_TAVILY_DEPTH",
       "aliases": [],
@@ -4002,7 +4179,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTavilyMaxResults",
       "canonical_env": "VOX_SEARCH_TAVILY_MAX_RESULTS",
       "aliases": [],
@@ -4013,7 +4190,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTavilyOnEmpty",
       "canonical_env": "VOX_SEARCH_TAVILY_ON_EMPTY",
       "aliases": [],
@@ -4024,7 +4201,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTavilyOnWeak",
       "canonical_env": "VOX_SEARCH_TAVILY_ON_WEAK",
       "aliases": [],
@@ -4035,7 +4212,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchTavilyBudget",
       "canonical_env": "VOX_SEARCH_TAVILY_BUDGET",
       "aliases": [],
@@ -4046,7 +4223,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchSearxngUrl",
       "canonical_env": "VOX_SEARCH_SEARXNG_URL",
       "aliases": [],
@@ -4057,7 +4234,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchSearxngMaxResults",
       "canonical_env": "VOX_SEARCH_SEARXNG_MAX_RESULTS",
       "aliases": [],
@@ -4068,7 +4245,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchSearxngMaxScrape",
       "canonical_env": "VOX_SEARCH_SEARXNG_MAX_SCRAPE",
       "aliases": [],
@@ -4079,7 +4256,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchSearxngEngines",
       "canonical_env": "VOX_SEARCH_SEARXNG_ENGINES",
       "aliases": [],
@@ -4090,7 +4267,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchSearxngLanguage",
       "canonical_env": "VOX_SEARCH_SEARXNG_LANGUAGE",
       "aliases": [],
@@ -4101,7 +4278,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchDdgFallbackDisabled",
       "canonical_env": "VOX_SEARCH_DDG_FALLBACK_DISABLED",
       "aliases": [],
@@ -4112,7 +4289,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchScraperTimeout",
       "canonical_env": "VOX_SEARCH_SCRAPER_TIMEOUT",
       "aliases": [],
@@ -4123,7 +4300,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchScraperRobotsRespect",
       "canonical_env": "VOX_SEARCH_SCRAPER_ROBOTS_RESPECT",
       "aliases": [],
@@ -4134,7 +4311,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchScraperMinDensity",
       "canonical_env": "VOX_SEARCH_SCRAPER_MIN_DENSITY",
       "aliases": [],
@@ -4145,7 +4322,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchMaxHops",
       "canonical_env": "VOX_SEARCH_MAX_HOPS",
       "aliases": [],
@@ -4156,7 +4333,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSocialWorthinessEnforce",
       "canonical_env": "VOX_SOCIAL_WORTHINESS_ENFORCE",
       "aliases": [],
@@ -4167,7 +4344,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxEvalMinParseRate",
       "canonical_env": "VOX_EVAL_MIN_PARSE_RATE",
       "aliases": [],
@@ -4178,7 +4355,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxEvalMinCoverage",
       "canonical_env": "VOX_EVAL_MIN_COVERAGE",
       "aliases": [],
@@ -4189,7 +4366,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxEvalStrict",
       "canonical_env": "VOX_EVAL_STRICT",
       "aliases": [],
@@ -4200,7 +4377,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBenchmarkTelemetry",
       "canonical_env": "VOX_BENCHMARK_TELEMETRY",
       "aliases": [],
@@ -4211,7 +4388,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSyntaxKTelemetry",
       "canonical_env": "VOX_SYNTAX_K_TELEMETRY",
       "aliases": [],
@@ -4222,7 +4399,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMeshCodexTelemetry",
       "canonical_env": "VOX_MESH_CODEX_TELEMETRY",
       "aliases": [],
@@ -4233,7 +4410,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioBackend",
       "canonical_env": "VOX_ORATIO_BACKEND",
       "aliases": [],
@@ -4244,7 +4421,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioAcousticPreprocess",
       "canonical_env": "VOX_ORATIO_ACOUSTIC_PREPROCESS",
       "aliases": [],
@@ -4255,7 +4432,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioRmsTargetDbfs",
       "canonical_env": "VOX_ORATIO_RMS_TARGET_DBFS",
       "aliases": [],
@@ -4266,7 +4443,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioRoutingSessionCap",
       "canonical_env": "VOX_ORATIO_ROUTING_SESSION_CAP",
       "aliases": [],
@@ -4277,7 +4454,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioRoutingSessionTtlSecs",
       "canonical_env": "VOX_ORATIO_ROUTING_SESSION_TTL_SECS",
       "aliases": [],
@@ -4288,7 +4465,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioStreamPartialQuietMs",
       "canonical_env": "VOX_ORATIO_STREAM_PARTIAL_QUIET_MS",
       "aliases": [],
@@ -4299,7 +4476,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioStreamMaxWaitMs",
       "canonical_env": "VOX_ORATIO_STREAM_MAX_WAIT_MS",
       "aliases": [],
@@ -4310,7 +4487,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioConfig",
       "canonical_env": "VOX_ORATIO_CONFIG",
       "aliases": [],
@@ -4321,7 +4498,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioToolRouteMinConfidence",
       "canonical_env": "VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE",
       "aliases": [],
@@ -4332,7 +4509,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioVad",
       "canonical_env": "VOX_ORATIO_VAD",
       "aliases": [],
@@ -4343,7 +4520,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioVadEnergyThreshold",
       "canonical_env": "VOX_ORATIO_VAD_ENERGY_THRESHOLD",
       "aliases": [],
@@ -4354,7 +4531,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioVadMergeGapMs",
       "canonical_env": "VOX_ORATIO_VAD_MERGE_GAP_MS",
       "aliases": [],
@@ -4365,7 +4542,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioSherpaModelDir",
       "canonical_env": "VOX_ORATIO_SHERPA_MODEL_DIR",
       "aliases": [],
@@ -4376,7 +4553,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioSherpaHfModel",
       "canonical_env": "VOX_ORATIO_SHERPA_HF_MODEL",
       "aliases": [],
@@ -4387,7 +4564,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOratioSherpaModel",
       "canonical_env": "VOX_ORATIO_SHERPA_MODEL",
       "aliases": [],
@@ -4398,7 +4575,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpHost",
       "canonical_env": "VOX_MCP_HTTP_HOST",
       "aliases": [],
@@ -4409,7 +4586,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpPort",
       "canonical_env": "VOX_MCP_HTTP_PORT",
       "aliases": [],
@@ -4420,7 +4597,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpRateLimitPerMinute",
       "canonical_env": "VOX_MCP_HTTP_RATE_LIMIT_PER_MINUTE",
       "aliases": [],
@@ -4431,7 +4608,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpAllowedTools",
       "canonical_env": "VOX_MCP_HTTP_ALLOWED_TOOLS",
       "aliases": [],
@@ -4442,7 +4619,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpReadRoleAllowedTools",
       "canonical_env": "VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS",
       "aliases": [],
@@ -4453,7 +4630,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpEnabled",
       "canonical_env": "VOX_MCP_HTTP_ENABLED",
       "aliases": [],
@@ -4464,7 +4641,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpAllowUnauthenticated",
       "canonical_env": "VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED",
       "aliases": [],
@@ -4475,7 +4652,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpRequireForwardedHttps",
       "canonical_env": "VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS",
       "aliases": [],
@@ -4486,7 +4663,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpHealthAuth",
       "canonical_env": "VOX_MCP_HTTP_HEALTH_AUTH",
       "aliases": [],
@@ -4497,7 +4674,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpHttpTrustXForwardedFor",
       "canonical_env": "VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR",
       "aliases": [],
@@ -4508,7 +4685,18 @@
         "Orchestration"
       ]
     },
-    
+    {
+      "id": "VoxMcpHttpPublicEvalEnabled",
+      "canonical_env": "VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "VoxMeshMaxStaleMs",
       "canonical_env": "VOX_MESH_MAX_STALE_MS",
       "aliases": [],
@@ -4519,7 +4707,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpLlmCostEvents",
       "canonical_env": "VOX_MCP_LLM_COST_EVENTS",
       "aliases": [],
@@ -4530,7 +4718,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpGrammarMask",
       "canonical_env": "VOX_MCP_GRAMMAR_MASK",
       "aliases": [],
@@ -4541,7 +4729,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxMcpDecodePolicy",
       "canonical_env": "VOX_MCP_DECODE_POLICY",
       "aliases": [],
@@ -4552,7 +4740,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBrowserLlmContextChars",
       "canonical_env": "VOX_BROWSER_LLM_CONTEXT_CHARS",
       "aliases": [],
@@ -4563,7 +4751,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxDashHost",
       "canonical_env": "VOX_DASH_HOST",
       "aliases": [],
@@ -4574,7 +4762,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxDashPort",
       "canonical_env": "VOX_DASH_PORT",
       "aliases": [],
@@ -4585,7 +4773,40 @@
         "Orchestration"
       ]
     },
-    
+    {
+      "id": "VoxDashboardEnabled",
+      "canonical_env": "VOX_DASHBOARD_ENABLED",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxDashboardPort",
+      "canonical_env": "VOX_DASHBOARD_PORT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxDashboardAutoOpen",
+      "canonical_env": "VOX_DASHBOARD_AUTO_OPEN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "VoxSubmitTaskBypassQuestioningGate",
       "canonical_env": "VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE",
       "aliases": [],
@@ -4596,7 +4817,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusExperiment",
       "canonical_env": "VOX_LUDUS_EXPERIMENT",
       "aliases": [],
@@ -4607,7 +4828,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchPolicyVersion",
       "canonical_env": "VOX_SEARCH_POLICY_VERSION",
       "aliases": [],
@@ -4618,7 +4839,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchMemoryVectorWeight",
       "canonical_env": "VOX_SEARCH_MEMORY_VECTOR_WEIGHT",
       "aliases": [],
@@ -4629,7 +4850,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchVerificationQualityThreshold",
       "canonical_env": "VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD",
       "aliases": [],
@@ -4640,7 +4861,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchRepoMaxFiles",
       "canonical_env": "VOX_SEARCH_REPO_MAX_FILES",
       "aliases": [],
@@ -4651,7 +4872,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxSearchRepoSkipDirs",
       "canonical_env": "VOX_SEARCH_REPO_SKIP_DIRS",
       "aliases": [],
@@ -4662,7 +4883,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxOrchestratorEventLog",
       "canonical_env": "VOX_ORCHESTRATOR_EVENT_LOG",
       "aliases": [],
@@ -4673,7 +4894,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBenchmarkDir",
       "canonical_env": "VOX_BENCHMARK_DIR",
       "aliases": [],
@@ -4684,7 +4905,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxWebViteSmoke",
       "canonical_env": "VOX_WEB_VITE_SMOKE",
       "aliases": [],
@@ -4695,7 +4916,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxGuiPlaywright",
       "canonical_env": "VOX_GUI_PLAYWRIGHT",
       "aliases": [],
@@ -4706,7 +4927,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLineEndingsHead",
       "canonical_env": "VOX_LINE_ENDINGS_HEAD",
       "aliases": [],
@@ -4717,7 +4938,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLineEndingsBase",
       "canonical_env": "VOX_LINE_ENDINGS_BASE",
       "aliases": [],
@@ -4728,7 +4949,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxToestubMaxRustParseFailures",
       "canonical_env": "VOX_TOESTUB_MAX_RUST_PARSE_FAILURES",
       "aliases": [],
@@ -4739,7 +4960,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBuildTimingsBudgetWarn",
       "canonical_env": "VOX_BUILD_TIMINGS_BUDGET_WARN",
       "aliases": [],
@@ -4750,7 +4971,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxBuildTimingsBudgetFail",
       "canonical_env": "VOX_BUILD_TIMINGS_BUDGET_FAIL",
       "aliases": [],
@@ -4761,7 +4982,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusChannel",
       "canonical_env": "VOX_LUDUS_CHANNEL",
       "aliases": [],
@@ -4772,7 +4993,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusMcpToolArgs",
       "canonical_env": "VOX_LUDUS_MCP_TOOL_ARGS",
       "aliases": [],
@@ -4783,7 +5004,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusEmergencyOff",
       "canonical_env": "VOX_LUDUS_EMERGENCY_OFF",
       "aliases": [],
@@ -4794,7 +5015,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusSessionEnabled",
       "canonical_env": "VOX_LUDUS_SESSION_ENABLED",
       "aliases": [],
@@ -4805,7 +5026,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusSessionMode",
       "canonical_env": "VOX_LUDUS_SESSION_MODE",
       "aliases": [],
@@ -4816,7 +5037,7 @@
         "Orchestration"
       ]
     },
-    
+    {
       "id": "VoxLudusExperimentRewardMult",
       "canonical_env": "VOX_LUDUS_EXPERIMENT_REWARD_MULT",
       "aliases": [],
@@ -4831,6 +5052,7 @@
   "operator_tuning_envs": [
     "CARGO_HOME",
     "COMPUTERNAME",
+    "GEMINI_DIRECT_MODEL",
     "GEMINI_MODEL",
     "HF_CHAT_MODEL",
     "HF_DEDICATED_CHAT_MODEL",
@@ -4844,12 +5066,14 @@
     "OPENAI_BASE_URL",
     "OPENAI_MODEL",
     "OPENROUTER_CHAT_MODEL",
+    "OPENROUTER_GEMINI_MODEL",
     "OPENROUTER_MODEL",
     "POPULI_MAX_TOKENS",
     "POPULI_MODEL",
     "POPULI_TEMPERATURE",
     "POPULI_URL",
     "RUST_LOG",
+    "TOGETHER_FINETUNE_MODEL",
     "USERPROFILE",
     "VAULT_ADDR",
     "VAULT_TOKEN",
@@ -4926,6 +5150,7 @@
     "VOX_ORCHESTRATOR_PLAN_LLM_SYNTHESIS",
     "VOX_ORCH_LINEAGE_OFF",
     "VOX_ORCH_METRICS_SINK",
+    "VOX_POPULI_LOCAL_OLLAMA_URL",
     "VOX_PUBLISHER_DRY_RUN",
     "VOX_RATE_LIMIT_MAX_REQUESTS",
     "VOX_RATE_LIMIT_WINDOW_SECONDS",
