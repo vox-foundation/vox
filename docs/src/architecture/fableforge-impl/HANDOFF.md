@@ -31,28 +31,28 @@ All spec documents are in `docs/src/architecture/`:
 
 ---
 
-## Step 1: Verify these 15 claims before touching any file (2–3 hours)
+## Step 1: Verification results (2026-04-23 — verified against real repo)
 
-Open the FableForge repo and grep for each. If reality differs from the claim, update the
-corresponding implementation file before opening a PR.
+All 15 claims have been checked against the live codebase. Items marked ✅ were correct;
+items marked ❌ were wrong and the implementation files have already been patched.
 
-| # | Claim | File to update if wrong |
-|---|-------|------------------------|
-| 1 | `src/components/CreateWizardPage.tsx` exists as a mock with no Convex integration | Delete it (T-001) |
-| 2 | `convex/schema.ts` uses `by_game` index name on child tables | `cascade-delete.ts` — update index names |
-| 3 | `gameDrafts` table has `selectedProvider`, `ffscriptKey`, `coverImageKey`, `contentRating`, `title`, `userId` fields | `publish-gate.ts`, `generation-orchestrator.ts` |
-| 4 | `processBeatJob` in `convex/actions/batchGeneration.ts` hardcodes `"fal"` | `generation-orchestrator.ts` usage comment |
-| 5 | Schema version regex is `/^0\.\d+\.\d+$/` | Change to `/^\d+\.\d+\.\d+$/` in `schema.ts` |
-| 6 | FFScript currently uses `"0.1.0"` as the version string | Migration function in `panel-schema.ts` |
-| 7 | `games/studio/actions.ts:101` pins `LLM_MODELS.gpt4o` | Fix T-013 (1-line change to `selectModelForTask`) |
-| 8 | `convex/games/mutations.ts` `deleteGame` skips cascade of `saves`, `characterAnchors`, `locationAnchors`, `userGameLibrary`, `characterLibrary`, `backgroundLibrary` | `cascade-delete.ts` — verify table names |
-| 9 | `generatedAssets` table has `storageKey` field | `cascade-delete.ts` R2 cleanup section |
-| 10 | `users` table has `by_clerk_id` index and `role` field | `cascade-delete.ts`, `publish-gate.ts` |
-| 11 | `timeline-save.ts` writes only to localStorage | Delete it after `publish-gate.ts`'s cloud saves are live |
-| 12 | `src/app/(app)/browse/BrowseClientPage.tsx` is a placeholder stub | Note only; T-231 is a separate PR |
-| 13 | `generation.ts` has silent `catch (e) { }` at line 166 | Fix T-006 (remove the catch) |
-| 14 | `faceExtraction.ts` has silent catch at line 74 | Fix T-006 |
-| 15 | `router.ts` has silent catch at line 54 | Fix T-006 |
+| # | Verified result | Action taken / still needed |
+|---|----------------|------------------------------|
+| 1 ✅ | `CreateWizardPage.tsx` has zero Convex imports — confirmed mock | Delete it (T-001) |
+| 2 ❌ | Index names differ per table. `characters` → `by_game_id`. `characterAnchors` → `by_character` (prefix). `locationAnchors` → `by_location` (prefix). `builds` → `by_game_id`. `saves` → `by_user_and_game` (filter needed). | **Patched** in `cascade-delete.ts`: CASCADE_TABLES now uses per-table `{ table, index }` pairs; saves handled via filter. |
+| 3 ❌ | `gameDrafts` is missing `selectedProvider`, `coverImageKey`, `contentRating`. Only `ffscriptKey`, `title`, `userId` confirmed present. | **Patched** in `publish-gate.ts` + `generation-orchestrator.ts` with `/* SCHEMA ADDITION REQUIRED */` blocks. Add the three fields to `gameDrafts` in PR 3 (selectedProvider) and PR 5 (coverImageKey, contentRating). |
+| 4 ❌ | `processBeatJob` does NOT hardcode `"fal"`. It delegates to `generateBeatAssets`, which handles routing internally. The real hardcoding issue is `studio/actions.ts:101` (LLM_MODELS.gpt4o — T-013, separate 1-line fix). | **Patched** in `generation-orchestrator.ts` comment block. |
+| 5 ✅ | Version regex in `schema.ts` is `/^0\.\d+\.\d+$/` — confirmed | Change to `/^\d+\.\d+\.\d+$/` in `src/lib/ffscript/schema.ts` (line ~3043) as part of PR 2 |
+| 6 ✅ | FFScript default version is `"0.1.0"` — confirmed in `defaults.ts:91` | Migration target in `panel-schema.ts` is correct |
+| 7 ✅ | `studio/actions.ts:101` pins `LLM_MODELS.gpt4o` — confirmed exact line | Fix T-013: replace with `selectModelForTask({ purpose: "story_outline" })` |
+| 8 ✅ | `deleteGame` skips: `saves`, `characterAnchors`, `locationAnchors`, `userGameLibrary`, `characterLibrary`, `backgroundLibrary` — confirmed | `cascade-delete.ts` handles all of these |
+| 9 ❌ | `generatedAssets` has `assetKey` + `r2Url`, NOT `storageKey` | **Patched** in `cascade-delete.ts`: R2 key collection now uses `r.assetKey` |
+| 10 ✅ | `users` has `by_clerk_id` index and `role` field — confirmed | No change needed |
+| 11 ✅ | `timeline-save.ts` is 100% localStorage — no Convex calls | Safe to delete after PR 6 cloud saves go live |
+| 12 ❌ | `BrowseClientPage.tsx` is NOT a stub — it's a real implementation with `useQuery`, `FeaturedGamesSection`, routing, etc. | T-231 is a UI redesign, not deletion. No change to implementation files. |
+| 13 ✅ | `generation.ts` has silent `catch (e) { /* ignore */ }` at line 166 | Fix T-006: remove or surface this catch |
+| 14 ❌ | `faceExtraction.ts` has NO silent catches — all catches return `err()` properly | No T-006 action needed for faceExtraction |
+| 15 ❌ | `providers/router.ts` catch at line 55 logs via `logger.error()` — not silent | No T-006 action needed for this router |
 
 ---
 
@@ -65,9 +65,9 @@ Open these PRs in order. Each is self-contained and passes existing tests before
 
 **Changes:**
 1. Delete `src/components/CreateWizardPage.tsx`; add redirect to `StudioWizard`
-2. Remove silent catches in `generation.ts:166`, `faceExtraction.ts:74`, `router.ts:54`
+2. Remove the one confirmed silent catch: `generation.ts:166` (`catch (e) { /* ignore */ }`) — surface as a logged warning or `err()` return. (`faceExtraction.ts` and `providers/router.ts` were not silent — no action needed there.)
 3. Add `deletedAt` field + `by_deleted_at` index to `games` table in schema
-4. Add `by_game` indexes to any child tables that are missing them
+4. No generic `by_game` index additions needed — `cascade-delete.ts` has already been updated with per-table index names matching the real schema
 5. Copy `cascade-delete.ts` → `convex/lib/auth/requireGameOwner.ts` (auth guard only)
 6. Replace the body of `deleteGame` in `convex/games/mutations.ts` with `softDeleteGame` + `hardDeleteGame` from `cascade-delete.ts`
 7. Add `purgeExpiredGames` scheduled function
@@ -97,7 +97,11 @@ Open these PRs in order. Each is self-contained and passes existing tests before
 
 **Changes:**
 1. In `games/studio/actions.ts:101`, replace `model: LLM_MODELS.gpt4o` with `selectModelForTask({ purpose: "story_outline" })`
-2. In `convex/actions/batchGeneration.ts`, replace the hardcoded FAL call with:
+2. Add `selectedProvider` field to `gameDrafts` schema (verified absent — required by `generation-orchestrator.ts`):
+   ```ts
+   selectedProvider: v.optional(v.union(v.literal("fal"), v.literal("comfyui"), v.literal("replicate")))
+   ```
+3. In `convex/actions/batchGeneration.ts`, replace the hardcoded FAL call with:
    ```ts
    const orchestrator = new ImageOrchestrator({ ... });
    const result = await orchestrator.generate({
@@ -134,6 +138,12 @@ Open these PRs in order. Each is self-contained and passes existing tests before
 3. Wire `publishDraft` from `publish-gate.ts` (replace existing publish action)
 4. Add `playtestToken` generation to the playtest UI flow
 5. Wire `pnpm ffscript:lint` CLI
+6. Add `coverImageKey` and `contentRating` fields to `gameDrafts` schema (verified absent — required by `publish-gate.ts`):
+   ```ts
+   coverImageKey:  v.optional(v.string()),
+   contentRating:  v.optional(v.union(v.literal("sfw"), v.literal("pg13"), v.literal("r18")))
+   // translate sfw/pg13 → "general", r18 → "mature" when writing to games table
+   ```
 
 **Test gate:** A game with a duplicate panel ID is rejected at publish. A clean game publishes successfully.
 

@@ -15,6 +15,21 @@
  *   1. Verify provider client imports match your actual provider files.
  *   2. Ensure `providerHealth` table exists in convex/schema.ts (see bottom).
  *   3. Wire selectedProvider from gameDrafts.selectedProvider (T-004 fix).
+ *
+ * SCHEMA ADDITION REQUIRED ON gameDrafts (verified 2026-04-23 against real schema):
+ *   `selectedProvider` does NOT exist on gameDrafts yet. Add as part of PR 3:
+ *
+ *   gameDrafts: defineTable({
+ *     ...existing fields...,
+ *     selectedProvider: v.optional(v.union(
+ *       v.literal("fal"), v.literal("comfyui"), v.literal("replicate")
+ *     )),
+ *   })
+ *
+ * NOTE on T-004: processBeatJob in batchGeneration.ts does NOT hardcode "fal" —
+ *   it delegates to generateBeatAssets which handles routing internally.
+ *   The real hardcoding issue is in convex/games/studio/actions.ts:101 (LLM_MODELS.gpt4o)
+ *   which is a separate 1-line fix (T-013).
  */
 
 // ─── Provider identifiers ─────────────────────────────────────────────────────

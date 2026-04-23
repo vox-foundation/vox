@@ -97,42 +97,67 @@ export const softDeleteGame = mutation({
 export const hardDeleteGame = internalMutation({
   args: { gameId: v.id("games") },
   handler: async (ctx, { gameId }) => {
-    // Collect R2 asset keys BEFORE deleting rows (needed for blob cleanup)
+    // Collect R2 asset keys BEFORE deleting rows (needed for blob cleanup).
+    // VERIFIED 2026-04-23: generatedAssets uses `assetKey` (string) + `r2Url`.
+    // There is no `storageKey` field on this table.
     const assetKeys = await ctx.db
       .query("generatedAssets")
       .withIndex("by_game", (q) => q.eq("gameId", gameId))
       .collect()
-      .then((rows) => rows.map((r) => r.storageKey).filter(Boolean));
+      .then((rows) => rows.map((r) => r.assetKey).filter(Boolean));
 
     // ── Child table cascade ────────────────────────────────────────────────
 
-    const CASCADE_TABLES = [
-      "saves",
-      "characterLibrary",
-      "backgroundLibrary",
-      "characterAnchors",
-      "locationAnchors",
-      "userGameLibrary",
-      "gameDrafts",
-      "generationAttempts",
-      "audioForgeJobs",
-      "builds",
-      "generatedAssets",
-      "panels",           // denormalized Convex cache (T-027)
-    ] as const;
+    // VERIFIED 2026-04-23 against real schema — index names differ per table.
+    // Format: { table, index } where index is the real index name in convex/schema.ts
+    //
+    // Tables that use "by_game"      : characterLibrary, backgroundLibrary, userGameLibrary,
+    //                                  gameDrafts, generationAttempts, audioForgeJobs,
+    //                                  generatedAssets, scenes
+    // Tables that use "by_game_id"   : characters, builds
+    // Tables with composite first-field: characterAnchors ("by_character" → [gameId, characterId])
+    //                                    locationAnchors  ("by_location"  → [gameId, locationId])
+    // Existing saves table            : "by_user_and_game" needs filter (see note below)
+    // panels (T-027 cache)            : not yet in schema; add when that table is created
 
-    for (const table of CASCADE_TABLES) {
+    const CASCADE_TABLES: Array<{ table: string; index: string }> = [
+      { table: "characterLibrary",   index: "by_game" },
+      { table: "backgroundLibrary",  index: "by_game" },
+      { table: "userGameLibrary",    index: "by_game" },
+      { table: "gameDrafts",         index: "by_game" },
+      { table: "generationAttempts", index: "by_game" },
+      { table: "audioForgeJobs",     index: "by_game" },
+      { table: "generatedAssets",    index: "by_game" },
+      { table: "characters",         index: "by_game_id" },   // NOT by_game — verified
+      { table: "builds",             index: "by_game_id" },   // NOT by_game — verified
+      { table: "characterAnchors",   index: "by_character" }, // prefix scan on gameId
+      { table: "locationAnchors",    index: "by_location" },  // prefix scan on gameId
+    ];
+
+    for (const { table, index } of CASCADE_TABLES) {
       const rows = await (ctx.db as unknown as Record<
         string,
         { query: () => { withIndex: (name: string, fn: (q: unknown) => unknown) => { collect: () => Promise<Array<{ _id: unknown }>> } } }
       >)[table]
         .query()
-        .withIndex("by_game", (q: unknown) => (q as { eq: (field: string, value: unknown) => unknown }).eq("gameId", gameId))
+        .withIndex(index, (q: unknown) => (q as { eq: (field: string, value: unknown) => unknown }).eq("gameId", gameId))
         .collect();
 
       for (const row of rows) {
         await ctx.db.delete(row._id as import("convex/values").Id<typeof table>);
       }
+    }
+
+    // saves (existing table) uses "by_user_and_game" with userId as the first field,
+    // so we cannot use it as a gameId-only prefix. Use filter instead.
+    // After PR 6 adds the new saves table with .index("by_game", ["gameId"]) this
+    // can be moved into CASCADE_TABLES above.
+    const existingSaves = await (ctx.db as any)
+      .query("saves")
+      .filter((q: any) => q.eq(q.field("gameId"), gameId))
+      .collect();
+    for (const row of existingSaves) {
+      await ctx.db.delete((row as any)._id);
     }
 
     // ── Delete the game itself ─────────────────────────────────────────────

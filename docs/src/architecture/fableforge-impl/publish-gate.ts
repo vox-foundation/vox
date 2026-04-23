@@ -14,6 +14,20 @@
  *   2. Confirm "saves" table exists in schema.ts (see schema additions at bottom).
  *   3. The playtestToken mechanism requires the wizard to generate a token when
  *      the user completes playtest; verify the UI flow wires this correctly.
+ *
+ * SCHEMA ADDITIONS REQUIRED ON gameDrafts (verified 2026-04-23 against real schema):
+ *   These fields are referenced below but do NOT exist on gameDrafts yet.
+ *   Add them as part of PR 2 or PR 5:
+ *
+ *   gameDrafts: defineTable({
+ *     ...existing fields...,
+ *     coverImageKey:  v.optional(v.string()),  // R2 key for the cover thumbnail
+ *     contentRating:  v.optional(v.union(
+ *       v.literal("sfw"), v.literal("pg13"), v.literal("r18")
+ *     )),
+ *     // NOTE: games.contentRating uses "general" | "mature"; translate at publish time:
+ *     //   sfw/pg13 → "general", r18 → "mature"
+ *   })
  */
 
 import { action, mutation, query } from "../_generated/server";
