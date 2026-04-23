@@ -9,6 +9,7 @@
 #   docker run -e VOX_MESH_MESH_SIDECAR=1 -p 3000:3000 -p 9847:9847 vox:mesh vox mcp
 
 FROM rust:1.92-slim-bookworm AS builder
+RUN apt-get update && apt-get install -y pkg-config libssl-dev gcc && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 ARG VOX_CLI_FEATURES=
