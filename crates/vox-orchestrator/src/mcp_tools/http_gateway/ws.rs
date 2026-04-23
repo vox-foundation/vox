@@ -4,23 +4,32 @@ pub(super) async fn http_ws(
     ws: WebSocketUpgrade,
     connect: ConnectInfo<SocketAddr>,
     headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
         return resp;
     }
-    let role = match resolve_access_role(&state, &headers) {
-        Ok(r) => r,
-        Err(msg) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({ "error": msg })),
-            )
-                .into_response();
+    
+    let mut role_res = resolve_access_role(&state, &headers, Some(&connect.0));
+    
+    if role_res.is_err() && connect.0.ip().is_loopback() {
+        if let Some(t) = query.get("token").or_else(|| query.get("bearer")) {
+            if let Some(dt) = state.dashboard_token.as_ref() {
+                if constant_time_eq(t.as_bytes(), dt.0.as_bytes()) {
+                    role_res = Ok(AccessRole::Write);
+                }
+            } else if let Some(bt) = state.bearer_token.as_ref() {
+                if constant_time_eq(t.as_bytes(), bt.as_bytes()) {
+                    role_res = Ok(AccessRole::Write);
+                }
+            }
         }
-    };
+    }
+    
+    let role_opt = role_res.ok();
     let identity = request_identity(&state, &connect.0, &headers);
     ws.on_upgrade(move |socket| async move {
-        handle_ws(socket, state, connect.0, identity, role).await;
+        handle_ws(socket, state, connect.0, identity, role_opt).await;
     })
 }
 pub(super) async fn handle_ws(
@@ -28,7 +37,7 @@ pub(super) async fn handle_ws(
     state: GatewayState,
     peer: SocketAddr,
     identity: String,
-    role: AccessRole,
+    mut role_opt: Option<AccessRole>,
 ) {
     let mut rx = state.server_state.orchestrator.event_bus().subscribe();
 
@@ -38,6 +47,44 @@ pub(super) async fn handle_ws(
                 let Some(Ok(msg)) = msg else { break };
                 match msg {
                     Message::Text(text) => {
+                        let parsed: Result<WsMessageIn, _> = serde_json::from_str(&text);
+                        
+                        if role_opt.is_none() {
+                            let mut authenticated = false;
+                            if let Ok(ref req) = parsed {
+                                if req.msg_type == "auth" {
+                                    if let Some(token_val) = req.args.as_ref().and_then(|v| v.get("token")).and_then(|t| t.as_str()) {
+                                        if peer.ip().is_loopback() {
+                                            if let Some(dt) = state.dashboard_token.as_ref() {
+                                                if constant_time_eq(token_val.as_bytes(), dt.0.as_bytes()) {
+                                                    role_opt = Some(AccessRole::Write);
+                                                    authenticated = true;
+                                                }
+                                            }
+                                        }
+                                        if !authenticated {
+                                            if let Some(bt) = state.bearer_token.as_ref() {
+                                                if constant_time_eq(token_val.as_bytes(), bt.as_bytes()) {
+                                                    role_opt = Some(AccessRole::Write);
+                                                    authenticated = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if !authenticated {
+                                let _ = socket.send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                                    code: 4401,
+                                    reason: "Unauthorized".into(),
+                                }))).await;
+                                break;
+                            } else {
+                                continue;
+                            }
+                        }
+                        
+                        let role = role_opt.unwrap();
                         if let Err(msg) = enforce_rate_limit(&state, &identity) {
                             let _ = socket
                                 .send(Message::Text(
@@ -53,7 +100,6 @@ pub(super) async fn handle_ws(
                                 .await;
                             break;
                         }
-                        let parsed: Result<WsMessageIn, _> = serde_json::from_str(&text);
                         let reply = match parsed {
                             Ok(req) => ws_handle_message(&state, req, peer, role).await,
                             Err(e) => WsMessageOut {

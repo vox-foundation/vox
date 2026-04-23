@@ -9,6 +9,8 @@ use status::*;
 mod rpc_tools;
 use rpc_tools::*;
 mod ws;
+mod token;
+pub(super) use token::DashboardToken;
 use anyhow::{Context, Result};
 use axum::Json;
 use axum::extract::DefaultBodyLimit;
@@ -92,6 +94,7 @@ pub(super) struct GatewayState {
     server_state: ServerState,
     bearer_token: Option<String>,
     read_bearer_token: Option<String>,
+    dashboard_token: Option<DashboardToken>,
     allow_unauthenticated: bool,
     health_auth_required: bool,
     require_forwarded_https: bool,
@@ -205,9 +208,10 @@ pub fn spawn_http_gateway_if_enabled(
     let allow_unauthenticated =
         read_bool_env(vox_clavis::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
         
-    // Auto-permit unauthenticated access when dashboard is running on loopback only
     #[cfg(feature = "dashboard")]
-    let mut dashboard_token: Option<String> = None;
+    let mut dashboard_token: Option<token::DashboardToken> = None;
+    #[cfg(not(feature = "dashboard"))]
+    let dashboard_token: Option<token::DashboardToken> = None;
     #[cfg(feature = "dashboard")]
     if bind_host == DEFAULT_BIND_HOST
         && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashboardEnabled)
@@ -215,23 +219,13 @@ pub fn spawn_http_gateway_if_enabled(
             .map(|s| s.trim() == "1")
             .unwrap_or(false)
     {
-        use rand::Rng;
-        let token: String = rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(32)
-            .map(char::from)
-            .collect();
-            
-        let mut path = std::env::temp_dir();
-        path.push("vox");
-        let _ = std::fs::create_dir_all(&path);
-        path.push("dashboard.token");
-        let _ = std::fs::write(&path, &token);
-        
-        if bearer_token.is_none() {
-            bearer_token = Some(token.clone());
+        let state_dir = vox_config::state_dir().unwrap_or_else(|| std::env::temp_dir().join("vox"));
+        if let Ok(token) = token::DashboardToken::generate_or_load(&state_dir) {
+            if bearer_token.is_none() {
+                bearer_token = Some(token.0.clone());
+            }
+            dashboard_token = Some(token);
         }
-        dashboard_token = Some(token);
     }
 
     let public_eval_enabled =
@@ -263,6 +257,7 @@ pub fn spawn_http_gateway_if_enabled(
         server_state: state,
         bearer_token: bearer_token.clone(),
         read_bearer_token,
+        dashboard_token,
         allow_unauthenticated,
         health_auth_required,
         require_forwarded_https,
@@ -287,7 +282,7 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/mobile/status", get(http_mobile_status));
 
     #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token));
+    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.map(|t| t.0)));
 
     async fn check_origin_allowlist(
         axum::extract::State(state): axum::extract::State<GatewayState>,
@@ -377,8 +372,9 @@ pub fn spawn_http_gateway_if_enabled(
 pub(super) fn enforce_auth(
     state: &GatewayState,
     headers: &HeaderMap,
+    peer: Option<&SocketAddr>,
 ) -> std::result::Result<(), String> {
-    resolve_access_role(state, headers).map(|_| ())
+    resolve_access_role(state, headers, peer).map(|_| ())
 }
 
 pub(super) fn enforce_https_requirement(
@@ -442,15 +438,19 @@ pub(super) fn metadata_read_role_eligible_tools() -> HashSet<String> {
 pub(super) fn resolve_access_role(
     state: &GatewayState,
     headers: &HeaderMap,
+    peer: Option<&SocketAddr>,
 ) -> std::result::Result<AccessRole, String> {
     if state.allow_unauthenticated {
+        tracing::warn!("Unauthenticated access allowed by VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED");
         return Ok(AccessRole::Write);
     }
-    let auth = headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default();
-    let got = auth.strip_prefix("Bearer ").unwrap_or_default().trim();
+    
+    let mut got = String::new();
+    
+    if let Some(auth) = headers.get("authorization").and_then(|v| v.to_str().ok()) {
+        got = auth.strip_prefix("Bearer ").unwrap_or_default().trim().to_string();
+    }
+    
     if let Some(expected) = state.bearer_token.as_ref()
         && constant_time_eq(got.as_bytes(), expected.as_bytes())
     {
@@ -461,6 +461,16 @@ pub(super) fn resolve_access_role(
     {
         return Ok(AccessRole::Read);
     }
+    
+    if let Some(dt) = state.dashboard_token.as_ref()
+        && constant_time_eq(got.as_bytes(), dt.0.as_bytes())
+    {
+        let is_loopback = peer.map(|p| p.ip().is_loopback()).unwrap_or(false);
+        if is_loopback {
+            return Ok(AccessRole::Write);
+        }
+    }
+    
     Err("missing or invalid bearer token".to_string())
 }
 

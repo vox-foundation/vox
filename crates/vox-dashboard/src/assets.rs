@@ -60,7 +60,9 @@ pub async fn serve_asset(
 
     match file_result {
         Some((mime_type, mut contents)) => {
+            let mut response_builder = response_builder;
             if mime_type.as_ref() == "text/html" {
+                response_builder = response_builder.header("Cache-Control", "no-store");
                 if let Some(t) = token {
                     let html = String::from_utf8_lossy(&contents);
                     let injected = html.replace(

@@ -13,7 +13,7 @@ pub(super) async fn http_health(
             .into_response();
     }
     if state.health_auth_required
-        && let Err(msg) = enforce_auth(&state, &headers)
+        && let Err(msg) = enforce_auth(&state, &headers, Some(&connect.0))
     {
         return (
             StatusCode::UNAUTHORIZED,

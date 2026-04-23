@@ -32,7 +32,7 @@ export class VoxTransport {
     const token = this.getToken();
     if (token) {
         const joiner = wsUrl.includes('?') ? '&' : '?';
-        wsUrl += `${joiner}bearer=${encodeURIComponent(token)}`;
+        wsUrl += `${joiner}token=${encodeURIComponent(token)}`;
     }
     
     this.ws = new WebSocket(wsUrl);
@@ -41,6 +41,11 @@ export class VoxTransport {
         console.log('WS connected');
         this.reconnectAttempts = 0;
         this.isConnecting = false;
+        
+        if (token && this.ws) {
+            this.ws.send(JSON.stringify({ type: 'auth', args: { token } }));
+        }
+
         this.emit('connection_status', { status: 'connected' });
     };
 

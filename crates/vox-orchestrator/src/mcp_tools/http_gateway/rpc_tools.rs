@@ -7,7 +7,7 @@ pub(super) async fn http_tools(
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
         return resp;
     }
-    let role = match resolve_access_role(&state, &headers) {
+    let role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
         Ok(r) => r,
         Err(msg) => {
             return (
@@ -49,7 +49,7 @@ pub(super) async fn http_call_tool(
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
         return resp;
     }
-    let role = match resolve_access_role(&state, &headers) {
+    let role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
         Ok(r) => r,
         Err(msg) => {
             return (
@@ -134,7 +134,7 @@ pub(super) async fn enforce_request_guards(
     headers: &HeaderMap,
 ) -> std::result::Result<(), Response> {
     let identity = request_identity(state, peer, headers);
-    if let Err(msg) = enforce_auth(state, headers) {
+    if let Err(msg) = enforce_auth(state, headers, Some(peer)) {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "error": msg })),

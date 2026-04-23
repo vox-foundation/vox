@@ -46,7 +46,7 @@ pub(super) async fn http_eval(
             return resp;
         }
         
-        let _role = match resolve_access_role(&state, &headers) {
+        let _role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
             Ok(r) => r,
             Err(msg) => {
                 return (
