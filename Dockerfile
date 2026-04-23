@@ -3,7 +3,7 @@
 
 FROM rust:1.92-slim-bookworm AS builder
 # Install system dependencies (required by openssl-sys and other C-bound crates)
-RUN apt-get update && apt-get install -y pkg-config libssl-dev gcc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y pkg-config libssl-dev build-essential && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 ARG VOX_CLI_FEATURES=
