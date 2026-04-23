@@ -135,7 +135,15 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             if let Some(p) = a.port {
                 crate::config::set_process_vox_port(p);
             }
-            commands::run::run(&a.file, &a.args, a.mode).await?;
+            let mut mode = a.mode;
+            if a.interp {
+                mode = commands::run::RunMode::Interp;
+            } else if a.script {
+                mode = commands::run::RunMode::Script;
+            } else if a.app {
+                mode = commands::run::RunMode::App;
+            }
+            commands::run::run(&a.file, &a.args, mode).await?;
         }
         FabricaCmd::Dev(a) => {
             commands::dev::run(&a.file, &a.out_dir, a.port, a.open).await?;

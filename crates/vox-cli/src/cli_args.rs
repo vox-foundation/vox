@@ -89,6 +89,15 @@ pub struct RunArgs {
     /// `app` = generated server; `script` = `fn main()` script lane; `auto` = heuristic.
     #[arg(long, value_enum, default_value_t = crate::commands::run::RunMode::Auto)]
     pub mode: crate::commands::run::RunMode,
+    /// Alias for --mode interp (HIR interpreter)
+    #[arg(long, conflicts_with = "mode")]
+    pub interp: bool,
+    /// Alias for --mode script (WASI/Native execution)
+    #[arg(long, conflicts_with = "mode")]
+    pub script: bool,
+    /// Alias for --mode app (full web app)
+    #[arg(long, conflicts_with = "mode")]
+    pub app: bool,
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }
