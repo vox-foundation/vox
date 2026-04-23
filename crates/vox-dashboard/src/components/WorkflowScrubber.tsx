@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, AlertCircle, RotateCcw, Box, Zap, HardDrive } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
+import { voxTransport } from '../transport';
 
-const vscode = getVsCodeApi();
+
 
 export function WorkflowScrubber({ snapshots }: any) {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -10,7 +10,7 @@ export function WorkflowScrubber({ snapshots }: any) {
     const workflow = snapshots;
 
     const handleResume = (stepId: number) => {
-        vscode.postMessage({ type: 'resumeWorkflow', step: stepId });
+        voxTransport.callTool('vox_plan_resume', { step: stepId });
     };
 
     return (

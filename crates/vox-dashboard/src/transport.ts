@@ -41,6 +41,7 @@ export class VoxTransport {
         console.log('WS connected');
         this.reconnectAttempts = 0;
         this.isConnecting = false;
+        this.emit('connection_status', { status: 'connected' });
     };
 
     this.ws.onerror = (err) => {
@@ -71,6 +72,7 @@ export class VoxTransport {
       console.log(`WS disconnected: code=${event.code}, reason=${event.reason}`);
       this.ws = null;
       this.isConnecting = false;
+      this.emit('connection_status', { status: 'disconnected', code: event.code });
       
       // Stop reconnecting on auth failure (1008 Policy Violation or 4000+ custom auth codes)
       if (event.code === 1008 || event.code === 4001 || event.code === 4003) {

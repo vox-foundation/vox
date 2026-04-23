@@ -1,12 +1,10 @@
 import React from 'react';
 import { Terminal, Activity, Trophy, Bell, Cpu, Layers, MessageSquare, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
+import { voxTransport } from '../transport';
 // import { Panel } from './ui/Panel';
 import { StateChip } from './ui/StateChip';
 
 import { AttentionPanel } from './AttentionPanel';
-
-const vscode = getVsCodeApi();
 
 function opRowTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
     const normalized = status.toLowerCase();
@@ -39,7 +37,7 @@ export const UnifiedDashboard = ({
     const isIdle = (stats.activeAgents === '0' || !stats.activeAgents) && (stats.queueDepth === '0' || !stats.queueDepth) && ops.length === 0;
 
     return (
-        <div className="p-4 grid grid-cols-12 gap-4 overflow-y-auto flex-1 min-h-0 text-foreground custom-scrollbar relative z-10 w-full h-full bg-background border-t border-border">
+        <div className="p-4 pb-20 grid grid-cols-12 gap-4 overflow-y-auto flex-1 min-h-0 text-foreground custom-scrollbar relative z-10 w-full h-full bg-background border-t border-border">
             {/* Header Area */}
             <div className="col-span-12 flex justify-between items-center mb-2 pb-2 border-b border-border border-opacity-50">
                 <h2 className="text-2xl font-rajdhani text-brass tracking-wider">IMPERIUM</h2>
@@ -94,10 +92,9 @@ export const UnifiedDashboard = ({
                                     onClick={() => {
                                         const el = document.getElementById('budget-cap-input') as HTMLInputElement;
                                         if (el?.value) {
-                                            vscode.postMessage({ 
-                                                type: 'setAgentBudget', 
-                                                agentId: 0, 
-                                                maxCostUsd: parseFloat(el.value) 
+                                            voxTransport.callTool('vox_set_agent_budget', { 
+                                                agent_id: 0, 
+                                                max_cost_usd: parseFloat(el.value) 
                                             });
                                             el.value = '';
                                         }
@@ -123,7 +120,7 @@ export const UnifiedDashboard = ({
                             <button
                                 type="button"
                                 className="text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded border border-destructive bg-void text-destructive hover:bg-destructive hover:text-white transition-colors"
-                                onClick={() => vscode.postMessage({ type: 'ludusAckAllNotifications' })}
+                                onClick={() => voxTransport.callTool('vox_ludus_notifications_ack_all', {})}
                             >
                                 ACK ALL
                             </button>
@@ -135,7 +132,7 @@ export const UnifiedDashboard = ({
                                     <button
                                         type="button"
                                         className="text-[10px] px-3 py-1 bg-machine border border-border text-steel rounded hover:border-cyan hover:text-cyan transition-colors uppercase tracking-widest font-bold"
-                                        onClick={() => vscode.postMessage({ type: 'ludusAckNotification', notificationId: String(n.id ?? '') })}
+                                        onClick={() => voxTransport.callTool('vox_ludus_notification_ack', { notification_id: String(n.id ?? '') })}
                                     >
                                         ACK
                                     </button>
@@ -148,7 +145,7 @@ export const UnifiedDashboard = ({
 
             {/* Main Operations Stream - Conditional on Idle State */}
             {isIdle ? (
-                <div className="col-span-12 flex flex-col items-center justify-center p-12 border border-border bg-machine bg-opacity-50 rounded-xl shadow-[inset_0_5px_15px_rgba(0,0,0,0.5)] h-[400px]">
+                <div className="col-span-12 flex flex-col items-center justify-center p-12 border border-border bg-machine bg-opacity-50 rounded-xl shadow-[inset_0_5px_15px_rgba(0,0,0,0.5)] min-h-[400px]">
                     <div className="w-16 h-16 rounded-full border border-copper text-primary flex items-center justify-center mb-6 shadow-[0_0_15px_var(--vox-amber-glow)] relative">
                         <div className="absolute inset-0 rounded-full border border-primary animate-ping opacity-20" />
                         <Sparkles size={24} />
@@ -158,7 +155,9 @@ export const UnifiedDashboard = ({
                         Network resources are currently standing by. No active agents or queued tasks. Select files and execute a prompt in <span className="text-primary">Loquela</span> to begin, or create a new task below.
                     </p>
                     <button 
-                        onClick={() => vscode.postMessage({ type: 'runCommand', value: 'vox.commandPalette' })}
+                        onClick={() => {
+                            voxTransport.callTool('vox_submit_task', { description: 'New task requested via dashboard' });
+                        }}
                         className="px-8 py-3 bg-primary text-black font-rajdhani font-bold text-lg tracking-widest rounded uppercase hover:bg-amber-400 border border-transparent shadow-[0_0_10px_var(--vox-amber-glow)] transition-all"
                     >
                         NEW TASK
@@ -179,14 +178,14 @@ export const UnifiedDashboard = ({
                                 <button
                                     type="button"
                                     className="px-3 py-1.5 rounded border border-border bg-machine text-[10px] font-bold uppercase tracking-widest text-steel hover:border-cyan hover:text-cyan transition-colors"
-                                    onClick={() => vscode.postMessage({ type: 'rebalance' })}
+                                    onClick={() => voxTransport.callTool('vox_rebalance', {})}
                                 >
                                     REBALANCE
                                 </button>
                                 <button
                                     type="button"
                                     className="px-3 py-1.5 rounded border border-destructive bg-machine text-[10px] font-bold uppercase tracking-widest text-destructive hover:bg-destructive hover:text-white transition-colors"
-                                    onClick={() => vscode.postMessage({ type: 'emergencyStop' })}
+                                    onClick={() => voxTransport.callTool('vox_emergency_stop', {})}
                                 >
                                     ⛔ STOP ALL
                                 </button>
@@ -224,7 +223,7 @@ export const UnifiedDashboard = ({
                                                 className="p-1.5 rounded border border-destructive bg-machine text-destructive hover:bg-destructive hover:text-white transition-all transform hover:scale-110"
                                                 onClick={() => {
                                                     if (entry.id) {
-                                                        vscode.postMessage({ type: 'doubtTask', taskId: entry.id });
+                                                        voxTransport.callTool('vox_doubt_task', { task_id: entry.id });
                                                     }
                                                 }}
                                             >

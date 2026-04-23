@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, BrainCircuit, Target, CheckCircle, XCircle, Shield, GitBranch } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
-
-const vscode = getVsCodeApi();
+import { voxTransport } from '../transport';
 
 export function IntentionMatrix({ intents, socratesStatus }: any) {
     const [enforceGate, setEnforceGate] = useState(true);
@@ -12,14 +10,18 @@ export function IntentionMatrix({ intents, socratesStatus }: any) {
     const matrix = intents || [];
     const shadowRisk = socratesStatus?.shadowRisk || 0;
 
-    const toggleGate = () => {
+    const toggleGate = async () => {
         const newValue = !enforceGate;
         setEnforceGate(newValue);
-        vscode.postMessage({ type: 'setSocratesGate', enforce: newValue });
+        await voxTransport.callTool('vox_preference_set', {
+            user_id: "default",
+            key: 'socrates_gate_enforced',
+            value: newValue.toString()
+        });
     };
 
     return (
-        <div className="p-10 bg-[#09090b] h-full overflow-y-auto w-full flex flex-col gap-6 text-white">
+        <div className="p-4 bg-background h-full overflow-y-auto w-full flex flex-col gap-6 text-white pb-20">
             <div className="flex justify-between items-center bg-white/[0.02] border border-white/5 p-6 rounded-3xl glass">
                 <div>
                     <h2 className="text-3xl font-black tracking-tighter uppercase mb-2 flex items-center gap-3">
@@ -120,7 +122,7 @@ export function IntentionMatrix({ intents, socratesStatus }: any) {
                                 </div>
                                 {selectedIntent.confidence < 0.5 && enforceGate && (
                                     <button 
-                                        onClick={() => vscode.postMessage({ type: 'rejectExecution', intentId: selectedIntent.id })}
+                                        onClick={() => voxTransport.callTool('vox_fail_task', { task_id: String(selectedIntent.id) })}
                                         className="px-3 py-1.5 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-lg text-[10px] font-bold uppercase hover:bg-rose-500/20 transition-all"
                                     >
                                         Reject Execution

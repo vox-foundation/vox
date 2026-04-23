@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BrainCircuit, Database, Globe2, RefreshCcw, Search, FolderKanban, Compass, Rocket } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
+import { voxTransport } from '../transport';
 import type { WorkspaceInspectorState } from '../../../src/types';
-
-const vscode = getVsCodeApi();
 
 function pretty(value: unknown): string {
   if (value == null) return 'None';
@@ -56,7 +54,7 @@ export function ContextExplorer({
           <button
             type="button"
             className="p-2 rounded-lg border border-white/10 text-zinc-300"
-            onClick={() => vscode.postMessage({ type: 'refreshInspector' })}
+            onClick={() => voxTransport.callTool('vox_orchestrator_status', {})}
           >
             <RefreshCcw size={14} />
           </button>
@@ -133,7 +131,7 @@ export function ContextExplorer({
               <button
                 type="button"
                 className="px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-semibold"
-                onClick={() => vscode.postMessage({ type: 'planGoalPreview', goal: planGoal, depth: 'deep' })}
+                onClick={() => voxTransport.callTool('vox_plan', { goal: planGoal, depth: 'deep' })}
               >
                 Preview Deep Plan
               </button>
@@ -187,7 +185,7 @@ export function ContextExplorer({
             <button
               type="button"
               className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold"
-              onClick={() => vscode.postMessage({ type: 'repoQueryText', query: repoQuery, limit: 8 })}
+              onClick={() => voxTransport.callTool('vox_repo_query_text', { query: repoQuery, limit: 8 })}
             >
               Query
             </button>
@@ -217,7 +215,7 @@ export function ContextExplorer({
               <button
                 type="button"
                 className="px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-zinc-300"
-                onClick={() => vscode.postMessage({ type: 'inspectContextKey', key: contextKey })}
+                onClick={() => voxTransport.callTool('vox_db_explain_query', { query: contextKey })}
               >
                 Get
               </button>
@@ -232,7 +230,7 @@ export function ContextExplorer({
               <button
                 type="button"
                 className="px-3 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold"
-                onClick={() => vscode.postMessage({ type: 'contextSetValue', agentId: 0, key: contextKey, value: contextValue })}
+                onClick={() => voxTransport.callTool('vox_db_sample_data', { agentId: 0, key: contextKey, value: contextValue })}
               >
                 Set Key
               </button>
@@ -246,7 +244,7 @@ export function ContextExplorer({
                     className="px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-100"
                     onClick={() => {
                       setContextKey(key);
-                      vscode.postMessage({ type: 'inspectContextKey', key });
+                      voxTransport.callTool('vox_db_explain_query', { query: key });
                     }}
                   >
                     {key}
@@ -276,14 +274,14 @@ export function ContextExplorer({
                 <button
                   type="button"
                   className="px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-semibold"
-                  onClick={() => vscode.postMessage({ type: 'browserOpen', url: browserUrl })}
+                  onClick={() => voxTransport.callTool('vox_browser_open', { url: browserUrl })}
                 >
                   Open
                 </button>
                 <button
                   type="button"
                   className="px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-zinc-300"
-                  onClick={() => vscode.postMessage({ type: 'browserNavigate', url: browserUrl })}
+                  onClick={() => voxTransport.callTool('vox_browser_goto', { url: browserUrl })}
                 >
                   Goto
                 </button>
@@ -297,7 +295,7 @@ export function ContextExplorer({
                 <button
                   type="button"
                   className="px-3 py-2 rounded-xl bg-cyan-700 text-white text-xs font-semibold"
-                  onClick={() => vscode.postMessage({ type: 'browserExtract', instruction: browserInstruction })}
+                  onClick={() => voxTransport.callTool('vox_browser_extract', { instruction: browserInstruction })}
                 >
                   Extract
                 </button>
@@ -310,7 +308,7 @@ export function ContextExplorer({
               <button
                 type="button"
                 className="mt-2 px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-zinc-300"
-                onClick={() => vscode.postMessage({ type: 'browserScreenshot', path: screenshotPath })}
+                onClick={() => voxTransport.callTool('vox_browser_screenshot', { path: screenshotPath })}
               >
                 Save Screenshot
               </button>
@@ -342,8 +340,7 @@ export function ContextExplorer({
                 type="button"
                 className="px-3 py-2 rounded-xl bg-emerald-700 text-white text-xs font-semibold"
                 onClick={() =>
-                  vscode.postMessage({
-                    type: 'projectInit',
+                  voxTransport.callTool('vox_project_init', {
                     projectName,
                     packageKind: 'application',
                     template: 'dashboard',

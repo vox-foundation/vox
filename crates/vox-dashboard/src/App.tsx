@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import { MessageSquare, Crown, Network, Hammer, Settings2, Sparkles, Terminal, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { useVoxTransport } from './transport';
-import { getVsCodeApi } from './utils/vscode';
+import { useVoxTransport, voxTransport } from './transport';
 import { ChatSessionMeta, ComposerState, WorkspaceInspectorState, AttentionStatusPayload } from './types';
 
 import { UnifiedDashboard } from './components/UnifiedDashboard';
@@ -17,8 +15,6 @@ import { MeshTopology } from './components/MeshTopology';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeBlock } from './components/CodeBlock';
 import { useSoundEffects, SoundType } from './hooks/useSoundEffects';
-
-const vscode = getVsCodeApi();
 
 type TabId = 'speak' | 'command' | 'network' | 'forge';
 
@@ -50,10 +46,11 @@ function App() {
   const [planAdequacyQuestions, setPlanAdequacyQuestions] = useState<string[]>([]);
   const [attentionStatus, setAttentionStatus] = useState<AttentionStatusPayload | null>(null);
   const [attentionAlert, setAttentionAlert] = useState<any | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<{status: string, code?: number}>({status: 'connecting'});
 
   // Local UI states
   const [chatInput, setChatInput] = useState<string>('');
-  const [chatSessionId, setChatSessionId] = useState<string>('vscode-sidebar');
+  const [chatSessionId, setChatSessionId] = useState<string>('vox-dashboard');
   const [chatProfile, setChatProfile] = useState<'fast' | 'reasoning' | 'creative'>('reasoning');
   const [pinnedFiles, setPinnedFiles] = useState<string[]>([]);
   const [composerVisible, setComposerVisible] = useState(false);
@@ -137,10 +134,9 @@ function App() {
               : 'Agent over-confidence detected.',
             type: validated ? 'success' : 'danger',
           });
-        })
+        }),
+        transport.on('connection_status', (val: any) => setConnectionStatus(val as {status: string, code?: number}))
     ];
-
-    vscode.postMessage({ type: 'getInitialData' });
     
     return () => {
       unsubs.forEach(unsub => unsub());
@@ -350,14 +346,10 @@ function App() {
                   event.preventDefault();
                   const value = chatInput.trim();
                   if (!value) return;
-                  vscode.postMessage({
-                    type: 'submitTask',
-                    value: {
-                      prompt: value,
-                      contextFiles: pinnedFiles,
-                      sessionId: chatSessionId,
-                      cognitiveProfile: chatProfile,
-                    },
+                  voxTransport.callTool('vox_submit_task', {
+                    description: value,
+                    files: pinnedFiles.map(f => ({ path: f, access: 'read' })),
+                    session_id: chatSessionId
                   });
                   setChatInput('');
                 }}
@@ -409,7 +401,7 @@ function App() {
         </div>
         <div className="mt-auto flex flex-col items-center gap-6 mb-4">
           <button 
-            onClick={() => vscode.postMessage({ type: 'pickModel' })}
+            onClick={() => voxTransport.callTool('vox_set_active_model', { model_id: 'default' })}
             className="text-steel opacity-60 hover:opacity-100 transition-opacity flex flex-col items-center gap-1"
             title="Settings / Praecepta"
           >
@@ -429,18 +421,29 @@ function App() {
         </div>
       </aside>
 
-      <main className="flex-1 relative overflow-hidden flex flex-col min-w-0 bg-background bg-opacity-50">
+      <main className="flex-1 relative overflow-hidden flex flex-col min-w-0 bg-background bg-opacity-50" style={{ contain: 'content' }}>
         <div
           role="status"
           aria-live="polite"
-          className="vox-exec-hint text-[10px] px-3 py-1 font-mono border-b border-border border-opacity-30 shrink-0 text-steel opacity-80 bg-background"
+          className="vox-exec-hint text-[10px] px-3 py-1 font-mono border-b border-border border-opacity-30 shrink-0 text-steel opacity-80 bg-background flex items-center justify-between"
         >
-          {execHint}
-          {capabilities?.db_configured === false ? ' · events: transient' : ''}
-          {typeof capabilities?.toolCount === 'number' ? ` · MCP tools: ${capabilities.toolCount}` : ''}
-          {capabilities?.schemaFingerprint ? ` · cap fp: ${capabilities.schemaFingerprint}` : ''}
-          {chatMeta?.socrates?.risk_decision ? ` · Socrates: ${String(chatMeta.socrates.risk_decision)}` : ''}
-          {capabilities?.lastMcpError ? ` · MCP error: ${String(capabilities.lastMcpError).slice(0, 120)}` : ''}
+          <div>
+            {execHint}
+            {capabilities?.db_configured === false ? ' · events: transient' : ''}
+            {typeof capabilities?.toolCount === 'number' ? ` · MCP tools: ${capabilities.toolCount}` : ''}
+            {capabilities?.schemaFingerprint ? ` · cap fp: ${capabilities.schemaFingerprint}` : ''}
+            {chatMeta?.socrates?.risk_decision ? ` · Socrates: ${String(chatMeta.socrates.risk_decision)}` : ''}
+            {capabilities?.lastMcpError ? ` · MCP error: ${String(capabilities.lastMcpError).slice(0, 120)}` : ''}
+          </div>
+          <div className="flex items-center gap-2 font-bold tracking-widest uppercase">
+            {connectionStatus.status === 'disconnected' ? (
+              <span className="text-destructive">⚠️ WS Disconnected {connectionStatus.code ? `(${connectionStatus.code})` : ''}</span>
+            ) : connectionStatus.status === 'connected' ? (
+              <span className="text-green-500">● WS Connected</span>
+            ) : (
+              <span className="text-yellow-500 animate-pulse">↻ WS Connecting</span>
+            )}
+          </div>
         </div>
         
         <AnimatePresence mode="popLayout" initial={false}>

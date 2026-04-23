@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Files, Sparkles, Check, X, RefreshCcw } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
+import { voxTransport } from '../transport';
 import type { ComposerState } from '../../../src/types';
 import { CodeBlock } from './CodeBlock';
-
-const vscode = getVsCodeApi();
 
 function langFromPath(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase();
@@ -100,7 +98,7 @@ export function ComposerPanel({
             type="button"
             className="px-4 py-1.5 rounded bg-primary text-black text-[11px] font-bold uppercase tracking-widest disabled:opacity-30 disabled:bg-machine disabled:text-steel hover:bg-amber-400 transition-colors shadow-[0_0_5px_var(--vox-amber-glow)]"
             disabled={composerState?.isGenerating || !prompt.trim() || selectedFiles.length === 0}
-            onClick={() => vscode.postMessage({ type: 'composerGenerate', prompt, files: selectedFiles })}
+            onClick={() => voxTransport.callTool('vox_submit_task', { description: `Generate multi-file change: ${prompt}`, files: selectedFiles.map(f => ({ path: f, access: 'read' })) })}
           >
             {composerState?.isGenerating ? 'GENERATING...' : 'STAGE REVIEW'}
           </button>
@@ -108,7 +106,7 @@ export function ComposerPanel({
             type="button"
             className="px-3 py-1.5 rounded border border-border bg-machine text-[10px] font-bold uppercase tracking-widest text-brass disabled:opacity-30 hover:border-copper hover:text-primary transition-colors"
             disabled={(composerState?.drafts?.length ?? 0) === 0}
-            onClick={() => vscode.postMessage({ type: 'composerApply', paths: [] })}
+            onClick={() => voxTransport.callTool('vox_apply_structured_edit', { paths: [] })}
           >
             APPLY ALL
           </button>
@@ -116,7 +114,7 @@ export function ComposerPanel({
             type="button"
             className="px-3 py-1.5 rounded border border-border bg-void text-[10px] font-bold uppercase tracking-widest text-steel disabled:opacity-30 hover:border-destructive hover:text-destructive transition-colors"
             disabled={(composerState?.drafts?.length ?? 0) === 0}
-            onClick={() => vscode.postMessage({ type: 'composerDiscardAll' })}
+            onClick={() => voxTransport.callTool('vox_undo', {})} // Discard all drafts via undo
           >
             Discard Drafts
           </button>
@@ -155,7 +153,7 @@ export function ComposerPanel({
                     <button
                       type="button"
                       className="p-1.5 rounded bg-machine text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400 hover:text-black transition-colors"
-                      onClick={() => vscode.postMessage({ type: 'composerApply', paths: [draft.path] })}
+                      onClick={() => voxTransport.callTool('vox_apply_structured_edit', { paths: [draft.path] })}
                       title="Apply Draft"
                     >
                       <Check size={14} />
@@ -163,7 +161,7 @@ export function ComposerPanel({
                     <button
                       type="button"
                       className="p-1.5 rounded bg-machine text-destructive border border-destructive/30 hover:bg-destructive hover:text-white transition-colors"
-                      onClick={() => vscode.postMessage({ type: 'composerDiscard', path: draft.path })}
+                      onClick={() => voxTransport.callTool('vox_undo', { path: draft.path })} // Discard single draft
                       title="Discard Draft"
                     >
                       <X size={14} />
@@ -187,7 +185,7 @@ export function ComposerPanel({
                     </div>
                   </div>
                 </details>
-                {draftPaths.has(draft.path) ? null : null}
+
               </article>
             ))}
           </div>

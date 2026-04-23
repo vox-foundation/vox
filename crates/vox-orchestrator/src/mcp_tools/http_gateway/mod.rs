@@ -290,10 +290,16 @@ pub fn spawn_http_gateway_if_enabled(
     let app = app.merge(vox_dashboard::dashboard_router(dashboard_token));
 
     async fn check_origin_allowlist(
+        axum::extract::State(state): axum::extract::State<GatewayState>,
         headers: axum::http::HeaderMap,
         req: axum::extract::Request,
         next: axum::middleware::Next,
     ) -> axum::response::Response {
+        // Exempt the public eval sandbox from loopback restrictions
+        if state.public_eval_enabled && req.uri().path() == "/v1/eval" {
+            return next.run(req).await;
+        }
+
         let origin = headers.get(axum::http::header::ORIGIN)
             .and_then(|v| v.to_str().ok())
             .or_else(|| headers.get(axum::http::header::HOST).and_then(|v| v.to_str().ok()))
@@ -315,7 +321,7 @@ pub fn spawn_http_gateway_if_enabled(
     }
 
     let app = app
-        .layer(axum::middleware::from_fn(check_origin_allowlist))
+        .layer(axum::middleware::from_fn_with_state(gateway_state.clone(), check_origin_allowlist))
         .layer(DefaultBodyLimit::max(256 * 1024))
         .with_state(gateway_state.clone());
 

@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Zap, Activity, Settings2 } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
+import { voxTransport } from '../transport';
 import { AttentionAlert, AttentionStatusPayload } from '../../../src/types';
-
-const vscode = getVsCodeApi();
 
 export const AttentionPanel = ({
     status,
@@ -120,7 +118,7 @@ export const AttentionPanel = ({
                             <input 
                                 type="checkbox" 
                                 checked={status.enabled ?? false} 
-                                onChange={(e) => vscode.postMessage({ type: 'setAttentionPreference', key: 'attention.enabled', value: e.target.checked ? 'true' : 'false' })}
+                                onChange={(e) => voxTransport.callTool('vox_preference_set', { key: 'attention.enabled', value: e.target.checked ? 'true' : 'false' })}
                                 className="accent-cyan"
                             />
                         </div>
@@ -136,7 +134,7 @@ export const AttentionPanel = ({
                                 max={86400000} 
                                 step={1800000} 
                                 value={maxMs} 
-                                onChange={(e) => vscode.postMessage({ type: 'setAttentionPreference', key: 'attention.budget_ms', value: String(e.target.value) })}
+                                onChange={(e) => voxTransport.callTool('vox_preference_set', { key: 'attention.budget_ms', value: String(e.target.value) })}
                                 className="w-full accent-cyan"
                             />
                         </div>
@@ -152,7 +150,7 @@ export const AttentionPanel = ({
                                 max={0.95} 
                                 step={0.05} 
                                 value={status.alert_threshold ?? 0.85} 
-                                onChange={(e) => vscode.postMessage({ type: 'setAttentionPreference', key: 'attention.alert_threshold', value: String(e.target.value) })}
+                                onChange={(e) => voxTransport.callTool('vox_preference_set', { key: 'attention.alert_threshold', value: String(e.target.value) })}
                                 className="w-full accent-cyan"
                             />
                         </div>
@@ -180,7 +178,7 @@ export const AttentionPanel = ({
                                             <button 
                                                 onClick={() => {
                                                     const val = (document.getElementById('cost-input') as HTMLInputElement).value;
-                                                    vscode.postMessage({ type: 'runTerminalCommand', value: `vox attention config set cost ${val}\n` });
+                                                    console.warn('Terminal command execution not yet supported in standalone mode:', `vox attention config set cost ${val}`);
                                                 }}
                                                 className="px-2 py-1 bg-machine border border-border text-[9px] text-cyan hover:bg-cyan/10 rounded"
                                             >
@@ -197,7 +195,10 @@ export const AttentionPanel = ({
                                 className="bg-machine border border-border text-[9px] text-steel p-1 rounded"
                                 onChange={(e) => {
                                     if (e.target.value) {
-                                        vscode.postMessage({ type: 'trustOverride', tier: e.target.value, reason: 'Manual override via AttentionPanel', agentId: 'global' });
+                                        let score = 1.0;
+                                        if (e.target.value === 'Monitored') score = 0.5;
+                                        if (e.target.value === 'Untrusted') score = 0.0;
+                                        voxTransport.callTool('vox_trust_override', { agent_id: 0, trust_score: score });
                                         e.target.value = "";
                                     }
                                 }}
@@ -210,7 +211,7 @@ export const AttentionPanel = ({
                             <button 
                                 onClick={() => {
                                     if (confirm('Reset attention session?')) {
-                                        vscode.postMessage({ type: 'attentionReset' });
+                                        voxTransport.callTool('vox_attention_reset', {});
                                     }
                                 }}
                                 className="px-3 py-1.5 text-[10px] text-destructive border border-destructive/50 bg-destructive/10 rounded hover:bg-destructive hover:text-white transition-colors"

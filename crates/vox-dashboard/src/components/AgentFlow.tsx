@@ -13,9 +13,7 @@ import {
 } from '@xyflow/react';
 import { Activity, CheckCircle2, Clock, AlertCircle, Ban, ShieldAlert } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
-import { getVsCodeApi } from '../utils/vscode';
-
-const vscode = getVsCodeApi();
+import { voxTransport } from '../transport';
 
 const TaskNode = ({ data }: { data: Record<string, unknown> }) => {
   let statusColor = 'zinc';
@@ -85,7 +83,7 @@ const TaskNode = ({ data }: { data: Record<string, unknown> }) => {
                     className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-rose-500/50 text-rose-500/80 hover:bg-rose-500 hover:text-white transition-all mt-1"
                     onClick={(e) => {
                         e.stopPropagation();
-                        vscode.postMessage({ type: 'doubtTask', taskId: String(data.id) });
+                        voxTransport.callTool('vox_doubt_task', { task_id: String(data.id) });
                     }}
                 >
                     🚩 Doubt
@@ -257,7 +255,7 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
               disabled={!canSend}
               className={lifecycleBtn}
               style={btnStyle}
-              onClick={() => canSend && vscode.postMessage({ type: 'agentPause', agentId: resolvedAgentId })}
+              onClick={() => canSend && voxTransport.callTool('vox_pause_agent', { agent_id: String(resolvedAgentId) })}
             >
               Pause
             </button>
@@ -266,7 +264,7 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
               disabled={!canSend}
               className={lifecycleBtn}
               style={btnStyle}
-              onClick={() => canSend && vscode.postMessage({ type: 'agentResume', agentId: resolvedAgentId })}
+              onClick={() => canSend && voxTransport.callTool('vox_resume_agent', { agent_id: String(resolvedAgentId) })}
             >
               Resume
             </button>
@@ -275,7 +273,7 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
               disabled={!canSend}
               className={lifecycleBtn}
               style={btnStyle}
-              onClick={() => canSend && vscode.postMessage({ type: 'agentDrain', agentId: resolvedAgentId })}
+              onClick={() => canSend && voxTransport.callTool('vox_drain_agent', { agent_id: String(resolvedAgentId) })}
             >
               Drain
             </button>
@@ -284,7 +282,7 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
               disabled={!canSend}
               className={lifecycleBtn}
               style={btnStyle}
-              onClick={() => canSend && vscode.postMessage({ type: 'agentRetire', agentId: resolvedAgentId })}
+              onClick={() => canSend && voxTransport.callTool('vox_retire_agent', { agent_id: String(resolvedAgentId) })}
             >
               Retire
             </button>
@@ -304,7 +302,7 @@ export const AgentFlow = ({ tasks = [], capabilities = null }: { tasks: unknown[
                 disabled={!canSend || isNaN(budgetUsd)}
                 className={lifecycleBtn}
                 style={btnStyle}
-                onClick={() => canSend && !isNaN(budgetUsd) && vscode.postMessage({ type: 'setAgentBudget', agentId: resolvedAgentId, maxCostUsd: budgetUsd })}
+                onClick={() => canSend && !isNaN(budgetUsd) && voxTransport.callTool('vox_set_budget', { max_cost_usd: budgetUsd })}
               >
                 Set
               </button>

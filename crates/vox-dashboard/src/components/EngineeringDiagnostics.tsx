@@ -5,9 +5,7 @@ import { IntentionMatrix } from './IntentionMatrix';
 import { WorkflowScrubber } from './WorkflowScrubber';
 import { ContextExplorer } from './ContextExplorer';
 import { Activity, LayoutTemplate, Network, Wrench, ShieldAlert, Sparkles, BrainCircuit } from 'lucide-react';
-import { getVsCodeApi } from '../utils/vscode';
-
-const vscode = getVsCodeApi();
+import { voxTransport } from '../transport';
 
 export const EngineeringDiagnostics = ({ 
     tasks, capabilities, ast, activeFile, intentionMatrix, voxStatus, workflowStatus, inspectorState 
@@ -45,9 +43,9 @@ export const EngineeringDiagnostics = ({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 pt-0 custom-scrollbar text-foreground relative z-10 w-full min-h-0">
+            <div className="flex-1 overflow-y-auto p-4 pt-0 pb-20 custom-scrollbar text-foreground relative z-10 w-full min-h-0">
                 {subTab === 'flow' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
                         <div className="bg-machine px-4 py-2 border-b border-border text-xs font-rajdhani font-bold uppercase tracking-widest text-brass">
                             Execution Flow
                         </div>
@@ -58,7 +56,7 @@ export const EngineeringDiagnostics = ({
                 )}
 
                 {subTab === 'ast' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
                         <div className="bg-machine px-4 py-2 border-b border-border text-xs font-rajdhani font-bold uppercase tracking-widest text-brass">
                             AST Inspector Tracker
                         </div>
@@ -69,7 +67,7 @@ export const EngineeringDiagnostics = ({
                 )}
 
                 {subTab === 'intentions' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
                         <div className="bg-machine px-4 py-2 border-b border-border text-xs font-rajdhani font-bold uppercase tracking-widest text-brass">
                             Orchestrator Intention Matrix
                         </div>
@@ -80,7 +78,7 @@ export const EngineeringDiagnostics = ({
                 )}
 
                 {subTab === 'chronicle' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
                         <div className="bg-machine px-4 py-2 border-b border-border text-xs font-rajdhani font-bold uppercase tracking-widest text-brass">
                             Workflow Scrubber
                         </div>
@@ -91,7 +89,7 @@ export const EngineeringDiagnostics = ({
                 )}
                 
                 {subTab === 'context' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
                         <div className="bg-machine px-4 py-2 border-b border-border text-xs font-rajdhani font-bold uppercase tracking-widest text-brass flex items-center justify-between">
                             <span>Context Explorer</span>
                         </div>
@@ -102,16 +100,16 @@ export const EngineeringDiagnostics = ({
                 )}
 
                 {subTab === 'tools' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col">
                         <div className="bg-machine px-4 py-2 border-b border-border text-xs font-rajdhani font-bold uppercase tracking-widest text-brass flex items-center justify-between">
                             <span>Tool Registry & Capabilities</span>
                             <div className="flex gap-4 items-center">
                                 <span className="opacity-80 font-mono text-cyan lowercase">tools: {capabilities?.toolCount ?? 0}</span>
                                 <button 
-                                    onClick={() => vscode.postMessage({ type: 'restartMcpServer' })}
+                                    onClick={() => voxTransport.callTool('vox_orchestrator_start', {})}
                                     className="px-2 py-1 text-[9px] bg-surface rounded border border-border text-steel hover:text-white hover:border-copper transition-colors"
                                 >
-                                    RESTART SERVER
+                                    PROBE SERVER
                                 </button>
                             </div>
                         </div>
@@ -135,14 +133,14 @@ export const EngineeringDiagnostics = ({
                 )}
 
                 {subTab === 'mens' && (
-                    <div className="h-full min-h-[400px] border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center p-8 text-center relative">
+                    <div className="min-h-[500px] flex-1 border border-border rounded-xl overflow-hidden bg-surface shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center p-8 text-center relative">
                         <BrainCircuit size={48} className="text-primary mb-4 drop-shadow-[0_0_15px_var(--vox-amber-glow)]" />
                         <h3 className="font-rajdhani text-xl text-brass tracking-widest uppercase mb-2">Mens ML Training</h3>
                         <p className="text-steel font-mono text-[10px] leading-relaxed max-w-sm mb-6">
                             Local model refinement pipeline. Synchronize FableForge schemas and Vox QLoRA datasets to continuously align Populi reasoning behavior.
                         </p>
                         <button 
-                            onClick={() => vscode.postMessage({ type: 'runTerminalCommand', value: 'vox mens train\n' })}
+                            onClick={() => voxTransport.callTool('vox_schola_submit', { description: 'Initiate training cycle via dashboard' })}
                             className="px-6 py-2 bg-primary text-black font-rajdhani font-bold text-sm tracking-widest uppercase border border-transparent hover:bg-amber-400 hover:border-black shadow-[0_0_10px_var(--vox-amber-glow)] transition-all rounded"
                         >
                             INITIATE TRAINING CYCLE

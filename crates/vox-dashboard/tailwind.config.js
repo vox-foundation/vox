@@ -34,6 +34,9 @@ module.exports = {
           DEFAULT: "var(--vox-cyan)",
           foreground: "#000000",
         },
+        cyan: {
+          DEFAULT: "var(--vox-cyan)",
+        },
         destructive: {
           DEFAULT: "#EF4444",
           foreground: "#FFFFFF",

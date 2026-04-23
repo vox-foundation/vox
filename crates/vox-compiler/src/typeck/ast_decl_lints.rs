@@ -8,6 +8,57 @@ use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppr
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
+
+fn relative_luminance(hex: &str) -> Option<f32> {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() != 6 { return None; }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()? as f32 / 255.0;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()? as f32 / 255.0;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()? as f32 / 255.0;
+
+    let f = |c: f32| -> f32 {
+        if c <= 0.03928 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+    };
+
+    Some(0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b))
+}
+
+fn contrast_ratio(l1: f32, l2: f32) -> f32 {
+    let lighter = l1.max(l2);
+    let darker = l1.min(l2);
+    (lighter + 0.05) / (darker + 0.05)
+}
+
+fn check_theme_decl(t: &crate::ast::decl::ui::ThemeDecl, diags: &mut Vec<Diagnostic>) {
+    for (variant_name, variant_props) in [("light", &t.light), ("dark", &t.dark)] {
+        let get_color = |name: &str| -> Option<f32> {
+            variant_props.iter().find(|(k, _)| k == name).and_then(|(_, v)| relative_luminance(v))
+        };
+        
+        let check_contrast = |bg_key: &str, fg_key: &str, alt_fg_key: &str, diags: &mut Vec<Diagnostic>| {
+            let bg = get_color(bg_key);
+            let fg = get_color(fg_key).or_else(|| get_color(alt_fg_key));
+            if let (Some(b), Some(f)) = (bg, fg) {
+                let ratio = contrast_ratio(b, f);
+                if ratio < 4.5 {
+                    diags.push(Diagnostic {
+                        message: format!("@theme '{}' ({}) has poor contrast ({:.2}:1) between {} and {}. WCAG minimum is 4.5:1.", t.name, variant_name, ratio, bg_key, fg_key),
+                        span: t.span,
+                        severity: TypeckSeverity::Warning,
+                        expected_type: None, found_type: None, context: None,
+                        suggestions: vec![format!("Adjust {} or {} to improve readability.", bg_key, fg_key)],
+                        category: DiagnosticCategory::Lint,
+                        code: Some("lint.theme_contrast".into()),
+                        fixes: vec![], line_col: None, missing_cases: vec![], ast_node_kind: None,
+                    });
+                }
+            }
+        };
+
+        check_contrast("--color-bg", "--color-text", "--color-fg", diags);
+        check_contrast("--color-btn-bg", "--color-btn-text", "--color-btn-fg", diags);
+    }
+}
 fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
     match te {
         TypeExpr::Named { name, .. } => {
@@ -455,6 +506,7 @@ pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
                 }
             }
             Decl::SearchIndex(si) => check_search_index_decl(&env, si, &mut diags),
+            Decl::Theme(t) => check_theme_decl(t, &mut diags),
             _ => {}
         }
     }
