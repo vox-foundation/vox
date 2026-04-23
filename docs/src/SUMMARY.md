@@ -186,6 +186,10 @@ training_eligible: false
 - [Document maintenance protocol](architecture/planning-meta/10-document-maintenance-protocol.md)
 - [Documentation hygiene and AI-agent guidelines 2026](archive/research-2026-q1/doc-hygiene-agent-guidelines-2026.md)
 - [Exception and deferral policy](architecture/planning-meta/09-exception-deferral-policy.md)
+- [FFScript Linter Engine Design (T-046)](architecture/ffscript-linter-design-2026.md)
+- [FFScript Mutation API Spec (T-041)](architecture/ffscript-mutation-api-spec-2026.md)
+- [FFScript Panel Schema Spec (v0.2.0)](architecture/ffscript-panel-schema-spec-2026.md)
+- [FableForge Roadmap Audit — 2026-04-23](architecture/fableforge-roadmap-audit-2026-04-23.md)
 - [Fast LLM instruction plan](architecture/planning-meta/02-fast-llm-instruction-plan.md)
 - [Feature growth and boundaries SSOT (2026)](architecture/feature-growth-boundaries.md)
 - [Feature growth boundaries](archive/research-2026-q1/feature-growth-boundaries.md)
@@ -463,6 +467,7 @@ training_eligible: false
 ## Status: Current
 
 - [CLI baseline metrics](ci/cli-baseline-metrics.md)
+- [Coolify Deployment Contract](ci/deploy-contract.md)
 - [Documentation authority pointers](ci/documentation-pointers.md)
 
 ## Status: Legacy
@@ -504,6 +509,7 @@ training_eligible: false
 - [ADR 020: Populi mesh scaling — default transport posture](adr/020-populi-mesh-scaling-transport-default.md)
 - [ADR 021: Generated workflow durability parity](adr/021-generated-workflow-durability-parity.md)
 - [ADR 023: Optional telemetry remote upload](adr/023-optional-telemetry-remote-upload.md)
+- [ADR 024 — Dashboard as local Axum-served SPA](adr/024-dashboard-axum-spa.md)
 - [Acceptance runbook — Mens HF fine-tune convergence](archive/research-2026-q1/mens-finetune-acceptance-runbook.md)
 - [Agent Messaging & Orchestration Roadmap (Aspirational)](archive/research-2026-q1/agent-messaging-orchestration-roadmap.md)
 - [Agent Quick Reference](reference/agent-quick-reference.md)

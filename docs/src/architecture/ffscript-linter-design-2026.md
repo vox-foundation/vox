@@ -68,6 +68,31 @@ export interface LintLocation {
   path?:        string;
 }
 
+// ─── Serializable fix descriptor (mirrors Vox DiagnosticFix) ─────────────────
+//
+// Fixes are JSON-serializable so they can be:
+//   • stored on the gameDrafts.lintReport Convex row
+//   • shipped to the CLI `--fix` mode over the wire
+//   • applied in a replay loop without closures
+//
+// The engine resolves a fix descriptor → FFScriptDoc mutations at apply-time,
+// not at check-time. Rules emit descriptors; the engine knows how to apply them.
+
+export type FixKind =
+  | { type: "regenerate_panel_id"; panelId: string }
+  | { type: "repair_panel_order" }                    // reassign 0..N-1 preserving sort
+  | { type: "repair_reading_order"; panelId: string } // reassign 1..N preserving sort
+  | { type: "remove_placement"; placementId: string }
+  | { type: "set_speaker_null"; bubbleId: string }    // demote orphaned speaker to narrator
+  ;
+
+export interface LintFix {
+  /** Human-readable label shown in the UI "Apply fix" button. */
+  label:   string;
+  /** Machine-applicable repair descriptor. */
+  kind:    FixKind;
+}
+
 // ─── A single lint finding ────────────────────────────────────────────────────
 
 export interface LintResult {
@@ -80,10 +105,11 @@ export interface LintResult {
   detail?:   string;
   location:  LintLocation;
   /**
-   * If the rule supports autofix (T-050), this function returns the mutation(s)
-   * needed to repair the issue. The engine calls this only when --fix is requested.
+   * If the rule supports autofix (T-050), supply a serializable fix descriptor.
+   * The engine's fix() method resolves this to FFScriptDoc mutations.
+   * Must be undefined when LintRule.fixable = false.
    */
-  fix?:      (doc: import("../mutations").FFScriptDoc) => void;
+  fix?:      LintFix;
 }
 
 // ─── A lint rule ──────────────────────────────────────────────────────────────
@@ -145,10 +171,17 @@ export class LintEngine {
   lint(doc: FFScriptV02): LintReport;
 
   /**
-   * Apply all fixable rules' autofix mutations to the doc (T-050).
-   * Returns the number of fixes applied and a new LintReport showing remaining findings.
+   * Apply all fixable LintFix descriptors to the doc (T-050).
+   * Resolves each FixKind → FFScriptDoc mutation call.
+   * Runs fixes in dependency order (panel ID repairs before order repairs).
+   * Re-lints after applying; returns fixes applied count and updated report.
    */
   fix(doc: import("../mutations").FFScriptDoc): { fixesApplied: number; report: LintReport };
+
+  /**
+   * Apply a single fix descriptor to the doc (for "Apply this fix" button in the UI).
+   */
+  applyFix(doc: import("../mutations").FFScriptDoc, fix: LintFix): void;
 
   /** Retrieve the full list of enabled rules (useful for tooling / --help). */
   get rules(): LintRule[];

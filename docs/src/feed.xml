@@ -5,24 +5,15 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Thu, 23 Apr 2026 05:35:11 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 23 Apr 2026 19:19:59 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
-
-  <item>
-    <title>Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns</title>
-    <link>https://vox-lang.org/architecture/nextgen-orchestrator-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/nextgen-orchestrator-research-2026.html</guid>
-    <description>Comprehensive research synthesis covering enterprise AI orchestration failure modes, native-systems performance advantages, multi-provider routing semantics, autonomous FinOps, hallucination prevention, mesh GPU architecture, multi-agent coherence, and the rationale for AI-first domain-specific languages.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
 
   <item>
     <title>ADR 001 — Burn Backend Selection for vox-tensor</title>
     <link>https://vox-lang.org/adr/001-burn-backend-selection.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/001-burn-backend-selection.html</guid>
     <description>Official documentation for ADR 001 — Burn Backend Selection for vox-tensor for the Vox language. Detailed technical reference, architectu</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -32,7 +23,7 @@
     <link>https://vox-lang.org/adr/002-diataxis-doc-architecture.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/002-diataxis-doc-architecture.html</guid>
     <description>Grounded documentation architecture for Vox: mdBook front door, contributor surfaces, contracts, and status vocabulary.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -42,7 +33,7 @@
     <link>https://vox-lang.org/adr/003-native-training-over-python.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/003-native-training-over-python.html</guid>
     <description>Historical move off Python/Unsloth; current Mens training is native Candle + qlora-rs QLoRA via vox mens train (see mens-training SSOT).</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -52,7 +43,7 @@
     <link>https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</guid>
     <description>Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -62,7 +53,7 @@
     <link>https://vox-lang.org/adr/005-socrates-anti-hallucination-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/005-socrates-anti-hallucination-ssot.html</guid>
     <description>Official documentation for ADR 005: Socrates anti-hallucination SSOT for the Vox language. Detailed technical reference, architecture gui</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -72,7 +63,7 @@
     <link>https://vox-lang.org/adr/006-mens-full-graph-qlora-qlora-rs.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/006-mens-full-graph-qlora-qlora-rs.html</guid>
     <description>Official documentation for ADR 006: Mens full-graph Candle QLoRA with qlora-rs for the Vox language.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -82,7 +73,7 @@
     <link>https://vox-lang.org/adr/007-qlora-rs-multi-layer-training-api.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/007-qlora-rs-multi-layer-training-api.html</guid>
     <description>Official documentation for ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate) for the Vox language.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -92,7 +83,7 @@
     <link>https://vox-lang.org/adr/008-populi-transport.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/008-populi-transport.html</guid>
     <description>Official documentation for ADR 008: Mens transport for the Vox language. Detailed technical reference, architecture guides, and implement</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -102,7 +93,7 @@
     <link>https://vox-lang.org/adr/009-populi-hosted-baas.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/009-populi-hosted-baas.html</guid>
     <description>Official documentation for ADR 009: Hosted mens / BaaS (future scope) for the Vox language. Detailed technical reference, architecture gu</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -112,7 +103,7 @@
     <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
     <description>Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -122,7 +113,7 @@
     <link>https://vox-lang.org/adr/011-scientia-publication-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/011-scientia-publication-ssot.html</guid>
     <description>Unifies Scientia, news, and scholarly submission around one publication manifest and digest-bound approvals.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -132,7 +123,7 @@
     <link>https://vox-lang.org/adr/012-internal-web-ir-strategy.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/012-internal-web-ir-strategy.html</guid>
     <description>Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -142,7 +133,7 @@
     <link>https://vox-lang.org/adr/013-openclaw-ws-native-strategy.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/013-openclaw-ws-native-strategy.html</guid>
     <description>Official documentation for ADR 013 — OpenClaw WS-first native interop for the Vox language.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -152,7 +143,7 @@
     <link>https://vox-lang.org/adr/014-async-openai-selective-adoption-spike.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/014-async-openai-selective-adoption-spike.html</guid>
     <description>Bounded spike: whether to adopt the async-openai crate after internal OpenAI-compat unification</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -162,7 +153,7 @@
     <link>https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</guid>
     <description>Formalizes Docker/OCI-backed application portability, layered SSOT boundaries, and the rule against a portability god object.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -172,7 +163,7 @@
     <link>https://vox-lang.org/adr/016-oratio-streaming-whisper-and-constrained-decode.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/016-oratio-streaming-whisper-and-constrained-decode.html</guid>
     <description>Decide how Vox ships wire-level streaming Whisper and decoder-time constrained generation in Candle.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -182,7 +173,7 @@
     <link>https://vox-lang.org/adr/017-populi-lease-remote-execution.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/017-populi-lease-remote-execution.html</guid>
     <description>Normative target model for single-owner lease semantics, A2A transport, and local fallback when promoting remote execution beyond best-effort relay.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -192,7 +183,7 @@
     <link>https://vox-lang.org/adr/018-populi-gpu-truth-layering.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/018-populi-gpu-truth-layering.html</guid>
     <description>Normative layering between probe-backed hardware facts, allocatable capacity, and operator policy labels for Populi scheduling.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -202,7 +193,7 @@
     <link>https://vox-lang.org/adr/019-durable-workflow-journal-contract-v1.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/019-durable-workflow-journal-contract-v1.html</guid>
     <description>Freeze the interpreted workflow durability boundary, replay source of truth, and v1 event contract.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -212,7 +203,7 @@
     <link>https://vox-lang.org/adr/020-populi-mesh-scaling-transport-default.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/020-populi-mesh-scaling-transport-default.html</guid>
     <description>Records the decision to keep the HTTP control plane as the default scaling surface and when to adopt gossip or QUIC.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -222,7 +213,7 @@
     <link>https://vox-lang.org/adr/021-generated-workflow-durability-parity.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/021-generated-workflow-durability-parity.html</guid>
     <description>Defines the compatibility contract for bringing generated Rust workflows to durable replay parity.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -232,7 +223,7 @@
     <link>https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</guid>
     <description>Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
@@ -242,19 +233,28 @@
     <link>https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</guid>
     <description>Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+    <title>ADR 024 — Dashboard as local Axum-served SPA</title>
+    <link>https://vox-lang.org/adr/024-dashboard-axum-spa.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/024-dashboard-axum-spa.html</guid>
+    <description>Decision record for migrating the Vox dashboard from a VS Code webview to a standalone Axum-served SPA.</description>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR-024: Formal Intent and Tool Receipt Auditing</title>
+    <link>https://vox-lang.org/adr/024-formal-intent.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/024-formal-intent.html</guid>
+    <description>Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem.</description>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>

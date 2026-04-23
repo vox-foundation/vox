@@ -1,3 +1,8 @@
+---
+title: "Coolify Deployment Contract"
+description: "Automated CI/CD pipeline definition for the Hetzner VPS including LLM auto-healing loops."
+category: "ci"
+---
 # Coolify Deployment Contract
 
 This document outlines the deployment contract and automated CI/CD pipeline for the Vox ecosystem deployed to the Hetzner VPS via Coolify.
