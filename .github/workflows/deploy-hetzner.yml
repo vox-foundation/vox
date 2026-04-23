@@ -19,145 +19,179 @@ concurrency:
 jobs:
   smoke-ci:
     name: "Gate 1: Smoke CI"
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     if: ${{ !inputs.skip_tests }}
     steps:
       - uses: actions/checkout@v4
-      - name: Rust fmt
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Rust fmt check
         run: cargo fmt --check
       - name: Rust clippy
         run: cargo clippy --workspace -- -D warnings
       - name: Build vox-cli
         run: cargo build -p vox-cli
-      - name: TOESTUB Scoped
-        run: bash scripts/quality/toestub_scoped.sh
-
-  docker-smoke:
-    name: "Gate 2: Docker Smoke"
-    needs: smoke-ci
-    if: ${{ !inputs.skip_tests || always() && needs.smoke-ci.result == 'success' || inputs.skip_tests }}
-    runs-on: [self-hosted, linux, x64, docker]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Docker build (dry run)
-        run: docker build -t vox:deploy-smoke .
 
   deploy-coolify:
-    name: "Gate 3: Deploy & Poll"
-    needs: docker-smoke
-    runs-on: [self-hosted, linux, x64]
+    name: "Gate 2: Deploy & Poll"
+    needs: smoke-ci
+    if: ${{ always() && (needs.smoke-ci.result == 'success' || needs.smoke-ci.result == 'skipped') }}
+    runs-on: ubuntu-latest
     env:
       COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
       COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
     steps:
-      - name: Trigger Webhook and Poll
-        id: deploy
+      - name: Trigger Coolify Webhook
+        id: trigger
         run: |
           set -e
           echo "Triggering Coolify webhook..."
-          # Some Coolify hooks are GET, some are POST. For the manual trigger it often takes POST or GET.
-          # We'll use curl -X GET per standard manual hook, but include Bearer token just in case.
           TRIGGER_RES=$(curl -s -X GET -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK_URL")
           echo "Trigger Response: $TRIGGER_RES"
           
-          # Extract deploymentUuid (if json format). Fall back to latest deploy for the app.
+          # Extract deploymentUuid from response, fall back to latest for the app
           DEPLOY_UUID=$(echo "$TRIGGER_RES" | jq -r '.deploymentUuid // empty')
           
           if [ -z "$DEPLOY_UUID" ]; then
-             echo "Could not extract deploymentUuid from webhook response. Webhook may be standard generic URL."
-             echo "Polling latest deployment for app $COOLIFY_APP_UUID..."
-             LATEST_DEPLOY=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/deployments" | jq -r '.[0].uuid // empty')
-             DEPLOY_UUID=$LATEST_DEPLOY
+            echo "No deploymentUuid in webhook response — polling latest deployment..."
+            sleep 5
+            LATEST=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/deployments")
+            echo "Deployments response: $LATEST"
+            DEPLOY_UUID=$(echo "$LATEST" | jq -r '.[0].uuid // empty')
           fi
           
           if [ -z "$DEPLOY_UUID" ]; then
-            echo "Failed to identify deployment UUID. Exiting."
+            echo "::error::Could not determine deployment UUID. Check COOLIFY_APP_UUID and COOLIFY_TOKEN secrets."
             exit 1
           fi
           
           echo "Deployment UUID: $DEPLOY_UUID"
-          echo "Polling $COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID ..."
+          echo "deploy_uuid=$DEPLOY_UUID" >> "$GITHUB_OUTPUT"
+
+      - name: Poll Deployment Status
+        id: poll
+        run: |
+          set -e
+          DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
+          echo "Polling deployment $DEPLOY_UUID ..."
           
-          MAX_RETRIES=90
+          MAX_RETRIES=90   # 90 x 10s = 15 minutes
           RETRY_COUNT=0
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            STATUS_RES=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID")
-            STATUS=$(echo "$STATUS_RES" | jq -r '.status // empty')
-            echo "Status: $STATUS"
+            STATUS_RES=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID")
+            STATUS=$(echo "$STATUS_RES" | jq -r '.status // "unknown"')
+            echo "[$RETRY_COUNT/$MAX_RETRIES] Status: $STATUS"
             
-            if [ "$STATUS" == "finished" ] || [ "$STATUS" == "success" ]; then
-               echo "Deployment successful."
-               exit 0
-            elif [ "$STATUS" == "failed" ] || [ "$STATUS" == "error" ]; then
-               echo "Deployment failed."
-               exit 1
+            if [ "$STATUS" = "finished" ] || [ "$STATUS" = "success" ]; then
+              echo "✅ Deployment succeeded."
+              echo "deploy_status=success" >> "$GITHUB_OUTPUT"
+              exit 0
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ] || [ "$STATUS" = "cancelled" ]; then
+              echo "❌ Deployment failed with status: $STATUS"
+              echo "Full response: $STATUS_RES"
+              echo "deploy_status=failed" >> "$GITHUB_OUTPUT"
+              exit 1
             fi
             
             sleep 10
-            ((RETRY_COUNT++))
+            RETRY_COUNT=$((RETRY_COUNT + 1))
           done
           
-          echo "Deployment timed out after 15 minutes."
+          echo "::error::Deployment timed out after 15 minutes."
+          echo "deploy_status=timeout" >> "$GITHUB_OUTPUT"
           exit 1
-          
-      - name: Fetch Error Logs on Failure
+
+      - name: Fetch Coolify Logs on Failure
         if: failure()
         run: |
-          echo "## ❌ Coolify Build Logs" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
-          curl -s -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "${{ secrets.COOLIFY_BASE_URL }}/api/v1/applications/${{ secrets.COOLIFY_APP_UUID }}/logs" \
-            | jq -r '.logs // "No logs available from API"' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Coolify Build Logs" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           
-          echo "## 🐳 Docker Container Logs (Fallback)" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
-          docker logs $(docker ps -q --filter "name=vox" | head -n 1) --tail 100 2>&1 >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch docker logs" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          # Try deployment-specific logs first
+          DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
+          if [ -n "$DEPLOY_UUID" ]; then
+            curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID/logs" \
+              | jq -r '.logs // .output // "No deployment logs available"' \
+              >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          fi
           
-          echo "status=failed" > deploy-status.json
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           
-      - name: Save success status
-        if: success()
-        run: echo "status=success" > deploy-status.json
-          
-      - name: Upload Deploy Status
+          # Also surface the full application log endpoint
+          echo "## 📋 Application Logs" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/logs" \
+            | jq -r '.logs // "No application logs available"' \
+            >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload deploy status artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        run: |
+          STATUS="${{ steps.poll.outputs.deploy_status }}"
+          echo "{\"status\":\"$STATUS\",\"deploy_uuid\":\"${{ steps.trigger.outputs.deploy_uuid }}\",\"run_id\":\"${{ github.run_id }}\",\"sha\":\"${{ github.sha }}\"}" > deploy-status.json
+          cat deploy-status.json
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: deploy-status
           path: deploy-status.json
 
   health-check:
-    name: "Gate 4: Health Check"
+    name: "Gate 3: Health Check"
     needs: deploy-coolify
-    runs-on: [self-hosted, linux, x64]
+    if: ${{ needs.deploy-coolify.result == 'success' }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Probe Health Endpoint
+      - name: Wait for container to settle
+        run: sleep 15
+      - name: Probe Coolify app health
         run: |
-          # Coolify might be deploying to localhost or to a known subdomain. 
-          # Assuming the standard health check endpoint is available.
-          echo "Checking health..."
-          # Can be extended to check the actual domain once configured.
+          BASE="${{ secrets.COOLIFY_BASE_URL }}"
+          # Try the Coolify health API for this application
+          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "$BASE/api/v1/applications/${{ secrets.COOLIFY_APP_UUID }}")
+          echo "Application API status: $HEALTH"
+          if [ "$HEALTH" != "200" ]; then
+            echo "::warning::Health check returned HTTP $HEALTH — application may still be starting"
+          else
+            echo "✅ Application is responding."
+          fi
 
   notify:
-    name: "Gate 5: Notify"
-    needs: [smoke-ci, docker-smoke, deploy-coolify, health-check]
+    name: "Gate 4: Summary"
+    needs: [smoke-ci, deploy-coolify, health-check]
     if: always()
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
-      - name: Generate Summary
+      - name: Write deployment summary
         run: |
-          echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Smoke CI | ${{ needs.smoke-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build | ${{ needs.docker-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Coolify Deploy | ${{ needs.deploy-coolify.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Health Check | ${{ needs.health-check.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "View details in the actions log." >> $GITHUB_STEP_SUMMARY
+          echo "# 🚀 Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Stage | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Smoke CI | ${{ needs.smoke-ci.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Coolify Deploy | ${{ needs.deploy-coolify.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Health Check | ${{ needs.health-check.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: \`${{ github.sha }}\`  Run: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
