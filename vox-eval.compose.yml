@@ -11,7 +11,14 @@ services:
   eval:
     # Pre-built by GitHub Actions → ghcr.io (avoids OOM on memory-constrained VPS).
     # Workflow: .github/workflows/docker-eval.yml
-    image: ghcr.io/vox-foundation/vox-eval:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Minimal features to avoid OOM on VPS
+        VOX_CLI_FEATURES: ""
+        CARGO_BUILD_JOBS: "1"
+
     container_name: vox-eval-sandbox
     restart: unless-stopped
     command: ["vox", "mcp"]
