@@ -20,9 +20,9 @@ COPY crates/ crates/
 # `Cargo.lock` (no `vox sync` in this Dockerfile).
 # `--locked` keeps the Rust dependency graph reproducible (same policy as `vox ci manifest`).
 RUN if [ -z "$VOX_CLI_FEATURES" ]; then \
-      cargo build --release --locked -p vox-cli && strip /app/target/release/vox; \
+      cargo build --release -j 1 --locked -p vox-cli && strip /app/target/release/vox; \
     else \
-      cargo build --release --locked -p vox-cli --features "$VOX_CLI_FEATURES" && strip /app/target/release/vox; \
+      cargo build --release -j 1 --locked -p vox-cli --features "$VOX_CLI_FEATURES" && strip /app/target/release/vox; \
     fi
 
 # Runtime image — no Rust toolchain, just the binary + TLS certs

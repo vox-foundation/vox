@@ -1,0 +1,8 @@
+target/
+.git/
+node_modules/
+dist/
+scratch/
+build/
+.vox/
+docs/
