@@ -41,6 +41,7 @@ training_eligible: false
 - [FFScript Mutation API Spec (T-041)](architecture/ffscript-mutation-api-spec-2026.md)
 - [FFScript Panel Schema Spec (v0.2.0)](architecture/ffscript-panel-schema-spec-2026.md)
 - [FableForge Roadmap Audit — 2026-04-23](architecture/fableforge-roadmap-audit-2026-04-23.md)
+- [FableForge — Developer Handoff Brief](architecture/fableforge-impl/HANDOFF.md)
 - [Fast LLM instruction plan](architecture/planning-meta/02-fast-llm-instruction-plan.md)
 - [Feature growth and boundaries SSOT (2026)](architecture/feature-growth-boundaries.md)
 - [Inference Tuning Resolution Research 2026](architecture/inference-tuning-resolution-research-2026.md)

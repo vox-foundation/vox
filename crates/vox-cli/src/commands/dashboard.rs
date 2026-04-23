@@ -100,11 +100,29 @@ impl DashboardLauncher {
             println!("[VOX_DASHBOARD_READY: {}]", url);
             if self.open {
                 #[cfg(target_os = "windows")]
-                let _ = std::process::Command::new("cmd").args(&["/C", "start", &url]).spawn();
+                {
+                    if self.app_mode {
+                        let _ = std::process::Command::new("cmd").args(&["/C", "start", "chrome", &format!("--app={}", url)]).spawn();
+                    } else {
+                        let _ = std::process::Command::new("cmd").args(&["/C", "start", &url]).spawn();
+                    }
+                }
                 #[cfg(target_os = "macos")]
-                let _ = std::process::Command::new("open").arg(&url).spawn();
+                {
+                    if self.app_mode {
+                        let _ = std::process::Command::new("open").arg("-n").arg("-a").arg("Google Chrome").arg(&format!("--args --app={}", url)).spawn();
+                    } else {
+                        let _ = std::process::Command::new("open").arg(&url).spawn();
+                    }
+                }
                 #[cfg(target_os = "linux")]
-                let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+                {
+                    if self.app_mode {
+                        let _ = std::process::Command::new("google-chrome").arg(&format!("--app={}", url)).spawn();
+                    } else {
+                        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+                    }
+                }
             }
         } else {
             eprintln!("Warning: Daemon did not bind to port {} within 10 seconds.", self.port);
