@@ -25,13 +25,11 @@ training_eligible: false
   ========================================================================
 -->
 
-- [Populi GPU truth probe specification (Native Layer A)](archive/research-2026-q1/populi-gpu-truth-probe-spec.md)
 
 # Getting Started
 
 ## Status: Current
 
-- [Vox: The AI-Native Programming Language](index.md)
 - [Getting Started with Vox](tutorials/tut-getting-started.md)
 
 
@@ -200,8 +198,6 @@ training_eligible: false
 - [LLM Target Language: Explicit Implementation Plan (April 2026)](archive/research-2026-q1/llm-target-language-implementation-plan-2026.md)
 - [Legacy retirement roadmap (2026)](archive/research-2026-q1/legacy-retirement-roadmap.md)
 - [Ludus / gamify schema inventory (SSOT pointers)](archive/research-2026-q1/ludus-schema-inventory.md)
-- [Ludus Adjudication System — Implementation Plan (2026)](architecture/ludus-adjudication-implementation-plan-2026.md)
-- [Ludus Security and Anti-Cheat Architecture (Research 2026)](architecture/ludus-security-and-anti-cheat-research-2026.md)
 - [Ludus: scope and non-goals](archive/research-2026-q1/ludus-non-goals.md)
 - [Maintainability hotspot matrix (baseline)](archive/research-2026-q1/maintainability-hotspot-matrix.md)
 - [Master planning index](architecture/planning-meta/01-master-planning-index.md)
@@ -229,7 +225,6 @@ training_eligible: false
 - [React interop full-repo migration charter (2026)](archive/research-2026-q1/react-interop-migration-charter-2026.md)
 - [React interop migration backlog (2026)](archive/research-2026-q1/react-interop-backlog-2026.md)
 - [Research baseline and source-of-truth map](architecture/planning-meta/00-research-baseline-source-map.md)
-- [Research: Workspace Health & Dependency Governance (2026)](architecture/workspace-health-audit-research-2026.md)
 - [Rust ecosystem support SSOT](archive/research-2026-q1/rust-ecosystem-support-ssot.md)
 - [SCIENTIA A2A evidence-gathering tasks](archive/research-2026-q1/scientia-a2a-evidence-tasks.md)
 - [SSOT / DRY convergence roadmap](archive/research-2026-q1/ssot-convergence-roadmap.md)
@@ -245,19 +240,17 @@ training_eligible: false
 - [Telemetry client disclosure SSOT](archive/research-2026-q1/telemetry-client-disclosure-ssot.md)
 - [Telemetry remote sink specification](archive/research-2026-q1/telemetry-remote-sink-spec.md)
 - [Telemetry trust boundary and SSOT map](archive/research-2026-q1/telemetry-trust-ssot.md)
-- [Telemetry-Driven Cost Accounting Architecture (2026)](architecture/telemetry-driven-cost-accounting-research-2026.md)
 - [Trust Reliability Layer (SSOT)](archive/research-2026-q1/trust-reliability-layer.md)
 - [Unified News Syndication Security & Safety](archive/research-2026-q1/news_syndication_security.md)
 - [Vox Architectural Organization & Governance](archive/research-2026-q1/vox-organization.md)
-- [Vox Architecture & Research Index (2026)](architecture/research-index.md)
 - [Vox Configuration Architecture (SSOT)](archive/research-2026-q1/config-ssot.md)
+- [Vox Dashboard Migration Research (April 2026)](architecture/dashboard-migration-research-2026.md)
 - [Vox Docker-backed portability implementation plan 2026](archive/research-2026-q1/vox-docker-dotvox-portability-implementation-plan-2026.md)
 - [Vox Docker-backed portability research 2026](archive/research-2026-q1/vox-docker-dotvox-portability-research-2026.md)
-- [Vox Language Benchmark: Developer Velocity & K-Complexity (2026)](architecture/language-benchmark-2026.md)
+- [Vox Docs Portal: Astro Starlight Strategy 2026](architecture/starlight-site-strategy-2026.md)
 - [Vox Language Focused Training SSOT](archive/research-2026-q1/vox-lang-training-ssot-2026.md)
 - [Vox Ludus integration contract (producers)](archive/research-2026-q1/ludus-integration-contract.md)
 - [Vox Memory System](archive/research-2026-q1/memory_system.md)
-- [Vox Orchestration Build Stabilization Findings (2026-04-21)](architecture/build-stabilization-findings-2026.md)
 - [Vox RAG and Autonomous Research Architecture 2026](archive/research-2026-q1/rag-and-research-architecture-2026.md)
 - [Vox React/v0 Interop Research Findings](archive/research-2026-q1/react-interop-research-findings-2026.md)
 - [Vox Security Model](archive/research-2026-q1/security_model.md)
@@ -273,10 +266,7 @@ training_eligible: false
 - [Vox packaging implementation blueprint](archive/research-2026-q1/vox-packaging-implementation-blueprint.md)
 - [Vox packaging research findings 2026](archive/research-2026-q1/vox-packaging-research-findings-2026.md)
 - [Vox shell operations boundaries](archive/research-2026-q1/vox-shell-operations-boundaries.md)
-- [Vox v0.5 Core Architecture SSOT](architecture/v0.5-core-ssot.md)
-- [Vox v1.0 Release Criteria (Hardened)](architecture/v1-release-criteria.md)
 - [Vox web stack SSOT](archive/research-2026-q1/vox-web-stack-ssot.md)
-- [Vox: The Agentic Foundation for 2026](architecture/vox-marquee-explainer-2026.md)
 - [VoxDB connection policy (SSOT)](archive/research-2026-q1/voxdb-connect-policy.md)
 - [VoxGiantia publication architecture (beginner map)](archive/research-2026-q1/voxgiantia-publication-architecture.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
@@ -511,7 +501,6 @@ training_eligible: false
 - [ADR 020: Populi mesh scaling — default transport posture](adr/020-populi-mesh-scaling-transport-default.md)
 - [ADR 021: Generated workflow durability parity](adr/021-generated-workflow-durability-parity.md)
 - [ADR 023: Optional telemetry remote upload](adr/023-optional-telemetry-remote-upload.md)
-- [AI IDE Feature Matrix (2026)](reference/ai-ide-feature-matrix.md)
 - [Acceptance runbook — Mens HF fine-tune convergence](archive/research-2026-q1/mens-finetune-acceptance-runbook.md)
 - [Agent Messaging & Orchestration Roadmap (Aspirational)](archive/research-2026-q1/agent-messaging-orchestration-roadmap.md)
 - [Agent Quick Reference](reference/agent-quick-reference.md)
@@ -602,7 +591,6 @@ training_eligible: false
 - [Reference: Decorator Registry](reference/ref-decorators.md)
 - [Reference: Type System](reference/ref-type-system.md)
 - [Repo reconstruction benchmark ladder](reference/repo-reconstruction-benchmark-ladder.md)
-- [Repository Root Files](reference/repo-root-files.md)
 - [Research Notes: Achieving Serverless-like Performance with MCP](explanation/mcp_serverless_research.md)
 - [Review Anti-Pattern Catalog Contract](reference/review-antipattern-catalog-contract.md)
 - [Review Fix Pairs Contract](reference/review-fix-pairs-contract.md)
@@ -645,12 +633,25 @@ training_eligible: false
 - [Vox full-stack web UI — single source of truth](reference/vox-web-stack.md)
 - [Vox portability SSOT](reference/vox-portability-ssot.md)
 - [Web Model Reference](reference/ref-web-model.md)
-- [What's Shipped Today](reference/shipped-v0.4.md)
 - [Workflow enumeration (GitHub Actions)](ci/workflow-enumeration.md)
 - [Workspace root `Cargo.toml` (fix forward)](ci/workspace-root-manifest.md)
 - [Zig-Inspired Deployment Architecture](explanation/zig-inspired-deployment.md)
+- [ai-ide-feature-matrix](reference/ai-ide-feature-matrix.md)
+- [build-stabilization-findings-2026](architecture/build-stabilization-findings-2026.md)
 - [cli](reference/cli.md)
+- [language-benchmark-2026](architecture/language-benchmark-2026.md)
+- [ludus-adjudication-implementation-plan-2026](architecture/ludus-adjudication-implementation-plan-2026.md)
+- [ludus-security-and-anti-cheat-research-2026](architecture/ludus-security-and-anti-cheat-research-2026.md)
+- [populi-gpu-truth-probe-spec](archive/research-2026-q1/populi-gpu-truth-probe-spec.md)
+- [repo-root-files](reference/repo-root-files.md)
+- [research-index](architecture/research-index.md)
+- [shipped-v0.4](reference/shipped-v0.4.md)
+- [telemetry-driven-cost-accounting-research-2026](architecture/telemetry-driven-cost-accounting-research-2026.md)
+- [v0.5-core-ssot](architecture/v0.5-core-ssot.md)
+- [v1-release-criteria](architecture/v1-release-criteria.md)
 - [vox-cli build and feature inventory](archive/research-2026-q1/vox-cli-build-feature-inventory.md)
+- [vox-marquee-explainer-2026](architecture/vox-marquee-explainer-2026.md)
+- [workspace-health-audit-research-2026](architecture/workspace-health-audit-research-2026.md)
 
 ## Status: Legacy
 
